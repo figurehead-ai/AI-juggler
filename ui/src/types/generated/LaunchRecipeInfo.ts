@@ -31,4 +31,9 @@ model: string | null,
 /**
  * Default working directory, if any.
  */
-default_cwd: string | null, };
+default_cwd: string | null, 
+/**
+ * AJ-E1509: restart its crashed sessions — `null` follows Settings ›
+ * Sessions.
+ */
+restart_on_crash: boolean | null, };

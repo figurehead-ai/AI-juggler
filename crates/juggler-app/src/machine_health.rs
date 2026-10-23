@@ -16,6 +16,9 @@
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+pub use crate::machine_recommendations::recommendations;
+pub use crate::machine_tools::{ToolGroupInfo, ToolTotalsInfo};
+use crate::machine_tools::{by_tool, totals};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -274,10 +277,10 @@ pub struct MachineWatch {
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
     /// Bumped whenever footprints are written or pruned.
-    footprints_written: u64,
+    pub(crate) footprints_written: u64,
     /// What This Mac's recommendations read from storage (AJ-E1409),
     /// re-read only when footprints changed or after a minute (names).
-    advice_inputs: Option<AdviceInputs>,
+    pub(crate) advice_inputs: Option<crate::machine_recommendations::AdviceInputs>,
 }
 
 impl MachineWatch {
@@ -289,19 +292,6 @@ impl MachineWatch {
         self.ticks
     }
 }
-
-/// The storage half of the recommendations, cached between 5 s reads.
-#[derive(Debug, Clone)]
-struct AdviceInputs {
-    footprints_written: u64,
-    read_ms: i64,
-    stats: Vec<juggler_core::storage::FootprintStats>,
-    names: std::collections::HashMap<String, String>,
-}
-
-/// Launch-setting names may change without a footprint write; the cached
-/// advice inputs are re-read at least this often.
-const ADVICE_INPUTS_MAX_AGE_MS: i64 = 60_000;
 
 impl Default for MachineWatch {
     fn default() -> Self {
@@ -409,7 +399,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
 /// Before 3 footprints exist, a launch is assumed to take this much.
 const UNMEASURED_PROJECTION: u64 = 1_000_000_000;
 /// Projections need this many footprints of the launch setting.
-const MIN_FOOTPRINTS: u32 = 3;
+pub(crate) const MIN_FOOTPRINTS: u32 = 3;
 
 /// "Can this Mac take another session?" for one launch setting (AJ-E1407).
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
@@ -719,7 +709,7 @@ fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool, prune: b
                 .or_insert_with(|| {
                     TreePeaks::new(
                         format!("observed:{place}"),
-                        "claude-code".into(),
+                        OBSERVED_TOOL.into(),
                         None,
                         now_ms,
                     )
@@ -837,6 +827,10 @@ const HEAVY_EXIT_RATIO: f64 = 0.8;
 /// leave Needs you, the rail and the header and come back a minute later.
 const HEAVY_EXIT_MS: i64 = 45_000;
 
+/// The tool the observed trees are: `running_setups` finds the Claude app
+/// and `claude` outside it, nothing else yet.
+pub(crate) const OBSERVED_TOOL: &str = "claude-code";
+
 /// One process tree on This Mac: a session AI Juggler started, or an AI
 /// tool it did not (read-only; no actions).
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
@@ -851,6 +845,12 @@ pub struct ToolTreeInfo {
     /// For a tool AI Juggler did not start: `desktop` (the Claude app) or
     /// `terminal` (`claude` in a terminal).
     pub place: Option<String>,
+    /// The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
+    pub tool: Option<String>,
+    /// The `by_tool` group it is listed under (that group's `tool`, with
+    /// `ours` as `session_id` says): the This Mac page lists each group's
+    /// trees by it (AJ-E1528).
+    pub group: String,
     /// The Account it uses, when one of yours matches.
     pub account_label: Option<String>,
     /// CPU summed over the tree, percent of ONE core (can pass 100);
@@ -868,22 +868,6 @@ pub struct ToolTreeInfo {
     /// start, whose exact footprint needs an unsafe OS call). Show it as
     /// "about".
     pub memory_estimate: bool,
-}
-
-/// AI tools' share of the Mac.
-#[derive(Clone, PartialEq, Debug, Default, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ToolTotalsInfo {
-    /// How many trees.
-    pub count: u32,
-    /// The memory includes estimates (a tool AI Juggler didn't start).
-    pub memory_estimate: bool,
-    /// Share of the whole Mac's CPU (all cores), percent; `null` until
-    /// measured.
-    pub cpu_pct: Option<f64>,
-    /// Memory, bytes.
-    #[ts(type = "number")]
-    pub rss_bytes: u64,
 }
 
 /// Home's This Mac panel (AJ-E1403).
@@ -919,26 +903,10 @@ pub struct ThisMacInfo {
     /// Advice from this Mac's own history (AJ-E1409); empty until there
     /// is enough of it.
     pub recommendations: Vec<String>,
-}
-
-/// One AI tool's share of This Mac (the menu bar, AJ-E1411).
-#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ToolGroupInfo {
-    /// `claude-code`, `codex`, … for sessions AI Juggler started;
-    /// `desktop` | `terminal` for the Claude tools it didn't.
-    pub tool: String,
-    /// The tool in words ("Claude Code", "Claude app", "claude in a
-    /// terminal").
-    pub label: String,
-    /// Whether these are sessions AI Juggler started.
-    pub ours: bool,
-    /// The tool's figures, as [`ToolTotalsInfo`].
-    pub totals: ToolTotalsInfo,
-    /// CPU as Home's rows count it: the tool's trees summed, 100% is one
-    /// core busy (Activity Monitor's measure). `None` until every tree
-    /// is measured.
-    pub cpu_one_core_pct: Option<f64>,
+    /// AJ-E1509: what keeps the Mac awake for the sessions, and why.
+    pub awake: crate::features::app::awake::AwakeInfo,
+    /// AJ-E1509: AI Juggler itself (with its watchdog; opens at login).
+    pub own: crate::features::app::own::OwnInfo,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -950,8 +918,8 @@ pub struct TreeInput {
     pub session_id: Option<String>,
     /// `desktop` | `terminal` for observed trees.
     pub place: Option<&'static str>,
-    /// The Provider a session of ours runs (`claude-code`, `codex`, …).
-    pub provider: Option<String>,
+    /// The tool's id, when known.
+    pub tool: Option<String>,
     /// The matched Account's label.
     pub account_label: Option<String>,
     /// Tree sums.
@@ -1048,6 +1016,8 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         root_pid: tree.root_pid,
         session_id: tree.session_id.clone(),
         place: tree.place.map(str::to_string),
+        tool: tree.tool.clone(),
+        group: crate::machine_tools::group_of(tree),
         account_label: tree.account_label.clone(),
         cpu_pct: tree.stats.cpu_pct,
         rss_bytes: tree.stats.rss_bytes,
@@ -1055,76 +1025,6 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         heavy_note: heavy_note(tree),
         memory_estimate: tree.place.is_some(),
     }
-}
-
-#[allow(clippy::cast_precision_loss)] // shares for display
-fn totals(trees: &[&TreeInput], cores: u32) -> ToolTotalsInfo {
-    let measured: Vec<f64> = trees.iter().filter_map(|tree| tree.stats.cpu_pct).collect();
-    ToolTotalsInfo {
-        count: u32::try_from(trees.len()).unwrap_or(u32::MAX),
-        memory_estimate: trees.iter().any(|tree| tree.place.is_some()),
-        cpu_pct: (!trees.is_empty() && measured.len() == trees.len())
-            .then(|| (measured.iter().sum::<f64>() / f64::from(cores.max(1))).min(100.0))
-            .or_else(|| trees.is_empty().then_some(0.0)),
-        rss_bytes: trees.iter().map(|tree| tree.stats.rss_bytes).sum(),
-    }
-}
-
-/// CPU summed over trees as Home's rows count it (100% is one core);
-/// `None` while any tree is unmeasured.
-fn one_core(trees: &[&TreeInput]) -> Option<f64> {
-    trees
-        .iter()
-        .map(|tree| tree.stats.cpu_pct)
-        .sum::<Option<f64>>()
-}
-
-/// Each AI tool on its own: our sessions grouped by Provider (heaviest
-/// first), then the Claude app, then `claude` in a terminal.
-fn by_tool(ours: &[&TreeInput], theirs: &[&TreeInput], cores: u32) -> Vec<ToolGroupInfo> {
-    let mut providers: std::collections::BTreeMap<String, Vec<&TreeInput>> =
-        std::collections::BTreeMap::new();
-    for tree in ours {
-        providers
-            .entry(
-                tree.provider
-                    .clone()
-                    .unwrap_or_else(|| "claude-code".to_string()),
-            )
-            .or_default()
-            .push(tree);
-    }
-    let mut groups: Vec<ToolGroupInfo> = providers
-        .into_iter()
-        .map(|(provider, trees)| ToolGroupInfo {
-            label: crate::commands::provider_name(&provider),
-            tool: provider,
-            ours: true,
-            totals: totals(&trees, cores),
-            cpu_one_core_pct: one_core(&trees),
-        })
-        .collect();
-    groups.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
-    for (place, label) in [
-        ("desktop", "Claude app"),
-        ("terminal", "claude in a terminal"),
-    ] {
-        let trees: Vec<&TreeInput> = theirs
-            .iter()
-            .copied()
-            .filter(|tree| tree.place == Some(place))
-            .collect();
-        if !trees.is_empty() {
-            groups.push(ToolGroupInfo {
-                tool: place.to_string(),
-                label: label.to_string(),
-                ours: false,
-                totals: totals(&trees, cores),
-                cpu_one_core_pct: one_core(&trees),
-            });
-        }
-    }
-    groups
 }
 
 /// Pure: This Mac from its parts (AJ-E1403 Req.1–2).
@@ -1135,9 +1035,22 @@ pub fn assemble(
     leftovers: (u32, u32),
 ) -> ThisMacInfo {
     let cores = machine.cores;
-    let all: Vec<&TreeInput> = trees.iter().collect();
-    let ours: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_some()).collect();
-    let theirs: Vec<&TreeInput> = trees.iter().filter(|t| t.session_id.is_none()).collect();
+    // A tree with nothing measured (its process has exited, or it has no
+    // sample yet) isn't on This Mac — never listed as "under 1 MB".
+    let all: Vec<&TreeInput> = trees
+        .iter()
+        .filter(|t| t.stats.measured().is_some())
+        .collect();
+    let ours: Vec<&TreeInput> = all
+        .iter()
+        .copied()
+        .filter(|t| t.session_id.is_some())
+        .collect();
+    let theirs: Vec<&TreeInput> = all
+        .iter()
+        .copied()
+        .filter(|t| t.session_id.is_none())
+        .collect();
     let mut by_memory = all.clone();
     by_memory.sort_by_key(|tree| std::cmp::Reverse(tree.stats.rss_bytes));
     ThisMacInfo {
@@ -1164,6 +1077,8 @@ pub fn assemble(
         leftover_ports: leftovers.1,
         alerts: Vec::new(),
         recommendations: Vec::new(),
+        awake: crate::features::app::awake::AwakeInfo::default(),
+        own: crate::features::app::own::OwnInfo::default(),
         machine,
     }
 }
@@ -1226,11 +1141,11 @@ fn tree_inputs(
             }
             trees.push(TreeInput {
                 root_pid: roots.get(&id).copied(),
+                tool: contexts.get(&id).map(|ctx| ctx.provider.clone()),
                 account_label: contexts
                     .get(&id)
                     .and_then(|ctx| ctx.account_id.as_ref())
                     .and_then(|account| labels.get(account).cloned()),
-                provider: contexts.get(&id).map(|ctx| ctx.provider.clone()),
                 ring: collector.ring(&session),
                 hog_rules: hogs.remove(&id).unwrap_or_default(),
                 session_id: Some(id),
@@ -1247,7 +1162,7 @@ fn tree_inputs(
                 root_pid: Some(tool.pid),
                 session_id: None,
                 place: Some(tool.place),
-                provider: None,
+                tool: Some(OBSERVED_TOOL.to_string()),
                 account_label: account_for(tool, accounts, &home),
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
@@ -1304,7 +1219,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .unwrap_or(u32::MAX),
     );
     let mut info = assemble(machine, &trees, leftovers);
-    info.recommendations = recommendations_for(state, &info, now_ms);
+    info.recommendations =
+        crate::machine_recommendations::recommendations_for(state, &info, now_ms);
+    info.awake = crate::features::app::awake::current(&state.awake);
+    info.own = crate::features::app::own::measure(state);
     if let Ok(mut watch) = state.machine.lock() {
         watch.alerts.evaluate(&info, now_ms);
         info.alerts = watch.alerts.active();
@@ -1367,154 +1285,6 @@ pub async fn machine_alerts_take(
         })?
 }
 
-// --- AJ-E1409: recommendations from real data -------------------------------
-
-/// Pure (AJ-E1409): advice from this Mac's own footprints. `names` maps a
-/// launch setting id to how the user knows it. Nothing until a setting has
-/// at least three measured sessions.
-#[must_use]
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
-pub fn recommendations<S: std::hash::BuildHasher>(
-    machine: &MachineHealthInfo,
-    ours_rss: u64,
-    footprints: &[juggler_core::storage::FootprintStats],
-    names: &std::collections::HashMap<String, String, S>,
-) -> Vec<String> {
-    // Only launch settings that still exist (a deleted one's footprints
-    // are pruned within 10 minutes; until then they don't count).
-    let measured: Vec<&juggler_core::storage::FootprintStats> = footprints
-        .iter()
-        .filter(|stats| {
-            stats
-                .key
-                .strip_prefix("recipe:")
-                .is_some_and(|id| names.contains_key(id))
-                && stats.count >= MIN_FOOTPRINTS
-        })
-        .collect();
-    if measured.is_empty() || !machine.sampled || machine.memory_total == 0 {
-        return Vec::new();
-    }
-    let sessions: u32 = measured.iter().map(|stats| stats.count).sum();
-    let typical = measured
-        .iter()
-        .map(|stats| stats.median_peak_rss as f64 * f64::from(stats.count))
-        .sum::<f64>()
-        / f64::from(sessions);
-    let mut out = Vec::new();
-    // Keep a fifth of memory free; what isn't AI Juggler's sessions stays
-    // as it is now. Only our trees' memory is measured — a tool AI Juggler
-    // didn't start is an estimate that counts shared memory more than once
-    // (AJ-E1402), so it stays in "the rest" rather than inflate the room.
-    // Used as the reading measured it; total − available only when it
-    // couldn't (the OS's available figure is then the best there is).
-    let used = machine.memory_used.unwrap_or_else(|| {
-        machine
-            .memory_total
-            .saturating_sub(machine.memory_available)
-    });
-    let others = used.saturating_sub(ours_rss) as f64;
-    let room = machine.memory_total as f64 * 0.8 - others;
-    if typical > 0.0 {
-        let fits = (room / typical).floor().max(0.0) as u64;
-        out.push(if fits == 0 {
-            format!(
-                "With what else is open, this Mac is short of room for even one session (about {} each, from your last {sessions})",
-                bytes_words(typical as u64)
-            )
-        } else {
-            format!(
-                "This Mac comfortably runs about {fits} session{} at once (about {} each, from your last {sessions})",
-                if fits == 1 { "" } else { "s" },
-                bytes_words(typical as u64)
-            )
-        });
-    }
-    if measured.len() >= 2 {
-        let mut by_weight = measured.clone();
-        by_weight.sort_by_key(|stats| std::cmp::Reverse(stats.median_peak_rss));
-        let heaviest = by_weight[0];
-        let next = by_weight[1];
-        if heaviest.median_peak_rss as f64 >= next.median_peak_rss as f64 * 1.5 {
-            let id = heaviest.key.trim_start_matches("recipe:");
-            let name = names
-                .get(id)
-                .cloned()
-                .unwrap_or_else(|| "One launch setting".into());
-            out.push(format!(
-                "{name} is the heaviest launch setting — about {} a session",
-                bytes_words(heaviest.median_peak_rss)
-            ));
-        }
-    }
-    out
-}
-
-fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo, now_ms: i64) -> Vec<String> {
-    let (cached, written) = match state.machine.lock() {
-        Ok(watch) => (watch.advice_inputs.clone(), watch.footprints_written),
-        Err(_) => return Vec::new(),
-    };
-    let inputs = match cached {
-        Some(inputs)
-            if inputs.footprints_written == written
-                && now_ms - inputs.read_ms < ADVICE_INPUTS_MAX_AGE_MS =>
-        {
-            inputs
-        }
-        _ => {
-            let Some(inputs) = read_advice_inputs(state, written, now_ms) else {
-                return Vec::new();
-            };
-            if let Ok(mut watch) = state.machine.lock() {
-                watch.advice_inputs = Some(inputs.clone());
-            }
-            inputs
-        }
-    };
-    recommendations(
-        &info.machine,
-        info.ours.rss_bytes,
-        &inputs.stats,
-        &inputs.names,
-    )
-}
-
-/// The footprint medians and launch-setting names, from storage.
-fn read_advice_inputs(
-    state: &Arc<AppState>,
-    footprints_written: u64,
-    now_ms: i64,
-) -> Option<AdviceInputs> {
-    let storage = state.storage.lock().ok()?;
-    let medians = storage.footprints().stats().ok()?;
-    let mut names = std::collections::HashMap::new();
-    if !medians.is_empty() {
-        for account in storage.accounts().list().unwrap_or_default() {
-            for recipe in storage
-                .profiles()
-                .list_by_account(&account.id)
-                .unwrap_or_default()
-            {
-                names.insert(
-                    recipe.id.to_string(),
-                    format!("\u{201c}{}\u{201d} ({})", recipe.name, account.label),
-                );
-            }
-        }
-    }
-    Some(AdviceInputs {
-        footprints_written,
-        read_ms: now_ms,
-        stats: medians,
-        names,
-    })
-}
-
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest
 /// trees, leftovers. Off the main thread: it reads storage and two locks
 /// the sampling tick also takes.
@@ -1561,6 +1331,8 @@ pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) ->
 pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
+    // AJ-E1510: This Mac getting tight, as a notification when asked for.
+    crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
         should_emit(
             &mut last,
@@ -1895,7 +1667,7 @@ mod tests {
             root_pid: None,
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
-            provider: session.map(|_| "claude-code".to_string()),
+            tool: session.map(|_| OBSERVED_TOOL.to_string()),
             account_label: Some("Work Max".into()),
             stats: LiveProcessStats {
                 child_count: 3,
@@ -2091,6 +1863,27 @@ mod tests {
             "nothing running uses nothing"
         );
         assert!(empty.top.is_empty());
+    }
+
+    /// AJ-E1535: a session whose process has exited before it's marked
+    /// ended reports zero sums. That is nothing measured, never a tree
+    /// "under 1 MB": This Mac leaves it out, and its totals with it.
+    #[test]
+    fn a_tree_with_nothing_measured_is_not_on_this_mac() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 8,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let mut gone = tree(Some("gone"), 0.0, 0, 0);
+        gone.stats = LiveProcessStats::dead();
+        let info = assemble(machine, &[gone, tree(Some("s1"), 10.0, G, 60)], (0, 0));
+        assert_eq!(info.top.len(), 1);
+        assert_eq!(info.top[0].session_id.as_deref(), Some("s1"));
+        assert_eq!((info.ours.count, info.ours.rss_bytes), (1, G));
+        assert!(LiveProcessStats::dead().measured().is_none());
     }
 
     /// P6 (QA): This Mac showed 3 of 6 Claude app windows and said nothing

@@ -20,6 +20,19 @@ The code that draws the logo in the app (for example
 `ui/src/components/icons.tsx`) is MIT-licensed like the rest of the
 code, but the logo it draws is still a trademark.
 
+## Other companies' names and logos
+
+The names and logos of the AI tools AI Juggler works with, and of the
+companies behind them, belong to their owners. AI Juggler uses them only
+to say which tools it works with; that implies no endorsement by, or
+affiliation with, their owners. They aren't covered by the MIT License
+either. Any such logo the app bundles lives in
+[`ui/src/assets/third-party-marks/`](./ui/src/assets/third-party-marks/)
+(see its `NOTICE.md`) and is drawn only where its owner allows; each one's
+source and guidelines are recorded in
+[`docs/research/brand-marks.md`](./docs/research/brand-marks.md). The app
+icon's own notice is [`crates/juggler-app/icons/NOTICE.md`](./crates/juggler-app/icons/NOTICE.md).
+
 ## What you can do without asking
 
 - Use, study, change and share the code under the MIT License, for any

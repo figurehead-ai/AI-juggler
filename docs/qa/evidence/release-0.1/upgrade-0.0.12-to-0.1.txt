@@ -1,0 +1,84 @@
+
+running 1 test
+seed: 9 found, 9 imported, 18 projects backfilled
+test seed_a_0012_data_folder ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+[0.0.12] juggler.sqlite user_version=29 integrity=ok tables=30
+[0.0.12]   accounts 9
+[0.0.12]   app_settings 4
+[0.0.12]   artifact_manifests 0
+[0.0.12]   cleanup_audit 0
+[0.0.12]   cleanup_settings 0
+[0.0.12]   epochs 0
+[0.0.12]   fleet_outbox 0
+[0.0.12]   fleet_replica 0
+[0.0.12]   fleet_replica_hw 0
+[0.0.12]   footprints 3
+[0.0.12]   identity_assertions 0
+[0.0.12]   instance_lifecycle 0
+[0.0.12]   instance_transitions 0
+[0.0.12]   instances 0
+[0.0.12]   launch_recipes 9
+[0.0.12]   pricing_overrides 0
+[0.0.12]   process_ledger 0
+[0.0.12]   projects 18
+[0.0.12]   quota_samples 0
+[0.0.12]   reset_queue 0
+[0.0.12]   switch_edges 0
+[0.0.12]   transcript_fts 0
+[0.0.12]   transcript_fts_config 1
+[0.0.12]   transcript_fts_data 2
+[0.0.12]   transcript_fts_docsize 0
+[0.0.12]   transcript_fts_idx 0
+[0.0.12]   transcript_index_state 0
+[0.0.12]   transcript_lines 0
+[0.0.12]   usage_events 3404
+[0.0.12]   work_items 0
+[0.0.12] files: fleet, juggler.lock, juggler.sqlite, juggler.sqlite-shm, juggler.sqlite-wal, last-run, supervision
+[0.1] juggler.sqlite user_version=32 integrity=ok tables=36
+[0.1]   account_audit 0
+[0.1]   accounts 9
+[0.1]   app_settings 5
+[0.1]   artifact_manifests 0
+[0.1]   cleanup_audit 0
+[0.1]   cleanup_settings 0
+[0.1]   epochs 0
+[0.1]   fleet_outbox 0
+[0.1]   fleet_replica 0
+[0.1]   fleet_replica_hw 0
+[0.1]   footprints 3
+[0.1]   identity_assertions 0
+[0.1]   instance_lifecycle 0
+[0.1]   instance_transitions 0
+[0.1]   instances 0
+[0.1]   launch_recipes 9
+[0.1]   pricing_overrides 0
+[0.1]   process_ledger 0
+[0.1]   projects 16
+[0.1]   quota_samples 584
+[0.1]   reset_queue 0
+[0.1]   switch_edges 0
+[0.1]   transcript_fts 0
+[0.1]   transcript_fts_config 1
+[0.1]   transcript_fts_data 2
+[0.1]   transcript_fts_docsize 0
+[0.1]   transcript_fts_idx 0
+[0.1]   transcript_index_state 0
+[0.1]   transcript_lines 0
+[0.1]   usage_derived 1
+[0.1]   usage_events 3404
+[0.1]   usage_holders 3112
+[0.1]   usage_spans 301
+[0.1]   usage_unshared 2
+[0.1]   work_items 0
+[0.1]   worktree_homes 0
+[0.1] files: fleet, juggler.lock, juggler.sqlite, juggler.sqlite-shm, juggler.sqlite-wal, juggler.sqlite.before-v29, last-run, supervision
+# done
+
+# 2.8 going back (2026-10-23): the product's going_back_prepare_impl(state, 29) on
+# the upgraded folder above, then the real v0.0.12 Dev build opened it.
+went back to schema 29; the newer data kept as juggler.sqlite.from-v32-1792770814664
+0.0.12 after 40 s: running
+schema 29 accounts 9 projects 18 usage_events 3404 integrity ok

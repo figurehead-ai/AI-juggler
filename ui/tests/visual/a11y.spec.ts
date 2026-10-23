@@ -430,7 +430,7 @@ for (const theme of ["dark", "light"] as const) {
         theme,
         recovery: {
           summary:
-            "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+            "2 sessions picked up again, 1 helper left behind, 1 process could not be checked and was left alone.",
           adopted: 2,
           left_behind: 1,
           unverifiable: 1,
@@ -737,12 +737,13 @@ for (const theme of ["dark", "light"] as const) {
 const DOOR_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -757,6 +758,7 @@ const DOOR_WIZARD_FIXTURE = {
 const DOOR_ONECLICK_FIXTURE = {
   ...DOOR_WIZARD_FIXTURE,
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   warnings: [],
   door: "one-click" as const,
   wizard_steps: [],
@@ -787,7 +789,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "S-F5: target launch failed — staged for retry (terminal spawn failed).",
+        fail: "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -987,6 +989,7 @@ for (const theme of ["dark", "light"] as const) {
         w.__AIJ_SWITCH_PREFLIGHT__ = {
           mechanism: "transplant",
           fidelity: "F2",
+          fidelity_words: "Same conversation, new account (compacted)",
           score: 0.78,
           warnings: [],
           zombies: [],
@@ -1042,7 +1045,7 @@ for (const theme of ["dark", "light"] as const) {
           override: null,
           effective: "strip",
           source: "global",
-          line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+          line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
         };
         w.__AIJ_SWITCH_PREFLIGHT__.redaction_items = [
           { kind: "sk-key", preview: "s•••5678", segment: 0 },
@@ -1097,12 +1100,12 @@ for (const theme of ["dark", "light"] as const) {
               { id: "ep-b", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-2" },
             ],
             edges: [
-              { from: "ep-a", to: "ep-b", label: "transplant F1 · 12:04", switch_back: false },
+              { from: "ep-a", to: "ep-b", label: "Full story, fresh start", switch_back: false },
               {
                 from: "ep-b",
                 to: null,
-                label: "transplant F1 · target launch failed",
-                failed_reason: "S-F6: target window closed mid-launch",
+                label: "failed · target launch failed",
+                failed_reason: "the session on the other account closed while it started",
                 switch_back: false,
               },
             ],
@@ -1133,6 +1136,8 @@ for (const theme of ["dark", "light"] as const) {
     // The graph: scoped scan on the project panel.
     await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
+    // AJ-E1533: the graph sits on the project's Overview tab.
+    await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
     await expect(page.getByTestId("switch-graph")).toBeVisible();
     const graphScan = await new AxeBuilder({ page })
       .include("[data-testid='project-switch-graph-card']")
@@ -1158,7 +1163,7 @@ for (const theme of ["dark", "light"] as const) {
     const failedEdge = page.getByTestId("switch-graph-failed-edge");
     await failedEdge.focus();
     await failedEdge.press("Enter");
-    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("S-F6");
+    await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
     const nodes = page.getByTestId("switch-graph-node");
     await nodes.first().focus();
     await nodes.first().press("ArrowDown");
@@ -1197,7 +1202,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(rowHeader).toContainText("→");
     // Status in text, never colour-only.
     await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-      "Beta — not yet validated",
+      "Beta — not proven yet",
     );
     const scan = await new AxeBuilder({ page })
       .include("[data-testid='beta-matrix']")
@@ -1898,8 +1903,8 @@ for (const theme of ["dark", "light"] as const) {
         const base = {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
-          blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use T3."],
-          fidelity: "F3", badge: "F3 · Unvalidated", validated: false, carried: ["chat transcript"], regenerated: [],
+          blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
+          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["chat transcript"], regenerated: [],
           dropped: ["todo list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
@@ -1987,9 +1992,9 @@ for (const theme of ["dark", "light"] as const) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("rail-identity").first()).toHaveAttribute("aria-label", /verified|first seen|unverified|Not signed in/);
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByRole("button", { name: /Work Max/ }).first().click();
-    await page.getByRole("tab", { name: "Actions" }).click();
-    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    // AJ-E1533: relaunch an ended Work Max session from its page header.
+    await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+    await page.getByTestId("header-relaunch").click();
     await expect(page.getByTestId("identity-mismatch")).toBeVisible();
     await expect(page.getByTestId("identity-switch")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2043,8 +2048,9 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.keyboard.press("Escape");
-    await page.getByRole("tab", { name: "Actions" }).click();
-    await page.getByRole("button", { name: /Resume|Relaunch/ }).first().click();
+    // AJ-E1533: relaunch an ended session from its page header.
+    await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
+    await page.getByTestId("header-relaunch").click();
     await expect(page.getByTestId("isolation-worktree")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
@@ -2176,7 +2182,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: "History" }).click();
     await expect(page.getByTestId("history-search")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("history-delete").first().click();
+    // AJ-E1536: Delete is in the row's menu.
+    await page.getByTestId("page-session-item").first().click({ button: "right" });
+    await page.getByTestId("action-delete").click();
     await expect(page.getByTestId("delete-confirm")).toBeFocused();
     await expect(page.getByTestId("delete-go")).toBeDisabled();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2499,5 +2507,134 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("privacy-report-view").first().click();
     await expect(page.getByTestId("privacy-report-json")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+  });
+}
+
+// AJ-E1503 Req.5: the one toast, the quit sheet and the loading
+// placeholders — axe 0 critical/serious, the toast announced through the
+// polite live region and never taking focus, the quit sheet a modal
+// dialog that holds focus.
+for (const theme of ["dark", "light"] as const) {
+  test(`feedback — toast, quit sheet, placeholders — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    const openWith = async (seams: Record<string, unknown>) => {
+      await page.addInitScript(
+        ({ fixture, t0, theme: t, seams }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          for (const [key, value] of Object.entries(seams)) w[key] = value;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: allStatuses, t0: T0, theme, seams },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto("/");
+    };
+    await openWith({ __AIJ_TOAST_PAUSED__: true });
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    const stop = page.getByTestId("inspector-stop");
+    await stop.click();
+    await expect(page.getByTestId("stop-undo-toast")).toBeVisible();
+    // Never steals focus: the Stop button keeps it.
+    await expect(stop).toBeFocused();
+    const announcer = page.getByTestId("toast-announcer");
+    await expect(announcer).toHaveAttribute("aria-live", "polite");
+    await expect(announcer).toContainText("Undo is available for 5 seconds.");
+    const toastViolations = await scanSeriousWithConfirm(page);
+
+    await page.evaluate(() =>
+      window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 2, end_on_quit: 2, keep_running: 0 } })),
+    );
+    const sheet = page.getByRole("dialog", { name: "Quit AI Juggler?" });
+    await expect(sheet).toBeVisible();
+    await expect(page.getByTestId("quit-anyway")).toBeFocused();
+    // Tab stays inside the sheet.
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press("Tab");
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    const sheetViolations = await scanSeriousWithConfirm(page);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    await openWith({ __AIJ_LOAD_HANG__: true });
+    await expect(page.getByRole("status", { name: "Loading Home" })).toBeVisible();
+    const loadingViolations = await scanSeriousWithConfirm(page);
+
+    const all = [...toastViolations, ...sheetViolations, ...loadingViolations];
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
+  });
+}
+
+// AJ-E1504: the ? sheet — a named modal dialog, focus inside, Tab held,
+// Esc closes and focus returns — axe 0 critical/serious; the folded
+// inspector's toggle says what it does.
+for (const theme of ["dark", "light"] as const) {
+  test(`keys — the ? sheet and the folded inspector — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t0, theme: t }) => {
+        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: allStatuses, t0: T0, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByTestId("home")).toBeVisible();
+    await page.keyboard.press("Shift+Slash");
+    const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await expect(sheet).toBeVisible();
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press("Tab");
+    expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    const sheetViolations = await scanSeriousWithConfirm(page);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    await page.keyboard.press("Meta+Shift+I");
+    const unfold = page.getByRole("button", { name: "Unfold the inspector" });
+    await expect(unfold).toHaveAttribute("aria-expanded", "false");
+    const foldedViolations = await scanSeriousWithConfirm(page);
+    const all = [...sheetViolations, ...foldedViolations];
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
+  });
+}
+
+// AJ-E1505: Settings › Sessions — each field labelled and described, the
+// Terminal disclosure reachable — axe 0 critical/serious.
+for (const theme of ["dark", "light"] as const) {
+  test(`settings sessions — axe 0 critical/serious — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, t0, theme: t }) => {
+        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        Date.now = () => t0;
+      },
+      { fixture: allStatuses, t0: T0, theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await goTo(page, "Settings");
+    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    const terminal = page.getByTestId("settings-terminal").locator("summary");
+    await terminal.focus();
+    await page.keyboard.press("Enter");
+    for (const label of ["Stuck after", "Font size", "Scrollback"]) {
+      await expect(page.getByLabel(label)).toHaveAttribute("aria-describedby", /pref-/);
+    }
+    const all = await scanSeriousWithConfirm(page);
+    const summary = all.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`).join("\n");
+    expect(all, summary).toHaveLength(0);
   });
 }

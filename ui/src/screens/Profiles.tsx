@@ -1,20 +1,23 @@
+import { RowPlaceholders } from "../components/Placeholder";
+import { AccountAvatar } from "../components/Avatar";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles, IconTerminal } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
-import { MenuItem, RowMenu, menuPoint } from "../components/RowMenu";
+import { useItemMenu } from "../components/ItemMenu";
+import { activityWords, launchSettingsName, launchTitle } from "../lib/account-words";
+import { liveOutside, useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { ExpertSetup } from "../components/ExpertSetup";
-import { EnvOverlayEditor } from "../components/EnvOverlayEditor";
-import { AccountRunway, runwayLines } from "../components/AccountRunway";
+import { RecipeOptions } from "../components/RecipeOptions";
+import { AccountRunway, newWorkAdvice } from "../components/AccountRunway";
+import { shortPath, useAccountManage } from "./AccountManage";
+import { ActionHostProvider } from "../components/ItemMenu";
 import { providerMark } from "../components/indicator";
 import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits, noLimitsWords } from "../lib/providers";
 import {
-  accountRemove,
-  accountRename,
-  accountSetDefault,
   accountUseOriginal,
   accountsList,
   createProfile,
@@ -25,41 +28,12 @@ import {
   providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
-  expertSetupInfo,
   errorText,
   signedIn,
   quotaDisplayAll,
   type InstanceInfo,
   type QuotaDisplayData,
 } from "../lib/bridge";
-
-const LIVE = ["running", "starting", "waiting_user", "stuck"];
-
-/** What runs on an account, in a few words ("2 running · 1 needs you"). */
-export function activityWords(sessions: InstanceInfo[]): string {
-  const live = sessions.filter((s) => LIVE.includes(s.status));
-  const needs = sessions.filter((s) => s.status === "waiting_user" || s.status === "stuck" || s.status === "quota_blocked" || s.status === "failed");
-  const parts = [live.length > 0 ? `${live.length} running` : null, needs.length > 0 ? `${needs.length} need${needs.length === 1 ? "s" : ""} you` : null].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : "Nothing running";
-}
-
-/** The account with the most runway left for new work, if any is measured. */
-export function bestForNewWork(
-  accounts: AccountInfo[],
-  displays: QuotaDisplayData[],
-  sessions: InstanceInfo[],
-): { account: AccountInfo; left: number } | null {
-  let best: { account: AccountInfo; left: number } | null = null;
-  for (const account of accounts) {
-    if (!signedIn(account.login_state)) continue;
-    const lines = runwayLines(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id));
-    const measured = lines.filter((line) => line.left !== null).map((line) => line.left!);
-    if (measured.length === 0) continue;
-    const left = Math.min(...measured);
-    if (!best || left > best.left) best = { account, left };
-  }
-  return best;
-}
 
 /**
  * Accounts screen (M1-3; component name kept from the M1 "Profiles"
@@ -97,8 +71,6 @@ export function ProfilesScreen({
   const [error, setError] = useState<string | null>(null);
   // AJ-E1501: what the last change did, in words ("Removed …").
   const [notice, setNotice] = useState<string | null>(null);
-  const [renameFor, setRenameFor] = useState<AccountInfo | null>(null);
-  const [removeFor, setRemoveFor] = useState<AccountInfo | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
   // ADR-0018: which tools' copies can switch to their original — the
   // backend's static capabilities (no install probe). If the call fails
@@ -153,6 +125,8 @@ export function ProfilesScreen({
     await refresh();
     onAccountsChanged?.();
   };
+  // AJ-E1537: every account menu's rename, default and remove.
+  const accountManage = useAccountManage({ sessions, changed, failed: setError });
 
   const launch = async (recipe: LaunchRecipeInfo) => {
     setError(null);
@@ -165,7 +139,7 @@ export function ProfilesScreen({
       // Interactive sessions stream straight into the terminal dock.
       openTerminal(
         result.session_id,
-        `${recipe.account_label} · ${recipe.name}`,
+        launchTitle(recipe),
       );
     } catch (cause) {
       setError(errorText(cause));
@@ -173,7 +147,13 @@ export function ProfilesScreen({
   };
 
   if (accounts === null || profiles === null) {
-    return <div className="py-24 text-center text-sm text-muted">Loading…</div>;
+    // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
+    return (
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+        <span className="block h-6 w-32 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
+      </div>
+    );
   }
 
   return (
@@ -183,10 +163,10 @@ export function ProfilesScreen({
           <h2 className="text-lg font-semibold tracking-tight">Accounts</h2>
           <p className="text-xs text-muted" data-testid="accounts-summary">
             {(() => {
-              const best = bestForNewWork(accounts, displays, sessions);
-              return best
-                ? `Best for new work: ${best.account.label}, ${best.left}% left.`
-                : "Each account is its own sign-in, kept apart from the others.";
+              return (
+                newWorkAdvice(accounts, displays, sessions).words ??
+                "Each account is its own sign-in, kept apart from the others."
+              );
             })()}
           </p>
         </div>
@@ -210,6 +190,7 @@ export function ProfilesScreen({
       {accounts.length === 0 ? (
         <EmptyAccounts onAdd={onAddAccounts} />
       ) : (
+        <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
         <div className="flex flex-col gap-4">
           {accounts.map((account) => (
             <AccountCard
@@ -226,28 +207,13 @@ export function ProfilesScreen({
               onNewProfile={() => setNewProfileFor(account)}
               onLogin={() => setLoginFor(account)}
               onInspect={() => onInspectAccount?.(account.id)}
-              onRename={() => setRenameFor(account)}
-              onRemove={() => setRemoveFor(account)}
-              onToggleDefault={async () => {
-                setError(null);
-                const wasDefault = account.is_default === true;
-                try {
-                  await accountSetDefault(wasDefault ? null : account.id);
-                  await changed(
-                    wasDefault
-                      ? `${account.label} is no longer the default. New sessions start with the account you used last.`
-                      : `New sessions start with ${account.label}, unless a project picks its own.`,
-                  );
-                } catch (cause) {
-                  setError(errorText(cause));
-                }
-              }}
               onLoginRechecked={refresh}
               display={displays.find((d) => d.account === account.id)}
               sessions={sessions.filter((session) => session.account_id === account.id)}
             />
           ))}
         </div>
+        </ActionHostProvider>
       )}
 
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
@@ -266,7 +232,7 @@ export function ProfilesScreen({
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
         <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          Which switches between accounts are proven (Beta)
+          Which switches between accounts are proven
         </summary>
         <div className="mt-3">
           <BetaMatrix />
@@ -284,28 +250,7 @@ export function ProfilesScreen({
         />
       )}
 
-      {renameFor && (
-        <RenameAccountModal
-          account={renameFor}
-          onClose={() => setRenameFor(null)}
-          onDone={async (renamed, before) => {
-            setRenameFor(null);
-            await changed(renamed.label !== before ? `Renamed to ${renamed.label}.` : null);
-          }}
-        />
-      )}
-
-      {removeFor && (
-        <RemoveAccountModal
-          account={removeFor}
-          sessions={sessions.filter((session) => session.account_id === removeFor.id)}
-          onClose={() => setRemoveFor(null)}
-          onDone={async (words) => {
-            setRemoveFor(null);
-            await changed(words);
-          }}
-        />
-      )}
+      {accountManage.element}
 
       {loginFor && (
         <LoginModal
@@ -355,18 +300,11 @@ function AccountCard({
   onLogin,
   onLoginRechecked,
   onInspect,
-  onRename,
-  onRemove,
-  onToggleDefault,
   display,
   sessions = [],
   reportsLimits = true,
 }: {
   account: AccountInfo;
-  /** AJ-E1501: the card's menu. */
-  onRename: () => void;
-  onRemove: () => void;
-  onToggleDefault: () => void;
   /** 0.0.11 walk (Q3): its tool reports usage limits (else no limit rows). */
   reportsLimits?: boolean;
   /** D-25: this account's two windows (runway), if measured. */
@@ -388,23 +326,27 @@ function AccountCard({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
-  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const onToggleSettings = () => setSettingsOpen((v) => !v);
+  const { all: conversations } = useConversations();
   const loggedIn = signedIn(account.login_state);
   const loginTone: ChipTone = loggedIn ? "success" : "warning";
+  // AJ-E1537: the card's menu, from the action registry.
+  const menu = useItemMenu("account", account, account.label, {
+    openAccount: onInspect ? () => onInspect() : undefined,
+    startSessionOn: () => onLaunch(profiles[0]!),
+    startBlockedWhy: () => (!loggedIn ? "Sign in first" : profiles.length === 0 ? "Add launch settings first" : null),
+    // Signed in already: no Sign in line (the card shows none either).
+    signIn: loggedIn ? undefined : onLogin,
+    editLaunchSettings: () => setSettingsOpen(true),
+  });
   return (
     <Card className="overflow-hidden">
-      <div
-        className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5"
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setMenuAt({ x: event.clientX, y: event.clientY });
-        }}
-      >
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5" {...menu.triggerProps}>
         <HarnessGlyph provider={account.provider} onClick={onInspect} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold" data-testid="account-label">{account.label}</span>
+            <AccountAvatar accountId={account.id} label={account.label} size={20} />
+            <button type="button" onClick={onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-sm font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">{account.label}</button>
             {account.plan && <Chip tone="accent">{account.plan}</Chip>}
             {account.is_default && (
               <span title="New sessions start with this account, unless a project picks its own" data-testid="account-default">
@@ -439,7 +381,7 @@ function AccountCard({
           )}
           {loggedIn ? (
             <span className="text-[11px] text-muted" data-testid="account-activity">
-              {activityWords(sessions)}
+              {activityWords(sessions, liveOutside(conversations, account.id).length)}
             </span>
           ) : (
             <>
@@ -451,34 +393,11 @@ function AccountCard({
               </Button>
             </>
           )}
-          {/* AJ-E1501: the row menu (the rail's pattern) — right-click
-              the header, or this button. 24 px: the WCAG 2.2 target. */}
-          <button
-            type="button"
-            aria-label={`Account actions for ${account.label}`}
-            aria-haspopup="menu"
-            aria-expanded={menuAt !== null}
-            data-testid="account-menu"
-            onClick={(event) => setMenuAt(menuPoint(event))}
-            className="flex size-6 items-center justify-center rounded text-[12px] text-muted outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
-            ⋯
-          </button>
+          {/* The card's menu: right-click the header, ⋯ or Shift+F10. */}
+          {menu.button({ label: `Account actions for ${account.label}`, shown: true, testId: "account-menu" })}
         </div>
       </div>
-      {menuAt && (
-        <RowMenu heading={account.label} ariaLabel={`Actions for ${account.label}`} at={menuAt} onClose={() => setMenuAt(null)}>
-          <MenuItem testId="account-rename" onClick={() => { setMenuAt(null); onRename(); }}>
-            Rename…
-          </MenuItem>
-          <MenuItem testId="account-toggle-default" onClick={() => { setMenuAt(null); onToggleDefault(); }}>
-            {account.is_default ? "Stop being the default" : "Make the default"}
-          </MenuItem>
-          <MenuItem testId="account-remove" danger onClick={() => { setMenuAt(null); onRemove(); }}>
-            Remove…
-          </MenuItem>
-        </RowMenu>
-      )}
+      {menu.element}
 
       {/* D-25: runway lives here and on Home. A tool that doesn't
           report its limits says so once, instead of empty windows. */}
@@ -527,7 +446,7 @@ function AccountCard({
         ) : (
           profiles.map((recipe) => (
             <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-5 py-2.5">
-              <span className="text-sm">{recipe.name === "Main" ? "Default" : recipe.name}</span>
+              <span className="text-sm">{launchSettingsName(recipe.name)}</span>
               {recipe.model ? (
                 <Chip tone="neutral">{recipe.model}</Chip>
               ) : (
@@ -545,7 +464,7 @@ function AccountCard({
                 className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
                 data-testid="recipe-env-toggle"
               >
-                Environment {envFor === recipe.id ? "▾" : "▸"}
+                Options {envFor === recipe.id ? "▾" : "▸"}
               </button>
               <div className="ml-auto flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                 <Button
@@ -565,11 +484,7 @@ function AccountCard({
               </div>
               {envFor === recipe.id && (
                 <div className="basis-full pt-1">
-                  <RecipeEnvEditor
-                    provider={account.provider}
-                    accountId={account.id}
-                    recipeId={recipe.id}
-                  />
+                  <RecipeOptions provider={account.provider} accountId={account.id} recipe={recipe} />
                 </div>
               )}
             </div>
@@ -598,190 +513,6 @@ function AccountCard({
         />
       )}
     </Card>
-  );
-}
-
-/** AJ-E1501: rename an account (and set its plan). A name another
- * account has is refused in words. */
-function RenameAccountModal({
-  account,
-  onClose,
-  onDone,
-}: {
-  account: AccountInfo;
-  onClose: () => void;
-  /** `before`: the name when the sheet opened. */
-  onDone: (renamed: AccountInfo, before: string) => Promise<void>;
-}) {
-  const [before] = useState(account.label);
-  const [label, setLabel] = useState(account.label);
-  const [plan, setPlan] = useState(account.plan ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <Modal title={`Rename ${account.label}`} onClose={onClose}>
-      <form
-        className="flex flex-col gap-4"
-        data-testid="rename-account"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setBusy(true);
-          setError(null);
-          try {
-            await onDone(await accountRename(account.id, label, plan.trim() === "" ? null : plan), before);
-          } catch (cause) {
-            setError(errorText(cause));
-            setBusy(false);
-          }
-        }}
-      >
-        <Field label="Name">
-          <Input autoFocus value={label} onChange={(event) => setLabel(event.target.value)} data-testid="rename-account-label" maxLength={64} />
-        </Field>
-        <Field label="Plan (optional)" hint="Shown beside the name, like Max or Pro.">
-          <Input value={plan} placeholder="Max" onChange={(event) => setPlan(event.target.value)} data-testid="rename-account-plan" />
-        </Field>
-        {error && (
-          <p className="text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy || label.trim() === ""} data-testid="rename-account-save">
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-const OPEN = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
-
-/** AJ-E1501: the remove sheet. An account used where it is: its folder
- * stays exactly as it is. A copy: keep its folder, or move it to the
- * Trash (never deleted). Open sessions keep it, named. */
-function RemoveAccountModal({
-  account,
-  sessions,
-  onClose,
-  onDone,
-}: {
-  account: AccountInfo;
-  sessions: InstanceInfo[];
-  onClose: () => void;
-  onDone: (words: string) => Promise<void>;
-}) {
-  const [folder, setFolder] = useState<"keep" | "trash">("keep");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const open = sessions.filter((session) => OPEN.includes(session.status));
-  const names = [...new Set(open.map((session) => session.git_branch ?? ((session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || session.account_label)))];
-  const where = account.import_source_path ? shortPath(account.import_source_path) : null;
-  return (
-    <Modal title={`Remove ${account.label}?`} onClose={onClose}>
-      <div className="flex flex-col gap-4 text-sm" data-testid="remove-account" data-kind={account.in_place ? "in-place" : "copy"}>
-        {open.length > 0 ? (
-          <p className="leading-relaxed text-muted" data-testid="remove-account-open">
-            {account.label} has {open.length === 1 ? "a session" : `${open.length} sessions`} open: <span className="text-ink">{names.join(", ")}</span>.
-            Stop {open.length === 1 ? "it" : "them"} first, then remove the account.
-          </p>
-        ) : account.in_place ? (
-          <>
-            <p className="leading-relaxed text-muted">
-              AI Juggler forgets this account. Your folder stays exactly as it is: nothing in it is moved or changed.
-            </p>
-            {where && (
-              <p className="truncate font-mono text-xs text-ink" title={account.import_source_path ?? undefined}>
-                {where}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="leading-relaxed text-muted">
-              AI Juggler forgets this account.{" "}
-              {where ? (
-                <>
-                  It's a copy of <span className="font-mono text-xs text-ink">{where}</span>, which stays as it is. What should happen to the copy?
-                </>
-              ) : (
-                "What should happen to its folder in AI Juggler's data?"
-              )}
-            </p>
-            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="The account's folder">
-              {(
-                [
-                  { id: "keep", label: "Keep the folder", what: "It stays in AI Juggler's data. Nothing is deleted." },
-                  { id: "trash", label: "Move it to the Trash", what: "You can put it back from the Trash." },
-                ] as const
-              ).map((option) => (
-                <label
-                  key={option.id}
-                  className={
-                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " +
-                    (folder === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
-                  }
-                >
-                  <input
-                    type="radio"
-                    name={`remove-folder-${account.id}`}
-                    checked={folder === option.id}
-                    onChange={() => setFolder(option.id)}
-                    data-testid={`remove-folder-${option.id}`}
-                  />
-                  <span className="flex flex-col">
-                    <span>{option.label}</span>
-                    <span className="text-[11px] text-muted">{option.what}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </>
-        )}
-        {open.length === 0 && <p className="text-xs text-muted">Its past sessions stay in History, marked “removed account”.</p>}
-        {error && (
-          <p className="text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            {open.length > 0 ? "Close" : "Cancel"}
-          </Button>
-          {open.length === 0 && (
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={busy}
-              data-testid="remove-account-confirm"
-              onClick={async () => {
-                setBusy(true);
-                setError(null);
-                try {
-                  const done = await accountRemove(account.id, folder);
-                  await onDone(
-                    done.folder === "trashed"
-                      ? `Removed ${done.label}. Its folder is in the Trash.`
-                      : done.folder === "kept"
-                        ? `Removed ${done.label}. Its folder was kept.`
-                        : `Removed ${done.label}. Your folder wasn't touched.`,
-                  );
-                } catch (cause) {
-                  setError(errorText(cause));
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy ? "Removing…" : "Remove"}
-            </Button>
-          )}
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -844,8 +575,8 @@ function UseOriginalModal({
 }
 
 function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () => void }) {
-  // Each tool's own mark, the one its sessions carry in the rail (I-01):
-  // Claude's diamond, Codex's hexagon, a generic mark for the rest.
+  // Each tool's mark, the one its sessions carry in the rail (I-01,
+  // AJ-E1526): from the catalog, or the letter mark.
   const mark = providerMark(provider);
   return (
     <button
@@ -971,39 +702,6 @@ function LoginModal({
   );
 }
 
-/** The env-override editor for one Launch settings, with the
- * Provider's protected (isolation) keys fetched from the backend —
- * never a hard-coded Provider list in the UI. */
-function RecipeEnvEditor({
-  provider,
-  accountId,
-  recipeId,
-}: {
-  provider: string;
-  accountId: string;
-  recipeId: string;
-}) {
-  const [protectedKeys, setProtectedKeys] = useState<string[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void expertSetupInfo(provider, accountId)
-      .then((info) => {
-        if (alive) setProtectedKeys(info.protected_env_keys);
-      })
-      .catch(() => {
-        // The backend still refuses protected keys on Save.
-        if (alive) setProtectedKeys([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [provider, accountId]);
-  if (protectedKeys === null) {
-    return <p className="text-[11px] text-muted">Loading…</p>;
-  }
-  return <EnvOverlayEditor recipeId={recipeId} protectedKeys={protectedKeys} />;
-}
-
 /** ADR-0018: where an account lives, in a few words — "uses ~/x where
  * it is" or "a copy of ~/x"; nothing for an account made fresh here. */
 export function placementWords(account: AccountInfo): string | null {
@@ -1013,6 +711,3 @@ export function placementWords(account: AccountInfo): string | null {
 }
 
 /** `/Users/<you>/x` → `~/x`, for a line of text. */
-function shortPath(path: string): string {
-  return path.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
-}

@@ -30,6 +30,13 @@ pub trait HarnessAdapter: Send + Sync {
     /// What this harness integration supports.
     fn capabilities(&self) -> Capabilities;
 
+    /// ADR-0019 §1: the tool described as data, for every layer that
+    /// would otherwise branch on its id. The default claims nothing: the
+    /// id as the name and the letter mark.
+    fn spec(&self) -> crate::spec::ToolSpec {
+        crate::spec::ToolSpec::generic(self.id().as_str())
+    }
+
     /// Harness versions this adapter was validated against (spec §4
     /// version-pinning rule). Discovery compares against this list.
     fn verified_against(&self) -> &'static [&'static str];
@@ -124,6 +131,117 @@ pub trait HarnessAdapter: Send + Sync {
         taken: &[std::path::PathBuf],
     ) -> Option<juggler_core::model::TranscriptRef> {
         let _ = (state_dir, cwd, since_ms, taken);
+        None
+    }
+
+    /// AJ-E1542: what this account has set up (MCP servers, skills,
+    /// commands, subagents, user rules, plugins), read from its files.
+    /// Never starts the tool or a server, and never keeps a secret's text
+    /// (see [`crate::inventory`]). `project` adds what's set up for that
+    /// project only. Default: nothing.
+    #[must_use]
+    fn inventory(&self, state_dir: &Path, project: Option<&Path>) -> Vec<crate::inventory::Item> {
+        let _ = (state_dir, project);
+        Vec::new()
+    }
+
+    /// AJ-E1542: whether this tool can set up `item`, which another
+    /// account or tool has. Default: not yet.
+    #[must_use]
+    fn can_set_up(&self, item: &crate::inventory::Item) -> crate::inventory::SetUp {
+        crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
+    }
+
+    /// AJ-E1542: sets up `item` in this account (only on the user's
+    /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
+    /// says how to undo it. Never replaces anything the account has.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when it can't; the write's error.
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &crate::inventory::Item,
+    ) -> Result<crate::inventory::Applied, AdapterError> {
+        let _ = (state_dir, project);
+        Err(AdapterError::Unsupported(format!(
+            "{} can't set up {} yet",
+            self.id(),
+            item.name
+        )))
+    }
+
+    /// AJ-E1529: the conversation files this account's tool keeps under
+    /// `state_dir` (every one, AI Juggler's or not). Lists only; reads
+    /// nothing. Default: none (a tool without a readable history).
+    #[must_use]
+    fn conversation_files(&self, state_dir: &Path) -> crate::conversation::ConversationFiles {
+        let _ = state_dir;
+        Vec::new()
+    }
+
+    /// AJ-E1529: what one of [`HarnessAdapter::conversation_files`] says
+    /// about itself. Read-only; `None` when it isn't a conversation (empty,
+    /// damaged beyond reading, another tool's file).
+    #[must_use]
+    fn read_conversation(&self, path: &Path) -> Option<crate::conversation::ConversationSummary> {
+        let _ = path;
+        None
+    }
+
+    /// AJ-E1530 Req.1 (ADR-0018 amendment, opt-in): the one change this
+    /// tool's own settings take so that its sessions started outside AI
+    /// Juggler report their limits too: a top-level key of a settings
+    /// file under the account's folder. `None` when the tool reports its
+    /// limits some other way (Codex: in its rollouts), or not at all.
+    #[must_use]
+    fn limits_capture(&self) -> Option<LimitsCapture> {
+        None
+    }
+
+    /// The value [`HarnessAdapter::limits_capture`]'s key takes: a call
+    /// to AI Juggler's capture (`wrapper`, one shell word) that keeps
+    /// what the user's own value (`original`) said, so what they see is
+    /// unchanged.
+    #[must_use]
+    fn limits_capture_value(
+        &self,
+        wrapper: &str,
+        original: Option<&serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        let _ = (wrapper, original);
+        None
+    }
+
+    /// QA batch 10: a quick read of a large conversation file, from its
+    /// start and end only (`conversation::file_ends`): its id, folder,
+    /// branch, first and last activity and, when the start has it, its
+    /// title, with no tokens (they need the whole file). The index reads
+    /// this first, so a running session shows within seconds, and
+    /// [`HarnessAdapter::read_conversation`] afterwards. `None`: no quick
+    /// read (a small file, or a tool without one), read it whole.
+    #[must_use]
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<crate::conversation::ConversationSummary> {
+        let _ = path;
+        None
+    }
+
+    /// AJ-E1529: whether a running process (its executable and its
+    /// arguments, the first being the program) is one of this tool's
+    /// sessions, and which conversation it resumes. Helpers and a desktop
+    /// app's internals are not sessions. Default: never.
+    #[must_use]
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<crate::conversation::SessionProcess> {
+        let _ = (exe, args);
         None
     }
 
@@ -330,6 +448,16 @@ pub trait HarnessAdapter: Send + Sync {
     fn resolved_binary(&self) -> Option<std::path::PathBuf> {
         None
     }
+
+    /// The arguments that resume conversation `conversation_id` from a
+    /// terminal, after [`HarnessAdapter::shell_command`] (AJ-E1537's Copy
+    /// resume command). `None` when the tool can't resume from a
+    /// terminal, or the id looks like an option (never passed).
+    #[must_use]
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        let _ = conversation_id;
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a
@@ -389,6 +517,28 @@ pub fn shell_snippet(
     Some(format!("env {} {}", flags.join(" "), parts.join(" ")))
 }
 
+/// The copyable line that resumes `conversation_id` on the account at
+/// `state_dir`, run from `cwd` (the session's folder): the sign-in line's
+/// environment and program ([`shell_snippet`]), then the adapter's resume
+/// arguments, every word quoted. `None` when the tool can't resume from a
+/// terminal.
+#[must_use]
+pub fn shell_resume_snippet(
+    adapter: &dyn HarnessAdapter,
+    state_dir: &Path,
+    conversation_id: &str,
+    cwd: &Path,
+) -> Option<String> {
+    let args = adapter.resume_args(conversation_id)?;
+    let line = shell_snippet(adapter, state_dir, &std::collections::BTreeMap::new())?;
+    let args: Vec<String> = args.iter().map(|arg| shell_quote(arg)).collect();
+    Some(format!(
+        "cd {} && {line} {}",
+        shell_quote(&cwd.to_string_lossy()),
+        args.join(" ")
+    ))
+}
+
 /// The program word of the copyable line: `command`, as the user types
 /// it, unless their terminal's `PATH` (`shell_path`, when known) doesn't
 /// find it — then the binary AI Juggler found, by its full path.
@@ -413,3 +563,13 @@ pub type SharedAdapter = Arc<dyn HarnessAdapter>;
 
 /// ADR-0008 vocabulary alias: adapters integrate one *Provider*.
 pub type ProviderAdapter = dyn HarnessAdapter;
+
+/// AJ-E1530 Req.1: where a tool takes the opt-in limits capture: `key`,
+/// top-level in `file` (relative to the account's folder).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LimitsCapture {
+    /// The settings file, relative to the account's folder.
+    pub file: &'static str,
+    /// The top-level key whose value is set.
+    pub key: &'static str,
+}

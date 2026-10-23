@@ -1,4 +1,5 @@
-import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * The row menu (D-25: one pattern everywhere): the ⋯ button or a
@@ -65,21 +66,31 @@ export function RowMenu({
       if (active === null || active === document.body || menu?.contains(active)) opener?.focus?.();
     };
   }, []);
-  const style = {
-    left: Math.max(4, Math.min(at.x, window.innerWidth - 190)),
-    top: Math.max(4, Math.min(at.y, window.innerHeight - 190)),
-  };
-  return (
+  // Where it fits: measured once it's drawn, so a long menu opened low
+  // in the window moves up instead of running off it.
+  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 190)), top: Math.max(4, at.y) });
+  useLayoutEffect(() => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    setStyle({
+      left: Math.max(4, Math.min(at.x, window.innerWidth - box.width - 4)),
+      top: Math.max(4, Math.min(at.y, window.innerHeight - box.height - 4)),
+    });
+  }, [at.x, at.y]);
+  // On the page itself: a blurred rail is the containing block of
+  // anything fixed inside it, which would clip the menu to the rail.
+  return createPortal(
     <div
       ref={ref}
       role="menu"
       aria-label={ariaLabel}
       style={style}
-      className="fixed z-50 flex w-44 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-48 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
     >
       <span className="truncate px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">{heading}</span>
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -115,6 +126,11 @@ export function MenuItem({
       {children}
     </button>
   );
+}
+
+/** A line between a menu's groups (AJ-E1537: destructive ones last). */
+export function MenuSeparator() {
+  return <div role="separator" className="mx-1 my-1 border-t border-hairline" />;
 }
 
 /** Where a menu opens: at the pointer, or under its button when opened

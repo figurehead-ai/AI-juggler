@@ -1,21 +1,26 @@
-import { ParkCard } from "./ParkCard";
-import { Select } from "./form";
-import { WorktreeGit } from "./WorktreeGit";
+import { ToolChip } from "./ToolMark";
+import { matches } from "../lib/shortcuts";
+import { PageShell } from "../pages/PageShell";
+import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
+import { since } from "../lib/time-words";
+import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
+import { ProjectUsage } from "../pages/ProjectUsage";
+import { ProjectOverview, ProjectSessions } from "../pages/ProjectPage";
+import { AccountOverview, AccountSessions } from "../pages/AccountPage";
+import { outside, useConversations } from "../lib/conversations";
+import type { ConversationInfo } from "../lib/ipc/conversations";
+import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button, Card, Chip, type ChipTone } from "./primitives";
-import { TerminalView } from "./TerminalView";
+import { Button, Card, Chip } from "./primitives";
+import { lazyNamed } from "../lib/lazy";
+
+// xterm loads with the first terminal shown, not at start.
+const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";
-import {
-  IconFleet,
-  IconJuggler,
-  IconProfiles,
-  IconProjects,
-  IconSessions,
-  IconTerminal,
-} from "./icons";
+import { IconProjects, IconTerminal } from "./icons";
 import type {
   AccountInfo,
   FocusOutcomeInfo,
@@ -23,16 +28,15 @@ import type {
   LaunchRecipeInfo,
   ProjectInfo,
 } from "../lib/bridge";
-import { renewalLabel } from "../lib/renewal";
-import { QuotaBar, formatCountdown } from "./primitives";
-import { TwoClocks, WindowRing } from "./QuotaRings";
-import { accountSetFee, projectSetDefaultAccount, quotaDisplay, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { AccountRunway, runwayOf } from "./AccountRunway";
+import { QuotaBar } from "./primitives";
+import { TwoClocks } from "./QuotaRings";
+import { quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { STATE_WORDS, formatBytes, isActiveStatus, stateChip } from "./indicator";
-import { resourceLine, useHeavyNote } from "../lib/machine";
+import { formatBytes } from "./indicator";
+import { resourceLine } from "../lib/machine";
 import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
-import { SwitchGraph } from "./SwitchGraph";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
@@ -44,62 +48,30 @@ import {
   type DivergenceRecordInfo,
   type FleetSwitchBackPlanInfo,
   type RemoteSwitchTargetInfo,
-  statsEvent,
 } from "../lib/bridge";
-import { RemoteTabBody, freshnessText, type RemoteContext } from "./RemoteTabs";
+import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
+import { launchSettingsName } from "../lib/account-words";
 
 /**
- * RightInspector (AJ-E406, D-06): the one stable right-hand home. Six
- * tabs — Overview · Usage · History · Quality / Performance · Processes
- * · Actions — exist for EVERY selection type (instance, session,
- * provider, account, project) from day one; a tab without measurable
- * data renders its honest empty state with the owning task, never a
- * hidden or disabled tab. Tab state persists per selection type; the
- * embedded terminal NEVER unmounts on tab switches (panels toggle
- * `hidden`, they do not remount).
+ * RightInspector — the page of a session, a project, an account or a
+ * tool, and of a paired Mac's (AJ-E705). AJ-E1533: every type opens the
+ * same kind of page (pages/registry.ts, pages/PageShell.tsx): an
+ * identity header, then the type's own tabs, its body first, and only
+ * the tabs with something to show. Kept on its old name for its callers.
  */
 
-export type InspectorKind = "instance" | "session" | "provider" | "account" | "project" | "machine";
+export type InspectorKind = "instance" | "provider" | "account" | "project" | "machine";
 
 export type InspectorSelection =
   | { kind: "none" }
   | { kind: "login"; id: string }
   | { kind: InspectorKind; id: string };
 
-export const INSPECTOR_TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "usage", label: "Usage" },
-  { id: "history", label: "History" },
-  { id: "quality", label: "Quality / Performance" },
-  { id: "processes", label: "Processes" },
-  { id: "actions", label: "Actions" },
-] as const;
+type EmptyTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-export type InspectorTab = (typeof INSPECTOR_TABS)[number]["id"];
-
-/** Real data source per tab (footer contract, Req.5). */
-/** Where each tab's numbers come from, in plain words (AJ-E406 Req.5;
- * D-25 wording). */
-export const TAB_SOURCES: Record<InspectorTab, string> = {
-  overview: "this Mac's process monitor",
-  usage: "usage tracking",
-  history: "the session's transcript",
-  quality: "this Mac's process monitor",
-  processes: "this Mac's process monitor",
-  actions: "this Mac's process monitor",
-};
-
-const TAB_KEY = (kind: InspectorKind) => `aij.inspector.tab.${kind}`;
-
-function readTab(kind: InspectorKind): InspectorTab {
-  const raw = localStorage.getItem(TAB_KEY(kind));
-  return INSPECTOR_TABS.some((tab) => tab.id === raw) ? (raw as InspectorTab) : "overview";
-}
-
-/** The honest empty state (D-06): visible, explained, never hidden —
- * in plain words (D-25: no task codes on screen). */
-function HonestEmpty({ tab }: { tab: InspectorTab }) {
-  const copy: Record<InspectorTab, string> = {
+/** The honest empty state (D-06), in plain words (D-25). */
+function HonestEmpty({ tab }: { tab: EmptyTab }) {
+  const copy: Record<EmptyTab, string> = {
     overview: "Nothing to show here yet.",
     usage: "No usage measured for this yet.",
     history: "No history for this yet.",
@@ -115,93 +87,6 @@ function HonestEmpty({ tab }: { tab: InspectorTab }) {
   );
 }
 
-function statusTone(status: string): { tone: ChipTone; label: string } {
-  const chip = stateChip(status);
-  const tone: ChipTone =
-    chip.tone === "live"
-      ? "live"
-      : chip.tone === "success"
-        ? "success"
-        : chip.tone === "warning"
-          ? "warning"
-          : chip.tone === "danger"
-            ? "danger"
-            : chip.tone === "accent"
-              ? "accent"
-              : "neutral";
-  return { tone, label: chip.label };
-}
-
-/** How long ago, short: "40s", "12m", "30h", then days past 48 h ("7d"). */
-export function since(ms: number, now: number): string {
-  const secs = Math.max(1, Math.floor((now - ms) / 1000));
-  if (secs < 60) return `${secs}s`;
-  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
-  if (secs < 48 * 3600) return `${Math.floor(secs / 3600)}h`;
-  return `${Math.floor(secs / 86_400)}d`;
-}
-
-function KindIcon({ kind }: { kind: InspectorKind }) {
-  const props = { width: 16, height: 16 };
-  switch (kind) {
-    case "instance":
-      return <IconTerminal {...props} />;
-    case "session":
-      return <IconSessions {...props} />;
-    case "provider":
-      return <IconJuggler {...props} />;
-    case "account":
-      return <IconProfiles {...props} />;
-    case "project":
-      return <IconProjects {...props} />;
-    case "machine":
-      return <IconFleet {...props} />;
-  }
-}
-
-/** E14 (AJ-E1405): "CPU 12% · 1.1 GB · 3 helpers", amber while heavy. */
-function SessionResources({ session }: { session: InstanceInfo }) {
-  const heavy = useHeavyNote(session.id);
-  return (
-    <p className={"-mt-2 font-mono text-[11px] " + (heavy ? "text-warning" : "text-faint")} data-testid="session-resources">
-      {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
-      {heavy && <span className="font-sans"> — working your Mac hard</span>}
-    </p>
-  );
-}
-
-/** D-25: a session is named by its place — branch, else folder. */
-export function sessionPlace(session: InstanceInfo): string {
-  const cwd = session.cwd ?? "";
-  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd;
-  return session.git_branch ?? (folder || session.account_label);
-}
-
-/** "storefront · Work Max · started 38 min ago (· 18% left when low)". */
-export function sessionSubline(session: InstanceInfo, projects: ProjectInfo[], now: number): string {
-  const project = projects.find((p) => p.id === session.project_id)?.name;
-  const left = session.quota ? Math.max(0, Math.round(100 - session.quota.used_percentage)) : null;
-  return [
-    project,
-    session.account_label,
-    `started ${since(session.started_at_ms, now)} ago`,
-    left !== null && left <= 25 ? `${left}% left` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-export const KIND_LABELS: Record<InspectorKind, string> = {
-  // D-25: on screen, an Instance is a "session"; a Session (the
-  // conversation record) is a "conversation".
-  instance: "Session",
-  session: "Conversation",
-  provider: "Tool",
-  account: "Account",
-  project: "Project",
-  machine: "Machine",
-};
-
 /** One resolved selection (the caller owns lookup). */
 export type InspectorData = {
   instance?: InstanceInfo | null;
@@ -213,6 +98,21 @@ export type InspectorData = {
    * tab bodies; every value source-labelled). */
   remote?: RemoteContext | null;
 };
+
+/** The registry's page type for an inspector selection. */
+function pageKindOf(kind: InspectorKind, remote: RemoteContext | null): PageKind {
+  if (remote) return remote.instance ? "remote-session" : "machine";
+  switch (kind) {
+    case "instance":
+      return "session";
+    case "provider":
+      return "tool";
+    case "account":
+    case "project":
+    case "machine":
+      return kind;
+  }
+}
 
 export function RightInspector({
   selection,
@@ -241,6 +141,8 @@ export function RightInspector({
   onRemoteSelect,
   onRemoteActionDone,
   focusTabsRequest = 0,
+  folded = false,
+  onToggleFold,
 }: {
   selection: InspectorSelection;
   data: InspectorData;
@@ -274,121 +176,17 @@ export function RightInspector({
   /** Bumped when the opener goes away (the header's tool chip): focus
    *  moves to the selected tab once this selection's view is shown. */
   focusTabsRequest?: number;
+  /** AJ-E1504: folded to its header line (⌘⇧I); the open tab stays. */
+  folded?: boolean;
+  onToggleFold?: () => void;
 }) {
-  const kind: InspectorKind | "none" | "login" = selection.kind;
   const remote = data.remote ?? null;
-  const [tab, setTab] = useState<InspectorTab>(() =>
-    kind === "none" || kind === "login" ? "overview" : readTab(kind),
-  );
-  const tabsRef = useRef<HTMLDivElement | null>(null);
-
-  // Switching selection restores that type's last tab (Req.3).
-  useEffect(() => {
-    if (kind !== "none" && kind !== "login") setTab(readTab(kind));
-  }, [kind]);
-  // A focus request waits until this kind's tab is the selected one.
-  const pendingFocus = useRef(0);
-  useEffect(() => {
-    if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
-  }, [focusTabsRequest]);
-  useEffect(() => {
-    if (pendingFocus.current === 0 || kind === "none" || kind === "login" || tab !== readTab(kind)) return;
-    const selected = tabsRef.current?.querySelector<HTMLElement>("[role='tab'][aria-selected='true']");
-    if (selected) {
-      selected.focus();
-      pendingFocus.current = 0;
-    }
-  });
-
-  const chooseTab = (next: InspectorTab) => {
-    setTab(next);
-    if (kind !== "none" && kind !== "login") localStorage.setItem(TAB_KEY(kind), next);
-  };
-  // AJ-E1103: a tab the user picked (not one the app moved to).
-  const pickTab = (next: InspectorTab) => {
-    if (kind !== "none" && kind !== "login" && kind !== "machine") {
-      statsEvent("ui.inspector_tab", { selection: kind, tab: next });
-    }
-    chooseTab(next);
-  };
-
-  // ⌘⇧H (App dispatches): jump to the Overview tab; the section itself
-  // scrolls into view from InstanceOverview's own listener.
-  useEffect(() => {
-    const focusHandover = () => {
-      if (kind !== "none" && kind !== "login") chooseTab("overview");
-    };
-    window.addEventListener("aij:focus-handover", focusHandover);
-    return () => window.removeEventListener("aij:focus-handover", focusHandover);
-  });
-
-  // AJ-E411: `Edit renewal date...` (Account Actions) jumps to Overview;
-  // RenewalEditor's own listener opens the date picker.
-  useEffect(() => {
-    const editRenewal = () => {
-      if (kind === "account") chooseTab("overview");
-    };
-    window.addEventListener("aij:edit-renewal", editRenewal);
-    return () => window.removeEventListener("aij:edit-renewal", editRenewal);
-  });
-
-  // Cmd/Ctrl+1..6 switches tabs (Req.6). Focus rings stay visible; the
-  // tab strip supports arrow-key roving.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-      const index = Number(event.key);
-      if (index >= 1 && index <= INSPECTOR_TABS.length) {
-        event.preventDefault();
-        statsEvent("ui.shortcut_used", { shortcut: "inspector_tab" });
-        pickTab(INSPECTOR_TABS[index - 1]!.id);
-        const buttons = tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']");
-        buttons?.[index - 1]?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
-
-  const headerName = remote
-    ? (remote.instance?.account_label ?? remote.machine.label)
-    : kind === "instance"
-      ? (data.instance ? sessionPlace(data.instance) : "Session")
-      : kind === "session"
-        ? "Conversation"
-        : kind === "provider"
-          ? (data.provider?.name ?? "Tool")
-          : kind === "account"
-            ? (data.account?.label ?? "Account")
-            : kind === "project"
-              ? (data.project?.name ?? "Project")
-              : "Fleet";
-  const stateChipNode = remote ? (
-    remote.instance ? (
-      <Chip tone={statusTone(remote.instance.status).tone}>{statusTone(remote.instance.status).label}</Chip>
-    ) : null
-  ) : kind === "instance" && data.instance ? (
-      (() => {
-        const view = statusTone(data.instance.status);
-        return (
-          <span className="flex items-center gap-1.5">
-            <Chip tone={view.tone}>{view.label}</Chip>
-            {/* AJ-E510: the re-adopted marker + the honest terminal
-             * note — output from before the crash is unavailable. */}
-            {data.instance.adopted && (
-              <span data-testid="instance-adopted-chip">
-                <Chip tone="accent">↻ re-adopted</Chip>
-              </span>
-            )}
-          </span>
-        );
-      })()
-    ) : null;
+  const { all: conversations } = useConversations();
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "[") {
+      if (matches("remote-back", event)) {
         event.preventDefault();
         onRemoteBack();
       }
@@ -398,314 +196,155 @@ export function RightInspector({
   }, [remote, onRemoteBack]);
 
   // D-25: with nothing selected the work area is Home (screens/Home).
-  if (kind === "none") return null;
-
+  if (selection.kind === "none" || selection.kind === "login") return null;
+  const kind = selection.kind;
+  const page = pageKindOf(kind, remote);
+  const tabs = pageTabs(page, {
+    desktop: data.instance?.kind === "desktop",
+    hasUsage: data.project ? projectHasUsage(data.project.id, sessions, conversations) : false,
+    hasSessions: data.account
+      ? sessions.some((s) => s.account_id === data.account!.id) ||
+        outside(conversations).some((c) => c.account_id === data.account!.id)
+      : false,
+  });
+  const panelProps = {
+    kind,
+    data,
+    processesBridge,
+    sessions,
+    projects,
+    accounts,
+    profiles,
+    terminalTitle,
+    now,
+    onOpenProject,
+    onOpenSession,
+    onLaunch,
+    onStopped,
+    onHandover,
+    switchBackSuggestions,
+    onSwitchBack,
+    onFocusTerminal: () => window.dispatchEvent(new Event("aij:focus-handover")),
+    focusBridge,
+  };
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="right-inspector" data-inspector-kind={kind}>
-      {remote && (
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted" data-testid="remote-breadcrumb">
-          <button type="button" className="hover:text-ink" onClick={onRemoteBack}>
-            Fleet
-          </button>
-          <span aria-hidden="true">/</span>
-          {remote.instance ? (
-            <button type="button" className="hover:text-ink" onClick={() => onRemoteSelect?.(null)}>
-              {remote.machine.label}
-            </button>
-          ) : (
-            <span aria-current="page" className="text-ink">
-              {remote.machine.label}
-            </span>
-          )}
-          {remote.instance && (
-            <>
-              <span aria-hidden="true">/</span>
-              <span aria-current="page" className="text-ink">
-                Session
-              </span>
-            </>
-          )}
-          <span className="ml-1">(⌘[ back)</span>
-        </nav>
-      )}
-      {/* Header: type icon, name, I-04 state chip, primary action (Req.1). */}
-      <header className="flex flex-wrap items-center gap-3">
-        <span className="text-accent-hi" title={KIND_LABELS[kind as InspectorKind]}>
-          <KindIcon kind={kind as InspectorKind} />
-        </span>
-        <h2 className="text-lg font-semibold tracking-tight">{headerName}</h2>
-        {stateChipNode}
-        {/* Fleet-shaped (Req.7): remote selections carry a machine chip. */}
-        {remote ? (
-          <span data-testid="remote-machine-chip">
-            <Chip tone="accent">
-              <IconFleet width={10} height={10} /> {remote.machine.label}
-            </Chip>
-          </span>
+    <PageShell
+      // Each type keeps its own tab: a new type starts from its own memory.
+      key={page}
+      kind={page}
+      tabs={tabs}
+      testId="right-inspector"
+      folded={folded}
+      focusTabsRequest={focusTabsRequest}
+      header={
+        <InspectorHeader
+          page={page}
+          kind={kind}
+          data={data}
+          sessions={sessions}
+          projects={projects}
+          now={now}
+          primaryAction={primaryAction}
+          profiles={profiles}
+          onLaunch={onLaunch}
+          onOpenProject={onOpenProject}
+          onStopped={onStopped}
+          onRemoteBack={onRemoteBack}
+          onRemoteSelect={onRemoteSelect}
+          folded={folded}
+          onToggleFold={onToggleFold}
+        />
+      }
+      render={(tab, visible) =>
+        remote ? (
+          <RemoteTabBody
+            tab={tab as InspectorTab}
+            remote={remote}
+            now={now}
+            onSelectInstance={(id) => onRemoteSelect?.(id)}
+            onActionDone={() => onRemoteActionDone?.()}
+          />
         ) : (
-          data.machineId &&
-          data.machineId !== "this-mac" && (
-            <Chip tone="accent">
-              <IconFleet width={10} height={10} /> {data.machineId}
-            </Chip>
-          )
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          {/* D-25: the session's one-step-away move, beside its Stop. */}
-          {!remote && kind === "instance" && data.instance && data.instance.kind !== "desktop" && (
-            <Button
-              size="sm"
-              variant="secondary"
-              data-testid="header-switch"
-              onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}
-            >
-              Switch account…
-            </Button>
-          )}
-          {primaryAction ?? null}
-        </div>
-      </header>
-      {!remote && kind === "instance" && data.instance && (
-        <p className="-mt-2 text-xs text-muted" data-testid="session-subline">
-          {sessionSubline(data.instance, projects, now)}
-        </p>
+          <InspectorPanel {...panelProps} tab={tab} visible={visible} />
+        )
+      }
+      footer={(tab) => (
+        // Sticky with a solid background: a long tab scrolls under it.
+        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
+          <span>
+            Updated{" "}
+            {since(remote ? (remote.machine.last_heard_ms ?? now) : (freshness[data.instance?.id ?? ""]?.resources ?? now), now)} ago
+          </span>
+          <span aria-hidden="true">·</span>
+          {/* D-25: a paired Mac's source is worth saying out loud. */}
+          <span>{remote ? `from ${remote.machine.label} over the Fleet link` : `from ${tab.source}`}</span>
+        </footer>
       )}
-      {/* E14 (AJ-E1405): what this session uses, in view — not under Details. */}
-      {!remote && kind === "instance" && data.instance && isActiveStatus(data.instance.status) && (
-        <SessionResources session={data.instance} />
-      )}
-
-      {remote && (
-        <p
-          className={
-            "text-[11px] " +
-            (remote.machine.freshness === "live" ? "text-muted" : "text-warning")
-          }
-          aria-live="polite"
-          data-testid="remote-freshness"
-          data-freshness={remote.machine.freshness}
-        >
-          {freshnessText(remote.machine, now)}
-        </p>
-      )}
-      {/* The fixed six tabs (D-06): never hidden, never reordered. */}
-      <div ref={tabsRef} role="tablist" aria-label={`${KIND_LABELS[kind as InspectorKind]} inspector tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
-        {INSPECTOR_TABS.map((entry, index) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            id={`inspector-tab-${entry.id}`}
-            aria-selected={tab === entry.id}
-            aria-controls={`inspector-panel-${entry.id}`}
-            tabIndex={tab === entry.id ? 0 : -1}
-            onClick={() => pickTab(entry.id)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                event.preventDefault();
-                const delta = event.key === "ArrowRight" ? 1 : -1;
-                const next = (INSPECTOR_TABS.indexOf(INSPECTOR_TABS.find((t) => t.id === tab)!) + delta + INSPECTOR_TABS.length) % INSPECTOR_TABS.length;
-                chooseTab(INSPECTOR_TABS[next]!.id);
-                tabsRef.current?.querySelectorAll<HTMLButtonElement>(`[role='tab']`)[next]?.focus();
-              }
-            }}
-            className={
-              "rounded-lg px-2.5 py-1 text-[11.5px] font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (tab === entry.id
-                ? "bg-accent-soft text-accent-hi"
-                : "text-muted hover:bg-surface hover:text-ink") +
-              (index < 5 ? " hidden sm:inline-flex" : "") // Actions stays; guard tiny widths
-            }
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Panels toggle `hidden` — the terminal never unmounts (gate). */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        {INSPECTOR_TABS.map((entry) => (
-          <section
-            key={entry.id}
-            role="tabpanel"
-            id={`inspector-panel-${entry.id}`}
-            aria-labelledby={`inspector-tab-${entry.id}`}
-            hidden={tab !== entry.id}
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
-          >
-            {remote ? (
-              <RemoteTabBody
-                tab={entry.id}
-                remote={remote}
-                now={now}
-                onSelectInstance={(id) => onRemoteSelect?.(id)}
-                onActionDone={() => onRemoteActionDone?.()}
-              />
-            ) : (
-            <InspectorPanel
-              tab={entry.id}
-              kind={kind as InspectorKind}
-              data={data}
-              processesBridge={processesBridge}
-              sessions={sessions}
-              projects={projects}
-              accounts={accounts}
-              profiles={profiles}
-              terminalTitle={terminalTitle}
-              now={now}
-              onOpenProject={onOpenProject}
-              onOpenSession={onOpenSession}
-              onLaunch={onLaunch}
-              onStopped={onStopped}
-              onHandover={onHandover}
-              switchBackSuggestions={switchBackSuggestions}
-              onSwitchBack={onSwitchBack}
-              onFocusTerminal={() => {
-                chooseTab("overview");
-                window.dispatchEvent(new Event("aij:focus-handover"));
-              }}
-              focusBridge={focusBridge}
-              visible={tab === entry.id}
-            />
-            )}
-            {/* Footer: updated-ago + the field's REAL source (Req.5). */}
-            {/* Sticky with a solid background: a long tab (many switch
-                destinations) scrolls under it, never draws over it. */}
-            <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
-              <span>
-                Updated{" "}
-                {since(
-                  remote
-                    ? (remote.machine.last_heard_ms ?? now)
-                    : (freshness[data.instance?.id ?? ""]?.resources ?? now),
-                  now,
-                )}{" "}
-                ago
-              </span>
-              {/* D-25: where a number comes from stays one hover away;
-                  a paired Mac's is worth saying out loud. */}
-              {remote ? (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>from {remote.machine.label} over the Fleet link</span>
-                </>
-              ) : (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>from {TAB_SOURCES[entry.id]}</span>
-                </>
-              )}
-            </footer>
-          </section>
-        ))}
-      </div>
-    </div>
+    />
   );
 }
 
-function InspectorPanel(props: {
-  tab: InspectorTab;
-  kind: InspectorKind;
-  data: InspectorData;
-  processesBridge: ProcessesBridge;
-  sessions: InstanceInfo[];
-  projects: ProjectInfo[];
-  accounts: AccountInfo[];
-  profiles: LaunchRecipeInfo[];
-  terminalTitle: string | null;
-  now: number;
-  onOpenProject: (id: string) => void;
-  onOpenSession: (id: string) => void;
-  onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
-  /** Reads the app's lists again: after a stop, or a change made here
-   * (a project's default account). */
-  onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
-  switchBackSuggestions?: SwitchBackSuggestionData[];
-  onSwitchBack?: (sessionId: string) => void;
-  onFocusTerminal: () => void;
-  focusBridge: FocusBridge;
-  visible: boolean;
-}) {
-  const { tab, kind } = props;
+/** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
+type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-  if (kind === "provider" || kind === "account" || kind === "project") {
-    switch (tab) {
-      case "overview":
-        return kind === "provider" ? (
-          <ProviderOverview {...props} />
-        ) : kind === "account" ? (
-          <AccountOverview {...props} />
-        ) : (
-          <ProjectOverview {...props} />
-        );
-      case "history":
-        return kind === "account" || kind === "project" ? <GroupedHistory {...props} /> : <HonestEmpty tab="history" />;
-      case "processes":
-        // Rollups above Instance level are read-only (Req.2); orphan
-        // stop actions live on the Instance's own tab.
-        return <AggregateProcesses {...props} />;
-      case "actions":
-        return kind === "provider" ? (
-          <ProviderActions />
-        ) : kind === "account" ? (
-          <AccountActions {...props} />
-        ) : (
-          <ProjectActions {...props} />
-        );
-      default:
-        break;
-    }
-  }
-
-  if (kind === "instance" || kind === "session") {
-    switch (tab) {
-      case "overview":
-        return kind === "instance" ? (
-          <InstanceOverview {...props} />
-        ) : (
-          <SessionOverview {...props} />
-        );
-      case "usage":
-        return kind === "instance" ? <InstanceUsage {...props} /> : <SessionUsage {...props} />;
-      case "history":
-        return kind === "instance" ? <InstanceHistory {...props} /> : <SessionHistory {...props} />;
-      case "quality":
-        return <QualityTab {...props} />;
-      case "processes":
-        // Session (conversation) selections render the frozen final tree
-        // read-only (E407 contract); the Instance tab owns stop actions.
-        return <ProcessesTab {...props} readOnly={kind === "session"} />;
-      case "actions":
-        return kind === "instance" ? (
-          <InstanceActions
-            {...props}
-            onRelaunch={(recipe, cwd) =>
-              props.onLaunch(recipe, {
-                id: "relaunch",
-                root: cwd ?? "",
-                name: "relaunch",
-                last_activity_ms: null,
-                active_instance: null,
-                accounts_used: [],
-                instance_count: 0,
-                history_sessions: 0, history_last_used_ms: null, repo: null,
-                missing: false,
-              })
-            }
-          />
-        ) : (
-          <SessionActions {...props} />
-        );
-      default:
-        break;
-    }
-  }
-
-  // Honest empties for the tabs with nothing yet (D-06): visible and
-  // explained, never hidden or disabled.
-  return <HonestEmpty tab={tab} />;
+/** A project has usage to show when any of its sessions measured some. */
+function projectHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
+  const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
+  return (
+    sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||
+    outside(conversations).some((c) => c.project_id === projectId && used(c.tokens))
+  );
 }
+
+function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
+  const { tab, kind } = props;
+  switch (kind) {
+    case "instance":
+      switch (tab) {
+        case "terminal":
+        case "window":
+          return <InstanceOverview {...props} />;
+        case "usage":
+          // AJ-E1533: Quality joins Usage — one place for what it used
+          // and how it went.
+          return (
+            <>
+              <InstanceUsage {...props} />
+              <QualityTab {...props} />
+            </>
+          );
+        case "processes":
+          return <ProcessesTab {...props} readOnly={false} />;
+        default:
+          return null;
+      }
+    case "project":
+      switch (tab) {
+        case "sessions":
+          return props.data.project ? <ProjectSessions {...props} project={props.data.project} /> : null;
+        case "overview":
+          return props.data.project ? <ProjectOverview {...props} project={props.data.project} /> : null;
+        case "usage":
+          return <ProjectUsage projectId={props.data.project?.id ?? ""} sessions={props.sessions} />;
+        default:
+          return null;
+      }
+    case "account":
+      switch (tab) {
+        case "overview":
+          return props.data.account ? <AccountOverview {...props} account={props.data.account} /> : null;
+        case "sessions":
+          return props.data.account ? <AccountSessions {...props} account={props.data.account} /> : null;
+        default:
+          return null;
+      }
+    case "provider":
+      return tab === "overview" ? <ProviderOverview {...props} /> : null;
+    case "machine":
+      return null;
+  }
+}
+
 
 /// The Processes-tab data/action seam (AJ-E410): production resolves the
 /// real bridge lazily; tests inject a deterministic source. (Extracted
@@ -894,17 +533,14 @@ function InstanceOverview(props: PanelProps) {
             }
             return null;
           })()}
-          <div className="flex flex-col gap-1 text-[11px] text-muted">
-            <WorktreeGit sessionId={session.id} live={live} />
-            <ParkCard session={session} now={props.now} />
-          </div>
+          <SessionNotes session={session} live={live} now={props.now} />
           <details className="group text-[11px]" data-testid="instance-details">
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
               Details
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
+            <ToolChip tool={session.provider} />
             <Chip tone="neutral">
               {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
             </Chip>
@@ -978,7 +614,7 @@ function InstanceOverview(props: PanelProps) {
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
-              <Chip tone="neutral">{providerDisplayName(session.provider)}</Chip>
+              <ToolChip tool={session.provider} />
               <span className="text-[11.5px] text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
@@ -1090,7 +726,7 @@ function InstanceOverview(props: PanelProps) {
               <p className="text-[11px] text-faint" data-testid="desktop-state-line">
                 {session.status === "failed"
                   ? "app crashed · exit details on the Processes tab"
-                  : "app exited · relaunch from Actions"}
+                  : "app exited · Relaunch, above, starts it again"}
               </p>
             )}
             <p className="text-[11px] text-faint">
@@ -1101,7 +737,7 @@ function InstanceOverview(props: PanelProps) {
           </Card>
         ) : (
           <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} />
+            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
           </Card>
         )}
         {!live && !isDesktop && (
@@ -1283,10 +919,8 @@ function InstanceOverview(props: PanelProps) {
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
                     <span className="text-faint">·</span>
-                    <span className="text-muted">{recipe.name}</span>
-                    {recipe.model && (
-                      <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>
-                    )}
+                    <span className="text-muted">{launchSettingsName(recipe.name)}</span>
+                    {recipe.model && <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>}
                     {!ready && <Chip tone="neutral">sign in first</Chip>}
                   </button>
                 );
@@ -1472,159 +1106,6 @@ function InstanceUsage(props: PanelProps) {
   );
 }
 
-/** Instance History (§5.1): resumes/handovers/crashes; honest until the
- * indexer exists. Imported rows will carry the `imported` badge. */
-function InstanceHistory(props: PanelProps) {
-  const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="history" />;
-  return (
-    <div className="flex flex-col gap-3" data-testid="instance-history">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">This session</p>
-        <p className="text-[11.5px] text-muted">No history recorded yet</p>
-        <p className="text-[10px] text-muted">Resumes, handovers and crashes will show here.</p>
-        <p className="text-[10px] text-muted">
-          Started {new Date(instance.started_at_ms).toLocaleString()} · {STATE_WORDS[instance.status] ?? instance.status}
-        </p>
-      </Card>
-    </div>
-  );
-}
-
-/** One action row: disabled actions keep their reason text adjacent
- * (deep 02 §10 — never hidden). */
-function ActionRow({
-  label,
-  shortcut,
-  reason,
-  onClick,
-  danger,
-}: {
-  label: string;
-  shortcut?: string;
-  reason?: string;
-  onClick?: () => void;
-  danger?: boolean;
-}) {
-  const disabled = !onClick;
-  return (
-    <div className="flex items-center gap-3 py-1.5" data-testid={`action-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}>
-      <button
-        type="button"
-        disabled={disabled}
-        title={shortcut ? `${label} (${shortcut})` : label}
-        onClick={onClick}
-        className={
-          "rounded-lg border px-2.5 py-1.5 text-[11.5px] font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (disabled
-            ? "cursor-default border-hairline/50 text-faint"
-            : danger
-              ? "border-danger/30 bg-danger-soft text-danger hover:border-danger/50"
-              : "border-hairline text-ink hover:border-accent/40 hover:bg-surface") +
-          (danger ? " opacity-90" : "")
-        }
-      >
-        {label}
-        {shortcut ? <span className="ml-1.5 text-[9px] text-faint">{shortcut}</span> : null}
-      </button>
-      {reason ? <span className="text-[10.5px] text-muted">{reason}</span> : null}
-    </div>
-  );
-}
-
-/** Instance Actions (§5.1): real where the bridge is real; disabled
- * WITH reason where the owner task has not landed. */
-function InstanceActions(props: PanelProps & { onRelaunch?: (recipe: LaunchRecipeInfo, cwd: string | null) => void }) {
-  const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="actions" />;
-  const live = instance.status === "running" || instance.status === "starting";
-  const ended = ["finished", "stopped", "failed", "handed_over"].includes(instance.status);
-  const recipe = props.profiles.find((r) => r.id === instance.launch_recipe_id) ?? null;
-  return (
-    <div className="flex flex-col gap-2" data-testid="instance-actions">
-      <ActionRow
-        label={instance.kind === "desktop" ? "Open / Focus window" : "Focus terminal"}
-        onClick={
-          instance.kind === "desktop"
-            ? () => {
-                void props.focusBridge(instance.id);
-              }
-            : props.onFocusTerminal
-        }
-      />
-      <ActionRow label="Stop" shortcut="⌘." onClick={live ? props.onStopped : undefined} reason={live ? undefined : "not running"} />
-      <ActionRow
-        label={ended ? "Relaunch" : "Resume"}
-        onClick={ended && recipe ? () => props.onRelaunch?.(recipe, instance.cwd) : undefined}
-        reason={ended ? (recipe ? undefined : "launch settings missing") : "still running"}
-      />
-      <ActionRow
-        label="Hand over…"
-        shortcut="⌘⇧H"
-        onClick={() => props.onFocusTerminal()}
-        reason="scroll to Continue on another account"
-      />
-    </div>
-  );
-}
-
-/** Session (conversation) Overview (§5.2): ended = immutable with the
- * Ended stamp; unreadable transcripts never zero stats. */
-function SessionOverview(props: PanelProps) {
-  const instance = props.data.instance;
-  const ended = instance
-    ? ["finished", "stopped", "failed", "handed_over", "quota_blocked"].includes(instance.status)
-    : false;
-  return (
-    <div className="flex flex-col gap-3" data-testid="session-overview">
-      <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
-          {instance ? (
-            <Chip tone={statusTone(instance.status).tone}>{statusTone(instance.status).label}</Chip>
-          ) : (
-            <Chip tone="neutral">unknown state</Chip>
-          )}
-          {ended && instance?.last_activity_ms ? (
-            <span className="text-muted" data-testid="session-ended-stamp">
-              Ended{" "}
-              {new Date(instance.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-            </span>
-          ) : null}
-          {instance ? (
-            <button
-              type="button"
-              onClick={() => props.onOpenSession(instance.id)}
-              className="-my-1 py-1 text-muted underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-            >
-              owning session: {instance.account_label}
-            </button>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1 text-[11px] text-muted">
-          <span data-testid="session-tokens">
-            tokens:{" "}
-            {instance?.tokens ? (
-              <span className="tabular-nums text-ink">
-                {(instance.tokens.input + instance.tokens.output).toLocaleString()}
-              </span>
-            ) : (
-              "No usage recorded yet"
-            )}
-          </span>
-          <span data-testid="session-transcript" className="text-muted">
-            Transcript not readable yet
-          </span>
-        </div>
-      </Card>
-      <Card className="flex flex-col gap-1 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Turns · models · files touched</p>
-        <p className="text-[11.5px] text-muted">Transcript not readable yet</p>
-      </Card>
-    </div>
-  );
-}
-
-
 /** AJ-E610: the Usage tab's account block (engine query; a null
  * account id — orphaned launch settings — renders the honest empty). */
 function AccountTwoClocks({ accountId }: { accountId: string | null }) {
@@ -1646,83 +1127,6 @@ function AccountTwoClocks({ accountId }: { accountId: string | null }) {
     return <p className="text-xs text-muted">loading…</p>;
   }
   return <TwoClocks display={display} />;
-}
-
-/** Session Usage (§5.2): per-turn table + CSV — honest until transcript
- * indexing exists; aggregate tokens are real. */
-function SessionUsage(props: PanelProps) {
-  const instance = props.data.instance;
-  return (
-    <div className="flex flex-col gap-3" data-testid="session-usage">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Per-turn tokens · cost</p>
-        {instance?.tokens ? (
-          <p className="text-[11.5px] text-muted">
-            aggregate:{" "}
-            <span className="tabular-nums text-ink">
-              {(instance.tokens.input + instance.tokens.output).toLocaleString()} tokens
-            </span>
-          </p>
-        ) : (
-          <p className="text-[11.5px] text-muted">No usage recorded yet</p>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-/** Session History (§5.2): the A→B→A lineage chain. */
-function SessionHistory(_props: PanelProps) {
-  return (
-    <div className="flex flex-col gap-3" data-testid="session-history">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Lineage</p>
-        <p className="text-[11.5px] text-muted">No switches between accounts yet.</p>
-      </Card>
-    </div>
-  );
-}
-
-/** Session Actions (§5.2): Resume primary; the rest honest. */
-function SessionActions(props: PanelProps) {
-  const instance = props.data.instance;
-  const recipe = instance
-    ? props.profiles.find((r) => r.id === instance.launch_recipe_id) ?? null
-    : null;
-  const ended = instance
-    ? ["finished", "stopped", "failed", "handed_over", "quota_blocked"].includes(instance.status)
-    : false;
-  return (
-    <div className="flex flex-col gap-2" data-testid="session-actions">
-      <ActionRow
-        label="Resume"
-        shortcut="⌘R"
-        onClick={
-          ended && recipe
-            ? () =>
-                props.onLaunch(recipe, {
-                  id: "resume",
-                  root: instance?.cwd ?? "",
-                  name: "resume",
-                  last_activity_ms: null,
-                  active_instance: null,
-                  accounts_used: [],
-                  instance_count: 0,
-                  history_sessions: 0, history_last_used_ms: null, repo: null,
-                  missing: false,
-                })
-            : undefined
-        }
-        reason={ended ? (recipe ? undefined : "launch settings missing") : "conversation still live"}
-      />
-      <ActionRow
-        label="Hand over…"
-        shortcut="⌘⇧H"
-        onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}
-        reason="opens the owning session's hand-over section"
-      />
-    </div>
-  );
 }
 
 // --- AJ-E408: Provider / Account / Project content -----------------------
@@ -1779,29 +1183,33 @@ export function installWords(install: import("../lib/bridge").ProviderInstallDat
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
   const install = useToolInstall(provider?.id ?? null);
+  const { all: conversations } = useConversations();
+  // One source per fact: each account's line is Runway's own (runwayOf).
+  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  useEffect(() => {
+    let alive = true;
+    quotaDisplayAll().then(
+      (rows) => alive && setQuota(rows),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [provider?.id]);
   if (!provider) return <HonestEmpty tab="overview" />;
   const providerAccounts = props.accounts.filter((a) => a.provider === provider.id);
   const providerSessions = props.sessions.filter((s) => s.provider === provider.id);
-  const running = providerSessions.filter((s) => s.status === "running" || s.status === "starting");
-  // Aggregate quota, WORST ACCOUNT FIRST (recognition over recall); each
-  // row traces to its rail row (Req.7 — no unexplainable dashboard).
+  // One count everywhere: its sessions running now, outside ones too (AJ-E1529).
+  const running = toolRunning(provider.id, props.sessions, conversations);
+  // Each account's runway, the least left first (recognition over
+  // recall); each line is the one Home, Usage and Accounts show.
   const perAccount = providerAccounts
     .map((account) => {
-      const rows = providerSessions.filter((s) => s.account_id === account.id && s.quota !== null);
-      const worst = rows.reduce<InstanceInfo | null>((min, row) => {
-        if (!min) return row;
-        return (100 - row.quota!.used_percentage) < (100 - min.quota!.used_percentage) ? row : min;
-      }, null);
-      return { account, worst };
+      const display = quota.find((q) => q.account === account.id);
+      const sessions = providerSessions.filter((s) => s.account_id === account.id);
+      return { account, display, sessions, left: runwayOf(display, sessions).left };
     })
-    .sort((a, b) => {
-      const leftA = a.worst ? 100 - a.worst.quota!.used_percentage : Number.POSITIVE_INFINITY;
-      const leftB = b.worst ? 100 - b.worst.quota!.used_percentage : Number.POSITIVE_INFINITY;
-      return leftA - leftB;
-    });
-  const tiers = new Set(
-    perAccount.filter((entry) => entry.worst).map((entry) => entry.worst!.quota!.confidence),
-  );
+    .sort((a, b) => (a.left ?? Number.POSITIVE_INFINITY) - (b.left ?? Number.POSITIVE_INFINITY));
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
@@ -1809,7 +1217,7 @@ function ProviderOverview(props: PanelProps) {
           <span className="text-ink">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
           </span>
-          <span className="text-muted">· {running.length} running</span>
+          <span className="text-muted">· {running} running</span>
         </div>
         {/* Shown once known; nothing in its place until then (D-25). */}
         {install !== null && (
@@ -1819,427 +1227,26 @@ function ProviderOverview(props: PanelProps) {
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Quota, lowest first</p>
+        <p className="text-[11px] uppercase tracking-wider text-muted">Runway, least left first</p>
         {perAccount.length === 0 ? (
           <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
         ) : (
-          perAccount.map(({ account, worst }) => (
-            <div key={account.id} className="flex flex-col gap-1 py-0.5">
+          perAccount.map(({ account, display, sessions }) => (
+            <div key={account.id} className="flex flex-col gap-1.5 py-1">
               <span className="text-[11.5px]">
                 <span className="text-ink">{account.label}</span>
                 {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
               </span>
               {/* D-25: a signed-out account with no reading says "signed
-                  out" above; an empty bar would only repeat it. */}
-              {worst?.quota || signedIn(account.login_state) ? <QuotaBar quota={worst?.quota ?? null} /> : null}
+                  out" above; its runway would only repeat it. */}
+              {display || signedIn(account.login_state) ? <AccountRunway display={display} sessions={sessions} /> : null}
             </div>
           ))
         )}
-        {tiers.size > 1 ? (
-          <span className="text-[10px] text-muted" data-testid="provider-mixed">
-            <span className="rounded border border-hairline px-1">mixed</span> some of these are measured, some estimated
-          </span>
-        ) : null}
       </Card>
     </div>
   );
 }
-
-function ProviderActions() {
-  return (
-    <div className="flex flex-col gap-2" data-testid="provider-actions">
-      <ActionRow label="Add account…" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))} reason="opens Accounts" />
-    </div>
-  );
-}
-
-/** Account Overview (§5.4): rings with % text, forecast, affinity,
- * renewal field (E411), logged-out collapse to the sign-in card. */
-function AccountOverview(props: PanelProps) {
-  const account = props.data.account;
-  if (!account) return <HonestEmpty tab="overview" />;
-  const rows = props.sessions.filter((s) => s.account_id === account.id);
-  const running = rows.filter((s) => s.status === "running" || s.status === "starting");
-  const worst = rows
-    .filter((s) => s.quota !== null)
-    .reduce<InstanceInfo | null>((min, row) => {
-      if (!min) return row;
-      return (100 - row.quota!.used_percentage) < (100 - min.quota!.used_percentage) ? row : min;
-    }, null);
-  const usualProjects = props.projects.filter((p) => p.accounts_used.includes(account.label));
-
-  if (!signedIn(account.login_state)) {
-    // Logged-out collapse: the Overview IS the sign-in card (Req.3).
-    return (
-      <Card className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center" data-testid="account-signin-card">
-        <p className="text-[13px] font-medium text-ink">{account.label} is signed out</p>
-        <p className="max-w-xs text-[11.5px] leading-relaxed text-muted">
-          Sign in from the Accounts screen to see quota, usage and launch controls again. Nothing is
-          deleted — the isolated account state is kept.
-        </p>
-        <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
-          Open Accounts to sign in
-        </Button>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3" data-testid="account-overview">
-      <Card className="flex flex-wrap items-center gap-4 p-4">
-        <div className="flex flex-wrap items-center gap-4" data-testid="account-rings">
-          {/* AJ-E610: engine-evaluated windows — ring + % + badge + reset;
-              an omitted window renders its reason, never an empty ring. */}
-          <AccountWindowRings accountId={account.id} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1 text-[11px]">
-          <span className="flex items-center gap-2">
-            <Chip tone="success">signed in</Chip>
-            <span className="text-muted">plan: <span className="text-ink">{account.plan ?? "unknown"}</span></span>
-          </span>
-          <span data-testid="account-renewal" className="flex flex-wrap items-center gap-1.5">
-            {(() => {
-              const label = renewalLabel(account.renewal_date, props.now);
-              if (account.renewal_date === null) {
-                return <span className="text-muted">Expiry: unknown</span>;
-              }
-              if (label?.tier === "warning") {
-                return <Chip tone="warning">⚠ {label.text}</Chip>;
-              }
-              if (label?.tier === "danger") {
-                return <Chip tone="danger">⛔ {label.text}</Chip>;
-              }
-              return <span className="text-muted">{label?.text ?? "Expiry: unknown"}</span>;
-            })()}
-          </span>
-          <RenewalEditor account={account} />
-          <FeeEditor account={account} />
-          {/*
-           * AJ-E508 (D-08): the Account launch-settings area's TWO
-           * separate tier toggles — never one bundled "auto-cleanup"
-           * switch. Exact labels; both off by default.
-           */}
-          <TierToggles accountId={account.id} initial={account.cleanup_opt_in} />
-          <label data-testid="account-preview-toggle" className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={account.preview_opt_in}
-              onChange={(event) => {
-                const optIn = event.target.checked;
-                void import("../lib/bridge").then((bridge) =>
-                  bridge.accountSetPreviewOptIn(account.id, optIn).catch(() => {
-                    /* re-reads from props on the next list refresh */
-                  }),
-                );
-              }}
-            />
-            <span className="text-muted">Live preview of desktop sessions (opt-in)</span>
-          </label>
-          <span data-testid="account-reset" className="text-muted">
-            reset:{" "}
-            {worst?.quota?.resets_at_ms ? (
-              <span className="text-ink">{formatCountdown(worst.quota.resets_at_ms, props.now)}</span>
-            ) : (
-              <span className="text-faint">not known yet</span>
-            )}
-          </span>
-        </div>
-      </Card>
-      <Card className="flex flex-col gap-1.5 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Running sessions ({running.length})</p>
-        {running.length === 0 ? (
-          <p className="text-[11.5px] text-muted">None right now.</p>
-        ) : (
-          running.map((row) => (
-            <button key={row.id} type="button" onClick={() => props.onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-              <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-              <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
-            </button>
-          ))
-        )}
-      </Card>
-      <Card className="flex flex-col gap-1.5 p-4" data-testid="account-affinity">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Usual projects</p>
-        {usualProjects.length === 0 ? (
-          <p className="text-[11.5px] text-muted">No project affinity yet.</p>
-        ) : (
-          usualProjects.map((project) => (
-            <button key={project.id} type="button" onClick={() => props.onOpenProject(project.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-              <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
-              <span className="text-faint">usual</span>
-            </button>
-          ))
-        )}
-      </Card>
-    </div>
-  );
-}
-
-function AccountActions(props: PanelProps) {
-  const account = props.data.account;
-  if (!account) return <HonestEmpty tab="actions" />;
-  const recipes = props.profiles.filter((r) => r.account_id === account.id);
-  const first = recipes[0] ?? null;
-  return (
-    <div className="flex flex-col gap-2" data-testid="account-actions">
-      <ActionRow
-        label="Launch session"
-        onClick={
-          first
-            ? () =>
-                props.onLaunch(first, {
-                  id: "launch", root: first.default_cwd ?? "", name: "launch", last_activity_ms: null,
-                  active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
-                })
-            : undefined
-        }
-        reason={first ? undefined : "no launch settings on this account yet"}
-      />
-      <ActionRow label={signedIn(account.login_state) ? "Re-check login" : "Sign in"} onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))} reason="opens Accounts" />
-      <ActionRow
-        label="Edit renewal date..."
-        onClick={() => window.dispatchEvent(new Event("aij:edit-renewal"))}
-        reason="jumps to the Overview editor"
-      />
-    </div>
-  );
-}
-
-/** Project Overview (§5.5): On-it-now row (full I-01..I-11 via
- * SessionRow), root copy, branch summary, counts, missing-dir banner. */
-function ProjectOverview(props: PanelProps) {
-  const project = props.data.project;
-  if (!project) return <HonestEmpty tab="overview" />;
-  const rows = props.sessions.filter((s) => s.project_id === project.id);
-  const active = rows.find((s) => s.status === "running" || s.status === "starting") ?? null;
-  const branches = [...new Set(rows.map((r) => r.git_branch).filter((b): b is string => b !== null))];
-  const dirtyTotal = rows.reduce((sum, r) => sum + (r.git_dirty_count ?? 0), 0);
-  return (
-    <div className="flex flex-col gap-3" data-testid="project-overview">
-      {project.missing ? (
-        <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
-          <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{project.root}</span>
-        </div>
-      ) : null}
-      {rows.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 p-6 text-center" data-testid="project-empty">
-          {/* 0.0.11 walk, Q2: a project known from the setups' history says
-              what was done there — the rail row's own line. */}
-          {project.history_sessions > 0 ? (
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-[12px] font-medium text-ink">Nothing started from AI Juggler here yet</p>
-              <p className="text-[11.5px] text-muted" data-testid="project-history-line">
-                {projectStats(project, props.now).join(" · ")}
-              </p>
-            </div>
-          ) : (
-            <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
-          )}
-          <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:new-session"))}>
-            <IconTerminal width={13} height={13} />
-            Start first session
-          </Button>
-        </Card>
-      ) : (
-        <>
-          <Card className="flex flex-col gap-1 p-3">
-            <p className="text-[11px] uppercase tracking-wider text-muted">On it now</p>
-            {active ? (
-              <div data-testid="project-on-it-now" className="cursor-pointer" onClick={() => props.onOpenSession(active.id)}>
-                <SessionRowForCard session={active} />
-              </div>
-            ) : (
-              <p className="text-[11.5px] text-muted">No live session — free to juggle.</p>
-            )}
-          </Card>
-          <Card className="flex flex-col gap-2 p-4">
-            <CopyField testId="project-root" label="root" value={project.root} mono />
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted" data-testid="project-summary">
-              <span>
-                branches: <span className="text-ink">{branches.length > 0 ? branches.join(", ") : "none"}</span>
-                {dirtyTotal > 0 ? <span className="text-warning"> · {dirtyTotal} dirty</span> : null}
-              </span>
-              <span>
-                accounts used: <span className="text-ink">{project.accounts_used.join(", ") || "none"}</span>
-              </span>
-              <span>
-                sessions: <span className="tabular-nums text-ink">{project.instance_count}</span> · imported sessions:{" "}
-                <span className="tabular-nums text-ink">{project.history_sessions}</span>
-              </span>
-            </div>
-          </Card>
-        </>
-      )}
-      {/* AJ-E209 Req.4/5: the per-Work Switch Graph — how the work
-          travelled across accounts, with per-node Resume / Switch
-          from here / Export pack and failed-edge recovery. */}
-      <Card className="flex flex-col gap-2 p-4" data-testid="project-switch-graph-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">How this work travelled</p>
-        <SwitchGraph projectId={project.id} onOpenSession={props.onOpenSession} />
-      </Card>
-    </div>
-  );
-}
-
-/** SessionRow reuse for the On-it-now card — import late to avoid cycles. */
-import { SessionRow, projectStats } from "./WorkflowRail";
-function SessionRowForCard({ session }: { session: InstanceInfo }) {
-  return <SessionRow session={session} selected={false} onSelect={() => {}} />;
-}
-
-function ProjectActions(props: PanelProps) {
-  const project = props.data.project;
-  if (!project) return <HonestEmpty tab="actions" />;
-  // Ranked by headroom: the signed-in account with the MOST quota left
-  // first; `Usual` star marks accounts that already ran in this project.
-  const ranked = props.profiles
-    .map((recipe) => {
-      const worst = props.sessions
-        .filter((s) => s.account_id === recipe.account_id && s.quota !== null)
-        .reduce<number | null>((min, row) => {
-          const left = 100 - row.quota!.used_percentage;
-          return min === null ? left : Math.min(min, left);
-        }, null);
-      const usual = project.accounts_used.includes(recipe.account_label);
-      return { recipe, left: worst ?? Number.POSITIVE_INFINITY, usual };
-    })
-    .sort((a, b) => b.left - a.left);
-  return (
-    <div className="flex flex-col gap-2" data-testid="project-actions">
-      <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
-      <p className="text-[11px] uppercase tracking-wider text-muted">Launch with another account (ranked by headroom)</p>
-      {ranked.map(({ recipe, usual }) => {
-        const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
-        return (
-          <button
-            key={recipe.id}
-            type="button"
-            disabled={!ready}
-            onClick={() =>
-              props.onLaunch(recipe, {
-                id: project.id, root: project.root, name: project.name, last_activity_ms: null,
-                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: project.missing,
-              })
-            }
-            title={ready ? undefined : "Needs sign-in first"}
-            className={
-              "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors " +
-              (ready ? "border-hairline hover:border-accent/40 hover:bg-surface" : "border-hairline/50 text-faint")
-            }
-          >
-            <span className="font-medium">{recipe.account_label}</span>
-            {usual ? <span className="rounded border border-accent/30 bg-accent-soft px-1 text-[9px] text-accent-hi">Usual</span> : null}
-            <span className="ml-auto text-faint">{recipe.name}</span>
-          </button>
-        );
-      })}
-      {ranked.length === 0 ? <p className="text-[11.5px] text-muted">No launch settings yet — add an account first.</p> : null}
-    </div>
-  );
-}
-
-/** AJ-E1501 Req.4: which account this project's new sessions start
- * with — its own pick, else the global default or the most recently
- * used one (New session preselects it). */
-function ProjectDefaultAccount({
-  project,
-  accounts,
-  onChanged,
-}: {
-  project: ProjectInfo;
-  accounts: AccountInfo[];
-  onChanged: () => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [value, setValue] = useState(project.default_account_id ?? "");
-  useEffect(() => setValue(project.default_account_id ?? ""), [project.default_account_id]);
-  if (accounts.length === 0) return null;
-  const fallback = accounts.find((account) => account.is_default);
-  return (
-    <div className="flex flex-col gap-1 pb-2">
-      <label className="flex flex-wrap items-center gap-2 text-[11.5px] text-muted" data-testid="project-default-account">
-        New sessions here start with
-        <Select
-          aria-label="New sessions here start with"
-          className="max-w-full"
-          value={value}
-          onChange={async (event) => {
-            const next = event.target.value;
-            setValue(next);
-            setError(null);
-            try {
-              await projectSetDefaultAccount(project.id, next === "" ? null : next);
-              onChanged();
-            } catch (cause) {
-              setError(errorText(cause));
-              setValue(project.default_account_id ?? "");
-            }
-          }}
-        >
-          <option value="">{fallback ? `Your default (${fallback.label})` : "The account used last"}</option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.label}
-            </option>
-          ))}
-        </Select>
-      </label>
-      {error && (
-        <p className="text-[11px] text-danger" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Account/Project History (§5.4/§5.5): real session timeline grouped
- * Today / Yesterday / Earlier; lineage honest. */
-function GroupedHistory(props: PanelProps) {
-  const kind = props.kind;
-  const rows =
-    kind === "account"
-      ? props.sessions.filter((s) => s.account_id === props.data.account?.id)
-      : props.sessions.filter((s) => s.project_id === props.data.project?.id);
-  const dayStart = (offset: number) => {
-    const date = new Date(props.now);
-    date.setHours(0, 0, 0, 0);
-    return date.getTime() - offset * 86_400_000;
-  };
-  const groups: { label: string; from: number; to: number }[] = [
-    { label: "Today", from: dayStart(0), to: Number.POSITIVE_INFINITY },
-    { label: "Yesterday", from: dayStart(1), to: dayStart(0) },
-    { label: "Earlier", from: Number.NEGATIVE_INFINITY, to: dayStart(1) },
-  ];
-  return (
-    <div className="flex flex-col gap-3" data-testid={`${kind}-history`}>
-      {groups.map((group) => {
-        const groupRows = rows.filter((r) => r.started_at_ms >= group.from && r.started_at_ms < group.to);
-        if (groupRows.length === 0) return null;
-        return (
-          <Card key={group.label} className="flex flex-col gap-1 p-4">
-            <p className="text-[11px] uppercase tracking-wider text-muted">{group.label}</p>
-            {groupRows.map((row) => (
-              <button key={row.id} type="button" onClick={() => props.onOpenSession(row.id)} className="flex items-center gap-2 py-1 text-left text-xs">
-                {/* An account's own history names each session by its place. */}
-                <span className="min-w-0 flex-1 truncate font-medium">{kind === "account" ? sessionPlace(row) : row.account_label}</span>
-                <span className="text-faint">{since(row.started_at_ms, props.now)} ago</span>
-                <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
-              </button>
-            ))}
-          </Card>
-        );
-      })}
-      {rows.length === 0 ? (
-        <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted">No history recorded yet</p>
-        </Card>
-      ) : null}
-    </div>
-  );
-}
-
 
 // --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
 
@@ -2278,217 +1285,9 @@ function stuckRuleWords(rule: string): string {
   }
 }
 
-/// The `Renewal date (optional)` editor (AJ-E411 Req.4): date input +
-/// Clear, helper text `Entered by you - AI Juggler does not read billing`,
-/// and focus hand-off from Account Actions (`aij:edit-renewal`).
-/**
- * AJ-E508 (D-08): the Account launch-settings area's per-tier
- * opt-ins — TWO separate toggles with the exact labels, both off by
- * default, never bundled (ADR-0010's amendment). Deliberately
- * mouse-only (no shortcut could enable automation).
- */
-/** `explain` (default on) adds the D-08 rules under the toggles; a list
- * of Accounts that states them once turns it off. */
-export function TierToggles(props: { accountId: string; initial: boolean; explain?: boolean }) {
-  const [tiers, setTiers] = useState({ tier1: props.initial, tier2: false });
-  const [loaded, setLoaded] = useState(false);
-  // The tier table is the source of truth (the account row only
-  // mirrors Tier 1 for older readers).
-  useEffect(() => {
-    let alive = true;
-    import("../lib/bridge")
-      .then((bridge) => bridge.cleanupTiersGet(props.accountId))
-      .then((settings) => {
-        if (alive) {
-          setTiers({ tier1: settings.tier1_opt_in, tier2: settings.tier2_opt_in });
-          setLoaded(true);
-        }
-      })
-      .catch(() => {
-        /* keep the both-off default on failure — never a silent opt-in */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [props.accountId]);
-  const set = (tier: "tier1" | "tier2", value: boolean) => {
-    setTiers((current) => ({ ...current, [tier]: value }));
-    void import("../lib/bridge")
-      .then((bridge) =>
-        bridge.cleanupTiersSet(
-          props.accountId,
-          tier === "tier1" ? value : tiers.tier1,
-          tier === "tier2" ? value : tiers.tier2,
-        ),
-      )
-      .catch(() => {
-        /* the checkboxes re-read on the next mount */
-      });
-  };
-  return (
-    <span className="flex flex-col gap-1" data-testid="account-tier-toggles">
-      <label data-testid="account-cleanup-toggle" className="flex items-center gap-1.5">
-        <input
-          type="checkbox"
-          checked={tiers.tier1}
-          disabled={!loaded}
-          onChange={(event) => set("tier1", event.target.checked)}
-        />
-        <span className="text-muted">Automatically tidy left-behind dev servers</span>
-      </label>
-      <label data-testid="account-tier2-toggle" className="flex items-center gap-1.5">
-        <input
-          type="checkbox"
-          checked={tiers.tier2}
-          disabled={!loaded}
-          onChange={(event) => set("tier2", event.target.checked)}
-        />
-        <span className="text-muted">Also tidy after a crash (with notification)</span>
-      </label>
-      {props.explain !== false && (
-        <span className="text-[10px] leading-relaxed text-muted">
-          Both off by default — only verified dev servers and watchers of this account's clean
-          exits are tidied; shells, MCP servers and databases are never touched automatically
-          and every stop is written to the log. Crash tidies wait 5 minutes and ask first
-          with an Undo window.
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** AJ-E610: the account card's engine-driven window rings. */
-function AccountWindowRings({ accountId }: { accountId: string }) {
-  const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
-  useEffect(() => {
-    let alive = true;
-    quotaDisplay(accountId).then((payload) => {
-      if (alive) setDisplay(payload);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [accountId]);
-  if (!display) {
-    return (
-      <p className="text-xs text-muted" data-testid="account-rings-loading">
-        loading quota…
-      </p>
-    );
-  }
-  if (display.unavailable_reason) {
-    return (
-      <p className="text-xs text-muted" data-testid="quota-unavailable">
-        {display.unavailable_reason}
-      </p>
-    );
-  }
-  return (
-    <>
-      <WindowRing window={display.five_hour} kind="5h" omittedReason={display.five_hour_omitted_reason} />
-      <WindowRing window={display.weekly} kind="weekly" omittedReason={display.weekly_omitted_reason} />
-    </>
-  );
-}
-
-/** AJ-E610/E609: the user-entered flat fee behind the dual view's
- * ratio — explicit save only; no plan-tier inference ever writes it. */
-function FeeEditor({ account }: { account: AccountInfo }) {
-  const [fee, setFee] = useState("");
-  const [status, setStatus] = useState("");
-  useEffect(() => {
-    setFee(localStorage.getItem(`aij.fee.${account.id}`) ?? "");
-  }, [account.id]);
-  return (
-    <span className="flex items-center gap-1.5" data-testid="fee-editor">
-      <label className="text-[11px] text-muted" htmlFor={`fee-${account.id}`}>
-        Flat fee $/mo
-      </label>
-      <input
-        id={`fee-${account.id}`}
-        value={fee}
-        onChange={(event) => setFee(event.target.value)}
-        placeholder="200"
-        inputMode="decimal"
-        className="w-16 rounded border border-hairline bg-canvas px-1.5 py-0.5 text-[11px] text-ink outline-none focus:border-accent/50"
-      />
-      <button
-        type="button"
-        className="text-[11px] underline focus:outline-none focus:ring-2 focus:ring-accent"
-        onClick={() => {
-          const parsed = fee.trim() === "" ? null : Number.parseFloat(fee);
-          if (parsed !== null && Number.isNaN(parsed)) {
-            setStatus("enter a number");
-            return;
-          }
-          localStorage.setItem(`aij.fee.${account.id}`, fee.trim());
-          void accountSetFee(account.id, parsed).then(
-            () => setStatus("saved"),
-            () => setStatus("save failed"),
-          );
-        }}
-      >
-        save
-      </button>
-      {status && (
-        <span role="status" className="text-[10px] text-faint">
-          {status}
-        </span>
-      )}
-    </span>
-  );
-}
-
-function RenewalEditor({ account }: { account: AccountInfo }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const focus = () => {
-      if (inputRef.current?.showPicker) {
-        inputRef.current.showPicker();
-      } else {
-        inputRef.current?.focus();
-      }
-    };
-    window.addEventListener("aij:edit-renewal", focus);
-    return () => window.removeEventListener("aij:edit-renewal", focus);
-  }, []);
-  const commit = (next: string | null) => {
-    void import("../lib/bridge")
-      .then((bridge) => bridge.accountSetRenewal(account.id, next))
-      .catch(() => {
-        /* invalid input is rejected server-side; the next list refresh restores truth */
-      });
-  };
-  return (
-    <span className="flex flex-wrap items-center gap-1.5 text-[11px]" data-testid="renewal-editor">
-      <label htmlFor={`renewal-${account.id}`} className="text-muted">
-        Renewal date (optional)
-      </label>
-      <input
-        ref={inputRef}
-        id={`renewal-${account.id}`}
-        type="date"
-        value={account.renewal_date ?? ""}
-        onChange={(event) => commit(event.target.value === "" ? null : event.target.value)}
-        className="rounded-lg border border-hairline bg-surface px-1.5 py-0.5 text-[11px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-      />
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={() => commit(null)}
-        disabled={account.renewal_date === null}
-      >
-        Clear
-      </Button>
-      <span className="text-[10px] text-faint">Entered by you - AI Juggler does not read billing</span>
-    </span>
-  );
-}
-
 function QualityTab(props: PanelProps) {
   const instance = props.data.instance;
   const [quality, setQuality] = useState<import("../lib/bridge").QualitySignalsInfo | null>(null);
-  const [resources, setResources] = useState<import("../lib/bridge").ProcessesInfo | null>(null);
   const [asTable, setAsTable] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -2505,16 +1304,6 @@ function QualityTab(props: PanelProps) {
       })
       .catch((cause: unknown) => {
         if (alive) setLoadError(errorText(cause));
-      });
-    // AJ-E410 completes E409 Req.6: CPU/RAM now come from the process
-    // collector's 2 s ring (labelled Measured, footnote `2s sampling`).
-    import("../lib/bridge")
-      .then((bridge) => bridge.instanceProcesses(instance.id))
-      .then((result) => {
-        if (alive) setResources(result);
-      })
-      .catch(() => {
-        /* CPU/RAM stays honestly absent — the other signals render */
       });
     return () => {
       alive = false;
@@ -2571,16 +1360,15 @@ function QualityTab(props: PanelProps) {
         <span className="text-muted">Nothing measured yet</span>
       ),
     });
-    const lastSample = resources?.spark.at(-1);
+    // AJ-E1533: one source per fact — the same live reading the
+    // session's header shows, kept current by the live updates.
+    const measured = instance.cpu_pct !== null || instance.rss_bytes !== null;
     signals.push({
       testId: "quality-cpu",
       label: "CPU and memory now",
       tier: "Measured",
-      body: lastSample ? (
-        <span className="tabular-nums text-ink">
-          {lastSample.cpu_pct !== null ? `CPU ${Math.round(lastSample.cpu_pct)}%` : "CPU: measuring…"} ·{" "}
-          {(lastSample.rss_bytes / 1_000_000_000).toFixed(1)} GB of memory, with its helpers
-        </span>
+      body: measured ? (
+        <span className="tabular-nums text-ink">{resourceLine(instance.cpu_pct, instance.rss_bytes, instance.child_count)}</span>
       ) : (
         <span className="text-muted">Collecting first samples…</span>
       ),
@@ -2783,7 +1571,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   // E507 sheet) is the way to end it.
   const adoptedNotice = instance.adopted ? (
     <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
-      <p className="text-[11.5px] font-medium text-ink">Running — re-adopted after restart</p>
+      <p className="text-[11.5px] font-medium text-ink">Running — picked up after restart</p>
       <p className="text-[10.5px] text-muted">
         The terminal is detached: output from before the app closed is not available. Stop
         runs through the verified sheet (Terminate… on a row below).
@@ -2909,7 +1697,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-3 text-center text-[11px] text-muted" data-testid="processes-empty">
-                  No subprocesses
+                  {/* One source per fact: never "none" while the header counts helpers. */}
+                  {(instance.child_count ?? 0) > 0 ? "Reading the process tree…" : "No subprocesses"}
                 </td>
               </tr>
             ) : (
@@ -3035,88 +1824,6 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
             <PortInventoryList />
           </div>
         </Card>
-      )}
-    </div>
-  );
-}
-
-/// Read-only process rollups for Provider / Account / Project
-/// selections (Req.2): every member Instance's tree, labelled with its
-/// Instance, with the stop-actions note pointing at the Instance tab.
-function AggregateProcesses(props: PanelProps) {
-  const kind = props.kind;
-  const data = props.data;
-  const members = props.sessions.filter((session) => {
-    if (kind === "provider") return session.provider === data.provider?.id;
-    if (kind === "account") return session.account_id === data.account?.id;
-    return session.cwd === data.project?.root;
-  });
-  const [infos, setInfos] = useState<Record<string, import("../lib/bridge").ProcessesInfo | null>>({});
-
-  useEffect(() => {
-    let alive = true;
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const bridge = props.processesBridge;
-    const load = () => {
-      void Promise.all(
-        members.map((member) =>
-          bridge.load(member.id).then((result) => [member.id, result] as const),
-        ),
-      ).then((entries) => {
-        if (alive) setInfos(Object.fromEntries(entries));
-      });
-    };
-    load();
-    timer = setInterval(load, 5_000);
-    return () => {
-      alive = false;
-      if (timer) clearInterval(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, data.provider?.id, data.account?.id, data.project?.root, members.map((m) => m.id).join(",")]);
-
-  const totalRows = members.reduce((sum, member) => sum + (infos[member.id]?.rows.length ?? 0), 0);
-
-  return (
-    <div className="flex flex-col gap-3" data-testid="processes-aggregate">
-      <p className="text-[10px] text-muted">
-        Read-only rollup across {members.length} session{members.length === 1 ? "" : "s"} · stop actions
-        live on each session&apos;s Processes tab
-      </p>
-      {totalRows === 0 ? (
-        <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted" data-testid="processes-empty">No subprocesses</p>
-        </Card>
-      ) : (
-        members.map((member) => {
-          const info = infos[member.id];
-          const rows = info?.rows ?? [];
-          if (rows.length === 0) return null;
-          return (
-            <Card key={member.id} className="flex flex-col gap-1 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted">
-                {member.account_label} · {member.cwd?.split("/").pop() || member.cwd || member.id}
-              </p>
-              <table className="w-full text-left text-[11px]">
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={`${member.id}-${row.pid}`} className="border-t border-hairline">
-                      <td className="py-1 pr-2 font-mono text-[10.5px] tabular-nums text-muted">{row.pid}</td>
-                      <td className="py-1 pr-2 text-ink">
-                        <span aria-hidden="true" className="text-faint">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
-                        {row.name}
-                      </td>
-                      <td className="py-1 pr-2 tabular-nums text-ink">
-                        {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">—</span>}
-                      </td>
-                      <td className="py-1 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          );
-        })
       )}
     </div>
   );

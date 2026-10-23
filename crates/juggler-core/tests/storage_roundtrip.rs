@@ -68,6 +68,7 @@ fn arb_overlay() -> impl Strategy<Value = SettingsOverlay> {
         .prop_map(|(model, env)| SettingsOverlay {
             model: model.map(|m| format!("model-{m}")),
             env,
+            restart_on_crash: None,
         })
 }
 
@@ -393,6 +394,8 @@ fn profile_update_and_delete() {
     profile.settings_overlay = SettingsOverlay {
         model: Some("m2".into()),
         env: BTreeMap::from([("A".into(), "B".into())]),
+        // AJ-E1509: a launch setting's own restart choice round-trips.
+        restart_on_crash: Some(true),
     };
     profile.default_cwd = Some(PathBuf::from("/tmp/x"));
     storage.profiles().update(&profile).unwrap();
@@ -560,6 +563,56 @@ fn active_cwds_skip_ended_sessions_and_dedupe() {
     );
 }
 
+/// AJ-E1520: the 2 s subagent tick reads only the sessions that haven't
+/// ended (every Mac's), never the whole history.
+#[test]
+fn live_lists_only_sessions_that_havent_ended() {
+    let storage = Storage::open_in_memory().unwrap();
+    let (_, profile) = seed_chain(&storage);
+    let all = [
+        ("s-start", SessionStatus::Starting),
+        ("s-run", SessionStatus::Running),
+        ("s-wait", SessionStatus::WaitingUser),
+        ("s-stuck", SessionStatus::Stuck),
+        ("s-quota", SessionStatus::QuotaBlocked),
+        ("s-done", SessionStatus::Finished),
+        ("s-stop", SessionStatus::Stopped),
+        ("s-fail", SessionStatus::Failed),
+        ("s-handed", SessionStatus::HandedOver),
+    ];
+    for (id, status) in all {
+        let mut session = SessionRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: profile.id.clone(),
+            machine: MachineId::new("this-mac"),
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: None,
+            cwd: PathBuf::from("/w"),
+            status: SessionStatus::Starting,
+            started_at: Timestamp::from_millis(7),
+            last_activity: None,
+            usage: UsageSnapshot::default(),
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        };
+        storage.sessions().insert(&session).unwrap();
+        session.status = status;
+        storage.sessions().update(&session).unwrap();
+    }
+    let mut live: Vec<String> = storage
+        .sessions()
+        .live()
+        .unwrap()
+        .into_iter()
+        .map(|session| session.id.as_str().to_owned())
+        .collect();
+    live.sort();
+    assert_eq!(live, ["s-quota", "s-run", "s-start", "s-stuck", "s-wait"]);
+}
+
 #[test]
 fn projects_touch_creates_then_refreshes_activity() {
     let storage = Storage::open_in_memory().unwrap();
@@ -671,8 +724,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 30,
-        "v4 → current (v30, AJ-E1501 managing accounts) exactly once, on open"
+        version, 32,
+        "v4 → current (v32, AJ-E1519 worktree homes) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -699,7 +752,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 30);
+    assert_eq!(version, 32);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -716,6 +769,7 @@ fn launch_recipe_alias_roundtrip_pre_rename_values() {
         settings_overlay: SettingsOverlay {
             model: Some("opus".into()),
             env: BTreeMap::new(),
+            restart_on_crash: None,
         },
         default_cwd: None,
     };
@@ -1195,8 +1249,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 30,
-        "v12 → current (v30, AJ-E1501) exactly once, on open"
+        version, 32,
+        "v12 → current (v32, AJ-E1519) exactly once, on open"
     );
     drop(storage);
 
@@ -1364,6 +1418,11 @@ fn lifecycle_events_append_and_the_latest_wins() {
             .sessions()
             .record_lifecycle(&id, "archived")
             .unwrap();
+        // AJ-E1509: a restart is history, never the archived state.
+        storage
+            .sessions()
+            .record_lifecycle(&id, "restarted after a crash (try 1 of 3)")
+            .unwrap();
         assert!(
             storage
                 .sessions()
@@ -1382,5 +1441,5 @@ fn lifecycle_events_append_and_the_latest_wins() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(events, 2, "history is appended, never rewritten");
+    assert_eq!(events, 3, "history is appended, never rewritten");
 }

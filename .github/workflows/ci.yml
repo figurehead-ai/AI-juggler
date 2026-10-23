@@ -13,6 +13,13 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
 
+
+# The token reads only (CodeQL actions/missing-workflow-permissions): the
+# visual job reads the PR's body; a job needing more says so itself.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   # The full quality gate (docs/plan/QUALITY.md). Mirrors `just verify` plus
   # cargo-deny and coverage; its name is a required status check on main.
@@ -20,6 +27,14 @@ jobs:
     name: verify
     runs-on: ubuntu-latest
     steps:
+      # The full gate (coverage, three clippy variants, every test binary)
+      # outgrew the runner's free disk (#148, 2026-10-23: "No space left on
+      # device"). This job never uses these preinstalled SDKs.
+      - name: Free runner disk
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install Tauri system dependencies (Linux)
         run: |
@@ -79,8 +94,25 @@ jobs:
         run: cargo doc --workspace --no-deps
       - name: Evidence store (AJ-E801 gate)
         run: ./scripts/evidence_check.sh
-      - name: Terminology (AJ-E108 gate)
-        run: ./scripts/terminology_lint.sh
+      - name: Terminology and plain words (AJ-E108, AJ-E1535 gates)
+        run: |
+          ./scripts/terminology_lint.sh
+          python3 scripts/plain_words_lint.py --selftest
+          python3 scripts/plain_words_lint.py
+      - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
+        run: python3 scripts/docs_links_check.py
+      - name: No tool-id literal outside the adapters (AJ-E1525, ADR-0019)
+        run: |
+          python3 scripts/tool_literal_lint.py --selftest
+          python3 scripts/tool_literal_lint.py
+      - name: Layering, IPC audit and size budget (AJ-E2011)
+        run: |
+          python3 scripts/check_layering.py --selftest
+          python3 scripts/check_layering.py
+          python3 scripts/ipc_audit.py --selftest
+          python3 scripts/ipc_audit.py
+          python3 scripts/size_budget.py --selftest
+          python3 scripts/size_budget.py
       - name: Task counts and ranges in the docs match the epic files
         run: |
           python3 scripts/check_task_counts.py --selftest
@@ -334,6 +366,10 @@ jobs:
           sysctl hw.pagesize vm.page_pageable_internal_count vm.page_purgeable_count vm.page_wired_count vm.compressor_bytes_used || true
           cargo test -p juggler-supervisor --lib machine -- --nocapture
           cargo test -p juggler-supervisor --test machine
+      - name: A process's CPU on macOS
+        # sysinfo here keeps an idle process's last busy figure; Linux can't
+        # show it, so only this job proves the idle helper reads 0 %.
+        run: cargo test -p juggler-supervisor --lib cpu_since
 
   build-linux:
     name: build-linux

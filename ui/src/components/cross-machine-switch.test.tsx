@@ -29,7 +29,7 @@ const target = (over: Partial<RemoteSwitchTargetInfo> = {}): RemoteSwitchTargetI
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "F3 · Unvalidated",
+  badge: "Same conversation, new account · Not proven yet",
   validated: false,
   carried: ["Conversation", "Rules"],
   regenerated: [],
@@ -65,7 +65,7 @@ describe("AJ-E706 destinations", () => {
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='remote-switch-target']");
     expect(rows).toHaveLength(3);
     expect(container.textContent).toContain("On Studio Mac");
-    expect(rows[0].textContent).toContain("F3 · Unvalidated");
+    expect(rows[0].textContent).toContain("Same conversation, new account · Not proven yet");
     expect(rows[0].textContent).toContain("Ready — same version, same project path");
     expect(rows[1].textContent).toContain("full-story replay offered");
     expect(rows[2].disabled).toBe(true);
@@ -134,7 +134,7 @@ describe("AJ-E706 wizard", () => {
         target={target({
           readiness: "t2_blocked",
           mechanism: "replay",
-          blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — T2 needs the same version."],
+          blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
           version_there: "2.0.9",
         })}
         onClose={() => {}}
@@ -143,7 +143,7 @@ describe("AJ-E706 wizard", () => {
     const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
     expect((q("cross-switch-t2") as HTMLInputElement).disabled).toBe(true);
     expect((q("cross-switch-t3") as HTMLInputElement).checked).toBe(true);
-    expect(q("cross-switch-blockers")!.textContent).toContain("T2 needs the same version");
+    expect(q("cross-switch-blockers")!.textContent).toContain("moving the same conversation needs the same version");
     fireEvent.click(q("cross-switch-next")!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(q("cross-switch-secrets-strip")!);

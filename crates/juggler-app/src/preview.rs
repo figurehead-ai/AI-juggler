@@ -268,6 +268,37 @@ fn now_ms() -> i64 {
         .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
 
+/// Removes the live-preview frames (`aij-preview-*.png`) left in `dir`
+/// by an earlier version, which kept them after reading. Only frames at
+/// least a minute old: one being read right now is never touched.
+pub fn sweep_frames(dir: &std::path::Path) -> usize {
+    let old = |path: &std::path::Path| {
+        std::fs::symlink_metadata(path)
+            .ok()
+            .filter(std::fs::Metadata::is_file)
+            .and_then(|meta| meta.modified().ok())
+            .and_then(|at| at.elapsed().ok())
+            .is_some_and(|age| age >= std::time::Duration::from_secs(60))
+    };
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    name.starts_with("aij-preview-")
+                        && std::path::Path::new(name)
+                            .extension()
+                            .is_some_and(|ext| ext.eq_ignore_ascii_case("png"))
+                })
+        })
+        .filter(|path| old(path) && std::fs::remove_file(path).is_ok())
+        .count()
+}
+
 /// Standard base64 (no padding edge cases for PNG bytes; allocation is
 /// fine at ≤2 fps).
 #[must_use]
@@ -356,10 +387,16 @@ mod macos {
                 "aij-preview-{}-{}.png",
                 identity.pid, row.window_id
             ));
-            image
+            let saved = image
                 .save_png(&path)
-                .map_err(|e| CaptureError::Failed(format!("save: {e}")))?;
-            std::fs::read(&path).map_err(|e| CaptureError::Failed(format!("read: {e}")))
+                .map_err(|e| CaptureError::Failed(format!("save: {e}")));
+            // A frame shows the user's window: it lives only as long as
+            // the read (the docs fact-check), whatever happens.
+            let frame = saved.and_then(|()| {
+                std::fs::read(&path).map_err(|e| CaptureError::Failed(format!("read: {e}")))
+            });
+            let _ = std::fs::remove_file(&path);
+            frame
         }
     }
 
@@ -405,6 +442,28 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use std::sync::Mutex;
+
+    #[test]
+    fn old_preview_frames_are_swept_and_nothing_else() {
+        let tmp = tempfile::tempdir().unwrap();
+        let frame = tmp.path().join("aij-preview-42-7.png");
+        let fresh = tmp.path().join("aij-preview-43-7.png");
+        let other = tmp.path().join("aij-previewer.png");
+        for path in [&frame, &fresh, &other] {
+            std::fs::write(path, b"png").unwrap();
+        }
+        let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        for path in [&frame, &other] {
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(hour_ago)
+                .unwrap();
+        }
+        assert_eq!(sweep_frames(tmp.path()), 1);
+        assert!(!frame.exists() && fresh.exists() && other.exists());
+    }
 
     struct ScriptedSource {
         rows: Mutex<Vec<WindowRow>>,

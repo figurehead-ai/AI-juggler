@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "terminal-window",
+  "description": "A terminal in its own window (AJ-E1506): its output and exit events only — no dialogs, no window controls beyond the app's own commands.",
+  "windows": [
+    "terminal-*"
+  ],
+  "permissions": [
+    "core:event:default"
+  ]
+}

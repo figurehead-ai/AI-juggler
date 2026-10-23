@@ -148,7 +148,7 @@ function processesShell(row: InstanceInfo) {
       {...base}
     />,
   );
-  fireEvent.click(view.container.querySelector("#inspector-tab-processes")!);
+  fireEvent.click(view.container.querySelector("#page-tab-processes")!);
   return view;
 }
 
@@ -302,13 +302,13 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
 });
 
 describe("AJ-E510 re-adopted Instances (crash recovery)", () => {
-  it("shows the ↻ re-adopted chip and the detached-notice card leading the processes tab", async () => {
+  it("shows the ↻ picked-up chip and the detached-notice card leading the processes tab", async () => {
     const { container } = processesShell(instance("tree", { adopted: true }));
     await waitFor(() => expect(container.querySelector('[data-testid="processes-tab"] table')).not.toBeNull());
     const chip = container.querySelector('[data-testid="instance-adopted-chip"]');
-    expect(chip?.textContent).toBe("↻ re-adopted");
+    expect(chip?.textContent).toBe("↻ picked up after restart");
     const notice = container.querySelector('[data-testid="instance-detached-notice"]');
-    expect(notice?.textContent).toContain("Running — re-adopted after restart");
+    expect(notice?.textContent).toContain("Running — picked up after restart");
     expect(notice?.textContent).toContain(
       "The terminal is detached: output from before the app closed is not available.",
     );

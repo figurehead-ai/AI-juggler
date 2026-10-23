@@ -1,0 +1,20 @@
+[package]
+name = "juggler-login-item"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Audited SMAppService shim (D-26): open AI Juggler at login, the four unsafe calls it needs"
+
+# D-26 (2026-10-22): the second carve-out from the workspace lint
+# baseline, made like D-17's juggler-scap-init. By NOT inheriting
+# `[lints] workspace = true`, `unsafe_code = "forbid"` does not apply
+# here; every other crate keeps it. The crate holds exactly the four
+# `unsafe` calls `SMAppService` needs (the main app's service, its status,
+# register, unregister), each with its SAFETY note, behind a safe API.
+# macOS-only: elsewhere the crate is a safe stub that says "unavailable".
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-service-management = { version = "0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSError", "NSString"] }

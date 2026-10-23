@@ -5,6 +5,8 @@
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
 
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -18,19 +20,7 @@ use juggler_core::model::{
 };
 
 fn fake_harness_bin() -> PathBuf {
-    if let Some(path) = option_env!("CARGO_BIN_EXE_fake-harness") {
-        return PathBuf::from(path);
-    }
-    let target = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target"));
-    for profile in ["debug", "release"] {
-        let candidate = target.join(profile).join("fake-harness");
-        if candidate.exists() {
-            return candidate;
-        }
-    }
-    unreachable!("fake-harness binary not found under {}", target.display());
+    common::fake_harness::bin()
 }
 
 fn now_ms() -> i64 {

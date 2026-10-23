@@ -1,0 +1,6 @@
+# AIJ_ALLOW_WINDOWS=1 scripts/qa/launch_alert_check.sh — 2026-10-22T09:04Z, macOS 27.0.1, release/0.1 working tree
+captured the alert window to launch-alert.png
+alert up: 1 window(s) owned by AI Juggler itself (juggler-app, pid 47166); system alert windows 0 -> 0
+after SIGKILL: its windows 0; system alert windows 0
+processes of this run left: 0
+PASS: the alert was the app's own and went with it

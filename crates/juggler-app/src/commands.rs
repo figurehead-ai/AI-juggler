@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri_plugin_opener::OpenerExt;
@@ -75,7 +75,7 @@ pub struct CostRollupsInfo {
 
 /// The catalog as loaded: bundled seed + user overrides + staleness.
 #[must_use]
-fn pricing_catalog(
+pub(crate) fn pricing_catalog(
     storage: &juggler_core::storage::Storage,
 ) -> juggler_core::cost_ledger::PricingCatalog {
     use juggler_core::cost_ledger::PricingCatalog;
@@ -277,476 +277,8 @@ pub fn pricing_catalog_info(
     }
 }
 
-/// AJ-E610: one window clock's rendered state — the typed shape every
-/// quota surface reads (rail chips, Inspector `Usage` tab, `NewSession`
-/// rows). `percentage: None` in Unknown/Learning — a missing number is
-/// the honest state, never 0%.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
-pub struct WindowDisplay {
-    /// The §Q8 machine state (`unknown|learning|tracking|stale|exhausted`),
-    /// or `unmeasured`: use was seen but there is no percentage (no
-    /// Measured sample, no confirmed cap), or `reset`: the window the
-    /// vendor's last reading described has reset since (nothing is known
-    /// about the new one). A state that reads as known always carries its
-    /// percentage (the 0.0.12 report).
-    pub state: String,
-    /// Percent used, ONLY when the state carries one.
-    pub percentage: Option<f64>,
-    /// The badge (`Measured|Computed|Estimate`), adjacent on screen.
-    pub badge: Option<String>,
-    /// Staleness note ("last measured Nh ago") when Measured went quiet.
-    pub stale_note_ms: Option<i64>,
-    /// The reset instant, epoch ms, when there is one.
-    pub resets_at_ms: Option<i64>,
-    /// Where `resets_at_ms` came from: `measured` (the vendor's) or
-    /// `calendar` (an anchored weekly phase).
-    pub reset_basis: Option<String>,
-    /// When the vendor's reading behind this window was taken, epoch ms:
-    /// the "as of" every surface shows beside a measured percentage.
-    pub measured_at_ms: Option<i64>,
-    /// Absolute burn inside the window (the honest floor).
-    pub burned_tokens: u64,
-    /// Burn in vendor credits, when the provider bills credits.
-    pub burned_credits: Option<f64>,
-    /// Headroom in tokens (cap − burned), ONLY when the cap is
-    /// known — the admission verdict's input (AJ-E306); unknown
-    /// stays None, never a fabricated number.
-    pub headroom_tokens: Option<f64>,
-}
-
-/// A window's state on the wire. Tracking or stale with no percentage
-/// (activity, but no Measured sample and no confirmed cap) is
-/// `unmeasured`: it never reads as a known state (the 0.0.12 report,
-/// where every such window showed "100% left").
-#[must_use]
-pub fn window_state_name(
-    state: juggler_core::quota::QuotaState,
-    percentage: Option<f64>,
-) -> &'static str {
-    use juggler_core::quota::QuotaState;
-    match (state, percentage) {
-        (QuotaState::Unknown, _) => "unknown",
-        (QuotaState::Learning, _) => "learning",
-        (QuotaState::Tracking | QuotaState::Stale, None) => "unmeasured",
-        (QuotaState::Tracking, Some(_)) => "tracking",
-        (QuotaState::Stale, Some(_)) => "stale",
-        (QuotaState::Exhausted, _) => "exhausted",
-        (QuotaState::ResetSinceReading, _) => "reset",
-    }
-}
-
-/// A Provider's name in words ("Claude Code", "Codex").
-pub(crate) fn provider_name(provider: &str) -> String {
-    provider_display(provider).0
-}
-
-/// AJ-E610: the subscription clock's rendered state — a calendar-style
-/// date line, never merged with the window clock.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
-pub struct RenewalDisplay {
-    /// `none|set|approaching|overdue`.
-    pub state: String,
-    /// The exact copy (`Renews 3 Oct` / `Renewal: unknown — add date`).
-    pub label: String,
-    /// Entered by the user (D-12 provenance).
-    pub entered_by_user: bool,
-}
-
-/// AJ-E610: the forecast pill (deep/10 §1 states; data only — the
-/// pill component renders them).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
-pub struct ForecastDisplay {
-    /// `learning|wont-exhaust|exhausts|no-headroom`.
-    pub state: String,
-    /// Point TTE minutes (Measured renders the point).
-    pub tte_min: Option<f64>,
-    /// Cone lower bound (Estimated renders the range).
-    pub range_min: Option<f64>,
-    /// Cone upper bound.
-    pub range_max: Option<f64>,
-    /// Inherited confidence badge.
-    pub badge: String,
-}
-
-/// AJ-E610: the two-clock display for one account — both windows (a
-/// provider/plan may omit one, with reason), the separate subscription
-/// clock, the forecast, and any provider-level unavailability.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
-pub struct QuotaDisplayInfo {
-    /// Account id.
-    pub account: String,
-    /// The 5 h window, when the plan has one.
-    pub five_hour: Option<WindowDisplay>,
-    /// Why the 5 h ring is omitted (e.g. Codex Pro has none).
-    pub five_hour_omitted_reason: Option<String>,
-    /// The weekly window, when the plan has one.
-    pub weekly: Option<WindowDisplay>,
-    /// Why the weekly ring is omitted.
-    pub weekly_omitted_reason: Option<String>,
-    /// The subscription clock (D-12).
-    pub renewal: RenewalDisplay,
-    /// The burn forecast.
-    pub forecast: ForecastDisplay,
-    /// Provider-level unavailability (e.g. Gemini pre-verification).
-    pub unavailable_reason: Option<String>,
-    /// Codex's credits, from its own rollouts (the 0.0.12 report).
-    pub credits: Option<CreditsDisplay>,
-}
-
-/// An account's credits, as its tool reports them.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
-pub struct CreditsDisplay {
-    /// The plan has credits at all.
-    pub has_credits: bool,
-    /// Credits are unlimited.
-    pub unlimited: bool,
-    /// The balance as the tool wrote it.
-    pub balance: Option<String>,
-    /// When the tool reported it, epoch ms.
-    pub as_of_ms: i64,
-    /// Who reported it: the tool's name ("Codex").
-    pub source: String,
-}
-
-/// The account's newest credits snapshot, when its tool reported one.
-fn credits_of(
-    storage: &juggler_core::storage::Storage,
-    account: &juggler_core::model::Account,
-) -> Option<CreditsDisplay> {
-    let id = account.id.as_str();
-    let raw = storage
-        .app_settings()
-        .get(&format!(
-            "{}{id}",
-            crate::usage_pipeline::CREDITS_KEY_PREFIX
-        ))
-        .ok()
-        .flatten()?;
-    let snapshot: juggler_adapters::CreditsSnapshot = serde_json::from_str(&raw).ok()?;
-    Some(CreditsDisplay {
-        has_credits: snapshot.has_credits,
-        unlimited: snapshot.unlimited,
-        balance: snapshot.balance,
-        as_of_ms: snapshot.ts,
-        source: provider_name(account.harness.as_str()),
-    })
-}
-
-/// Evaluates one account's two-clock display from the engine (E606
-/// evaluate + E608 forecast + E411 renewal + E607 staleness).
-#[must_use]
-#[allow(clippy::too_many_lines)]
-pub fn quota_display_inner(
-    storage: &juggler_core::storage::Storage,
-    account: &juggler_core::model::Account,
-    now_ms: i64,
-) -> QuotaDisplayInfo {
-    use juggler_core::quota::{self, AccountEvaluation, QuotaCap, SubscriptionClock, WindowKind};
-    use juggler_core::quota_forecast::{self, ForecastState, RateUnits};
-
-    let account_id = account.id.as_str();
-    let settings = storage.app_settings();
-    let usage = storage.usage();
-    let events = usage
-        .events_for_account(account_id, now_ms - quota::WEEK_MS)
-        .unwrap_or_default();
-    let anchor = settings
-        .get(&juggler_core::storage::anchor_settings_key(account_id))
-        .ok()
-        .flatten()
-        .and_then(|raw| raw.parse::<i64>().ok());
-    let samples_five_hour = usage
-        .samples_for_account(account_id, juggler_core::quota::WindowKind::FiveHour)
-        .unwrap_or_default();
-    let samples_weekly = usage
-        .samples_for_account(
-            account_id,
-            juggler_core::quota::WindowKind::Weekly { anchor_ms: anchor },
-        )
-        .unwrap_or_default();
-    let cap = |kind: WindowKind| -> QuotaCap {
-        settings
-            .get(&juggler_core::storage::cap_settings_key(account_id, kind))
-            .ok()
-            .flatten()
-            .map(|raw| QuotaCap::decode(&raw))
-            .unwrap_or_default()
-    };
-    let clock = SubscriptionClock {
-        renewal_date: account.renewal_date.clone(),
-        entered_by_user: account.renewal_date.is_some(),
-        from_vendor_feed: false,
-    };
-    let today = epoch_today(now_ms);
-    let evaluation = quota::evaluate_account(AccountEvaluation {
-        events: &events,
-        samples_five_hour: &samples_five_hour,
-        samples_weekly: &samples_weekly,
-        account: account_id,
-        cap_five_hour: cap(WindowKind::FiveHour),
-        cap_weekly: cap(WindowKind::Weekly { anchor_ms: anchor }),
-        weekly_anchor_ms: anchor,
-        subscription: &clock,
-        now_ms,
-        today,
-    });
-
-    // Staleness (Q-1): the freshest Measured sample's age.
-    let last_measured = samples_five_hour
-        .iter()
-        .chain(samples_weekly.iter())
-        .filter(|sample| sample.confidence == juggler_core::model::Confidence::Measured)
-        .map(|sample| sample.ts)
-        .max();
-    let stale_note_ms =
-        last_measured.filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
-
-    let window_display = |reading: &quota::WindowReading, cap: QuotaCap| WindowDisplay {
-        state: window_state_name(reading.state, reading.percentage).to_owned(),
-        percentage: reading.percentage,
-        badge: reading
-            .percentage
-            .map(|_| confidence_name(reading.confidence).to_owned()),
-        stale_note_ms,
-        resets_at_ms: reading.resets_at,
-        measured_at_ms: reading.measured_at,
-        reset_basis: reading.reset_basis.map(|basis| {
-            match basis {
-                quota::ResetBasis::Measured => "measured",
-                quota::ResetBasis::Calendar => "calendar",
-            }
-            .to_owned()
-        }),
-        burned_tokens: reading
-            .burn
-            .tokens
-            .input
-            .saturating_add(reading.burn.tokens.output)
-            .saturating_add(reading.burn.tokens.cache_read)
-            .saturating_add(reading.burn.tokens.cache_write)
-            .saturating_add(reading.burn.tokens.reasoning),
-        burned_credits: (reading.burn.credits > 0.0).then_some(reading.burn.credits),
-        headroom_tokens: cap.tokens.map(|tokens| {
-            #[allow(clippy::cast_precision_loss)]
-            let room = tokens as f64;
-            #[allow(clippy::cast_precision_loss)]
-            let burned = reading.burn.tokens.input as f64
-                + reading.burn.tokens.output as f64
-                + reading.burn.tokens.cache_read as f64
-                + reading.burn.tokens.cache_write as f64
-                + reading.burn.tokens.reasoning as f64;
-            (room - burned).max(0.0)
-        }),
-    };
-
-    // The forecast runs on the unit the provider bills (ZCode credits).
-    let units = if account.harness.as_str() == "zcode" {
-        RateUnits::Credits
-    } else {
-        RateUnits::Tokens
-    };
-    let forecast_cap = cap(WindowKind::FiveHour);
-    let resets_at = evaluation.five_hour.resets_at;
-    let fc = quota_forecast::forecast(
-        &events,
-        account_id,
-        WindowKind::FiveHour,
-        forecast_cap,
-        units,
-        resets_at,
-        now_ms,
-    );
-    let forecast = ForecastDisplay {
-        state: match fc.state {
-            ForecastState::Learning => "learning".to_owned(),
-            ForecastState::WontExhaust => "wont-exhaust".to_owned(),
-            ForecastState::Exhausts { .. } => "exhausts".to_owned(),
-            ForecastState::NoHeadroom => "no-headroom".to_owned(),
-        },
-        tte_min: match fc.state {
-            ForecastState::Exhausts { tte_min, .. } => Some(tte_min),
-            _ => None,
-        },
-        range_min: match fc.state {
-            ForecastState::Exhausts { range_low_min, .. } => Some(range_low_min),
-            _ => None,
-        },
-        range_max: match fc.state {
-            ForecastState::Exhausts { range_high_min, .. } => Some(range_high_min),
-            _ => None,
-        },
-        badge: confidence_name(fc.confidence).to_owned(),
-    };
-
-    // Renewal (D-12 via E411's label machine; approaching threshold
-    // user-tunable 1–30 days, default 7).
-    let warn_days: i64 = settings
-        .get("renewal_warn_days")
-        .ok()
-        .flatten()
-        .and_then(|raw| raw.parse::<i64>().ok())
-        .unwrap_or(7)
-        .clamp(1, 30);
-    let renewal = match clock.evaluate(today) {
-        juggler_core::quota::RenewalState::Unknown => RenewalDisplay {
-            state: "none".to_owned(),
-            label: "Renewal: unknown — add date".to_owned(),
-            entered_by_user: false,
-        },
-        juggler_core::quota::RenewalState::RenewIn { days, .. } => {
-            let (state, label) = if days < 0 {
-                ("overdue", "Renewal date passed".to_owned())
-            } else if days <= warn_days {
-                (
-                    "approaching",
-                    format!("Renews in {days} days — check your plan"),
-                )
-            } else {
-                (
-                    "set",
-                    format!(
-                        "Renews {}",
-                        account.renewal_date.clone().unwrap_or_default()
-                    ),
-                )
-            };
-            RenewalDisplay {
-                state: state.to_owned(),
-                label,
-                entered_by_user: true,
-            }
-        }
-    };
-
-    // Window shapes (Req.5): a window that isn't there is omitted WITH
-    // its reason, never an empty ring.
-    let provider = account.harness.as_str();
-    let mut unavailable_reason = None;
-    let (five_hour, five_hour_reason, weekly, weekly_reason) = match provider {
-        "gemini" | "antigravity" => {
-            unavailable_reason = Some("No verified quota source for this tool yet".to_owned());
-            (None, None, None, None)
-        }
-        // A registered tool whose adapter declares no limits feed: the same
-        // capability Home and the provider list read, so every surface
-        // says the same thing (QA: Usage said "100% left" for a tool Home
-        // said doesn't report).
-        _ if !reports_limits(provider) => {
-            unavailable_reason = Some(format!(
-                "{} doesn't report its limits to AI Juggler yet",
-                provider_name(provider)
-            ));
-            (None, None, None, None)
-        }
-        // P13: a tool whose feed names its own windows shows the ones it
-        // reports, never ones assumed from the tool or plan.
-        _ if adapter_has(
-            provider,
-            juggler_adapter::Capabilities::LIMIT_WINDOWS_REPORTED,
-        ) =>
-        {
-            let (five_reported, weekly_reported) =
-                reported_windows(&samples_five_hour, &samples_weekly, now_ms);
-            let tool = provider_name(provider);
-            let reason = |kind: &str| {
-                if five_reported || weekly_reported {
-                    format!("{tool} reports no {kind} limit for this account")
-                } else {
-                    format!(
-                        "{tool} hasn't reported its limits yet — they show after you use {tool}"
-                    )
-                }
-            };
-            (
-                five_reported
-                    .then(|| window_display(&evaluation.five_hour, cap(WindowKind::FiveHour))),
-                (!five_reported).then(|| reason("five-hour")),
-                weekly_reported.then(|| {
-                    window_display(
-                        &evaluation.weekly,
-                        cap(WindowKind::Weekly { anchor_ms: anchor }),
-                    )
-                }),
-                (!weekly_reported).then(|| reason("weekly")),
-            )
-        }
-        _ => (
-            Some(window_display(
-                &evaluation.five_hour,
-                cap(WindowKind::FiveHour),
-            )),
-            None,
-            Some(window_display(
-                &evaluation.weekly,
-                cap(WindowKind::Weekly { anchor_ms: anchor }),
-            )),
-            None,
-        ),
-    };
-    QuotaDisplayInfo {
-        account: account_id.to_owned(),
-        five_hour,
-        five_hour_omitted_reason: five_hour_reason,
-        weekly,
-        weekly_omitted_reason: weekly_reason,
-        renewal,
-        forecast,
-        unavailable_reason,
-        credits: credits_of(storage, account),
-    }
-}
-
-/// A built-in adapter's capabilities, by tool id (`None` for a tool with
-/// no adapter here), read once from the built-in registry: the quota
-/// display asks the adapters, never branches on a tool's id.
-fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> {
-    static CAPS: std::sync::OnceLock<
-        std::collections::BTreeMap<String, juggler_adapter::Capabilities>,
-    > = std::sync::OnceLock::new();
-    CAPS.get_or_init(|| {
-        let registry = crate::state::default_registry();
-        registry
-            .ids()
-            .into_iter()
-            .filter_map(|id| Some((id.to_string(), registry.get(&id)?.capabilities())))
-            .collect()
-    })
-    .get(harness)
-    .copied()
-}
-
-/// True when `harness`'s adapter declares `capability`.
-pub(crate) fn adapter_has(harness: &str, capability: juggler_adapter::Capabilities) -> bool {
-    adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
-}
-
-/// True unless `harness` is a registered tool whose adapter declares no
-/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
-/// reports as `reports_limits`. A tool with no adapter here (`ZCode`'s
-/// computed credits) keeps its own rules.
-#[must_use]
-pub fn reports_limits(harness: &str) -> bool {
-    adapter_capabilities(harness)
-        .is_none_or(|caps| caps.contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED))
-}
-
-/// Which windows the tool reported in the last week (a Measured sample
-/// whose feed named the window, e.g. Codex's `window_minutes`). A window
-/// it never reports (`secondary: null`) is not there; one from a plan it
-/// left reads as stale until it ages out.
-fn reported_windows(
-    five_hour: &[juggler_core::quota::QuotaSample],
-    weekly: &[juggler_core::quota::QuotaSample],
-    now_ms: i64,
-) -> (bool, bool) {
-    let reported = |samples: &[juggler_core::quota::QuotaSample]| {
-        samples.iter().any(|sample| {
-            sample.confidence == juggler_core::model::Confidence::Measured
-                && now_ms.saturating_sub(sample.ts) <= juggler_core::quota::WEEK_MS
-        })
-    };
-    (reported(five_hour), reported(weekly))
-}
+// The quota display (AJ-E610/E611, #120) is its own feature module.
+pub use crate::features::quota::*;
 
 /// AJ-E611: one ranked (or filtered) row on the wire — greyed rows
 /// carry their filter reason; survivors carry the score + their
@@ -997,17 +529,17 @@ fn rank_candidates_for(
         // originals carry the source's TTE for the return bonus.
         let (fidelity, switch_cost) = match switch {
             Some(context) => (
-                juggler_handover::validation::advertised_ceiling_number(
+                Some(juggler_handover::validation::advertised_ceiling_number(
                     &context.source_provider,
                     account.harness.as_str(),
                     dogfood.get(&dogfood_key(
                         context.source_provider.as_str(),
                         account.harness.as_str(),
                     )),
-                ),
+                )),
                 replay_cost_for(context, account, &catalog, now),
             ),
-            None => (0.5, 0.0), // launch-neutral, documented (§Q6)
+            None => (None, 0.0), // launch-neutral, documented (§Q6)
         };
         let projected_usd = projected_usd.map(|usd| usd + switch_cost);
         candidates.push(juggler_core::ranking::Candidate {
@@ -1068,11 +600,15 @@ fn rank_candidates_for(
 ///
 /// Returns the typed [`AppError`] on storage failures.
 #[tauri::command]
-pub fn ranking_rows(
+pub async fn ranking_rows(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     project: Option<String>,
 ) -> AppResult<Vec<RankedRowInfo>> {
-    ranking_rows_inner(&state, project)
+    // Off the main thread (AJ-E1535): New session opens without waiting.
+    crate::ipc::blocking(state.inner(), "rank the accounts", move |state| {
+        ranking_rows_inner(state, project)
+    })
+    .await
 }
 
 /// AJ-E611: one emitted alert on the wire (the notification region's
@@ -1147,6 +683,7 @@ fn step_account_alerts(
             tte_min: display.forecast.tte_min,
             used_pct: window.percentage,
             confidence,
+            resets_at_ms: window.resets_at_ms,
         };
         let machine = if slot == "five_hour" {
             &entry.five_hour
@@ -1353,6 +890,8 @@ pub fn alerts_tick(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     local_hour: Option<u32>,
 ) -> Vec<AlertEventInfo> {
+    // AJ-E1510: the local hour, for notifications' quiet hours.
+    state.notifier.local_hour_seen(local_hour, now_millis());
     let events = alerts_tick_inner(&state, local_hour);
     // AJ-E709: route them to paired consoles too (a no-op with Link off).
     crate::link::publish_alerts(state.inner(), &events);
@@ -1627,6 +1166,9 @@ pub struct LaunchRecipeInfo {
     pub model: Option<String>,
     /// Default working directory, if any.
     pub default_cwd: Option<String>,
+    /// AJ-E1509: restart its crashed sessions — `null` follows Settings ›
+    /// Sessions.
+    pub restart_on_crash: Option<bool>,
 }
 
 /// Deprecated alias (one version). AJ-E107.
@@ -1770,176 +1312,13 @@ pub struct InstanceQuotaInfo {
     pub quota: Option<QuotaSnapshotInfo>,
 }
 
-/// An Instance row for the UI (the conversation lives inside; AJ-E107).
-/// One payload carries every indicator-row and inspector field I-01..I-11
-/// (AJ-E401): absent data is `null`, never `0`, `""`, or a guessed name.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct InstanceInfo {
-    /// Instance id.
-    pub id: String,
-    /// Launch settings id it runs under.
-    pub launch_recipe_id: String,
-    /// Provider id (wire field `harness` aliased one version); `unknown`
-    /// when the launch settings row is gone — never blank.
-    #[serde(alias = "harness")]
-    pub provider: String,
-    /// Owning account id; `null` when the launch settings row is gone.
-    pub account_id: Option<String>,
-    /// Owning Account label for display (wire field `label` aliased one
-    /// version); `unknown` when unresolvable — never blank.
-    #[serde(alias = "label")]
-    pub account_label: String,
-    /// I-03 display value: the RUNNING model once observed, else the
-    /// launch overlay, else `default model` — never a guessed name.
-    pub model: Option<String>,
-    /// The launch-overlay model (intent, not telemetry; AJ-E412).
-    pub launch_model: Option<String>,
-    /// The transcript-OBSERVED running model; `null` until observed —
-    /// never filled from the overlay.
-    pub running_model: Option<String>,
-    /// How `model` is known: `launch` (overlay only, not verified
-    /// live), `in-session` (observed, differs from the overlay),
-    /// `transcript` (observed), `unknown` (neither).
-    pub model_source: String,
-    /// I-04: lifecycle status string (storage vocabulary).
-    pub status: String,
-    /// I-05: quota window snapshot; `null` when no feed exists.
-    pub quota: Option<QuotaSnapshotInfo>,
-    /// I-06: token counters; `null` until usage has been observed.
-    pub tokens: Option<TokenCountsInfo>,
-    /// I-07: CPU percent summed over the process tree; `null` until the
-    /// resource tick has two samples.
-    pub cpu_pct: Option<f64>,
-    /// I-07: resident bytes summed over the process tree; `null` until
-    /// sampled (a finished Instance is not measurable — not zero).
-    #[ts(type = "number | null")]
-    pub rss_bytes: Option<u64>,
-    /// I-08: live descendant count; `null` until sampled, `0` after exit
-    /// (nothing can be running then).
-    #[ts(type = "number | null")]
-    pub child_count: Option<u32>,
-    /// I-08: subtask count; `null` — no transcript source exists yet
-    /// (AJ-E409 lands the signals; never a guessed count).
-    #[ts(type = "number | null")]
-    pub subtask_count: Option<u64>,
-    /// I-09: git branch of the working directory, parsed from
-    /// `.git/HEAD` (no subprocess); `null` for non-git or detached.
-    pub git_branch: Option<String>,
-    /// I-09: dirty file count; `null` — requires a `git status` walk that
-    /// must never run per-row on the hot path (collector comes later).
-    #[ts(type = "number | null")]
-    pub git_dirty_count: Option<u64>,
-    /// I-10: why this Instance needs its user; `null` when it does not.
-    pub needs_attention: Option<NeedsAttention>,
-    /// AJ-E405: the structured reason (rule + measured inputs + since)
-    /// behind `needs_attention`; `null` when healthy or pre-E405 rows.
-    pub attention: Option<AttentionInfo>,
-    /// Start time, epoch milliseconds.
-    #[ts(type = "number")]
-    pub started_at_ms: i64,
-    /// I-11: last observed activity, epoch milliseconds; `null` when
-    /// never observed.
-    #[ts(type = "number | null")]
-    pub last_activity_ms: Option<i64>,
-    /// Fleet dimension (D-13): machine the Instance runs on.
-    pub machine_id: String,
-    /// Working directory (AJ-E407 Overview: copyable project + cwd).
-    pub cwd: String,
-    /// Instance kind: `terminal` | `desktop`.
-    pub kind: String,
-    /// True when crash recovery re-adopted this Instance's verified
-    /// root (AJ-E510): `Running — re-adopted`, terminal detached
-    /// (output from before the crash is unavailable), stop via the
-    /// AJ-E507 sheet.
-    pub adopted: bool,
-    /// Owning project id, when the cwd resolved to a tracked project.
-    pub project_id: Option<String>,
-    /// The native conversation inside this Instance, once discovered
-    /// (AJ-E104: Instance row → conversation inside; None while Starting).
-    pub conversation_id: Option<String>,
-    /// AJ-E413 Req.1: the per-Provider isolation claim for desktop
-    /// Instances, verbatim (`Single-account app — Juggler tracks,
-    /// cannot isolate` for single-account apps); `null` for terminal
-    /// Instances and when the provider's adapter is not registered.
-    pub isolation_label: Option<String>,
-    /// AJ-E1001: the latest identity assertion — `verified` |
-    /// `first_seen` | `signed_out` | `unverified` (absent before any
-    /// check, e.g. adopted after a crash).
-    #[ts(optional)]
-    pub identity_state: Option<String>,
-    /// The identity it ran as (masked), when known.
-    #[ts(optional)]
-    pub identity_label: Option<String>,
-    /// AJ-E1002: commits ahead of the upstream (cached `git status`,
-    /// at most every 30 s; absent = unknown).
-    #[ts(optional, type = "number")]
-    pub git_ahead: Option<u64>,
-    /// Commits behind the upstream.
-    #[ts(optional, type = "number")]
-    pub git_behind: Option<u64>,
-    /// It runs in a linked git worktree.
-    #[ts(optional)]
-    pub git_worktree: Option<bool>,
-    /// AJ-E1003: parked until its quota resets — the reset's
-    /// confidence (`measured` | `estimated` | `unknown`); absent when not
-    /// parked.
-    #[ts(optional)]
-    pub parked: Option<String>,
-    /// The reset it waits for, epoch ms (countdown only when measured).
-    #[ts(optional, type = "number")]
-    pub parked_resets_at_ms: Option<i64>,
-    /// AJ-E1005/AJ-E1007: its latest lifecycle step (`reviewed`), absent
-    /// when it has none.
-    #[ts(optional)]
-    pub lifecycle: Option<String>,
-    /// When that step was taken, epoch ms.
-    #[ts(optional, type = "number")]
-    pub lifecycle_at_ms: Option<i64>,
-}
+pub use crate::features::sessions::dto::InstanceInfo;
 
 /// Deprecated alias (one version). AJ-E107.
 pub type SessionInfo = InstanceInfo;
 
-/// A tracked project for the UI — the juggling anchor (ADR-0007).
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ProjectInfo {
-    /// Project id.
-    pub id: String,
-    /// Canonical root directory.
-    pub root: String,
-    /// Display name.
-    pub name: String,
-    /// Last activity, epoch milliseconds (when known).
-    #[ts(type = "number | null")]
-    pub last_activity_ms: Option<i64>,
-    /// The instance currently managing this project, when live.
-    pub active_instance: Option<SessionInfo>,
-    /// Account labels that have ever run in this project (AI Juggler runs
-    /// plus imported pre-existing history).
-    pub accounts_used: Vec<String>,
-    /// Total instances run through AI Juggler in this project.
-    #[ts(type = "number")]
-    pub instance_count: u64,
-    /// Sessions discovered in imported transcripts (pre-AI-Juggler work).
-    #[ts(type = "number")]
-    pub history_sessions: u64,
-    /// When the user last worked here outside AI Juggler (the newest
-    /// imported transcript's write time), epoch ms.
-    #[ts(type = "number | null")]
-    pub history_last_used_ms: Option<i64>,
-    /// The repository this folder is a checkout of (its `origin` remote,
-    /// normalised: `github.com/owner/name`), so clones group together.
-    pub repo: Option<String>,
-    /// True when the root directory no longer exists on disk (AJ-E408
-    /// Overview danger banner + `Relocate…`).
-    pub missing: bool,
-    /// AJ-E1501: the account this project's new sessions start with,
-    /// when the user picked one.
-    #[ts(optional = nullable)]
-    pub default_account_id: Option<String>,
-}
+/// A tracked project for the UI (moved to its feature, ADR-0019 §3).
+pub use crate::features::projects::ProjectInfo;
 
 /// Dashboard counts.
 #[derive(Debug, Clone, Default, Serialize, TS)]
@@ -2083,11 +1462,12 @@ pub struct ImportResult {
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn harnesses_list() -> Vec<ProviderInfo> {
-    crate::state::default_registry()
+    let registry = crate::state::default_registry();
+    registry
         .ids()
         .into_iter()
         .map(|id| ProviderInfo {
-            name: provider_display(id.as_str()).0,
+            name: provider_display(&registry, id.as_str()).0,
             id: id.to_string(),
         })
         .collect()
@@ -2639,82 +2019,7 @@ pub fn expert_reveal_target(
     Ok(target)
 }
 
-/// `_`-delimited key segments that mark an environment key as
-/// credential-shaped (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`)
-/// — whole segments, so `CLAUDE_CODE_MAX_OUTPUT_TOKENS` stays allowed.
-const CREDENTIAL_KEY_SEGMENTS: &[&str] = &[
-    "KEY",
-    "APIKEY",
-    "TOKEN",
-    "SECRET",
-    "PASSWORD",
-    "PASSWD",
-    "CREDENTIAL",
-    "CREDENTIALS",
-    "AUTH",
-    "OAUTH",
-    "BEARER",
-    "COOKIE",
-];
-
-/// The most overrides one Launch settings may carry.
-const ENV_OVERLAY_MAX: usize = 32;
-
-/// AJ-E309: validates a Launch-settings environment overlay. Keys are
-/// shell-style (`[A-Z_][A-Z0-9_]*`, ≤ 64); values are one line
-/// (≤ 1024 bytes). Isolation keys are refused (they would repoint the
-/// Account's folder), and so are credential-shaped keys — vendor
-/// credentials are never stored by AI Juggler; the vendor's own
-/// sign-in owns them.
-///
-/// # Errors
-///
-/// Returns [`AppError::Validation`] naming the first offending key.
-pub fn validate_env_overlay(
-    protected: &[&str],
-    env: &std::collections::BTreeMap<String, String>,
-) -> AppResult<()> {
-    let refuse = |message: String| AppError::Validation {
-        subject: "environment override",
-        message,
-    };
-    if env.len() > ENV_OVERLAY_MAX {
-        return Err(refuse(format!(
-            "at most {ENV_OVERLAY_MAX} overrides per Launch settings"
-        )));
-    }
-    for (key, value) in env {
-        let mut bytes = key.bytes();
-        let shaped = matches!(bytes.next(), Some(b'A'..=b'Z' | b'_'))
-            && key.len() <= 64
-            && bytes.all(|b| matches!(b, b'A'..=b'Z' | b'0'..=b'9' | b'_'));
-        if !shaped {
-            return Err(refuse(format!(
-                "“{key}” isn't a valid variable name — use capitals, digits and _"
-            )));
-        }
-        if protected.contains(&key.as_str()) {
-            return Err(refuse(format!(
-                "{key} is managed by AI Juggler — it keeps this account isolated"
-            )));
-        }
-        if key
-            .split('_')
-            .any(|segment| CREDENTIAL_KEY_SEGMENTS.contains(&segment))
-        {
-            return Err(refuse(format!(
-                "{key} looks like a credential — sign in with the vendor's own flow instead; \
-                 AI Juggler never stores credentials"
-            )));
-        }
-        if value.len() > 1024 || value.contains(['\0', '\n', '\r']) {
-            return Err(refuse(format!(
-                "the value for {key} must be a single line under 1 KB"
-            )));
-        }
-    }
-    Ok(())
-}
+pub use crate::env_overlay::validate_env_overlay;
 
 /// AJ-E309 Req.5: one Launch settings' environment overrides.
 ///
@@ -2816,7 +2121,7 @@ pub fn isolation_check_impl(
     };
     let dir = account.state_dir.clone();
     if account.in_place {
-        return in_place_isolation_rows(state, &account);
+        return crate::in_place::in_place_isolation_rows(state, &account);
     }
     let mut rows = Vec::new();
 
@@ -2922,7 +2227,7 @@ pub fn isolation_check_impl(
 /// variable to what the adapter pins for its folder — the path exactly,
 /// or unset for the vendor's own folder (AJ-E1521: launches, the shell
 /// line and this check read the one `pinned_env` list).
-fn launch_env_pinned(
+pub(crate) fn launch_env_pinned(
     adapter: &juggler_adapter::adapter::ProviderAdapter,
     account: &Account,
 ) -> bool {
@@ -2952,76 +2257,6 @@ fn launch_env_pinned(
                         (None, _) => false,
                     })
             })
-}
-
-/// ADR-0018: the checklist for an account that uses the user's folder
-/// where it is. "Owner-only" and "marker present" are promises about AI
-/// Juggler's own copies; here the promises are that AI Juggler put
-/// nothing of its own in the folder and launches point only at it.
-fn in_place_isolation_rows(
-    state: &Arc<AppState>,
-    account: &Account,
-) -> AppResult<Vec<IsolationRowInfo>> {
-    let dir = account.state_dir.clone();
-    let mut rows = vec![IsolationRowInfo {
-        id: "in_place_folder_present",
-        label: "Uses your folder where it is".into(),
-        pass: dir.is_dir(),
-        detail: format!("{}", dir.display()),
-    }];
-    let ours = [
-        juggler_adapters::claude_code::MANAGED_MARKER,
-        "juggler-statusline.sh",
-        "juggler-statusline-backup.json",
-        "quota-spool",
-    ];
-    let untouched = ours.iter().all(|name| !dir.join(name).exists());
-    rows.push(IsolationRowInfo {
-        id: "in_place_no_juggler_files",
-        label: "AI Juggler put nothing of its own in your folder".into(),
-        pass: untouched,
-        detail: "its launch settings and usage capture live in AI Juggler's own folder".into(),
-    });
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_owned()))?;
-    // Every pinned variable is the folder exactly, or — for the vendor's
-    // own default folder — unset, as the vendor runs it.
-    let pinned = adapter.pinned_env_keys();
-    let default_folder = adapter
-        .pinned_env(&dir)
-        .iter()
-        .all(|(_, value)| value.is_none());
-    let env_ok = launch_env_pinned(adapter.as_ref(), account);
-    let keys = pinned.join(" and ");
-    rows.push(IsolationRowInfo {
-        id: "launch_env_managed_only",
-        label: "Launch environment points only at this account's folder".into(),
-        pass: env_ok,
-        detail: if default_folder {
-            format!(
-                "the default folder runs as {} runs it ({keys} unset)",
-                provider_display(account.harness.as_str()).0
-            )
-        } else {
-            format!(
-                "{keys} {} this folder, exactly",
-                if pinned.len() > 1 { "are" } else { "is" }
-            )
-        },
-    });
-    let probe_state = login_state_of(&state.registry, account);
-    rows.push(IsolationRowInfo {
-        id: "probe_independence",
-        label: "Login state reads only this account's folder".into(),
-        pass: !matches!(probe_state, juggler_adapters::LoginState::Unknown),
-        detail: format!(
-            "probe classified this dir as {}",
-            login_state_name(probe_state)
-        ),
-    });
-    Ok(rows)
 }
 
 /// Inspects a candidate import source BEFORE any copy (metadata-only).
@@ -3507,9 +2742,15 @@ pub fn login_open_web(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn profiles_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<LaunchRecipeInfo>> {
-    let storage = lock_storage(&state)?;
-    profile_infos(&storage)
+pub async fn profiles_list(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<LaunchRecipeInfo>> {
+    // Off the main thread (AJ-E1535): the storage lock may be held by a
+    // tick, and New session opens without waiting on it.
+    crate::ipc::blocking(state.inner(), "list launch settings", |state| {
+        profile_infos(&*lock_storage_arc(state)?)
+    })
+    .await
 }
 
 /// Creates a profile under an account.
@@ -3558,6 +2799,7 @@ pub fn create_profile(
         settings_overlay: SettingsOverlay {
             model,
             env: std::collections::BTreeMap::default(),
+            restart_on_crash: None,
         },
         default_cwd: default_cwd.clone().map(std::path::PathBuf::from),
     };
@@ -3570,6 +2812,7 @@ pub fn create_profile(
         provider: account.harness.to_string(),
         model: profile.settings_overlay.model,
         default_cwd,
+        restart_on_crash: profile.settings_overlay.restart_on_crash,
     })
 }
 
@@ -3786,6 +3029,10 @@ pub fn launch_profile(
         let machine = local_machine_id(state);
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&project_root, None)?;
+        // AJ-E1502: a session started here brings a forgotten project back.
+        if project.forgotten_at.is_some() {
+            storage.projects().set_forgotten(&project.id, false)?;
+        }
         let usage = engine_usage_snapshot(&storage, &profile.id);
         storage.sessions().insert(&SessionRecord {
             id: session_id.clone(),
@@ -3906,6 +3153,9 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
         let machine = local_machine_id(state);
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&launch.cwd, None)?;
+        if project.forgotten_at.is_some() {
+            storage.projects().set_forgotten(&project.id, false)?;
+        }
         let usage = engine_usage_snapshot(&storage, &recipe_id);
         storage.sessions().insert(&SessionRecord {
             id: session_id.clone(),
@@ -4435,7 +3685,10 @@ pub fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<In
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage(&state)?;
-    session_infos(&storage, &live, &labels, &adopted)
+    let rows = session_infos(&storage, &live, &labels, &adopted)?;
+    drop(storage);
+    let rows = crate::features::subtasks::counted(state.inner(), rows);
+    crate::features::conversations::titled(state.inner(), rows)
 }
 
 /// The read model with the LAST sampled live stats (no extra collector
@@ -4460,7 +3713,10 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage_arc(state)?;
-    session_infos(&storage, &live, &labels, &adopted)
+    let rows = session_infos(&storage, &live, &labels, &adopted)?;
+    drop(storage);
+    let rows = crate::features::subtasks::counted(state, rows);
+    crate::features::conversations::titled(state, rows)
 }
 
 /// Stops a session via the supervisor ladder (grace, then kill).
@@ -4621,7 +3877,7 @@ pub fn apply_attention_recovery(storage: &Storage, session: &SessionId) -> Optio
 pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     let engine = &state.heuristics;
     let live = live_stats_of(state);
-    let mut changed = false;
+    let mut entered = Vec::new();
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         // AJ-E1004 Req.1: each Instance is judged against its Provider's
@@ -4671,11 +3927,17 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             if let Some(transition) = engine.evaluate_for(&record.id, &inputs, provider_stuck_secs)
             {
                 apply_attention_transition(&storage, &record.id, &transition);
-                changed = true;
+                entered.push((record.id.to_string(), transition.status));
             }
         }
     }
-    if changed {
+    // AJ-E1510: waiting or stuck, as a notification when asked for (and
+    // what quiet hours held, once they end).
+    for (session, status) in &entered {
+        crate::features::notifications::session_status(state, session, status.as_str());
+    }
+    crate::features::notifications::show_due(state);
+    if !entered.is_empty() {
         emit_sessions(app, state)?;
     }
     Ok(())
@@ -4700,6 +3962,7 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
                     changed = true;
                 }
             }
+            crate::features::notifications::session_status(state, session.as_str(), "running");
         }
     }
     if changed {
@@ -4767,7 +4030,7 @@ fn scan_rollout_line(
             scan.events.push(juggler_core::quality::UsageEvent {
                 at_ms: value["timestamp"]
                     .as_str()
-                    .and_then(chrono_like_ms)
+                    .and_then(juggler_core::time::timestamp_ms)
                     .unwrap_or(now),
                 // Disjoint classes, split as the usage pipeline does.
                 tokens: juggler_adapters::quota_ingest::codex_token_counts(usage),
@@ -4874,16 +4137,18 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         context_window: None,
         rollout_seen: std::collections::BTreeSet::new(),
     };
-    let bytes = record
+    // A line at a time: the session page asks often, and a transcript can
+    // be gigabytes.
+    let lines = record
         .transcript_ref
         .as_ref()
-        .and_then(|transcript| std::fs::read(&transcript.path).ok());
-    let Some(bytes) = bytes else {
+        .and_then(|transcript| juggler_adapters::session_lines(&transcript.path).ok());
+    let Some(lines) = lines else {
         return scan;
     };
     let mut rollout_model = None;
-    for line in String::from_utf8_lossy(&bytes).lines() {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+    for (_, line) in lines {
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&line) else {
             continue;
         };
         if let Some(payload) = value.get("payload") {
@@ -4907,7 +4172,7 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
         // to one bucket, never fabricated).
         let at_ms = value["timestamp"]
             .as_str()
-            .and_then(chrono_like_ms)
+            .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or(now);
         scan.events.push(juggler_core::quality::UsageEvent {
             at_ms,
@@ -5013,39 +4278,6 @@ pub fn instance_quality(
     })
 }
 
-/// RFC3339-ish timestamp → epoch ms without pulling chrono (the
-/// transcripts use `2026-10-13T12:34:56.789Z`-style stamps).
-// Fractional seconds land in f64; the ms truncation is below the
-// per-minute bar resolution we compute from it.
-#[allow(clippy::cast_possible_truncation)]
-fn chrono_like_ms(raw: &str) -> Option<i64> {
-    let date_time = raw.split('T').nth(1)?.split(['Z', '+']).next()?;
-    let mut parts = date_time.split(':');
-    let h: i64 = parts.next()?.parse().ok()?;
-    let m: i64 = parts.next()?.parse().ok()?;
-    let sec: f64 = parts.next()?.parse().ok()?;
-    let day_ms = raw.strip_suffix('Z').map(str::to_string).and_then(|s| {
-        let date = s.split('T').next()?.to_string();
-        let mut d = date.split('-');
-        let y: i64 = d.next()?.parse().ok()?;
-        let mo: i64 = d.next()?.parse().ok()?;
-        let da: i64 = d.next()?.parse().ok()?;
-        Some(days_from_civil(y, mo, da) * 86_400_000)
-    })?;
-    Some(day_ms + h * 3_600_000 + m * 60_000 + (sec * 1000.0) as i64)
-}
-
-/// Days since epoch (Howard Hinnant's civil-from-days inverse).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let mp = (m + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-
 /// Emits the refreshed session list to the UI.
 ///
 /// # Errors
@@ -5063,6 +4295,8 @@ pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
             &state.supervisor.alive_adopted_sessions(),
         )?
     };
+    let sessions = crate::features::subtasks::counted(state, sessions);
+    let sessions = crate::features::conversations::titled(state, sessions)?;
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, sessions);
     Ok(())
 }
@@ -5195,7 +4429,7 @@ fn login_probe_name(probe: juggler_adapter::LoginProbe) -> String {
 /// Wire-format name for a login state — the AJ-E308 Req.1 taxonomy
 /// (`signed_in|partial|expired|sso_pending|api_key|logged_out|unknown`).
 /// `unknown` renders "sign in when online", NEVER as logged out.
-fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
+pub(crate) fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
     match state {
         juggler_adapters::LoginState::SignedIn => "signed_in",
         juggler_adapters::LoginState::Partial => "partial",
@@ -5209,7 +4443,7 @@ fn login_state_name(state: juggler_adapters::LoginState) -> &'static str {
 
 /// The Account's sign-in state from its own Provider's adapter in the
 /// app's registry. Unknown Providers report logged out, as before.
-fn login_state_of(
+pub(crate) fn login_state_of(
     registry: &juggler_adapter::AdapterRegistry,
     account: &Account,
 ) -> juggler_adapters::LoginState {
@@ -5250,6 +4484,7 @@ fn profile_infos(storage: &Storage) -> AppResult<Vec<ProfileInfo>> {
                     .default_cwd
                     .as_ref()
                     .map(|p| p.to_string_lossy().into_owned()),
+                restart_on_crash: profile.settings_overlay.restart_on_crash,
             });
         }
     }
@@ -5270,7 +4505,7 @@ fn quota_snapshot_of(usage: &juggler_core::model::UsageSnapshot) -> Option<Quota
 }
 
 /// Wire name for a usage-confidence level (SPEC §6 honesty rule).
-fn confidence_name(confidence: juggler_core::model::Confidence) -> &'static str {
+pub(crate) fn confidence_name(confidence: juggler_core::model::Confidence) -> &'static str {
     match confidence {
         juggler_core::model::Confidence::Measured => "measured",
         juggler_core::model::Confidence::Computed => "computed",
@@ -5441,8 +4676,18 @@ fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeInd
     Ok((account_index, recipe_index))
 }
 
+/// AJ-E1502: a session's label, from the marks.
+fn label_of(marks: &juggler_core::storage::SessionMarks, id: &str) -> Option<String> {
+    marks.get(id).and_then(|(label, _)| label.clone())
+}
+
+/// AJ-E1502: whether a session is pinned (absent when not).
+fn pinned_of(marks: &juggler_core::storage::SessionMarks, id: &str) -> Option<bool> {
+    marks.get(id).and_then(|(_, pinned)| pinned.map(|_| true))
+}
+
 /// Measured token counts for the wire; all-zero means unmeasured (null).
-fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
+pub(crate) fn tokens_info(t: juggler_core::model::TokenCounts) -> Option<TokenCountsInfo> {
     (t != juggler_core::model::TokenCounts::default()).then_some(TokenCountsInfo {
         input: t.input,
         output: t.output,
@@ -5462,6 +4707,7 @@ fn session_infos(
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
+    let marks = storage.sessions().marks().unwrap_or_default();
     Ok(storage
         .sessions()
         .list(None)?
@@ -5485,7 +4731,9 @@ fn session_infos(
             let stats = if terminal {
                 None
             } else {
-                live.get(&record.id.to_string()).copied()
+                live.get(&record.id.to_string())
+                    .copied()
+                    .and_then(juggler_supervisor::LiveProcessStats::measured)
             };
             InstanceInfo {
                 adopted: adopted_ids.contains(&record.id),
@@ -5511,8 +4759,8 @@ fn session_infos(
                 } else {
                     stats.map(|s| s.child_count)
                 },
-                // No transcript-derived source exists yet (AJ-E409) —
-                // shipped nullable, never backfilled with a guess.
+                // AJ-E1520: filled from the live transcript reads by
+                // `features::subtasks::counted`; null until read.
                 subtask_count: None,
                 git_branch: crate::worktree::branch_of(&record.cwd),
                 // AJ-E1002: changed + untracked from the cached git
@@ -5555,15 +4803,19 @@ fn session_infos(
                     .get(record.id.as_str())
                     .map(|(event, _)| event.clone()),
                 lifecycle_at_ms: lifecycle.get(record.id.as_str()).map(|(_, at)| *at),
+                label: label_of(&marks, record.id.as_str()),
+                title: None,
+                pinned: pinned_of(&marks, record.id.as_str()),
             }
         })
         .collect())
 }
 
-/// Scans imported transcripts and backfills the projects rail with the
-/// user's REAL history: every project directory found in any account's
-/// `projects/` transcripts (cwd read from the transcript itself, never
-/// guessed from the encoded dir name), with per-account history merged.
+/// Backfills the projects rail with the user's REAL history: every folder
+/// any account's conversations ran in (AJ-E1529: both tools, read by
+/// their adapters into the conversation index), folded into its project
+/// (worktrees present, removed or pruned into their repository), with the
+/// accounts that worked there, how many conversations, and when last.
 /// Idempotent; safe to run at every startup.
 #[tauri::command]
 ///
@@ -5580,56 +4832,100 @@ pub fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u3
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
-    use std::collections::BTreeMap;
+    projects_backfill_with(state, dirs::home_dir().as_deref())
+}
 
-    // root → (labels, native session count)
-    let mut found: BTreeMap<PathBuf, (Vec<String>, u64, Option<i64>)> = BTreeMap::new();
-    let accounts = lock_storage_arc(state)?.accounts().list()?;
-    for account in &accounts {
-        let projects_root = account.state_dir.join("projects");
-        let Ok(entries) = std::fs::read_dir(&projects_root) else {
-            continue;
-        };
-        for project_dir in entries.flatten().filter(|e| e.path().is_dir()) {
-            let jsonl = newest_jsonl(&project_dir.path());
-            let Some(jsonl) = jsonl else { continue };
-            let Some(cwd) = transcript_cwd(&jsonl) else {
-                continue; // cannot decode the dir name unambiguously
-            };
-            // A worktree's history is its repository's history.
-            let cwd = PathBuf::from(&cwd);
-            let root = juggler_core::storage::worktree_repo_root(&cwd).unwrap_or(cwd);
-            let written = std::fs::metadata(&jsonl)
-                .and_then(|meta| meta.modified())
-                .ok()
-                .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
-                .and_then(|since| i64::try_from(since.as_millis()).ok());
-            let entry = found.entry(root).or_insert_with(|| (Vec::new(), 0, None));
-            if !entry.0.contains(&account.label) {
-                entry.0.push(account.label.clone());
-            }
-            entry.1 += count_jsonl(&project_dir.path());
-            entry.2 = entry.2.max(written);
+/// [`projects_backfill_impl`] with the other managers' worktrees read
+/// under `home` (AJ-E1519: Claude Squad's, Vibe Kanban's), remembered
+/// first so a worktree they remove later still folds into its project.
+/// `None` reads none.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn projects_backfill_with(
+    state: &Arc<AppState>,
+    home: Option<&std::path::Path>,
+) -> AppResult<u32> {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    /// What the conversations say about one project.
+    #[derive(Default)]
+    struct Found {
+        accounts: Vec<String>,
+        conversations: BTreeSet<(String, String)>,
+        last_ms: Option<i64>,
+    }
+
+    // Read outside the storage lock: their files, not ours.
+    let managed: Vec<juggler_core::storage::WorktreeHome> = home
+        .map(juggler_adapters::other_managers::worktrees)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|worktree| juggler_core::storage::WorktreeHome {
+            folder: worktree.worktree,
+            repo: worktree.repo,
+            manager: worktree.manager.to_owned(),
+        })
+        .collect();
+
+    crate::features::conversations::read_if_cold(state)?;
+    let labels: std::collections::HashMap<String, String> = lock_storage_arc(state)?
+        .accounts()
+        .list()?
+        .into_iter()
+        .map(|account| (account.id.to_string(), account.label))
+        .collect();
+    let homes = {
+        let storage = lock_storage_arc(state)?;
+        let known = storage.projects().worktree_homes()?;
+        // Written only when new or moved: this runs on every change.
+        let changed: Vec<_> = managed
+            .into_iter()
+            .filter(|home| !known.contains(home))
+            .collect();
+        storage.projects().remember_worktree_homes(&changed)?;
+        if changed.is_empty() {
+            known
+        } else {
+            storage.projects().worktree_homes()?
         }
+    };
+    let mut found: BTreeMap<PathBuf, Found> = BTreeMap::new();
+    for conversation in state.conversations.all()? {
+        let Some(folder) = conversation.folder.as_deref() else {
+            continue; // no folder recorded: nothing to attach it to
+        };
+        let root = juggler_core::storage::project_root_with(folder, &homes);
+        let entry = found.entry(root).or_default();
+        if let Some(label) = labels.get(&conversation.account_id)
+            && !entry.accounts.contains(label)
+        {
+            entry.accounts.push(label.clone());
+        }
+        entry
+            .conversations
+            .insert((conversation.tool.clone(), conversation.summary.id.clone()));
+        entry.last_ms = entry.last_ms.max(conversation.summary.last_ms);
     }
 
     let storage = lock_storage_arc(state)?;
-    // Rows an earlier backfill made for worktrees fold into their
-    // repository: removed when nothing refers to them.
+    // Rows an earlier backfill made for a worktree or a repository's
+    // subfolder fold into their project: removed when nothing refers to them.
     for project in storage.projects().list()? {
-        if juggler_core::storage::worktree_repo_root(&project.root).is_some() {
+        if juggler_core::storage::project_root_with(&project.root, &homes) != project.root {
             let _ = storage.projects().delete_if_unused(&project.id);
         }
     }
     let mut enriched = 0;
-    for (root, (labels, sessions, last_used_ms)) in found {
+    for (root, found) in found {
         let record = storage.projects().touch(&root, None)?;
         storage.projects().merge_history(
             &record.id,
             &juggler_core::model::ProjectHistory {
-                accounts: labels,
-                native_sessions: sessions,
-                last_used_ms,
+                accounts: found.accounts,
+                native_sessions: u64::try_from(found.conversations.len()).unwrap_or(u64::MAX),
+                last_used_ms: found.last_ms,
             },
         )?;
         enriched += 1;
@@ -5698,43 +4994,6 @@ pub fn normalise_remote(url: &str) -> Option<String> {
     (!host.is_empty() && !path.is_empty()).then(|| format!("{host}/{path}"))
 }
 
-/// Newest `.jsonl` in a project transcript dir by mtime.
-fn newest_jsonl(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    std::fs::read_dir(dir)
-        .ok()?
-        .flatten()
-        .filter(|entry| entry.path().extension().is_some_and(|e| e == "jsonl"))
-        .max_by_key(|entry| entry.metadata().ok().and_then(|m| m.modified().ok()))
-        .map(|entry| entry.path())
-}
-
-fn count_jsonl(dir: &std::path::Path) -> u64 {
-    std::fs::read_dir(dir)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|entry| entry.path().extension().is_some_and(|e| e == "jsonl"))
-                .count() as u64
-        })
-        .unwrap_or_default()
-}
-
-/// Reads a transcript's true working directory from its first lines
-/// (`"cwd"` is recorded on message records) — the only unambiguous decode.
-fn transcript_cwd(jsonl: &std::path::Path) -> Option<String> {
-    use std::io::BufRead;
-    let file = std::fs::File::open(jsonl).ok()?;
-    for line in std::io::BufReader::new(file).lines().take(25).flatten() {
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
-            && let Some(cwd) = value.get("cwd").and_then(|v| v.as_str())
-            && !cwd.is_empty()
-        {
-            return Some(cwd.to_string());
-        }
-    }
-    None
-}
-
 /// The juggle (spec §7 T1/T2 v0): move a live session's transcript to
 /// another account and resume it there — same project, same context, one
 /// click. User-initiated only (automation policy).
@@ -5798,7 +5057,7 @@ fn resolve_source(
     session_id: &str,
     persist: bool,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
-    let (mut source, account_a, taken, ambiguous) = {
+    let (mut source, account_a, taken, ambiguous, replayed_into) = {
         let storage = lock_storage_arc(state)?;
         let source = storage
             .sessions()
@@ -5839,19 +5098,56 @@ fn resolve_source(
                 && other.cwd == source.cwd
                 && !ended_before(other, source.started_at.millis())
         });
-        (source, account_a, taken, ambiguous)
+        // A replay started this session: its first message is known.
+        let replayed_into = storage
+            .switch_graph()
+            .edges_for_session(source.id.as_str())
+            .unwrap_or_default()
+            .iter()
+            .any(|(edge, outgoing)| !outgoing && is_replay(edge));
+        (source, account_a, taken, ambiguous, replayed_into)
     };
-    if ambiguous {
-        return Ok((source, account_a));
-    }
-    let Some(found) = state.registry.get(&account_a.harness).and_then(|adapter| {
-        adapter.locate_transcript(
-            &account_a.state_dir,
-            &source.cwd,
-            source.started_at.millis(),
+    // AJ-E1540: a session that knows its conversation (picked up with
+    // "Continue in AI Juggler") is found by that id, not by when its file
+    // appeared: its file is older than the session record.
+    let by_id = source.conversation.as_ref().and_then(|conversation| {
+        crate::features::conversations::transcript_of(
+            state,
+            &account_a,
+            conversation.as_str(),
             &taken,
         )
-    }) else {
+    });
+    let by_time = || {
+        if ambiguous {
+            return None;
+        }
+        state.registry.get(&account_a.harness).and_then(|adapter| {
+            adapter.locate_transcript(
+                &account_a.state_dir,
+                &source.cwd,
+                source.started_at.millis(),
+                &taken,
+            )
+        })
+    };
+    // AJ-E1541 (lab 8): when time alone can't tell (another session of the
+    // tool began in the same folder), a replay's own first message can.
+    let by_prompt = || {
+        replayed_into
+            .then(|| {
+                crate::features::conversations::primed_conversation(
+                    state,
+                    &account_a,
+                    &source.cwd,
+                    source.started_at.millis().saturating_sub(2_000),
+                    &replay_header(state, &account_a.harness),
+                    &taken,
+                )
+            })
+            .flatten()
+    };
+    let Some(found) = by_id.or_else(by_time).or_else(by_prompt) else {
         return Ok((source, account_a));
     };
     source.transcript_ref = Some(found);
@@ -5924,6 +5220,9 @@ pub struct PreflightInfo {
     pub mechanism: String,
     /// The F-label shown (F0–F4).
     pub fidelity: String,
+    /// AJ-E1543: the same label in plain words ("Continues exactly",
+    /// "Full story, fresh start"): what the screen shows.
+    pub fidelity_words: String,
     /// The capped score (internal honesty; the label is the UI).
     pub score: f64,
     /// §7.1 warning copy (verbatim table renders).
@@ -5934,6 +5233,10 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
+    /// AJ-E1540: live, but not a session AI Juggler can stop (started
+    /// outside it): the switch leaves it running and the copy is a
+    /// separate continuation.
+    pub source_keeps_running: bool,
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
@@ -5982,12 +5285,15 @@ pub struct CarryListInfo {
 /// Returns the typed [`AppError`] when resolution fails or a hard
 /// gate stops the switch.
 #[tauri::command]
-pub fn switch_preflight(
+pub async fn switch_preflight(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
 ) -> AppResult<PreflightInfo> {
-    switch_preflight_impl(state.inner(), &session_id, &target_profile_id)
+    crate::ipc::blocking(state.inner(), "check the switch", move |state| {
+        switch_preflight_impl(state, &session_id, &target_profile_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -6001,7 +5307,18 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
-    use juggler_handover::pipeline::{self, CopySituation};
+    preflight_with(state, session_id, target_profile_id, None)
+}
+
+/// [`switch_preflight_impl`], given the compaction scan when the caller
+/// already parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn preflight_with(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    compacted: Option<bool>,
+) -> AppResult<PreflightInfo> {
+    use juggler_handover::pipeline;
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
     let (source, account_a) = handover_source(state, session_id)?;
@@ -6011,8 +5328,8 @@ pub fn switch_preflight_impl(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = std::fs::read(&reference.path)
-        .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary());
+    let compacted =
+        compacted.unwrap_or_else(|| juggler_adapters::records_compaction(&reference.path));
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -6028,11 +5345,20 @@ pub fn switch_preflight_impl(
 
     // One disposition pass feeds both the fidelity engine and the
     // door's carry-list (same names, same truth).
-    let dispositions = juggler_handover::fidelity::base_dispositions(
+    let mut dispositions = juggler_handover::fidelity::base_dispositions(
         account_a.harness.as_str(),
         account_b.harness.as_str(),
     );
     let carry = carry_lists_of(&dispositions);
+    // AJ-E808: the door shows the same validation verdict as the rows, and
+    // the fidelity engine caps an unproven pair from the same cell (QA P23:
+    // it used to treat every pair as unproven).
+    let validated = pair_validated_now(
+        state,
+        account_a.harness.as_str(),
+        account_b.harness.as_str(),
+    )?;
+    dispositions.flags.validated = validated;
 
     let input = pipeline::PreflightInput {
         fidelity: dispositions,
@@ -6056,6 +5382,9 @@ pub fn switch_preflight_impl(
         .map(|situation| pipeline::user_copy(situation.clone()))
         .collect();
     let source_live = matches!(source.status.as_str(), "running" | "starting");
+    // The same rule `freeze_source` follows: only a session AI Juggler
+    // supervises is stopped.
+    let source_keeps_running = source_live && !state.supervisor.is_supervised(&source.id);
 
     // AJ-E206 §8: choose the door from the same preflight facts.
     // Headroom ≥ Tight holds unless the tight warn fired (exhausted
@@ -6071,40 +5400,35 @@ pub fn switch_preflight_impl(
         target_headroom_ok: tight.is_none(),
         rules_diverged: false,
     };
-    let (door, wizard_steps, wizard_reasons) =
-        door_verdict(state, &door_inputs, &carry, report.pair.label);
+    let (door, wizard_steps, wizard_reasons) = door_verdict(&door_inputs, &carry, validated);
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
-            &account_b.harness,
+            &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
             redaction_global_of(&storage),
             redaction_override_of(&storage, account_b.harness.as_str()),
         );
         (policy, redaction_items_of(&source))
     };
-    // AJ-E808: the door shows the same validation verdict as the rows.
-    let validated = pair_validated_now(
-        state,
-        account_a.harness.as_str(),
-        account_b.harness.as_str(),
-    )?;
-
+    let tool_b = crate::features::tools::display_name(&state.registry, account_b.harness.as_str());
     Ok(PreflightInfo {
-        mechanism: match report.mechanism {
-            pipeline::Mechanism::NativeResume => "native-resume".to_owned(),
-            pipeline::Mechanism::Transplant => "transplant".to_owned(),
-            pipeline::Mechanism::Replay => "replay".to_owned(),
-            pipeline::Mechanism::PackOnly => "pack".to_owned(),
-        },
+        mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
+        // What the move does; "not proven yet" is said beside it (P23).
+        fidelity_words: report.pair.described.user_label().to_owned(),
         score: report.pair.score,
         warnings,
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
-        experimental_copy: pipeline::user_copy(CopySituation::TransplantUnproven {
-            account_a: account_a.label.clone(),
-        }),
+        source_keeps_running,
+        experimental_copy: move_copy(
+            report.mechanism,
+            validated,
+            &account_a.label,
+            &account_b.label,
+            &tool_b,
+        ),
         door,
         wizard_steps,
         wizard_reasons,
@@ -6164,25 +5488,62 @@ fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Optio
     }
 }
 
-/// AJ-E206 §8: chooses the door from the preflight facts and counts
-/// the choice (local telemetry). Returns the wire name, the wizard
-/// step titles (empty for 1-click — never phantom steps), and the
-/// wizard's opening lines.
+/// AJ-E206 §8: chooses the door from the preflight facts. Returns the
+/// wire name, the wizard step titles (empty for 1-click — never phantom
+/// steps), and the wizard's opening lines. Counting the door is the
+/// switch screen's ([`switch_door_count`]): the preflight only reads.
 fn door_verdict(
-    state: &Arc<AppState>,
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
-    label: juggler_handover::fidelity::FidelityLabel,
+    validated: bool,
 ) -> (String, Vec<String>, Vec<String>) {
     let door = juggler_handover::door::choose_door(inputs);
-    record_door_counter(state, &door);
     match &door {
         juggler_handover::door::Door::OneClick => ("one-click".to_owned(), Vec::new(), Vec::new()),
         juggler_handover::door::Door::Wizard { steps } => (
             "wizard".to_owned(),
             steps.iter().map(|step| step.title().to_owned()).collect(),
-            wizard_reasons_of(inputs, carry, label),
+            wizard_reasons_of(inputs, carry, validated),
         ),
+    }
+}
+
+/// QA P23: the Beta line under the switch, for what this move does: a
+/// transplant moves the whole session; a replay starts fresh from the
+/// story; a pack is read by the new session.
+fn move_copy(
+    mechanism: juggler_handover::pipeline::Mechanism,
+    validated: bool,
+    account_a: &str,
+    account_b: &str,
+    tool_b: &str,
+) -> String {
+    use juggler_handover::pipeline::{CopySituation, Mechanism, user_copy};
+    let unproven = |words: String| {
+        if validated {
+            words
+        } else {
+            format!("Beta, not proven yet: {words}")
+        }
+    };
+    match mechanism {
+        Mechanism::NativeResume | Mechanism::Transplant if validated => {
+            user_copy(CopySituation::TransplantProven {
+                account_b: account_b.to_owned(),
+                account_a: account_a.to_owned(),
+            })
+        }
+        Mechanism::NativeResume | Mechanism::Transplant => {
+            user_copy(CopySituation::TransplantUnproven {
+                account_a: account_a.to_owned(),
+            })
+        }
+        Mechanism::Replay => unproven(format!(
+            "a fresh start on {tool_b}, which reads the conversation, what each tool did, the task list and the project's changes. Tool state and subagents don't carry. {account_a} stays resumable."
+        )),
+        Mechanism::PackOnly => unproven(format!(
+            "{tool_b} gets the conversation as a pack to read, and starts from it. {account_a} stays resumable."
+        )),
     }
 }
 
@@ -6261,9 +5622,8 @@ pub(crate) fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) 
 fn wizard_reasons_of(
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
-    label: juggler_handover::fidelity::FidelityLabel,
+    validated: bool,
 ) -> Vec<String> {
-    use juggler_handover::fidelity::FidelityLabel;
     use juggler_handover::pipeline::Mechanism;
     let mut reasons = Vec::new();
     if !inputs.usual_account {
@@ -6278,20 +5638,17 @@ fn wizard_reasons_of(
         }
         _ => {}
     }
-    if matches!(inputs.fidelity, Some(shown) if shown < FidelityLabel::F3) {
-        reasons.push(format!(
-            "Fidelity is {}: something would translate or drop.",
-            label.as_str()
-        ));
+    // QA P23: no F-number. A lower label always has its own, plainer
+    // reason here (it replays, was compacted, or leaves something behind);
+    // "not proven" is said as itself.
+    if !validated {
+        reasons.push("This move hasn't been proven on a real setup yet.".to_owned());
     }
     if inputs.compacted {
         reasons.push("The source was compacted — the tail may not carry.".to_owned());
     }
     if !carry.dropped.is_empty() {
-        reasons.push(format!(
-            "The carry-list drops: {}.",
-            carry.dropped.join(", ")
-        ));
+        reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));
     }
     if !inputs.target_headroom_ok {
         reasons.push("The target is running low on quota.".to_owned());
@@ -6299,9 +5656,47 @@ fn wizard_reasons_of(
     reasons
 }
 
-/// AJ-E206 §5 telemetry: count the door the preflight chose — local
-/// KV diagnostics only (never networked); a failed read or write
-/// never blocks the switch.
+/// AJ-E206 §5 telemetry: the switch screen counts the door it shows,
+/// from the preflight's own answer (`door`, and `steps` for a wizard).
+/// Local KV diagnostics only, never networked. Anything that isn't a
+/// door the preflight can choose is refused.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+#[tauri::command]
+pub async fn switch_door_count(
+    state: tauri::State<'_, Arc<AppState>>,
+    door: String,
+    steps: Vec<String>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "count the switch screen", move |state| {
+        switch_door_count_impl(state, &door, &steps)
+    })
+    .await
+}
+
+/// [`switch_door_count`]'s work, for tests.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+pub fn switch_door_count_impl(
+    state: &Arc<AppState>,
+    door: &str,
+    steps: &[String],
+) -> AppResult<()> {
+    let door =
+        juggler_handover::door::Door::from_wire(door, steps).ok_or(AppError::Validation {
+            subject: "door",
+            message: "That isn't a switch screen.".to_owned(),
+        })?;
+    record_door_counter(state, &door);
+    Ok(())
+}
+
+/// Counts `door` in the local KV: a failed read or write never blocks
+/// the switch.
 fn record_door_counter(state: &Arc<AppState>, door: &juggler_handover::door::Door) {
     let Ok(storage) = lock_storage_arc(state) else {
         return;
@@ -6342,7 +5737,7 @@ pub struct SwitchExecutedInfo {
 /// Returns the typed [`AppError`] message on any failure; the source
 /// is exactly resumable in all of them (S-F contract).
 #[tauri::command]
-pub fn switch_execute(
+pub async fn switch_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
@@ -6358,15 +5753,36 @@ pub fn switch_execute(
         Some("suggestion") => "suggestion",
         _ => "manual",
     };
-    switch_execute_core(
-        state.inner(),
-        &session_id,
-        &target_profile_id,
-        &freeze_choice,
-        redaction_choice.as_deref(),
-        &redaction_unredact.unwrap_or_default(),
-        trigger,
-    )
+    // Off the main thread (T1): "Finish this turn" can wait minutes for
+    // the source to go quiet, and the screen must keep drawing.
+    crate::ipc::blocking(state.inner(), "switch", move |state| {
+        switch_execute_core(
+            state,
+            &session_id,
+            &target_profile_id,
+            &freeze_choice,
+            redaction_choice.as_deref(),
+            &redaction_unredact.unwrap_or_default(),
+            trigger,
+        )
+    })
+    .await
+}
+
+/// AJ-E1523: a switch away from a session that had reached its usage
+/// limit is counted as the limit's (`quota_wall`), however the switch
+/// screen was opened. A successful one is a juggling loop: the limit hit,
+/// and the work went on elsewhere. `source` is the session as it was
+/// before the switch stopped it.
+fn loop_trigger(
+    source: &juggler_core::model::InstanceRecord,
+    trigger: &'static str,
+) -> &'static str {
+    if source.status == juggler_core::model::SessionStatus::QuotaBlocked {
+        "quota_wall"
+    } else {
+        trigger
+    }
 }
 
 /// Core implementation shared with integration tests.
@@ -6394,6 +5810,40 @@ pub fn switch_execute_impl(
 }
 
 /// [`switch_execute_impl`] with the switch's trigger (AJ-E1103).
+/// A session's switch in progress: held for the whole switch, released
+/// however it ends.
+pub(crate) struct SwitchSlot<'a> {
+    state: &'a Arc<AppState>,
+    session: String,
+}
+
+impl<'a> SwitchSlot<'a> {
+    /// Takes `session`'s slot, refusing while another switch of it runs.
+    pub(crate) fn take(state: &'a Arc<AppState>, session: &str) -> AppResult<Self> {
+        let mut running = state
+            .switching
+            .lock()
+            .map_err(|_| AppError::Refused("switching is unavailable right now".to_owned()))?;
+        if !running.insert(session.to_owned()) {
+            return Err(AppError::Refused(
+                "This session is already being switched: wait for that to finish".to_owned(),
+            ));
+        }
+        Ok(Self {
+            state,
+            session: session.to_owned(),
+        })
+    }
+}
+
+impl Drop for SwitchSlot<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut running) = self.state.switching.lock() {
+            running.remove(&self.session);
+        }
+    }
+}
+
 fn switch_execute_core(
     state: &Arc<AppState>,
     session_id: &str,
@@ -6404,6 +5854,7 @@ fn switch_execute_core(
     trigger: &'static str,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
+    let _slot = SwitchSlot::take(state, session_id)?;
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
@@ -6411,7 +5862,14 @@ fn switch_execute_core(
     // primed session — one vendor's file is never installed into the
     // other's home.
     if sides.account_a.harness != sides.account_b.harness {
-        return switch_replay(state, &sides, redaction_choice, redaction_unredact, trigger);
+        return switch_replay(
+            state,
+            &sides,
+            freeze,
+            redaction_choice,
+            redaction_unredact,
+            trigger,
+        );
     }
     let SwitchSides {
         source,
@@ -6420,20 +5878,14 @@ fn switch_execute_core(
         profile_b,
         account_b,
     } = sides;
-    let support = state
-        .registry
-        .handover(&account_b.harness)
-        .ok_or_else(|| AppError::Io {
-            context: "hand over",
-            message: format!(
-                "{} has no transplant support — replay/pack only",
-                account_b.harness
-            ),
-        })?;
+    let support = handover_support(state, &account_b)?;
 
     // AJ-E1001: the target Account must be who it was, before anything
     // moves.
     let assertion = crate::identity::assert_identity(state, &account_b)?;
+    // AJ-E1540: the source stops (after its turn, or now) before its file
+    // is copied, so the conversation never has two writers.
+    freeze_source(state, &source, &reference, freeze)?;
 
     // Record (E201): the Staged edge exists BEFORE anything moves;
     // failures transition it, history is never rewritten.
@@ -6449,7 +5901,7 @@ fn switch_execute_core(
         account_a.harness.as_str(),
         account_b.harness.as_str(),
         "transplant",
-        trigger,
+        loop_trigger(&source, trigger),
     );
 
     // The pipeline: snapshot → stage → verify → launch (the app's
@@ -6520,6 +5972,102 @@ fn switch_execute_core(
     })
 }
 
+/// How long the source's conversation and terminal must be quiet for its
+/// turn to count as finished (AJ-E1540).
+const TURN_QUIET: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How long "Finish this turn" waits before saying the session is still
+/// working (AJ-E1540).
+const TURN_LIMIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// AJ-E1540: the freeze choice made real on a local switch. A session AI
+/// Juggler started and that is still running stops before its file is
+/// read: at once for "Stop now", or once its turn has finished (its
+/// conversation file and its terminal quiet for [`TURN_QUIET`], the file's
+/// last line whole) for "Finish this turn". A session started outside AI
+/// Juggler isn't ours to stop: it keeps running, and the copy continues
+/// from what it has written so far (the switch screen says so).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when the turn is still going after
+/// [`TURN_LIMIT`], or the session won't stop.
+fn freeze_source(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+    reference: &juggler_core::model::TranscriptRef,
+    freeze: juggler_handover::pipeline::FreezeChoice,
+) -> AppResult<()> {
+    use std::time::{Duration, Instant, SystemTime};
+    let id = &source.id;
+    if !state.supervisor.is_supervised(id) || state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    if matches!(
+        freeze,
+        juggler_handover::pipeline::FreezeChoice::FinishTurnThenSwitch
+    ) {
+        let started = Instant::now();
+        loop {
+            let file_quiet = std::fs::metadata(&reference.path)
+                .and_then(|meta| meta.modified())
+                .ok()
+                .and_then(|at| SystemTime::now().duration_since(at).ok())
+                .is_none_or(|idle| idle >= TURN_QUIET);
+            let output_quiet = state.supervisor.last_output_ms(id).is_none_or(|at| {
+                Timestamp::now().millis().saturating_sub(at)
+                    >= i64::try_from(TURN_QUIET.as_millis()).unwrap_or(i64::MAX)
+            });
+            let whole = juggler_adapters::last_line_parses(&reference.path);
+            if (file_quiet && output_quiet && whole) || state.supervisor.is_finished(id) {
+                break;
+            }
+            if started.elapsed() >= TURN_LIMIT {
+                return Err(AppError::Refused(
+                    "The session is still working: choose Stop now, or try again once its turn \
+                     is done"
+                        .to_owned(),
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    }
+    if state.supervisor.is_finished(id) {
+        return Ok(());
+    }
+    state
+        .supervisor
+        .stop(id, Duration::from_secs(5))
+        .map_err(|error| AppError::Refused(format!("The session didn't stop: {error}")))?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !state.supervisor.is_finished(id) {
+        if Instant::now() >= deadline {
+            return Err(AppError::Refused(
+                "The session didn't stop, so nothing was switched".to_owned(),
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Ok(())
+}
+
+/// The target tool's transplant support, or why it has none.
+fn handover_support(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+) -> AppResult<Arc<dyn juggler_adapter::handover::HandoverSupport>> {
+    state
+        .registry
+        .handover(&account.harness)
+        .ok_or_else(|| AppError::Io {
+            context: "hand over",
+            message: format!(
+                "{} can't take over this conversation — only a fresh start or a briefing pack",
+                account.harness
+            ),
+        })
+}
+
 /// The user's freeze choice (`stop-now`, else finish the turn first).
 fn freeze_of(choice: &str) -> juggler_handover::pipeline::FreezeChoice {
     match choice {
@@ -6566,16 +6114,15 @@ fn switch_sides(
     })
 }
 
-/// The most a replay brief may weigh, in BYTES: it reaches the target as
-/// ONE command-line argument, and Linux caps one argument at 128 KiB
-/// (`MAX_ARG_STRLEN`) while Windows caps a whole command line at 32,767
-/// characters — over that the launch fails (E2BIG) and the session could
-/// never switch. Newest turns are kept, the newest always.
-const REPLAY_PROMPT_BYTES: usize = if cfg!(windows) { 24 * 1024 } else { 96 * 1024 };
+/// The most a replay brief may weigh, in BYTES: what the target reads
+/// from its handover file (AJ-E1541) — about 24k tokens, which a tool
+/// reads in a part or two. Newest turns are kept, the newest always;
+/// older ones are named by what was asked.
+const REPLAY_PROMPT_BYTES: usize = 96 * 1024;
 
-/// What the brief's own words (the Provider's header, the "earlier turns
-/// are not included" line) may take on top of the turns.
-const REPLAY_HEADER_BYTES: usize = 2 * 1024;
+/// What the brief's own words (the Provider's header, the earlier turns'
+/// topics) may take on top of the turns.
+const REPLAY_HEADER_BYTES: usize = 8 * 1024;
 
 /// AJ-E1304: a cross-Provider switch (T3 replay, beta — D-04/D-11). The
 /// source conversation is read in ITS format, redacted under the user's
@@ -6585,6 +6132,7 @@ const REPLAY_HEADER_BYTES: usize = 2 * 1024;
 fn switch_replay(
     state: &Arc<AppState>,
     sides: &SwitchSides,
+    freeze: juggler_handover::pipeline::FreezeChoice,
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
     trigger: &'static str,
@@ -6595,8 +6143,14 @@ fn switch_replay(
         context: "hand over",
         message,
     };
-    let (prompt, source_sha, source_bytes) =
-        replay_prompt(state, sides, redaction_choice, redaction_unredact)?;
+    // Review of #132 (M4): what can refuse the switch without the final
+    // conversation is checked before anything is stopped.
+    let strip = replay_strip(state, sides, redaction_choice)?;
+    replayable_turns(&sides.reference.path)?;
+    // AJ-E1540: the source stops first, so the replay holds its last turn.
+    freeze_source(state, &sides.source, &sides.reference, freeze)?;
+    let brief = replay_prompt(state, sides, strip, redaction_unredact)?;
+    let (source_sha, source_bytes) = (brief.sha.clone(), brief.bytes);
     let (work, from_epoch, edge) = record_edge_staged(
         state,
         &sides.source,
@@ -6609,7 +6163,7 @@ fn switch_replay(
         sides.account_a.harness.as_str(),
         sides.account_b.harness.as_str(),
         "pack_replay",
-        trigger,
+        loop_trigger(&sides.source, trigger),
     );
     let project = {
         let storage = lock_storage_arc(state)?;
@@ -6622,20 +6176,11 @@ fn switch_replay(
         project.root.clone_from(&sides.source.cwd);
         project
     };
-    let launched = crate::crossmachine::launch_here(
-        state,
-        &sides.profile_b,
-        &sides.account_b,
-        &project,
-        &LaunchMode::Primed { prompt },
-        None,
-        "switch",
-    )
-    .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()));
+    let launched = launch_with_handover(state, sides, &edge, &brief, &project);
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
-        std::fs::read(&sides.reference.path)
-            .is_ok_and(|now| juggler_adapter::handover::sha256_hex(&now) == source_sha)
+        juggler_adapters::session_file_sha256(&sides.reference.path)
+            .is_ok_and(|(now, _)| now == source_sha)
             .then_some(started)
             .ok_or_else(|| {
                 SwitchFailure::StagingAborted("the source changed during the switch".into())
@@ -6681,26 +6226,20 @@ fn switch_replay(
 /// conversation read in its own format, redacted under the user's policy
 /// for the target Provider (unset blocks — D-14), bounded, and handed to
 /// the target's prime.
-fn replay_prompt(
+/// Whether the replay strips secrets: the choice made on this switch, else
+/// the policy. Unset, or "Ask each time" with no answer, refuses (the
+/// conversation never leaves unredacted by default). Reads no
+/// conversation, so it runs before the source is stopped.
+fn replay_strip(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     redaction_choice: Option<&str>,
-    redaction_unredact: &[u32],
-) -> AppResult<(String, String, u64)> {
-    use juggler_handover::pipeline::SwitchFailure;
-    use juggler_handover::redaction::{RedactionPolicy, strip_segments};
-
+) -> AppResult<bool> {
+    use juggler_handover::redaction::RedactionPolicy;
     let refused = |message: String| AppError::Io {
         context: "hand over",
         message,
     };
-    let bytes = std::fs::read(&sides.reference.path)
-        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
-    if !juggler_adapter::handover::tail_parses(&bytes) {
-        return Err(refused(
-            SwitchFailure::TornTail.copy(&sides.account_a.label),
-        ));
-    }
     let policy = {
         let storage = lock_storage_arc(state)?;
         juggler_handover::redaction::resolve_policy(
@@ -6708,48 +6247,213 @@ fn replay_prompt(
             redaction_override_of(&storage, sides.account_b.harness.as_str()),
         )
     };
-    // Unset, or "Ask each time" with no answer on this switch, blocks:
-    // the conversation never leaves unredacted by default.
-    let strip = match redaction_choice
+    match redaction_choice
         .and_then(RedactionPolicy::from_wire)
         .or(policy)
     {
-        Some(RedactionPolicy::Strip) => true,
-        Some(RedactionPolicy::Keep) => false,
-        Some(RedactionPolicy::AskEachTime) | None => {
-            return Err(refused(
-                "Choose how secrets in the conversation are handled for this switch — \
-                 a replay sends the conversation to the other Provider."
-                    .to_owned(),
-            ));
-        }
+        Some(RedactionPolicy::Strip) => Ok(true),
+        Some(RedactionPolicy::Keep) => Ok(false),
+        Some(RedactionPolicy::AskEachTime) | None => Err(refused(
+            "Choose how secrets in the conversation are handled for this switch — \
+             a replay sends the conversation to the other Provider."
+                .to_owned(),
+        )),
+    }
+}
+
+/// The conversation's turns, refusing one that can't be read or has none.
+fn replayable_turns(path: &std::path::Path) -> AppResult<Vec<juggler_handover::pack::IrTurn>> {
+    let refused = |message: &str| AppError::Io {
+        context: "hand over",
+        message: message.to_owned(),
     };
-    // The preview's own segments, so a per-item un-redact lines up.
-    let (_, turns) = transcript_side(&sides.reference.path).ok_or_else(|| {
-        refused("Couldn't read this session's conversation, so it can't be replayed.".to_owned())
+    let (_, turns) = transcript_side(path).ok_or_else(|| {
+        refused("Couldn't read this session's conversation, so it can't be replayed.")
     })?;
     if turns.is_empty() {
+        return Err(refused("This session has no conversation to replay yet."));
+    }
+    Ok(turns)
+}
+
+/// AJ-E1541: the brief goes in a handover file; the target starts with a
+/// short prompt that points at it (and may read its folder).
+fn launch_with_handover(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    edge: &juggler_core::model::SwitchEdgeId,
+    brief: &ReplayBrief,
+    project: &juggler_core::model::ProjectRecord,
+) -> Result<(SessionId, u32), juggler_handover::pipeline::SwitchFailure> {
+    use juggler_handover::pipeline::SwitchFailure;
+    let file = write_handover(state, sides, edge, brief)
+        .map_err(|error| SwitchFailure::StagingAborted(error.to_string()))?;
+    let mode = LaunchMode::Primed {
+        prompt: crate::features::handover::pointer(
+            &replay_header(state, &sides.account_b.harness),
+            &file,
+        ),
+        read_dirs: file
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .into_iter()
+            .collect(),
+    };
+    crate::crossmachine::launch_here(
+        state,
+        &sides.profile_b,
+        &sides.account_b,
+        project,
+        &mode,
+        None,
+        "switch",
+    )
+    .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()))
+}
+
+/// A replay's brief: its text, the source's hash and size, and how many
+/// turns it holds and leaves out.
+struct ReplayBrief {
+    text: String,
+    sha: String,
+    bytes: u64,
+    included: usize,
+    left_out: usize,
+}
+
+/// AJ-E1541: writes the brief, with the rules files in play, as the
+/// switch's handover file; returns its path.
+fn write_handover(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    edge: &juggler_core::model::SwitchEdgeId,
+    brief: &ReplayBrief,
+) -> std::io::Result<PathBuf> {
+    use crate::features::handover;
+    let specs: Vec<_> = [&sides.account_a.harness, &sides.account_b.harness]
+        .into_iter()
+        .filter_map(|harness| state.registry.get(harness).map(|adapter| adapter.spec()))
+        .collect();
+    let rules = handover::rules_in_play(&sides.source.cwd, &specs);
+    let text = match handover::rules_section(&rules) {
+        Some(section) => format!("{}\n\n{section}\n", brief.text.trim_end()),
+        None => brief.text.clone(),
+    };
+    let side = |account: &Account| handover::Side {
+        tool: account.harness.to_string(),
+        account: account.label.clone(),
+    };
+    handover::write(
+        &state.data_dir,
+        &text,
+        &handover::HandoverState {
+            format: "ai-juggler-handover",
+            version: 1,
+            edge: edge.to_string(),
+            from: side(&sides.account_a),
+            to: side(&sides.account_b),
+            folder: sides.source.cwd.display().to_string(),
+            written_ms: now_millis(),
+            turns_included: brief.included,
+            turns_left_out: brief.left_out,
+            rules_files: rules,
+        },
+    )
+}
+
+fn replay_prompt(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    strip: bool,
+    redaction_unredact: &[u32],
+) -> AppResult<ReplayBrief> {
+    use juggler_handover::pipeline::SwitchFailure;
+    use juggler_handover::redaction::strip_segments;
+
+    let refused = |message: String| AppError::Io {
+        context: "hand over",
+        message,
+    };
+    let (sha, len) = juggler_adapters::session_file_sha256(&sides.reference.path)
+        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
+    if !juggler_adapters::last_line_parses(&sides.reference.path) {
         return Err(refused(
-            "This session has no conversation to replay yet.".to_owned(),
+            SwitchFailure::TornTail.copy(&sides.account_a.label),
         ));
     }
+    // The preview's own segments, so a per-item un-redact lines up.
+    let turns = replayable_turns(&sides.reference.path)?;
     let segments: Vec<String> = turns.iter().map(|turn| turn.text.clone()).collect();
     let keep: std::collections::BTreeSet<usize> = redaction_unredact
         .iter()
         .filter_map(|index| usize::try_from(*index).ok())
         .collect();
     let (texts, _counts) = strip_segments(&segments, strip, &keep);
-    let prime_turns = replay_turns(&turns, texts);
+    let (prime_turns, left_out) = replay_turns(&turns, texts);
+    let included = prime_turns.len() - usize::from(left_out > 0);
     let prompt = state
         .registry
         .handover(&sides.account_b.harness)
         .and_then(|support| support.prime_prompt(&prime_turns).ok())
         .unwrap_or_else(|| plain_prime(&prime_turns));
-    Ok((
-        prompt,
-        juggler_adapter::handover::sha256_hex(&bytes),
-        u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-    ))
+    // AJ-E1541: where the work stands, after the conversation: the task
+    // list as last set, and what changed in the project and isn't
+    // committed, so the other tool continues the work, not just the chat.
+    let tasks = juggler_adapters::read_session_file(&sides.reference.path)
+        .ok()
+        .and_then(|bytes| juggler_adapters::parse_any(&bytes).tasks);
+    let prompt = match work_state_note(tasks.as_deref(), &sides.source.cwd) {
+        Some(note) => format!("{prompt}\n\n{note}"),
+        None => prompt,
+    };
+    Ok(ReplayBrief {
+        text: prompt,
+        sha,
+        bytes: len,
+        included,
+        left_out,
+    })
+}
+
+/// AJ-E1541: "where the work stands" for a handover: the task list as the
+/// last call set it, and the project's uncommitted changes. `None` when
+/// there's neither.
+fn work_state_note(
+    tasks: Option<&[juggler_adapters::tool_summary::TaskItem]>,
+    cwd: &std::path::Path,
+) -> Option<String> {
+    use std::fmt::Write as _;
+    let changes = crate::worktree::work_changes(cwd).filter(|changes| !changes.files.is_empty());
+    let tasks = tasks.filter(|tasks| !tasks.is_empty());
+    if changes.is_none() && tasks.is_none() {
+        return None;
+    }
+    let mut note = String::from("Where the work stands now:\n");
+    if let Some(tasks) = tasks {
+        let _ = write!(
+            note,
+            "\nTask list:\n{}",
+            juggler_adapters::tool_summary::render_tasks(tasks)
+        );
+    }
+    if let Some(changes) = changes {
+        let branch = changes
+            .branch
+            .as_deref()
+            .map(|branch| format!(" on {branch}"))
+            .unwrap_or_default();
+        let _ = writeln!(note, "\nNot committed yet{branch}:");
+        for file in &changes.files {
+            let _ = writeln!(note, "  {file}");
+        }
+        if changes.more > 0 {
+            let _ = writeln!(note, "  …and {} more", changes.more);
+        }
+        if let Some(stat) = &changes.stat {
+            let _ = writeln!(note, "  ({stat})");
+        }
+    }
+    Some(note.trim_end().to_owned())
 }
 
 /// Records a succeeded replay: the source rests (`HandedOver`), the
@@ -6803,12 +6507,13 @@ fn record_replay_succeeded(
 
 /// The replay's turns: user and assistant text after redaction, the
 /// newest kept within [`REPLAY_PROMPT_BYTES`] as they will be rendered
-/// (quoted); when older turns are left
-/// out the first line says how many (never a silent cut).
+/// (quoted); when older turns are left out the first turn says how many
+/// and what was asked in them (never a silent cut). Also returns how
+/// many were left out.
 fn replay_turns(
     turns: &[juggler_handover::pack::IrTurn],
     texts: Vec<String>,
-) -> Vec<juggler_adapter::handover::TurnText> {
+) -> (Vec<juggler_adapter::handover::TurnText>, usize) {
     use juggler_adapter::handover::TurnText;
     let mut out: Vec<TurnText> = turns
         .iter()
@@ -6861,20 +6566,47 @@ fn replay_turns(
         keep_from = out.len() - 1;
     }
     if keep_from > 0 {
-        out.drain(..keep_from);
+        let left_out: Vec<TurnText> = out.drain(..keep_from).collect();
         out.insert(
             0,
             TurnText {
                 uuid: None,
                 role: "user",
-                text: format!("({keep_from} earlier turns are not included.)"),
+                text: crate::features::handover::earlier_turns(&left_out),
             },
         );
     }
-    out
+    (out, keep_from)
 }
 
 /// The replay brief when the target Provider has no prime of its own.
+/// The first line every replay into `harness` opens with (its tool's
+/// prime, else the plain one): how a replay's conversation is told apart.
+/// The words a replay into `harness` opens with (its tool's prime with no
+/// turns, else the plain one): the handover's preface.
+pub(crate) fn replay_preface(
+    state: &Arc<AppState>,
+    harness: &juggler_core::model::HarnessId,
+) -> String {
+    state
+        .registry
+        .handover(harness)
+        .and_then(|support| support.prime_prompt(&[]).ok())
+        .unwrap_or_else(|| plain_prime(&[]))
+}
+
+pub(crate) fn replay_header(
+    state: &Arc<AppState>,
+    harness: &juggler_core::model::HarnessId,
+) -> String {
+    let prime = state
+        .registry
+        .handover(harness)
+        .and_then(|support| support.prime_prompt(&[]).ok())
+        .unwrap_or_else(|| plain_prime(&[]));
+    prime.lines().next().unwrap_or_default().to_owned()
+}
+
 fn plain_prime(turns: &[juggler_adapter::handover::TurnText]) -> String {
     let mut out = String::from(
         "You are continuing a session that previously ran under another Provider. \
@@ -7299,29 +7031,52 @@ fn record_edge_staged(
             message: "session has no project link".into(),
         });
     };
-    let work = match graph.works_for_project(project)?.into_iter().next_back() {
-        Some(existing) => existing,
-        None => graph
-            .create_work(project, "Work")
-            .map_err(|error| AppError::Io {
-                context: "hand over",
-                message: error.to_string(),
-            })?,
+    // AJ-E1541: a session that itself came from a switch already has an
+    // epoch (the one that switch created for it). This switch starts from
+    // that epoch, in its work, so the chain A → B → Codex stays one path
+    // and switching back can walk all of it. A new epoch only for a session
+    // no switch has touched.
+    let works = graph.works_for_project(project)?;
+    let mut existing = None;
+    for work in works.iter().rev() {
+        if let Some(epoch) = graph
+            .epochs_for_work(&work.id)?
+            .into_iter()
+            .rev()
+            .find(|epoch| epoch.session_ref.as_ref() == Some(&source.id))
+        {
+            existing = Some((work.clone(), epoch));
+            break;
+        }
+    }
+    let (work, from) = if let Some(found) = existing {
+        found
+    } else {
+        let work = match works.into_iter().next_back() {
+            Some(existing) => existing,
+            None => graph
+                .create_work(project, "Work")
+                .map_err(|error| AppError::Io {
+                    context: "hand over",
+                    message: error.to_string(),
+                })?,
+        };
+        let from = Epoch {
+            id: EpochId::new(format!("ep-{}", unique_suffix())),
+            work: work.id.clone(),
+            session_ref: Some(source.id.clone()),
+            native_id: reference.native_id.clone(),
+            account: account_a.id.clone(),
+            provider: account_a.harness.clone(),
+            resumed_from_epoch: None,
+            machine: None,
+        };
+        graph.insert_epoch(&from).map_err(|error| AppError::Io {
+            context: "hand over",
+            message: error.to_string(),
+        })?;
+        (work, from)
     };
-    let from = Epoch {
-        id: EpochId::new(format!("ep-{}", unique_suffix())),
-        work: work.id.clone(),
-        session_ref: Some(source.id.clone()),
-        native_id: reference.native_id.clone(),
-        account: account_a.id.clone(),
-        provider: account_a.harness.clone(),
-        resumed_from_epoch: None,
-        machine: None,
-    };
-    graph.insert_epoch(&from).map_err(|error| AppError::Io {
-        context: "hand over",
-        message: error.to_string(),
-    })?;
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
     graph
         .append_edge(&SwitchEdge {
@@ -7477,6 +7232,7 @@ pub fn projects_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Pr
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> {
+    use std::collections::HashMap;
     // Collector first (never locked together with storage), then the
     // storage guard for the whole join below.
     let live_stats = live_stats_of(state);
@@ -7489,11 +7245,14 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
     )?;
     // Statuses that mean "occupying the project right now".
     let live = |status: &str| matches!(status, "starting" | "running");
+    let choices = crate::features::projects::mark::choices(&storage)?;
+    let mut created: HashMap<String, i64> = HashMap::new();
     let mut infos: Vec<ProjectInfo> = storage
         .projects()
         .list()?
         .into_iter()
         .map(|project| {
+            created.insert(project.id.to_string(), project.created_at.millis());
             let id = project.id.to_string();
             let owned: Vec<&SessionInfo> = sessions
                 .iter()
@@ -7508,6 +7267,7 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
             accounts_used.extend(project.history.accounts.iter().cloned());
             accounts_used.sort();
             accounts_used.dedup();
+            let forgotten = crate::manage::is_forgotten(&project).then_some(true);
             ProjectInfo {
                 id,
                 root: project.root.to_string_lossy().into_owned(),
@@ -7520,21 +7280,62 @@ pub fn projects_list_impl(state: &Arc<AppState>) -> AppResult<Vec<ProjectInfo>> 
                 history_last_used_ms: project.history.last_used_ms,
                 repo: None,
                 missing: !project.root.exists(),
+                forgotten,
+                pinned: project.pinned_at.map(|_| true),
                 default_account_id: project.default_account.map(|id| id.to_string()),
+                mark: None,
             }
         })
         .collect();
-    // File reads (each repository's .git/config) never under the storage
-    // lock; cached briefly so a slow volume can't stall every refresh.
+    // File reads (each repository's .git/config, each icon) never under
+    // the storage lock; cached briefly so a slow volume can't stall every
+    // refresh.
     drop(storage);
+    let mut icons = HashMap::new();
     for info in &mut infos {
         info.repo = repo_identity_cached(std::path::Path::new(&info.root));
+        if let Some(icon) =
+            crate::features::projects::icon::find_icon_cached(std::path::Path::new(&info.root))
+        {
+            icons.insert(info.id.clone(), icon);
+        }
     }
+    let subjects: Vec<_> = infos
+        .iter()
+        .map(|info| crate::features::projects::mark::Subject {
+            id: &info.id,
+            name: &info.name,
+            repo: info.repo.as_deref(),
+            created_ms: created.get(&info.id).copied().unwrap_or_default(),
+            icon: icons.get(&info.id).map(|icon| icon.version.clone()),
+        })
+        .collect();
+    let mut marks = crate::features::projects::mark::marks(&subjects, &choices);
+    // Clones share one icon: each serves the file its mark uses.
+    let repos: HashMap<String, Option<String>> = infos
+        .iter()
+        .map(|i| (i.id.clone(), i.repo.clone()))
+        .collect();
+    let mut served = HashMap::new();
+    for info in &mut infos {
+        info.mark = marks.remove(&info.id);
+        let Some(version) = info.mark.as_ref().and_then(|m| m.icon.clone()) else {
+            continue;
+        };
+        let shown = icons.iter().find(|(id, icon)| {
+            icon.version == version
+                && (**id == info.id || (info.repo.is_some() && repos.get(*id) == Some(&info.repo)))
+        });
+        if let Some((_, icon)) = shown {
+            served.insert(info.id.clone(), icon.path.clone());
+        }
+    }
+    crate::features::projects::icon::remember_served(state, served);
     Ok(infos)
 }
 
 /// [`repo_identity`], remembered for five minutes per folder.
-fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
+pub(crate) fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
@@ -7599,13 +7400,7 @@ fn not_found_or_core(error: juggler_core::CoreError, entity: &'static str, id: &
     }
 }
 
-pub(crate) fn unique_suffix() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default()
-        % 1_000_000_000_000
-}
+pub(crate) use crate::ids::unique_suffix;
 
 // ---------------------------------------------------------------------------
 // AJ-E410: the Processes tab data, the orphan contract, and the Tier-1
@@ -8135,7 +7930,7 @@ pub struct CleanupInventoryInfo {
 pub fn cleanup_state_label(state: &str) -> &'static str {
     match state {
         "orphaned" => "Still running after its session closed",
-        "re-adopted" | "adopted" => "Running — re-adopted",
+        "re-adopted" | "adopted" => "Running — picked up after restart",
         "unverifiable" => "Unverifiable — will not be touched",
         "running" => "Running",
         "exited" => "Exited",
@@ -10362,19 +10157,12 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             continue;
         }
         let Some(pid) = row.pid else { continue };
+        // Its CPU now (the session's rows froze when its root exited); not
+        // known yet, or gone, is never idle.
         let cpu_ok = state
             .resources
             .lock()
-            .ok()
-            .and_then(|collector| {
-                collector
-                    .rows(&SessionId::new(row.session_id.clone()))
-                    .into_iter()
-                    .flatten()
-                    .find(|live| live.pid == pid)
-                    .map(|live| live.cpu_pct.is_none_or(|cpu| cpu < 1.0))
-            })
-            .unwrap_or(true);
+            .is_ok_and(|collector| collector.cpu_now(pid).is_some_and(|cpu| cpu < 1.0));
         if !cpu_ok {
             continue;
         }
@@ -10799,6 +10587,9 @@ pub fn detect_running_models_core(state: &Arc<AppState>, only: Option<&[SessionI
     changed
 }
 
+/// The most of a transcript's end the model scan reads at once.
+const MODEL_TAIL_BYTES: u64 = 8 * 1024 * 1024;
+
 /// Tail-scans one Instance's transcript for the newest observed model;
 /// true when the stored observation changed. Incremental by byte offset
 /// (truncation resets to zero — re-parse, never assume).
@@ -10831,7 +10622,12 @@ fn scan_one_transcript(
     }
     // Read only the NEW bytes (plus a carry for the half-parsed line):
     // seek past the consumed prefix, never re-parse the head.
-    let read_from = offset.saturating_sub(1);
+    // Only the newest model counts, so at most the file's last
+    // MODEL_TAIL_BYTES: a first scan of a huge transcript never reads it
+    // whole (a line cut at the start fails to parse and is skipped).
+    let read_from = offset
+        .saturating_sub(1)
+        .max(len.saturating_sub(MODEL_TAIL_BYTES));
     let Ok(mut file) = std::fs::File::open(path) else {
         return false;
     };
@@ -10984,6 +10780,33 @@ mod tests {
         }
     }
 
+    /// AJ-E1523: a switch away from a session at its usage limit counts
+    /// as the limit's, however the screen was opened (a juggling loop when
+    /// it succeeds); any other switch keeps its own reason.
+    #[test]
+    fn a_switch_from_a_session_at_its_limit_counts_as_a_juggling_loop() {
+        let cwd = std::env::temp_dir();
+        let at_limit = record("s1", "p1", SessionStatus::QuotaBlocked, cwd.clone());
+        for trigger in ["manual", "suggestion", "quota_wall"] {
+            assert_eq!(super::loop_trigger(&at_limit, trigger), "quota_wall");
+        }
+        for status in [
+            SessionStatus::Running,
+            SessionStatus::WaitingUser,
+            SessionStatus::Stuck,
+            SessionStatus::Finished,
+            SessionStatus::Failed,
+        ] {
+            let other = record("s2", "p1", status, cwd.clone());
+            assert_eq!(
+                super::loop_trigger(&other, "manual"),
+                "manual",
+                "{status:?}"
+            );
+            assert_eq!(super::loop_trigger(&other, "suggestion"), "suggestion");
+        }
+    }
+
     /// Storage seeded with one account, two launch recipes (with and
     /// without a model) and the four AJ-E401 fixture rows.
     fn fixture_storage() -> Storage {
@@ -11015,6 +10838,7 @@ mod tests {
                     settings_overlay: SettingsOverlay {
                         model: model.map(String::from),
                         env: Default::default(),
+                        restart_on_crash: None,
                     },
                     default_cwd: None,
                 })
@@ -11389,9 +11213,19 @@ mod tests {
     #[allow(clippy::panic)] // failure message names the missing file
     fn generated_ts_contains_read_model_fields() {
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../ui/src/types/generated");
+        // The export tests in this binary rewrite these files as it runs:
+        // read one once it's whole (its type declared), not mid-write.
         let read = |name: &str| {
-            std::fs::read_to_string(format!("{dir}/{name}.ts"))
-                .unwrap_or_else(|error| panic!("generated {name}.ts: {error}"))
+            for _ in 0..100 {
+                let text = std::fs::read_to_string(format!("{dir}/{name}.ts"))
+                    .unwrap_or_else(|error| panic!("generated {name}.ts: {error}"));
+                if text.contains(&format!("export type {name} ")) && text.trim_end().ends_with(';')
+                {
+                    return text;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            panic!("generated {name}.ts never read whole");
         };
         let instance = read("InstanceInfo");
         for field in [
@@ -11471,10 +11305,10 @@ pub mod legacy_aliases {
     /// # Errors
     ///
     /// Returns the parent command's typed error on failure.
-    pub fn profiles_list_alias(
+    pub async fn profiles_list_alias(
         state: tauri::State<'_, Arc<AppState>>,
     ) -> AppResult<Vec<LaunchRecipeInfo>> {
-        profiles_list(state)
+        profiles_list(state).await
     }
 
     /// Legacy alias of `instances_list`.
@@ -11575,6 +11409,22 @@ pub struct SwitchBackPlanInfo {
     pub base_turns: u32,
     /// Tracked-artifact conflicts needing a choice.
     pub conflicts: Vec<FileConflictInfo>,
+    /// AJ-E1541: every account this work can go back to, nearest first
+    /// (A → B → Codex: B, then A, where it started).
+    pub returns: Vec<SwitchBackReturnInfo>,
+    /// The epoch this plan returns to (one of `returns`).
+    pub return_to: String,
+}
+
+/// One account a switch back can return to (AJ-E1541).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+pub struct SwitchBackReturnInfo {
+    /// The epoch to pass back as `to_epoch`.
+    pub epoch_id: String,
+    /// The account's label.
+    pub account: String,
+    /// Whether this is where the work started.
+    pub start: bool,
 }
 
 /// One user resolution from the review UI.
@@ -11600,6 +11450,24 @@ struct BackLineage {
     away_session: juggler_core::model::InstanceRecord,
     /// The original session row, when it still exists.
     original_session: Option<juggler_core::model::InstanceRecord>,
+    /// AJ-E1541: the epochs the work went through between the original
+    /// and the away one, oldest first (A → B → Codex, returning to A: B).
+    intermediate: Vec<BackHop>,
+    /// Whether the away epoch began as a replay (another tool): its first
+    /// user turn is the replay, not new work.
+    away_primed: bool,
+    /// Every epoch this away one can return to, nearest first.
+    returns: Vec<(juggler_core::model::EpochId, juggler_core::model::AccountId)>,
+}
+
+/// One epoch between the original and the away one (AJ-E1541).
+struct BackHop {
+    /// The epoch.
+    epoch: juggler_core::model::Epoch,
+    /// Its session row, when it still exists.
+    session: Option<juggler_core::model::InstanceRecord>,
+    /// Whether it began as a replay from another tool.
+    primed: bool,
 }
 
 /// Walks the graph from an away instance to its fork: the confirmed
@@ -11612,12 +11480,13 @@ struct BackLineage {
 fn back_lineage(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
     juggler_core::model::Account,
 )> {
-    use juggler_core::model::{EdgeState, SessionId};
+    use juggler_core::model::SessionId;
 
     let storage = lock_storage_arc(state)?;
     let away_session = storage
@@ -11650,20 +11519,26 @@ fn back_lineage(
         else {
             continue;
         };
-        let Some(fork_edge) = graph.edges_for_work(&work.id)?.into_iter().find(|edge| {
-            edge.to_epoch.as_ref() == Some(&away_epoch.id)
-                && matches!(edge.state, EdgeState::Confirmed)
-        }) else {
+        let mut chain = chain_back(&epochs, &graph.edges_for_work(&work.id)?, &away_epoch)?;
+        if chain.is_empty() {
             continue;
+        }
+        let target = match to_epoch {
+            Some(id) => chain
+                .iter()
+                .position(|(_, epoch)| epoch.id.as_str() == id)
+                .ok_or_else(|| {
+                    AppError::Refused("That account isn't one this work came from".to_owned())
+                })?,
+            None => 0,
         };
-        let original_epoch = graph
-            .epochs_for_work(&work.id)?
-            .into_iter()
-            .find(|epoch| epoch.id == fork_edge.from_epoch)
-            .ok_or_else(|| AppError::Io {
-                context: "switch back",
-                message: "The switch's source epoch is missing from the graph".to_owned(),
-            })?;
+        let away_primed = is_replay(&chain[0].0);
+        let intermediate = hops_of(&storage, &chain, target);
+        let returns = chain
+            .iter()
+            .map(|(_, epoch)| (epoch.id.clone(), epoch.account.clone()))
+            .collect();
+        let (fork_edge, original_epoch) = chain.swap_remove(target);
         let original_session = original_epoch
             .session_ref
             .as_ref()
@@ -11675,6 +11550,9 @@ fn back_lineage(
             fork_edge,
             away_session,
             original_session,
+            intermediate,
+            away_primed,
+            returns,
         });
         break;
     }
@@ -11703,6 +11581,134 @@ fn back_lineage(
     Ok((lineage, away_account, original_account))
 }
 
+/// AJ-E1541: the confirmed edges back from `away`, nearest first: (the
+/// edge into each epoch, the epoch it came from). A loop back to an epoch
+/// already visited stops the walk at its first visit.
+fn chain_back(
+    epochs: &[juggler_core::model::Epoch],
+    edges: &[juggler_core::model::SwitchEdge],
+    away: &juggler_core::model::Epoch,
+) -> AppResult<Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)>> {
+    let mut chain: Vec<(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)> = Vec::new();
+    let mut current = away.id.clone();
+    while let Some(edge) = edges.iter().find(|edge| {
+        edge.to_epoch.as_ref() == Some(&current)
+            && matches!(edge.state, juggler_core::model::EdgeState::Confirmed)
+    }) {
+        let Some(from) = epochs
+            .iter()
+            .find(|epoch| epoch.id == edge.from_epoch)
+            .cloned()
+        else {
+            return Err(AppError::Io {
+                context: "switch back",
+                message: "The switch's source epoch is missing from the graph".to_owned(),
+            });
+        };
+        if chain.iter().any(|(_, seen)| seen.id == from.id) {
+            break;
+        }
+        current = from.id.clone();
+        chain.push((edge.clone(), from));
+    }
+    Ok(chain)
+}
+
+/// AJ-E1541: the epochs between the return target (`chain[target]`) and
+/// the away one, oldest first: the epoch each nearer edge came from, with
+/// whether that epoch's own way in was a replay.
+fn hops_of(
+    storage: &juggler_core::storage::Storage,
+    chain: &[(juggler_core::model::SwitchEdge, juggler_core::model::Epoch)],
+    target: usize,
+) -> Vec<BackHop> {
+    (0..target)
+        .rev()
+        .map(|index| {
+            let epoch = chain[index].1.clone();
+            let session = epoch
+                .session_ref
+                .as_ref()
+                .and_then(|id| storage.sessions().get(id).ok());
+            BackHop {
+                primed: is_replay(&chain[index + 1].0),
+                epoch,
+                session,
+            }
+        })
+        .collect()
+}
+
+/// AJ-E1541: a session started by a switch to another tool has no
+/// transcript link until its tool writes one. Links every session on the
+/// way back (persisted, the same lookup the switch uses) before the facts
+/// are read.
+fn link_chain(state: &Arc<AppState>, session_id: &str, to_epoch: Option<&str>) -> AppResult<()> {
+    let (lineage, _, _) = back_lineage(state, session_id, to_epoch)?;
+    let unlinked: Vec<String> = std::iter::once(&lineage.away_session)
+        .chain(
+            lineage
+                .intermediate
+                .iter()
+                .filter_map(|hop| hop.session.as_ref()),
+        )
+        .chain(lineage.original_session.iter())
+        .filter(|row| row.transcript_ref.is_none())
+        .map(|row| row.id.to_string())
+        .collect();
+    drop(lineage);
+    for id in &unlinked {
+        let _ = handover_source_linked(state, id);
+    }
+    Ok(())
+}
+
+/// Whether an edge was a replay into another tool (AJ-E1541).
+fn is_replay(edge: &juggler_core::model::SwitchEdge) -> bool {
+    matches!(edge.mechanism, juggler_core::model::SwitchMechanism::Replay)
+}
+
+/// AJ-E1541: what was new on each hop between the account returned to and
+/// the away one, oldest first. `previous` starts as the returned-to
+/// account's uuids and gains each hop's, so a later hop counts only its own.
+/// A hop whose conversation can't be found goes into `unread`, so the
+/// update names it.
+fn hops_between(
+    state: &Arc<AppState>,
+    hops: &[BackHop],
+    previous: &mut std::collections::HashSet<String>,
+    unread: &mut Vec<String>,
+) -> AppResult<Vec<juggler_handover::switch_back::DeltaHop>> {
+    let mut out = Vec::new();
+    for hop in hops {
+        let account = {
+            let storage = lock_storage_arc(state)?;
+            storage.accounts().get(&hop.epoch.account).ok()
+        };
+        // A hop that can't be read is named, never left out (review of
+        // #132, M5).
+        let (Some(row), Some(account)) = (hop.session.as_ref(), account.as_ref()) else {
+            unread.push(account.map_or_else(
+                || "an account that's no longer here".to_owned(),
+                |account| account.label.clone(),
+            ));
+            continue;
+        };
+        let reference = newest_transcript(state, account, row.transcript_ref.clone());
+        let Some((uuids, turns)) = reference.as_ref().and_then(|r| transcript_side(&r.path)) else {
+            unread.push(account.label.clone());
+            continue;
+        };
+        let turns = new_turns(turns, previous, hop.primed);
+        previous.extend(uuids);
+        out.push(juggler_handover::switch_back::DeltaHop {
+            account: account.label.clone(),
+            turns,
+        });
+    }
+    Ok(out)
+}
+
 /// One side's conversation facts: the uuid set (reconciliation) and
 /// the user/assistant turns in file order (the delta body).
 fn transcript_side(
@@ -11711,9 +11717,19 @@ fn transcript_side(
     std::collections::HashSet<String>,
     Vec<juggler_handover::pack::IrTurn>,
 )> {
+    // AJ-E1540: a compressed rollout (`.jsonl.zst`) reads like any other.
+    let bytes = juggler_adapters::read_session_file(path).ok()?;
+    Some(turns_of(juggler_adapters::parse_any(&bytes)))
+}
+
+/// A parsed transcript's uuid set and user/assistant turns, in file order.
+pub(crate) fn turns_of(
+    parsed: juggler_adapters::claude_transcript::ParsedTranscript,
+) -> (
+    std::collections::HashSet<String>,
+    Vec<juggler_handover::pack::IrTurn>,
+) {
     use juggler_adapters::claude_transcript::MessageRole;
-    let bytes = std::fs::read(path).ok()?;
-    let parsed = juggler_adapters::parse_any(&bytes);
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
     for message in parsed.messages {
@@ -11725,15 +11741,82 @@ fn transcript_side(
             MessageRole::Assistant => juggler_handover::pack::IrRole::Assistant,
             MessageRole::Other => continue,
         };
+        // AJ-E1541: what the turn's tool calls did, after what it said, so
+        // a handover carries the work and not only the chat.
+        let text = match (message.text.trim().is_empty(), message.tools.is_empty()) {
+            (_, true) => message.text,
+            (true, false) => format!("({})", message.tools.join("; ")),
+            (false, false) => format!("{}\n({})", message.text, message.tools.join("; ")),
+        };
         turns.push(juggler_handover::pack::IrTurn {
             uuid: message.uuid,
             role,
-            text: message.text,
+            text,
             at_ms: None,
             tokens: None,
         });
     }
-    Some((uuids, turns))
+    (uuids, turns)
+}
+
+/// AJ-E1541: what changed in the project while away, for the switch-back
+/// delta: git's diff stat, else how many files changed.
+fn away_diff_stat(cwd: &std::path::Path) -> Option<String> {
+    crate::worktree::work_changes(cwd).and_then(|changes| {
+        changes.stat.or_else(|| {
+            (!changes.files.is_empty()).then(|| format!("{} files changed", changes.files.len()))
+        })
+    })
+}
+
+/// AJ-E1541: the task list as the away session left it, on one line.
+fn away_task_note(reference: Option<&juggler_core::model::TranscriptRef>) -> Option<String> {
+    let bytes = juggler_adapters::read_session_file(&reference?.path).ok()?;
+    let tasks = juggler_adapters::parse_any(&bytes).tasks?;
+    (!tasks.is_empty()).then(|| {
+        juggler_adapters::tool_summary::render_tasks(&tasks)
+            .lines()
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
+}
+
+/// AJ-E1541: the turns of one hop that are new on it: not in what came
+/// before (`previous`), and without its first user turn when it began as
+/// a replay from another tool (that turn is the replay, not new work).
+fn new_turns(
+    turns: Vec<juggler_handover::pack::IrTurn>,
+    previous: &std::collections::HashSet<String>,
+    primed: bool,
+) -> Vec<juggler_handover::pack::IrTurn> {
+    let mut skipped_prime = !primed;
+    turns
+        .into_iter()
+        .filter(|turn| {
+            if !skipped_prime && turn.role == juggler_handover::pack::IrRole::User {
+                skipped_prime = true;
+                return false;
+            }
+            turn.uuid
+                .as_ref()
+                .is_none_or(|uuid| !previous.contains(uuid))
+        })
+        .collect()
+}
+
+/// AJ-E1541: the newest file of a linked conversation. A tool that writes
+/// a new file on every resume (Codex) leaves the first link behind; the
+/// conversation's id finds the file that holds the latest turns.
+fn newest_transcript(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    reference: Option<juggler_core::model::TranscriptRef>,
+) -> Option<juggler_core::model::TranscriptRef> {
+    let reference = reference?;
+    let Some(id) = reference.native_id.clone() else {
+        return Some(reference);
+    };
+    crate::features::conversations::transcript_of(state, account, &id, &[]).or(Some(reference))
 }
 
 /// Hashes the fork manifest's FILE-domain rows on one side now
@@ -11762,12 +11845,70 @@ fn file_domain_hashes_now(
     hashes
 }
 
+/// The conversation side of a switch back: the away turns, how the two
+/// sides' conversations relate, the hops between, and the accounts whose
+/// conversation couldn't be found.
+struct BackConversation {
+    away_turns: Vec<juggler_handover::pack::IrTurn>,
+    conversation: juggler_handover::reconcile::ConversationReconciliation,
+    earlier_hops: Vec<juggler_handover::switch_back::DeltaHop>,
+    unread: Vec<String>,
+}
+
+fn back_conversation(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    away_label: &str,
+    away_reference: Option<&juggler_core::model::TranscriptRef>,
+    original_reference: Option<&juggler_core::model::TranscriptRef>,
+) -> AppResult<BackConversation> {
+    // Conversation: base = intersection (B began as A's bytes);
+    // away-only renders the delta; original-only is a no-op.
+    let away_side = away_reference.and_then(|reference| transcript_side(&reference.path));
+    let original_side = original_reference.and_then(|reference| transcript_side(&reference.path));
+    let empty = std::collections::HashSet::new();
+    let away_side_missing = away_side.is_none();
+    let (mut away_uuids, mut away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
+    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
+    // AJ-E1541: the hops between, each reduced to what was new on it; a
+    // hop (or the away epoch) that began as a replay drops its first user
+    // turn, which is the replay itself.
+    let mut previous_uuids = original_uuids.clone();
+    let mut unread = Vec::new();
+    let earlier_hops = hops_between(
+        state,
+        &lineage.intermediate,
+        &mut previous_uuids,
+        &mut unread,
+    )?;
+    if away_side_missing {
+        unread.push(away_label.to_owned());
+    }
+    if lineage.away_primed {
+        away_turns = new_turns(away_turns, &std::collections::HashSet::new(), true);
+        away_uuids = away_turns
+            .iter()
+            .filter_map(|turn| turn.uuid.clone())
+            .collect();
+    }
+    Ok(BackConversation {
+        conversation: juggler_handover::reconcile::reconcile_conversation(
+            &away_uuids,
+            &previous_uuids,
+        ),
+        away_turns,
+        earlier_hops,
+        unread,
+    })
+}
+
 /// Assembles the plan facts shared by plan/execute (one walk, one
 /// reconcile — the same truth both halves render and act on).
 #[allow(clippy::type_complexity)]
 fn back_facts(
     state: &Arc<AppState>,
     session_id: &str,
+    to_epoch: Option<&str>,
 ) -> AppResult<(
     BackLineage,
     juggler_core::model::Account,
@@ -11777,10 +11918,15 @@ fn back_facts(
     bool,
     juggler_handover::switch_back::OriginalSession,
 )> {
-    use juggler_handover::reconcile::{reconcile_conversation, reconcile_files};
+    use juggler_handover::reconcile::reconcile_files;
 
-    let (lineage, away_account, original_account) = back_lineage(state, session_id)?;
-    let away_reference = lineage.away_session.transcript_ref.clone();
+    link_chain(state, session_id, to_epoch)?;
+    let (lineage, away_account, original_account) = back_lineage(state, session_id, to_epoch)?;
+    let away_reference = newest_transcript(
+        state,
+        &away_account,
+        lineage.away_session.transcript_ref.clone(),
+    );
     let original_reference = lineage
         .original_session
         .as_ref()
@@ -11819,18 +11965,18 @@ fn back_facts(
         nearest_surviving.as_deref(),
     );
 
-    // Conversation: base = intersection (B began as A's bytes);
-    // away-only renders the delta; original-only is a no-op.
-    let away_side = away_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let original_side = original_reference
-        .as_ref()
-        .and_then(|reference| transcript_side(&reference.path));
-    let empty = std::collections::HashSet::new();
-    let (away_uuids, away_turns) = away_side.unwrap_or_else(|| (empty.clone(), Vec::new()));
-    let (original_uuids, _) = original_side.unwrap_or_else(|| (empty, Vec::new()));
-    let conversation = reconcile_conversation(&away_uuids, &original_uuids);
+    let BackConversation {
+        away_turns,
+        conversation,
+        earlier_hops,
+        unread,
+    } = back_conversation(
+        state,
+        &lineage,
+        &away_account.label,
+        away_reference.as_ref(),
+        original_reference.as_ref(),
+    )?;
 
     // File domain: the fork manifest's non-transcript rows, hashed
     // on both sides now (three-way; conflicts never auto-merge).
@@ -11856,8 +12002,10 @@ fn back_facts(
         away_turns,
         away_only_uuids: conversation.away_only_uuids.iter().cloned().collect(),
         conversation: conversation.clone(),
-        diff_stat: None, // the away pack's freeze-time stat rides E209's pack surfaces
-        todo_note: None,
+        diff_stat: away_diff_stat(&lineage.away_session.cwd),
+        todo_note: away_task_note(away_reference.as_ref()),
+        earlier_hops,
+        unread,
     };
     let away_live = matches!(
         lineage.away_session.status.as_str(),
@@ -11882,11 +12030,15 @@ fn back_facts(
 ///
 /// Returns the typed [`AppError`] when the lineage walk fails.
 #[tauri::command]
-pub fn switch_back_plan(
+pub async fn switch_back_plan(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
+    to_epoch: Option<String>,
 ) -> AppResult<SwitchBackPlanInfo> {
-    switch_back_plan_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "plan the switch back", move |state| {
+        switch_back_plan_to_impl(state, &session_id, to_epoch.as_deref())
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11898,13 +12050,46 @@ pub fn switch_back_plan_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<SwitchBackPlanInfo> {
+    switch_back_plan_to_impl(state, session_id, None)
+}
+
+/// [`switch_back_plan_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_plan_impl`].
+pub fn switch_back_plan_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    to_epoch: Option<&str>,
+) -> AppResult<SwitchBackPlanInfo> {
     use juggler_handover::switch_back::{
         OriginalSession, Sf7Fallback, both_live_copy, delta_turn_text, divergence_copy,
         suggestion_copy,
     };
 
-    let (_lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+    let (lineage, _away_account, original_account, delta_input, conflicts, away_live, verdict) =
+        back_facts(state, session_id, to_epoch)?;
+    let returns = {
+        let storage = lock_storage_arc(state)?;
+        let last = lineage.returns.len().saturating_sub(1);
+        lineage
+            .returns
+            .iter()
+            .enumerate()
+            .map(|(index, (epoch, account))| SwitchBackReturnInfo {
+                epoch_id: epoch.to_string(),
+                account: storage
+                    .accounts()
+                    .get(account)
+                    .map_or_else(|_| account.to_string(), |found| found.label),
+                start: index == last,
+            })
+            .collect::<Vec<_>>()
+    };
+    let return_to = lineage.original_epoch.id.to_string();
     let away_only_turns =
         u32::try_from(juggler_handover::switch_back::delta_turns(&delta_input).len())
             .unwrap_or(u32::MAX);
@@ -11918,9 +12103,10 @@ pub fn switch_back_plan_impl(
                 }
                 Sf7Fallback::FreshPackF0 => "fresh-f0".to_owned(),
             },
+            // Plain words (AJ-E1543): the screen adds what happens instead.
             format!(
-                "{}",
-                juggler_handover::pipeline::SwitchFailure::OriginalSessionGone
+                "The original conversation on {} is gone, so it can't be resumed",
+                original_account.label
             ),
         ),
     };
@@ -11944,6 +12130,8 @@ pub fn switch_back_plan_impl(
             .unwrap_or(u32::MAX),
         base_turns: u32::try_from(delta_input.conversation.base_uuids).unwrap_or(u32::MAX),
         conflicts: conflicts.iter().map(FileConflictInfo::of).collect(),
+        returns,
+        return_to,
     })
 }
 
@@ -11961,13 +12149,23 @@ pub fn switch_back_plan_impl(
 /// the work stays forked, both sides resumable), spawn failure, or
 /// graph write failure.
 #[tauri::command]
-pub fn switch_back_execute(
+pub async fn switch_back_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     choices: Vec<SwitchBackChoiceIn>,
     keep_away_running: bool,
+    to_epoch: Option<String>,
 ) -> AppResult<LaunchResult> {
-    switch_back_execute_impl(state.inner(), &session_id, &choices, keep_away_running)
+    crate::ipc::blocking(state.inner(), "switch back", move |state| {
+        switch_back_execute_to_impl(
+            state,
+            &session_id,
+            &choices,
+            keep_away_running,
+            to_epoch.as_deref(),
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -11981,10 +12179,28 @@ pub fn switch_back_execute_impl(
     choices: &[SwitchBackChoiceIn],
     keep_away_running: bool,
 ) -> AppResult<LaunchResult> {
+    switch_back_execute_to_impl(state, session_id, choices, keep_away_running, None)
+}
+
+/// [`switch_back_execute_impl`] returning to a chosen earlier epoch
+/// (AJ-E1541): `None` is the account the work came from last.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when `to_epoch` isn't one this work came from;
+/// otherwise as [`switch_back_execute_impl`].
+pub fn switch_back_execute_to_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+    choices: &[SwitchBackChoiceIn],
+    keep_away_running: bool,
+    to_epoch: Option<&str>,
+) -> AppResult<LaunchResult> {
     use juggler_handover::switch_back::{plan_resolutions, unresolved};
 
+    let _slot = SwitchSlot::take(state, session_id)?;
     let (lineage, away_account, original_account, delta_input, conflicts, away_live, verdict) =
-        back_facts(state, session_id)?;
+        back_facts(state, session_id, to_epoch)?;
     // S-F8: every conflict resolved or the work stays forked — an
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);
@@ -12495,7 +12711,7 @@ impl RedactionPolicyInfo {
     /// Builds the info block (line verbatim per Req.2).
     #[must_use]
     pub fn from_parts(
-        provider: &juggler_core::model::HarnessId,
+        provider_name: &str,
         global: Option<juggler_handover::redaction::RedactionPolicy>,
         r#override: Option<juggler_handover::redaction::RedactionPolicy>,
     ) -> Self {
@@ -12509,7 +12725,7 @@ impl RedactionPolicyInfo {
                 (Some(_), None) => "global".to_owned(),
                 (None, None) => "unset".to_owned(),
             },
-            line: redaction_line(provider.as_str(), global, r#override),
+            line: redaction_line(provider_name, global, r#override),
         }
     }
 }
@@ -12617,7 +12833,11 @@ pub fn redaction_policy_get_impl(
             (Some(_), None) => "global".to_owned(),
             (None, None) => "unset".to_owned(),
         },
-        line: redaction_line(provider, global, r#override),
+        line: redaction_line(
+            &crate::features::tools::display_name(&state.registry, provider),
+            global,
+            r#override,
+        ),
     })
 }
 
@@ -12773,7 +12993,7 @@ pub struct SwitchTargetInfo {
     pub account_id: String,
     /// Its account label.
     pub account_label: String,
-    /// The ordered-pair badge wire name ("F1 · Beta" — never
+    /// The ordered-pair badge wire name ("Full story, fresh start · Beta" — never
     /// "lossless" below F4; cross-Provider always carries Beta).
     pub badge: String,
     /// Validated state (false until E210's fixtures flip cells).
@@ -12833,10 +13053,8 @@ fn switch_rank_context_of(
         }
     }
     let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
-        std::fs::read(&reference.path).ok().map(|bytes| {
-            let parsed = juggler_adapters::parse_any(&bytes);
-            parsed.usage.input.saturating_add(parsed.usage.output)
-        })
+        juggler_adapters::transcript_tokens(&reference.path)
+            .map(|tokens| tokens.input.saturating_add(tokens.output))
     });
     Ok(SwitchRankContext {
         source_provider: source_account.harness.to_string(),
@@ -12927,7 +13145,7 @@ pub fn switch_targets_impl(
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
                 badge: matrix_row.as_ref().map_or_else(
-                    || "F0 · Beta".to_owned(),
+                    || "Briefing pack · Beta".to_owned(),
                     |row| row.badge_for(&installed, true),
                 ),
                 validated: matrix_row
@@ -12973,8 +13191,9 @@ pub struct EdgeInfo {
     pub from: String,
     /// To epoch id (None until launched).
     pub to: Option<String>,
-    /// The arrow's label ("transplant F1 · 12:04" / "replay F1 ·
-    /// ≈41k tok" / "switch-back ↺").
+    /// The arrow's label in plain words: what carried ("Full story,
+    /// fresh start"), "Switched back · …" for a return, or the failure
+    /// (AJ-E1535: never "transplant F1" or "switch-back ↺").
     pub label: String,
     /// The §9 reason, when the edge failed (dashed red + recovery).
     pub failed_reason: Option<String>,
@@ -13119,29 +13338,38 @@ fn work_graph_info(
     })
 }
 
-/// Wires one work's edges for the timeline: labels (mechanism +
-/// fidelity shown, switch-back ↺, failed reason) and the hop/token
-/// counts feeding the S-F9 note.
+/// What an edge carried, in the user's words: the fidelity it showed
+/// (its user label), else what its mechanism does.
+fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
+    use juggler_core::model::SwitchMechanism;
+    if let Some(level) = edge
+        .fidelity_shown
+        .as_deref()
+        .and_then(juggler_handover::fidelity::FidelityLabel::from_wire)
+    {
+        return level.user_label();
+    }
+    match edge.mechanism {
+        SwitchMechanism::NativeResume => "Continues exactly",
+        SwitchMechanism::Transplant => "Same conversation, new account",
+        SwitchMechanism::Replay => "Full story, fresh start",
+        SwitchMechanism::Pack => "Briefing pack",
+    }
+}
+
+/// Wires one work's edges for the timeline: labels (what carried, a
+/// switch back, the failed reason) and the hop/token counts feeding
+/// the S-F9 note.
 fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInfo>, u32, u64) {
     use juggler_core::model::EdgeState;
     let mut wire_edges = Vec::new();
     for edge in edges {
         let back = edge.parent_edge_a.is_some();
+        let carried = edge_carried_words(edge);
         let label = match &edge.state {
             EdgeState::Failed { reason, .. } => format!("failed · {reason}"),
-            _ if back => format!(
-                "switch-back ↺ · {}",
-                edge.fidelity_shown.as_deref().unwrap_or("F4")
-            ),
-            _ => {
-                let mech = match edge.mechanism {
-                    juggler_core::model::SwitchMechanism::NativeResume => "native-resume",
-                    juggler_core::model::SwitchMechanism::Transplant => "transplant",
-                    juggler_core::model::SwitchMechanism::Replay => "replay",
-                    juggler_core::model::SwitchMechanism::Pack => "pack",
-                };
-                format!("{mech} {}", edge.fidelity_shown.as_deref().unwrap_or("F0"))
-            }
+            _ if back => format!("Switched back · {carried}"),
+            _ => carried.to_owned(),
         };
         wire_edges.push(EdgeInfo {
             from: edge.from_epoch.to_string(),
@@ -13368,7 +13596,20 @@ pub(crate) fn stage_session_pack(
     ids: &PackIds,
     dir: &std::path::Path,
 ) -> AppResult<()> {
-    use juggler_handover::pack::{ConversationMode, IrTurn, PackInput, PackSource};
+    write_session_pack(state, session_row, account, ids, dir, None)
+}
+
+/// [`stage_session_pack`], given the turns when the caller already
+/// parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn write_session_pack(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &Account,
+    ids: &PackIds,
+    dir: &std::path::Path,
+    turns: Option<Vec<juggler_handover::pack::IrTurn>>,
+) -> AppResult<()> {
+    use juggler_handover::pack::{ConversationMode, PackInput, PackSource};
     use juggler_handover::redaction::{RedactionApply, RedactionPolicy, redacted_pack};
 
     let policy = {
@@ -13387,9 +13628,11 @@ pub(crate) fn stage_session_pack(
             context: "export pack",
             message: "The epoch has no transcript to pack".to_owned(),
         })?;
-    let turns: Vec<IrTurn> = transcript_side(&reference.path)
-        .map(|(_, turns)| turns)
-        .unwrap_or_default();
+    let turns = turns.unwrap_or_else(|| {
+        transcript_side(&reference.path)
+            .map(|(_, turns)| turns)
+            .unwrap_or_default()
+    });
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),
         created_at_ms: Timestamp::now().millis(),
@@ -13500,7 +13743,7 @@ pub struct ValidationCellInfo {
     /// The advertised ceiling after validation gating (a FAILED live
     /// cell lowers it one level until fixed).
     pub advertised: String,
-    /// The wire badge ("F1 · Beta" / "F3 · Validated").
+    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, new account · Proven").
     pub badge: String,
     /// Validated = real-CI row green AND a passing live cell.
     pub validated: bool,
@@ -13511,8 +13754,8 @@ pub struct ValidationCellInfo {
     /// The recorded live cell, when one exists (dates + verdict +
     /// hashes — never secrets).
     pub dogfood: Option<DogfoodCellInfo>,
-    /// One-line status ("CI fixtures green · live dogfood pending —
-    /// open beta debt").
+    /// One-line status in plain words ("Automatic tests pass with the
+    /// real tools; not tried by hand yet").
     pub status: String,
     /// Honest notes (blocks, pending adapters), verbatim.
     pub notes: Vec<String>,
@@ -13613,7 +13856,7 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
 /// AJ-E210: records a live dogfood cell for one ordered pair — a
 /// HUMAN ran the pair on real binaries and reports the outcome (the
 /// app never launches vendor binaries for validation). Recording a
-/// PASS on a real-CI-green pair flips its badge to "· Validated"; a
+/// PASS on a real-CI-green pair flips its badge to "· Proven"; a
 /// FAIL lowers the advertised ceiling one level until fixed.
 ///
 /// # Errors
@@ -13666,7 +13909,7 @@ pub fn validation_dogfood_record_impl(
     use juggler_handover::validation::{DogfoodCell, DogfoodVerdict};
     if juggler_handover::validation::pair_cell(from, to).is_none() {
         return Err(AppError::Io {
-            context: "record dogfood cell",
+            context: "record a hand check",
             message: format!(
                 "{from}→{to} is not a researched pair — cells are recorded, never invented"
             ),
@@ -13681,7 +13924,7 @@ pub fn validation_dogfood_record_impl(
         },
         other => {
             return Err(AppError::Io {
-                context: "record dogfood cell",
+                context: "record a hand check",
                 message: format!("Unknown verdict {other:?} — pass or fail"),
             });
         }
@@ -13697,7 +13940,7 @@ pub fn validation_dogfood_record_impl(
     let mut cells = dogfood_cells_of(&storage);
     cells.insert(dogfood_key(from, to), cell);
     let blob = serde_json::to_string(&cells).map_err(|error| AppError::Io {
-        context: "record dogfood cell",
+        context: "record a hand check",
         message: error.to_string(),
     })?;
     storage
@@ -13712,23 +13955,16 @@ pub fn validation_dogfood_record_impl(
 // from the adapters' own `discover()`, probed in PARALLEL off the UI
 // thread; a missing binary is caught before any account is created.
 
-/// Vendor display metadata for one Provider (names + install pages;
-/// no binary knowledge — that is `discover()`'s job).
-fn provider_display(provider: &str) -> (String, &'static str) {
-    let name = match provider {
-        "claude-code" => "Claude Code".to_owned(),
-        "codex" => "Codex".to_owned(),
-        "zcode" => "ZCode".to_owned(),
-        "fake" | "fake-desktop" => "Fake harness (test)".to_owned(),
-        other => other.to_owned(),
-    };
-    let url = match provider {
-        "claude-code" => "https://claude.com/download",
-        "codex" => "https://developers.openai.com/codex",
-        "zcode" => "https://z.ai",
-        _ => "about:blank",
-    };
-    (name, url)
+/// Vendor display metadata for one Provider, from its adapter's spec
+/// (ADR-0019): the name, and the install page ("" when there is none).
+pub(crate) fn provider_display(
+    registry: &juggler_adapter::AdapterRegistry,
+    provider: &str,
+) -> (String, String) {
+    (
+        crate::features::tools::display_name(registry, provider),
+        crate::features::tools::install_url(registry, provider).unwrap_or_default(),
+    )
 }
 
 /// One Step-0 row (AJ-E301 Req.2): `Installed vX.Y` / `Not installed`
@@ -13934,7 +14170,8 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
         reports
             .into_iter()
             .map(|report| {
-                let (display_name, install_url) = provider_display(report.adapter.as_str());
+                let (display_name, install_url) =
+                    provider_display(&state.registry, report.adapter.as_str());
                 let (status, version) = match &report.install {
                     juggler_adapter::discovery::InstallStatus::Installed { version } => {
                         let verified = matches!(
@@ -13973,7 +14210,7 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                 ProviderInstallInfo {
                     provider: report.adapter.to_string(),
                     display_name: display_name.clone(),
-                    install_url: install_url.to_owned(),
+                    install_url,
                     status: status.to_owned(),
                     version,
                     binary: report
@@ -14374,7 +14611,11 @@ pub fn alias_installs_of(
     let mut dangling = 0_u32;
     for hint in alias_rows {
         let path = hint.path.to_string_lossy().into_owned();
-        let signal = format!("{} in {}:{}", hint.variable, hint.source_file, hint.line);
+        // AJ-E1519: another manager's profile names its file, not a line.
+        let signal = match &hint.set_by {
+            Some(_) => format!("{} in {}", hint.variable, hint.source_file),
+            None => format!("{} in {}:{}", hint.variable, hint.source_file, hint.line),
+        };
         if !hint.target_exists {
             dangling += 1;
             continue;
@@ -14388,23 +14629,34 @@ pub fn alias_installs_of(
             continue;
         }
         let harness = provider_of_variable(&hint.variable);
+        let origin = if hint.set_by.is_some() {
+            "other-manager"
+        } else {
+            "shell-alias"
+        };
         let credentials_len =
             juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
-            signals: vec!["shell-alias".to_owned()],
+            signals: vec![origin.to_owned()],
             harness: harness.to_owned(),
             path,
-            origin: "shell-alias".to_owned(),
+            origin: origin.to_owned(),
             login: "logged_out".to_owned(),
             bytes: 0,
             last_used_secs: None,
             managed: false,
             in_use: Vec::new(),
-            notes: vec![format!(
-                "Set by {} in your shell — {}:{}.",
-                hint.variable, hint.source_file, hint.line
-            )],
+            notes: vec![match &hint.set_by {
+                Some(manager) => format!(
+                    "Set by {} in {manager}'s settings — {}.",
+                    hint.variable, hint.source_file
+                ),
+                None => format!(
+                    "Set by {} in your shell — {}:{}.",
+                    hint.variable, hint.source_file, hint.line
+                ),
+            }],
         });
     }
     let health = if dangling > 0 {
@@ -14468,7 +14720,11 @@ fn scan_probe_rows(
             },
             format!(
                 "{} assignment(s){}",
-                alias_rows.len(),
+                // The shell's own: other managers' profiles aren't shell settings.
+                alias_rows
+                    .iter()
+                    .filter(|hint| hint.set_by.is_none())
+                    .count(),
                 if dangling > 0 {
                     format!(" ({dangling} dangling)")
                 } else {

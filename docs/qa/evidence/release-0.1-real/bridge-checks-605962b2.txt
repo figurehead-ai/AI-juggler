@@ -1,0 +1,3 @@
+conversations via the bridge vs the harness: {'Account A': (25, 25), 'Account B': (20, 20), 'Account C': (16, 16), 'Account D': (2, 2), 'Account E': (16, 16), 'Account F': (2, 2), 'Account G': (25, 25)}
+this_mac via bridge: memory 87.4 GB, pressure warning, tools 6 | vm_stat right after: 87.1 GB | off 0.3%
+outside_search_status sessions settled at 106; outside_search_estimate via bridge: size 519,607,748 bytes, sessions 106 (2.9 s)

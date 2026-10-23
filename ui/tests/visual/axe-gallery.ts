@@ -7,6 +7,12 @@
  * lands in `docs/qa/evidence/AJ-E804/axe/`; `scripts/axe_summary.py`
  * turns them into the summary table. Without the variable this is
  * plain Playwright — the gallery runs exactly as before.
+ *
+ * AJ-E1522 — the gallery in the pixel gate. Each family tags one state
+ * with `gate("<family>")`; the visual gate's `gallery` project runs only
+ * those, and there a `screenshot({ path })` of the page or of one element
+ * is compared with the approved baseline `gallery/<family>/<file>` instead
+ * of being written. A gate state that compares nothing fails.
  */
 import { test as base, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -68,8 +74,85 @@ async function scanAsIs(page: import("@playwright/test").Page): Promise<Finding[
   return findings;
 }
 
+/** The families already given their gate state (per worker; every
+ * worker registers the tests in the same order). */
+const gated = new Set<string>();
+
+/** The gate's clock: `regression.spec.ts`'s T0 (2024-10-13). */
+const GATE_NOW = 1_728_800_000_000;
+
+/** Tags the first test `family` registers as its gate state: in a loop,
+ * its first cell (themes list dark first). */
+export function gate(family: string): { tag?: string } {
+  if (gated.has(family)) return {};
+  gated.add(family);
+  return { tag: "@gate" };
+}
+
+type Page = import("@playwright/test").Page;
+type Locator = import("@playwright/test").Locator;
+
+/** In the gate's `gallery` project, a capture (the page's or one
+ * element's) is compared with its approved baseline as the regression
+ * screens are (≤ 0.1 % of pixels). Returns how many it has compared so
+ * far, and how to put element captures back once the test is done. */
+function compareInstead(page: Page): { compared: () => number; restore: () => void } {
+  let compared = 0;
+  const baseline = (path: string | undefined): string[] => {
+    if (!path) throw new Error("a gate capture needs its gallery path");
+    return ["gallery", ...relative(GALLERY, path).split("/")];
+  };
+  const same = { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" } as const;
+  page.screenshot = (async (options?: Parameters<Page["screenshot"]>[0]) => {
+    const name = baseline(options?.path);
+    await expect(page).toHaveScreenshot(name, { ...same, fullPage: options?.fullPage, clip: options?.clip });
+    compared += 1;
+    return Buffer.alloc(0);
+  }) as Page["screenshot"];
+  // Every locator shares one prototype; a worker runs one test at a time.
+  const locators = Object.getPrototypeOf(page.locator("body")) as Locator;
+  const own = locators.screenshot;
+  locators.screenshot = async function (this: Locator, options?: Parameters<Locator["screenshot"]>[0]) {
+    const name = baseline(options?.path);
+    await expect(this).toHaveScreenshot(name, same);
+    compared += 1;
+    return Buffer.alloc(0);
+  };
+  return {
+    compared: () => compared,
+    restore: () => {
+      locators.screenshot = own;
+    },
+  };
+}
+
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
+    if (testInfo.project.name === "gallery") {
+      const gate = compareInstead(page);
+      // One instant for every gate state, the regression screens' T0: a
+      // state that reads the clock ("740 d ago") would differ tomorrow. A
+      // spec that pins its own clock still wins (its init script runs later).
+      await page.clock.setFixedTime(GATE_NOW);
+      // The gate's self-test, as the regression screens have it: a 2 px
+      // shift of every button must fail the comparison (AJ-E803).
+      if (process.env.AIJ_VISUAL_SELFTEST === "1") {
+        await page.addInitScript(() => {
+          document.addEventListener("DOMContentLoaded", () => {
+            const style = document.createElement("style");
+            style.textContent = "button { transform: translateX(2px); }";
+            document.head.append(style);
+          });
+        });
+      }
+      await use(page);
+      gate.restore();
+      // A gate state that captures nothing would pass while checking nothing.
+      if (testInfo.status === testInfo.expectedStatus && gate.compared() === 0) {
+        throw new Error(`the gate state "${testInfo.title}" compared no capture`);
+      }
+      return;
+    }
     if (!ON) {
       await use(page);
       return;

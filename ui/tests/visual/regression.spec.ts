@@ -153,7 +153,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
-        await expect(page.getByRole("tab", { name: "Quality / Performance" })).toBeVisible();
+        // AJ-E1533: a session's page opens on its body, the Terminal tab.
+        await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
       });
 
@@ -183,7 +184,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
-        await expect(page.getByTestId("project-on-it-now")).toBeVisible();
+        // AJ-E1533: a project's page opens on its body, its sessions.
+        await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);
       });
@@ -234,14 +236,82 @@ for (const theme of THEMES) {
         await expect(legend).toHaveScreenshot(`chrome-legend-${cell}.png`, SCREEN);
       });
 
+      // AJ-E1503: the one toast (a held Stop), the quit sheet, and the
+      // loading placeholders (rail, Home, Accounts).
+      test(`toast — held stop — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_TOAST_PAUSED__: true } });
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.locator('[data-instance-id="sess-2"]').first().click();
+        await page.getByTestId("inspector-stop").click();
+        await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`toast-stop-${cell}.png`, SCREEN);
+      });
+
+      test(`quit sheet — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.evaluate(() =>
+          window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 3, end_on_quit: 3, keep_running: 0 } })),
+        );
+        await expect(page.getByTestId("quit-sheet")).toBeVisible();
+        await expect(page).toHaveScreenshot(`quit-sheet-${cell}.png`, SCREEN);
+      });
+
+      test(`loading placeholders — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_LOAD_HANG__: true } });
+        await expect(page.getByTestId("home-loading")).toBeVisible();
+        await expect(page).toHaveScreenshot(`loading-home-${cell}.png`, SCREEN);
+        await goTo(page, "Accounts");
+        await expect(page.getByTestId("placeholder-card")).toBeVisible();
+        await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
+      });
+
+      // AJ-E1524: the welcome Home for a new install (no accounts).
+      test(`welcome — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp, { accounts: [], profiles: [], sessions: [], projects: [] });
+        await expect(page.getByTestId("welcome-found")).not.toContainText("Looking");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`welcome-${cell}.png`, SCREEN);
+      });
+
+      // AJ-E1505: Settings › Sessions, the Terminal disclosure open.
+      test(`settings sessions — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await goTo(page, "Settings");
+        await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+        await page.getByTestId("settings-terminal").locator("summary").click();
+        await expect(page.getByLabel("Scrollback")).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
+      });
+
+      // AJ-E1504: the ? sheet and the folded inspector.
+      test(`shortcut sheet — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await page.keyboard.press("Shift+Slash");
+        await expect(page.getByTestId("shortcut-sheet")).toBeVisible();
+        await expect(page).toHaveScreenshot(`shortcut-sheet-${cell}.png`, SCREEN);
+      });
+
+      test(`inspector folded — ${cell}`, async ({ page }) => {
+        await open(page, theme, density, vp);
+        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await page.locator('[data-instance-id="sess-2"]').first().click();
+        await page.keyboard.press("Meta+Shift+I");
+        await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
+        await page.mouse.move(0, 0);
+        await expect(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);
+      });
+
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
-      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings"] as const) {
+      // AJ-E1528: This Mac, the page.
+      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings", "This Mac"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
-          await expect(page).toHaveScreenshot(`${screen.toLowerCase()}-${cell}.png`, SCREEN);
+          await expect(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
         });
       }
     }
@@ -276,6 +346,33 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);
     await expect(page).toHaveScreenshot(`remove-account-copy-${cell}.png`, SCREEN);
+  });
+}
+
+// AJ-E1502: a named, pinned session leads its group, a pinned project's
+// group leads the rail; a project's row menu.
+const PINNED = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session) =>
+    session.id === "sess-6" ? { ...session, label: "the login fix", pinned: true } : session,
+  ),
+  projects: allStatuses.projects.map((project) => (project.id === "proj-2" ? { ...project, pinned: true } : project)),
+};
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`rail with pins — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
+    await expect(page.locator('[data-instance-id="sess-6"]')).toContainText("the login fix");
+    await page.mouse.move(0, 0);
+    await expect(page.getByTestId("rail")).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
+  });
+
+  test(`project menu — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
+    await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
+    await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`project-menu-${cell}.png`, SCREEN);
   });
 }
 

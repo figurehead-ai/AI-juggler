@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes } from "react";
 
 /**
  * Form primitives in the house design language: quiet surfaces, hairline
@@ -51,33 +51,81 @@ export function Select({
   );
 }
 
+/**
+ * The app's sheet: a titled dialog over a dimmed window. AJ-E1503: it is
+ * a real modal dialog — named by its title, focus moves inside on open
+ * (the first `[data-autofocus]`, else the first control), Tab stays
+ * inside, Escape closes, and focus goes back where it was.
+ */
 export function Modal({
   title,
   subtitle,
   onClose,
   children,
+  wide = false,
+  testId,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
+  /** A wider sheet (lists, tables). */
+  wide?: boolean;
+  testId?: string;
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const first =
+      dialog?.querySelector<HTMLElement>("[data-autofocus]") ??
+      dialog?.querySelector<HTMLElement>("[data-modal-body] button, [data-modal-body] input, [data-modal-body] select, [data-modal-body] textarea") ??
+      dialog?.querySelector<HTMLElement>("button");
+    first?.focus();
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
+  const trapTab = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']") ?? [],
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-6 backdrop-blur-sm"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
+          event.stopPropagation();
           onClose();
         }
+        trapTab(event);
       }}
     >
       <div
-        className="sheen w-full max-w-md rounded-card border border-hairline bg-surface
-          shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)] p-5"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        data-testid={testId}
+        className={`sheen w-full ${wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
+          shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)] p-5`}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold">{title}</h2>
+            <h2 id={titleId} className="text-sm font-semibold">{title}</h2>
             {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
           </div>
           <button
@@ -90,7 +138,7 @@ export function Modal({
             </svg>
           </button>
         </div>
-        {children}
+        <div data-modal-body>{children}</div>
       </div>
     </div>
   );

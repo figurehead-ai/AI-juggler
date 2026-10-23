@@ -18,8 +18,8 @@
 //!    (Req.4); a PASSING cell validates the pair only when
 //!    `ci_green` is also true.
 //!
-//! A pair advertises "F-label · Validated" only when `validated()`
-//! is true; everything else reads "Beta — not yet validated"
+//! A pair advertises "F-label · Proven" only when `validated()`
+//! is true; everything else reads "Beta — not proven yet"
 //! (D-11: never "lossless").
 
 use crate::fidelity::FidelityLabel;
@@ -142,7 +142,7 @@ impl PairCell {
             && register.pair_validated(&self.from, &self.to, installed, strict)
     }
 
-    /// The wire badge the UI renders ("F1 · Beta" / "F3 · Validated")
+    /// The wire badge the UI renders ("Full story, fresh start · Beta" / "Same conversation, new account · Proven")
     /// — never "lossless" below F4 (D-11).
     #[must_use]
     pub fn badge(&self) -> String {
@@ -154,9 +154,9 @@ impl PairCell {
     pub fn badge_for(&self, installed: crate::register::Versions<'_>, strict: bool) -> String {
         format!(
             "{} · {}",
-            self.advertised_ceiling().as_str(),
+            self.advertised_ceiling().user_label(),
             if self.validated_for(installed, strict) {
-                "Validated"
+                "Proven"
             } else {
                 "Beta"
             }
@@ -169,27 +169,29 @@ impl PairCell {
         match (&self.dogfood, self.ci_green) {
             (Some(cell), _) => match &cell.verdict {
                 DogfoodVerdict::Pass { .. } if self.validated() => format!(
-                    "Validated — live cell passed {} ({} shape)",
+                    "Proven: tried by hand {} on a {} project",
                     cell.at, cell.project_shape
                 ),
                 DogfoodVerdict::Pass { .. } if self.ci_green => format!(
-                    "Live cell passed {} but the fidelity register (AJ-E808) isn't PASS on every area — stays Beta",
+                    "Tried by hand {}, but not every part of the switch is proven yet, so it stays in beta",
                     cell.at
                 ),
                 DogfoodVerdict::Pass { .. } => format!(
-                    "Live cell passed {} but the real-adapter CI row is not green — stays Beta",
+                    "Tried by hand {}, but the automatic tests with the real tools don't pass yet, so it stays in beta",
                     cell.at
                 ),
                 DogfoodVerdict::Fail { reason } => {
                     format!(
-                        "Live cell FAILED {} — {reason}; ceiling lowered one level",
+                        "Failed when tried by hand {}: {reason}. It promises one level less until fixed",
                         cell.at
                     )
                 }
             },
-            (None, true) => "CI fixtures green · live dogfood pending — open beta debt".to_owned(),
+            (None, true) => {
+                "Automatic tests pass with the real tools; not tried by hand yet".to_owned()
+            }
             (None, false) => {
-                "Real-adapter fixtures not landed · live dogfood pending — open beta debt"
+                "Automatic tests with the real tools aren't in place; not tried by hand yet"
                     .to_owned()
             }
         }
@@ -215,24 +217,30 @@ pub fn validation_matrix() -> Vec<PairCell> {
         dogfood: None, // live cells are RECORDED, never asserted here
         notes,
     };
+    // A same-tool transplant resumes the same conversation on the new
+    // account (AJ-E1540): F3, "Same conversation, new account", as the
+    // switch screen says (F2 there when the session was compacted). The
+    // beta words carry how sure that is (AJ-E1543).
     rows.push(same(
         "claude-code",
         "claude-code",
-        FidelityLabel::F1,
+        FidelityLabel::F3,
         vec![],
     ));
     rows.push(same(
         "codex",
         "codex",
-        FidelityLabel::F1,
-        vec!["transplant proven on synthetic 0.163.0 rollouts only (AJ-E1304); resuming a copied paginated rollout is unproven until a live cell".to_owned()],
+        FidelityLabel::F3,
+        vec!["Tested on sample Codex 0.163.0 sessions only; resuming a copied long session is unproven until it's tried by hand".to_owned()],
     ));
+    // Z Code's transplant is off (below): the row never promises a move
+    // that can't run, so it stays at the replay's F1.
     rows.push(same(
         "zcode",
         "zcode",
         FidelityLabel::F1,
         vec![
-            "BLOCKED: chat is schema-coupled (SQLite clone) — transplant stays off until a clone passes against two schema versions (Req.3)".to_owned(),
+            "Not available: Z Code keeps the chat in a database whose layout changes between versions, so moving it stays off until it works on two versions".to_owned(),
         ],
     ));
     for (from, to, ceiling, note) in [
@@ -240,37 +248,37 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "claude-code",
             "codex",
             FidelityLabel::F1,
-            "replay into a primed Codex session, proven against stub binaries (AJ-E1304)",
+            "Replays the story into a new Codex session; tested with stand-in tools",
         ),
         (
             "codex",
             "claude-code",
             FidelityLabel::F1,
-            "replay of a Codex rollout, proven against stub binaries (AJ-E1304)",
+            "Replays a Codex session's story; tested with stand-in tools",
         ),
         (
             "claude-code",
             "zcode",
             FidelityLabel::F0,
-            "zcode target prime is F0 until a verified prime path exists (Req.3)",
+            "Z Code takes a briefing pack only, until starting it from a story is proven",
         ),
         (
             "zcode",
             "claude-code",
             FidelityLabel::F1,
-            "zcode source adapter not landed",
+            "Reading Z Code sessions isn't built yet",
         ),
         (
             "codex",
             "zcode",
             FidelityLabel::F0,
-            "zcode adapter not landed; zcode target prime F0",
+            "Z Code support isn't built yet; it takes a briefing pack only",
         ),
         (
             "zcode",
             "codex",
             FidelityLabel::F1,
-            "zcode adapter not landed",
+            "Reading Z Code sessions isn't built yet",
         ),
     ] {
         rows.push(PairCell {
@@ -294,7 +302,8 @@ pub fn validation_matrix() -> Vec<PairCell> {
             ci_green: false,
             dogfood: None,
             notes: vec![
-                "pack-only: no target adapter planned for beta (SPEC:140 adapter-first)".to_owned(),
+                "Briefing pack only: starting this tool from a story isn't planned for the beta"
+                    .to_owned(),
             ],
         });
     }
@@ -331,7 +340,7 @@ pub fn advertised_badge(from: &str, to: &str, dogfood: Option<&DogfoodCell>) -> 
             };
             row.badge()
         }
-        None => "F0 · Beta".to_owned(),
+        None => "Briefing pack · Beta".to_owned(),
     }
 }
 
@@ -341,7 +350,7 @@ pub fn advertised_badge(from: &str, to: &str, dogfood: Option<&DogfoodCell>) -> 
 pub fn researched_badge(from: &str, to: &str) -> String {
     match pair_cell(from, to) {
         Some(row) => row.badge(),
-        None => "F0 · Beta".to_owned(),
+        None => "Briefing pack · Beta".to_owned(),
     }
 }
 
@@ -427,9 +436,11 @@ mod tests {
         // AJ-E808: a passing live cell alone no longer promotes — every
         // area must PASS in the register, and today none is validated.
         assert!(!claude.validated());
-        assert_eq!(claude.badge(), "F1 · Beta");
+        assert_eq!(claude.badge(), "Same conversation, new account · Beta");
         assert!(
-            claude.status_words().contains("fidelity register"),
+            claude
+                .status_words()
+                .contains("not every part of the switch is proven"),
             "{}",
             claude.status_words()
         );
@@ -469,9 +480,9 @@ mod tests {
             !codex.validated(),
             "no pair validates while its register cells are unvalidated"
         );
-        assert_eq!(codex.badge(), "F1 · Beta");
+        assert_eq!(codex.badge(), "Same conversation, new account · Beta");
         assert!(
-            codex.status_words().contains("stays Beta"),
+            codex.status_words().contains("stays in beta"),
             "{}",
             codex.status_words()
         );
@@ -484,10 +495,13 @@ mod tests {
             reason: "S-F4: rules ring lost in translation".to_owned(),
         };
         let row = with_dogfood(pair_cell("claude-code", "claude-code").unwrap(), failed);
-        assert_eq!(row.advertised_ceiling(), L::F0, "F1 lowered one level");
+        assert_eq!(row.advertised_ceiling(), L::F2, "F3 lowered one level");
         assert!(!row.validated());
-        assert_eq!(row.badge(), "F0 · Beta");
-        assert!(row.status_words().contains("ceiling lowered"));
+        assert_eq!(
+            row.badge(),
+            "Same conversation, new account (compacted) · Beta"
+        );
+        assert!(row.status_words().contains("promises one level less"));
     }
 
     #[test]
@@ -497,7 +511,7 @@ mod tests {
             .iter()
             .find(|r| r.from == "zcode" && r.to == "zcode")
             .unwrap();
-        assert!(z2z.notes.iter().any(|n| n.contains("BLOCKED")));
+        assert!(z2z.notes.iter().any(|n| n.starts_with("Not available")));
         assert_eq!(z2z.advertised_ceiling(), L::F1, "blocked ≠ lowered");
         let claude_zcode = rows
             .iter()
@@ -505,30 +519,33 @@ mod tests {
             .unwrap();
         assert_eq!(claude_zcode.researched_ceiling, L::F0, "prime stays F0");
         let pending = rows.iter().find(|r| r.ci_green).unwrap();
-        assert!(pending.status_words().contains("open beta debt"));
+        assert!(pending.status_words().contains("not tried by hand yet"));
     }
 
     #[test]
     fn advertised_badge_degrades_unknown_pairs_to_f0_beta() {
         assert_eq!(
             advertised_badge("claude-code", "unknown-cli", None),
-            "F0 · Beta"
+            "Briefing pack · Beta"
         );
-        assert_eq!(researched_badge("claude-code", "claude-code"), "F1 · Beta");
+        assert_eq!(
+            researched_badge("claude-code", "claude-code"),
+            "Same conversation, new account · Beta"
+        );
     }
 
     #[test]
     fn advertised_ceiling_number_never_exceeds_the_researched_score() {
-        // claude→claude researches F1 (0.25); the number matches and
-        // a failed cell drops it a level.
+        // claude→claude researches F3 (0.75, AJ-E1543); the number
+        // matches and a failed cell drops it a level.
         let n = advertised_ceiling_number("claude-code", "claude-code", None);
-        assert!((n - 0.25).abs() < 1e-9);
+        assert!((n - 0.75).abs() < 1e-9);
         let mut failed = passing_cell();
         failed.verdict = DogfoodVerdict::Fail {
             reason: "S-F6".to_owned(),
         };
         let lowered = advertised_ceiling_number("claude-code", "claude-code", Some(&failed));
-        assert!((lowered - 0.0).abs() < 1e-9, "F1 → F0 floor");
+        assert!((lowered - 0.5).abs() < 1e-9, "F3 → F2");
         assert_eq!(
             advertised_ceiling_number("claude-code", "unknown-cli", None),
             0.0

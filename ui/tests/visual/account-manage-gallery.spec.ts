@@ -6,7 +6,8 @@
  * Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, openFilters } from "./fixtures";
@@ -57,12 +58,15 @@ function card(page: Page, label: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`account menu — ${theme}`, async ({ page }) => {
+  test(`account menu — ${theme}`, gate("75-account-manage"), async ({ page }) => {
     await seed(page, theme);
     await card(page, "personal-max").click();
     const menu = page.getByRole("menu", { name: "Actions for personal-max" });
-    await expect(menu.getByRole("menuitem")).toHaveText(["Rename…", "Make the default", "Remove…"]);
-    await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeFocused();
+    // AJ-E1537: the registry's account menu; destructive last.
+    const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
+    expect(names[0]).toBe("Open");
+    expect(names.slice(-4)).toEqual(["Rename…", "Copy settings from…", "Make the default", "Remove…"]);
+    await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toBeFocused();
     await page.screenshot({ path: resolve(OUT, `account-menu-1280x800-${theme}.png`) });
     await axeClean(page, "account menu");
   });

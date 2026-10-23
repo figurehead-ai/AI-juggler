@@ -138,7 +138,7 @@ describe("AJ-E403 density field presence per mode", () => {
       <SessionRow session={mk()} selected={false} onSelect={() => {}} freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
     const text = container.textContent ?? "";
-    for (const field of ["Claude", "opus", "Running", "% left", "15.0k tok", "main", "12% · 1.0 GB"]) {
+    for (const field of ["Claude", "opus", "Running", "% left", "15.0k tokens", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
     expect(container.querySelector("svg polyline")).not.toBeNull(); // sparkline

@@ -121,10 +121,21 @@ fn delta_of(
             .find(|row| row.kind == "transcript");
         (session.transcript_ref, base)
     };
-    let bytes = reference
-        .as_ref()
-        .and_then(|reference| std::fs::read(&reference.path).ok())
-        .unwrap_or_default();
+    // Missing reads as nothing new; one too large to read whole is said.
+    let bytes = match reference.as_ref() {
+        Some(reference) => match juggler_adapters::read_session_file(&reference.path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(_) => {
+                return Err(AppError::Refused(
+                    "This session's file is too large to compare; start fresh with a summary \
+                     instead."
+                        .to_owned(),
+                ));
+            }
+        },
+        None => Vec::new(),
+    };
     let parsed = juggler_adapters::parse_any(&bytes);
     // The base: what arrived (T2) — or, for a replay, its prime turn.
     let base_uuids: HashSet<String> = match &base {
@@ -187,6 +198,8 @@ fn delta_of(
         },
         diff_stat: None,
         todo_note: None,
+        earlier_hops: Vec::new(),
+        unread: Vec::new(),
     };
     let turns = u32::try_from(delta_turns(&input).len()).unwrap_or(u32::MAX);
     Ok((delta_turn_text(&input), turns))
@@ -719,7 +732,7 @@ pub(crate) fn switch_back_here(
         .clone()
         .or_else(|| reference.native_id.clone())
         .ok_or_else(unknown)?;
-    let current = std::fs::read(&reference.path)
+    let current = juggler_adapters::read_bounded(&reference.path)
         .map_err(|_| refuse("original_gone", "The original session couldn't be read."))?;
     if let Some((turns, summary)) = divergence_of(&current, &at_handover)
         && back.divergence_choice.is_empty()
@@ -809,7 +822,7 @@ fn fork_original(path: &Path) -> Result<(String, TranscriptRef), HandoverRejecti
         &hex[16..20],
         &hex[20..]
     );
-    let original = std::fs::read(path)
+    let original = juggler_adapters::read_bounded(path)
         .map_err(|_| refuse("original_gone", "The original couldn't be read."))?;
     let name = path
         .file_name()

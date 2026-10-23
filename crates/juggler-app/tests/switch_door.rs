@@ -151,16 +151,33 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         !info.usual_account,
         "no history for B on this project ⇒ not the usual account"
     );
-    // §H2: todos default Drop until a fixture proves carriage — the
-    // carry-list names the drop, never "some context".
-    assert!(info.carry.dropped.contains(&"todo list".to_owned()));
+    // QA P23: the screen says what a transplant does, as the list does;
+    // "not proven" is its own reason, never an F-number.
+    assert_eq!(info.mechanism, "transplant");
+    assert_eq!(info.fidelity_words, "Same conversation, new account");
     assert!(
         info.wizard_reasons
             .iter()
-            .any(|reason| reason.contains("carry-list drops: todo list")),
-        "reasons name the drop: {:?}",
+            .all(|reason| !reason.contains("Fidelity") && !reason.contains("F1")),
+        "{:?}",
         info.wizard_reasons
     );
+    if !info.validated {
+        assert_eq!(info.fidelity, "F1", "the door keeps the honesty cap");
+        assert!(info.experimental_copy.starts_with("Beta, not proven yet:"));
+        assert!(
+            info.wizard_reasons
+                .iter()
+                .any(|reason| reason == "This move hasn't been proven on a real setup yet."),
+            "{:?}",
+            info.wizard_reasons
+        );
+    }
+    // AJ-E1541: the task list is rebuilt from the conversation (proven by
+    // the lab and the handover tests), and the carry-list says so, never
+    // "some context" and never a byte copy.
+    assert!(info.carry.regenerated.contains(&"todo list".to_owned()));
+    assert!(!info.carry.dropped.contains(&"todo list".to_owned()));
     assert!(
         info.wizard_reasons
             .iter()
@@ -168,7 +185,13 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         "reasons explain the door: {:?}",
         info.wizard_reasons
     );
-    // §5 telemetry: the door choice counted locally (KV only).
+    // The preflight only reads: nothing is counted until the switch
+    // screen counts the door it shows (§5 telemetry, KV only).
+    assert!(
+        door_counters(&state).is_empty(),
+        "the preflight wrote a counter"
+    );
+    commands::switch_door_count_impl(&state, &info.door, &info.wizard_steps).unwrap();
     assert_eq!(
         door_counters(&state)
             .get("switch_wizard[Target,What's carried,Confirm]")
@@ -176,6 +199,19 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         Some(1),
         "local door counter recorded"
     );
+    // Anything that isn't a door the preflight can choose is refused,
+    // and counts nothing.
+    for (door, steps) in [
+        ("wizard", vec!["Target".to_owned(), "Anything".to_owned()]),
+        ("one-click", vec!["Target".to_owned()]),
+        ("teleport", vec![]),
+    ] {
+        assert!(
+            commands::switch_door_count_impl(&state, door, &steps).is_err(),
+            "{door} {steps:?}"
+        );
+    }
+    assert_eq!(door_counters(&state).values().sum::<u64>(), 1);
 }
 
 #[test]
@@ -314,4 +350,42 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
         args.contains("--resume") && args.contains("native-sess-9"),
         "source resumed natively: {args}"
     );
+}
+
+/// QA P23: a Claude → Codex move replays, and the screen says so: "Full
+/// story, fresh start", and the Beta line is the replay's, never the
+/// transplant's "the whole session moves".
+#[test]
+fn a_cross_tool_move_says_it_starts_fresh() {
+    let work = tempfile::tempdir().unwrap();
+    let stub = claude_stub(work.path());
+    let mut registry = AdapterRegistry::new();
+    let claude = Arc::new(ClaudeCodeAdapter::with_bin(&stub));
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::with_bin(
+        "/bin/true",
+    )));
+    let state =
+        Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
+    let project_dir = work.path().join("storefront");
+    std::fs::create_dir_all(&project_dir).unwrap();
+    let cwd = project_dir.to_string_lossy().into_owned();
+    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
+    let account_b =
+        commands::create_account(&state, juggler_adapters::CODEX_ID, "Codex", None).unwrap();
+    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
+    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let source_id =
+        launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-sess-8");
+
+    let info = commands::switch_preflight_impl(&state, &source_id, &profile_b.id).unwrap();
+    assert_eq!(info.mechanism, "replay");
+    assert_eq!(info.fidelity_words, "Full story, fresh start");
+    assert!(
+        info.experimental_copy.contains("a fresh start on Codex"),
+        "{}",
+        info.experimental_copy
+    );
+    assert!(!info.experimental_copy.contains("the whole session moves"));
 }

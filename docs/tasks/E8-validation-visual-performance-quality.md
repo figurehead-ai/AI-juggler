@@ -56,7 +56,7 @@
 **Research basis**: `docs/SPEC.md:442` (Playwright on webview); deep/11 §8 state matrix (lines 299-320), §12 testing hooks; `crates/juggler-app/tauri.conf.json` (1360x860 default, 1024x680 min); pass2/04 §7 wireframes.
 **Handover note**: The repo has no Playwright dependency today (`ui/package.json`: vite/tsc only) — adding it is this task's scope, pinned and lockfile-committed. Trap: never capture against a live Tauri backend for the gallery; mocked-bridge determinism is the point. Live captures belong to dogfood (AJ-E809).
 
-### AJ-E803 Visual regression thresholds and review workflow | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E802
+### AJ-E803 Visual regression thresholds and review workflow | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E802
 **Goal**: Turn screenshots into a pass/fail gate with human review for intentional change.
 **User story**: As a reviewer, I want any visual diff over threshold flagged with before/after/diff images so regressions cannot slip in as "looks fine".
 **Requirements**:
@@ -207,5 +207,5 @@
 4. QUALITY.md SHALL say when to use which mode.
 **Quality gates**: Base = head reports 0 changed states (unstable ones listed apart); a deliberate small change in a scratch commit shows up as changed, locally and in CI. `just verify`, `pnpm --dir ui build` and the core visual suite green.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E811/` — the noise run, the scratch-change reports (local and CI) and their triptychs.
-**Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
+**Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/internal/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
 **Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.

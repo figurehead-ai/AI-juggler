@@ -54,6 +54,8 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   root_pid: null,
   session_id: null,
   place: "desktop",
+  tool: null,
+  group: overrides.place === null ? "claude-code" : (overrides.place ?? "desktop"),
   account_label: "Personal",
   cpu_pct: 14,
   rss_bytes: 1_600_000_000,
@@ -75,6 +77,8 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     tools: total(trees),
     ours: total(trees.filter((t) => t.session_id)),
     theirs: total(trees.filter((t) => !t.session_id)),
+    awake: { working: 0, kept_awake: false, on_battery: false },
+    own: { rss_bytes: 214_000_000, watchdog: true, opens_at_login: false },
     by_tool: [],
     top: trees.slice(0, 3),
     others: trees.slice(3),
@@ -120,8 +124,16 @@ describe("This Mac panel (AJ-E1404)", () => {
     // "macOS" keeps its lower-case m in the sentence.
     expect(screen.getByTestId("this-mac-reasons").textContent).toBe("macOS reports memory pressure; swap is growing — 140 MB a minute");
     const [ours, theirs] = screen.getAllByTestId("this-mac-tree");
-    fireEvent.click(within(ours!).getByRole("button"));
+    fireEvent.click(within(ours!).getAllByRole("button")[0]!);
     expect(open).toHaveBeenCalledWith("s1");
+    // AJ-E1537: its menu goes to the session; theirs says it isn't ours.
+    fireEvent.contextMenu(ours!);
+    expect(screen.getByRole("menuitem", { name: "Go to the session" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.contextMenu(theirs!);
+    const line = screen.getByRole("menuitem", { name: "Not started by AI Juggler" }) as HTMLButtonElement;
+    expect(line.disabled).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
     expect((ours)!.textContent).toContain("name-of-s1");
     expect((ours)!.textContent).toContain("heavy: CPU 96% · 3.2 GB");
     // D-08: shown and counted, never actionable.
@@ -146,6 +158,22 @@ describe("This Mac panel (AJ-E1404)", () => {
     render(<ThisMacPanel info={unread} nameOf={nameOf} onOpenSession={vi.fn()} />);
     expect(screen.queryByRole("meter")).toBeNull();
     expect(screen.getByTestId("this-mac-memory").textContent).toBe("Memory: 32 GB");
+  });
+
+  // AJ-E1526: a tool line carries its tool's mark beside the name, and a
+  // line whose tool isn't known carries none.
+  it("marks each tool line with its tool's mark, decoratively", () => {
+    render(
+      <ThisMacPanel
+        info={info("plenty", [tree({ tool: "claude-code" }), tree({ place: "terminal", rss_bytes: 1_000 })])}
+        nameOf={nameOf}
+        onOpenSession={vi.fn()}
+      />,
+    );
+    const [marked, unmarked] = screen.getAllByTestId("this-mac-tree");
+    expect(marked!.querySelector("[data-mark]")?.getAttribute("aria-hidden")).toBe("true");
+    expect(marked!.textContent).toContain("Claude app");
+    expect(unmarked!.querySelector("[data-mark]")).toBeNull();
   });
 
   it("offers Clean up only when something was left running", () => {
@@ -196,6 +224,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   });
 
   it("raises a Mac under pressure and leads to This Mac", () => {
+    const openPage = vi.fn();
     render(
       <HomeScreen
         sessions={[mk("one")]}
@@ -206,6 +235,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         onNewSession={vi.fn()}
         onAddAccounts={vi.fn()}
         thisMac={info("pressure", [tree({ session_id: "one", place: null })])}
+        onOpenThisMac={openPage}
       />,
     );
     // Said once, in Needs you; the headline only points there (0.0.12).
@@ -213,10 +243,9 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
     const item = screen.getByTestId("home-mac-pressure");
     expect(item.textContent).toContain("Your Mac is under pressure");
     expect(item.textContent).toContain("macOS reports critical memory pressure; swap is growing — 620 MB a minute");
-    const panel = document.getElementById("this-mac")!;
-    panel.scrollIntoView = vi.fn();
+    // AJ-E1528: it opens the This Mac page.
     fireEvent.click(within(item).getByRole("button", { name: "See what's using it" }));
-    expect(document.activeElement).toBe(panel);
+    expect(openPage).toHaveBeenCalledOnce();
   });
 
   it("stays quiet when the Mac is only getting tight", () => {

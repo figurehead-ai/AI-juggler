@@ -10,13 +10,17 @@
  * away instance gets the freeze-or-fork choice when still live
  * (resuming while it runs is legal — and said out loud). Focus is
  * trapped; Esc cancels; ⏎ confirms when armed; conflicts are
- * keyboard-completable end to end.
+ * keyboard-completable end to end. AJ-E1541: after more than one hop
+ * (A → B → Codex), the user picks where to go back to: the previous
+ * account, or where the work started.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import {
   switchBackPlan,
   switchBackExecute,
-  type SwitchBackPlanData, errorText,} from "../lib/bridge";
+  type SwitchBackPlanData,
+  errorText,
+} from "../lib/bridge";
 
 type Phase =
   | { kind: "plan" }
@@ -45,13 +49,15 @@ export function SwitchBackFlow({
   const [phase, setPhase] = useState<Phase>({ kind: "plan" });
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [keepAwayRunning, setKeepAwayRunning] = useState(false);
+  // AJ-E1541: undefined = the backend's choice (the nearest account).
+  const [toEpoch, setToEpoch] = useState<string | undefined>(undefined);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let alive = true;
     setChoices({});
     setKeepAwayRunning(false);
-    switchBackPlan(sessionId)
+    switchBackPlan(sessionId, toEpoch)
       .then((plan) => {
         if (alive) setPhase({ kind: "review", plan });
       })
@@ -61,7 +67,7 @@ export function SwitchBackFlow({
     return () => {
       alive = false;
     };
-  }, [sessionId]);
+  }, [sessionId, toEpoch]);
 
   const plan = phase.kind === "review" ? phase.plan : null;
   const unresolved = plan
@@ -113,6 +119,7 @@ export function SwitchBackFlow({
         sessionId,
         Object.entries(choices).map(([rel_path, choice]) => ({ rel_path, choice })),
         keepAwayRunning,
+        phase.plan.return_to,
       );
       setPhase({ kind: "done", sessionId: result.session_id });
     } catch (cause) {
@@ -141,20 +148,40 @@ export function SwitchBackFlow({
             <h3 className="text-sm font-semibold">
               Switch back to {plan.original_account}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {plan.original_alive ? "resume + one delta turn" : "fresh start · F0"}
+                {plan.original_alive ? "Continues, with what changed since" : "Briefing pack"}
               </span>
             </h3>
             {/* Req.3 verbatim — suggested, never executed. */}
             <p className="text-[11px]" data-testid="switch-back-suggestion">
               {plan.suggestion}
             </p>
+            {plan.returns.length > 1 && (
+              <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-returns">
+                <legend className="text-[11px] uppercase tracking-wider text-muted">Go back to</legend>
+                {plan.returns.map((option) => (
+                  <label key={option.epoch_id} className="flex items-center gap-2 text-xs">
+                    <input
+                      type="radio"
+                      name="return-to"
+                      checked={plan.return_to === option.epoch_id}
+                      onChange={() => {
+                        setPhase({ kind: "plan" });
+                        setToEpoch(option.epoch_id);
+                      }}
+                    />
+                    {option.account}
+                    {option.start && <span className="text-muted">(where it started)</span>}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             {!plan.original_alive && (
               <p className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning" data-testid="switch-back-sf7">
                 {plan.sf7_copy}
                 {plan.sf7_fallback.startsWith("nearest-epoch") &&
                   " — the nearest surviving conversation resumes instead."}
                 {plan.sf7_fallback === "fresh-f0" &&
-                  " — a fresh session starts, pack-primed honestly at F0."}
+                  " — a fresh session starts from a briefing pack."}
               </p>
             )}
             <p className="text-[11px] text-muted" data-testid="switch-back-divergence">
@@ -231,7 +258,9 @@ export function SwitchBackFlow({
               <p className="text-[11px] text-muted" data-testid="switch-back-unresolved">
                 {unresolved > 0
                   ? `Choose for ${unresolved} conflict${unresolved === 1 ? "" : "s"} to continue — the work stays forked until you do.`
-                  : "One click returns the work — the original conversation resumes."}
+                  : plan.original_alive
+                    ? "One click returns the work — the original conversation resumes."
+                    : `One click carries the work back to ${plan.original_account} in a new session.`}
               </p>
             </div>
             <div className="flex justify-end gap-2">

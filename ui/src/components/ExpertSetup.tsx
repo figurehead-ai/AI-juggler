@@ -11,6 +11,7 @@ import {
   type LaunchRecipeInfo,
 } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
+import { launchSettingsName } from "../lib/account-words";
 
 /**
  * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
@@ -245,7 +246,7 @@ export function ExpertSetup({
                         >
                           {recipes.map((entry) => (
                             <option key={entry.id} value={entry.id}>
-                              {entry.name === "Main" ? "Default" : entry.name}
+                              {launchSettingsName(entry.name)}
                             </option>
                           ))}
                         </select>
@@ -253,7 +254,7 @@ export function ExpertSetup({
                     )}
                     <p className="leading-relaxed text-muted">
                       Extra variables set when{" "}
-                      {recipe.name === "Main" ? "the default Launch settings" : `“${recipe.name}”`}{" "}
+                      {launchSettingsName(recipe.name) === "Default" ? "the default Launch settings" : `“${recipe.name}”`}{" "}
                       start a session.
                     </p>
                     <EnvOverlayEditor

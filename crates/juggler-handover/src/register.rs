@@ -384,16 +384,13 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
             .find(|row| row.from == pair.from && row.to == pair.to);
         let validated = row.is_some_and(crate::validation::PairCell::validated);
         let badge = row.map_or_else(
-            || "F0 · Beta".to_owned(),
+            || "Briefing pack · Beta".to_owned(),
             crate::validation::PairCell::badge,
         );
         let (switch_rows, settings) = if validated {
-            (badge, "Validated ✓")
+            (badge, "Proven ✓")
         } else {
-            (
-                format!("{badge} · Not yet validated"),
-                "Beta — not yet validated",
-            )
+            (format!("{badge} · Not proven yet"), "Beta — not proven yet")
         };
         let cells: Vec<&str> = AREAS
             .iter()
@@ -605,10 +602,18 @@ mod tests {
         let open = embedded().beta_exit_open(&unknown_versions, &|_, to| {
             to == "gemini-cli" || to == "opencode"
         });
+        // The live labs (AJ-E1539) passed eighteen cells. Labs 5–8
+        // (2026-10-22): claude→claude transcript, todos and MCP;
+        // claude→codex those three and switch-back. Labs 9 and 10
+        // (2026-10-23): claude→claude rules, subagents, folder and
+        // worktree edges and switch-back; claude→codex rules; codex→claude
+        // transcript, todos, rules and switch-back. Lab 11 (2026-10-23):
+        // codex→codex transcript and todos. Every other shipped cell is
+        // open.
         assert_eq!(
             open.len(),
-            9 * AREAS.len(),
-            "today every shipped cell is open"
+            9 * AREAS.len() - 18,
+            "only the labs' eighteen PASS cells are closed"
         );
     }
 }

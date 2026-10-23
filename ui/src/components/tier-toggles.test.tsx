@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { TierToggles } from "./RightInspector";
+import { TierToggles } from "../pages/AccountPage";
 
 /**
  * AJ-E508: the per-Account tier toggles — TWO separate switches

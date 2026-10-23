@@ -13,6 +13,7 @@
 )]
 
 pub mod alerts;
+pub mod budget;
 pub mod cost_ledger;
 pub mod error;
 pub mod fs;
@@ -21,10 +22,12 @@ pub mod model;
 pub mod quality;
 pub mod quota;
 pub mod quota_forecast;
+pub mod quota_runway;
 pub mod ranking;
 pub mod recommendation;
 pub mod renewal;
 pub mod storage;
+pub mod time;
 
 pub use error::CoreError;
 pub use model::{

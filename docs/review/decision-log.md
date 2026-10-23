@@ -6,7 +6,7 @@
 > (documents) and the staged implementation that follows per D-15.
 > Source evidence: `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`,
 > `docs/review/AI-Juggler-Expected-Workflow-Second-Pass.md`, and
-> `docs/expected-worfklow.md`.
+> `docs/internal/expected-workflow.md`.
 
 ## Settled decisions
 
@@ -491,8 +491,57 @@
     tool view (what's installed, its accounts' quota) opens from the tool
     chip in a session's or an account's header.
 
+### D-26 Open at login — a second audited unsafe shim — SETTLED (2026-10-22)
+
+- Decision: juggler-login-item: SMAppService via objc2-service-management
+  0.3.2, approved by the maintainer 2026-10-22 (AJ-E1509 Req.4, "Open AI
+  Juggler at login", opt-in). macOS's own login items are `SMAppService`,
+  and every call to it is `unsafe` in its Rust bindings. As with D-17, the
+  carve-out is a NEW, isolated crate (`crates/juggler-login-item`) that
+  does NOT inherit the workspace lint baseline; the workspace law
+  `unsafe_code = "forbid"` stays absolute for every other crate. It holds
+  exactly four `unsafe` calls (the main app's service, its status,
+  register, unregister), each with a SAFETY note, under
+  `#![deny(unsafe_op_in_unsafe_fn)]`, behind a safe API (`status`, `set`).
+  Off macOS it is a safe stub that reads "unavailable".
+- Rejected: a `~/Library/LaunchAgents` plist (writes outside AI Juggler's
+  data folder, and macOS lists it under "Allow in the background", not as
+  a login item).
+- Consequences: off by default; Settings › Sessions and the welcome's Make
+  it smoother card offer it; the system keeps the choice (AI Juggler
+  reads it back). Registering works only in the installed, signed app; a
+  development build reads "unavailable", so the live check is an installed
+  build's.
+
+### D-27 The compressor's pages — a third audited unsafe shim — SETTLED (2026-10-23)
+
+- Decision: juggler-vm-stats: one `host_statistics64(HOST_VM_INFO64)`
+  read, approved by the maintainer 2026-10-23 ("Approved: D-27, an
+  audited one-call crate for host_statistics64 so This Mac counts
+  compressor pages like vm_stat"). This Mac's memory used is app memory +
+  wired + compressed, as Activity Monitor and `vm_stat` count it; the
+  compressed part is the pages the compressor occupies
+  (`vm_statistics64.compressor_page_count`), which no sysctl gives. As
+  with D-17 and D-26, the carve-out is a NEW, isolated crate
+  (`crates/juggler-vm-stats`) that does NOT inherit the workspace lint
+  baseline; `unsafe_code = "forbid"` stays absolute for every other
+  crate. It holds exactly three `unsafe` blocks (the host port, asked
+  for once and kept; zeroing the statistics struct; the call), each with
+  a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`, behind one
+  safe function (`compressor_pages`). Off macOS it is a safe stub that
+  reads nothing. Its test holds it to `vm_stat`'s "Pages occupied by
+  compressor".
+- Rejected: `vm.compressor_bytes_used` (the compressed data inside those
+  pages: memory used read about 3 % of physical memory low on the
+  maintainer's Mac, the 0.1 real-data pass 3.4); spawning `/usr/bin/vm_stat`
+  on every reading (a process every few seconds for as long as the app
+  runs).
+- Consequences: This Mac's memory used now matches `vm_stat` and
+  Activity Monitor. If the kernel refuses the read, there is no memory
+  reading at all (never a sum with another measure under the same name).
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18 and D-20..D-25 on 2026-10-19; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22 and D-27 on 2026-10-23; all follow the same law.

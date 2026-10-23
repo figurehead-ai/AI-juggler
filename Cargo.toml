@@ -8,15 +8,18 @@ members = [
     "crates/juggler-core",
     "crates/juggler-handover",
     "crates/juggler-link",
-    # D-17 carve-out: the ONLY crate not inheriting the workspace lint
-    # baseline (one audited unsafe call — see its Cargo.toml/lib.rs).
+    # D-17, D-26 and D-27 carve-outs: the ONLY crates not inheriting the
+    # workspace lint baseline (audited unsafe calls — see each one's
+    # Cargo.toml/lib.rs).
     "crates/juggler-scap-init",
+    "crates/juggler-login-item",
+    "crates/juggler-vm-stats",
     "crates/juggler-stats",
     "crates/juggler-supervisor",
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"

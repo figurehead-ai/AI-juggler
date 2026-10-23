@@ -170,6 +170,33 @@ fn scan_bearer(text: &str, out: &mut Vec<Detection>) {
     }
 }
 
+/// Whether an assignment's NAME is credential-like: one of its `_`
+/// words is KEY, TOKEN, SECRET, PASSWORD, API, AUTH, CREDENTIAL… (the
+/// `.env` rule; the crash and diagnostics scrub use it within a line).
+#[must_use]
+pub fn credential_name(name: &str) -> bool {
+    name.split('_').filter(|word| !word.is_empty()).any(|word| {
+        matches!(
+            word.to_ascii_uppercase().as_str(),
+            "KEY"
+                | "KEYS"
+                | "TOKEN"
+                | "TOKENS"
+                | "SECRET"
+                | "SECRETS"
+                | "PASSWORD"
+                | "PASSWD"
+                | "PASS"
+                | "APIKEY"
+                | "API"
+                | "AUTH"
+                | "CREDENTIAL"
+                | "CREDENTIALS"
+                | "PRIVATE"
+        )
+    })
+}
+
 /// `.env`-style assignments: `NAME=value` — the NAME must look
 /// credential-like, the value ≥ 8 chars.
 fn scan_env_value(text: &str, out: &mut Vec<Detection>) {
@@ -191,29 +218,7 @@ fn scan_env_value(text: &str, out: &mut Vec<Detection>) {
         {
             continue;
         }
-        let credential_word = trimmed
-            .split('_')
-            .filter(|word| !word.is_empty())
-            .any(|word| {
-                matches!(
-                    word.to_ascii_uppercase().as_str(),
-                    "KEY"
-                        | "KEYS"
-                        | "TOKEN"
-                        | "TOKENS"
-                        | "SECRET"
-                        | "SECRETS"
-                        | "PASSWORD"
-                        | "PASSWD"
-                        | "PASS"
-                        | "APIKEY"
-                        | "API"
-                        | "AUTH"
-                        | "CREDENTIAL"
-                        | "CREDENTIALS"
-                        | "PRIVATE"
-                )
-            });
+        let credential_word = credential_name(trimmed);
         if !credential_word {
             continue;
         }

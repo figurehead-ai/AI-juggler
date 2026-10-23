@@ -16,7 +16,7 @@ import { errorText } from "../lib/bridge";
 const CLASS_LABELS: Record<string, string> = {
   "managed-orphan": "Managed orphan",
   "managed-running": "Managed running",
-  "re-adopted": "Re-adopted",
+  "re-adopted": "Picked up after restart",
   "not-managed": "Not managed by Juggler",
 };
 

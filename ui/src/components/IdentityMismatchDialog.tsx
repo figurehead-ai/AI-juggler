@@ -14,6 +14,7 @@ import {
   type IdentityDecision,
   type IdentityMismatchRequest,
 } from "../lib/bridge";
+import { launchSettingsName } from "../lib/account-words";
 
 export function IdentityMismatchDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IdentityMismatchRequest | null>(null);
@@ -101,7 +102,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-left text-xs text-accent-hi"
               data-testid="identity-switch"
             >
-              Use «{alternative.account_label}» ({alternative.recipe_name}) — it is signed in as{" "}
+              Use «{alternative.account_label}» ({launchSettingsName(alternative.recipe_name)}) — it is signed in as{" "}
               {check.detected}
             </button>
           ))}

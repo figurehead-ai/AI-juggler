@@ -1,7 +1,7 @@
 /**
  * AJ-E706 — paired machines as switch destinations, in the same handover
  * section as local Accounts. Every row names its machine, carries its
- * fidelity badge in words ("F3 · Unvalidated" — D-04: no machine pair is
+ * fidelity badge in words ("Same conversation, new account · Not proven yet" — D-04: no machine pair is
  * validated until a live two-machine dogfood passes) and its readiness
  * in words (T2 ready / needs a project mapping / T2 blocked — T3 offered /
  * T3 only / unavailable with the reason). Listing these moved nothing:
@@ -9,6 +9,7 @@
  */
 import type { JSX } from "react";
 import type { RemoteSwitchTargetInfo } from "../lib/bridge";
+import { launchSettingsName } from "../lib/account-words";
 
 /** Readiness in plain words (the row's second line). */
 export function readinessText(target: RemoteSwitchTargetInfo): string {
@@ -68,7 +69,7 @@ export function RemoteSwitchTargets({
                           {" "}<span className="sr-only">on {label}</span>
                         </span>
                         <span className="text-muted">{target.provider}</span>
-                        <span className="text-muted">· {target.recipe_name}</span>
+                        <span className="text-muted">· {launchSettingsName(target.recipe_name)}</span>
                         <span className="flex-1" />
                         <span
                           className="rounded border border-warning/60 px-1.5 py-px text-[10px] text-warning"

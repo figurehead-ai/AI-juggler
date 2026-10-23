@@ -1,10 +1,29 @@
+import { AccountAvatar } from "./Avatar";
+import { ProjectMark } from "./ProjectMark";
+import { ToolMark } from "./ToolMark";
+import { markOf, swatchColor } from "../lib/palette";
 import { identityWords } from "../lib/identity";
+import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { ReactNode, useCallback, useContext, useEffect, useId, useRef, useState, type JSX } from "react";
+import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
 import { IconProjects, IconTerminal } from "./icons";
+import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
+import { RailCalm } from "./RailCalm";
+import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
+import { RowPlaceholders } from "./Placeholder";
+import { showToast } from "./Toast";
+import { sessionLabel } from "../lib/stop";
+
+/** "15 min", "1 h", "2 h 30 min" (AJ-E1503's snooze toast). */
+function durationWords(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  if (hours === 0) return `${minutes} min`;
+  return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+}
 import type { AccountInfo, InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
-import { ThisMacContext, machineStatus, shortHeavy, useHeavyNote } from "../lib/machine";
+import { shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
@@ -13,7 +32,6 @@ import {
   SORT_LABELS,
   isSnoozed,
   readSnooze,
-  unsnoozedNeedsCount,
   snoozeCaption,
   sortSessions,
   storeSnooze,
@@ -28,23 +46,25 @@ import {
   type SortMode,
 } from "../lib/railview";
 import { Button } from "./primitives";
-import { MenuItem, RowMenu, menuPoint } from "./RowMenu";
+import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
+import { ActionHostProvider, useItemMenu } from "./ItemMenu";
+import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
+import { FilterChip, Select } from "./RailControls";
+import { liveOutside, useConversations } from "../lib/conversations";
+import { sessionWhen } from "../lib/time-words";
+import type { ActionHost } from "../lib/actions";
 import {
-  AccountDisc,
   ChildBadges,
   GitBadge,
   StaleChip,
-  gitWords,
   STATE_WORDS,
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
-  ariaSummary,
-  RowDetails,
   isActiveStatus,
+  lowLeftWords,
   providerMark,
   rememberResourceSample,
-  hueOf,
   stateChip,
   tokenSummary,
   ageSummary,
@@ -52,9 +72,11 @@ import {
   type StateChipTone,
 } from "./indicator";
 import { QuotaBar, Sparkline } from "./primitives";
+import { ariaSummary, RowDetails } from "./row-details";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
-export type Freshness = Record<string, { resources: number; quota: number }>;
+export type { Freshness } from "../lib/live-deltas";
+import type { Freshness } from "../lib/live-deltas";
 
 
 const WIDTH_MIN = 208;
@@ -97,7 +119,14 @@ export function WorkflowRail({
   remoteMachines = [],
   selectedRemote = null,
   onSelectRemote,
+  loading = false,
+  onChanged,
 }: {
+  /** AJ-E1503: the first load hasn't answered yet (placeholders). */
+  loading?: boolean;
+  /** AJ-E1502: a rename, pin or forget from a row's menu — the app reads
+   * its lists again. */
+  onChanged?: () => void;
   density: Density;
   onCycleDensity: () => void;
   projects: ProjectInfo[];
@@ -124,9 +153,14 @@ export function WorkflowRail({
   // Snooze/mute state (AJ-E404 Req.6): rail-owned, persisted; the tab
   // badge counts UNSNOOZED attention only.
   const [snooze, setSnooze] = useState<SnoozeState>(() => readSnooze());
-  const updateSnooze = useCallback((next: SnoozeState) => {
-    setSnooze(next);
-    storeSnooze(next);
+  // AJ-E1503: an updater form too, so Undo applies to the state as it
+  // is then, not as it was when the toast opened.
+  const updateSnooze = useCallback((next: SnoozeState | ((current: SnoozeState) => SnoozeState)) => {
+    setSnooze((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      storeSnooze(value);
+      return value;
+    });
   }, []);
   const [width, setWidth] = useState<number>(readWidth);
   const [dragging, setDragging] = useState(false);
@@ -207,6 +241,8 @@ export function WorkflowRail({
             remoteMachines={remoteMachines}
             selectedRemote={selectedRemote}
             onSelectRemote={onSelectRemote}
+            loading={loading}
+            onChanged={onChanged}
           />
         )}
       </div>
@@ -288,7 +324,13 @@ export function InstanceBoard({
   selectedRemote = null,
   onSelectRemote,
   onSelectProject,
+  loading = false,
+  onChanged = () => {},
 }: {
+  /** AJ-E1503: placeholders until the first load answers. */
+  loading?: boolean;
+  /** AJ-E1502: something was renamed, pinned or forgotten. */
+  onChanged?: () => void;
   /** AJ-E411 Req.5: account expiry feeds the Needs-me tie-break. */
   accounts?: AccountInfo[];
   /** D-25: a project group's header opens the project. */
@@ -305,7 +347,7 @@ export function InstanceBoard({
   now: number;
   projects: ProjectInfo[];
   snooze: SnoozeState;
-  onSnooze: (next: SnoozeState) => void;
+  onSnooze: (next: SnoozeState | ((current: SnoozeState) => SnoozeState)) => void;
 }) {
   const [sort, setSort] = useState<SortMode>("needs");
   // D-25: one rail — sessions grouped under their project by default.
@@ -326,6 +368,10 @@ export function InstanceBoard({
     });
   }, []);
   const [allProjects, setAllProjects] = useState(false);
+  // AJ-E1534: the open page's row is in view (its selection, whatever its type).
+  useEffect(() => {
+    document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-selected='true']")?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedId]);
   // AJ-E709 Req.2: machines filter the board; "All machines" is the
   // default and the choice persists across restarts.
   const [machineFilter, setMachineFilter] = useState<string>(() => {
@@ -354,7 +400,10 @@ export function InstanceBoard({
   const remoteShown = hasRemote
     ? remoteMachines.filter((machine) => machineChoice === "all" || machineChoice === machine.machine_id)
     : [];
-  const [menu, setMenu] = useState<{ row: InstanceInfo; x: number; y: number } | null>(null);
+  const { all: conversations } = useConversations();
+  // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
+  const sessionManage = useSessionManage(onChanged);
+  const projectManage = useProjectManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -386,11 +435,15 @@ export function InstanceBoard({
   // group only when the user picked a Group-by.
   const effectiveGroup: GroupBy | "quota-data" =
     sort === "quota" && group === "none" ? "quota-data" : group;
-  const groups =
+  const sessionGroups =
     effectiveGroup === "quota-data"
       ? quotaDataGroups(sorted)
       : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
-  const counts = chipCounts(sessions);
+  // AJ-E1529: sessions started outside AI Juggler show under their project.
+  const scope = effectiveGroup === "project" ? outsideScope(filters, query) : "none";
+  const groups = withOutsideGroups(sessionGroups, conversations, projects, scope);
+  // AJ-E1529: the Running chip counts sessions started outside AI Juggler.
+  const counts = { ...chipCounts(sessions), running: chipCounts(sessions).running + liveOutside(conversations).length };
   // D-25: a project with no sessions still has a place in the rail (one
   // click opens it) — in the plain project view, not while filtering.
   const quiet =
@@ -400,7 +453,7 @@ export function InstanceBoard({
     filters.account === null &&
     filters.project === null &&
     query.trim() === "";
-  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !sessions.some((row) => row.project_id === p.id)) : [];
+  const idleProjects = quiet && onSelectProject ? projects.filter((p) => !groups.some((group) => group.id === p.id)) : [];
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
@@ -414,22 +467,59 @@ export function InstanceBoard({
     windowed = { start, end };
   }
 
-  const openMenu = (row: InstanceInfo, x: number, y: number) => setMenu({ row, x, y });
+  // AJ-E1503: every snooze, mute and unsnooze says so, with Undo (the
+  // row's earlier state comes back).
+  const withUndo = (row: InstanceInfo, message: string) => {
+    const before = snooze[row.id];
+    showToast({
+      id: `snooze:${row.id}`,
+      message,
+      undo: {
+        onUndo: () =>
+          onSnooze((current) => {
+            const restored = { ...current };
+            if (before) restored[row.id] = before;
+            else delete restored[row.id];
+            return restored;
+          }),
+        done: "Undone.",
+      },
+    });
+  };
   const snoozeFor = (row: InstanceInfo, ms: number | null, muted = false) => {
-    const next = { ...snooze };
-    if (muted) next[row.id] = { until: null, muted: true };
-    else next[row.id] = { until: ms === null ? null : Date.now() + ms, muted: false };
-    onSnooze(next);
-    setMenu(null);
+    const label = sessionLabel(row, projects);
+    withUndo(row, muted ? `Muted ${label}.` : `Snoozed ${label} for ${durationWords(ms ?? 0)}.`);
+    onSnooze((current) => ({
+      ...current,
+      [row.id]: muted ? { until: null, muted: true } : { until: ms === null ? null : Date.now() + ms, muted: false },
+    }));
   };
   const clearSnooze = (row: InstanceInfo) => {
-    const next = { ...snooze };
-    delete next[row.id];
-    onSnooze(next);
-    setMenu(null);
+    withUndo(row, `${sessionLabel(row, projects)} is back on the list.`);
+    onSnooze((current) => {
+      const next = { ...current };
+      delete next[row.id];
+      return next;
+    });
+  };
+  // AJ-E1537: what the rail gives every session and project menu.
+  const host: ActionHost = {
+    ...sessionManage.host,
+    ...projectManage.host,
+    openSession: (row) => onSelect(row.id),
+    openProject: onSelectProject ? (project) => onSelectProject(project.id) : undefined,
+    isSnoozed: (row) => isSnoozed(row, snooze, now),
+    // "Until reset" is null: the window's reset when known, else a day.
+    snoozeSession: (row, ms) => {
+      const resetAt = row.quota?.resets_at_ms ?? null;
+      snoozeFor(row, ms ?? (resetAt !== null ? Math.max(0, resetAt - now) : 24 * 60 * 60_000));
+    },
+    muteSession: (row) => snoozeFor(row, null, true),
+    unsnoozeSession: clearSnooze,
   };
 
   return (
+    <ActionHostProvider host={host}>
     <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="instance-board">
       {/* Toolbar: search ⌘K, filter chips with counts, Sort/Group + key
           dropdowns (native selects: accessible + keyboard in a narrow rail). */}
@@ -583,7 +673,9 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
-        {!showLocal ? null : sorted.length === 0 ? (
+        {!showLocal ? null : loading && sessions.length === 0 ? (
+          <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
+        ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
             /* D-25: empty means "start here" — the legend lives behind
                the footer's "?". */
@@ -614,13 +706,13 @@ export function InstanceBoard({
               <BoardRow
                 key={row.id}
                 row={row}
+                showProject
                 selected={row.id === selectedId}
                 onSelect={onSelect}
                 density={effectiveDensity}
                 freshness={freshness}
                 now={now}
                 snooze={snooze}
-                onContextMenu={openMenu}
               />
             ))}
             <div style={{ height: (flatRows.length - windowed.end) * ROW_HEIGHT[effectiveDensity] }} />
@@ -640,19 +732,17 @@ export function InstanceBoard({
                     onToggle={() => toggleFold(entry.id)}
                   />
                   {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectProject(entry.id)}
-                      title={entry.rollup || undefined}
-                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-                      data-testid="rail-project"
+                    <RailProjectHeader
+                      project={projects.find((p) => p.id === entry.id)!}
+                      rows={entry.rows}
+                      label={entry.label}
+                      rollup={entry.rollup}
+                      count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
+                      selected={entry.id === selectedId}
+                      onSelect={() => onSelectProject(entry.id)}
                     >
-                      <span className="min-w-0 truncate">{entry.label}</span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
-                        <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
-                      </span>
-                    </button>
+                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                    </RailProjectHeader>
                   ) : (
                     <p
                       className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted"
@@ -668,20 +758,25 @@ export function InstanceBoard({
                   )}
                 </div>
               )}
+              {/* AJ-E1532: a folded project's rows, as a stripe in its colour. */}
+              {folded.has(entry.id) && markOf(entry.id) && (
+                <span aria-hidden="true" data-testid="rail-folded-stripe" className="ml-7 mr-2.5 h-[3px] rounded-full opacity-70" style={{ background: swatchColor(markOf(entry.id)!.swatch) }} />
+              )}
               <div id={safeId("rail-group", entry.id)} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
               {entry.rows.map((row) => (
                 <BoardRow
                   key={row.id}
                   row={row}
+                  showProject={effectiveGroup !== "project"}
                   selected={row.id === selectedId}
                   onSelect={onSelect}
                   density={effectiveDensity}
                   freshness={freshness}
                   now={now}
                   snooze={snooze}
-                  onContextMenu={openMenu}
-                />
+                  />
               ))}
+              <OutsideRows projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
               </div>
             </div>
           ))
@@ -714,6 +809,7 @@ export function InstanceBoard({
                       project={group.projects[0]!}
                       density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                       now={now}
+                      selected={group.projects[0]!.id === selectedId}
                       onSelect={(id) => onSelectProject?.(id)}
                     />
                   ) : (
@@ -725,8 +821,11 @@ export function InstanceBoard({
                           controls={safeId("rail-repo", group.key)}
                           onToggle={() => toggleFold(group.key)}
                         />
-                        <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
-                          <span className="min-w-0 truncate">{group.name}</span>
+                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <ProjectMark projectId={group.projects[0]!.id} size={14} />
+                            <span className="min-w-0 truncate">{group.name}</span>
+                          </span>
                           <span className="shrink-0 text-[10px] font-normal text-faint">{group.projects.length}</span>
                         </p>
                       </div>
@@ -737,8 +836,9 @@ export function InstanceBoard({
                             project={project}
                             density={effectiveDensity === "compact" ? "compact" : "comfortable"}
                             now={now}
+                            selected={project.id === selectedId}
                             onSelect={(id) => onSelectProject?.(id)}
-                          />
+                                />
                         ))}
                       </div>
                     </div>
@@ -769,85 +869,63 @@ export function InstanceBoard({
         ))}
       </div>
 
-      {menu && (
-        <RowContextMenu
-          row={menu.row}
-          snooze={snooze}
-          now={now}
-          x={menu.x}
-          y={menu.y}
-          onSnoozeFor={(ms) => snoozeFor(menu.row, ms)}
-          onMute={() => snoozeFor(menu.row, null, true)}
-          onClear={() => clearSnooze(menu.row)}
-          onClose={() => setMenu(null)}
-        />
-      )}
+      {sessionManage.element}
+      {projectManage.element}
     </div>
+    </ActionHostProvider>
   );
 }
 
 function BoardRow({
   row,
+  showProject = false,
   selected,
   onSelect,
   density,
   freshness,
   now,
   snooze,
-  onContextMenu,
 }: {
   row: InstanceInfo;
+  /** Not grouped by project: the row shows its project's mark. */
+  showProject?: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
   density: "comfortable" | "compact";
   freshness: Freshness;
   now: number;
   snooze: SnoozeState;
-  onContextMenu: (row: InstanceInfo, x: number, y: number) => void;
 }) {
   const caption = snoozeCaption(row, snooze, now);
+  // AJ-E1537: right-click, ⋯ or Shift+F10 — the session's one menu.
+  const menu = useItemMenu("session", row, sessionTitle(row));
   return (
-    <div className="group relative">
+    <div className="group relative" {...menu.triggerProps}>
       {caption && (
         <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-[8.5px] font-medium text-muted" title={caption}>
           {caption}
         </span>
       )}
-      <RailRow session={row} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
+      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
       {/* I-03: a model that drifted from its launch settings is worth a
-          glance (cost and behaviour differ) — beside the row, focusable.
-          Compact rows have no room beside the time; the session view
-          says it there. */}
+          glance (cost and behaviour differ) — beside the row, focusable,
+          clear of the tool's mark and the avatar. Compact rows
+          have no room beside the time; the session view says it there. */}
       {density === "comfortable" && modelDrift(row) && (
         <span
           title={modelDrift(row)!}
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-6 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>
       )}
-      {/* The I-10 context menu trigger (Req.6): right-click the row, or
-          this ⋯ button for pointer-free access. 24 px square: the
-          WCAG 2.2 minimum target (AJ-E804). */}
-      <button
-        type="button"
-        aria-label={`Row actions for ${row.account_label}`}
-        aria-haspopup="menu"
-        onClick={(event) => {
-          const at = menuPoint(event);
-          onContextMenu(row, at.x, at.y);
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          onContextMenu(row, event.clientX, event.clientY);
-        }}
-        className="absolute bottom-0 left-0 z-10 flex size-6 items-center justify-center rounded text-[10px] text-faint opacity-0 transition-opacity outline-none hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover:opacity-100"
-      >
-        ⋯
-      </button>
+      {/* The ⋯ button for pointer-free access: 24 px square, the WCAG
+          2.2 minimum target (AJ-E804). */}
+      {menu.button({ label: `Session actions for ${sessionTitle(row)}`, className: "absolute bottom-0 left-0" })}
+      {menu.element}
     </div>
   );
 }
@@ -856,13 +934,6 @@ function BoardRow({
 // D-25: the state words live in indicator.tsx (shared with the legend).
 const RAIL_STATE = STATE_WORDS;
 
-function ago(ms: number, now: number): string {
-  const m = Math.max(0, Math.round((now - ms) / 60_000));
-  if (m < 1) return "now";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
-}
 
 /**
  * D-25 — the rail row: a state shape, what it is (the branch, else the
@@ -873,6 +944,7 @@ function ago(ms: number, now: number): string {
  */
 export function RailRow({
   session,
+  showProject = false,
   selected,
   onSelect,
   density,
@@ -880,6 +952,7 @@ export function RailRow({
   freshness = {},
 }: {
   session: InstanceInfo;
+  showProject?: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
   density: "comfortable" | "compact";
@@ -890,20 +963,16 @@ export function RailRow({
   // Never crash on a missing folder (it names the row only as a fallback).
   const cwd = session.cwd ?? "";
   const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  const title = session.git_branch ?? folder;
+  // AJ-E1502: the user's name for it shows over its own title.
+  const title = session.label ?? session.git_branch ?? folder;
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
-  const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
   const parked = parkedWords(session, now);
   const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
-  const left = session.quota ? Math.round(100 - session.quota.used_percentage) : null;
-  const low = left !== null && left <= 25 ? `${Math.max(0, left)}% left` : null;
-  const when = ended ? `${ago(since, now)} ago` : ago(since, now);
+  const low = lowLeftWords(session);
+  const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,
   // a value that stopped updating); the session view has the rest.
-  const identity = identityWords(session);
-  const identityMark = identity && identity.state !== "verified" ? identity : null;
-  const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
   // E14 (AJ-E1405): resources show only when the session is heavy.
   const heavyNote = useHeavyNote(session.id);
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
@@ -918,6 +987,7 @@ export function RailRow({
       type="button"
       data-instance-id={session.id}
       aria-current={selected ? "true" : undefined}
+      data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
         "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
@@ -934,7 +1004,9 @@ export function RailRow({
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
+          {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
           <span className={"min-w-0 truncate text-[12.5px] font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
+          {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
             <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">
               app
@@ -957,23 +1029,14 @@ export function RailRow({
                 · {heavy}
               </span>
             )}
-            {dirty && (
-              <span title={gitWords(session)} data-testid="git-badge" className="shrink-0 whitespace-nowrap">
-                · {dirty}
-              </span>
-            )}
-            {identityMark && (
-              <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
-                · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
-              </span>
-            )}
+            <RailQuietNotes session={session} />
             <StaleChip caption={stale} />
             {/* The time yields first: the notes above matter more. */}
             <span className="min-w-0 truncate">· {when}</span>
           </span>
         )}
         <span className="sr-only">
-          , {state}, {session.account_label}
+          {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
@@ -984,105 +1047,14 @@ export function RailRow({
           {heavy}
         </span>
       )}
-      <span
-        aria-hidden="true"
-        title={session.account_label}
-        className="size-2 shrink-0 rounded-full"
-        style={{ background: `hsl(${hueOf(session.account_id)} 70% 66%)` }}
-      />
+      {/* AJ-E1532: the tool, and the account serving it now (its avatar
+          follows the session when it switches accounts). */}
+      <ToolMark tool={session.provider} size={12} className="shrink-0 text-muted" />
+      <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
     </button>
   );
 }
 
-/** The I-10 context menu: snooze durations + mute (Req.6). */
-function RowContextMenu({
-  row,
-  snooze,
-  now,
-  x,
-  y,
-  onSnoozeFor,
-  onMute,
-  onClear,
-  onClose,
-}: {
-  row: InstanceInfo;
-  snooze: SnoozeState;
-  now: number;
-  x: number;
-  y: number;
-  onSnoozeFor: (ms: number | null) => void;
-  onMute: () => void;
-  onClear: () => void;
-  onClose: () => void;
-}) {
-  const snoozed = isSnoozed(row, snooze, now);
-  const resetAt = row.quota?.resets_at_ms ?? null;
-  return (
-    <RowMenu heading={row.account_label} ariaLabel={`Attention options for ${row.account_label}`} at={{ x, y }} onClose={onClose}>
-      {snoozed ? (
-        <MenuItem onClick={onClear}>Unsnooze / unmute</MenuItem>
-      ) : (
-        <>
-          <MenuItem onClick={() => onSnoozeFor(15 * 60_000)}>Snooze 15m</MenuItem>
-          <MenuItem onClick={() => onSnoozeFor(60 * 60_000)}>Snooze 1h</MenuItem>
-          <MenuItem
-            onClick={() => onSnoozeFor(resetAt !== null ? Math.max(0, resetAt - now) : 24 * 60 * 60_000)}
-            disabled={resetAt === null}
-            title={resetAt === null ? "No known reset time for this quota window" : undefined}
-          >
-            Until reset
-          </MenuItem>
-          <MenuItem onClick={onMute}>Mute this session</MenuItem>
-        </>
-      )}
-    </RowMenu>
-  );
-}
-
-function FilterChip({ active, onClick, count, children }: { active: boolean; onClick: () => void; count?: number; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={
-        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (active
-          ? "border-accent/40 bg-accent-soft text-accent-hi"
-          : "border-hairline text-muted hover:bg-surface hover:text-ink")
-      }
-    >
-      {children}
-      {/* The name is what's shown (WCAG 2.5.3): "Needs me 5 items". */}
-      {/* D-25: a zero count says nothing — only real counts show. */}
-      {count !== undefined && count > 0 && (
-        <>
-          {" "}
-          <span className="tabular-nums opacity-80">{count}</span>
-          {" "}<span className="sr-only">items</span>
-        </>
-      )}
-    </button>
-  );
-}
-
-function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 /** Whether anything behind Filters narrows or reorders the list. */
 function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy, machine: string): boolean {
@@ -1255,7 +1227,7 @@ export function SessionRow({
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
             <span className="truncate">{mark.abbrev}</span>
           </span>
-          <AccountDisc accountId={session.account_id} label={session.account_label} />
+          <AccountAvatar accountId={session.account_id} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             {badge ? (
@@ -1350,7 +1322,7 @@ export function SessionRow({
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
           <span className="truncate">{mark.abbrev}</span>
         </span>
-        <AccountDisc accountId={session.account_id} label={session.account_label} />
+        <AccountAvatar accountId={session.account_id} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
         {identityWords(session) && (
           <span
@@ -1475,19 +1447,6 @@ export function SessionRow({
  * state glyph + `!` badge per Instance. The full I-01..I-11 text rides
  * in the tooltip (CSS hover panel) and the `aria-label` (Req.3).
  */
-/** The collapsed rail's "All clear": nothing running, and only while the
- * Mac itself is calm — the same state This Mac and the footer read
- * (QA, P19: it said "All clear" under memory pressure). */
-export function RailCalm(): JSX.Element | null {
-  const status = machineStatus(useContext(ThisMacContext));
-  if (status && !status.calm) return null;
-  return (
-    <span className="px-1 py-2 text-center text-[9px] leading-relaxed text-faint" data-testid="rail-all-clear">
-      All clear
-    </span>
-  );
-}
-
 export function MinimalInstanceColumn({
   sessions,
   selectedId,
@@ -1527,7 +1486,7 @@ export function MinimalInstanceColumn({
             <span className="sr-only">
               {s.account_label}, {badge ? badge.text : chip.label}
             </span>
-            <AccountDisc accountId={s.account_id} label={s.account_label} size={22} />
+            <AccountAvatar accountId={s.account_id} label={s.account_label} size={22} />
             <chip.Icon
               width={10}
               height={10}
@@ -1553,7 +1512,7 @@ export function MinimalInstanceColumn({
                 <span className="truncate text-[11.5px] font-medium text-ink">
                   {s.account_label}
                 </span>
-                <AccountDisc accountId={s.account_id} label={s.account_label} size={16} />
+                <AccountAvatar accountId={s.account_id} label={s.account_label} size={16} />
               </span>
               <span className="mt-1 block text-[10px] leading-relaxed text-muted">
                 {ariaSummary(s)}
@@ -1617,7 +1576,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           <mark.Icon width={12} height={12} className="text-accent-hi" />
           {mark.abbrev}
         </span>
-        <AccountDisc accountId={session.account_id} label={session.account_label} size={20} />
+        <AccountAvatar accountId={session.account_id} label={session.account_label} size={20} />
         <span className="min-w-0 truncate text-[12px] text-ink">{session.account_label}</span>
         <span className="min-w-0 shrink-0 truncate text-[11px] text-muted">
           {session.model ?? <span className="text-faint">default model</span>}
@@ -1779,183 +1738,3 @@ function RemoteBoardSection({
     </div>
   );
 }
-
-const FOLDED_KEY = "aij.rail.folded";
-
-/** An element id from any key (an account label with spaces, a remote
- * path): only safe characters, plus a short hash so two keys can't meet. */
-export function safeId(prefix: string, key: string): string {
-  let hash = 0;
-  for (const char of key) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return `${prefix}-${key.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 40)}-${(hash >>> 0).toString(36)}`;
-}
-const HISTORY_GROUP = "history-projects";
-/** How many history projects show before "Show all". */
-const HISTORY_SHOWN = 5;
-
-function readFolded(): Set<string> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(FOLDED_KEY) ?? "[]") as unknown;
-    return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeFolded(folded: Set<string>): void {
-  try {
-    localStorage.setItem(FOLDED_KEY, JSON.stringify([...folded]));
-  } catch {
-    /* a private window: folding still works for this visit */
-  }
-}
-
-/** When a project was last worked in: here or, before that, elsewhere. */
-function lastWorked(project: ProjectInfo): number {
-  return project.history_last_used_ms ?? project.last_activity_ms ?? 0;
-}
-
-/** Projects grouped by repository (clones and checkouts of one remote
- * together), the most recently worked-in group first. */
-export function repoGroups(projects: ProjectInfo[]): { key: string; name: string; projects: ProjectInfo[] }[] {
-  const groups = new Map<string, ProjectInfo[]>();
-  for (const project of projects) {
-    const key = project.repo ?? `folder:${project.id}`;
-    groups.set(key, [...(groups.get(key) ?? []), project]);
-  }
-  return [...groups.entries()]
-    .map(([key, members]) => {
-      const sorted = [...members].sort((a, b) => lastWorked(b) - lastWorked(a));
-      const name = members.length > 1 && key.includes("/") ? (key.split("/").pop() ?? sorted[0]!.name) : sorted[0]!.name;
-      return { key, name, projects: sorted };
-    })
-    .sort((a, b) => lastWorked(b.projects[0]!) - lastWorked(a.projects[0]!));
-}
-
-/** The second line of a project row: what was done there, in a few words. */
-export function projectStats(project: ProjectInfo, now: number): string[] {
-  // When first (a narrow rail cuts from the end), then how much, then who.
-  const parts: string[] = [];
-  const at = lastWorked(project);
-  if (at > 0) parts.push(ago(at, now) === "now" ? "just now" : `${ago(at, now)} ago`);
-  const conversations = project.history_sessions + project.instance_count;
-  if (conversations > 0) parts.push(conversations === 1 ? "1 conversation" : `${conversations} conversations`);
-  const accounts = project.accounts_used.length;
-  if (accounts > 1) parts.push(`${accounts} accounts`);
-  else if (accounts === 1) parts.push(project.accounts_used[0]!);
-  return parts;
-}
-
-/**
- * A project in the rail, built like a session row (RailRow): the same
- * size, spacing, hover and selection; a folder mark tinted for the
- * project where a session shows its state; what was done there where a
- * session shows its state line.
- */
-function ProjectRow({
-  project,
-  density,
-  now,
-  onSelect,
-}: {
-  project: ProjectInfo;
-  density: "comfortable" | "compact";
-  now: number;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const stats = projectStats(project, now);
-  const when = stats[0]?.endsWith("ago") || stats[0] === "just now" ? stats[0] : null;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(project.id)}
-      title={project.root}
-      className={
-        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (density === "compact" ? "py-1.5" : "py-2")
-      }
-      data-testid="rail-history-project"
-    >
-      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center" style={{ color: `hsl(${hueOf(project.id)} 60% 66%)` }}>
-        <IconProjects width={13} height={13} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
-          {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
-          {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
-        </span>
-        {density === "comfortable" && stats.length > 0 && (
-          <span className="min-w-0 truncate text-[11px] text-muted" data-testid="rail-project-stats">
-            {stats.join(" · ")}
-          </span>
-        )}
-      </span>
-    </button>
-  );
-}
-
-/**
- * A folded group still says what needs you inside it (0.0.11 walk, Q7):
- * the same "!" mark the session rows' icons carry, and how many. The fold
- * stays the user's choice — nothing unfolds by itself.
- */
-function FoldedNeeds({ rows, snooze, now }: { rows: InstanceInfo[]; snooze: SnoozeState; now: number }): JSX.Element | null {
-  const count = unsnoozedNeedsCount(rows, snooze, now);
-  if (count === 0) return null;
-  const danger = rows.some((row) => !isSnoozed(row, snooze, now) && attentionBadge(row)?.tone === "danger");
-  return (
-    <span
-      className={"flex items-center gap-1 text-[10px] font-semibold " + (danger ? "text-danger" : "text-warning")}
-      data-testid="rail-folded-needs"
-    >
-      <span
-        aria-hidden="true"
-        className={
-          "flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold " +
-          (danger ? "bg-danger text-white" : "bg-warning text-black")
-        }
-      >
-        !
-      </span>
-      <span className="tabular-nums">{count}</span>
-      <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
-    </span>
-  );
-}
-
-/** A group's fold toggle: a chevron, named for screen readers. */
-function FoldButton({
-  open,
-  label,
-  controls,
-  onToggle,
-}: {
-  open: boolean;
-  label: string;
-  controls: string;
-  onToggle: () => void;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      aria-controls={controls}
-      aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-      data-testid="rail-fold"
-    >
-      <svg
-        aria-hidden="true"
-        width="10"
-        height="10"
-        viewBox="0 0 10 10"
-        className={"transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}
-      >
-        <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </button>
-  );
-}
-

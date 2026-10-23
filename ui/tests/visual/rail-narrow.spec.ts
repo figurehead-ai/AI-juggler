@@ -6,7 +6,8 @@
  * Gallery 69-rail-narrow, each state scanned with axe (0 critical/serious).
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, atScale } from "./fixtures";
@@ -91,7 +92,7 @@ for (const theme of ["dark", "light"] as const) {
     { name: "390x844", width: 390, height: 844 },
     { name: "860x700", width: 860, height: 700 },
   ]) {
-    test(`gallery — folded rail — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`gallery — folded rail — ${vp.name} — ${theme}`, gate("69-rail-narrow"), async ({ page }) => {
       await seed(page, theme, vp.width, vp.height);
       await expect(rail(page)).toHaveAttribute("data-density", "minimal");
       await page.screenshot({ path: resolve(OUT, `folded-${vp.name}-${theme}.png`) });

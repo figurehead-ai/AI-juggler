@@ -14,7 +14,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MachineStatusLine } from "./components/MachineStatusLine";
-import { RailCalm } from "./components/WorkflowRail";
+import { RailCalm } from "./components/RailCalm";
 import { HomeScreen } from "./screens/Home";
 import { ThisMacContext, mockMachineHealth, mockThisMac, type OverloadAlertInfo, type ThisMacInfo, type ToolTreeInfo } from "./lib/machine";
 import type { AccountInfo } from "./lib/bridge";
@@ -28,6 +28,8 @@ const appWindow = (rss: number, pid: number): ToolTreeInfo => ({
   root_pid: pid,
   session_id: null,
   place: "desktop",
+  tool: "claude-code",
+  group: "desktop",
   account_label: "Personal",
   cpu_pct: 20,
   rss_bytes: rss,

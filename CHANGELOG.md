@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Switching to another tool (Claude Code ↔ Codex) hands over through a
+  file: AI Juggler writes the handover (the conversation, redacted; what
+  each tool call did; where the work stands) in its own folder, readable
+  by you only, and the new session starts by reading it. The conversation
+  no longer travels on the command line, so more of it fits (96 KB on
+  every system, up from 24 KB on Windows); older turns that still don't
+  fit are listed by what was asked in them, and the project's rules files
+  are named so the other tool follows them too.
 - Opening AI Juggler while it is already open brings the open one
   forward without touching its data first (it used to open the data,
   run its upgrades and recovery, and only then hand over).
@@ -40,6 +48,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accounts' quota. An account's history says how long ago each session
   started (it said "now ago"), in days once it's more than two. A quota
   with no reading says "Not measured yet" everywhere, as Accounts does.
+- Plain words everywhere: a quota reads "measured", "worked out" or
+  "estimate" (never "MEAS"/"COMP"/"EST"), token counts say "tokens", and
+  switching says what carries ("Full story, fresh start", "Same
+  conversation, new account", "Switched back") instead of "F1",
+  "transplant" or "switch-back ↺". A switch is "proven" or "not proven
+  yet", and Accounts › "Which switches between accounts are proven"
+  explains each one with "automatic tests" and "tried by hand". Sessions
+  still running after a restart are "picked up after restart" (not
+  "re-adopted"). The launch settings each account starts with are
+  "Default" everywhere, also in a project's actions and New session.
+  New session's footer speaks only when a folder is picked. A lint keeps
+  developer words off the screen.
+- Home and Accounts never recommend an account that's low for new work.
+  When only a low one is measured, they say AI Juggler can't tell which
+  account has room (Home used to say both "start new work on another
+  account" and "Best for new work" for the same account at 6% left).
+- On a large setup, sessions running outside AI Juggler show as running
+  within seconds of the first launch: the newest files are read first,
+  and what's live is worked out as the first pass goes, not only at its
+  end (it took minutes).
+- Opening AI Juggler right after it was force-quit (or crashed) starts
+  it, instead of saying another one "is already open and isn't
+  answering" when none was. When one really is open and stuck, the
+  message offers **Try again**, and **Quit** quits. On macOS the message
+  is AI Juggler's own window, so it never stays on screen after AI
+  Juggler is gone.
+- At a start, the conversation list and the projects no longer wait on
+  the usage history being written: it's written in small steps, and the
+  first read of your conversations runs once, not three times at once.
+  Large conversation files are listed from their start and end first,
+  so your conversations and running sessions show within seconds even
+  with gigabytes of history; their token counts follow.
+- Home never says "All clear" while an account has run out; it says so.
+- History lists every session that has ended, including the ones you
+  ran outside AI Juggler, each by what it was about (its title or first
+  question), with its tool, project and account, and opens its page.
+  Replay, Archive and Delete are in the row's ⋯ menu (and on
+  right-click). Sessions everywhere are named by what they were about
+  when you haven't named them.
+- **Claude: measure limits for sessions started elsewhere (opt-in).** On
+  an account used where it is, AI Juggler can add its capture to the
+  account's status line, so sessions you start in the Claude app or a
+  terminal report their limits too. It's off until you turn it on, after
+  you see the exact one-line change. Your own status line keeps showing,
+  nothing else in the file changes, and turning it off puts the file
+  back as it was.
+- A finished session's row no longer shows its account's "% left";
+  only a running one does, once the account runs low.
+- This Mac no longer lists a session as "under 1 MB": that was a session
+  whose process had already exited, so nothing was measured. Such a
+  session isn't listed, and its view shows its memory as unknown.
+- New session opens without waiting: its launch settings and ranking
+  load off the app's main thread, and it reuses the sessions the app
+  already has. Its account lines say what Home says (an account with no
+  reading of its own shows its latest session's), and Customise keeps
+  keyboard focus, so Esc still closes it.
 - On Home, J/K keep working after you mark a session reviewed or resume
   it, and A works from a row's own Mark reviewed button. Handed-over
   sessions no longer show under "Pick up where you left off". Home's
@@ -138,6 +202,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quota warnings come back in the next window: after an account's first
+  warning, later windows never warned again. A window with no known reset
+  time still warns once.
+- A switch to another account of the same tool says the same thing in the
+  list and on the switch screen: "Same conversation, new account" (the
+  list said "Full story, fresh start", though the switch resumes the same
+  conversation).
+- The whole window no longer slides up when a button low on Home takes
+  focus: screen-reader words hung below the window, so the app itself
+  could scroll.
+- On Windows and Linux, Ctrl+Shift shortcuts (Ctrl+Shift+H, the switch
+  and the others) work while you type in a session's terminal, as ⌘⇧ ones
+  do on a Mac. Ctrl+Shift+C and Ctrl+Shift+V stay the terminal's copy and
+  paste.
 - Turning Fleet Link off stops this Mac hearing from your other machines
   at once, and ends a pairing still in progress. Before, a connection that
   was open when you turned it off kept receiving their sessions and saving
@@ -352,6 +430,240 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Search the words of every session** (AJ-E1538, opt-in). Settings ›
+  Privacy can let History find sessions started outside AI Juggler by
+  what was said in them, too. It says how much room the index will take
+  before you turn it on, builds it in the background from the tools' own
+  files (read only), and deletes it when you turn it off.
+- **The switch is ready before the limit** (AJ-E1513). Once an account
+  nears its limit (80 % of a window, or under 45 minutes left at the
+  current pace), AI Juggler prepares the switch for the session in the
+  background: it checks the switch to the account it would suggest and
+  keeps a redacted copy of the conversation in its own folder, readable by
+  you only. When the limit is hit, the dialog says "Ready to continue on
+  Work · prepared 4 min ago". Nothing switches by itself; the copy is
+  deleted when the session ends or the window resets.
+- **Monthly caps** (AJ-E1514). Set an amount a month for an account or a
+  group of projects (Usage › Set a monthly cap), and Needs you tells you at
+  80 % and 100 % of this month's estimated cost. Nothing is ever stopped.
+  The amounts are the same estimates as Usage, at published prices.
+- **The Privacy page says what a paired Mac sees**: which sessions run
+  where, with their project and account names, states and usage totals,
+  never your sign-ins, files or prompts.
+- **Start a session on another Mac** (AJ-E1515). With paired Macs, New
+  session asks where it runs: pick a paired Mac and choose from its own
+  projects and accounts; it starts there over the link (that Mac checks
+  everything, as for any remote action) and opens here. A Mac that can't
+  (not connected, view only) says why. Usage and Fleet show what each Mac
+  used in the last 24 hours.
+- **The number that says AI Juggler works** (AJ-E1523): a "juggling loop", a session that reached its usage limit with its work going on elsewhere, counted in the opt-in usage statistics and documented in `docs/usage-stats.md`. A switch away from a session at its limit now counts as the limit's, however the switch screen was opened.
+- **Coming from another tool** (AJ-E1519). A guide for Claude Squad,
+  Vibe Kanban, Crystal and cc-switch users says what comes across and what
+  to do about the rest. A worktree Claude Squad or Vibe Kanban removed now
+  stays with its repository's project instead of becoming a project of
+  its own (AI Juggler remembers where each one belongs while they list
+  it), and a config folder their profiles point Claude Code or Codex at is
+  offered in Add account. Their files are read without being changed, and
+  only those folders.
+- **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
+  account and window, about how many of your usual sessions are left
+  (worked out from the tool's own readings and your past sessions, with
+  its confidence word), and draws the window's burn-down: what's been
+  used, where this pace goes (and when it runs out, if that's before the
+  reset), and the reset.
+- **A Privacy page** (AJ-E1518), under More and linked from Settings ›
+  Privacy: what AI Juggler reads, changes and sends, and what it never
+  does. Each line names the tests that check it, behind the line, and a
+  test fails the build if a line names a test that isn't there. The same
+  list is in `docs/guide/trust.md`. New tests back the lines no test held
+  before: only three crates can reach the network, each to its own address
+  (Figurehead, GitHub, your paired Macs); the window can talk only to the
+  app; no tool is pointed at a proxy or another provider address; and no
+  switch starts without a click.
+- **The tools' terms on Add account** (AJ-E1518): one line on what each
+  tool's terms say about several accounts, with the terms linked. The
+  words are checked against the vendors' own pages, with the source and
+  date in a register.
+- **Start from a context pack** (AJ-E1511). New session › **Start from a
+  context pack…** opens a pack you saved: it's checked whole first (every
+  file as the pack recorded it, nothing outside it, no keys), then shown
+  as a switch is: where it came from, what it continues as, what carries
+  and what doesn't, and what was withheld when it was made. Pick the
+  account (any tool) and the folder, and the new session starts with the
+  pack as its handover; the switch history records where it came from.
+- **Report a problem** (AJ-E1517). Settings › General has **Report a
+  bug** (the GitHub form) and **Export diagnostics…**: one zip with
+  AI Juggler's version, the database's schema, your settings and its own
+  logs, scrubbed on this Mac (no transcripts, terminal output,
+  credentials, home folder or user name; settings that hold tokens,
+  addresses or paths are left out and named). Every file is shown before
+  it's saved, and the zip holds exactly what you saw; if anything still
+  looks like a secret, nothing is saved. Crash reports now also mask a
+  `NAME_KEY=value` in the middle of a line.
+- **macOS notifications, when you want them** (AJ-E1510). Settings ›
+  Notifications › **Notify me outside AI Juggler** has five switches, all
+  off until you choose: a session waits for you, looks stuck, hits its
+  usage limit or finishes, and This Mac is getting tight. Each state is
+  told once, never while AI Juggler is in front; the quiet hours hold
+  them until they end, and an Account left out of the digest stays quiet
+  too. Clicking one brings AI Juggler forward on that session (or This
+  Mac).
+- **A new account starts with your usual settings** (AJ-E1508). Add
+  account's fresh account offers **Start with the same settings as …**
+  an account of the same tool: its MCP servers, its permissions and its
+  status line, each ticked, and its plugins with the command that
+  installs them. Any account can do the same later from its menu
+  (**Copy settings from…**), an account brought in as a copy among them.
+  Its sign-in, history and caches never come with it, a setting with a
+  secret written in it stays behind (a permission rule with one stays
+  behind on its own), AI Juggler's own usage capture is never mistaken
+  for your status line, and each setting can be undone in Settings.
+
+- **Terminal tools** (AJ-E1506). Above every session's terminal: whether
+  it's Live, Reconnecting or Ended, and Find (⌘F, with next, previous and
+  a count), Copy, text size, Maximize (⌘↩) and Own window (the same
+  terminal in its own window, for another display). ⌘-click opens a web
+  address or a file path the terminal printed: a file in your editor, a
+  folder in Finder; nothing printed is ever run. Scrolled up, a button
+  takes you back to the bottom.
+- **Rules and MCP servers the same across tools** (AJ-E1507), in one
+  reviewed click. The project's header says **Rules in sync** or
+  **1 rules file differs** (a missing file counts only for a tool that
+  works there), and opens one sheet, also in every project's menu
+  (**Compare rules and servers…**). Pick the master copy, see the diff
+  applying it would make, and apply it to one file; a tool that can read
+  another file (Claude Code's `@AGENTS.md`) can read the master instead
+  of a copy. A link, or a file that changed since you looked, is never
+  written. Each account's MCP servers are listed too, and one can be
+  copied to another account in that tool's own form; secrets stay
+  behind, named. Every change can be undone there or in Settings.
+
+- **Keep work going** (AJ-E1509). Settings › Sessions has four new
+  switches. "Restart sessions that crash" (off by default) starts a
+  crashed session again on the same launch settings with its conversation
+  resumed, at most 3 times in 10 minutes. It never restarts after a usage
+  limit, a stop you made or a failed sign-in, and a launch setting can
+  choose for itself under its Options. "Keep the Mac awake while sessions
+  work" (on when plugged in; "On battery too" is off) holds off idle sleep
+  only while a session is working; the screen can still sleep and the lid
+  still sleeps the Mac. Monitoring isn't throttled by App Nap while
+  sessions run. "Reopen AI Juggler if it quits unexpectedly" (on) brings
+  it back after a crash, and the sessions it was running show "ended when
+  AI Juggler quit unexpectedly" and resume where restarting is on.
+  "Open AI Juggler at login" (off by default, also offered on the
+  welcome) uses macOS's own login items. This Mac says what's keeping the
+  Mac awake, with the setting a click away, and how much AI Juggler itself
+  uses.
+- **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
+  panel's "See all", More › This Mac and the rail's "This Mac" line open
+  it. It shows the Mac's state in words and meters, then what's using it:
+  each tool with its sessions or windows (the Claude app's marked "not
+  started by AI Juggler", with nothing to click), what's working the Mac
+  hard with links, recent alerts and advice, and anything left behind.
+  Home's panel stays a summary.
+- **Make it smoother** (AJ-E1527). The welcome lists the optional
+  permissions (today, jumping to a session's own window), each with its
+  state and its Allow or Open System Settings, in the same rows as first
+  run's. They're never required: "Not now" puts them away. Afterwards,
+  while one is still off, Home shows a small reminder row, never a
+  modal, and its own "Not now".
+- **Telling projects and sessions apart** (AJ-E1532). Every project has
+  a mark, the same on the rail, Home, History and its page: its own icon
+  when its folder has one (a Tauri, Electron or Xcode app icon, a
+  favicon or a logo, read and never changed), else two letters on one of
+  twelve colours that stay apart in both themes. Clones of one
+  repository share their mark and carry their number. **Change its
+  mark…** in a project's menu picks the colour, letters or an emoji.
+  Every account now has a round avatar in its colour, with initials that
+  tell accounts sharing a first word apart ("Wo" and "Pe" for
+  claude-work and claude-personal). A session row shows its tool and the
+  account serving it, and says "on Work Max" to a screen reader. A
+  project's row shows the accounts that worked there, a ring on any
+  running there now. A folded project shows as a stripe in its colour.
+- **A welcome for new installs** (AJ-E1524). With no accounts yet, Home
+  now explains what AI Juggler is for and what it found on this Mac
+  ("We found Claude Code and Codex on this Mac", or install links when
+  nothing is there). It shows four things it does for you and a trust
+  line: it never stores your passwords or keys, and never sits between
+  you and the tool. Two ways in, **Find my accounts** and **Add a fresh
+  account**, and a short "How it works". Usage and Fleet point back to
+  it while no account is in.
+- **One kind of page for everything** (AJ-E1533). A session, a project,
+  an account and a tool now open the same kind of page. It says what the
+  item is and what it belongs to, shows its tabs (only those with
+  something in them), and keeps its actions at the top.
+  - A project's page lists every session that worked there, yours from
+    your own terminal too, live first. It shows its branch and what
+    isn't committed, and what each account spent there.
+  - A session's numbers agree from its header to every tab.
+  - Open an account from its name on Accounts, and a tool from More ›
+    Tools.
+- **Always know where you are** (AJ-E1534). The open item is selected
+  in the list (and scrolled to), whatever it is, and the top bar follows
+  the page you're on. Each kind of item has its own mark. Folders show
+  as `~/…`, never the full path.
+- **Sessions started outside AI Juggler** (AJ-E1529). Every account's
+  conversations now show, the ones you started in your own terminal or
+  in the Claude app too: under their project in the list (live ones first, with a
+  quiet "outside AI Juggler" mark), on Home, in each account's running
+  count and in the go-to palette. Open one to see where it ran and on
+  which account, then continue it in AI Juggler or copy the command that
+  resumes it. Removed and pruned worktrees fold into their repository
+  instead of showing as moved projects, and Codex conversations count
+  too, once each, however often they were resumed. Each session in the
+  list ends in its account's initials, in that account's own colour,
+  the same on every screen. AI Juggler never stops or changes what it
+  didn't start.
+- **Right-click menus** (AJ-E1537). Right-click a session, a project, an
+  account, a history entry or a line on This Mac for its actions, in the
+  Mac's own menu. The same menu opens from the row's ⋯ button, a page's
+  header and Shift+F10. A greyed-out item says why, and Stop, Forget,
+  Remove and Delete sit apart at the end. New: copy a session's resume
+  command, start a new session in a project, copy a project's path.
+- **Name, pin and tidy sessions and projects** (AJ-E1502). Rename a
+  session or a project (the folder keeps its name), pin it to the top,
+  open a project in your editor, point a moved project at its new
+  folder, or forget one you're done with until you use it again.
+- **Tool marks** (AJ-E1526). Wherever a tool is named (Add account, first
+  run, account cards, the rail, the inspector, Usage and This Mac), a
+  small mark sits beside its name. Claude Code and Codex show a neutral
+  letter mark for now, because Anthropic and OpenAI ask for approval
+  before their logos are used. Other companies' names and logos belong to
+  their owners (see TRADEMARKS.md).
+- Tools are described by their adapters (AJ-E1525, ADR-0019). Every
+  screen reads a tool's name, sign-in words, install page and first run's
+  groups from one catalog. A new tool needs no change to the interface,
+  and a check keeps tool names out of shared code. Nothing you see
+  changes, apart from one wording: Home's sign-in line now says "Claude
+  Code's own sign-in".
+- **Settings › Sessions** (AJ-E1505). **Stuck after** sets how long a
+  session may go without output (with its CPU near idle) before it's
+  marked Looks stuck. Raise it if your builds run quietly. It applies to
+  running sessions at once, no restart. Under **Terminal**: the font size
+  and scrollback, applied to open terminals at once. Each has a one-line
+  reason and **Reset**.
+- **Keys** (AJ-E1504). Press **?** to see every shortcut, by area.
+  **⌘1–4** open Home, Accounts, Usage and Fleet. **⌘⇧I** folds the
+  inspector to its header line (the open tab keeps its room), and the
+  window remembers it. The inspector's tabs moved to **⌥⌘1–6**. While
+  you type in a field or the terminal, plain keys and Ctrl-combos are
+  yours: Ctrl+K, Ctrl+B, Ctrl+N and Ctrl+F now reach the shell instead of
+  the app. ⌘ shortcuts still work there.
+- **One way every action answers** (AJ-E1503). A toast at the bottom of
+  the window says what happened, with **Undo** where it can be undone
+  (or ⌘Z outside a text field). Stopping one session is held for 5
+  seconds: Undo in time and the stop is never sent. Mark reviewed,
+  snooze, mute, archive and unarchive can be undone; the switch's undo
+  window is the same toast. Toasts are read out by screen readers and
+  never take focus.
+- Quitting (⌘Q or the window's close button) while sessions are live
+  says how many are running and what quitting does to them: a terminal
+  session ends with AI Juggler, and a desktop session keeps running. Pick
+  **Quit anyway**, **Stop them first** or Cancel. With nothing live,
+  AI Juggler quits at once.
+- While the rail, Home and Accounts load they show rows shaped like their
+  own, rather than "No sessions yet" or "Bring in your accounts" for a
+  moment.
 - **Codex** is the second Provider (AJ-E1301). AI Juggler finds the Codex
   CLI, gives each Codex account its own folder (`CODEX_HOME`), signs it
   in with OpenAI's own `codex login`, and starts, resumes or runs Codex

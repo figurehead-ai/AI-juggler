@@ -13,26 +13,35 @@
 )]
 
 pub mod claude_code;
+pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
+pub mod claude_inventory;
 pub mod claude_transcript;
 pub mod codex;
+pub mod codex_conversations;
 pub mod codex_environment;
 pub mod codex_handover;
+pub mod codex_inventory;
 pub mod codex_transcript;
+pub mod config_edit;
 pub mod fake;
 pub mod inference;
+pub mod inventory_files;
+pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
 pub mod sign_in;
+pub mod subtasks;
+pub mod tool_summary;
 pub mod transcript;
 
-pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState};
+pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
 pub use claude_transcript::{
     MessageRole, ParsedMessage, ParsedTranscript, dedupe_messages, parse_transcript,
 };
-pub use codex::{CODEX_ID, CodexAdapter};
+pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,
@@ -41,6 +50,13 @@ pub use quota_ingest::{
     tail_spool, tail_transcript, uninstall_statusline, zcode_events, zcode_is_peak,
     zcode_multiplier,
 };
-pub use transcript::{is_compressed, parse_any, read_session_file};
+pub use subtasks::{Subtask, SubtaskLog, SubtaskState, SubtaskTail, subtasks_of};
+pub use transcript::{
+    BoundedLines, LINE_MAX, LinesRead, file_sha256, for_each_line, is_compressed, last_line_parses,
+    parse_any, read_bounded, read_session_file, records_compaction, session_file_sha256,
+    session_lines, transcript_tokens,
+};
 pub mod fake_desktop;
+#[cfg(test)]
+mod stream_equivalence;
 pub use fake_desktop::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};

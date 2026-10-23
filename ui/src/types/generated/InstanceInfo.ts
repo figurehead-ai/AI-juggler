@@ -80,8 +80,9 @@ rss_bytes: number | null,
  */
 child_count: number | null, 
 /**
- * I-08: subtask count; `null` — no transcript source exists yet
- * (AJ-E409 lands the signals; never a guessed count).
+ * I-08: how many subagents the session started are still running,
+ * read from its transcript (AJ-E1520); `null` until it has been read
+ * (not live, or no transcript yet) — never a guessed count.
  */
 subtask_count: number | null, 
 /**
@@ -126,7 +127,7 @@ cwd: string,
 kind: string, 
 /**
  * True when crash recovery re-adopted this Instance's verified
- * root (AJ-E510): `Running — re-adopted`, terminal detached
+ * root (AJ-E510): `Running — picked up after restart`, terminal detached
  * (output from before the crash is unavailable), stop via the
  * AJ-E507 sheet.
  */
@@ -188,4 +189,18 @@ lifecycle?: string,
 /**
  * When that step was taken, epoch ms.
  */
-lifecycle_at_ms?: number, };
+lifecycle_at_ms?: number, 
+/**
+ * AJ-E1502: the user's name for it, shown over its own title.
+ */
+label?: string, 
+/**
+ * AJ-E1536: its conversation's title (the tool's summary, else the
+ * first thing asked), from the conversation index; `null` until
+ * that's read. Shown when the user hasn't named it.
+ */
+title?: string, 
+/**
+ * AJ-E1502: pinned to the top of its group in the rail.
+ */
+pinned?: boolean, };

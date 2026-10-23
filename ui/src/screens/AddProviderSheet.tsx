@@ -1,3 +1,4 @@
+import { ToolMark } from "../components/ToolMark";
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconJuggler } from "../components/icons";
@@ -110,6 +111,7 @@ export function AddProviderSheet({
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      <ToolMark tool={row.provider} size={16} className="text-muted" />
                       <span className="text-xs font-medium text-ink">{row.display_name}</span>
                       {/* 0.0.11 walk, Q4: plain words here; the version and
                           what it was tested with are in the tool's own view. */}

@@ -17,7 +17,7 @@ afterEach(cleanup);
 
 const SUMMARY: RecoverySummaryData = {
   summary:
-    "2 sessions re-adopted, 1 helpers left behind, 1 processes could not be verified and were left alone.",
+    "2 sessions picked up again, 1 helper left behind, 1 process could not be checked and was left alone.",
   adopted: 2,
   left_behind: 1,
   unverifiable: 1,
@@ -34,7 +34,7 @@ describe("RecoverySummaryDialog (AJ-E510)", () => {
     // The suspension fact rides along — the user must know automation
     // paused itself for 24 h after a crash.
     expect(getByTestId("recovery-summary").textContent).toContain(
-      "Automatic cleanup stays suspended for 24 hours",
+      "Automatic cleanup stays paused for 24 hours",
     );
   });
 

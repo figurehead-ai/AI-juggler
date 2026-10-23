@@ -283,7 +283,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     assert_eq!(row.machine_label, "Studio Mac");
     assert_eq!(row.account_label, "Desktop Max");
     assert_eq!(row.mechanism, "transplant");
-    assert!(row.badge.ends_with("· Unvalidated"), "{}", row.badge);
+    assert!(row.badge.ends_with("· Not proven yet"), "{}", row.badge);
     assert!(!row.validated);
     assert_eq!(
         row.same_path_project.as_deref(),
@@ -1033,4 +1033,230 @@ fn a_handover_from_before_link_off_and_on_launches_nothing() {
         "{outcome:?}"
     );
     link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+}
+
+// --- AJ-E1515: start a session on the other Mac; usage per machine ------
+
+use juggler_app::features::fleet as fleet_launch;
+
+/// A remote launch, retried while the clocks are still being measured.
+fn launch_there(
+    runtime: &tokio::runtime::Runtime,
+    pair: &Pair,
+    machine: &str,
+    project: Option<String>,
+) -> juggler_app::remote::RemoteCommandOutcomeInfo {
+    wait_for("the node's verdict", || {
+        let outcome = runtime
+            .block_on(fleet_launch::start_impl(
+                Arc::clone(&pair.laptop),
+                machine.to_owned(),
+                pair.desktop_recipe.clone(),
+                project.clone(),
+            ))
+            .unwrap();
+        (outcome.reason_code.as_deref() != Some("clock_unmeasured")).then_some(outcome)
+    })
+}
+
+#[test]
+fn new_session_starts_on_the_other_mac_and_follows_it_within_five_seconds() {
+    let pair = setup_both("2.1.0", false, Permission::Control, Permission::Control);
+    let desktop_id = fleet::fleet_self_impl(&pair.desktop).unwrap().machine_id;
+    // New session's machine picker: the desktop, its launch settings and
+    // projects (names only), and nothing in the way.
+    let offered = wait_for("the desktop's launch settings", || {
+        fleet_launch::launch_options_impl(&pair.laptop)
+            .unwrap()
+            .into_iter()
+            .find(|machine| machine.machine_id == desktop_id && machine.why_not.is_none())
+    });
+    assert_eq!(offered.label, "Studio Mac");
+    assert!(offered.recipes.iter().any(|r| r.id == pair.desktop_recipe
+        && r.account == "Desktop Max"
+        && r.tool == "Claude Code"));
+    assert!(
+        offered
+            .projects
+            .iter()
+            .any(|p| p.id == pair.desktop_project && p.name == "storefront")
+    );
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let began = Instant::now();
+    let outcome = launch_there(
+        &runtime,
+        &pair,
+        &desktop_id,
+        Some(pair.desktop_project.clone()),
+    );
+    assert!(outcome.accepted, "{outcome:?}");
+    let started = outcome
+        .started_instance_id
+        .clone()
+        .expect("the node names the session it started");
+    // Followed: the laptop sees it in the desktop's telemetry.
+    wait_for("the new session on the laptop", || {
+        juggler_app::remote::fleet_remote_impl(&pair.laptop)
+            .unwrap()
+            .into_iter()
+            .find(|machine| machine.machine_id == desktop_id)
+            .and_then(|machine| machine.instances.into_iter().find(|row| row.id == started))
+    });
+    assert!(
+        began.elapsed() < Duration::from_secs(5),
+        "remote launch to tracked: {:?}",
+        began.elapsed()
+    );
+    // It really ran on the desktop, in its own copy of the project.
+    let record = pair
+        .desktop
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(started.as_str()))
+        .unwrap();
+    assert_eq!(record.cwd, pair.desktop_root);
+    let _ = juggler_app::terminal::terminal_kill_impl(&pair.desktop, &started);
+}
+
+#[test]
+fn a_view_only_or_unconnected_mac_says_why_and_starts_nothing() {
+    let pair = setup("2.1.0", true, Permission::View);
+    let desktop_id = fleet::fleet_self_impl(&pair.desktop).unwrap().machine_id;
+    let view_only = wait_for("the desktop's view-only reason", || {
+        fleet_launch::launch_options_impl(&pair.laptop)
+            .unwrap()
+            .into_iter()
+            .find(|machine| {
+                machine.machine_id == desktop_id
+                    && machine
+                        .why_not
+                        .as_deref()
+                        .is_some_and(|w| w.starts_with("View only"))
+            })
+    });
+    assert_eq!(
+        view_only.why_not.as_deref(),
+        Some("View only: on Studio Mac, let this Mac control it in Fleet")
+    );
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let refused = launch_there(&runtime, &pair, &desktop_id, None);
+    assert!(!refused.accepted);
+    assert_eq!(refused.reason_code.as_deref(), Some("permission_denied"));
+
+    // The desktop turns Link off: it isn't connected, and the start is
+    // refused here in words, before anything is sent.
+    link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+    let offline = wait_for("the desktop gone offline", || {
+        fleet_launch::launch_options_impl(&pair.laptop)
+            .unwrap()
+            .into_iter()
+            .find(|machine| {
+                machine.machine_id == desktop_id
+                    && machine.why_not.as_deref() == Some("Studio Mac isn't connected right now")
+            })
+    });
+    assert!(offline.why_not.is_some());
+    let error = runtime
+        .block_on(fleet_launch::start_impl(
+            Arc::clone(&pair.laptop),
+            desktop_id,
+            pair.desktop_recipe.clone(),
+            None,
+        ))
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("isn't connected right now"),
+        "{error}"
+    );
+    assert!(
+        !pair
+            .desktop
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(&pair.desktop_account)
+            .join("last-args")
+            .exists(),
+        "nothing ran on the desktop"
+    );
+}
+
+#[test]
+fn each_mac_reports_what_it_used_in_the_last_day() {
+    use juggler_core::model::{Confidence, TokenCounts};
+    use juggler_core::quota::{UsageEvent, UsageSource};
+    let pair = setup("2.1.0", true, Permission::View);
+    let desktop_id = fleet::fleet_self_impl(&pair.desktop).unwrap().machine_id;
+    let now = juggler_core::model::Timestamp::now().millis();
+    let event = |account: &str, session: &str, ago_min: i64, input: u64| UsageEvent {
+        account: account.into(),
+        session: Some(session.into()),
+        ts: now - ago_min * 60_000,
+        model: Some("claude-sonnet-4-5".into()),
+        tokens: TokenCounts {
+            input,
+            ..TokenCounts::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: UsageSource::Transcript,
+        confidence: Confidence::Measured,
+        msg_uuid: None,
+    };
+    // The desktop: two sessions today, and one from two days ago (outside).
+    pair.desktop
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_events(&[
+            event(&pair.desktop_account, "d-1", 30, 1_000),
+            event(&pair.desktop_account, "d-2", 90, 2_000),
+            event(&pair.desktop_account, "d-old", 48 * 60, 50_000),
+        ])
+        .unwrap();
+    // The laptop: one session.
+    pair.laptop
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_events(&[event(&pair.laptop_account, "l-1", 10, 500)])
+        .unwrap();
+    // The desktop sends its catalog (with its totals) on connect: reconnect.
+    link::link_set_enabled_impl(&pair.desktop, false).unwrap();
+    link::link_set_enabled_impl(&pair.desktop, true).unwrap();
+    let rows = wait_for("the desktop's total", || {
+        let rows = fleet_launch::usage_by_machine_impl(&pair.laptop, now).unwrap();
+        rows.iter()
+            .any(|row| {
+                row.machine_id.as_deref() == Some(desktop_id.as_str()) && row.used_units == 3_000
+            })
+            .then_some(rows)
+    });
+    let here = &rows[0];
+    assert_eq!(
+        (
+            here.label.as_str(),
+            here.used_units,
+            here.sessions,
+            here.reported
+        ),
+        ("This Mac", 500, 1, true)
+    );
+    let desktop = rows
+        .iter()
+        .find(|row| row.machine_id.as_deref() == Some(desktop_id.as_str()))
+        .unwrap();
+    assert_eq!(
+        (desktop.label.as_str(), desktop.sessions),
+        ("Studio Mac", 2)
+    );
+    assert!(desktop.as_of_ms.is_some() && desktop.reported);
+    assert!(
+        desktop.usd_est.is_some_and(|usd| usd > 0.0),
+        "priced as Usage prices it: {desktop:?}"
+    );
 }

@@ -5,7 +5,8 @@
  * critical/serious).
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, type FixtureSet } from "./fixtures";
@@ -75,7 +76,7 @@ async function axeClean(page: Page, what: string) {
 for (const theme of ["dark", "light"] as const) {
   for (const vp of VIEWPORTS) {
     for (const state of STATES) {
-      test(`this mac — ${state.name} — ${vp.name} — ${theme}`, async ({ page }) => {
+      test(`this mac — ${state.name} — ${vp.name} — ${theme}`, gate("72-this-mac"), async ({ page }) => {
         await seed(page, state, theme, vp);
         await expect(page.getByRole("main")).toContainText(state.expect);
         const panel = page.getByTestId("home-this-mac");

@@ -144,7 +144,7 @@ export function CrossMachineSwitchFlow({
         <h3 id="cross-switch-title" className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           Switch to {target.account_label} on {machine}
           <span className="rounded border border-warning/60 px-1.5 py-px text-[10px] font-normal text-warning">
-            {mechanism === "transplant" ? target.badge : "F1 · Unvalidated"}
+            {mechanism === "transplant" ? target.badge : "Full story, fresh start · Not proven yet"}
           </span>
         </h3>
 
@@ -217,7 +217,7 @@ export function CrossMachineSwitchFlow({
                       data-testid="cross-switch-t2"
                     />
                     <span>
-                      <span className="block font-medium text-ink">Same conversation (T2 transplant)</span>
+                      <span className="block font-medium text-ink">Same conversation</span>
                       <span id="cross-t2-desc" className="text-muted">
                         {t2Possible
                           ? `${machine} resumes this conversation — its files are copied there.`
@@ -242,7 +242,7 @@ export function CrossMachineSwitchFlow({
                       data-testid="cross-switch-t3"
                     />
                     <span>
-                      <span className="block font-medium text-ink">Full story, fresh start (T3 replay)</span>
+                      <span className="block font-medium text-ink">Full story, fresh start</span>
                       <span id="cross-t3-desc" className="text-muted">
                         A new session on {machine} starts from the distilled turns (secrets handled as you choose).
                       </span>

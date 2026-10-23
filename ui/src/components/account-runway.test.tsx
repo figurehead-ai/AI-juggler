@@ -6,7 +6,9 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AccountRunway, paceWords, runwayLines, windowLine } from "./AccountRunway";
-import { activityWords, bestForNewWork, placementWords } from "../screens/Profiles";
+import { placementWords } from "../screens/Profiles";
+import { newWorkAdvice } from "./AccountRunway";
+import { activityWords } from "../lib/account-words";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
 import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
 
@@ -74,8 +76,33 @@ describe("D-25 Accounts — activity and the best pick", () => {
       { id: "out", label: "Signed out", login_state: "logged_out" },
     ] as AccountInfo[];
     const displays = [display(10, 90), { ...display(40, 30), account: "personal" }, { ...display(0, 0), account: "out" }];
-    expect(bestForNewWork(accounts, displays, [])).toMatchObject({ account: { id: "personal" }, left: 60 });
-    expect(bestForNewWork(accounts, [], [])).toBeNull();
+    expect(newWorkAdvice(accounts, displays, [])).toMatchObject({
+      best: { account: { id: "personal" }, left: 60 },
+      words: "Best for new work: Personal, 60% left.",
+    });
+    expect(newWorkAdvice(accounts, [], [])).toEqual({ best: null, words: null });
+  });
+
+  it("never recommends a low account, and says when it can't tell (QA batch 8)", () => {
+    const accounts = [
+      { id: "g", label: "Account G", login_state: "logged_in" },
+      { id: "a", label: "Account A", login_state: "logged_in" },
+    ] as AccountInfo[];
+    // Only G is measured, at 6% left: the others aren't, so nothing is "best".
+    const onlyG = [{ ...display(94, 10), account: "g" }];
+    expect(newWorkAdvice(accounts, onlyG, [])).toEqual({
+      best: null,
+      words: "Account G has 6% left, and Account A isn't measured yet, so AI Juggler can't tell which has room.",
+    });
+    // One with room, the other unmeasured: it has room, and the words say what's unknown.
+    expect(newWorkAdvice(accounts, [{ ...display(40, 10), account: "g" }], [])).toEqual({
+      best: { account: accounts[0], left: 60 },
+      words: "Account G has 60% left; Account A isn't measured yet.",
+    });
+    // Every one measured and low: the most, said as low.
+    expect(newWorkAdvice(accounts, [onlyG[0]!, { ...display(80, 10), account: "a" }], []).words).toBe(
+      "Every account is low: Account A has the most, 20% left.",
+    );
   });
 });
 

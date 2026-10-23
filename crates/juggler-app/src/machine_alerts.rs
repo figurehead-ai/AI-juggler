@@ -164,6 +164,9 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
                 root_pid: None,
                 session_id: None,
                 place: Some(group.tool.clone()),
+                // The Claude tools AI Juggler didn't start (desktop | terminal).
+                tool: Some(crate::machine_health::OBSERVED_TOOL.to_string()),
+                group: group.tool.clone(),
                 account_label: None,
                 cpu_pct: group.cpu_one_core_pct,
                 rss_bytes: group.totals.rss_bytes,
@@ -541,6 +544,8 @@ mod tests {
             leftover_ports: 0,
             alerts: Vec::new(),
             recommendations: Vec::new(),
+            awake: crate::features::app::awake::AwakeInfo::default(),
+            own: crate::features::app::own::OwnInfo::default(),
         }
     }
 
@@ -555,6 +560,8 @@ mod tests {
             root_pid: None,
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
+            tool: None,
+            group: place.unwrap_or("claude-code").to_string(),
             account_label: None,
             cpu_pct: Some(cpu),
             rss_bytes: rss,

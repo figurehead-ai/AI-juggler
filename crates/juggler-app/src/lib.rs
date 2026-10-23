@@ -16,13 +16,19 @@ pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
+pub mod crash_native;
+#[cfg(any(crash_sender, test))]
+pub mod crash_send;
 pub mod crossmachine;
+pub mod ids;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
 pub mod dev_bridge;
 pub mod edition;
+pub mod env_overlay;
 pub mod error;
+pub mod features;
 pub mod figurehead;
 pub mod fleet;
 pub mod fleet_account;
@@ -30,21 +36,28 @@ pub mod focus;
 pub mod handover;
 pub mod history;
 pub mod identity;
+pub mod in_place;
+pub mod ipc;
+pub mod launch_alert;
 pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod machine_recommendations;
+pub mod machine_tools;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
 pub mod parked;
 pub mod preview;
+pub mod quit;
 pub mod remote;
 pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
@@ -151,6 +164,11 @@ macro_rules! app_commands {
             Read  commands::pricing_catalog_info,
             Read  commands::quota_display,
             Read  commands::quota_display_all,
+            Read  features::quota::capture::quota_capture_status,
+            Read  features::quota::capture::quota_capture_preview,
+            Write features::quota::capture::quota_capture_turn_on,
+            Write features::quota::capture::quota_capture_turn_off,
+            Write features::app::uninstall::app_prepare_uninstall,
             Write commands::account_set_fee,
             Read  commands::ranking_rows,
             Write commands::alerts_tick,
@@ -182,15 +200,15 @@ macro_rules! app_commands {
             Read  link::link_status,
             Write link::link_set_enabled,
             Write link::fleet_discovered,
-            Write link::pairing_host_open,
-            Write link::pairing_host_state,
-            Write link::pairing_host_decide,
-            Write link::pairing_host_close,
-            Write link::pairing_re_enable,
-            Write link::pairing_join_start,
-            Read  link::pairing_join_state,
-            Write link::pairing_join_decide,
-            Write link::pairing_join_reset,
+            Write link::pairing::pairing_host_open,
+            Write link::pairing::pairing_host_state,
+            Write link::pairing::pairing_host_decide,
+            Write link::pairing::pairing_host_close,
+            Write link::pairing::pairing_re_enable,
+            Write link::pairing::pairing_join_start,
+            Read  link::pairing::pairing_join_state,
+            Write link::pairing::pairing_join_decide,
+            Write link::pairing::pairing_join_reset,
             Write figurehead::figurehead_status,
             Write figurehead::figurehead_link_start,
             Write figurehead::figurehead_link_poll,
@@ -283,7 +301,23 @@ macro_rules! app_commands {
             Read  commands::projects_list,
             Write commands::projects_backfill,
             Write commands::session_handover,
-            Write commands::switch_preflight,
+            Read  commands::switch_preflight,
+            Write commands::switch_door_count,
+            Read  features::switch_setup::switch_setup_check,
+            Read  features::switch_setup::switch_setup_list,
+            Write features::switch_setup::switch_setup_apply,
+            Write features::switch_setup::switch_setup_undo,
+            Write features::switch_setup::switch_setup_forget,
+            Read  features::account_settings::commands::account_settings_check,
+            Write features::account_settings::commands::account_settings_apply,
+            Write features::trust::commands::trust_open,
+            Read  features::budgets::commands::budgets_list,
+            Write features::budgets::commands::budgets_save,
+            Write features::budgets::commands::budgets_remove,
+            Write features::budgets::commands::budgets_seen,
+            Read  features::outside_search::commands::outside_search_status,
+            Read  features::outside_search::commands::outside_search_estimate,
+            Write features::outside_search::commands::outside_search_set,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -311,8 +345,13 @@ macro_rules! app_commands {
             Write commands::terminal_resize,
             Write commands::terminal_kill,
             Write commands::terminal_snapshot,
+            Write features::terminal::commands::terminal_open_link,
+            Write features::terminal::commands::terminal_pop_out,
+            Write features::terminal::commands::terminal_pop_in,
+            Read  features::terminal::commands::terminal_windows,
             Read  commands::instance_quality,
             Read  commands::instance_processes,
+            Read  features::subtasks::commands::subtasks_list,
             Read  commands::cleanup_inventory,
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
@@ -357,6 +396,57 @@ macro_rules! app_commands {
             Write commands::preview_start,
             Write commands::preview_stop,
             Write commands::account_set_preview_opt_in,
+            // release/0.1 (AJ-E1503 quit; E1502 manage; E1504 session
+            // prefs; E1525 tools; E1529 conversations; E1533 project git).
+            Read  quit::app_quit_plan,
+            Write quit::app_quit,
+            Write quit::app_quit_ack,
+            Write quit::app_quit_cancel,
+            Read  settings_policy::session_prefs_get,
+            Write settings_policy::session_prefs_set,
+            Read  features::tools::commands::tools_catalog,
+            Write lifecycle::instance_unmark_reviewed,
+            Read  manage::editor_choices,
+            Write manage::editor_set,
+            Write manage::project_rename,
+            Write manage::project_set_pinned,
+            Write manage::project_forget,
+            // Opens Finder or the editor: never from the read-only bridge.
+            Write manage::project_open,
+            Write manage::project_relocate,
+            Write manage::session_rename,
+            Write manage::session_set_pinned,
+            Read  features::conversations::commands::conversations_list,
+            Read  features::conversations::commands::conversations_resume_command,
+            // Launches a session: never from the read-only bridge.
+            Write features::conversations::commands::conversations_continue,
+            Read  features::sessions::commands::sessions_resume_command,
+            Write features::sessions::commands::sessions_restart_choice_set,
+            Read  features::app::login_item::app_login_item_get,
+            Write features::app::login_item::app_login_item_set,
+            // AJ-E1517: reads the logs (scrubbed): never over the bridge.
+            Write features::app::diagnostics::app_diagnostics_preview,
+            Write features::app::diagnostics::app_diagnostics_export,
+            Write features::app::diagnostics::app_report_bug_open,
+            // AJ-E1511: reads a folder the user picked; starts a session.
+            Write features::packs::packs_open_preview,
+            Write features::packs::packs_open_start,
+            // AJ-E1515: what a paired Mac offers; starting there; usage by machine.
+            Read  features::fleet::fleet_launch_options,
+            Write features::fleet::fleet_launch_start,
+            Read  features::fleet::fleet_usage_by_machine,
+            Read  features::staging::staging_ready,
+            Read  features::notifications::prefs::notifications_get,
+            Write features::notifications::prefs::notifications_set,
+            // Reads `git status` (the 2 s cache, like a session's).
+            Read  features::projects::git::projects_git_status,
+            Read  features::projects::icon::projects_icon_read,
+            Write features::projects::mark::projects_mark_set,
+            Read  features::project_sync::commands::project_sync_rules,
+            Read  features::project_sync::commands::project_sync_diff,
+            Write features::project_sync::commands::project_sync_apply,
+            Read  features::project_sync::commands::project_sync_servers,
+            Write features::project_sync::commands::project_sync_servers_apply,
         }
     };
 }
@@ -381,6 +471,10 @@ pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // AJ-E1509: a launch that only watches for this app's crash.
+    features::app::crash::watch_if_asked();
+    // A launch that only shows another launch's "can't start" alert.
+    launch_alert::show_if_asked();
     // AJ-E1103: cold start runs from here to the end of setup.
     let launched = std::time::Instant::now();
     // The user's PATH from their login shell, on its own thread: opened
@@ -406,17 +500,31 @@ pub fn run() {
     if !newer_data::hold_instance_lock(&data_dir) {
         match handover.as_ref().map(|h| h.ask(handover::ANSWER_WAIT)) {
             Some(handover::Answer::Answered) => std::process::exit(0),
-            Some(handover::Answer::NotAnswering) => not_answering(),
-            Some(handover::Answer::Untrusted) => {
-                eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+            // QA batch 9: an AI Juggler that was just force-quit can hold
+            // the lock a moment longer: wait for it before calling it open,
+            // and keep offering Try again while it really is.
+            Some(handover::Answer::NotAnswering) => {
+                not_answering(&data_dir, handover.as_ref());
             }
-            // An older AI Juggler (no such socket), or one still starting:
-            // the plugin's hand-over, as before.
-            Some(handover::Answer::NoneListening) | None => {}
+            // One still starting (a quick double-click), an older AI
+            // Juggler (no such socket), or one just ended: wait for it.
+            // A socket that isn't ours is never asked, only waited past.
+            answer @ (Some(handover::Answer::NoneListening | handover::Answer::Untrusted)
+            | None) => {
+                if answer == Some(handover::Answer::Untrusted) {
+                    eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+                }
+                if wait_for_an_answer(&data_dir, handover.as_ref(), &context.config().identifier)
+                    == Waited::OlderApp
+                {
+                    context.config_mut().app.windows.clear();
+                    hand_over_to_the_running_instance(context);
+                }
+            }
         }
-        context.config_mut().app.windows.clear();
-        hand_over_to_the_running_instance(context);
     }
+    // Live-preview frames an earlier version left in the temp folder.
+    preview::sweep_frames(&std::env::temp_dir());
     let app_state = Arc::new(match state::AppState::init(data_dir.clone()) {
         Ok(state) => state,
         // AJ-E1010: an older AI Juggler opened data a newer one saved — say
@@ -436,7 +544,45 @@ pub fn run() {
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
+    // AJ-E1516: a crash outside Rust last time, from macOS's own report;
+    // and, in a build given the service's address, sending what the user
+    // chose to send.
+    {
+        let state = Arc::clone(&app_state);
+        let bundle_id = context.config().identifier.clone();
+        std::thread::spawn(move || {
+            let Some(reports) = crash_native::system_reports() else {
+                return;
+            };
+            // Again a minute on: after a crash, the watchdog can reopen the
+            // app before macOS has written its report.
+            for wait in [0, 60] {
+                std::thread::sleep(std::time::Duration::from_secs(wait));
+                let _ = crash_native::collect(
+                    &reports,
+                    &crash::reports_dir(&state),
+                    &bundle_id,
+                    &crash::effective(&state),
+                    juggler_core::model::Timestamp::now().millis(),
+                );
+            }
+        });
+    }
+    #[cfg(crash_sender)]
+    crash_send::start(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
+    // AJ-E1509: the watchdog that reopens the app after a crash (when on),
+    // and the sessions the last crash ended, resumed where that's on.
+    {
+        let reopen = app_state
+            .storage
+            .lock()
+            .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
+        features::app::crash::follow_setting(&app_state, reopen);
+        features::app::crash::resume_after_crash(&app_state);
+    }
+    // AJ-E1513: prepared switches a crash left for sessions now ended.
+    features::staging::sweep_at_startup(&app_state);
 
     let attention_state = Arc::clone(&app_state);
     let heuristic_tick_state = Arc::clone(&app_state);
@@ -464,6 +610,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // AJ-E1510: system notifications; the webview gets no permission
+        // for them (the backend shows them, and only when asked).
+        .plugin(tauri_plugin_notification::init())
         // AJ-E1010: registering the updater makes no request. The feed is
         // only built in release builds that carry the signing key, and
         // the webview gets no updater permission.
@@ -481,6 +630,32 @@ pub fn run() {
                 .build(),
         )
         .manage(app_state)
+        // AJ-E1503: ⌘Q and the close button ask first while sessions
+        // are live (the predefined Quit item would quit without asking).
+        .menu(quit::app_menu)
+        .on_menu_event(|app, event| {
+            if event.id() == quit::QUIT_MENU_ID {
+                let _ = quit::request(app);
+            }
+        })
+        .on_window_event(|window, event| {
+            use tauri::Manager;
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                && quit::request(window.app_handle())
+            {
+                api.prevent_close();
+            }
+            // AJ-E1510: no system notification while AI Juggler is in front.
+            if let tauri::WindowEvent::Focused(focused) = event
+                && window.label() == "main"
+            {
+                window
+                    .state::<Arc<state::AppState>>()
+                    .notifier
+                    .set_in_front(*focused);
+            }
+        })
         .invoke_handler(app_commands!(tauri_handler))
         .setup(move |app| {
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
@@ -509,6 +684,10 @@ pub fn run() {
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
             register_go_to_hotkey(app.handle());
+            features::notifications::connect(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
             spawn_read_model_ticks(
                 app.handle().clone(),
                 resource_tick_state,
@@ -545,8 +724,15 @@ pub fn run() {
             eprintln!("ai-juggler: fatal: {error}");
             std::process::exit(1);
         })
-        .run(move |_app, event| {
+        .run(move |app, event| {
             if let tauri::RunEvent::Exit = event {
+                // AJ-E1509: quit as asked — the run is clean and the
+                // watchdog ends with the app.
+                use tauri::Manager;
+                match app.try_state::<Arc<state::AppState>>() {
+                    Some(state) => features::app::crash::before_exit(&state),
+                    None => features::app::crash::end_run(&data_dir),
+                }
                 if let Some(handover) = &handover {
                     handover.stop();
                 }
@@ -590,12 +776,128 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
         tauri_plugin_single_instance::destroy(app);
     }
     drop(built);
-    not_answering();
+    let app = edition::current().app_name();
+    // A Tauri app was built and dropped here: the alert shows from a
+    // fresh launch (see `launch_alert::in_fresh_process`).
+    launch_alert::in_fresh_process(
+        &format!("{app} can't start"),
+        &not_answering_words(&format!("Then open {app} again.")),
+    );
 }
 
-/// Says the open AI Juggler isn't answering and how to quit it, then
-/// quits without opening the data.
-fn not_answering() -> ! {
+/// How long a second launch waits for an AI Juggler that holds the data
+/// to answer: one still starting (a quick double-click) opens its socket
+/// within moments.
+const STARTING_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// How a second launch's wait for the open AI Juggler ended.
+#[derive(Debug, PartialEq, Eq)]
+enum Waited {
+    /// The data is free (it ended): this launch goes on, holding it.
+    Free,
+    /// An older AI Juggler, which answers only on Tauri's single-instance
+    /// socket: hand over through the plugin.
+    OlderApp,
+}
+
+/// The data is held and nothing answers on its hand-over socket yet. Asks
+/// again until [`STARTING_WAIT`]: an AI Juggler still starting answers
+/// (this launch then quits), an older one is found on the plugin's socket
+/// (macOS), or the data comes free. Past it, the "isn't answering" alert
+/// (Try again, Quit): never a launch left running without a window
+/// (the coordinator, 2026-10-22).
+fn wait_for_an_answer(
+    data_dir: &std::path::Path,
+    handover: Option<&handover::Handover>,
+    identifier: &str,
+) -> Waited {
+    let deadline = std::time::Instant::now() + STARTING_WAIT;
+    loop {
+        if newer_data::hold_instance_lock(data_dir) {
+            return Waited::Free;
+        }
+        match handover.map(|h| h.ask(handover::ANSWER_WAIT)) {
+            Some(handover::Answer::Answered) => std::process::exit(0),
+            Some(handover::Answer::NotAnswering) => {
+                not_answering(data_dir, handover);
+                return Waited::Free;
+            }
+            _ => {}
+        }
+        if older_app_listening(identifier) {
+            eprintln!(
+                "ai-juggler: an older AI Juggler answers on the single-instance socket; handing over"
+            );
+            return Waited::OlderApp;
+        }
+        if std::time::Instant::now() >= deadline {
+            not_answering(data_dir, handover);
+            return Waited::Free;
+        }
+        // poll: a starting app's socket has no "ready" event; a second
+        // launch only, until the deadline above.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}
+
+/// An older AI Juggler (before its own hand-over socket) answering on
+/// Tauri's single-instance socket. macOS only; elsewhere the plugin's
+/// hand-over ends with its own alert.
+fn older_app_listening(identifier: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let socket = format!("/tmp/{}_si.sock", identifier.replace(['.', '-'], "_"));
+        std::os::unix::net::UnixStream::connect(socket).is_ok()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = identifier;
+        true
+    }
+}
+
+/// The open AI Juggler isn't answering. If it lets go of the data within
+/// a few seconds (it was ending), this launch goes on; else it says how to
+/// quit it and offers Try again, and Quit quits without opening the data.
+fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handover>) {
+    let mut asked = false;
+    loop {
+        if newer_data::wait_for_instance_lock(data_dir, newer_data::LOCK_GRACE) {
+            // The alert made this process an app before Tauri's own: start
+            // again in a fresh one, which finds the data free.
+            if asked {
+                relaunch();
+            }
+            return;
+        }
+        if handover.is_some_and(|h| h.ask(handover::ANSWER_WAIT) == handover::Answer::Answered) {
+            std::process::exit(0);
+        }
+        if !newer_data::try_again_or_quit(&not_answering_words("Then choose Try again.")) {
+            std::process::exit(1);
+        }
+        asked = true;
+    }
+}
+
+/// Starts this app again, as it was started, and quits this launch.
+fn relaunch() -> ! {
+    eprintln!("ai-juggler: starting again");
+    let started = std::env::current_exe().and_then(|exe| {
+        std::process::Command::new(exe)
+            .args(std::env::args_os().skip(1))
+            .spawn()
+    });
+    if let Err(error) = started {
+        newer_data::cannot_start(&format!("It couldn't start again: {error}"));
+        std::process::exit(1);
+    }
+    std::process::exit(0);
+}
+
+/// What to do when the open AI Juggler isn't answering, in words, ending
+/// with `then`.
+fn not_answering_words(then: &str) -> String {
     let app = edition::current().app_name();
     let how = if cfg!(target_os = "macos") {
         format!(
@@ -610,10 +912,9 @@ fn not_answering() -> ! {
             "Switch to it and quit it. If it doesn't respond, end it from your system monitor ({app})."
         )
     };
-    newer_data::cannot_start(&format!(
-        "Another {app} is already open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\nThen open {app} again."
-    ));
-    std::process::exit(1);
+    format!(
+        "Another {app} is open with this data and isn't answering. It may be showing a message, or be stuck.\n\n{how}\n\n{then}"
+    )
 }
 
 /// Resolves and creates the data dir, exiting with a plain-language
@@ -693,11 +994,15 @@ fn spawn_read_model_ticks(
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
+    let conversations_app = app.clone();
     let index_state = quota_state.clone();
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(5));
             let _ = commands::emit_resources(&app, &resource_state);
+            // AJ-E1509: the Mac kept awake (and App Nap off) for the
+            // sessions working here, before This Mac says so.
+            features::app::awake::tick(&resource_state);
             let _ = machine_health::emit_this_mac(&app, &resource_state);
         }
     });
@@ -711,14 +1016,44 @@ fn spawn_read_model_ticks(
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
             commands::detect_running_models(&processes_app, &processes_state, None);
+            if features::subtasks::tick(&processes_state) {
+                let _ = commands::emit_sessions(&processes_app, &processes_state);
+            }
         }
     });
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(30));
             let _ = commands::emit_quota(&quota_app, &quota_state);
+            // AJ-E1513: the switch prepared before the limit (never run).
+            features::staging::tick(&quota_state, commands::now_millis());
         }
     });
+    // AJ-E1529: every account's conversations and which are live, read
+    // from the tools' own files every 15 s (only changed files are read
+    // again); the UI hears of it only when something changed.
+    {
+        let conversations_state = index_state.clone();
+        std::thread::spawn(move || {
+            loop {
+                use tauri::Emitter;
+                // QA batch 8: a long first pass tells the UI as it goes.
+                let tell = || {
+                    let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
+                };
+                if let Ok(true) = features::conversations::tick_with(
+                    &conversations_state,
+                    features::conversations::PROGRESS_EVERY,
+                    &tell,
+                ) {
+                    tell();
+                }
+                std::thread::sleep(std::time::Duration::from_secs(15));
+            }
+        });
+    }
+    // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
+    features::outside_search::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.
@@ -763,23 +1098,55 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
                 juggler_supervisor::LifecycleEvent::Started { .. }
                 | juggler_supervisor::LifecycleEvent::HelperOrphaned { .. } => None,
             };
-            if let juggler_supervisor::LifecycleEvent::Exited { kind, session, pid } = &event {
-                // AJ-E410: freeze the pre-exit descendant rows into the
-                // orphan tracker + journal the durable allow-list BEFORE
-                // the status mapping consumes the event.
-                commands::record_exit_snapshot(&state, session, *pid, kind);
-            }
+            // AJ-E1509: how it ended, for the restarter (after the status
+            // is stored, with storage free again).
+            let ending = match &event {
+                juggler_supervisor::LifecycleEvent::Exited { kind, session, pid } => {
+                    // AJ-E410: freeze the pre-exit descendant rows into the
+                    // orphan tracker + journal the durable allow-list BEFORE
+                    // the status mapping consumes the event.
+                    commands::record_exit_snapshot(&state, session, *pid, kind);
+                    let tail = if kind.is_success() {
+                        String::new()
+                    } else {
+                        state
+                            .supervisor
+                            .output_tail(session, 4096)
+                            .unwrap_or_default()
+                    };
+                    Some(features::sessions::restart::Ending::of(
+                        kind,
+                        stopped_by_user,
+                        quota_blocked.is_some(),
+                        &tail,
+                    ))
+                }
+                _ => None,
+            };
+            let mut now = None;
             if let Ok(storage) = state.storage.lock() {
-                drop(commands::apply_lifecycle_event(
+                now = commands::apply_lifecycle_event(
                     &storage,
                     event,
                     stopped_by_user,
                     quota_blocked.as_ref().map(|transition| &transition.reason),
-                ));
+                );
                 // A quota exit ends the process — forget debounce.
                 if quota_blocked.is_some() {
                     state.heuristics.forget(&quota_session);
                 }
+            }
+            // AJ-E1510: finished or at its limit, as a notification when
+            // asked for.
+            if let Some(record) = now {
+                features::notifications::session_status(
+                    &state,
+                    record.id.as_str(),
+                    record.status.as_str(),
+                );
+            }
+            if let Some(ending) = ending {
+                features::sessions::restart::after_exit(&state, &quota_session, ending);
             }
         }
     });

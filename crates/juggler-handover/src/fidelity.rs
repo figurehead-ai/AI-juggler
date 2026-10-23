@@ -169,6 +169,20 @@ impl FidelityLabel {
         }
     }
 
+    /// The level a wire name (`F0`..`F4`) names; `None` for anything
+    /// else.
+    #[must_use]
+    pub fn from_wire(wire: &str) -> Option<Self> {
+        match wire {
+            "F0" => Some(Self::F0),
+            "F1" => Some(Self::F1),
+            "F2" => Some(Self::F2),
+            "F3" => Some(Self::F3),
+            "F4" => Some(Self::F4),
+            _ => None,
+        }
+    }
+
     /// One level lower (AJ-E210 Req.4: a failing validation cell
     /// lowers the pair's advertised ceiling until fixed). F0 stays
     /// F0 — the floor is honest, never negative.
@@ -258,8 +272,13 @@ pub struct PairFidelity {
     pub pair: String,
     /// The weighted mean BEFORE caps (internal; the label is the UI).
     pub score: f64,
-    /// The label the user sees (always ships with the carry-list).
+    /// The label after every cap: what the door decides by (an unproven
+    /// pair caps at F1, so it never gets the one-click door).
     pub label: FidelityLabel,
+    /// What the move does, in the label the user reads: every cap but
+    /// the unvalidated pair's (QA P23). "Not proven yet" is said beside
+    /// it, never by renaming a transplant "Full story, fresh start".
+    pub described: FidelityLabel,
     /// Caps applied, in order.
     pub caps: Vec<AppliedCap>,
     /// The carry-list (one row per artifact).
@@ -381,7 +400,9 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
     }
 
     // Cap 4: an unvalidated pair (E210 cell not green) caps at F1
-    // regardless of mean — the honesty mechanism.
+    // regardless of mean — the honesty mechanism, for the door. The words
+    // the user reads keep what the move does (`described`).
+    let mut described = label;
     if !input.flags.validated && label > FidelityLabel::F1 {
         label = FidelityLabel::F1;
         caps.push(AppliedCap {
@@ -394,6 +415,7 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
     // SQLite clone + verified prime path pass (SPEC:282, E210).
     if input.to_provider == "zcode" && label > FidelityLabel::F0 {
         label = FidelityLabel::F0;
+        described = FidelityLabel::F0;
         caps.push(AppliedCap {
             cap: "zcode-target".to_owned(),
             capped_at: FidelityLabel::F0,
@@ -404,6 +426,7 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
         pair: format!("{}→{}", input.from_provider, input.to_provider),
         score,
         label,
+        described,
         caps,
         carry_list,
     }
@@ -431,8 +454,10 @@ pub fn base_dispositions(from: &str, to: &str) -> FidelityInput {
         }
         map
     };
-    // Todos default Drop until a fixture proves carriage (§H2).
-    let todos_drop = (ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the task list is rebuilt from the conversation (its calls
+    // travel in the transcript); Claude's newer task folder isn't copied
+    // yet, so it isn't a byte copy.
+    let todos_drop = (ArtifactKind::Todos, Disposition::Regenerate);
 
     let dispositions = match (from, to) {
         ("claude-code", "claude-code") => copy_all(&[todos_drop]),
@@ -494,7 +519,8 @@ fn cross_provider(pair: &CrossPair) -> BTreeMap<ArtifactKind, Disposition> {
     map.insert(ArtifactKind::Mcp, tr());
     map.insert(ArtifactKind::GitDiff, Disposition::Copy);
     map.insert(ArtifactKind::EnvModel, tr());
-    map.insert(ArtifactKind::Todos, Disposition::Drop);
+    // AJ-E1541: the handover carries the task list as it stood.
+    map.insert(ArtifactKind::Todos, Disposition::Regenerate);
     map.insert(ArtifactKind::Subagents, Disposition::Drop);
     match pair {
         CrossPair::ClaudeCodex => {

@@ -1,0 +1,417 @@
+# Evidence manifest — AJ-E1529
+
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1529, sessions started outside AI
+Juggler (a 0.1 blocker, from the maintainer's real-setup test). Status:
+**DONE-EVIDENCED**: QA accepted it on the real setup (release/0.1
+3542530d, read-only, redacted counts; below), after the replica.
+
+Gallery: `docs/qa/evidence/_gallery/78-outside/` (Home and the rail, an
+outside conversation's page, Accounts and a project's page, in both
+themes, all from the replica fixture).
+
+## What exists now
+
+**Each tool's own files, through its adapter (ADR-0019).** Three
+defaulted methods on the adapter contract:
+
+- `conversation_files` lists a setup's conversations: Claude's
+  `projects/*/*.jsonl` (a subagent's file is part of its parent, so
+  it isn't listed); Codex's `sessions/Y/M/D/rollout-*.jsonl`.
+- `read_conversation` reads one: its id (what `--resume` takes), its
+  folder, its last git branch, a title (the tool's summary, else the
+  first real ask, skipping slash commands and the context Codex
+  injects), its first and last activity, and its tokens, each message
+  counted once.
+- `session_process` tells a CLI session from helpers (ChatGPT's
+  `app-server` and `exec-server`) and from a desktop app's internals,
+  and reads which conversation it resumes.
+
+No tool's layout is left in shared code: the backfill's Claude-only
+`projects/` helpers are gone.
+
+**One index in memory** (`features/conversations`), keyed by path, size
+and mtime:
+
+- only changed files are read again, and nothing is written (no
+  migration);
+- a tick every 15 s refreshes it, re-runs the projects backfill when
+  files changed, and works out which conversations are live;
+- it emits `conversations://changed` only when something changed.
+
+**Live.** A running session is on:
+
+- the conversation its `--resume` id names;
+- else the newest conversation in its folder, on its account, written
+  since it started.
+
+Its account is the folder its environment points the tool at (only that
+one variable is read), else the tool's own default. A session on a
+folder that isn't one of the user's accounts is attributed to none.
+
+**Projects.** `project_root` folds every worktree shape seen on a real
+Mac into its repository:
+
+- agent worktrees `<repo>/.claude/worktrees/<name>`, by path, whether
+  present, removed or pruned;
+- linked worktrees elsewhere, through their `.git` file;
+- a folder inside a repository, into the repository.
+
+The backfill counts both tools' conversations from the index.
+
+**UI**, all from one `conversations_list` (a `ConversationsProvider`):
+
+- **The rail.** Under each project: every live outside session, then the
+  newest 3, then "N more outside AI Juggler". Each is a row built like a
+  session row, with a quiet "outside AI Juggler" mark and the account's
+  dot; a screen reader hears ", Running, outside AI Juggler, on Work
+  Max". A project where only an outside session runs gets its group, and
+  the rail's empty state shows only when there is truly nothing. The
+  filters apply: "Running" shows and counts live outside sessions,
+  "Ended" the ended ones, and the other filters hide them.
+- **Home.** Its Running list and its "N running" include them, and the
+  headline no longer offers a first session while eight run.
+- **An outside conversation's page.** What it is, where, which account,
+  tokens; **Continue in AI Juggler** (a resume launch on its account, on
+  the user's click; it waits, saying why, while it's open elsewhere) and
+  **Copy resume command** (the adapter's line). Its ⋯ menu comes from
+  the AJ-E1537 registry and is read-only (D-08).
+- **Accounts.** Each card's "N running", and the account page's
+  "Running sessions", count them.
+- **The go-to palette.** It lists them, and opens their page.
+- **A project's page.** It lists every one of its outside conversations.
+
+The backend refuses "Continue in AI Juggler" in words when the
+conversation is live elsewhere, its folder is gone, or the account has
+no launch settings. The command takes ids only (SECURITY C1).
+
+## Proof
+
+| Requirement | Proof | Result |
+|---|---|---|
+| Req.1 list each account's conversations from its own files, never writing | adapter tests: `claude_conversations` (id, folder, branch, summary title, times, tokens once by message id; first real ask; empty file; subagents not listed) and `codex_conversations` (thread, folder, branch, ask past the injected context, times, tokens once); `tests/conversations.rs` (listed, folded, resume line, refusals) | PASS |
+| Req.2 live by running process and recent writes | `live.rs` tests (resume id; newest since start; none written yet; a folder that's no account's; two sessions in one folder); `session_process` tests (CLI vs node package vs app internals vs Codex helpers) | PASS |
+| Req.3 in the rail under their project, quietly marked, read-only; open, Continue in AI Juggler | vitest `outside-conversations` (the rail's slice, groups for live-only projects, the row's mark and name, the read-only menu with Continue disabled while live, the page's actions and its gone state); Playwright `replica-journey`; gallery `78-outside` | PASS |
+| Req.4 the rail updates when the backfill finishes, by a typed event | the tick re-runs the backfill on file changes and emits `conversations://changed`; App and the provider read again on it | PASS |
+| Req.5 worktrees fold into their repo, even removed or pruned; our agent worktrees never projects | juggler-core `project_root_tests` (present, removed, pruned, a subfolder of a repo, a plain folder, a worktree path without its repo); `projects_backfill_worktrees` | PASS |
+| Req.6 a project's page lists its conversations | Playwright `replica-journey` (the count matches the fixture); gallery `project-page-*` | PASS |
+| Req.7 within the rail's budget at 50+ | live + 3 recent per project, the rest on the project's page; the replica's 346 conversations render without a long list (gallery `home-rail-*`) | PASS |
+| Req.8 journeys read a fixture made by the backend's readers | `just replica-fixture` (`scripts/qa/replica_fixture.py`, which refuses a non-replica HOME) wrote `ui/tests/visual/fixtures/replica.json`: 9 accounts, 16 projects, 346 conversations, 8 live. `replica-journey` and `outside-gallery` read it | PASS |
+| Oracle comparison on the replica | `just replica-oracle` with QA's oracle (claude/qa-real-walk-clean 580521ce, which carries the counting fixes below): 60 OK and no MISMATCH for setups, imports, projects (each with its conversations and accounts), conversations per account, or live per account; this Mac's own 17 sessions are left out as INFO. The remaining MISMATCH lines are Codex window tokens and pricing, which belong to AJ-E1530 and #120. [oracle-replica.txt](oracle-replica.txt) | PASS |
+| The Claude app's own Code sessions are live | QA's first real-data pass read live 0 for every account. The Claude app runs each Code session from a bundled CLI (`…/claude-code/<version>/…/claude.app/Contents/MacOS/claude`), and `session_process` dropped any `claude` inside a `.app/`. The app's own executable is `Claude`, which the exact name already rules out, so the `.app/` rule is gone. Test: `a_cli_is_a_session_wherever_installed_and_names_what_it_resumes` (both path shapes). The replica now runs every third Claude session from such a bundle, and the oracle's live line per account is OK for all nine | PASS |
+| A resumed Claude-app session is live by its id; liveness is per account | QA's second real-data pass had 16 of 17 Claude-app sessions live, missing one: the app passes `--resume=<id>` as one word, and `value_after` read only `--resume <id>`. An idle resumed session (nothing in its folder newer than its start) was dropped. `value_after` now reads both (test `a_resume_id_reads_as_two_words_or_one`). The replica now runs an app-bundled session with `--resume=<id>` that stays idle (`fake-harness … --idle`). With the old reader the oracle fails, "Account D live: backend 0, running 1" ([before](oracle-replica-before-resume-fix.txt)); with the fix it passes ([after](oracle-replica.txt)). The same run caught two more problems, both fixed. (1) Liveness was keyed (tool, id), so another account's conversation with the same id showed live; it is now (account, tool, id) (`a_live_id_is_live_only_on_its_own_account`). (2) With the `.app/` path test gone, Codex identifies its app's helpers by subcommand anywhere in the arguments (`codex -c … app-server`, `codex sandbox`), as the ChatGPT app runs them | PASS |
+| One conversation per thread | a resumed Codex thread is a rollout per resume, all with one id. The list showed it twice, and both copies counted as live, while projects counted it once. `ConversationIndex::all` now merges them: the newest file stands for the thread, from its earliest start, with the most tokens any one file holds (never the sum: a resumed rollout repeats its parent's rows). Test: `a_thread_written_to_several_files_is_one_conversation` | PASS |
+| Oracle comparison on the real data | qa-real runs the command below, read-only, under its snapshot check; redacted counts only | PENDING |
+| P22: Accounts and the palette count outside sessions | vitest (`activityWords`, the palette's outside rows); `replica-journey` (each card's count against the fixture) | PASS |
+| P23: a pruned worktree is no longer MOVED; the rail's count matches its rows | `project_root_tests` (pruned); the replica's oracle line "projects: backend 16 rows, oracle 16" | PASS |
+
+The oracle (`scripts/qa/real_truth.py`) is QA's. It is copied as a file
+from claude/qa-real-walk-clean, and QA keeps the same changes there. It
+learnt these here, all true of real Macs too:
+- folders compare resolved (`/tmp` is `/private/tmp`);
+- a Codex CLI is matched by its folder, like Claude's;
+- a Codex thread counts once, however many rollouts it has, and a turn
+  that a resume repeats from its parent counts once in the window totals;
+- a live session it can't put on an account is a MISMATCH;
+- a CLI run from a temp folder is a test's stand-in, unless it is under
+  the HOME being examined (the replica's own home is in `/tmp`);
+- on a replica, this Mac's own sessions working outside that HOME are
+  left out as INFO. The last rule never applies when HOME is the user's
+  own, so the real-data pass leaves nothing out. The replica's
+live sessions run as the real CLIs do (`claude`, `claude --resume
+<id>`, `codex`), in a clean environment: a fake once inherited this
+shell's own `CLAUDE_CONFIG_DIR`, and the backend correctly attributed it
+to no account.
+
+## QA batch 7 (account view, New session)
+
+- The account's "Running sessions (0)" while 10 ran is now **Running
+  now**: the account's live rows from the same list as its Sessions tab,
+  so AI Juggler's sessions and the ones started outside it count alike
+  (the old card counted only running or starting).
+- **Usual projects** leaves out a moved project (it says so on its own
+  page), lists newest first, and drops the "usual" tag on every row.
+  Once worktrees fold (above), removed worktrees aren't projects at all.
+- **New session's top folders** leave out moved projects. "1 prior
+  sessions" reads "1 prior session".
+
+## QA's real-data pass (accepted)
+
+qa-real on the maintainer's real setup, release/0.1 `3542530d`,
+read-only, with redacted counts. Overall 60 OK, 2 MISMATCH, 1 INFO. The
+snapshot was clean: no path was added or removed.
+
+- **Setups and projects:** 7 of 7 setups found and brought in. Projects
+  show 9 rows against 9, and every project's counts and account set
+  match.
+- **Conversations:** all 7 accounts match the oracle (20, 3, 2, 2, 15,
+  2 and 258).
+- **Live:** 4/4, 1/1, 1/1, 1/1 and 10/10, plus 0/0 and 0/0 (the
+  `--resume=<id>` fix holds). No live session lacks an account. The 8
+  stand-ins are left out as INFO.
+- **Window tokens:** every line ×1.00.
+- **The two MISMATCH lines aren't this item's:**
+  - Cost per session (×0.40 to ×12.49) is the shared-message credit,
+    which #126 fixes on main.
+  - 214 of 467 priced: `codex-auto-review` is the only unpriced model.
+- **The rail walk through the bridge:**
+  - Every session is found. The rail reads "Running 17" grouped by
+    project, and Home lists the same 17.
+  - On Home the account is obvious. In the rail it is the account's
+    disc (low: on the real setup, labels that share a first word give
+    near-identical initials; for AJ-E1532's monograms).
+
+## QA batch 8 (from the real-data pass)
+
+- **(High) Home contradicted itself.** It said "Account G has 6% left —
+  start new work on another account" and then "Best for new work:
+  Account G, 6% left". G was the only account measured. One rule now
+  decides for Home and Accounts (`AccountRunway.tsx` `newWorkAdvice`):
+  - A low account (25% left or less) is never recommended.
+  - When others aren't measured, the words name them ("Account A isn't
+    measured yet") and say AI Juggler can't tell which has room.
+  - Signed-out accounts are left out.
+  - The old copy on Accounts (`bestForNewWork`) is gone.
+  - vitest `account-runway`: "never recommends a low account, and says
+    when it can't tell".
+- **(Medium) Nothing read as running for about 5 minutes on a heavy
+  setup.** The first pass indexed 300 conversations over about 4 minutes
+  and worked out which were live only at its end. Now:
+  - the pass reads the newest files first (a running session's file is
+    among them);
+  - every 2 s of reading it works out what's live from what it has so
+    far, and tells the UI.
+
+  Integration test `conversations`
+  `a_long_pass_reads_the_newest_files_first_and_reports_as_it_goes`.
+
+## QA batch 9 (the re-check of batch 8, on the real setup)
+
+QA re-checked `e385f5b9` on the real setup:
+- Home's contradiction is fixed.
+- The first pass was better but not quick: nothing was live for 74–94
+  s, and in one launch `conversations_list` didn't answer for 94 s.
+- New: after a forced quit, the relaunch said "already open and isn't
+  answering" with nothing open.
+
+What changed:
+- **Nothing blocks the first pass any more.** Three causes, each fixed:
+  - **The pass waited for storage.** Its 2-second progress step read
+    the account list from storage, and the usage pipeline held storage
+    for its whole first write. The pass now reads the accounts once,
+    up front, and works out what's live without touching storage.
+  - **That write was one long lock.** The pipeline now writes in chunks
+    of 2,000 events, one lock and one transaction each. A re-read keeps
+    each session's rows in one chunk (`session_chunks`), so no session
+    is half replaced. Offsets are saved once every chunk is in.
+  - **Three cold reads ran at once.** At a start, the background pass,
+    the conversation list and the projects backfill each read every
+    file. Now one pass runs at a time (`ConversationIndex::pass`). A
+    command that finds the index empty reads only if no pass is running
+    (`read_if_cold`); otherwise it answers at once with what's read so
+    far.
+- **A relaunch after a forced quit starts.**
+  - When the hand-over gets no answer, or the lock is held with nobody
+    listening, the launch waits up to 5 s for the lock
+    (`newer_data::wait_for_instance_lock`) and starts as soon as it's
+    free.
+  - Only an instance that keeps holding the data gets the alert, which
+    now has **Try again** as well as Quit; each try waits again and asks
+    the open one again.
+- **Home never says "All clear" while an account has run out.** The
+  headline reads "Account G has run out" (or "N accounts have run
+  out").
+
+Tests:
+- `conversations`: `the_list_answers_at_once_while_a_pass_is_reading`
+  fails on the old code (the list read all 3 files itself) and passes
+  now.
+- `usage_pipeline` `a_reread_is_chunked_without_splitting_a_session`.
+- `instance_lock`: `a_launch_waits_for_an_ending_instance_to_let_go_of_the_data`.
+- `second_launch`: a frozen app still gets the alert, the data is
+  untouched, and the launch ends within 20 s.
+- vitest `home`: "never 'all clear' while an account has run out".
+
+### The launch alert can never outlive the app (the coordinator, after batch 9)
+
+- **Cause:** rfd shows a dialog without a parent window as a
+  `CFUserNotification`, which the system owns. Killed mid-alert, AI
+  Juggler was gone and the alert stayed, with a Quit that only
+  dismissed it.
+- **Fix:** the launch alerts ("can't start", "isn't answering") are now
+  an `NSAlert` in AI Juggler's own process on macOS (`launch_alert.rs`).
+  - Every call is a safe one (objc2's `MainThreadMarker` API): no
+    `unsafe`, no new crate, no decision record.
+  - Quit exits.
+  - Try again re-checks the lock in this process first. Once the data is
+    free, it starts again in a fresh launch, because the alert made this
+    process an app before Tauri's own.
+- **The hand-over path:** the one alert shown after a Tauri app was
+  built and dropped (the hand-over to an older AI Juggler) aborted there,
+  because tao's run-loop observers stay behind. That alert now shows from
+  a fresh launch of the app that does nothing else, still the app's own
+  process.
+- **Drawing:** a process that never ran the app's loop hadn't finished
+  launching, and its alert drew as an empty white window. The
+  maintainer saw one, left over from an earlier check run. The alert now
+  finishes launching first, and draws in full:
+  [launch-alert.png](launch-alert.png), the alert window alone.
+- **Check (`scripts/qa/launch_alert_check.sh`, by hand with
+  `AIJ_ALLOW_WINDOWS=1`):**
+  - It runs the real binary with its data held, waits for the alert,
+    captures it, and kills the app with SIGKILL while the alert is up.
+  - It then finds no window of it, or of the system's notification
+    agent, left, and no process of the run left. Every process it starts
+    is tagged and reaped on any exit.
+  - Result: [launch-alert-check.txt](launch-alert-check.txt) (PASS).
+- **Both buttons, on the real binary** (`second_launch`):
+  - `the_isnt_answering_alerts_quit_quits`: Quit exits, and the data
+    folder is untouched.
+  - `the_isnt_answering_alerts_try_again_starts_once_the_data_is_free`:
+    Try again is pressed while the data is held, then the open app lets
+    go. The launch starts again in a fresh one and exits 0; the fresh
+    one is found by an environment tag and ended.
+  - These use a debug build's `AIJ_DIALOG_ANSWER=<label>`. QA presses
+    the real buttons on their next walk.
+- **The seams never ship:**
+  - `AIJ_DIALOG_ANSWER` and `AIJ_NO_DIALOGS` are compiled into debug
+    builds only (`launch_alert::seams`), and are listed in
+    SECURITY-GUIDELINES C8's test seams.
+  - `scripts/release_seams_check.sh` fails a release binary that
+    contains either. It runs on the built app in build-macos.yml, and
+    its self-test (in `dev_bridge_check.sh`) sees both in the debug
+    binary.
+- **Nothing left running:** the gate run reaps whatever it started on
+  any exit, and ends by checking that no `debug/juggler-app` is
+  running. `second_launch` kills its child when the test ends, however
+  it ends.
+
+## QA batch 10 (the re-check of batch 9)
+
+QA re-checked `8293c0f3` on the real setup:
+- **Holds:** the relaunch after a forced quit (it started in about 2 s,
+  with no alert), Home's "Account G has run out", and
+  `conversations_list` answering at once.
+- **Still slow:** nothing was read for 72–75 s.
+- **Cause, from a thread sample:** the first pass read every Codex
+  rollout whole (6.6 GB in 265 files on that Mac), the newest (the live
+  ones, the biggest) first.
+
+The fix reads each large file's two ends first:
+- **A quick read.** Each adapter now has one
+  (`HarnessAdapter::read_conversation_quick`, from
+  `conversation::file_ends`: the first 256 KB and the last 64 KB, whole
+  lines). It gives the id, folder, branch, title (the first ask), first
+  activity, and last activity (from the end). It leaves out tokens.
+  Claude and Codex both have one; a small file has none and is read
+  whole.
+- **The first pass is two rounds, newest first.**
+  - Round one reads each new or changed file quickly. The list and
+    what's live go to the UI as soon as that round ends.
+  - Round two reads the quickly-read files whole, for their tokens.
+  - Until then a conversation shows no tokens (never 0).
+- **Measured on the replica's 40 MB rollout (release build):** the quick
+  read takes 0.5 ms and the whole read 51 ms, with the same id, title
+  and last activity. On QA's Dev build the whole read is slower still.
+- **The replica can reproduce it:** `replica.py build
+  --large-rollout-mb N` makes the newest Codex rollout about N MB with
+  reasoning items. The truth is unchanged (no tokens, no new ask).
+
+**QA's re-check of `0811c21b` on the real setup (accepted):**
+- All 16 live sessions show 3.4 s after a first launch; on `8293c0f3`
+  it was 95–97 s. QA polled every second:
+  - 1.4 s: 16 conversations, 0 live;
+  - 2.4 s: 247 conversations;
+  - 3.4 s: 309 conversations and 16 live, stable after.
+- That was the Dev build, on 6.6 GB of Codex rollouts.
+- A thread sample 10 s in showed no thread waiting on a mutex. The
+  earlier This Mac and processes waits had sat behind the old single
+  long ingest write.
+
+Tests:
+- `codex_conversations` `a_large_rollouts_quick_read_takes_its_ends`;
+- `conversations` `a_large_file_is_listed_from_its_ends_first_and_counted_after`;
+- the reporting test, now with its report after round one.
+
+## QA: a search helper isn't a session
+
+- **What QA found on the real setup:** Claude Code runs its search
+  helpers as the same multi-call `claude` executable under another name
+  (`ugrep`). Five were left running for hours under an orphaned shell.
+- **The risk:** they could be taken for sessions, and folder-matched
+  liveness could then mark a recent conversation in their folder live.
+- **The fix:** `claude_conversations::session_process` now needs the
+  program name (`argv[0]`) to be `claude` too, not only the executable.
+  Unit test: `ugrep`, `rg` and a full path to them are not sessions; the
+  binary started by its full path still is.
+- **On the replica:** `replica-live` starts one such helper (the `claude`
+  binary as `ugrep`, on an account and in a project with a live session,
+  started just before it). The oracle with it running: every account's
+  live count matches ([oracle-replica-with-helper.txt](oracle-replica-with-helper.txt)).
+  The three MISMATCH lines are the known ones: `gpt-5-codex` unpriced,
+  and This Mac counting the host's apps on a replica.
+
+## Walked on the replica: the three questions
+
+The replica has 9 accounts (7 Claude, 2 Codex), 16 projects, 346
+conversations and 8 sessions live outside AI Juggler, plus 2 desktop
+stand-ins. It was walked through the preview with its own fixture, and
+through `just replica-oracle`.
+
+1. **Does it solve the real problem?** Someone with several
+   subscriptions opens the app and finds all their sessions: Home says
+   "8 running" and lists each one with what it is, its account and how
+   recently it worked. The rail shows them under their projects, live
+   first, and a project's page lists every one. Before this, the same
+   Mac said "No sessions yet". The first walk found the account wasn't
+   obvious at a glance in the rail (only a coloured dot, with the name in
+   a tooltip), so it was reworked before closing: every rail row, AI
+   Juggler's and outside ones, now ends in the account's disc (the I-02
+   `AccountDisc`). Each of the user's accounts gets its own of twelve
+   hues (`lib/palette.ts`, brought forward from AJ-E1532), the same on
+   every screen, so the disc matches the account's dot on Home and in
+   Runway. Its initials come from the first and last words of the label,
+   so `claude-work`, `claude-personal` and `claude-client-acme` read CW,
+   CP and CA rather than all "CL". On the replica all 9 accounts are
+   different colours. The name is still in the tooltip and what a screen
+   reader hears ("on claude-work"). AJ-E1532 adds project marks and
+   clones on top.
+2. **Is it clear without explanation?** A row says "Running · outside
+   AI Juggler · 1 min"; "20 more outside AI Juggler" says what's behind
+   it. The page says, in one line, why it's read-only. The two actions
+   say what they do, and Continue says why it waits while the session
+   is open elsewhere. The menu has no Stop and no tidying.
+3. **Is it consistent with its siblings?** The rows are built like
+   session rows (the same shape, state glyph, type, dot and selection),
+   and Home's rows like Home's. The counts agree everywhere: Home, the
+   Running chip, Accounts and the palette all said 8 on the replica
+   (pinned by `replica-journey`). Two inconsistencies remain, both owned
+   by the next items: the header still says "Home" on a conversation's
+   page (AJ-E1534, orientation), and the page is laid out on its own
+   rather than in the shared page shell (AJ-E1533, one page model, which
+   takes it in).
+
+## The real-data pass (for qa-real)
+
+Read-only: it brings every setup in where it is, into a fresh, empty
+data folder of its own, and launches, signs in and writes nothing in a
+setup. It prints only redacted OK and MISMATCH lines.
+
+```sh
+cargo test -p juggler-app --test qa_real_readonly --no-run
+env -i HOME="$HOME" USER="$USER" TMPDIR="$TMPDIR" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  AIJ_QA_REAL_DATA=<a fresh, empty folder> AIJ_QA_REAL_OUT=<out.json> \
+  <the qa_real_readonly test binary> --ignored --nocapture
+python3 scripts/qa/real_truth.py --compare <out.json>
+```
+
+The acceptance is no MISMATCH line for setups, projects, conversations
+or live sessions. Lines about tokens, resets, pricing and Codex windows
+belong to AJ-E1530 and #120.
+
+## Not here
+
+- History search across every transcript (QA P20) needs History to list
+  conversations as well, and is built with AJ-E1536.
+- A live outside session's own terminal or window can't be focused: AI
+  Juggler didn't open it. Continue in AI Juggler and Copy resume command
+  are the ways in.

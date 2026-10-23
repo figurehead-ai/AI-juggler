@@ -63,7 +63,8 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
         ? { input: 12_345, output: 6_789, cache_read: 100, cache_write: 200, reasoning: 42 }
         : null,
     cpu_pct: status === "running" ? 3.5 : null,
-    rss_bytes: status === "running" ? 123_456 : null,
+    // A Claude Code session as measured on a real Mac (126–208 MB, AJ-E1535).
+    rss_bytes: status === "running" ? 180_000_000 : null,
     child_count: active ? (status === "running" ? 2 : null) : 0,
     subtask_count: null,
     git_branch: work ? "feat/read-model" : null,
@@ -88,7 +89,9 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
     kind: "terminal",
     isolation_label: null,
     project_id: work ? "proj-1" : "proj-2",
-    conversation_id: status === "running" ? "822e4125-e07d-4866-9954-ec9295efb079" : null,
+    // Every session past starting is on a conversation (it can be carried
+    // to another account); the running one keeps the real-looking id.
+    conversation_id: status === "running" ? "822e4125-e07d-4866-9954-ec9295efb079" : status === "starting" ? null : `conv-${n}`,
   };
 };
 
@@ -277,7 +280,7 @@ const CLEANUP_ROW = (pid: number, state: string) => ({
     state === "orphaned"
       ? "Still running after its session closed"
       : state === "adopted"
-        ? "Running — re-adopted"
+        ? "Running — picked up after restart"
         : state === "unverifiable"
           ? "Unverifiable — will not be touched"
           : "Running",
@@ -349,12 +352,13 @@ export function cleanupFixture(state: string) {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
+  fidelity_words: "Same conversation, new account (compacted)",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Experimental: only the main transcript moves. Subagent files and rewind history stay on the source. The source stays resumable.",
+  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -364,6 +368,7 @@ export const DOOR_WIZARD = {
 export const DOOR_ONECLICK = {
   ...DOOR_WIZARD,
   fidelity: "F4",
+  fidelity_words: "Continues exactly",
   warnings: [],
   door: "one-click" as const,
   wizard_steps: [],

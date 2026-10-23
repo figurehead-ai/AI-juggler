@@ -142,6 +142,23 @@ body {
   }
 }
 
+/* AJ-E1524: the welcome's mark rises in once (decorative; the reduced-
+ * motion rule below cuts it to nothing). */
+@keyframes welcome-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.welcome-rise {
+  animation: welcome-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 1 both;
+}
+
 .dot-live {
   animation: breathe 2.4s var(--ease-out-soft) infinite;
 }
@@ -152,11 +169,14 @@ body {
  * lightness stay fixed per theme so contrast holds in both (D-16 —
  * the token layer stays the single source of colour rules).
  */
-.acct-disc {
-  background: hsl(var(--acct-hue, 255) 55% 55% / 0.2);
-  border: 1px solid hsl(var(--acct-hue, 255) 55% 60% / 0.45);
-  /* AJ-E804: lightness chosen for the worst hue — ≥ 5.4:1 over all 360. */
-  color: hsl(var(--acct-hue, 255) 75% 78%);
+/* AJ-E1532: an account serving a live session there — a ring in the live
+   colour, kept off the avatar by a hairline of the page. */
+.avatar-live {
+  box-shadow: 0 0 0 1px var(--color-canvas), 0 0 0 2.5px var(--color-live);
+}
+/* Stacked avatars are kept apart by the same hairline. */
+.avatar-stacked {
+  box-shadow: 0 0 0 1px var(--color-canvas);
 }
 /*
  * I-10 attention count badge (AJ-E404): amber is semantic, the TEXT is
@@ -168,13 +188,6 @@ body {
 }
 [data-theme="light"] .attn-badge {
   color: #ffffff;
-}
-
-[data-theme="light"] .acct-disc {
-  background: hsl(var(--acct-hue, 255) 55% 42% / 0.12);
-  border: 1px solid hsl(var(--acct-hue, 255) 50% 38% / 0.4);
-  /* AJ-E804: was 3.4:1 for yellow/green hues; ≥ 4.8:1 over all 360. */
-  color: hsl(var(--acct-hue, 255) 60% 24%);
 }
 
 /* Numerals with a quiet violet→ink gradient: modern without noise. */
@@ -244,7 +257,7 @@ main::-webkit-scrollbar-track {
     animation-iteration-count: 1 !important;
     transition: none !important;
   }
-  .dot-live, .animate-breathe {
+  .dot-live, .animate-breathe, .welcome-rise {
     animation: none !important;
   }
 }

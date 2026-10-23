@@ -58,6 +58,8 @@ impl ProjectsRepo<'_> {
                 last_activity: Some(now),
                 history: ProjectHistory::default(),
                 default_account: None,
+                pinned_at: None,
+                forgotten_at: None,
             };
             self.conn.execute(
                 "INSERT INTO projects (id, root, name, created_at, last_activity)
@@ -162,6 +164,71 @@ impl ProjectsRepo<'_> {
         super::accounts::require_changed(changed, "project", id.as_str())
     }
 
+    /// Renames a project (its label; the folder is never renamed).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn rename(&self, id: &ProjectId, name: &str) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET name = ?2 WHERE id = ?1",
+            params![id.as_str(), name],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Pins a project to the top of the rail (now), or unpins it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_pinned(&self, id: &ProjectId, pinned: bool) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET pinned_at = ?2 WHERE id = ?1",
+            params![id.as_str(), pinned.then(|| Timestamp::now().millis())],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Forgets a project (now; hidden until used again), or brings it
+    /// back. A forgotten project loses its pin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_forgotten(&self, id: &ProjectId, forgotten: bool) -> Result<(), CoreError> {
+        let changed = if forgotten {
+            self.conn.execute(
+                "UPDATE projects SET forgotten_at = ?2, pinned_at = NULL WHERE id = ?1",
+                params![id.as_str(), Timestamp::now().millis()],
+            )?
+        } else {
+            self.conn.execute(
+                "UPDATE projects SET forgotten_at = NULL WHERE id = ?1",
+                params![id.as_str()],
+            )?
+        };
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
+    /// Repoints a project at the folder it moved to. Refused (a
+    /// constraint error) when another project already has that root.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn relocate(&self, id: &ProjectId, root: &Path) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE projects SET root = ?2 WHERE id = ?1",
+            params![id.as_str(), root.to_string_lossy()],
+        )?;
+        super::accounts::require_changed(changed, "project", id.as_str())
+    }
+
     /// Clears an account as every project's default (it was removed).
     /// Returns how many projects had it.
     ///
@@ -180,6 +247,59 @@ impl ProjectsRepo<'_> {
 
     /// Lists projects, most recently active first.
     ///
+    /// Remembers which repository each of another manager's worktrees
+    /// belongs to (AJ-E1519): a folder seen again is refreshed, never
+    /// duplicated. One transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn remember_worktree_homes(&self, homes: &[WorktreeHome]) -> Result<(), CoreError> {
+        if homes.is_empty() {
+            return Ok(());
+        }
+        let now = Timestamp::now().millis();
+        let tx = self.conn.unchecked_transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO worktree_homes (folder, repo, manager, seen_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(folder) DO UPDATE SET
+                     repo = excluded.repo, manager = excluded.manager,
+                     seen_at = excluded.seen_at",
+            )?;
+            for home in homes {
+                stmt.execute(params![
+                    home.folder.to_string_lossy(),
+                    home.repo.to_string_lossy(),
+                    home.manager,
+                    now
+                ])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Every remembered worktree home (AJ-E1519).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn worktree_homes(&self) -> Result<Vec<WorktreeHome>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT folder, repo, manager FROM worktree_homes ORDER BY folder")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(WorktreeHome {
+                folder: std::path::PathBuf::from(row.get::<_, String>(0)?),
+                repo: std::path::PathBuf::from(row.get::<_, String>(1)?),
+                manager: row.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures or
@@ -241,6 +361,88 @@ pub fn worktree_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     None
 }
 
+/// AJ-E1529: the project a folder belongs to.
+///
+/// - An agent worktree, `<repo>/.claude/worktrees/<name>/…` (or
+///   `.codex/…`), belongs to `<repo>` by its path: whether it is still
+///   there, was removed (only its transcripts remain) or was pruned (the
+///   folder remains, its `.git` file doesn't).
+/// - A linked worktree elsewhere belongs to its repository through its
+///   `.git` file ([`worktree_repo_root`]).
+/// - A folder inside a repository belongs to the repository.
+/// - Anything else is its own project.
+///
+/// Reads only `.git` entries; never writes.
+#[must_use]
+pub fn project_root(path: &Path) -> std::path::PathBuf {
+    if let Some(repo) = agent_worktree_repo(path) {
+        return repo;
+    }
+    if let Some(repo) = worktree_repo_root(path) {
+        return repo;
+    }
+    path.ancestors()
+        .skip(1)
+        .take(12)
+        .find(|ancestor| ancestor.join(".git").is_dir())
+        .map_or_else(
+            || path.to_path_buf(),
+            |repo| std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf()),
+        )
+}
+
+/// A worktree another manager made, and the repository it belongs to
+/// (AJ-E1519).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorktreeHome {
+    /// The worktree's folder (it may no longer exist).
+    pub folder: std::path::PathBuf,
+    /// Its repository.
+    pub repo: std::path::PathBuf,
+    /// The manager that made it (`Claude Squad`, `Vibe Kanban`).
+    pub manager: String,
+}
+
+/// [`project_root`], after the worktrees other managers made
+/// (AJ-E1519): a folder in one belongs to its repository, removed or
+/// not, while that repository is on this Mac.
+#[must_use]
+pub fn project_root_with(path: &Path, homes: &[WorktreeHome]) -> std::path::PathBuf {
+    let path_key = one_spelling(path);
+    homes
+        .iter()
+        .find(|home| path_key.starts_with(one_spelling(&home.folder)))
+        .map(|home| home.repo.clone())
+        .filter(|repo| repo.is_dir())
+        .unwrap_or_else(|| project_root(path))
+}
+
+/// macOS spells its temporary folders two ways (`/var/folders/…` and
+/// `/private/var/folders/…`): one, so a worktree recorded either way
+/// matches a session recorded the other.
+fn one_spelling(path: &Path) -> std::path::PathBuf {
+    for private in ["/private/var/", "/private/tmp/"] {
+        if let Ok(rest) = path.strip_prefix(private) {
+            return Path::new(&private["/private".len()..]).join(rest);
+        }
+    }
+    path.to_path_buf()
+}
+
+/// `<repo>` of `<repo>/.claude/worktrees/<name>[/…]` (or `.codex`), when
+/// `<repo>` is a repository on this Mac.
+fn agent_worktree_repo(path: &Path) -> Option<std::path::PathBuf> {
+    let parts: Vec<_> = path.components().collect();
+    let at = parts.windows(3).position(|window| {
+        matches!(window[0].as_os_str().to_str(), Some(".claude" | ".codex"))
+            && window[1].as_os_str() == "worktrees"
+    })?;
+    let repo: std::path::PathBuf = parts[..at].iter().collect();
+    repo.join(".git")
+        .exists()
+        .then(|| std::fs::canonicalize(&repo).unwrap_or(repo))
+}
+
 /// Maps a row to a [`ProjectRecord`].
 fn map_project(row: &Row<'_>) -> rusqlite::Result<ProjectRecord> {
     let id: String = row.get("id")?;
@@ -257,6 +459,12 @@ fn map_project(row: &Row<'_>) -> rusqlite::Result<ProjectRecord> {
         default_account: row
             .get::<_, Option<String>>("default_account")?
             .map(crate::model::AccountId::new),
+        pinned_at: row
+            .get::<_, Option<i64>>("pinned_at")?
+            .map(Timestamp::from_millis),
+        forgotten_at: row
+            .get::<_, Option<i64>>("forgotten_at")?
+            .map(Timestamp::from_millis),
     })
 }
 
@@ -268,4 +476,147 @@ fn suffix(now: Timestamp) -> u128 {
     let seq = u128::from(COUNTER.fetch_add(1, Ordering::Relaxed));
     let millis = u128::from(now.millis().max(0).cast_unsigned()) % 1_000_000_000_000;
     millis * 1_000 + (seq % 1_000)
+}
+
+#[cfg(test)]
+mod project_root_tests {
+    use super::{WorktreeHome, project_root, project_root_with};
+    use std::path::Path;
+    use std::process::Command;
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let ok = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.test",
+                "-c",
+                "init.defaultBranch=main",
+            ])
+            .args(args)
+            .output()
+            .unwrap()
+            .status
+            .success();
+        assert!(ok, "git {args:?}");
+    }
+
+    /// AJ-E1529: every shape of worktree seen on a real Mac folds into its
+    /// repository: present, removed, pruned; and a subfolder of a repo.
+    #[test]
+    fn worktrees_present_removed_and_pruned_fold_into_their_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("app");
+        std::fs::create_dir_all(&repo).unwrap();
+        git(&repo, &["init", "-q"]);
+        std::fs::write(repo.join("a"), "a").unwrap();
+        git(&repo, &["add", "-A"]);
+        git(&repo, &["commit", "-q", "-m", "a"]);
+        let repo = std::fs::canonicalize(&repo).unwrap();
+        let present = repo.join(".claude/worktrees/present");
+        let removed = repo.join(".claude/worktrees/removed");
+        let pruned = repo.join(".claude/worktrees/pruned");
+        for (path, branch) in [(&present, "p"), (&removed, "r"), (&pruned, "q")] {
+            git(
+                &repo,
+                &[
+                    "worktree",
+                    "add",
+                    "-q",
+                    "-b",
+                    branch,
+                    path.to_str().unwrap(),
+                ],
+            );
+        }
+        git(
+            &repo,
+            &["worktree", "remove", "--force", removed.to_str().unwrap()],
+        );
+        std::fs::remove_file(pruned.join(".git")).unwrap();
+        assert_eq!(project_root(&present), repo);
+        assert_eq!(
+            project_root(&removed),
+            repo,
+            "removed: only its transcripts remain"
+        );
+        assert_eq!(
+            project_root(&pruned),
+            repo,
+            "pruned: the folder remains, git forgot it"
+        );
+        assert_eq!(project_root(&present.join("src")), repo);
+        std::fs::create_dir_all(repo.join("web/src")).unwrap();
+        assert_eq!(
+            project_root(&repo.join("web/src")),
+            repo,
+            "a folder inside a repo is the repo"
+        );
+        assert_eq!(project_root(&repo), repo);
+        let plain = dir.path().join("notes");
+        std::fs::create_dir_all(&plain).unwrap();
+        assert_eq!(project_root(&plain), plain, "not a repo: its own project");
+        let gone = dir.path().join("gone/.claude/worktrees/x");
+        assert_eq!(
+            project_root(&gone),
+            gone,
+            "a worktree path without its repo stays as it is"
+        );
+    }
+
+    /// AJ-E1519: a removed worktree another manager made still belongs to
+    /// its repository, whichever way the temporary folder is spelled; a
+    /// repository that's gone leaves the folder to the ordinary rules.
+    #[test]
+    fn another_managers_worktree_belongs_to_its_repository_after_removal() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = std::fs::canonicalize(dir.path()).unwrap().join("app");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        let homes = [
+            WorktreeHome {
+                folder: "/Users/dev/.claude-squad/worktrees/fix-login_18a3".into(),
+                repo: repo.clone(),
+                manager: "Claude Squad".to_owned(),
+            },
+            WorktreeHome {
+                folder: "/var/folders/xy/T/vibe-kanban/worktrees/1a2b-fix/app".into(),
+                repo: repo.clone(),
+                manager: "Vibe Kanban".to_owned(),
+            },
+            WorktreeHome {
+                folder: "/Users/dev/.claude-squad/worktrees/old_99".into(),
+                repo: dir.path().join("moved-away"),
+                manager: "Claude Squad".to_owned(),
+            },
+        ];
+        let removed = Path::new("/Users/dev/.claude-squad/worktrees/fix-login_18a3/src");
+        assert_eq!(project_root_with(removed, &homes), repo);
+        let private = Path::new("/private/var/folders/xy/T/vibe-kanban/worktrees/1a2b-fix/app");
+        assert_eq!(project_root_with(private, &homes), repo);
+        let sibling = Path::new("/Users/dev/.claude-squad/worktrees/fix-login_18a3b");
+        assert_eq!(
+            project_root_with(sibling, &homes),
+            sibling,
+            "a folder that only starts with the same letters isn't in it"
+        );
+        let orphan = Path::new("/Users/dev/.claude-squad/worktrees/old_99");
+        assert_eq!(project_root_with(orphan, &homes), orphan);
+    }
+
+    #[test]
+    fn worktree_homes_are_remembered_once_and_refreshed() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let home = |repo: &str| WorktreeHome {
+            folder: "/w/one".into(),
+            repo: repo.into(),
+            manager: "Claude Squad".to_owned(),
+        };
+        let projects = storage.projects();
+        projects.remember_worktree_homes(&[home("/r/a")]).unwrap();
+        projects.remember_worktree_homes(&[home("/r/b")]).unwrap();
+        assert_eq!(projects.worktree_homes().unwrap(), vec![home("/r/b")]);
+    }
 }

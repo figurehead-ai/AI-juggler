@@ -209,12 +209,14 @@ pub fn refuse_option_like(session_id: &str) -> Result<(), AdapterError> {
     Ok(())
 }
 
-/// `CODEX_HOME=` assignments in the shell rc files under `home`.
+/// `CODEX_HOME=` assignments in the shell rc files under `home`, then the
+/// ones other managers' profiles set (AJ-E1519).
 #[must_use]
 pub fn codex_aliases(home: &Path) -> Vec<juggler_adapter::environment::AliasHint> {
     let (hints, _) = crate::scan_signals::scan_rc_assignments(home);
     hints
         .into_iter()
+        .chain(crate::other_managers::aliases(home))
         .filter(|hint| hint.variable == ENV_CODEX_HOME)
         .collect()
 }
@@ -438,6 +440,10 @@ impl HarnessAdapter for CodexAdapter {
         HarnessId::new(CODEX_ID)
     }
 
+    fn spec(&self) -> juggler_adapter::ToolSpec {
+        codex_spec()
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -524,10 +530,16 @@ impl HarnessAdapter for CodexAdapter {
         mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
-        let effective_cwd = profile
-            .default_cwd
-            .clone()
-            .unwrap_or_else(|| cwd.to_path_buf());
+        // AJ-E1540: a resumed or primed session continues work that lives
+        // in `cwd` (its conversation, its files): it runs there. The
+        // launch settings' folder is only where a fresh session starts.
+        let effective_cwd = match mode {
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
+            _ => profile
+                .default_cwd
+                .clone()
+                .unwrap_or_else(|| cwd.to_path_buf()),
+        };
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(home_env(&account.state_dir, self.user_home().as_deref()));
@@ -566,7 +578,8 @@ impl HarnessAdapter for CodexAdapter {
         // (verified on 0.163.0: `codex -- "- fix X"` parses, without `--`
         // it is an "unexpected argument").
         match mode {
-            LaunchMode::Headless { prompt } | LaunchMode::Primed { prompt } => {
+            // Codex reads outside its folder already: `read_dirs` needs no flag.
+            LaunchMode::Headless { prompt } | LaunchMode::Primed { prompt, .. } => {
                 args.extend(["--".into(), prompt.clone()]);
             }
             LaunchMode::Resume {
@@ -714,7 +727,7 @@ impl HarnessAdapter for CodexAdapter {
     fn scan_shell_aliases(&self) -> Vec<juggler_adapter::environment::AliasHint> {
         self.home
             .clone()
-            .or_else(crate::claude_code::home_dir)
+            .or_else(crate::inventory_files::user_home)
             .map_or_else(Vec::new, |home| codex_aliases(&home))
     }
 
@@ -725,7 +738,116 @@ impl HarnessAdapter for CodexAdapter {
         Some("codex")
     }
 
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::codex_inventory::inventory(state_dir, crate::inventory_files::user_home().as_deref())
+    }
+
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::codex_inventory::can_set_up(item)
+    }
+
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::codex_inventory::set_up(
+            state_dir,
+            crate::inventory_files::user_home().as_deref(),
+            item,
+        )
+    }
+
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::codex_conversations::conversation_files(state_dir)
+    }
+
+    fn read_conversation(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::codex_conversations::read_conversation(path)
+    }
+
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::codex_conversations::read_conversation_quick(path)
+    }
+
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<juggler_adapter::conversation::SessionProcess> {
+        crate::codex_conversations::session_process(exe, args)
+    }
+
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        refuse_option_like(conversation_id).ok()?;
+        Some(vec!["resume".into(), conversation_id.to_owned()])
+    }
+
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_bin()
+    }
+}
+
+/// ADR-0019: Codex, described as data (every screen and command reads
+/// this instead of the id).
+#[must_use]
+pub fn codex_spec() -> juggler_adapter::ToolSpec {
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
+    ToolSpec {
+        id: CODEX_ID.to_owned(),
+        display_name: "Codex".to_owned(),
+        short_name: "Codex".to_owned(),
+        vendor: "OpenAI".to_owned(),
+        mark: Some("openai".to_owned()),
+        vendor_mark: None,
+        install_url: Some("https://developers.openai.com/codex".to_owned()),
+        install_command: Some("npm install -g @openai/codex".to_owned()),
+        sign_in: SignInWords {
+            own: "Codex's own sign-in (OpenAI)".to_owned(),
+            short: "Codex's (OpenAI)".to_owned(),
+        },
+        same_as: "as when you run Codex yourself".to_owned(),
+        desktop_app: None,
+        kinds: vec![ToolKind::Cli],
+        rules_files: vec!["AGENTS.md".to_owned()],
+        rules_import: None,
+        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+            .to_owned(),
+        // Codex homes are their own group in every list (AJ-E1301).
+        setup_groups: vec![SetupGroup {
+            id: "codex".to_owned(),
+            title: "Codex".to_owned(),
+            path_contains: None,
+            origin: None,
+            shows_install: true,
+        }],
+        default_label: Some("Codex".to_owned()),
+        flags: ToolFlags {
+            first_run: true,
+            primary: false,
+        },
+        // Checked against the terms on 2026-10-23 (AJ-E1518's register).
+        terms: Some(ToolTerms {
+            name: "OpenAI's Terms of Use".to_owned(),
+            url: "https://openai.com/policies/terms-of-use/".to_owned(),
+            accounts: "OpenAI says one person can have several accounts, and its Terms of Use say \
+                       not to share one or get around its usage limits."
+                .to_owned(),
+            checked: "2026-10-23".to_owned(),
+        }),
     }
 }

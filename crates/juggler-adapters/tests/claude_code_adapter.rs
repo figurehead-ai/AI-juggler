@@ -253,6 +253,24 @@ fn a_resume_id_that_looks_like_an_option_is_refused() {
     }
 }
 
+/// AJ-E1537: Copy resume command — `claude --resume <id>` on the
+/// account's folder, from the session's folder; option-like ids refused.
+#[test]
+fn the_resume_line_names_the_conversation() {
+    let adapter = ClaudeCodeAdapter::new();
+    let line = juggler_adapter::adapter::shell_resume_snippet(
+        &adapter,
+        Path::new("/tmp/work"),
+        "7f0c1a55-0001",
+        Path::new("/w/proj"),
+    )
+    .unwrap();
+    assert!(line.starts_with("cd '/w/proj' && "), "{line}");
+    assert!(line.contains("CLAUDE_CONFIG_DIR='/tmp/work'"), "{line}");
+    assert!(line.ends_with(" '--resume' '7f0c1a55-0001'"), "{line}");
+    assert!(adapter.resume_args("-p").is_none());
+}
+
 /// The one rule for a `claude` session (QA on #126): Claude Code's own
 /// executable run as its search helper isn't one; `claude` run by name, by
 /// a path with spaces, or as the npm package is.

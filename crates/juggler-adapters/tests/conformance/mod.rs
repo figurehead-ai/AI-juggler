@@ -162,7 +162,11 @@ pub fn profile(account: &Account, env: BTreeMap<String, String>) -> Profile {
         id: ProfileId::new("kit-profile"),
         name: "kit".into(),
         account: account.id.clone(),
-        settings_overlay: SettingsOverlay { model: None, env },
+        settings_overlay: SettingsOverlay {
+            model: None,
+            env,
+            restart_on_crash: None,
+        },
         default_cwd: None,
     }
 }
@@ -253,6 +257,7 @@ fn all_modes(resume_id: &str) -> Vec<LaunchMode> {
         },
         LaunchMode::Primed {
             prompt: "kit prompt".into(),
+            read_dirs: Vec::new(),
         },
         LaunchMode::Resume {
             session_id: resume_id.into(),

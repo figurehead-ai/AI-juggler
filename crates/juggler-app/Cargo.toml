@@ -31,20 +31,22 @@ dev-bridge = [
 workspace = true
 
 [dependencies]
+# D-26: open at login (a safe stub off macOS).
+juggler-login-item = { version = "0.1.0", path = "../juggler-login-item" }
 base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"
-juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
-juggler-account = { version = "0.0.1", path = "../juggler-account" }
-juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
-juggler-core = { version = "0.0.1", path = "../juggler-core" }
-juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
-juggler-link = { version = "0.0.1", path = "../juggler-link" }
+juggler-adapter = { version = "0.1.0", path = "../juggler-adapter" }
+juggler-account = { version = "0.1.0", path = "../juggler-account" }
+juggler-adapters = { version = "0.1.0", path = "../juggler-adapters" }
+juggler-core = { version = "0.1.0", path = "../juggler-core" }
+juggler-handover = { version = "0.1.0", path = "../juggler-handover" }
+juggler-link = { version = "0.1.0", path = "../juggler-link" }
 # AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
-juggler-stats = { version = "0.0.1", path = "../juggler-stats", optional = true }
+juggler-stats = { version = "0.1.0", path = "../juggler-stats", optional = true }
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
 thread-priority = { version = "3.1.1", optional = true }
-juggler-supervisor = { version = "0.0.1", path = "../juggler-supervisor" }
+juggler-supervisor = { version = "0.1.0", path = "../juggler-supervisor" }
 getrandom = "0.4"
 prost = "0.14"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -60,6 +62,9 @@ tauri-plugin-dialog = "2"
 # common controls on Windows).
 rfd = { version = "0.16", default-features = false, features = ["common-controls-v6", "gtk3"] }
 tauri-plugin-global-shortcut = "2"
+# AJ-E1510: system notifications. 2.6 is the first that reports a click
+# on macOS (a notification's tap reaches `on_action`).
+tauri-plugin-notification = "2.6"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 # AJ-E1010: without the plugin's default `zip` feature. That feature only
@@ -86,11 +91,13 @@ tauri-build = { version = "2.7.2", features = [] }
 
 [dev-dependencies]
 # The usage-stats integration tests seed the store directly.
-juggler-stats = { version = "0.0.1", path = "../juggler-stats" }
+juggler-stats = { version = "0.1.0", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).
 cpu-time = "1"
-juggler-handover = { version = "0.0.1", path = "../juggler-handover" }
+juggler-handover = { version = "0.1.0", path = "../juggler-handover" }
 tempfile = "3.27.0"
+# AJ-E1542: reads the Codex config a set-up wrote.
+toml = "1"
 # AJ-E1010: the real updater plugin against a local feed — a mock Tauri
 # app, and minisign signatures made in the test (signature fixtures).
 tauri = { version = "2.12.3", features = ["test"] }
@@ -105,7 +112,7 @@ rusqlite = "0.40.2"
 # everywhere against a scripted capture source.
 screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }
 # D-17: the audited init shim (one unsafe call, isolated crate).
-juggler-scap-init = { version = "0.0.1", path = "../juggler-scap-init" }
+juggler-scap-init = { version = "0.1.0", path = "../juggler-scap-init" }
 # D-25: the first-run OS access step — safe wrappers (their FFI stays in
 # their own crates; ours keep `unsafe_code = "forbid"`): Screen Recording
 # preflight/request, and the Accessibility check with the system prompt
@@ -115,3 +122,10 @@ macos-accessibility-client = "0.0.2"
 # AJ-E1501: a removed copy's folder goes to the Trash (NSFileManager
 # trashItem — never deleted, never Finder scripting).
 trash = { version = "5.2.9", default-features = false }
+# The launch alerts (QA batch 9): an NSAlert in AI Juggler's own process,
+# so one can never outlive it (rfd's alert without a window is the
+# system's, and stayed up after the app was gone). Safe calls only, with
+# a MainThreadMarker; already in the tree through rfd and tao.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView"] }

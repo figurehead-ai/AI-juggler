@@ -11,22 +11,26 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod awake;
+pub mod cpu_since;
 pub mod error;
 pub mod group;
 pub mod heuristics;
 pub mod journal;
 pub mod lifecycle;
+pub mod live_stats;
 pub mod machine;
 pub mod orphans;
 pub mod ports;
 pub mod ring;
+pub mod stats;
 pub mod supervisor;
 pub mod tree;
 
 pub use error::SupervisorError;
 pub use heuristics::{
     AttentionTransition, HeuristicEngine, HeuristicInputs, HeuristicThresholds, prompt_alive,
-    quota_signature,
+    quota_signature, signin_signature,
 };
 pub use journal::{AdoptedProcess, Journal};
 pub use lifecycle::{ExitKind, LifecycleEvent};

@@ -18,8 +18,8 @@ use tauri::Manager as _;
 
 use crate::state::AppState;
 use crate::{
-    commands, crash, history, link, machine_health, manage, newer_data, os_access, overnight,
-    parked, settings_policy, updates, usage_stats,
+    commands, crash, features, history, link, machine_health, manage, newer_data, os_access,
+    overnight, parked, quit, settings_policy, updates, usage_stats,
 };
 
 /// The settings the UI reads; others (the one-time confirmation tokens
@@ -192,22 +192,30 @@ read_routes! {
     "providers_list" => value commands::harnesses_list();
     "providers_capabilities" => result commands::providers_capabilities(state);
     "accounts_list" => result commands::accounts_list(state);
-    "account_audit" => result manage::account_audit(state; account_id: String);
+    "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => result history::account_storage(state);
-    "launch_recipes_list" => result commands::profiles_list(state);
+    "launch_recipes_list" => async_result commands::profiles_list(state);
     "instances_list" => result commands::sessions_list(state);
     "instance_quality" => result commands::instance_quality(state; session_id: String);
     "instance_processes" => result commands::instance_processes(state; session_id: String);
     "instance_replay" => result history::instance_replay(state; session_id: String);
     "transcript_search" => result history::transcript_search(state; query: String);
     "projects_list" => result commands::projects_list(state);
-    "ranking_rows" => result commands::ranking_rows(state; project: Option<String>);
+    "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => result commands::switch_back_suggestions(state);
+    // The switch screen (AJ-E1543): its targets, its check and its
+    // set-up list, all reads. The check's secret previews are masked
+    // before they leave ([`masked`]).
+    "switch_targets" => result commands::switch_targets(state; session_id: String);
+    "switch_preflight" => async_result commands::switch_preflight(state; session_id: String, target_profile_id: String);
+    "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "parked_list" => value parked::parked_list(state);
     "overnight_summary" => result overnight::overnight_summary(state; since_ms: Option<i64>);
     "dashboard_stats" => result commands::dashboard_stats(state);
     "quota_display" => result commands::quota_display(state; account: String);
     "quota_display_all" => value commands::quota_display_all(state);
+    "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
+    "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
     "cost_rollups" => value commands::cost_rollups(state; account: Option<String>);
     "pricing_catalog_info" => value commands::pricing_catalog_info(state);
     "usage_source_health" => value commands::usage_source_health(state);
@@ -231,4 +239,148 @@ read_routes! {
     "crash_info" => value crash::crash_info(state);
     "usage_stats_info" => value usage_stats::usage_stats_info(state);
     "link_status" => value link::link_status(state);
+    // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
+    "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
+    "conversations_list" => async_result features::conversations::commands::conversations_list(state);
+    "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
+    "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
+    "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
+    "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);
+    "editor_choices" => async_result manage::editor_choices(state);
+    "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
+    "notifications_get" => async_result features::notifications::prefs::notifications_get(state);
+    // AJ-E1507: the project's rules and servers, compared (reads only).
+    "project_sync_rules" => async_result features::project_sync::commands::project_sync_rules(state; project_id: String, master: Option<String>);
+    "project_sync_diff" => async_result features::project_sync::commands::project_sync_diff(state; project_id: String, master: String, file: String, how: String);
+    "project_sync_servers" => async_result features::project_sync::commands::project_sync_servers(state; project_id: String);
+    // AJ-E1508: what a new account could start with (reads only).
+    "account_settings_check" => async_result features::account_settings::commands::account_settings_check(state; target: Option<String>, source: String);
+    // The rest of release/0.1's reads (AJ-E1503, E1513, E1514, E1538,
+    // E1543, E1546), found missing in the 0.1 acceptance walk.
+    "budgets_list" => async_result features::budgets::commands::budgets_list(state; month_start_ms: i64);
+    "outside_search_status" => async_result features::outside_search::commands::outside_search_status(state);
+    "outside_search_estimate" => async_result features::outside_search::commands::outside_search_estimate(state);
+    "switch_setup_list" => async_result features::switch_setup::switch_setup_list(state);
+    "switch_back_plan" => async_result commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
+    "switch_graph_overview" => result commands::switch_graph_overview(state; project_id: String);
+    "staging_ready" => async_result features::staging::staging_ready(state; session_id: String);
+    "subtasks_list" => async_result features::subtasks::commands::subtasks_list(state; session_id: String);
+    "app_quit_plan" => async_result quit::app_quit_plan(state);
+    "fleet_launch_options" => async_result features::fleet::fleet_launch_options(state);
+    "fleet_usage_by_machine" => async_result features::fleet::fleet_usage_by_machine(state);
+}
+
+/// The `Read` commands the bridge doesn't serve, and why. Every other
+/// `Read` command is served: a new one is either routed above or named
+/// here, so the bridge can't fall behind the app unnoticed (a test
+/// checks it).
+#[cfg(test)]
+pub const NOT_SERVED: &[(&str, &str)] = &[
+    (
+        "usage_stats::usage_stats_report",
+        "a usage-statistics report the user reviews before it's sent",
+    ),
+    (
+        "commands::legacy_aliases::harnesses_list_alias",
+        "an old name for providers_list, which is served",
+    ),
+    (
+        "commands::legacy_aliases::profiles_list_alias",
+        "an old name for launch_recipes_list, which is served",
+    ),
+    (
+        "commands::legacy_aliases::sessions_list_alias",
+        "an old name for instances_list, which is served",
+    ),
+    (
+        "commands::account_login_state",
+        "the sign-in probe; QA reads sign-in state through accounts_list",
+    ),
+    (
+        "commands::account_login_command",
+        "the command line for signing in; the bridge never signs in",
+    ),
+    (
+        "commands::environment_scan",
+        "the setup scan first run makes; QA runs it through its own harness",
+    ),
+    (
+        "link::pairing::pairing_join_state",
+        "pairing, a flow the bridge never takes part in",
+    ),
+    (
+        "link::fleet_prompts",
+        "requests waiting for this Mac's Allow, answered only in the app",
+    ),
+    (
+        "identity::identity_check",
+        "a Launch setting's check, made just before a launch",
+    ),
+    (
+        "crossmachine::switch_back::fleet_divergences",
+        "conflicts left after switching back between paired Macs",
+    ),
+    ("commands::funnel_export", "an export the user saves"),
+    ("commands::cleanup_audit_export", "an export the user saves"),
+    (
+        "commands::launch_port_warning",
+        "checked just before a launch",
+    ),
+    (
+        "commands::kill_liveness",
+        "polled by the stop sheet while a stop runs; the bridge stops nothing",
+    ),
+    (
+        "features::terminal::commands::terminal_windows",
+        "the app's own terminal windows",
+    ),
+    (
+        "features::app::login_item::app_login_item_get",
+        "asks macOS about the login item, not the app's data",
+    ),
+];
+
+/// The fields a reply may not carry out of the app, by command: each is
+/// set to a mask in every object that holds it. A secret's masked preview
+/// (its first character and last four) still says too much for a walk's
+/// record; its kind and count stay.
+const MASKED: &[(&str, &[&str])] = &[("switch_preflight", &["preview"])];
+
+/// `reply` with the fields [`MASKED`] names for `ipc` replaced, wherever
+/// they are in its JSON. Other replies pass as they are.
+pub(super) fn masked(ipc: &str, reply: Reply) -> Reply {
+    let Some((_, fields)) = MASKED.iter().find(|(name, _)| *name == ipc) else {
+        return reply;
+    };
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&reply.body) else {
+        return Reply::internal();
+    };
+    mask_fields(&mut value, fields);
+    match serde_json::to_vec(&value) {
+        Ok(body) => Reply {
+            status: reply.status,
+            body,
+        },
+        Err(_) => Reply::internal(),
+    }
+}
+
+fn mask_fields(value: &mut serde_json::Value, fields: &[&str]) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, inner) in map.iter_mut() {
+                if fields.contains(&key.as_str()) && inner.is_string() {
+                    *inner = serde_json::Value::String("•••".to_owned());
+                } else {
+                    mask_fields(inner, fields);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                mask_fields(item, fields);
+            }
+        }
+        _ => {}
+    }
 }

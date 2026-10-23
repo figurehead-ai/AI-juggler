@@ -119,7 +119,7 @@ function record(flow: string, stops: Stop[], notes: string[] = []) {
   expect(hidden.map((s) => s.name), `${flow}: focus stops without a visible indicator`).toEqual([]);
 }
 
-test("inspector tab walk — arrow keys move across all six tabs", async ({ page }) => {
+test("page tab walk — arrow keys move across the session page's tabs", async ({ page }) => {
   await open(page);
   const stops: Stop[] = [];
   await page.locator("body").focus();
@@ -134,18 +134,22 @@ test("inspector tab walk — arrow keys move across all six tabs", async ({ page
   await page.keyboard.press("Control+Shift+Tab");
   stops.push(await focused(page));
   expect(stops.at(-1)!.name).not.toContain("Terminal input");
-  await tabTo(page, stops, /^tab: Overview/, { back: true });
-  const names = ["Usage", "History", "Quality / Performance", "Processes", "Actions"];
-  for (const name of names) {
+  // AJ-E1533: a session's page shows only its own tabs, its body first.
+  await tabTo(page, stops, /^tab: Terminal/, { back: true });
+  const tablist = page.getByRole("tablist", { name: "Session tabs" });
+  const names = await tablist.getByRole("tab").allInnerTexts();
+  expect(names).toEqual(["Terminal", "Usage", "Processes"]);
+  for (const name of [...names.slice(1), names[0]!]) {
     await page.keyboard.press("ArrowRight");
     const stop = await focused(page);
     stops.push(stop);
-    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(tablist.getByRole("tab", { name, exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel", { name, exact: true })).toBeVisible();
     expect(stop.name).toContain(name);
   }
   record("inspector-tab-walk", stops, [
     "Enter on a row selects it and focuses its terminal; the terminal shows \"⌃Tab leaves the terminal\" and Ctrl+Shift+Tab leaves it.",
-    "ArrowRight moves focus and selection across the six tabs; each panel shows.",
+    "ArrowRight moves focus and selection across the page's tabs (Terminal, Usage, Processes) and wraps to the first; each panel shows.",
   ]);
 });
 

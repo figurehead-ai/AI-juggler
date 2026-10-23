@@ -12,7 +12,7 @@ external tools like cc-switch and Codex use *profile* to mean *account*),
 and collapsed Instances into Sessions (ADR-0007 flagged the drift).
 The maintainer's canonical workflow names the desired nouns outright:
 "we should call them providers, accounts, and instances of the tool"
-(docs/expected-worfklow.md:11).
+(docs/internal/expected-workflow.md:11).
 
 ## Decision
 

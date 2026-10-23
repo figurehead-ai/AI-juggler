@@ -26,6 +26,8 @@ workflows do the mechanical work:
 - **`nightly.yml`** plans the build and calls **`build-macos.yml`**, which
   builds, signs, notarizes and publishes the version as a pre-release, as
   both apps (below); then it moves the nightly feed.
+- **`promote.yml`** moves the beta or stable feed to an existing version
+  after its checks and the maintainer's approval.
 
 ### Where the keys are (AJ-E2001)
 
@@ -79,10 +81,10 @@ with their name. The edition comes from the bundle identifier
 overlay `tauri.conf.json`); a debug build is always Dev. So:
 
 - **Use AI Juggler for real work and AI Juggler Nightly to try what's
-  coming**, at the same time. Each makes its own copy of an Account inside
-  its own data folder, so the two never write to the same Claude setup or
-  to `~/.claude`; you sign in once inside each copy, and both draw on the
-  same subscription's usage. Both want ⌥Space for Go to instance, and only
+  coming**, at the same time. Each edition keeps its own list of accounts:
+  it can use a setup where it is (ADR-0018) or make its own copy inside its
+  own data folder, and the two editions never share a copy. A copy needs its
+  own sign-in, and every edition draws on the same subscription's usage. Both want ⌥Space for Go to instance, and only
   the one opened first gets it: give Nightly another shortcut (⌘K, then
   change it there).
 - **Developers and agents run only AI Juggler Dev**, which can never open an
@@ -91,8 +93,6 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   of a version (`latest.json`); the nightly feed points at its AI Juggler
   Nightly build (`latest-nightly.json`). Both workflows check they carry the
   right app.
-- **`promote.yml`** moves the beta or stable feed to an existing version
-  after its checks and the maintainer's approval.
 
 ## How users get updates
 
@@ -102,7 +102,14 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   only reports: the user sees the new version and its notes, and nothing is
   downloaded or installed until they choose **Install**.
 - **The channel** is chosen in AI Juggler's Settings › About & updates:
-  Stable or Beta. Installs follow Beta until the first stable release.
+  Stable or Beta. Until the user chooses, an install follows the channel
+  it was published to. Promotion doesn't rebuild, so a fresh install
+  learns this on its first update check: when the stable feed carries
+  this exact version (it was downloaded as a stable release), it follows
+  Stable; otherwise (a beta release, or no stable feed yet) Beta. If that
+  check can't read the stable feed, it follows Beta until a later check
+  can. An install that existed before this rule keeps Beta. The user's
+  own choice always wins.
   Nightly builds are the separate AI Juggler Nightly app, which always
   follows the nightly feed. Moving to a
   steadier channel never goes back to an older version: that channel is
@@ -362,6 +369,7 @@ saved (it never risks it). So:
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
 | 0.0.9 | 29 (session footprints) | yes | **no** — downgrade note in 0.0.9's notes; 0.0.9 keeps a `before-v28` copy, so "Go back to an earlier version" can return to 0.0.8 |
 | 0.0.13 | 30 (account rename, remove and default; account audit) | yes | **no** — downgrade note in 0.0.13's notes; 0.0.13 keeps a `before-v29` copy, so "Go back to an earlier version" can return to 0.0.12 |
+| 0.1.x | 31 (session and project names, pins, forgotten projects; AJ-E1502) | yes | **no** — downgrade note in 0.1's notes (the version is filled in when 0.1 is cut) |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database

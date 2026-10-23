@@ -1,6 +1,6 @@
 # Pass 2 — Executive Delta: What the First Report Got Wrong
 
-> Assembly lead synthesis. Canonical input: `docs/expected-worfklow.md`
+> Assembly lead synthesis. Canonical input: `docs/internal/expected-workflow.md`
 > (21 lines). First pass under review:
 > `docs/review/AI-Juggler-Maximum-Depth-Report-and-Proposal.md`
 > (6,739 lines, verified by `wc -l`) plus
@@ -24,7 +24,7 @@
 The first report was deep but centred on the wrong product. It made
 quota forecasting, one-way handover honesty, and a needs-attention
 inbox the headline, while the maintainer's workflow centres
-unlimited reversible switching (`expected-worfklow.md:7`), a
+unlimited reversible switching (`expected-workflow.md:7`), a
 single right-hand snapshot for any selection (`:14`), and
 ownership of every process an Instance spawns (`:15`–`:18`).
 Pass 2 does not discard pass 1; it re-centres it. Switching is a
@@ -48,7 +48,7 @@ three, not the thesis itself (see `08-proposal-delta-and-plan-updates.md` §1).
    N-hop, fork/merge, and cycle-safe uuid dedupe.
 3. **Delete-the-Instances-tab proposal.** Deep 01 B-08 / FCUR
    F2.2 proposed deleting Instances, contradicting the mandate
-   at `expected-worfklow.md:11`. `01-expected-vs-researched-gap-audit.md`
+   at `expected-workflow.md:11`. `01-expected-vs-researched-gap-audit.md`
    §4 reverses this: build the Instance entity the tab promised.
 4. **Zombies scoped out.** Deep 08 F-5 ruled Unix `Z`-state
    orphans out of scope. `05-process-trees-zombies-and-cleanup.md`
@@ -147,10 +147,10 @@ across `01-expected-vs-researched-gap-audit.md` §4,
 > any Provider Account, exhaust it, and continue the same work —
 > chat, rules, project state — on any other Account or Provider,
 > unlimited times in both directions, without manual configuration
-> (`expected-worfklow.md:6,9`), while always showing which
+> (`expected-workflow.md:6,9`), while always showing which
 > Provider / Account / model is running where and owning every
 > process an Instance spawns until it is verifiably gone
-> (`expected-worfklow.md:13`–`:18`).
+> (`expected-workflow.md:13`–`:18`).
 
 Positioning (from `08-proposal-delta-and-plan-updates.md` §1):
 recommend A+B — "switching layer" headline, "verified cleanup"

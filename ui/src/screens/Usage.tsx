@@ -3,21 +3,32 @@
  * resets), then what your sessions used, by model and day. With nothing
  * set up it says what will appear, and how to get there — never a blank.
  */
+import { accountColor } from "../lib/palette";
+import { ToolMark } from "../components/ToolMark";
+import { WelcomePointer } from "../components/Welcome";
 import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
+import { BurnDowns } from "../components/BurnDown";
+import { MachineUsageCard } from "../components/MachineUsage";
+import { BudgetCaps } from "../components/BudgetCaps";
 import { CostMatrix } from "../components/CostMatrix";
 import { Button, Card } from "../components/primitives";
-import { hueOf } from "../components/indicator";
-import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
+import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../lib/bridge";
 
 export function UsageScreen({
   accounts,
   sessions,
+  projects = [],
   onAddAccounts,
+  onOpenHome,
 }: {
   accounts: AccountInfo[];
   sessions: InstanceInfo[];
+  /** AJ-E1514: a cap can count a group of projects. */
+  projects?: ProjectInfo[];
   onAddAccounts: () => void;
+  /** AJ-E1524: back to the welcome while no account is in. */
+  onOpenHome?: () => void;
 }): JSX.Element {
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
   useEffect(() => {
@@ -48,6 +59,7 @@ export function UsageScreen({
           <Button size="sm" variant="primary" onClick={onAddAccounts}>
             Find my accounts
           </Button>
+          {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
         </Card>
       ) : (
         <section aria-labelledby="usage-runway" className="flex flex-col gap-2.5">
@@ -59,19 +71,25 @@ export function UsageScreen({
               <li key={account.id}>
                 <Card className="flex h-full flex-col gap-3 p-4" data-testid="usage-account">
                   <span className="flex items-center gap-2 text-sm font-medium">
-                    <span aria-hidden="true" className="size-2 rounded-full" style={{ background: `hsl(${hueOf(account.id)} 70% 66%)` }} />
+                    <span aria-hidden="true" className="size-2 rounded-full" style={{ background: accountColor(account.id) }} />
+                    <ToolMark tool={account.provider} size={14} className="text-muted" />
                     {account.label}
                   </span>
                   <AccountRunway
                     display={displays.find((d) => d.account === account.id)}
                     sessions={sessions.filter((s) => s.account_id === account.id)}
                   />
+                  <BurnDowns display={displays.find((d) => d.account === account.id)} />
                 </Card>
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      <MachineUsageCard />
+
+      {accounts.length > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
 
       <section aria-labelledby="usage-costs" className="flex flex-col gap-2.5">
         <h3 id="usage-costs" className="text-[11px] font-semibold uppercase tracking-wider text-muted">

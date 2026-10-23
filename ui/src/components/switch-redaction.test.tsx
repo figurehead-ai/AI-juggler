@@ -14,11 +14,13 @@ import type { PreflightInfoData } from "../lib/bridge";
 const BASE: PreflightInfoData = {
   mechanism: "transplant",
   fidelity: "F1",
+  fidelity_words: "Full story, fresh start",
   score: 0.85,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
+  source_keeps_running: false,
   experimental_copy: "Experimental copy.",
   door: "one-click",
   wizard_steps: [],
@@ -34,7 +36,7 @@ const BASE: PreflightInfoData = {
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
   },
   redaction_items: [],
 };
@@ -75,7 +77,7 @@ describe("AJ-E208 redaction policy", () => {
     const view = mount(BASE);
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
     expect(view.getByTestId("switch-redaction-line").textContent).toBe(
-      "Redaction for claude-code: Strip — replace keys with ••• (your global choice)",
+      "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
     );
     expect(view.getByTestId("switch-redaction-none")).toBeTruthy();
   });
@@ -88,7 +90,7 @@ describe("AJ-E208 redaction policy", () => {
         override: "strip",
         effective: "strip",
         source: "override",
-        line: "Redaction for claude-code: Strip — replace keys with ••• (override)",
+        line: "Redaction for Claude Code: Strip — replace keys with ••• (override)",
       },
     });
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
@@ -129,7 +131,7 @@ describe("AJ-E208 redaction policy", () => {
         override: null,
         effective: "ask",
         source: "global",
-        line: "Redaction for claude-code: Ask each time (your global choice)",
+        line: "Redaction for Claude Code: Ask each time (your global choice)",
       },
       redaction_items: [
         { kind: "sk-key", preview: "s•••5678", segment: 0 },

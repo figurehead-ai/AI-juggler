@@ -113,6 +113,46 @@ pub fn read_status(dir: &Path) -> Option<GitStatus> {
     .map(|out| parse_porcelain(&out))
 }
 
+/// AJ-E1541: what has changed in a project and isn't committed yet, for
+/// a handover: the branch, up to [`CHANGES_SHOWN`] files as git names them
+/// (`M calc.py`, `?? test_calc.py`), how many more, and the diff stat.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct WorkChanges {
+    /// The branch, when on one.
+    pub branch: Option<String>,
+    /// The changed files, as `git status --short` lines.
+    pub files: Vec<String>,
+    /// Changed files not listed.
+    pub more: usize,
+    /// `git diff --shortstat HEAD`: `2 files changed, 12 insertions(+)`.
+    pub stat: Option<String>,
+}
+
+/// Files a handover lists by name; the rest are counted.
+pub const CHANGES_SHOWN: usize = 30;
+
+/// Reads `dir`'s uncommitted changes now (two git subprocesses). `None`
+/// outside a repository.
+#[must_use]
+pub fn work_changes(dir: &Path) -> Option<WorkChanges> {
+    let short = git(dir, &["status", "--short", "--untracked-files=normal"])?;
+    let lines: Vec<String> = short
+        .lines()
+        .map(str::trim_end)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let more = lines.len().saturating_sub(CHANGES_SHOWN);
+    Some(WorkChanges {
+        branch: branch_of(dir),
+        files: lines.into_iter().take(CHANGES_SHOWN).collect(),
+        more,
+        stat: git(dir, &["diff", "--shortstat", "HEAD"])
+            .map(|out| out.trim().to_owned())
+            .filter(|out| !out.is_empty()),
+    })
+}
+
 /// Folder → (when read, status); `None` = not a git folder.
 type StatusCache = Mutex<HashMap<PathBuf, (Instant, Option<GitStatus>)>>;
 
@@ -313,6 +353,14 @@ struct JugglerWorktree {
     branch: String,
     repo_root: String,
     created_at_ms: i64,
+}
+
+/// The worktrees AI Juggler made, `(path, branch)`, as recorded.
+pub(crate) fn created_worktrees(state: &Arc<AppState>) -> Vec<(String, String)> {
+    created(state)
+        .into_iter()
+        .map(|row| (row.path, row.branch))
+        .collect()
 }
 
 fn created(state: &Arc<AppState>) -> Vec<JugglerWorktree> {
@@ -586,16 +634,22 @@ pub fn git_status_refresh_impl(
             .get(&juggler_core::model::SessionId::new(session_id))?
             .cwd
     };
-    Ok(refresh_status(&cwd).map(|status| GitStatusInfo {
+    Ok(status_info(state, &cwd))
+}
+
+/// `dir`'s git status now (at most every 2 s) as the UI shows it, `None`
+/// for a folder that isn't a git checkout: a session's, or a project's.
+pub(crate) fn status_info(state: &Arc<AppState>, dir: &Path) -> Option<GitStatusInfo> {
+    refresh_status(dir).map(|status| GitStatusInfo {
         branch: status.branch,
         changed: status.changed,
         untracked: status.untracked,
         ahead: status.ahead,
         behind: status.behind,
-        worktree: is_linked_worktree(&cwd),
-        created_by_juggler: juggler_created(state, &cwd),
-        path: cwd.to_string_lossy().into_owned(),
-    }))
+        worktree: is_linked_worktree(dir),
+        created_by_juggler: juggler_created(state, dir),
+        path: dir.to_string_lossy().into_owned(),
+    })
 }
 
 // ---------------------------------------------------------- the commands

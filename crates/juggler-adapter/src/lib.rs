@@ -15,14 +15,18 @@
 
 pub mod adapter;
 pub mod capabilities;
+pub mod conversation;
 pub mod discovery;
 pub mod environment;
 pub mod error;
 pub mod file_trust;
 pub mod handover;
 pub mod identity;
+pub mod inventory;
+pub mod jsonc;
 pub mod launch;
 pub mod registry;
+pub mod spec;
 pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
@@ -31,7 +35,7 @@ pub mod watcher;
 /// (they still come from `juggler-core`, the single source of truth).
 pub use juggler_core::model;
 
-pub use adapter::{HarnessAdapter, SharedAdapter};
+pub use adapter::{HarnessAdapter, LimitsCapture, SharedAdapter};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 pub use environment::{
@@ -41,4 +45,5 @@ pub use error::AdapterError;
 pub use identity::IdentityProbe;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
+pub use spec::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
 pub use watcher::{SessionEvent, SessionWatcher};

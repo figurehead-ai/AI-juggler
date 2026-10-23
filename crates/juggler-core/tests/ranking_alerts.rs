@@ -31,7 +31,7 @@ fn candidate(account: &str, headroom: Option<f64>, confidence: Confidence) -> Ca
         headroom_pct: headroom,
         headroom_confidence: confidence,
         affinity: 0.5,
-        fidelity: 0.5,
+        fidelity: None,
         projected_usd: Some(1.0),
         active_sessions: 0,
         soft_cap: 4,
@@ -181,6 +181,7 @@ fn fixture_day_produces_the_exact_q5_sequence() {
         tte_min: tte,
         used_pct: pct,
         confidence: c,
+        resets_at_ms: None,
     };
 
     // Healthy stretches emit nothing.
@@ -292,8 +293,8 @@ proptest! {
         for obs in sequence {
             now += 60_000;
             let (next, emission) = match obs {
-                Obs::Tte(tte) => step(&fsm, WindowObservation { tte_min: Some(tte), used_pct: None, confidence: Confidence::Estimated }, now),
-                Obs::Pct(pct) => step(&fsm, WindowObservation { tte_min: None, used_pct: Some(pct), confidence: Confidence::Estimated }, now),
+                Obs::Tte(tte) => step(&fsm, WindowObservation { tte_min: Some(tte), used_pct: None, confidence: Confidence::Estimated, resets_at_ms: None }, now),
+                Obs::Pct(pct) => step(&fsm, WindowObservation { tte_min: None, used_pct: Some(pct), confidence: Confidence::Estimated, resets_at_ms: None }, now),
                 Obs::Exhausted => signal(&fsm, AlertSignal::Exhausted, now),
                 Obs::Reset => signal(&fsm, AlertSignal::Reset, now),
                 Obs::Snooze => signal(&fsm, AlertSignal::Snooze, now),
@@ -324,6 +325,7 @@ fn snooze_holds_the_actionable_thirty_minutes() {
     let mut fsm = AlertFsm {
         phase: AlertPhase::Critical,
         snoozed_until_ms: None,
+        window_resets_at_ms: None,
     };
     let now = 1_000_000_i64;
     let (next, _) = signal(&fsm, AlertSignal::Snooze, now);
@@ -335,6 +337,7 @@ fn snooze_holds_the_actionable_thirty_minutes() {
             tte_min: Some(5.0),
             used_pct: None,
             confidence: Confidence::Estimated,
+            resets_at_ms: None,
         },
         now + 20 * 60_000,
     );
@@ -390,6 +393,7 @@ fn ranking_and_alerts_are_pure_no_launch_capability() {
             tte_min: Some(10.0),
             used_pct: None,
             confidence: Confidence::Measured,
+            resets_at_ms: None,
         },
         0,
     );

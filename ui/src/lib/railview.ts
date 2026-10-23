@@ -160,7 +160,9 @@ export function sortSessions(
       sorted.sort((a, b) => a.account_label.localeCompare(b.account_label) || a.id.localeCompare(b.id));
       break;
   }
-  return sorted;
+  // AJ-E1502: pinned rows lead (in every sort, and so inside each group),
+  // in the sort's own order among themselves.
+  return [...sorted.filter((row) => row.pinned), ...sorted.filter((row) => !row.pinned)];
 }
 
 function projectNames(projects: ProjectInfo[]): Map<string, string> {
@@ -200,6 +202,7 @@ export function filterSessions(
     if (filters.machine !== null && row.machine_id !== filters.machine) return false;
     if (needle !== "") {
       const haystack = [
+        row.label ?? "",
         row.account_label,
         row.provider,
         row.model ?? "",
@@ -262,7 +265,10 @@ export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: Pro
     }
     buckets.get(groupKey)!.push(row);
   }
-  return [...buckets.entries()].map(([id, rows]) => ({
+  // AJ-E1502: a pinned project's group leads (stable otherwise).
+  const pinned = new Set(by === "project" ? projects.filter((project) => project.pinned).map((project) => project.id) : []);
+  const entries = [...buckets.entries()];
+  return [...entries.filter(([id]) => pinned.has(id)), ...entries.filter(([id]) => !pinned.has(id))].map(([id, rows]) => ({
     id,
     label: labels.get(id) ?? id,
     rollup: rollupOf(rows),

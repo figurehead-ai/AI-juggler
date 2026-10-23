@@ -10,7 +10,7 @@
  * "100% left" never reached it (ADR-0019: no duplicate logic).
  */
 import type { JSX } from "react";
-import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
+import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
 import { asOfWords, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
@@ -106,6 +106,47 @@ export function runwayOf(
   return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
 }
 
+/** At or under this much left, an account is low: never recommended. */
+const LOW_LEFT = 25;
+
+/** Where to start new work, in words, from the one runway (QA batch 8:
+ * Home recommended an account with 6% left because the others weren't
+ * measured). `best` is an account with room, never a low one; `words`
+ * says so, or why it can't tell. Signed-out accounts can't take work. */
+export function newWorkAdvice(
+  accounts: AccountInfo[],
+  displays: QuotaDisplayData[],
+  sessions: InstanceInfo[],
+): { best: { account: AccountInfo; left: number } | null; words: string | null } {
+  const rows = accounts
+    .filter((account) => signedIn(account.login_state))
+    .map((account) => ({
+      account,
+      left: runwayOf(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id)).left,
+    }));
+  const measuredRows = rows.flatMap((row) => (row.left === null ? [] : [{ account: row.account, left: row.left }]));
+  const top = measuredRows.sort((a, b) => b.left - a.left)[0];
+  if (!top) return { best: null, words: null };
+  const unmeasured = rows.filter((row) => row.left === null).map((row) => row.account.label);
+  // Who isn't measured, by name when it's one ("Personal isn't measured yet").
+  const unknown =
+    unmeasured.length === 1 ? `${unmeasured[0]} isn't measured yet` : `${unmeasured.length} others aren't measured yet`;
+  const name = top.account.label;
+  if (top.left > LOW_LEFT) {
+    return {
+      best: top,
+      words: unmeasured.length === 0 ? `Best for new work: ${name}, ${top.left}% left.` : `${name} has ${top.left}% left; ${unknown}.`,
+    };
+  }
+  return {
+    best: null,
+    words:
+      unmeasured.length === 0
+        ? `Every account is low: ${name} has the most, ${top.left}% left.`
+        : `${name} has ${top.left}% left, and ${unknown}, so AI Juggler can't tell which has room.`,
+  };
+}
+
 /** The account's credits in words, with who reported them and when,
  * when its tool reports them ("Credits: 16.25 · reported by Codex, as of
  * 12 min ago"). */
@@ -183,5 +224,17 @@ export function AccountRunway({
         </p>
       )}
     </div>
+  );
+}
+
+/** The account's room in the one runway's words (`runwayOf`): the same
+ * sentence Home shows, never a bare or defaulted number. */
+export function RunwayWords({ display, sessions = [] }: { display?: QuotaDisplayData; sessions?: InstanceInfo[] }): JSX.Element {
+  // The same words as Home for the same account: its sessions' newest
+  // reading when the account has none, else "Not measured yet" (AJ-E1535).
+  return (
+    <span className="text-[11px] text-muted" data-testid="launch-runway">
+      {runwayOf(display, sessions).words}
+    </span>
   );
 }

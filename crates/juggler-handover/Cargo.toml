@@ -8,14 +8,17 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-juggler-adapter = { version = "0.0.1", path = "../juggler-adapter" }
-juggler-core = { version = "0.0.1", path = "../juggler-core" }
+juggler-adapter = { version = "0.1.0", path = "../juggler-adapter" }
+juggler-core = { version = "0.1.0", path = "../juggler-core" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 sha2 = "0.11.0"
+# AJ-E1507: the rules sync's line diff (Myers, with a deadline).
+similar = "3.2.0"
 thiserror = "2.0.21"
 
 [dev-dependencies]
+cpu-time = "1"
 tempfile = "3.27.0"
 
 [lints]

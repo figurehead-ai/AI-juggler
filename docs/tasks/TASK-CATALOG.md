@@ -164,7 +164,7 @@
 | AJ-E1506 | Terminal tools | E15-spec-gaps.md | P0 | M | — |
 | AJ-E1507 | Rules and MCP sync across tools, with a diff preview | E15-spec-gaps.md | P0 | L | AJ-E202 |
 | AJ-E1508 | Copy shared settings into a new account | E15-spec-gaps.md | P1 | M | AJ-E1507, AJ-E1022 |
-| AJ-E1509 | Auto-restart a crashed session (opt-in) | E15-spec-gaps.md | P1 | S | AJ-E505 |
+| AJ-E1509 | Always on: keep working sessions going | E15-spec-gaps.md | P1 | L | AJ-E505, AJ-E1503, AJ-E1505, AJ-E1527 |
 | AJ-E1510 | System notifications | E15-spec-gaps.md | P1 | M | AJ-E611, AJ-E1408 |
 | AJ-E1511 | Open a context pack in any tool | E15-spec-gaps.md | P1 | M | AJ-E202, AJ-E208 |
 | AJ-E1512 | Sessions left and a burn-down chart | E15-spec-gaps.md | P1 | M | AJ-E608 |
@@ -179,6 +179,27 @@
 | AJ-E1521 | Robustness: a database busy timeout and an adapter conformance kit | E15-spec-gaps.md | P1 | S | — |
 | AJ-E1522 | Quality debt | E15-spec-gaps.md | P1 | M | AJ-E803 |
 | AJ-E1523 | North-star metric: weekly juggling loops completed | E15-spec-gaps.md | P2 | S | AJ-E1103 |
+| AJ-E1524 | A welcome Home for new installs | E15-spec-gaps.md | P0 | M | AJ-E1014 |
+| AJ-E1525 | ToolSpec: tools as data | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1526 | Tool and company marks everywhere | E15-spec-gaps.md | P1 | M | AJ-E1525 |
+| AJ-E1527 | Make it smoother: the optional permissions on the welcome | E15-spec-gaps.md | P1 | S | AJ-E1524 |
+| AJ-E1528 | A This Mac page | E15-spec-gaps.md | P1 | M | AJ-E1403, AJ-E1409 |
+| AJ-E1529 | Sessions started outside AI Juggler | E15-spec-gaps.md | P0 | L | AJ-E1531, AJ-E1502 |
+| AJ-E1530 | Usage for sessions outside AI Juggler | E15-spec-gaps.md | P0 | M | AJ-E1529 |
+| AJ-E1531 | A realistic replica for walks and tests | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1532 | Telling projects and sessions apart | E15-spec-gaps.md | P1 | M | AJ-E1529, AJ-E1526 |
+| AJ-E1533 | One page model | E15-spec-gaps.md | P0 | L | AJ-E1529 |
+| AJ-E1534 | Orientation | E15-spec-gaps.md | P0 | M | AJ-E1533 |
+| AJ-E1535 | Plain words and consistency | E15-spec-gaps.md | P0 | M | — |
+| AJ-E1536 | History you can scan | E15-spec-gaps.md | P1 | S | AJ-E1533 |
+| AJ-E1537 | Context menus and ⋯ menus from one action registry | E15-spec-gaps.md | P1 | M | AJ-E1502, AJ-E1533 |
+| AJ-E1538 | Search the words of sessions started outside AI Juggler (opt-in) | E15-spec-gaps.md | P2 | M | AJ-E1536 |
+| AJ-E1539 | A live switching lab | E15-spec-gaps.md | P0 | M | AJ-E808 |
+| AJ-E1540 | Same-tool switches done right | E15-spec-gaps.md | P0 | M | AJ-E1539 |
+| AJ-E1541 | Cross-tool continuity | E15-spec-gaps.md | P0 | L | AJ-E1539 |
+| AJ-E1542 | The capability preflight | E15-spec-gaps.md | P0 | L | AJ-E1507 |
+| AJ-E1543 | One switch screen | E15-spec-gaps.md | P0 | M | AJ-E1540, AJ-E1541, AJ-E1542 |
+| AJ-E1544 | LiveStatsCollector in its own module | E15-spec-gaps.md | P2 | S | AJ-E2011 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -226,5 +247,5 @@
 | AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
-Total: 224 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 245 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

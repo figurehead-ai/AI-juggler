@@ -48,8 +48,10 @@ pub struct Candidate {
     /// This project's historical account share (0–1) — the
     /// wrong-billing guard (deep/09 lines 458-461).
     pub affinity: f64,
-    /// Switch-fidelity input (0–1); launch-neutral surfaces pass 0.5.
-    pub fidelity: f64,
+    /// Switch fidelity (0–1, the pair's label index ÷ 4); `None` where
+    /// nothing is being switched (launch surfaces): scored as 0.5, the
+    /// same for every account.
+    pub fidelity: Option<f64>,
     /// Projected session USD (AJ-E609); `None` = unpriced ⇒ neutral.
     pub projected_usd: Option<f64>,
     /// Active sessions currently on the account.
@@ -162,7 +164,9 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             None => (0.0, "headroom unknown — ranked without quota".to_owned()),
         };
         let affinity = candidate.affinity.clamp(0.0, 1.0);
-        let fidelity = candidate.fidelity.clamp(0.0, 1.0);
+        let fidelity = candidate
+            .fidelity
+            .map_or(0.5, |value| value.clamp(0.0, 1.0));
 
         let mut score = W_HEADROOM * headroom_input
             + W_AFFINITY * affinity
@@ -189,7 +193,14 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
                 W_AFFINITY * affinity,
             ),
             (
-                format!("fidelity {}", fidelity.round()),
+                // QA P23: what the move keeps, in words, never "fidelity 1".
+                match candidate.fidelity {
+                    None => "the same on every account",
+                    Some(_) if fidelity >= 0.5 => "keeps the conversation",
+                    Some(_) if fidelity >= 0.25 => "starts fresh from the story",
+                    Some(_) => "a pack to read",
+                }
+                .to_owned(),
                 W_FIDELITY * fidelity,
             ),
             (

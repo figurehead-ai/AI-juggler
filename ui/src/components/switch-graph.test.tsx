@@ -37,7 +37,7 @@ const TARGETS: SwitchTargetData[] = [
     recipe_id: "r-work",
     account_id: "a-work",
     account_label: "Work Max",
-    badge: "F1 · Beta",
+    badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
     drops: ["todo list", "subagent state"],
@@ -46,7 +46,7 @@ const TARGETS: SwitchTargetData[] = [
     factors: [
       ["80% headroom", 0.36],
       ["usual account for this repo", 0.2],
-      ["fidelity 1 · Beta", 0.15],
+      ["starts fresh from the story", 0.04],
       ["≈$0.12 replay", 0.07],
       ["quiet", 0.1],
     ],
@@ -59,7 +59,7 @@ const TARGETS: SwitchTargetData[] = [
     recipe_id: "r-lab",
     account_id: "a-lab",
     account_label: "Lab",
-    badge: "F2 · Beta",
+    badge: "Same conversation, new account (compacted) · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history"],
@@ -74,14 +74,14 @@ const TARGETS: SwitchTargetData[] = [
 ];
 
 describe("AJ-E209 SwitchTargetRows — the badged ranked entry", () => {
-  it("renders badge + Not yet validated + Drop list + top factors on the cross-Provider row", () => {
+  it("renders badge + Not proven yet + Drop list + top factors on the cross-Provider row", () => {
     const picks: SwitchTargetData[] = [];
     const { container } = render(
       <SwitchTargetRows targets={TARGETS} onPick={(target) => picks.push(target)} />,
     );
     const badge = container.querySelector('[data-testid="fidelity-badge"]')!;
-    expect(badge.textContent).toContain("F1 · Beta");
-    expect(badge.textContent).toContain("Not yet validated");
+    expect(badge.textContent).toContain("Full story, fresh start · Beta");
+    expect(badge.textContent).toContain("Not proven yet");
     expect(badge.getAttribute("data-validated")).toBe("false");
     expect(
       container.querySelector('[data-testid="target-drop-list"]')!.textContent,
@@ -128,8 +128,8 @@ const LINEAR_BACK: WorkGraphData[] = [
       { id: "ep-a2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-3" },
     ],
     edges: [
-      { from: "ep-a", to: "ep-b", label: "transplant F1 · 12:04", switch_back: false },
-      { from: "ep-b", to: "ep-a2", label: "switch-back ↺ · F1", switch_back: true },
+      { from: "ep-a", to: "ep-b", label: "Full story, fresh start", switch_back: false },
+      { from: "ep-b", to: "ep-a2", label: "Switched back · Full story, fresh start", switch_back: true },
     ],
     collapsed: 2,
     hop_note: "3 switches so far ≈41k tokens",
@@ -137,7 +137,7 @@ const LINEAR_BACK: WorkGraphData[] = [
 ];
 
 describe("AJ-E209 SwitchGraph — the timeline", () => {
-  it("renders the A→B→A shape: labelled arrows, the switch-back ↺, collapse pill, hop note", async () => {
+  it("renders the A→B→A shape: labelled arrows, the switch back, collapse pill, hop note", async () => {
     w().__AIJ_SWITCH_GRAPH__ = LINEAR_BACK;
     const { container } = render(<SwitchGraph projectId="p1" onOpenSession={() => {}} />);
     await waitFor(() =>
@@ -145,8 +145,8 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
     const edges = Array.from(container.querySelectorAll('[data-testid="switch-graph-edge"]'));
     expect(edges.map((edge) => edge.getAttribute("aria-label"))).toEqual([
-      "transplant F1 · 12:04",
-      "switch-back ↺ · F1",
+      "Full story, fresh start",
+      "Switched back · Full story, fresh start",
     ]);
     expect(container.querySelector('[data-testid="switch-graph-collapse"]')!.textContent).toBe(
       "+2 switches",
@@ -209,8 +209,8 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
           {
             from: "ep-src",
             to: null,
-            label: "transplant F1 · target launch failed",
-            failed_reason: "S-F6: target window closed mid-launch",
+            label: "failed · target launch failed",
+            failed_reason: "the session on the other account closed while it started",
             switch_back: false,
           },
         ],
@@ -226,7 +226,7 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
     fireEvent.click(container.querySelector('[data-testid="switch-graph-failed-edge"]')!);
     const detail = container.querySelector('[data-testid="switch-graph-failed-detail"]')!;
-    expect(detail.textContent).toContain("S-F6: target window closed mid-launch");
+    expect(detail.textContent).toContain("the session on the other account closed while it started");
     expect(detail.textContent).toContain("the source stayed resumable");
     fireEvent.click(
       Array.from(detail.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
@@ -278,15 +278,15 @@ describe("AJ-E209 copy lint — beta is never lossless (D-04/D-11)", () => {
 
   it("cross-Provider badges always carry the beta qualifier in copy and fixtures", () => {
     // Component copy says it explicitly…
-    expect(rowsSource).toContain("Not yet validated");
-    expect(rowsSource).toContain("Badges are per pair of tools and beta-validated");
+    expect(rowsSource).toContain("Not proven yet");
+    expect(rowsSource).toContain("What carries is checked for each pair of tools, never assumed.");
     // …and the bridge fixtures honour it (cross-Provider ⇒ Beta).
-    const badges = Array.from(bridgeSource.matchAll(/badge: "(F\d[^"]*)"/g)).map(
+    const badges = Array.from(bridgeSource.matchAll(/badge: "([^"]*· [^"]*)"/g)).map(
       (m) => m[1] as string,
     );
     expect(badges.length).toBeGreaterThan(0);
     for (const badge of badges) {
-      expect(badge).toMatch(/Beta|Validated/);
+      expect(badge).toMatch(/Beta|Proven/);
       expect(badge).not.toMatch(/lossless/i);
     }
   });

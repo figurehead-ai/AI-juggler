@@ -19,30 +19,41 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { ownSignIn, providerDisplayName } from "../lib/providers";
+import { AccountAvatar } from "../components/Avatar";
+import { ProjectMark } from "../components/ProjectMark";
+import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
-import { hueOf } from "../components/indicator";
 import { MorningSummary } from "../components/MorningSummary";
 import { ThisMacPanel } from "../components/ThisMacPanel";
 import { ScreenBoundary } from "../components/ScreenBoundary";
-import { runwayOf } from "../components/AccountRunway";
+import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
 import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
+import { sessionLabel } from "../lib/stop";
+import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { RowPlaceholders } from "../components/Placeholder";
+import { Welcome } from "../components/Welcome";
+import { SectionTitle } from "../components/SectionTitle";
+import { SmootherCard } from "../components/SmootherCard";
+import { HomeOutsideRows } from "../components/OutsideConversations";
+import { liveOutside, useConversations } from "../lib/conversations";
+import { minutes } from "../lib/time-words";
+import { showToast } from "../components/Toast";
 import {
   accountLoginState,
   dashboardStats,
   errorText,
-  instanceMarkReviewed,
+  instanceMarkReviewed, instanceUnmarkReviewed,
   parkedResume,
   quotaDisplayAll,
   signedIn,
   terminalSpawnLogin,
-  type AccountInfo,
-  type InstanceInfo,
-  type ProjectInfo,
-  type QuotaDisplayData,
+  type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData,
 } from "../lib/bridge";
+import { capHeadline, CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -68,13 +79,6 @@ export function needOf(session: InstanceInfo): Need | null {
   return (session.needs_attention as Need | null) ?? null;
 }
 
-function minutes(sinceMs: number, now: number): string {
-  const m = Math.max(0, Math.round((now - sinceMs) / 60_000));
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
-}
 
 /** What's wrong, in a sentence, and the one action. */
 export function needWords(need: Need, session: InstanceInfo): { what: string; action: string } {
@@ -107,18 +111,6 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
   return { title, detail };
 }
 
-function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
-  return (
-    <h2 id={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-      {children}
-    </h2>
-  );
-}
-
-function AccountDot({ id }: { id: string | null }): JSX.Element {
-  return <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${hueOf(id)} 70% 66%)` }} />;
-}
-
 export function HomeScreen({
   sessions,
   accounts,
@@ -127,13 +119,18 @@ export function HomeScreen({
   onOpenSession,
   onNewSession,
   onAddAccounts,
+  onFreshAccount,
   onLimit,
   openLoginTerminal,
   onAccountsChanged,
   onChanged,
   thisMac = null,
   onOpenCleanup,
+  onOpenThisMac,
+  loading = false,
 }: {
+  /** AJ-E1503: the first load hasn't answered yet (placeholders). */
+  loading?: boolean;
   sessions: InstanceInfo[];
   accounts: AccountInfo[];
   projects: ProjectInfo[];
@@ -141,6 +138,8 @@ export function HomeScreen({
   onOpenSession: (id: string) => void;
   onNewSession: () => void;
   onAddAccounts: () => void;
+  /** AJ-E1524: the welcome's "Add a fresh account" (first run otherwise). */
+  onFreshAccount?: () => void;
   /** D-25: a session stopped by its limit opens the decision dialog. */
   onLimit?: (id: string) => void;
   /** D-25: an account that needs its sign-in is a "Needs you" item; its
@@ -154,8 +153,11 @@ export function HomeScreen({
   thisMac?: ThisMacInfo | null;
   /** E14: opens Cleanup (This Mac's leftovers line). */
   onOpenCleanup?: () => void;
+  /** AJ-E1528: the This Mac page. */
+  onOpenThisMac?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   useEffect(() => {
     let alive = true;
@@ -177,7 +179,6 @@ export function HomeScreen({
       alive = false;
     };
   }, []);
-  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   // Set when Mark reviewed or Resume starts; the parent's refresh can
@@ -188,17 +189,33 @@ export function HomeScreen({
       restoreUntil.current = Date.now() + 3000;
       setBusy(session.id);
       try {
-        if (what === "resume") await parkedResume(session.id);
-        else await instanceMarkReviewed(session.id);
-        setStatus(`${session.account_label}: ${what === "resume" ? "resumed" : "marked reviewed"}.`);
+        const label = sessionLabel(session, projects);
+        if (what === "resume") {
+          await parkedResume(session.id);
+          showToast({ message: `Resumed ${label}.` });
+        } else {
+          await instanceMarkReviewed(session.id);
+          // AJ-E1503: Undo puts it back on the list.
+          showToast({
+            id: `reviewed:${session.id}`,
+            message: `Marked ${label} reviewed.`,
+            undo: {
+              onUndo: async () => {
+                await instanceUnmarkReviewed(session.id);
+                onChanged?.();
+              },
+              done: `${label} is back on the list.`,
+            },
+          });
+        }
         onChanged?.();
       } catch (cause) {
-        setStatus(`${session.account_label}: ${errorText(cause)}`);
+        showToast({ tone: "warning", message: `${session.account_label}: ${errorText(cause)}`, seconds: 8 });
       } finally {
         setBusy(null);
       }
     },
-    [onChanged],
+    [onChanged, projects],
   );
 
   // AJ-E1005 Req.3 on Home: J/K or the arrows move between rows, Enter
@@ -210,20 +227,22 @@ export function HomeScreen({
     const item = el?.closest("[data-home-item]");
     return item ? rowsNow().findIndex((row) => row.closest("[data-home-item]") === item) : -1;
   };
-  const handleKey = (event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; target: EventTarget | null; preventDefault: () => void }) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    if (target && (target.tagName === "SELECT" || target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+  // AJ-E1504: the keys come from the registry (lib/shortcuts.ts), with
+  // its typing rule: never while typing in a field or the terminal.
+  const handleKey = (event: KeyLike & { target: EventTarget | null; preventDefault: () => void }) => {
+    if ((event.target as HTMLElement | null)?.tagName === "SELECT") return;
     const rows = rowsNow();
     const at = rowIndexOf(document.activeElement);
     const focusRow = (index: number) => rows[Math.max(0, Math.min(rows.length - 1, index))]?.focus();
-    if (event.key === "j" || (event.key === "ArrowDown" && at >= 0)) {
+    // The arrows move only once a row has focus (J and K start it).
+    const arrow = event.key.startsWith("Arrow");
+    if (matches("home-next", event) && (!arrow || at >= 0)) {
       event.preventDefault();
       focusRow(at + 1);
-    } else if (event.key === "k" || (event.key === "ArrowUp" && at >= 0)) {
+    } else if (matches("home-prev", event) && (!arrow || at >= 0)) {
       event.preventDefault();
       focusRow(at < 0 ? 0 : at - 1);
-    } else if ((event.key === "a" || event.key === "A") && at >= 0) {
+    } else if (matches("home-action", event) && at >= 0) {
       const item = rows[at]!.closest("[data-home-item]");
       const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
       event.preventDefault();
@@ -280,6 +299,9 @@ export function HomeScreen({
   );
   const heavyIds = new Set(heavy.map((tree) => tree.session_id));
   const calmRunning = running.filter((session) => !heavyIds.has(session.id));
+  // AJ-E1529: sessions started outside AI Juggler, running now.
+  const { all: conversations } = useConversations();
+  const elsewhere = liveOutside(conversations);
   // AJ-E1408: the Mac's own overload alerts (sustained pressure, swap
   // thrash, a busy or hot Mac, a disk filling) — or, before any has held
   // long enough, a Mac already under pressure.
@@ -343,22 +365,28 @@ export function HomeScreen({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
-  const best = runway.filter((r) => r.left !== null).sort((a, b) => (b.left ?? 0) - (a.left ?? 0))[0];
+  const advice = newWorkAdvice(accounts, quota, sessions);
+  const best = advice.best;
   const low = runway.find((r) => r.left !== null && r.left <= 25);
 
-  if (accounts.length === 0) {
+  // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
+  if (loading && accounts.length === 0 && sessions.length === 0) {
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 py-16" data-testid="home-empty-accounts">
-        <h1 className="text-2xl font-semibold tracking-tight">Bring in your accounts to start.</h1>
-        <p className="text-[15px] leading-relaxed text-muted">
-          AI Juggler finds the setups already on this Mac and uses each one where it is, or makes its own copy if you prefer.
-        </p>
-        <Button variant="primary" onClick={onAddAccounts}>Find my accounts</Button>
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home-loading">
+        <span className="block h-7 w-64 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <RowPlaceholders shape="home" rows={3} label="Loading Home" />
       </div>
     );
   }
 
+  // AJ-E1524: a new install is welcomed — what it's for, what's on this
+  // Mac, the way in.
+  if (accounts.length === 0) {
+    return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
+  }
+
   const sessionNeeds = needs.length + heavy.length;
+  const out = runway.filter((r) => r.left === 0);
   const headline =
     sessionNeeds > 0
       ? sessionNeeds === 1
@@ -371,14 +399,25 @@ export function HomeScreen({
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
           : `${signIns.length} accounts need their sign-in`
-      : running.length > 0
+      : capNeeds.caps.length > 0
+        ? capHeadline(capNeeds.caps)
+      : // QA batch 9: never "All clear" while an account has run out.
+        out.length > 0
+        ? out.length === 1
+          ? `${out[0]!.account.label} has run out`
+          : `${out.length} accounts have run out`
+      : running.length + elsewhere.length > 0
         ? "All clear — nothing needs you"
-        : sessions.length === 0
+        : sessions.length + elsewhere.length === 0
           ? "Ready when you are"
           : "All clear";
   const subline = [
-    running.length > 0 ? `${running.length} running` : null,
-    low ? `${low.account.label} has ${low.left}% left — start new work on ${best && best.account.id !== low.account.id ? best.account.label : "another account"}` : best ? `Most runway: ${best.account.label}` : null,
+    running.length + elsewhere.length > 0 ? `${running.length + elsewhere.length} running` : null,
+    low
+      ? `${low.account.label} has ${low.left}% left${best ? ` — start new work on ${best.account.label}` : ""}`
+      : best
+        ? `Most runway: ${best.account.label}`
+        : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -401,9 +440,6 @@ export function HomeScreen({
         </div>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
-      <p className="sr-only" aria-live="polite" data-testid="home-status">
-        {status}
-      </p>
 
       {ledgerDegraded && (
         <div
@@ -418,8 +454,9 @@ export function HomeScreen({
 
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
+      <SmootherCard variant="reminder" />
 
-      {sessions.length === 0 && (
+      {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-lg font-semibold">Start your first session</h2>
           <p className="max-w-xl text-sm leading-relaxed text-muted">
@@ -431,7 +468,7 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) > 0 && (
+          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) + capNeeds.caps.length > 0 && (
             <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
               <SectionTitle id="home-needs">Needs you</SectionTitle>
               <ul className="flex flex-col gap-2.5">
@@ -446,7 +483,7 @@ export function HomeScreen({
                         <span className="text-xs text-muted" role="status">
                           {signingIn === account.id
                             ? "Finish signing in in the terminal that opened — this clears by itself when you're done."
-                            : `${account.provider === "codex" ? "Codex's own sign-in (OpenAI)" : "Claude's own sign-in"}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
+                            : `${ownSignIn(account.provider)}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
                         </span>
                         {signingIn === account.id && signInError && <span className="text-xs text-danger">{signInError}</span>}
                       </span>
@@ -476,16 +513,13 @@ export function HomeScreen({
                       size="sm"
                       variant="secondary"
                       className="ml-auto"
-                      onClick={() => {
-                        const panel = document.getElementById("this-mac");
-                        panel?.scrollIntoView({ block: "start" });
-                        panel?.focus({ preventScroll: true });
-                      }}
+                      onClick={onOpenThisMac}
                     >
                       See what's using it
                     </Button>
                   </li>
                 )}
+                <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
                 {needs.map(({ session, need }) => {
                   const words = needWords(need, session);
                   const glyph = NEED_GLYPH[need];
@@ -543,7 +577,7 @@ export function HomeScreen({
             </section>
           )}
 
-          {calmRunning.length > 0 && (
+          {calmRunning.length + elsewhere.length > 0 && (
             <section aria-labelledby="home-running" className="flex flex-col gap-2.5" data-testid="home-running">
               <SectionTitle id="home-running">Running</SectionTitle>
               <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
@@ -558,19 +592,22 @@ export function HomeScreen({
                         onClick={() => onOpenSession(session.id)}
                       >
                         <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" />
+                        <ProjectMark projectId={session.project_id} size={16} />
                         <span className="min-w-0 flex-1 truncate text-sm text-ink">
                           {place.title}
                           {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
                         </span>
                         <span className="flex items-center gap-1.5 text-xs text-muted">
-                          <AccountDot id={session.account_id} />
-                          {session.account_label}
+                          <ToolMark tool={session.provider} size={12} className="shrink-0" />
+                          <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
+                          <span><span className="sr-only">{providerDisplayName(session.provider)} on </span>{session.account_label}</span>
                         </span>
                         <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
                       </button>
                     </li>
                   );
                 })}
+                <HomeOutsideRows rows={elsewhere} now={now} />
               </ul>
             </section>
           )}
@@ -585,6 +622,7 @@ export function HomeScreen({
                   return (
                     <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0">
                       <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
+                      <ProjectMark projectId={session.project_id} size={16} />
                       <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
                         <span className="truncate text-sm text-ink">
                           {place.title}
@@ -622,7 +660,7 @@ export function HomeScreen({
               <div key={row.account.id} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="flex min-w-0 items-center gap-2 font-medium text-ink">
-                    <AccountDot id={row.account.id} />
+                    <AccountAvatar accountId={row.account.id} label={row.account.label} size={18} />
                     <span className="truncate">{row.account.label}</span>
                   </span>
                   <span className={"shrink-0 font-mono text-xs " + (row.left !== null && row.left <= 25 ? "text-warning" : "text-muted")}>
@@ -647,9 +685,9 @@ export function HomeScreen({
                 <span className="text-[11px] text-faint">{row.left !== null ? (row.resets ?? row.words) : row.words}</span>
               </div>
             ))}
-            {best && runway.length > 1 && (
-              <p className="border-t border-hairline/60 py-3 text-xs text-muted">
-                Best for new work: <span className="font-semibold text-ink">{best.account.label}</span>, {best.left}% left.
+            {advice.words && runway.length > 1 && (
+              <p className="border-t border-hairline/60 py-3 text-xs text-muted" data-testid="new-work-advice">
+                {advice.words}
               </p>
             )}
           </div>
@@ -663,6 +701,7 @@ export function HomeScreen({
             }}
             onOpenSession={onOpenSession}
             onOpenCleanup={onOpenCleanup}
+            onOpenPage={onOpenThisMac}
           />
         </ScreenBoundary>
         </div>
@@ -719,8 +758,17 @@ export function HomeScreen({
 
       {needs.length + running.length + parked.length + recent.length > 0 && (
         <p className="text-[11px] text-faint" data-testid="home-keys">
-          Keyboard: <kbd className="font-mono">J</kbd> / <kbd className="font-mono">K</kbd> move between sessions ·{" "}
-          <kbd className="font-mono">Enter</kbd> opens · <kbd className="font-mono">A</kbd> runs the row's action
+          {/* AJ-E1504: the same words and keys as the ? sheet. */}
+          Keyboard:{" "}
+          {(["home-next", "home-prev", "home-open", "home-action", "help"] as const).map((id, index) => {
+            const entry = SHORTCUTS.find((row) => row.id === id)!;
+            return (
+              <span key={id}>
+                {index > 0 && " · "}
+                <kbd className="font-mono">{entry.keys[0]}</kbd> {entry.label.toLowerCase()}
+              </span>
+            );
+          })}
         </p>
       )}
     </div>

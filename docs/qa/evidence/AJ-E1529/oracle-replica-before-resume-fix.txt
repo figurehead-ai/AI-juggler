@@ -1,0 +1,67 @@
+OK        setups found: 9 of 9
+OK        brought in where they are: 9 of 9
+OK        projects: backend 16 rows, oracle 16
+OK        Project 1: backend 46 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 40 Claude + 6 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 2: backend 34 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 29 Claude + 5 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 3: backend 29 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 22 Claude + 7 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 4: backend 28 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H']; oracle 27 Claude + 1 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H']
+OK        Project 5: backend 25 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 21 Claude + 4 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 6: backend 24 conversations in 1 row(s), accounts ['Account A', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account I']; oracle 21 Claude + 3 Codex, accounts ['Account A', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account I']
+OK        Project 7: backend 24 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G']; oracle 24 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G']
+OK        Project 8: backend 23 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 20 Claude + 3 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 9: backend 22 conversations in 1 row(s), accounts ['Account A', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 20 Claude + 2 Codex, accounts ['Account A', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 10: backend 22 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H']; oracle 20 Claude + 2 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H']
+OK        Project 11: backend 18 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 14 Claude + 4 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 12: backend 17 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 15 Claude + 2 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 13: backend 13 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account G']; oracle 13 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account G']
+OK        Project 14: backend 11 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account H', 'Account I']; oracle 8 Claude + 3 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account E', 'Account F', 'Account H', 'Account I']
+OK        Project 15: backend 10 conversations in 1 row(s), accounts ['Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']; oracle 7 Claude + 3 Codex, accounts ['Account C', 'Account D', 'Account E', 'Account F', 'Account G', 'Account H', 'Account I']
+OK        Project 16: backend 2 conversations in 1 row(s), accounts ['Account D', 'Account I']; oracle 1 Claude + 1 Codex, accounts ['Account D', 'Account I']
+OK        Account A conversations: backend 28, oracle 28
+OK        Account A live: backend 1, running 1
+OK        Account B conversations: backend 34, oracle 34
+OK        Account B live: backend 1, running 1
+OK        Account C conversations: backend 59, oracle 59
+OK        Account C live: backend 1, running 1
+OK        Account D conversations: backend 42, oracle 42
+MISMATCH  Account D live: backend 0, running 1
+OK        Account E conversations: backend 32, oracle 32
+OK        Account E live: backend 0, running 0
+OK        Account F conversations: backend 59, oracle 59
+OK        Account F live: backend 1, running 1
+OK        Account G conversations: backend 48, oracle 48
+OK        Account G live: backend 1, running 1
+OK        Account H conversations: backend 25, oracle 25
+MISMATCH  Account H live: backend 2, running 1
+OK        Account I conversations: backend 21, oracle 21
+OK        Account I live: backend 1, running 1
+OK        live sessions with no account in the oracle: 0
+INFO      left out: 17 of this Mac's own session(s), working outside the replica's HOME
+OK        Account A 5h tokens: backend 4,680,675, oracle 4,680,675 (×1.00)
+OK        Account A 7d tokens: backend 5,188,163, oracle 5,188,163 (×1.00)
+OK        Account B 5h tokens: backend 4,680,675, oracle 4,680,675 (×1.00)
+OK        Account B 7d tokens: backend 5,516,956, oracle 5,516,956 (×1.00)
+OK        Account C 5h tokens: backend 4,680,675, oracle 4,680,675 (×1.00)
+OK        Account C 7d tokens: backend 5,257,141, oracle 5,257,141 (×1.00)
+OK        Account D 5h tokens: backend 4,680,675, oracle 4,680,675 (×1.00)
+OK        Account D 7d tokens: backend 5,668,068, oracle 5,668,068 (×1.00)
+OK        Account E 5h: no percent and no reset time (nothing measured)
+OK        Account E 5h tokens: backend 0, oracle 0 (×0.00)
+OK        Account E 7d tokens: backend 583,392, oracle 583,392 (×1.00)
+OK        Account F 5h tokens: backend 4,693,157, oracle 4,693,157 (×1.00)
+OK        Account F 7d tokens: backend 5,696,193, oracle 5,696,193 (×1.00)
+OK        Account G 5h tokens: backend 4,680,675, oracle 4,680,675 (×1.00)
+OK        Account G 7d tokens: backend 6,053,336, oracle 6,053,336 (×1.00)
+MISMATCH  Account H 5h tokens: backend 0, oracle 3,500,857 (×0.00)
+MISMATCH  Account H 7d tokens: backend 0, oracle 3,887,560 (×0.00)
+MISMATCH  Account I 5h tokens: backend 0, oracle 3,500,857 (×0.00)
+MISMATCH  Account I 7d tokens: backend 0, oracle 3,696,149 (×0.00)
+INFO      cost payload: null api_equivalent_usd, flat_fee_usd, value_ratio, total_usd; 330 of 330 rows with null credits/usd (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)
+OK        cost rows per session: 296 sessions in both; 296 within 5% of the transcripts; ratio min ×1.00, median ×1.00, max ×1.00; 0 only in the backend, 43 only in the transcripts; 7 still being written during the run, left out
+MISMATCH  cost rows priced: 0 of 330
+OK        This Mac machine: CPU 14%, memory 79.1 of 103 GB (app_wired_compressed), pressure normal; tools 6
+OK        This Mac tools: backend 6; ps has 6 Claude app instances + 1 ChatGPT (Codex) not counted by design
+OK        This Mac tools memory: backend 23.3 GB; ps RSS of the Claude app trees 23.5 GB (×0.99)
+OK        This Mac top rows (GB): backend [13.1, 5.6, 2.1]; ps trees [13.3, 5.6, 2.1]; 3 instance(s) not shown
+OK        This Mac tools CPU: backend 2.4% of all cores (ps %CPU is a decaying average, not compared)
+OK        alerts over the run: 0 (none)

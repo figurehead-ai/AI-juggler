@@ -78,14 +78,14 @@ This is how the PR that added the bridge proved it.
 
 `GET /v1/commands` lists them. Each one is classed `Read` in the command registry. That registry is `app_commands!` in `crates/juggler-app/src/lib.rs`: every registered command, each marked `Read` or `Write`. A command can't be registered without a class.
 
-- **Accounts and tools:** `app_info`, `providers_list`, `providers_capabilities`, `accounts_list`, `account_audit`, `account_storage`, `launch_recipes_list`.
-- **Sessions and projects:** `instances_list`, `instance_quality`, `instance_processes`, `projects_list`, `ranking_rows`, `switch_back_suggestions`, `parked_list`, `overnight_summary`, `dashboard_stats`.
+- **Accounts and tools:** `app_info`, `providers_list`, `providers_capabilities`, `tools_catalog`, `accounts_list`, `account_audit`, `account_storage`, `launch_recipes_list`.
+- **Sessions and projects:** `instances_list`, `instance_quality`, `instance_processes`, `conversations_list` (sessions started outside AI Juggler), `conversations_resume_command`, `sessions_resume_command`, `projects_list`, `projects_git_status`, `ranking_rows`, `switch_back_suggestions`, `parked_list`, `overnight_summary`, `dashboard_stats`.
 - **History:** `transcript_search`, `instance_replay`.
 - **Usage:** `quota_display`, `quota_display_all`, `cost_rollups`, `pricing_catalog_info`, `usage_source_health`, `reset_queue_list`.
 - **This Mac:** `this_mac`, `machine_health`, `machine_advice`, `port_inventory`, `cleanup_inventory`, `cleanup_status`, `cleanup_tiers_get`, `recovery_summary_get`.
-- **Settings reads:** `app_setting_get` (only `go_to_hotkey` and `renewal_warn_days`), `notification_prefs_get`, `cleanup_default_get`, `redaction_policy_get`, `os_access_list`, `update_status`, `going_back_options`, `crash_info`, `usage_stats_info`, `link_status`.
+- **Settings reads:** `app_setting_get` (only `go_to_hotkey` and `renewal_warn_days`), `notification_prefs_get`, `cleanup_default_get`, `redaction_policy_get`, `os_access_list`, `update_status`, `going_back_options`, `crash_info`, `usage_stats_info`, `link_status`, `editor_choices`, `session_prefs_get`.
 
-The refresh events go out over `GET /v1/events` (SSE), behind the same token: `app://ready`, `session://updated`, `session://resources`, `session://quota`, `machine://this-mac`, `update://status`. Terminal output, preview frames and the progress of writes are never sent.
+The refresh events go out over `GET /v1/events` (SSE), behind the same token: `app://ready`, `session://updated`, `session://resources`, `session://quota`, `machine://this-mac`, `update://status`, `conversations://changed`. Terminal output, preview frames and the progress of writes are never sent.
 
 ### What a read still does
 

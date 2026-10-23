@@ -1,9 +1,14 @@
 [
   {
     "pair": "claude-code→claude-code",
-    "score": 0.9000000000000001,
+    "score": 0.9500000000000002,
     "label": "F1",
+    "described": "F3",
     "caps": [
+      {
+        "cap": "f4-requires-same-account-native-resume",
+        "capped_at": "F3"
+      },
       {
         "cap": "unvalidated-pair",
         "capped_at": "F1"
@@ -27,8 +32,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -54,8 +59,9 @@
   },
   {
     "pair": "codex→codex",
-    "score": 0.8500000000000001,
+    "score": 0.9000000000000001,
     "label": "F1",
+    "described": "F3",
     "caps": [
       {
         "cap": "unvalidated-pair",
@@ -80,8 +86,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -107,8 +113,9 @@
   },
   {
     "pair": "zcode→zcode",
-    "score": 0.5,
+    "score": 0.5499999999999999,
     "label": "F0",
+    "described": "F0",
     "caps": [
       {
         "cap": "zcode-target",
@@ -133,8 +140,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -160,8 +167,9 @@
   },
   {
     "pair": "claude-code→codex",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -181,8 +189,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -208,8 +216,9 @@
   },
   {
     "pair": "codex→claude-code",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -229,8 +238,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -256,9 +265,14 @@
   },
   {
     "pair": "claude-code→zcode",
-    "score": 0.72,
+    "score": 0.77,
     "label": "F0",
+    "described": "F0",
     "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      },
       {
         "cap": "zcode-target",
         "capped_at": "F0"
@@ -282,8 +296,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -309,8 +323,9 @@
   },
   {
     "pair": "zcode→claude-code",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -330,8 +345,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -357,9 +372,14 @@
   },
   {
     "pair": "codex→zcode",
-    "score": 0.7,
+    "score": 0.75,
     "label": "F0",
+    "described": "F0",
     "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      },
       {
         "cap": "zcode-target",
         "capped_at": "F0"
@@ -383,8 +403,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -410,8 +430,9 @@
   },
   {
     "pair": "zcode→codex",
-    "score": 0.6699999999999999,
+    "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -431,8 +452,8 @@
       },
       {
         "artifact": "Todos",
-        "word": "stays",
-        "reason": "stays"
+        "word": "rebuilt",
+        "reason": "rebuilt"
       },
       {
         "artifact": "Mcp",
@@ -460,6 +481,7 @@
     "pair": "claude-code→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {
@@ -508,6 +530,7 @@
     "pair": "codex→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {
@@ -556,6 +579,7 @@
     "pair": "zcode→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {

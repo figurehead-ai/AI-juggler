@@ -11,6 +11,9 @@ use crate::model::{
     SessionStatus, Timestamp, TranscriptRef, WindowIdentity,
 };
 
+/// AJ-E1502: `session id → (label, pinned at ms)` for sessions with either.
+pub type SessionMarks = std::collections::BTreeMap<String, (Option<String>, Option<i64>)>;
+
 /// Converts a stored-JSON parse failure into a row-mapping failure.
 fn json_err(e: serde_json::Error) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
@@ -21,6 +24,10 @@ fn json_err(e: serde_json::Error) -> rusqlite::Error {
 pub struct SessionsRepo<'a> {
     conn: &'a Connection,
 }
+
+/// The lifecycle events that set a session's reviewed and archived state
+/// ([`SessionsRepo::lifecycle_latest`]); any other event is history only.
+pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unarchived"];
 
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
@@ -71,6 +78,63 @@ impl SessionsRepo<'_> {
         Ok(())
     }
 
+    /// AJ-E1502: sets (or clears, with `None`) the label shown over a
+    /// session's own title.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] for an unknown session, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_label(&self, id: &SessionId, label: Option<&str>) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE instances SET label = ?2 WHERE id = ?1",
+            params![id.as_str(), label],
+        )?;
+        super::accounts::require_changed(changed, "session", id.as_str())
+    }
+
+    /// AJ-E1502: pins a session to the top of its group (now), or unpins it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] for an unknown session, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_pinned(&self, id: &SessionId, pinned: bool) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE instances SET pinned_at = ?2 WHERE id = ?1",
+            params![id.as_str(), pinned.then(|| Timestamp::now().millis())],
+        )?;
+        super::accounts::require_changed(changed, "session", id.as_str())
+    }
+
+    /// AJ-E1502: every session with a label or a pin, `session id →
+    /// (label, pinned at)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn marks(&self) -> Result<SessionMarks, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, label, pinned_at FROM instances
+             WHERE label IS NOT NULL OR pinned_at IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                ),
+            ))
+        })?;
+        let mut out = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, marks) = row?;
+            out.insert(id, marks);
+        }
+        Ok(out)
+    }
+
     /// AJ-E1004: appends one status transition to the journal (the single
     /// source the overnight summary reads; never rewritten).
     fn journal(&self, id: &str, from: Option<&str>, to: &str) -> Result<(), CoreError> {
@@ -99,8 +163,10 @@ impl SessionsRepo<'_> {
         Ok(at)
     }
 
-    /// AJ-E1005/AJ-E1007: the latest lifecycle event per Instance,
-    /// `session id → (event, at_ms)`; Instances without one are absent.
+    /// AJ-E1005/AJ-E1007: the latest state event (`STATE_EVENTS`: reviewed
+    /// or archived, and their undoing) per Instance, `session id → (event,
+    /// at_ms)`; Instances without one are absent. Other lifecycle events (a
+    /// restart, AJ-E1509) are history only and never change that state.
     ///
     /// # Errors
     ///
@@ -110,7 +176,10 @@ impl SessionsRepo<'_> {
     ) -> Result<std::collections::BTreeMap<String, (String, i64)>, CoreError> {
         let mut statement = self
             .conn
-            .prepare("SELECT session_id, event, at_ms FROM instance_lifecycle ORDER BY rowid")?;
+            .prepare(&format!(
+                "SELECT session_id, event, at_ms FROM instance_lifecycle WHERE event IN ({}) ORDER BY rowid",
+                STATE_EVENTS.map(|event| format!("'{event}'")).join(", ")
+            ))?;
         let rows = statement.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -256,17 +325,30 @@ impl SessionsRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn active_cwds(&self, machine: &MachineId) -> Result<Vec<std::path::PathBuf>, CoreError> {
-        let mut stmt = self.conn.prepare(
+        let mut stmt = self.conn.prepare(&format!(
             "SELECT DISTINCT cwd FROM instances
-             WHERE machine = ?1
-               AND status NOT IN ('finished', 'stopped', 'failed', 'handed_over')",
-        )?;
+             WHERE machine = ?1 AND status NOT IN {ENDED}"
+        ))?;
         let rows = stmt.query_map(params![machine.as_str()], |row| row.get::<_, String>(0))?;
         rows.map(|row| {
             row.map(std::path::PathBuf::from)
                 .map_err(CoreError::Storage)
         })
         .collect()
+    }
+
+    /// The sessions that haven't ended, newest first: one query for a
+    /// frequent tick, never the whole history (AJ-E1520).
+    ///
+    /// # Errors
+    ///
+    /// Same as [`SessionsRepo::get`].
+    pub fn live(&self) -> Result<Vec<InstanceRecord>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT * FROM instances WHERE status NOT IN {ENDED} ORDER BY started_at DESC, id"
+        ))?;
+        let rows = stmt.query_map([], map_session)?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
     /// Lists sessions, newest first, optionally filtered by profile.
@@ -296,6 +378,10 @@ impl SessionsRepo<'_> {
         Ok(out)
     }
 }
+
+/// The statuses of a session that has ended, as SQL (`SessionStatus`'s
+/// `Finished`, `Stopped`, `Failed`, `HandedOver`).
+const ENDED: &str = "('finished', 'stopped', 'failed', 'handed_over')";
 
 /// Maps a row to an [`InstanceRecord`] (row values unchanged; ADR-0008 A-1).
 fn map_session(row: &Row<'_>) -> rusqlite::Result<InstanceRecord> {

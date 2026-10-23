@@ -35,14 +35,14 @@ pub fn user_copy(situation: CopySituation) -> String {
             "Continues on {account_b} with the full conversation. Running tools and subagents stop; {account_a} stays resumable."
         ),
         CopySituation::TransplantUnproven { account_a } => format!(
-            "Experimental: only the main transcript moves. Subagent files and rewind history stay on {account_a}. {account_a} stays resumable."
+            "Beta, not proven yet: the whole session moves, with its subagents and file history. {account_a} stays resumable."
         ),
         CopySituation::ReplayCrossProvider {
             provider_b,
             turns,
             tokens,
         } => format!(
-            "Fresh start on {provider_b}: it re-reads the full conversation as text ({turns} turns, ≈{tokens} tokens). Native todos and tool state don't carry — they're rebuilt from the story."
+            "Fresh start on {provider_b}: it reads the conversation, what each tool did, the task list and the project's changes ({turns} turns, ≈{tokens} tokens). Tool state and subagents don't carry."
         ),
         CopySituation::CompactedSource { provider_b } => format!(
             "This conversation was compacted. Early detail carries as text, not as live memory — {provider_b} may ask about early decisions."
@@ -157,39 +157,49 @@ pub enum CopySituation {
 pub enum SwitchFailure {
     /// S-F1 (Resolve): transcript could not be resolved — never
     /// newest-mtime. Nothing moved; the user picks the file.
-    #[error("S-F1: couldn't tell which file is this session — pick it")]
+    #[error("couldn't tell which file holds this session's conversation — pick it")]
     UnresolvedSource,
     /// S-F2 (Freeze): torn tail / still writing. The two-choice
     /// freeze is the protocol; parse-verify refuses torn bytes.
-    #[error("S-F2: source is still writing — stop it first")]
+    #[error("the session is still writing its conversation — stop it first")]
     TornTail,
     /// S-F3 (Stage): id collision on target — forked (the
     /// rollback-safe path; the original target file is untouched).
-    #[error("S-F3: collision on target — opened as a fork ({0})")]
+    #[error(
+        "the other account already has this conversation, so it opened as a separate copy ({0})"
+    )]
     CollisionForked(String),
     /// S-F4 (Stage): crash mid-copy — the staged temp is removed;
     /// the source is untouched by construction.
-    #[error("S-F4: staging failed mid-copy — cleaned up, source untouched ({0})")]
+    #[error(
+        "copying stopped partway — what was copied is cleaned up, and the original is untouched ({0})"
+    )]
     StagingAborted(String),
     /// S-F5 (Launch): target launch failed — staged artifacts are
     /// RETAINED for retry; resume the source meanwhile.
-    #[error("S-F5: target launch failed — staged for retry ({0})")]
+    #[error(
+        "the session on the other account didn't start — the switch is ready to try again ({0})"
+    )]
     LaunchFailed(String),
     /// S-F6 (Launch): target quota died during replay prime — prime
     /// aborted; tokens burned are recorded, never hidden.
-    #[error("S-F6: target quota died during prime — aborted, {0} tokens burned")]
+    #[error(
+        "the other account ran out of usage while picking up the work — stopped, {0} tokens used"
+    )]
     PrimeQuotaDeath(u64),
     /// S-F7 (Return): switch-back target session deleted/expired —
     /// never fabricate a resume (engine surface lands with E207).
-    #[error("S-F7: the original session is gone — nearest epoch or pack-primed fresh start")]
+    #[error("the original conversation is gone")]
     OriginalSessionGone,
     /// S-F8 (Return): merge conflict unresolved — the work item
     /// stays forked, both epochs resumable (E207).
-    #[error("S-F8: merge conflict unresolved — work stays forked, both sides resumable")]
+    #[error(
+        "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed"
+    )]
     MergeConflictOpen,
     /// S-F9 (loop): n-hop loop with growing replay cost — allowed,
     /// cost honesty turns amber; informs, never blocks.
-    #[error("S-F9: {0} switches so far ≈{1} tokens — transplant-capable targets cost less")]
+    #[error("{0} switches so far, about {1} tokens — a switch within the same tool costs less")]
     HopCost(u32, u64),
     /// A preflight gate stopped the switch before any byte moved.
     #[error("preflight stopped: {0}")]
@@ -200,6 +210,24 @@ pub enum SwitchFailure {
 }
 
 impl SwitchFailure {
+    /// The §9 taxonomy code (`S-F1`..`S-F9`), for logs and the evidence:
+    /// the user's words never carry it (AJ-E1543, plain words).
+    #[must_use]
+    pub fn code(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::UnresolvedSource => "S-F1",
+            Self::TornTail => "S-F2",
+            Self::CollisionForked(_) => "S-F3",
+            Self::StagingAborted(_) => "S-F4",
+            Self::LaunchFailed(_) => "S-F5",
+            Self::PrimeQuotaDeath(_) => "S-F6",
+            Self::OriginalSessionGone => "S-F7",
+            Self::MergeConflictOpen => "S-F8",
+            Self::HopCost(_, _) => "S-F9",
+            Self::Preflight(_) | Self::Adapter(_) => return None,
+        })
+    }
+
     /// The pipeline stage this failure belongs to (the edge's
     /// `Failed{stage, reason}`).
     #[must_use]
@@ -308,6 +336,19 @@ pub enum Mechanism {
     Replay,
     /// Export/priming only (T4).
     PackOnly,
+}
+
+impl Mechanism {
+    /// Its wire word (`native-resume`, `transplant`, `replay`, `pack`).
+    #[must_use]
+    pub const fn as_wire(self) -> &'static str {
+        match self {
+            Self::NativeResume => "native-resume",
+            Self::Transplant => "transplant",
+            Self::Replay => "replay",
+            Self::PackOnly => "pack",
+        }
+    }
 }
 
 /// Runs preflight: ordered checks, each failure stopping BEFORE any
@@ -522,8 +563,9 @@ pub fn execute(
 fn verify_installed(
     install: &InstallOutcome,
     bundle: &juggler_adapter::handover::SessionBundle,
-    _target: &Account,
+    target: &Account,
 ) -> Vec<ManifestRow> {
+    let history_area = format!("{}/", juggler_adapter::handover::FILE_HISTORY_AREA);
     let dir = install
         .reference
         .path
@@ -542,7 +584,13 @@ fn verify_installed(
             } else {
                 file.name.clone()
             };
-            let bytes = std::fs::read(dir.join(&name)).unwrap_or_default();
+            // AJ-E1540: a file-history file lives in the account's own
+            // `file-history/`, not beside the transcript.
+            let path = match name.strip_prefix(&history_area) {
+                Some(rest) => target.state_dir.join("file-history").join(rest),
+                None => dir.join(&name),
+            };
+            let bytes = std::fs::read(path).unwrap_or_default();
             ManifestRow {
                 rel_path: name,
                 sha256: sha256_hex(&bytes),

@@ -1,0 +1,3 @@
+conversations via the bridge vs the harness: {'Account A': (25, 25), 'Account B': (20, 20), 'Account C': (16, 16), 'Account D': (2, 2), 'Account E': (15, 15), 'Account F': (2, 2), 'Account G': (2363, 2361)}
+this_mac via bridge: memory 79.7 GB, pressure warning, tools 8 | vm_stat right after: 82.6 GB | off 2.8%
+outside_search_estimate via bridge: refused (403), not served by the bridge

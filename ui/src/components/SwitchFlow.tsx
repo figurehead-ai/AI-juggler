@@ -14,8 +14,13 @@
  * clicked, the user switched.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { SwitchFreezeChoice } from "./SwitchFreezeChoice";
+import { SwitchSetupList, SwitchSetupResults } from "./SwitchSetupList";
+import { useSwitchSetup } from "../lib/useSwitchSetup";
+import { showToast } from "./Toast";
 import {
   switchPreflight,
+  switchDoorCount,
   switchExecute,
   switchUndo,
   redactionPolicySetGlobal,
@@ -176,7 +181,7 @@ function RedactionBlock({
 
 /** AJ-E808: the same words the switch rows use for the pair's state. */
 function validationWords(validated: boolean | undefined): string {
-  return validated ? "Validated" : "Beta · Not yet validated";
+  return validated ? "Proven" : "Beta · Not proven yet";
 }
 
 export function SwitchFlow({
@@ -200,11 +205,17 @@ export function SwitchFlow({
   const [askChoice, setAskChoice] = useState<"strip" | "keep" | null>(null);
   const [chooserPick, setChooserPick] = useState<string | null>(null);
   const [unredact, setUnredact] = useState<Set<number>>(new Set());
+  // AJ-E1542: what the target lacks, and what the user picked to set up.
+  const setupCheck = useSwitchSetup(sessionId, targetProfileId);
+  const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
   // opened the switch. (A completed switch hands focus to the undo
   // toast instead.)
   const invokerRef = useRef<Element | null>(null);
+  // One switch per confirm: a second ⏎ before the phase re-renders would
+  // read the stale "confirm" and start another (review of #132).
+  const started = useRef(false);
   if (invokerRef.current === null) invokerRef.current = document.activeElement;
   const cancel = () => {
     const invoker = invokerRef.current;
@@ -228,6 +239,8 @@ export function SwitchFlow({
         if (alive) {
           setStep(0);
           setPhase({ kind: "confirm", preflight });
+          // The door shown, counted once per opening (local only).
+          void switchDoorCount(preflight.door, preflight.wizard_steps).catch(() => undefined);
         }
       })
       .catch((cause) => {
@@ -315,10 +328,14 @@ export function SwitchFlow({
   };
 
   const execute = async () => {
-    if (phase.kind !== "confirm") return;
+    if (phase.kind !== "confirm" || started.current) return;
+    started.current = true;
     const oneClick = phase.preflight.door === "one-click";
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {
+      // AJ-E1542: what the user picked is set up first, so the target
+      // starts with it.
+      const applied = await setupCheck.applyPicked();
       const result = await switchExecute(
         sessionId,
         targetProfileId,
@@ -326,7 +343,7 @@ export function SwitchFlow({
         askChoice,
         [...unredact],
       );
-      if (oneClick) {
+      if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
         onSwitched(result.session_id, { edgeId: result.edge_id });
@@ -359,11 +376,11 @@ export function SwitchFlow({
             <h3 className="text-sm font-semibold">
               Switch to {targetLabel}
               <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                {phase.preflight.fidelity} · usual account · {validationWords(phase.preflight.validated)}
+                {phase.preflight.fidelity_words} · usual account · {validationWords(phase.preflight.validated)}
               </span>
             </h3>
             <p className="text-[11px] text-muted" data-testid="switch-oneclick-carry">
-              {carryOneLiner(phase.preflight.carry)} — cost: one switch hop.
+              {carryOneLiner(phase.preflight.carry)}.
             </p>
             <p className="text-[11px] text-muted">{phase.preflight.experimental_copy}</p>
             {phase.preflight.warnings.length > 0 && (
@@ -386,29 +403,13 @@ export function SwitchFlow({
               unredact={unredact}
               onToggleItem={toggleUnredact}
             />
-            <fieldset className="flex flex-col gap-1.5">
-              <legend className="text-[11px] uppercase tracking-wider text-muted">
-                {phase.preflight.source_live ? "Freeze the source first" : "The source is at rest"}
-              </legend>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="freeze"
-                  checked={freeze === "finish-turn"}
-                  onChange={() => setFreeze("finish-turn")}
-                />
-                Finish this turn, then switch <span className="text-muted">(default)</span>
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="freeze"
-                  checked={freeze === "stop-now"}
-                  onChange={() => setFreeze("stop-now")}
-                />
-                Stop now and switch <span className="text-muted">(partial turn marked truncated)</span>
-              </label>
-            </fieldset>
+            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+            <SwitchFreezeChoice
+              sourceLive={phase.preflight.source_live}
+              keepsRunning={phase.preflight.source_keeps_running}
+              value={freeze}
+              onChange={setFreeze}
+            />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -472,7 +473,7 @@ export function SwitchFlow({
                 <h3 className="text-sm font-semibold">
                   Switch to {targetLabel}
                   <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
-                    {phase.preflight.fidelity} · {validationWords(phase.preflight.validated)}
+                    {phase.preflight.fidelity_words} · {validationWords(phase.preflight.validated)}
                   </span>
                 </h3>
                 <ul className="flex flex-col gap-1" data-testid="switch-wizard-reasons">
@@ -497,7 +498,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-carried">
                 <h3 className="text-sm font-semibold">What's carried</h3>
                 <p className="text-[11px] text-muted">
-                  The pack contains exactly this list — nothing else moves.
+                  Only what's listed here moves.
                 </p>
                 <div className="flex flex-col gap-1 text-[11px]">
                   {phase.preflight.carry.carried.length > 0 && (
@@ -517,7 +518,7 @@ export function SwitchFlow({
                       className="rounded border border-warning/40 px-2 py-1 text-warning"
                       data-testid="switch-carry-dropped"
                     >
-                      Not carried (stays on the source): {phase.preflight.carry.dropped.join(", ")}
+                      Doesn't carry: {phase.preflight.carry.dropped.join(", ")}
                     </p>
                   )}
                 </div>
@@ -559,8 +560,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-confirm">
                 <h3 className="text-sm font-semibold">Confirm the switch</h3>
                 <p className="text-[11px] text-muted" data-testid="switch-cost">
-                  Cost: one switch hop · {phase.preflight.fidelity} fidelity ·{" "}
-                  {phase.preflight.mechanism}
+                  {phase.preflight.fidelity_words}
                   {phase.preflight.usual_account ? " · usual account" : ""}
                 </p>
                 <RedactionBlock
@@ -587,32 +587,13 @@ export function SwitchFlow({
                     ))}
                   </ul>
                 )}
-                <fieldset className="flex flex-col gap-1.5">
-                  <legend className="text-[11px] uppercase tracking-wider text-muted">
-                    {phase.preflight.source_live
-                      ? "Freeze the source first"
-                      : "The source is at rest"}
-                  </legend>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="radio"
-                      name="freeze"
-                      checked={freeze === "finish-turn"}
-                      onChange={() => setFreeze("finish-turn")}
-                    />
-                    Finish this turn, then switch <span className="text-muted">(default)</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="radio"
-                      name="freeze"
-                      checked={freeze === "stop-now"}
-                      onChange={() => setFreeze("stop-now")}
-                    />
-                    Stop now and switch{" "}
-                    <span className="text-muted">(partial turn marked truncated)</span>
-                  </label>
-                </fieldset>
+                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+                <SwitchFreezeChoice
+                  sourceLive={phase.preflight.source_live}
+                  keepsRunning={phase.preflight.source_keeps_running}
+                  value={freeze}
+                  onChange={setFreeze}
+                />
               </div>
             )}
 
@@ -680,9 +661,10 @@ export function SwitchFlow({
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
             <p className="text-[11px] text-muted">
-              You switched — the continuation session is starting. The source rests and stays
-              resumable from the graph.
+              {targetLabel} is picking up the conversation. The original has stopped, and you can
+              switch back to it any time.
             </p>
+            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
               <button
                 type="button"
@@ -704,6 +686,8 @@ export function SwitchFlow({
             <p className="text-[11px] text-muted">
               The source is safe — resume it exactly where you left it.
             </p>
+            {/* What was set up before the switch failed stays undoable. */}
+            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
               <button
                 type="button"
@@ -725,106 +709,37 @@ export function SwitchFlow({
  * "Switched — Undo" = stop the continuation instance + resume the
  * source's native session + record the compensating edge. After the
  * window closes the same actions remain available from the Switch
- * Graph (AJ-E209). Click-only: nothing auto-undoes.
+ * Graph (AJ-E209). Click-only: nothing auto-undoes. AJ-E1503: it is the
+ * app's one toast; the switch dialog has just closed, so Undo takes the
+ * focus that would otherwise fall to the page (WCAG 2.4.3).
  */
-export function SwitchUndoToast({
+export function showSwitchUndoToast({
   edgeId,
   targetLabel,
-  onDismiss,
   onUndone,
+  onClose,
 }: {
   edgeId: string;
   targetLabel: string;
-  onDismiss: () => void;
   onUndone: (sessionId: string) => void;
-}): JSX.Element {
-  const [secondsLeft, setSecondsLeft] = useState(10);
-  // AJ-E804 (WCAG 2.4.3): the switch dialog is gone, so focus would fall
-  // to the page; the undo button takes it — only when nothing else holds
-  // focus, never stolen from elsewhere.
-  const undoRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!document.activeElement || document.activeElement === document.body) undoRef.current?.focus();
-  }, []);
-  const [state, setState] = useState<
-    { kind: "counting" } | { kind: "undoing" } | { kind: "failed"; message: string }
-  >({ kind: "counting" });
-
-  useEffect(() => {
-    if (state.kind !== "counting") return;
-    if (secondsLeft <= 0) {
-      onDismiss();
-      return;
-    }
-    const timer = window.setTimeout(() => setSecondsLeft((left) => left - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [secondsLeft, state.kind, onDismiss]);
-
-  const undo = async () => {
-    setState({ kind: "undoing" });
-    try {
-      const result = await switchUndo(edgeId);
-      onUndone(result.session_id);
-    } catch (cause) {
-      setState({ kind: "failed", message: errorText(cause) });
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[520px] items-center gap-3 rounded-xl border border-hairline bg-surface px-4 py-3 shadow-card"
-      role="status"
-      aria-live="polite"
-      data-testid="switch-undo-toast"
-    >
-      {state.kind === "counting" && (
-        <>
-          <p className="text-xs">
-            Switched to {targetLabel}.
-            <span className="text-muted"> The source stays resumable — undo for </span>
-            {secondsLeft}s.
-          </p>
-          <button
-            type="button"
-            ref={undoRef}
-            onClick={() => void undo()}
-            data-testid="switch-undo"
-            className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi hover:border-accent/60"
-          >
-            Undo ({secondsLeft}s)
-          </button>
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label="Dismiss"
-            className="rounded-lg border border-hairline px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
-          >
-            ✕
-          </button>
-        </>
-      )}
-      {state.kind === "undoing" && (
-        <p className="text-xs" data-testid="switch-undoing">
-          Undoing — stopping the continuation and resuming the source…
-        </p>
-      )}
-      {state.kind === "failed" && (
-        <>
-          <div className="flex flex-col">
-            <p className="text-xs text-warning">Undo didn’t complete</p>
-            <p className="text-[11px] text-muted">
-              {state.message} — the continuation keeps running; retry or stop it from Sessions.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-          >
-            Close
-          </button>
-        </>
-      )}
-    </div>
-  );
+  onClose?: () => void;
+}): string {
+  return showToast({
+    id: "switch-undo",
+    testId: "switch-undo",
+    message: `Switched to ${targetLabel}.`,
+    detail: "The source stays resumable.",
+    focusWhenFree: true,
+    onClose,
+    undo: {
+      seconds: 10,
+      onUndo: async () => {
+        const result = await switchUndo(edgeId);
+        onUndone(result.session_id);
+      },
+      undoing: "Undoing — stopping the continuation and resuming the source…",
+      done: "Undone — back on the source session.",
+      failed: (cause) => `${cause} — the continuation keeps running; retry or stop it from Sessions.`,
+    },
+  });
 }

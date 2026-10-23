@@ -1,0 +1,19 @@
+[package]
+name = "juggler-vm-stats"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Audited host_statistics64 shim (D-27): the pages macOS's memory compressor occupies"
+
+# D-27 (2026-10-23): the third carve-out from the workspace lint
+# baseline, made like D-17's juggler-scap-init and D-26's
+# juggler-login-item. By NOT inheriting `[lints] workspace = true`,
+# `unsafe_code = "forbid"` does not apply here; every other crate keeps
+# it. The crate holds exactly three `unsafe` blocks (the host port, once;
+# zeroing the statistics struct; `host_statistics64`), each with its
+# SAFETY note, behind a safe API.
+# macOS-only: elsewhere the crate is a safe stub that reads nothing.
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2.191"

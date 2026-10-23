@@ -1,7 +1,7 @@
 //! AJ-E209 integration: the badged ranked switch targets (§Q6 with
 //! the switch extensions; badges never "lossless", cross-Provider
 //! always Beta + Drop list), the Switch Graph A→B→A timeline
-//! (switch-back ↺, resumable nodes, the S-F9 hop note, D-13-ready
+//! (the switch back, resumable nodes, the S-F9 hop note, D-13-ready
 //! ids), the graph's Export pack action through the AJ-E208 GLOBAL
 //! redaction policy (unset blocks; Strip leaves zero canary bytes),
 //! and ranking determinism (same inputs → same order + same
@@ -269,16 +269,26 @@ fn graph_renders_the_round_trip_and_hop_note() {
     assert_eq!(works.len(), 1, "one work item");
     let timeline = &works[0];
 
-    // The travel: transplant, switch-back ↺, transplant — labelled.
+    // The travel: out, back, out again — labelled in plain words
+    // (AJ-E1535: what carried, never "transplant F1" or "switch-back ↺").
     assert_eq!(timeline.edges.len(), 3, "three hops");
-    assert!(timeline.edges[0].label.contains("transplant"));
+    for edge in &timeline.edges {
+        assert!(
+            !edge.label.contains("transplant")
+                && !edge.label.contains('↺')
+                && !edge.label.contains("F1"),
+            "plain words: {}",
+            edge.label
+        );
+    }
+    assert!(!timeline.edges[0].label.is_empty());
     assert!(
-        timeline.edges[1].label.contains("switch-back ↺"),
+        timeline.edges[1].label.starts_with("Switched back · "),
         "the return is marked: {}",
         timeline.edges[1].label
     );
     assert!(timeline.edges[1].switch_back);
-    assert!(timeline.edges[2].label.contains("transplant"));
+    assert!(!timeline.edges[2].label.is_empty());
 
     // S-F9: the cumulative hop line informs, never blocks.
     assert!(

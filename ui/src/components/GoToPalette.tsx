@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "./primitives";
 import type { InstanceInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
+import { useActionHost } from "./ItemMenu";
+import { conversationTitle, liveOutside, useConversations } from "../lib/conversations";
+import type { ConversationInfo } from "../lib/ipc/conversations";
 
 /**
  * "Go to instance…" (AJ-E414 Req.4): summoned by the global hotkey
@@ -70,8 +73,14 @@ export function GoToPalette({
   const [captureError, setCaptureError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // AJ-E1529: sessions started outside AI Juggler, running now, too.
+  const { all: conversations } = useConversations();
+  const host = useActionHost();
   const rows = useMemo<PaletteRow[]>(() => {
     const needle = query.trim().toLowerCase();
+    const elsewhere: PaletteRow[] = liveOutside(conversations)
+      .filter((c) => !needle || `${c.account_label} ${c.tool} ${conversationTitle(c)}`.toLowerCase().includes(needle))
+      .map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
     const local: PaletteRow[] = sessions
       .filter((s) => isLive(s.status))
       .filter((s) => !needle || `${s.account_label} ${s.provider} ${s.kind}`.toLowerCase().includes(needle))
@@ -98,9 +107,10 @@ export function GoToPalette({
       ...local.filter((r) => r.desktop),
       ...remote.filter((r) => r.desktop),
       ...local.filter((r) => !r.desktop),
+      ...elsewhere,
       ...remote.filter((r) => !r.desktop),
     ];
-  }, [sessions, remoteMachines, query]);
+  }, [sessions, remoteMachines, query, conversations]);
 
   useEffect(() => {
     if (open) {
@@ -121,7 +131,9 @@ export function GoToPalette({
   }
 
   const choose = (entry: PaletteRow) => {
-    if (entry.where === "local") {
+    if (entry.where === "outside") {
+      host.openConversation?.(entry.conversation);
+    } else if (entry.where === "local") {
       if (entry.desktop) onFocusWindow(entry.row);
       else onOpenSession(entry.row.id);
     } else if (entry.desktop && canFocusRemote(entry.machine)) {
@@ -209,7 +221,7 @@ export function GoToPalette({
               id={`goto-option-${domId(entry.id)}`}
               role="option"
               aria-selected={index === active}
-              data-testid={`goto-row-${entry.where === "local" ? entry.id : `remote-${entry.row.id}`}`}
+              data-testid={`goto-row-${entry.where === "remote" ? `remote-${entry.row.id}` : entry.id}`}
               onClick={() => choose(entry)}
               onMouseEnter={() => setActive(index)}
               className={
@@ -218,8 +230,17 @@ export function GoToPalette({
               }
             >
                 {entry.desktop ? <Chip tone="accent">app</Chip> : <Chip tone="neutral">term</Chip>}
-                <span className="min-w-0 shrink truncate">{entry.row.account_label}</span>
-                <span className="min-w-0 shrink truncate text-muted">{entry.row.provider}</span>
+                {entry.where === "outside" ? (
+                  <>
+                    <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.conversation.account_label} · outside AI Juggler</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="min-w-0 shrink truncate">{entry.row.account_label}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.row.provider}</span>
+                  </>
+                )}
                 {entry.where === "remote" && (
                   <span className="shrink-0 text-muted" data-testid="goto-remote-machine">
                     on {entry.machine.label} ·{" "}
@@ -227,7 +248,9 @@ export function GoToPalette({
                   </span>
                 )}
                 <span className="ml-auto shrink-0 text-muted">
-                  {entry.where === "local"
+                  {entry.where === "outside"
+                    ? "open"
+                    : entry.where === "local"
                     ? entry.desktop
                       ? "focus window"
                       : "open panel"
@@ -261,6 +284,7 @@ export function GoToPalette({
 
 type PaletteRow =
   | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
+  | { where: "outside"; conversation: ConversationInfo; id: string; desktop: false }
   | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean };
 
 /** A remote focus is offered only where that machine allows control and

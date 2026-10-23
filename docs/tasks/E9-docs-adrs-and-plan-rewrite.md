@@ -77,7 +77,7 @@
 **User story**: As a daily user, I want selecting anything to fill the right section with usage, history, quality signals, processes and actions, per the settled inspector scope.
 **Requirements**:
 1. §9 SHALL specify the 6-tab Inspector (Overview, Usage, History, Quality/Performance, Processes, Actions) for Session, Provider, Account, Instance and Project selections, with honest-fields wording (`Unavailable — <reason>`) per D-06 and signals-only quality per D-07.
-2. §9 SHALL reverse the merge-Instances-away direction: Instances tab stays (D-02, expected-worfklow.md:11); indicator row grammar (Provider, Account, model, state, quota, cost, resources, children, git) SHALL be normative with text+icon redundancy, never colour alone.
+2. §9 SHALL reverse the merge-Instances-away direction: Instances tab stays (D-02, expected-workflow.md:11); indicator row grammar (Provider, Account, model, state, quota, cost, resources, children, git) SHALL be normative with text+icon redundancy, never colour alone.
 3. §9 SHALL add the Cleanup Centre, Leftover Inventory, subscription-expiry warning (user-entered date, D-12) and the two positioning strings (D-09) in the About/home copy.
 4. Done checklist SHALL list every §9 screen whose spec changed and every deep/11 wireframe superseded or adopted.
 **UI/UX reasoning**: NN-g #1 visibility + #4 consistency; WCAG 1.4.1. Exact copy, shortcuts (⌘1..⌘3 tabs, inspector focus order) and states (populated/empty/loading/error/stale/offline) SHALL be written as testable text, not adjectives.

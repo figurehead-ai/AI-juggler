@@ -4,7 +4,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, honestEmpty, readyHome, type FixtureSet } from "./fixtures";
@@ -48,7 +49,7 @@ async function axeClean(page: Page, what: string) {
 
 for (const theme of ["dark", "light"] as const) {
   for (const [name, fixture] of [["full", allStatuses], ["signed-out", readyHome]] as const) {
-    test(`accounts — ${name} — ${theme}`, async ({ page }) => {
+    test(`accounts — ${name} — ${theme}`, gate("68-accounts"), async ({ page }) => {
       await seed(page, fixture, theme);
       await goTo(page, "Accounts");
       await expect(page.getByTestId("account-runway").first()).toBeVisible();

@@ -385,3 +385,44 @@ fn admission_verdict_rides_the_ranked_rows_e306() {
     let acc_a = rows.iter().find(|row| row.account == "acc-a").unwrap();
     assert_eq!(acc_a.admission.as_deref(), Some("no"));
 }
+
+/// AJ-E1513: the machine re-arms when the vendor reports the next
+/// window, so the next window's crossing alerts again — once.
+#[test]
+fn the_next_window_alerts_again_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed(&state, dir.path());
+    let now = Timestamp::now().millis();
+    let sample = |ts: i64, used_pct: f64, resets_at: i64| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .insert_sample(
+                "acc-a",
+                juggler_core::quota::WindowKind::FiveHour,
+                &juggler_core::quota::QuotaSample {
+                    ts,
+                    used_pct,
+                    resets_at: Some(resets_at),
+                    confidence: juggler_core::model::Confidence::Measured,
+                },
+            )
+            .unwrap();
+    };
+    let actionables = |events: &[juggler_app::commands::AlertEventInfo]| {
+        events
+            .iter()
+            .filter(|event| event.kind == "actionable")
+            .count()
+    };
+    sample(now - 2_000, 92.0, now + 3_600_000);
+    assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 1);
+    assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 0);
+    // The vendor now reports a later window, already past 90%.
+    sample(now - 1_000, 93.0, now + 5 * 3_600_000);
+    assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 1);
+    assert_eq!(actionables(&alerts_tick_inner(&state, Some(12))), 0);
+}

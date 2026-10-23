@@ -140,6 +140,10 @@ pub(crate) fn catalog(state: &Arc<AppState>) -> proto::CatalogDelta {
             })
             .collect(),
         projects,
+        last_day: Some(crate::features::fleet::last_day(
+            &storage,
+            crate::commands::now_millis(),
+        )),
     }
 }
 
@@ -188,7 +192,7 @@ pub struct RemoteSwitchTargetInfo {
     pub blockers: Vec<String>,
     /// The F-label the switch would carry.
     pub fidelity: String,
-    /// The badge text (`F3 · Unvalidated`) — never colour alone.
+    /// The badge text (`Same conversation, new account · Not proven yet`) — never colour alone.
     pub badge: String,
     /// Validated for this machine pair (D-04: false until a live
     /// two-machine dogfood passes).
@@ -298,7 +302,7 @@ pub(crate) fn assess(
                 readiness: readiness.to_owned(),
                 blockers,
                 fidelity: fidelity.as_str().to_owned(),
-                badge: format!("{} · Unvalidated", fidelity.as_str()),
+                badge: format!("{} · Not proven yet", fidelity.user_label()),
                 validated: false,
                 carried: carry.carried,
                 regenerated: carry.regenerated,
@@ -335,10 +339,10 @@ fn readiness_of(
     match (source.version, version_there) {
         (_, None) => blockers.push(format!("{provider} isn't installed on {machine_label}.")),
         (None, Some(_)) => blockers.push(format!(
-            "This Mac's {provider} version couldn't be read — T2 needs both to match."
+            "This Mac's {provider} version couldn't be read — moving the same conversation needs both to match."
         )),
         (Some(here), Some(there)) if here != there => blockers.push(format!(
-            "{provider} {here} here, {there} on {machine_label} — T2 needs the same version."
+            "{provider} {here} here, {there} on {machine_label} — moving the same conversation needs the same version."
         )),
         _ => {}
     }
@@ -347,7 +351,7 @@ fn readiness_of(
     }
     if !same_path {
         blockers.push(format!(
-            "{} isn't at the same path on {machine_label} — pick its copy there (you confirm the mapping) or use T3.",
+            "{} isn't at the same path on {machine_label} — pick its copy there (you confirm the mapping) or use “Full story, fresh start”.",
             source.project_name
         ));
         return ("needs_mapping", blockers);
@@ -540,7 +544,7 @@ fn plan(state: &Arc<AppState>, request: &FleetSwitchRequest) -> AppResult<Planne
         "transplant" => {
             if !matches!(target.readiness.as_str(), "t2_ready" | "needs_mapping") {
                 return Err(invalid(format!(
-                    "T2 can't run: {} Use T3 replay instead.",
+                    "The same conversation can't move: {} Use “Full story, fresh start” instead.",
                     target.blockers.join(" ")
                 )));
             }
@@ -591,10 +595,12 @@ fn build_bundle(
     let version =
         version_of(&harness_versions(state), account.harness.as_str()).unwrap_or_default();
     if planned.mechanism == SwitchMechanism::Transplant {
-        let support = state
-            .registry
-            .handover(&account.harness)
-            .ok_or_else(|| io(format!("{} has no transplant support", account.harness)))?;
+        let support = state.registry.handover(&account.harness).ok_or_else(|| {
+            io(format!(
+                "{} can't take over this conversation",
+                account.harness
+            ))
+        })?;
         let bundle = support
             .bundle_session(&reference)
             .map_err(|e| io(e.to_string()))?;
@@ -639,7 +645,8 @@ fn build_bundle(
                 });
             }
         };
-        let bytes = std::fs::read(&reference.path).map_err(|e| io(e.to_string()))?;
+        let bytes =
+            juggler_adapters::read_session_file(&reference.path).map_err(|e| io(e.to_string()))?;
         let parsed = juggler_adapters::parse_any(&bytes);
         let turns: Vec<(&'static str, String)> = parsed
             .messages
@@ -839,7 +846,8 @@ fn record_origin(state: &Arc<AppState>, request: &FleetSwitchRequest, ids: &Push
 /// Appends one transcript row (name, sha256, length) to `edge`'s
 /// manifest.
 fn record_transcript_row(state: &Arc<AppState>, edge: &SwitchEdgeId, path: &Path) {
-    let Ok(bytes) = std::fs::read(path) else {
+    // Hashed as a stream: a transcript can be gigabytes.
+    let Ok((sha256, len)) = juggler_adapters::file_sha256(path) else {
         return;
     };
     let name = path
@@ -851,8 +859,8 @@ fn record_transcript_row(state: &Arc<AppState>, edge: &SwitchEdgeId, path: &Path
             edge,
             &[juggler_core::model::ManifestEntry {
                 rel_path: name,
-                sha256: juggler_adapter::handover::sha256_hex(&bytes),
-                bytes: bytes.len() as u64,
+                sha256,
+                bytes: len,
                 kind: "transcript".to_owned(),
                 disposition: "copy".to_owned(),
             }],
@@ -1122,7 +1130,7 @@ fn take_work(
             if bundle.provider_id != account.harness.as_str() {
                 return Err(refuse(
                     "provider_mismatch",
-                    "T2 needs the same Provider on both Macs.",
+                    "Moving the same conversation needs the same tool on both Macs.",
                 ));
             }
             // The precondition again, here: never a silent downgrade.
@@ -1131,7 +1139,7 @@ fn take_work(
                 return Err(refuse(
                     "version_mismatch",
                     format!(
-                        "{} {} here, {} there — T2 needs the same version.",
+                        "{} {} here, {} there — moving the same conversation needs the same version.",
                         account.harness,
                         here.unwrap_or_else(|| "not installed".to_owned()),
                         bundle.harness_version
@@ -1157,6 +1165,7 @@ fn take_work(
         "replay" => (
             LaunchMode::Primed {
                 prompt: prime_prompt(state, &account.harness, bundle),
+                read_dirs: Vec::new(),
             },
             None,
             None,
@@ -1214,10 +1223,12 @@ fn install_transplant(
     use juggler_adapter::handover::{
         BundleFile, BundleManifest, Fidelity, SessionBundle, embedded_cwd, remap_cwd,
     };
-    let support = state
-        .registry
-        .handover(&account.harness)
-        .ok_or_else(|| refuse("unsupported", "That Provider can't take a transplant here."))?;
+    let support = state.registry.handover(&account.harness).ok_or_else(|| {
+        refuse(
+            "unsupported",
+            "That tool can't take over this conversation here.",
+        )
+    })?;
     let main = bundle
         .files
         .iter()

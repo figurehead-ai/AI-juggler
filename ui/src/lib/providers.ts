@@ -1,25 +1,24 @@
 /**
- * Provider display names for copy (the wire carries ids). Unknown ids
- * render as themselves — never a guessed product name.
+ * Tool words for copy (the wire carries ids). AJ-E1525 (ADR-0019): every
+ * word here comes from the tool's spec in the catalog (`lib/tools.ts`);
+ * an id the catalog doesn't know renders as itself, never a guessed
+ * product name.
  */
-const NAMES: Record<string, string> = {
-  "claude-code": "Claude Code",
-  codex: "Codex",
-  zcode: "ZCode",
-  gemini: "Gemini CLI",
-};
+import { toolSpec } from "./tools";
 
 export function providerDisplayName(id: string): string {
-  return NAMES[id] ?? id;
+  return toolSpec(id).display_name;
 }
 
-/**
- * The first mention of a Provider's own sign-in on a surface. Codex names
- * its vendor once ("Codex's own sign-in (OpenAI)"); later mentions on the
- * same surface say just "Codex's".
- */
+/** The first mention of a tool's own sign-in on a surface (its spec says
+ * whether to name the vendor: "Codex's own sign-in (OpenAI)"). */
 export function ownSignIn(id: string): string {
-  return id === "codex" ? "Codex's own sign-in (OpenAI)" : `${providerDisplayName(id)}'s own sign-in`;
+  return toolSpec(id).sign_in_own;
+}
+
+/** A tool's sign-in in a list of tools ("Codex's (OpenAI)"). */
+export function shortSignIn(id: string): string {
+  return toolSpec(id).sign_in_short;
 }
 
 /**
@@ -56,12 +55,11 @@ export function supportsInPlace(support: InPlaceSupport, id: string): boolean {
 }
 
 /** What "the same sign-in, settings and history" is the same AS, for a
- * set of tools: the Claude app, Codex run by hand, or both. */
+ * set of tools: the tool's own words when there is one, else wherever
+ * the user runs them now. */
 export function sameAsWords(ids: string[]): string {
-  const kinds = new Set(ids);
-  if (kinds.size === 1 && kinds.has("codex")) return "as when you run Codex yourself";
-  if (kinds.size === 1 && kinds.has("claude-code")) return "as your Claude app";
-  return "as wherever you use them now";
+  const kinds = [...new Set(ids)];
+  return kinds.length === 1 ? toolSpec(kinds[0]!).same_as : "as wherever you use them now";
 }
 
 /** A tool's install row, as far as these helpers read it. */

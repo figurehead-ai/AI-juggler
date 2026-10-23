@@ -22,6 +22,7 @@ const recipe = (
   provider: "claude-code",
   model: null,
   default_cwd: null,
+  restart_on_crash: null,
   ...overrides,
 });
 
