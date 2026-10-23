@@ -683,6 +683,7 @@ fn step_account_alerts(
             tte_min: display.forecast.tte_min,
             used_pct: window.percentage,
             confidence,
+            resets_at_ms: window.resets_at_ms,
         };
         let machine = if slot == "five_hour" {
             &entry.five_hour
