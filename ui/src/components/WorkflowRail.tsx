@@ -54,6 +54,7 @@ import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   ChildBadges,
+  subagentsRunning,
   GitBadge,
   StaleChip,
   gitWords,
@@ -976,6 +977,9 @@ export function RailRow({
   const identity = identityWords(session);
   const identityMark = identity && identity.state !== "verified" ? identity : null;
   const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
+  // AJ-E1520 (I-08): subagents still running, quiet like `changed`; the
+  // session view lists them all.
+  const subagents = session.subtask_count ? session.subtask_count : null;
   // E14 (AJ-E1405): resources show only when the session is heavy.
   const heavyNote = useHeavyNote(session.id);
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
@@ -1037,6 +1041,11 @@ export function RailRow({
                 · {dirty}
               </span>
             )}
+            {subagents && (
+              <span title={subagentsRunning(subagents)} data-testid="rail-subagents" className="shrink-0 whitespace-nowrap">
+                · {subagents === 1 ? "1 subagent" : `${subagents} subagents`}
+              </span>
+            )}
             {identityMark && (
               <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
                 · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
@@ -1051,6 +1060,7 @@ export function RailRow({
           {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
+          {subagents ? `, ${subagentsRunning(subagents)}` : ""}
         </span>
       </span>
       {density === "compact" && low && <span className="shrink-0 font-mono text-[10px] text-warning">{low}</span>}

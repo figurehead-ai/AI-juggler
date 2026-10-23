@@ -4,12 +4,50 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SubtasksInfo } from "../lib/ipc/subtasks";
+import type { InstanceInfo } from "../lib/bridge";
 
 const list = vi.fn<(sessionId: string) => Promise<SubtasksInfo>>();
 vi.mock("../lib/ipc/subtasks", () => ({ subtasksList: (sessionId: string) => list(sessionId) }));
 
 const { SubagentsSection, subagentsSummary } = await import("./SubagentsSection");
 const { subagentsRunning } = await import("./indicator");
+const { RailRow } = await import("./WorkflowRail");
+
+const NOW = 1_728_800_000_000;
+
+function session(subtask_count: number | null): InstanceInfo {
+  return {
+    id: "s1",
+    launch_recipe_id: "p-1",
+    adopted: false,
+    provider: "claude-code",
+    account_id: "work",
+    account_label: "Work Max",
+    model: "opus",
+    launch_model: "opus",
+    running_model: null,
+    model_source: "launch",
+    status: "running",
+    quota: null,
+    tokens: null,
+    cpu_pct: null,
+    rss_bytes: null,
+    child_count: null,
+    subtask_count,
+    git_branch: "feat/parsers",
+    git_dirty_count: null,
+    needs_attention: null,
+    attention: null,
+    started_at_ms: NOW - 3_600_000,
+    last_activity_ms: NOW - 60_000,
+    machine_id: "this-mac",
+    cwd: "/Users/dev/app",
+    kind: "terminal",
+    isolation_label: null,
+    project_id: null,
+    conversation_id: null,
+  } as InstanceInfo;
+}
 
 const FOUR: SubtasksInfo = {
   live: true,
@@ -67,6 +105,20 @@ describe("AJ-E1520 subagents", () => {
     rerender(<SubagentsSection sessionId="s1" running={0} />);
     expect(await screen.findByText("4, none running")).toBeTruthy();
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it("the rail row notes running subagents quietly, and only when there are some", () => {
+    const { rerender } = render(<RailRow session={session(2)} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />);
+    const note = screen.getByTestId("rail-subagents");
+    expect(note.textContent).toBe("· 2 subagents");
+    expect(note.getAttribute("title")).toBe("2 subagents running");
+    expect(screen.getByRole("button").textContent).toContain(", 2 subagents running");
+    rerender(<RailRow session={session(1)} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />);
+    expect(screen.getByTestId("rail-subagents").textContent).toBe("· 1 subagent");
+    for (const none of [0, null]) {
+      rerender(<RailRow session={session(none)} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />);
+      expect(screen.queryByTestId("rail-subagents")).toBeNull();
+    }
   });
 
   it("words the count as subagents running", () => {
