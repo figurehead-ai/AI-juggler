@@ -92,6 +92,8 @@ jobs:
           ./scripts/terminology_lint.sh
           python3 scripts/plain_words_lint.py --selftest
           python3 scripts/plain_words_lint.py
+      - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
+        run: python3 scripts/docs_links_check.py
       - name: No tool-id literal outside the adapters (AJ-E1525, ADR-0019)
         run: |
           python3 scripts/tool_literal_lint.py --selftest
