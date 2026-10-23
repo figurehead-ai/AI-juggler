@@ -118,13 +118,13 @@
 | AJ-E207 | PASS11 | 2026-10-16 | [manifest](AJ-E207/manifest.md) |
 | AJ-E208 | PASS10 | 2026-10-16 | [manifest](AJ-E208/manifest.md) |
 | AJ-E209 | PASS12 | 2026-10-16 | [manifest](AJ-E209/manifest.md) |
-| AJ-E210 | PASS10 | 2026-10-16 | [manifest](AJ-E210/manifest.md) |
+| AJ-E210 | PASS11 | 2026-10-16 | [manifest](AJ-E210/manifest.md) |
 | AJ-E301 | PASS11 | 2026-10-16 | [manifest](AJ-E301/manifest.md) |
 | AJ-E302 | PASS12 | 2026-10-17 | [manifest](AJ-E302/manifest.md) |
 | AJ-E303 | PASS10 | 2026-10-17 | [manifest](AJ-E303/manifest.md) |
 | AJ-E304 | PASS12 | 2026-10-17 | [manifest](AJ-E304/manifest.md) |
 | AJ-E305 | PASS12 | 2026-10-17 | [manifest](AJ-E305/manifest.md) |
-| AJ-E306 | PASS11 | 2026-10-17 | [manifest](AJ-E306/manifest.md) |
+| AJ-E306 | PASS12 | 2026-10-17 | [manifest](AJ-E306/manifest.md) |
 | AJ-E307 | PASS10 | 2026-10-17 | [manifest](AJ-E307/manifest.md) |
 | AJ-E308 | PASS8 | 2026-10-18 | [manifest](AJ-E308/manifest.md) |
 | AJ-E309 | PASS11 | 2026-10-18 | [manifest](AJ-E309/manifest.md) |
@@ -208,4 +208,5 @@
 | fixes-0.0.19 | PASS5 | 2026-10-22 | [manifest](fixes-0.0.19/manifest.md) |
 | fixes-0.0.20 | PASS3 | 2026-10-22 | [manifest](fixes-0.0.20/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
+| release-0.1-real | FAIL4 PASS2 | 2026-10-23 | [manifest](release-0.1-real/manifest.md) |
 | walks | (no claims yet) | 2026-10-21 | [manifest](walks/manifest.md) |

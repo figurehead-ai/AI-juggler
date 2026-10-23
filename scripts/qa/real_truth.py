@@ -776,6 +776,37 @@ def codex_history(dirs: list[Path], now: float) -> str:
 # ---------------------------------------------------------------------------
 
 
+
+def vm_stat_memory(text: str):
+    """(used, page size) from `vm_stat`: app memory (anonymous less
+    purgeable) + wired + compressed, as Activity Monitor counts "Memory Used"."""
+    import re as _re
+    page = int((_re.search(r"page size of (\d+) bytes", text) or [0, 16384])[1])
+    def pages(name):
+        m = _re.search(rf"^{_re.escape(name)}:\s+(\d+)\.", text, _re.M)
+        return int(m.group(1)) if m else 0
+    app = pages("Anonymous pages") - pages("Pages purgeable")
+    return (app + pages("Pages wired down") + pages("Pages occupied by compressor")) * page, page
+
+
+def verdict_vm(verdict, machine: dict, vm: dict) -> None:
+    """3.4: This Mac's memory, total and pressure against macOS's own figures."""
+    used, _ = vm_stat_memory(vm.get("vm_stat") or "")
+    total = int(vm.get("memsize") or 0)
+    if not used or not total:
+        verdict(None, "This Mac vs vm_stat: macOS figures not readable")
+        return
+    mine = machine.get("memory_used") or 0
+    verdict(abs(mine - used) <= 0.03 * total,
+            f"This Mac memory vs vm_stat: backend {mine / 1e9:.1f} GB used, vm_stat app+wired+compressed {used / 1e9:.1f} GB "
+            f"(off by {abs(mine - used) / total * 100:.1f}% of {total / 1e9:.0f} GB)")
+    verdict(machine.get("memory_total") == total,
+            f"This Mac total memory: backend {machine.get('memory_total', 0) / 1e9:.1f} GB, hw.memsize {total / 1e9:.1f} GB")
+    level = {"1": "normal", "2": "warn", "4": "critical"}.get(str(vm.get("pressure_level")).strip(), "?")
+    seen = str(machine.get("pressure") or "").lower()
+    verdict(seen.startswith(level[:4]) or (level == "warn" and seen.startswith("warning")),
+            f"This Mac pressure: backend {machine.get('pressure')}, kern.memorystatus_vm_pressure_level {vm.get('pressure_level')} ({level})")
+
 def compare(truth: dict, harness: dict) -> str:
     """Redacted OK / MISMATCH lines: the oracle against the backend's read models."""
     accounts = truth["accounts"]
@@ -981,6 +1012,9 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(True, f"This Mac machine: CPU {round(m['machine'].get('cpu_pct') or -1)}%, memory {m['machine']['memory_used'] / 1e9:.1f} of "
                       f"{m['machine']['memory_total'] / 1e9:.0f} GB ({m['machine']['memory_basis']}), pressure {m['machine']['pressure']}; "
                       f"tools {m['tools']['count']}")
+        vm = m.get("qa_vm")
+        if vm:
+            verdict_vm(verdict, m["machine"], vm)
     # This Mac counts the whole Mac. On a replica (a HOME that isn't this
     # user's own) the host's apps are in it too, so these lines are facts
     # there, not checks.
@@ -1115,6 +1149,10 @@ def selftest() -> None:
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
+    vm = ("Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 10.\n"
+          "Anonymous pages: 1000.\nPages purgeable: 100.\nPages wired down: 200.\n"
+          "Pages occupied by compressor: 300.\n")
+    assert vm_stat_memory(vm) == ((1000 - 100 + 200 + 300) * 16384, 16384)
     selftest_rollouts()
     print("real_truth selftest: OK")
 
