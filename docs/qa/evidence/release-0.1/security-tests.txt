@@ -1,0 +1,22 @@
+     Running tests/account_settings.rs (<target>/debug/deps/account_settings-5172dad09e290720)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+     Running tests/cloud_guardrails.rs (<target>/debug/deps/cloud_guardrails-f85bd4a2c5291306)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running tests/codex_in_place.rs (<target>/debug/deps/codex_in_place-a7bcb93bad9499eb)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests/guardrails.rs (<target>/debug/deps/guardrails-c09a3a231dcde0f1)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 114.62s
+     Running tests/in_place_accounts.rs (<target>/debug/deps/in_place_accounts-9ee316d666de2b3b)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests/no_bare_tools.rs (<target>/debug/deps/no_bare_tools-341ea9c75551d142)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/outside_capture.rs (<target>/debug/deps/outside_capture-a0978ecf7d0e9677)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+     Running tests/project_sync.rs (<target>/debug/deps/project_sync-14d47439b1f775fc)
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+     Running tests/stats_guardrails.rs (<target>/debug/deps/stats_guardrails-7d7d4ff8b8205bc4)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/switch_setup.rs (<target>/debug/deps/switch_setup-dccddb2de11d2765)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+     Running tests/trust.rs (<target>/debug/deps/trust-8e3cf5c2d963c02d)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
