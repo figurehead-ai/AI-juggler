@@ -58,12 +58,21 @@ fn lab() -> Lab {
     let config = root.join("claude");
     std::fs::create_dir_all(&config).unwrap();
     std::fs::write(config.join("settings.json"), "{}").unwrap();
-    // A realistic spread: many short conversations and a few long ones.
+    // A realistic spread: many short conversations and a few long ones,
+    // in words drawn the way prose draws them (a few common, most rare):
+    // an index of one sentence said over and over packs far tighter than
+    // any part of it, which no sampled estimate could follow.
+    let mut seed = 1538_u64;
+    let mut word = move || {
+        seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        let u = (seed >> 33) % 4_000;
+        format!("w{}", u * u / 4_000)
+    };
     for n in 0..40 {
         let said: Vec<String> = (0..(5 + n * 7))
-            .map(|turn| {
-                format!("turn {turn} of conversation {n} about the checkout page and its tests")
-            })
+            .map(|_| (0..120).map(|_| word()).collect::<Vec<_>>().join(" "))
             .collect();
         let said: Vec<&str> = said.iter().map(String::as_str).collect();
         transcript(&config, &cwd, &format!("conv-{n}"), &said);

@@ -41,6 +41,7 @@ import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
+import { foundWords, useSetupScan } from "./firstRunScan";
 import {
   accountImport,
   accountsList,
@@ -49,7 +50,6 @@ import {
   statsEvent,
   accountLoginCommand,
   accountLoginState,
-  environmentScanFull,
   errorText,
   osAccessList,
   providersCapabilities,
@@ -201,6 +201,8 @@ function placements(tools: string[], one: boolean): { id: Placement; title: stri
 
 function FoundStep({
   report,
+  scanError,
+  onScanAgain,
   cli,
   toolName,
   provider,
@@ -214,6 +216,9 @@ function FoundStep({
   inPlace,
 }: {
   report: ScanReportData | null;
+  /** Why looking for setups failed, when it did. */
+  scanError: string | null;
+  onScanAgain: () => void;
   /** ADR-0018: the tools that can be used where they are (from the
    * backend's provider rows); `null` while they load. */
   inPlace: InPlaceSupport | null;
@@ -365,27 +370,19 @@ function FoundStep({
     );
   }
 
+  const words = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider);
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
-          {installs.length === 0
-            ? `No ${toolName} setups found yet.`
-            : installs.length === 1
-              ? `You already have a ${kind} setup on this Mac.`
-              : `You already have ${installs.length} ${kind ? `${kind} setups` : "setups"} on this Mac.`}
-        </h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
-          {installs.length === 0
-            ? `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`
-            : installs.length === 1
-              ? placement === "in_place"
-                ? "AI Juggler uses it where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-                : "AI Juggler makes its own copy; your original is never changed, and you can keep using it as before."
-              : placement === "in_place"
-                ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
-                : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before."}
-        </p>
+        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{words.heading}</h1>
+        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">{words.lead}</p>
+        {scanError !== null && (
+          <div>
+            <Button onClick={onScanAgain} data-testid="first-run-scan-again">
+              Try again
+            </Button>
+          </div>
+        )}
       </div>
 
       {missingAlong.map((tool) => (
@@ -1097,7 +1094,7 @@ export function FirstRun({
   const primary = provider ?? primaryToolId() ?? "";
   const tools = useMemo(() => (provider ? [provider] : firstRunToolIds()), [provider]);
   const toolName = providerDisplayName(primary);
-  const [report, setReport] = useState<ScanReportData | null>(null);
+  const { report, scanError, scan } = useSetupScan();
   const [cli, setCli] = useState<ProviderInstallData | null>(null);
   const [installRows, setInstallRows] = useState<Record<string, ProviderInstallData>>({});
   const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
@@ -1119,14 +1116,7 @@ export function FirstRun({
 
   useEffect(() => {
     if (mode === "first-run") funnelStep("a-first-install", "found");
-    funnelEvent("scan_started");
-    void environmentScanFull().then(
-      (scan) => {
-        setReport(scan);
-        funnelEvent("scan_completed");
-      },
-      () => setReport({ installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false } as unknown as ScanReportData),
-    );
+    scan();
     void providersDiscover().then(
       (rows) => {
         setCli(rows.find((row) => row.provider === primary) ?? null);
@@ -1248,6 +1238,8 @@ export function FirstRun({
           {step === "found" && (
             <FoundStep
               report={report}
+              scanError={scanError}
+              onScanAgain={scan}
               inPlace={inPlace}
               cli={cli}
               toolName={toolName}

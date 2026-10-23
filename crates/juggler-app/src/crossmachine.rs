@@ -645,7 +645,8 @@ fn build_bundle(
                 });
             }
         };
-        let bytes = std::fs::read(&reference.path).map_err(|e| io(e.to_string()))?;
+        let bytes =
+            juggler_adapters::read_session_file(&reference.path).map_err(|e| io(e.to_string()))?;
         let parsed = juggler_adapters::parse_any(&bytes);
         let turns: Vec<(&'static str, String)> = parsed
             .messages
@@ -845,7 +846,8 @@ fn record_origin(state: &Arc<AppState>, request: &FleetSwitchRequest, ids: &Push
 /// Appends one transcript row (name, sha256, length) to `edge`'s
 /// manifest.
 fn record_transcript_row(state: &Arc<AppState>, edge: &SwitchEdgeId, path: &Path) {
-    let Ok(bytes) = std::fs::read(path) else {
+    // Hashed as a stream: a transcript can be gigabytes.
+    let Ok((sha256, len)) = juggler_adapters::file_sha256(path) else {
         return;
     };
     let name = path
@@ -857,8 +859,8 @@ fn record_transcript_row(state: &Arc<AppState>, edge: &SwitchEdgeId, path: &Path
             edge,
             &[juggler_core::model::ManifestEntry {
                 rel_path: name,
-                sha256: juggler_adapter::handover::sha256_hex(&bytes),
-                bytes: bytes.len() as u64,
+                sha256,
+                bytes: len,
                 kind: "transcript".to_owned(),
                 disposition: "copy".to_owned(),
             }],

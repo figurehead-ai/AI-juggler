@@ -35,11 +35,11 @@ Gallery: `docs/qa/evidence/_gallery/90-outside-search/`, in both themes, with ax
 ## The quality gates
 
 - **The size shown first matches the built index within 10 %.**
-  - The estimate indexes a sample of the files in memory, spread by size so it's the same on every run. Compressed and plain files are sampled separately. It indexes up to 32 MB of each, all of them on a small setup, and scales by bytes.
-  - `the_size_shown_first_is_the_built_size_within_ten_percent` covers the whole sample.
-  - `a_sampled_estimate_is_within_ten_percent_too` samples a quarter of 41 files of varied length, and comes out 4.4 % over.
-  - On the way there, a two-point growth fit and recency-ordered sampling were tried: 16–19 % off, and unstable from run to run. They were dropped.
-  - **Not measured on a real setup yet:** on one with thousands of sessions, 32 MB is hundreds of files. QA's next real-data pass should record the estimate against the built size.
+  - Small setups (no more than 32 MB of a kind) are indexed whole in memory: the size itself.
+  - Plain files: points spread evenly over all their bytes, the same on every run, and at each one a window of whole lines from the line the point falls in. The group's words are its bytes times the words per byte averaged over the points (each point is an equal share of the bytes), and its index is those words at the sample's own index bytes per word. Compressed files are sampled whole at points over their bytes and scaled by bytes.
+  - On the maintainer's real setup (2026-10-23, read-only, in a throwaway copy): ×0.99 of the built index at the default 32 MB (0.476 GB estimated, 0.480 GB built), ×1.00 at 16 MB and ×1.04 at 8 MB.
+  - How it got there. The first version stepped through files sorted by size and stopped once it had its 32 MB, so it only ever saw the small files, which index densest: ×3.5 too high on real data (QA, #170). Spreading points over the bytes, but cutting windows mid-line, indexed raw JSON fragments: ×2. Whole lines only, scaled by the bytes read: ×0.85–0.91, because a point in a very long line counted for that line's length. Weighting each point by its own index growth was too noisy (×0.57–2.08), since an index grows in uneven page steps. Words per byte, each point equal, is exact enough and steady.
+  - `the_size_shown_first_is_the_built_size_within_ten_percent` covers the whole-index case. `a_sampled_estimate_is_within_ten_percent_too` samples a quarter of 41 transcripts of varied length and vocabulary (4.4 MB) and comes out 5.6 % over. A smaller lab read high whatever the method (18 % at 1.1 MB): an index that small is mostly fixed overhead.
 - **Turning it off leaves no index behind:** `turning_it_off_leaves_no_index_behind` checks that no `outside-search*` file is left and that a later pass doesn't make one. The core test `a_search_index_file_is_the_same_index_and_removes_whole` also removes a planted `-journal` file.
 - **AJ-E1529's first pass is as fast with it on:**
   - The builder does nothing until the conversations index has read anything (`nothing_is_built_before_the_first_conversations_pass`).

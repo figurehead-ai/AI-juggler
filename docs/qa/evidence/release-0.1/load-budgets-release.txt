@@ -1,0 +1,28 @@
+test a_trees_new_processes_count_at_the_next_tick ... ok
+test backend_cold_start_at_scale ... [perf] backend cold start at scale: median 12.891417ms (runs [12.891417ms, 16.541833ms, 10.835ms, 10.947209ms, 14.475792ms])
+test idle_with_ten_live_instances ... ignored, 30 s idle measurement; run by `just load-gate`
+test monitoring_beside_a_busy_claude_app ... [perf] beside a busy Claude app: 30 ticks, 6 full scans, 12 listings, 8928 of its processes read; 243.065501ms CPU per simulated minute = 0.405 % of one core
+[perf] CPU readings [0.405] % at 1-minute loads [13.2] on 30 cores
+test monitoring_costs_under_one_percent_of_a_core ... [perf] monitoring: 30 ticks, 6 full scans, 12 listings; between them 240 of our sessions' processes and 2040 of other tools' read; 206.202793ms CPU per simulated minute = 0.344 % of one core (5 sessions); the E14 machine half alone 0.010 %
+[perf] CPU readings [0.344] % at 1-minute loads [13.2] on 30 cores
+test terminal_input_echo_under_50ms ... [perf] terminal input echo: median 310.666µs, p95 342.834µs, max 349.75µs
+test this_mac_at_fifty_instances ... [perf] this mac at 50 instances (50 trees): median 1.568583ms CPU (runs [2.047833ms, 1.656459ms, 1.568583ms, 1.46525ms, 1.472ms]; wall [2.048875ms, 1.656625ms, 1.568834ms, 1.465417ms, 1.475625ms])
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.93s
+
+# UI at scale (ui/tests/visual/load.spec.ts, SPEC budgets; 10 Accounts, 50 sessions, 20 projects)
+[perf] rail: painting all 50 sessions (Running → All): median 38 ms (budget 300 ms)
+[perf] inspector: select an Instance to its painted Overview: median 40 ms (budget 200 ms)
+[perf] search: type to a filtered board: median 7 ms (budget 200 ms)
+[perf] cleanup: open the inventory: median 36 ms (budget 300 ms)
+[perf] cold start: webview navigation to painted rail: median 132 ms (budget 2500 ms)
+[perf] rail: scroll the board to its last Instance: median 17 ms (budget 300 ms)
+10 passed (layouts at scale: dark and light, 1440x900 and 1024x680)
+
+# Against the reference baseline (AJ_LOAD_GATE=1), same Mac, same load
+cold start 132 ms vs baseline 64 ms (2026-10-19). The 2026-10-19 UI (30fea4d7), run now on this
+Mac under the same load, paints in 62 ms: a real change, not the machine. Profile: ~19 ms is the
+test's own wait (filter by text over 20 project headers), the rest 0.1's added UI (main chunk
+733 KB -> 1091 KB). xterm (366 KB) is preloaded at start in both. Moving the baseline (a looser gate) is the
+maintainer's decision; until then `just load-gate` fails on this line.
+cleanup 65 ms vs 33: the timer included opening More (Cleanup moved there on 2026-10-21); timed
+from its own click it's 36 ms (limit 38).
