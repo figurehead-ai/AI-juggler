@@ -6,3 +6,11 @@ Not a task's evidence. This covers the two Lows from #135's re-review. The third
 |---|---|---|---|---|---|---|---|
 | 1. No question is asked while Link goes off | The prompt queue has a `closed` flag under its own lock. `stop` closes it and answers every waiting question "no"; `start` opens it. `ask` on a closed queue answers "no" at once, so a peer command that arrives between the drain and the node's end can't hold the off for 20 s. `link::unfinished_pairing_tests :: a_closed_queue_answers_no_without_asking` (closed: "no" in under 1 s, nothing queued; opened again: asked and answered) | — | passed | PASS | cf499ac0 | 2026-10-22 | claude-opus |
 | 2. Nothing sent says so | `run_outbound` says how it ended: `Done`, `NotSent` (Link was off, it never started) or `Ended` (Link went off while it ran). A command that never went out reads "Link is off on this Mac — nothing was sent."; one cut off after sending keeps "it may still have run there". `remote::link_off_tests :: link_off_says_whether_anything_was_sent`, and `nothing_starts_or_lands_outside_its_run` (now `NotSent`) | — | passed | PASS | cf499ac0 | 2026-10-22 | claude-opus |
+
+## Gates
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (`CARGO_INCREMENTAL=0`) | 5f38c38c | 150 test binaries, 1,227 passed, 0 failed; every step after the tests OK; nothing left running |
+| `cargo deny check` | 5f38c38c | advisories, bans, licenses, sources ok |
+| vitest, visual, a11y | — | nothing under `ui/` changed |
