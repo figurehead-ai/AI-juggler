@@ -426,6 +426,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The number that says AI Juggler works** (AJ-E1523): a "juggling loop", a session that reached its usage limit with its work going on elsewhere, counted in the opt-in usage statistics and documented in `docs/usage-stats.md`. A switch away from a session at its limit now counts as the limit's, however the switch screen was opened.
 - **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
   account and window, about how many of your usual sessions are left
   (worked out from the tool's own readings and your past sessions, with
