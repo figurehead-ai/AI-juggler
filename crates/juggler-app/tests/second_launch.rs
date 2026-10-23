@@ -772,6 +772,7 @@ fn handed_to_another(stderr: &str) -> bool {
 
 /// This launch's process group: (pid, command line) of each member that
 /// still runs (a zombie waiting to be reaped isn't one).
+#[cfg(target_os = "macos")]
 fn group_members(pgid: u32) -> Vec<(u32, String)> {
     let out = Command::new("ps")
         .args(["-axo", "pid=,pgid=,stat=,command="])
