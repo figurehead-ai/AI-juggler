@@ -192,6 +192,14 @@ const PROJECT: ActionSpec<"project">[] = [
     run: (p, h) => h.pinProject!(p),
   },
   {
+    id: "sync",
+    label: "Compare rules and servers…",
+    group: "main",
+    applies: (_, h) => has(h.syncProject),
+    blocked: (p) => (p.missing ? "Its folder isn't there any more" : null),
+    run: (p, h) => h.syncProject!(p),
+  },
+  {
     id: "default-account",
     label: "Set its account…",
     group: "main",

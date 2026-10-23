@@ -224,6 +224,37 @@ pub enum Undo {
         #[serde(default)]
         unless_changed: Option<JsonEntry>,
     },
+    /// Put back a file that was replaced, from the copy kept before (only
+    /// while the file is still exactly what was written). AJ-E1507.
+    Restore {
+        /// The file that was replaced.
+        file: PathBuf,
+        /// The copy of it from before, in AI Juggler's data folder.
+        backup: PathBuf,
+        /// The hash of what was written.
+        sha256: String,
+    },
+}
+
+/// Which file `path` is, following links: its device and inode, or its
+/// canonical path (without case) where there are none. `None` when there's
+/// nothing there. Two names of one file (a link, a hard link, a
+/// case-insensitive disk) give the same identity.
+#[must_use]
+pub fn file_identity(path: &std::path::Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        Some(format!("{}:{}", meta.dev(), meta.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        std::fs::canonicalize(path)
+            .ok()
+            .map(|at| at.to_string_lossy().to_lowercase())
+    }
 }
 
 /// Whether a configuration value looks like a secret, by its key or its

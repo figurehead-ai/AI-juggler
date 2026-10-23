@@ -39,6 +39,8 @@ export interface ActionHost {
   relocateProject?: (project: ProjectInfo) => void | Promise<void>;
   forgetProject?: (project: ProjectInfo) => void;
   setProjectAccount?: (project: ProjectInfo) => void;
+  /** AJ-E1507: the project's rules files and MCP servers, compared. */
+  syncProject?: (project: ProjectInfo) => void;
   // Accounts
   openAccount?: (account: AccountInfo) => void;
   startSessionOn?: (account: AccountInfo) => void;
