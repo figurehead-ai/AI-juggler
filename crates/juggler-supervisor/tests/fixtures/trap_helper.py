@@ -84,5 +84,10 @@ with open(args.ready, "w") as handle:
 # 5-minute cap (FIXTURE_LIFETIME_SECS in mod.rs): fixtures outlive every
 # suite, and a tree leaked by a failing test self-cleans instead of
 # lingering for an hour.
-for _ in range(1500):
-    time.sleep(0.2)
+#
+# One blocking sleep, never a poll: an idle helper must read 0 % CPU (the
+# idle nudge's condition). A 0.2 s poll woke 5 times a second, and on a
+# busy runner one of those wakes inside a 250 ms sample read 3.85 %. A
+# signal still interrupts the sleep and its handler runs at once; after a
+# logged-and-ignored TERM, Python sleeps out the rest (PEP 475).
+time.sleep(300)
