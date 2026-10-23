@@ -11,6 +11,7 @@ import { AccountOverview, AccountSessions } from "../pages/AccountPage";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { WorktreeGit } from "./WorktreeGit";
+import { SubagentsSection } from "./SubagentsSection";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
@@ -535,6 +536,7 @@ function InstanceOverview(props: PanelProps) {
             <WorktreeGit sessionId={session.id} live={live} />
             <ParkCard session={session} now={props.now} />
           </div>
+          <SubagentsSection sessionId={session.id} running={session.subtask_count} />
           <details className="group text-[11px]" data-testid="instance-details">
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
               Details
