@@ -32,6 +32,7 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "copy",
       note: null,
       suggested: true,
+      about: null,
     },
     {
       id: "mcp-github",
@@ -41,6 +42,7 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "needs-you",
       note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
       suggested: false,
+      about: null,
     },
     {
       id: "skill-team-style",
@@ -50,6 +52,7 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "impossible",
       note: "it comes with the claude.ai account, so it can't be copied to another one",
       suggested: false,
+      about: null,
     },
   ],
 };
@@ -63,6 +66,8 @@ const KIND_WORDS: Record<string, string> = {
   rules: "rules file",
   "main-rules": "main rules file",
   plugin: "plugin",
+  permissions: "permissions",
+  "status-line": "status line",
 };
 
 /** What each preview set-up was, for its undo message. */
@@ -91,11 +96,11 @@ export async function switchSetupApply(
     return offers.map((id) => {
       const offer = all.find((candidate) => candidate.id === id);
       if (!offer) {
-        return { offer: id, record: null, message: "It isn't on the source account any more" };
+        return { offer: id, record: null, message: "It isn't on the source account any more", note: null };
       }
       const what = `${KIND_WORDS[offer.kind] ?? offer.kind} ${offer.name}`;
       previewSetUps.set(`record-${id}`, what);
-      return { offer: id, record: `record-${id}`, message: `Set up the ${what}` };
+      return { offer: id, record: `record-${id}`, message: `Set up the ${what}`, note: null };
     });
   }
   return invoke<AppliedInfo[]>("switch_setup_apply", { sessionId, targetProfileId, offers });

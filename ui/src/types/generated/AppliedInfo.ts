@@ -15,4 +15,8 @@ record: string | null,
 /**
  * What was done, or why it wasn't.
  */
-message: string, };
+message: string, 
+/**
+ * What the user should know about what was done, when anything.
+ */
+note: string | null, };

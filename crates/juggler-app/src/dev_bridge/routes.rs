@@ -246,4 +246,6 @@ read_routes! {
     "project_sync_rules" => async_result features::project_sync::commands::project_sync_rules(state; project_id: String, master: Option<String>);
     "project_sync_diff" => async_result features::project_sync::commands::project_sync_diff(state; project_id: String, master: String, file: String, how: String);
     "project_sync_servers" => async_result features::project_sync::commands::project_sync_servers(state; project_id: String);
+    // AJ-E1508: what a new account could start with (reads only).
+    "account_settings_check" => async_result features::account_settings::commands::account_settings_check(state; target: Option<String>, source: String);
 }

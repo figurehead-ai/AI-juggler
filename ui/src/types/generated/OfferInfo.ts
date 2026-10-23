@@ -29,6 +29,11 @@ verdict: string,
  */
 note: string | null, 
 /**
+ * What it holds, in a few words, for a setting ("2 allowed, 1
+ * denied"; AJ-E1508).
+ */
+about: string | null, 
+/**
  * Ticked to start with: set up as it is, or translated.
  */
 suggested: boolean, };

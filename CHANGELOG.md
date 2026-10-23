@@ -418,6 +418,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A new account starts with your usual settings** (AJ-E1508). Add
+  account's fresh account offers **Start with the same settings as …**
+  an account of the same tool: its MCP servers, its permissions and its
+  status line, each ticked, and its plugins with the command that
+  installs them. Any account can do the same later from its menu
+  (**Copy settings from…**), an account brought in as a copy among them.
+  Its sign-in, history and caches never come with it, a setting with a
+  secret written in it stays behind (a permission rule with one stays
+  behind on its own), AI Juggler's own usage capture is never mistaken
+  for your status line, and each setting can be undone in Settings.
+
 - **Terminal tools** (AJ-E1506). Above every session's terminal: whether
   it's Live, Reconnecting or Ended, and Find (⌘F, with next, previous and
   a count), Copy, text size, Maximize (⌘↩) and Own window (the same

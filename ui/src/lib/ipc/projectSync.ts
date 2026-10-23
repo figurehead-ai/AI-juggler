@@ -92,7 +92,7 @@ export async function projectSyncApply(
       current.rules = { ...current.rules, files, in_sync: true, summary: "Rules in sync" };
     }
     const message = how === "read" ? `${file} now reads ${master}` : `${file} now has the rules from ${master}`;
-    return { offer: file, record: `record-${file}`, message };
+    return { offer: file, record: `record-${file}`, message, note: null };
   }
   return invoke<AppliedInfo>("project_sync_apply", { projectId, master, file, how, fileSha, masterSha });
 }
@@ -124,6 +124,7 @@ export async function projectSyncServersApply(
       offer: copy.offer,
       record: `record-${copy.offer}`,
       message: found ? `Set up the MCP server ${found.server}` : "It isn't on that account any more",
+      note: null,
     };
   }
   return invoke<AppliedInfo>("project_sync_servers_apply", { projectId, from: copy.from, to: copy.to, offer: copy.offer });
