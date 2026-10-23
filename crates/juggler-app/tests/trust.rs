@@ -265,12 +265,28 @@ fn network_allowed() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
 
 /// The first network crate on each path out of each workspace crate,
 /// through its normal (shipped) dependencies, with default features, as
-/// `cargo metadata` resolves them. Workspace crates are checked as
-/// themselves, so a path stops at one.
+/// `cargo metadata` resolves them for this machine's platform (on a Mac,
+/// what ships; offline, so only what the build already has is read).
+/// Workspace crates are checked as themselves, so a path stops at one.
 fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let version = std::process::Command::new(&cargo)
+        .arg("-vV")
+        .output()
+        .unwrap();
+    let host = String::from_utf8_lossy(&version.stdout)
+        .lines()
+        .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+        .expect("cargo -vV names its host");
     let output = std::process::Command::new(cargo)
-        .args(["metadata", "--format-version", "1", "--offline"])
+        .args([
+            "metadata",
+            "--format-version",
+            "1",
+            "--offline",
+            "--filter-platform",
+            &host,
+        ])
         .current_dir(repo())
         .output()
         .unwrap();
