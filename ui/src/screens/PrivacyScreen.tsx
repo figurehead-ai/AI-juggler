@@ -55,7 +55,7 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
               const [path, name] = reference.split("::");
               return (
                 <li key={reference}>
-                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-[11px] no-underline hover:underline">
+                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-[11px]">
                     {name}
                   </OutLink>
                   <span className="text-faint"> · {path}</span>

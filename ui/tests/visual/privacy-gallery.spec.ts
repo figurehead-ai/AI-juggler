@@ -50,6 +50,8 @@ for (const theme of ["dark", "light"] as const) {
     await line.locator("summary").click();
     await expect(line.getByTestId("privacy-tests")).toContainText("only_the_listed_crates_can_reach_the_network");
     await line.scrollIntoViewIfNeeded();
+    await expect(line.getByTestId("privacy-tests")).toBeInViewport();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     await page.screenshot({ path: resolve(OUT, `tests-open-${theme}.png`) });
     await axeClean(page, "a line opened to its tests");
 
@@ -57,6 +59,9 @@ for (const theme of ["dark", "light"] as const) {
     const terms = page.getByTestId("privacy-terms");
     await terms.scrollIntoViewIfNeeded();
     await expect(page.getByTestId("privacy-terms-row")).toHaveCount(2);
+    // Painted where it scrolled to, not mid-scroll.
+    await expect(page.getByTestId("privacy-terms-row").last()).toBeInViewport();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     await page.screenshot({ path: resolve(OUT, `terms-${theme}.png`) });
   });
 
