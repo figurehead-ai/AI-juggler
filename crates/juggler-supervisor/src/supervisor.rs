@@ -40,6 +40,14 @@ const PORT_PROBE_EVERY: u32 = 5;
 /// not live for the process lifetime.
 pub const OUTPUT_RETENTION_AFTER_EXIT_MS: i64 = 120_000;
 
+/// The longest a session's `Exited` waits, once its process has ended,
+/// for the output readers to put what it wrote into the ring. A reader
+/// finishes as soon as the output closes, so this runs out only when
+/// another process (a helper that inherited the output) keeps it open,
+/// and that exit is reported this much later. Without the wait, a quota
+/// exit's last line could still be unread when the exit is classified.
+const EXIT_OUTPUT_DRAIN: Duration = Duration::from_secs(1);
+
 /// A successfully spawned supervised process.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnedProcess {
@@ -1843,6 +1851,7 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    None,
                 );
             } else {
                 done.store(true, Ordering::Release);
@@ -1924,12 +1933,14 @@ impl Supervisor {
             std::sync::mpsc::SyncSender::clone(&self.activity_tx),
         );
         let (out_session, err_session) = (session.clone(), session.clone());
+        let (drained_tx, drained) = std::sync::mpsc::channel();
         spawn_reader(
             child_lock(&child).stdout.take(),
             Arc::clone(&ring),
             out_atomic,
             out_session,
             out_tx,
+            drained_tx.clone(),
         );
         spawn_reader(
             child_lock(&child).stderr.take(),
@@ -1937,6 +1948,7 @@ impl Supervisor {
             err_atomic,
             err_session,
             err_tx,
+            drained_tx,
         );
 
         let session_for_thread = session.clone();
@@ -1956,8 +1968,10 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    Some(&drained),
                 );
             } else {
+                wait_for_output(&drained);
                 done.store(true, Ordering::Release);
             }
         });
@@ -2010,20 +2024,21 @@ impl Supervisor {
                 message: "pty child had no process id".into(),
             });
         };
-        let killer = std::sync::Mutex::new(child.clone_killer());
+        let reaped = Arc::new(AtomicBool::new(false));
+        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped));
         let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
         // Output tracking exists from chunk 1 without pre-registering the
         // handle: the atomic is independent of the children map.
         let last_output = Arc::new(std::sync::atomic::AtomicI64::new(0));
-        if let Ok(reader) = pair.master.try_clone_reader() {
-            spawn_reader(
-                Some(reader),
-                Arc::clone(&ring),
-                Arc::clone(&last_output),
-                session.clone(),
-                std::sync::mpsc::SyncSender::clone(&self.activity_tx),
-            );
-        }
+        let (drained_tx, drained) = std::sync::mpsc::channel();
+        spawn_reader(
+            pair.master.try_clone_reader().ok(),
+            Arc::clone(&ring),
+            Arc::clone(&last_output),
+            session.clone(),
+            std::sync::mpsc::SyncSender::clone(&self.activity_tx),
+            drained_tx,
+        );
         drop(pair.slave);
         let master = pair.master;
         let writer = master.take_writer().map_err(|e| SupervisorError::Spawn {
@@ -2034,9 +2049,6 @@ impl Supervisor {
 
         let finished = Arc::new(AtomicBool::new(false));
         let exit_at = Arc::new(AtomicI64::new(0));
-        let force_kill: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
-            let _ = killer.lock().map(|mut k| k.kill());
-        });
 
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
@@ -2046,6 +2058,7 @@ impl Supervisor {
         let exit_timer = Arc::clone(&exit_at);
         std::thread::spawn(move || {
             let status = child.wait().ok();
+            reaped.store(true, Ordering::Release);
             if let Some(status) = status {
                 // portable-pty reports a single exit code; a signal death surfaces
                 // as a non-zero code here (skeleton-level approximation).
@@ -2059,8 +2072,10 @@ impl Supervisor {
                     journal.as_ref(),
                     ledger.as_ref(),
                     &events,
+                    Some(&drained),
                 );
             } else {
+                wait_for_output(&drained);
                 done.store(true, Ordering::Release);
             }
         });
@@ -2717,23 +2732,30 @@ impl Supervisor {
     }
 }
 
+/// Copies a child's output into its ring until the output closes. The
+/// reader holds `drained` until then: the exit waits on it
+/// ([`wait_for_output`]).
 fn spawn_reader(
     reader: Option<impl std::io::Read + Send + 'static>,
     ring: Arc<Mutex<OutputRing>>,
     last_output_ms: Arc<std::sync::atomic::AtomicI64>,
     session: SessionId,
     activity: std::sync::mpsc::SyncSender<SessionId>,
+    drained: std::sync::mpsc::Sender<()>,
 ) {
     let Some(mut reader) = reader else {
         return;
     };
     std::thread::spawn(move || {
+        let _drained = drained;
         let mut chunk = [0_u8; 4096];
         let mut last_notify = 0_i64;
         loop {
             match reader.read(&mut chunk) {
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
+                    #[cfg(test)]
+                    reader_pause::wait(&session);
                     let now = Timestamp::now().millis();
                     last_output_ms.store(now, Ordering::Relaxed);
                     if let Ok(mut ring) = ring.lock() {
@@ -2753,6 +2775,60 @@ fn spawn_reader(
     });
 }
 
+/// The terminal path's force-kill. Its killer signals the pid itself: once
+/// the wait has reaped the process (`reaped`), the pid may be another
+/// process's, so nothing is sent.
+fn pty_force_kill(
+    killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
+    reaped: Arc<AtomicBool>,
+) -> Arc<dyn Fn() + Send + Sync> {
+    let killer = Mutex::new(killer);
+    Arc::new(move || {
+        if !reaped.load(Ordering::Acquire) {
+            let _ = killer.lock().map(|mut k| k.kill());
+        }
+    })
+}
+
+/// Waits until every output reader of an ended process has finished (each
+/// holds a sender of `drained`), at most [`EXIT_OUTPUT_DRAIN`].
+fn wait_for_output(drained: &std::sync::mpsc::Receiver<()>) {
+    // Readers never send: disconnected means all of them finished; a
+    // timeout means another process still holds the output open.
+    let _ = drained.recv_timeout(EXIT_OUTPUT_DRAIN);
+}
+
+/// Test-only: holds a session's output reader back before each chunk
+/// reaches the ring, as a busy machine can, so a test can show that
+/// `Exited` waits for the output.
+#[cfg(test)]
+mod reader_pause {
+    use std::sync::Mutex;
+    use std::time::Duration;
+
+    use juggler_core::model::SessionId;
+
+    static PAUSED: Mutex<Vec<(SessionId, Duration)>> = Mutex::new(Vec::new());
+
+    pub(super) fn set(session: &SessionId, pause: Duration) {
+        if let Ok(mut paused) = PAUSED.lock() {
+            paused.push((session.clone(), pause));
+        }
+    }
+
+    pub(super) fn wait(session: &SessionId) {
+        let pause = PAUSED.lock().ok().and_then(|paused| {
+            paused
+                .iter()
+                .find(|(paused, _)| paused == session)
+                .map(|(_, pause)| *pause)
+        });
+        if let Some(pause) = pause {
+            std::thread::sleep(pause);
+        }
+    }
+}
+
 /// Helper: lock a mutex-wrapped child without unwrap (clippy: no unwrap
 /// in production paths).
 fn child_lock(
@@ -2766,6 +2842,9 @@ fn child_lock(
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Records an exit when it happens (the eviction timer, the journal, the
+/// ledger), then, once the output readers have finished (`drained`, see
+/// [`wait_for_output`]), marks the session finished and sends `Exited`.
 #[allow(clippy::too_many_arguments)] // one flat exit fan-out, grouping would churn 3 callers
 fn emit_exit(
     session: &SessionId,
@@ -2776,8 +2855,8 @@ fn emit_exit(
     journal: Option<&Journal>,
     ledger: Option<&crate::tree::SharedLedger>,
     events: &std::sync::mpsc::Sender<LifecycleEvent>,
+    drained: Option<&std::sync::mpsc::Receiver<()>>,
 ) {
-    done.store(true, Ordering::Release);
     // The eviction timer starts HERE (AJ-E504 Req.4): the retention
     // window is measured from the observed exit, not the stop call.
     let now = std::time::SystemTime::now()
@@ -2808,6 +2887,10 @@ fn emit_exit(
             eprintln!("ai-juggler: process ledger degraded at exit patch (pid {pid})");
         }
     }
+    if let Some(drained) = drained {
+        wait_for_output(drained);
+    }
+    done.store(true, Ordering::Release);
     let _ = events.send(LifecycleEvent::Exited {
         session: session.clone(),
         pid,
@@ -2962,5 +3045,149 @@ mod env_overlay_tests {
             std::ffi::OsStr::new("KEEP"),
             Some(std::ffi::OsStr::new("yes"))
         )));
+    }
+}
+
+/// `Exited` comes after the output the process wrote is in the ring. The
+/// readers are held back as a busy machine can (`reader_pause`); before
+/// the fix, `Exited` went out at once and the output was still unread.
+#[cfg(test)]
+mod exit_after_output_tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+    use std::time::{Duration, Instant};
+
+    use juggler_adapter::{EnvMap, LaunchSpec};
+    use juggler_core::model::{MachineId, SessionId, SessionStatus, Timestamp};
+
+    use super::{EXIT_OUTPUT_DRAIN, Supervisor, reader_pause};
+    use crate::heuristics::{HeuristicEngine, HeuristicThresholds};
+    use crate::lifecycle::{ExitKind, LifecycleEvent};
+
+    /// Longer than an unpaused reader takes, well inside the drain bound.
+    const PAUSE: Duration = Duration::from_millis(300);
+
+    fn shell(script: &str, needs_pty: bool) -> LaunchSpec {
+        LaunchSpec {
+            program: "/bin/sh".into(),
+            args: vec!["-c".into(), script.into()],
+            env: EnvMap::new(),
+            cwd: std::env::temp_dir(),
+            needs_pty,
+        }
+    }
+
+    /// Runs `script` as `id` and returns its exit and the output in the
+    /// ring when `Exited` arrived.
+    fn run(id: &str, script: &str, needs_pty: bool, pause: bool) -> (ExitKind, String, Duration) {
+        let supervisor = Supervisor::new();
+        let session = SessionId::new(id);
+        if pause {
+            reader_pause::set(&session, PAUSE);
+        }
+        let ctx = crate::tree::SpawnContext {
+            provider: "test".into(),
+            account_id: None,
+            project_id: None,
+            machine: MachineId::new("machine-test"),
+            role: "root",
+        };
+        let started = Instant::now();
+        let spawned = supervisor.spawn(&session, &shell(script, needs_pty), &ctx);
+        assert!(spawned.is_ok(), "{id}: spawn failed");
+        let deadline = started + Duration::from_secs(10);
+        loop {
+            assert!(Instant::now() < deadline, "{id}: no exit");
+            if let Some(LifecycleEvent::Exited {
+                session: exited,
+                kind,
+                ..
+            }) = supervisor.recv_timeout(Duration::from_millis(50))
+                && exited == session
+            {
+                let took = started.elapsed();
+                let output = supervisor.output(&session).unwrap_or_default();
+                return (kind, String::from_utf8_lossy(&output).into_owned(), took);
+            }
+        }
+    }
+
+    #[test]
+    fn a_piped_exit_comes_after_its_last_line() {
+        let (kind, output, _) = run("s-piped-last", "printf 'last line\\n'; exit 0", false, true);
+        assert_eq!(kind, ExitKind::Code(0));
+        assert!(output.contains("last line"), "printed {output:?}");
+    }
+
+    #[test]
+    fn a_terminal_exit_comes_after_its_last_line() {
+        let (kind, output, _) = run("s-pty-last", "printf 'last line\\n'; exit 0", true, true);
+        assert_eq!(kind, ExitKind::Code(0));
+        assert!(output.contains("last line"), "printed {output:?}");
+    }
+
+    /// Nothing of the supervisor's keeps a child's output open: with no
+    /// helper, the readers end with the process and the exit never waits
+    /// out the bound (a stray fd would make every exit take all of it).
+    /// Here both paths take about 5–10 ms, the same as without the wait.
+    #[test]
+    fn an_exit_without_a_helper_never_waits_out_the_bound() {
+        for needs_pty in [false, true] {
+            for n in 0..3 {
+                let id = format!("s-prompt-{needs_pty}-{n}");
+                let (kind, output, took) = run(&id, "printf 'x\\n'; exit 0", needs_pty, false);
+                assert_eq!(kind, ExitKind::Code(0));
+                assert!(output.contains('x'), "printed {output:?}");
+                assert!(
+                    took < EXIT_OUTPUT_DRAIN,
+                    "{id}: the exit took {took:?}, the whole drain bound"
+                );
+            }
+        }
+    }
+
+    /// The app's lifecycle forwarder classifies a non-zero exit with this
+    /// engine, from the ring's tail, when `Exited` arrives.
+    #[test]
+    fn a_quota_exit_is_classified_as_the_limit_not_a_failure() {
+        let (kind, output, _) = run(
+            "s-quota",
+            "echo 'Error: usage limit reached. Try again later.' >&2; exit 1",
+            false,
+            true,
+        );
+        let ExitKind::Code(code) = kind else {
+            panic!("exit {kind:?}");
+        };
+        let engine = HeuristicEngine::new(HeuristicThresholds::default());
+        let classified = engine.classify_exit(code, &output, Timestamp::now().millis(), None);
+        assert_eq!(
+            classified.map(|transition| transition.status),
+            Some(SessionStatus::QuotaBlocked),
+            "printed {output:?}"
+        );
+    }
+
+    /// A helper that inherited the output keeps it open after the process
+    /// ends: the exit is reported anyway, within the drain bound, with
+    /// what was written.
+    #[test]
+    fn an_exit_whose_output_a_helper_holds_is_reported_within_the_bound() {
+        let dir = tempfile::tempdir().unwrap_or_else(|error| panic!("{error}"));
+        let pid_file = dir.path().join("helper.pid");
+        let script = format!(
+            "sleep 30 & echo $! > '{}'; printf 'done\\n'; exit 0",
+            pid_file.display()
+        );
+        let (kind, output, took) = run("s-held", &script, false, false);
+        if let Ok(pid) = std::fs::read_to_string(&pid_file) {
+            let _ = std::process::Command::new("kill").arg(pid.trim()).status();
+        }
+        assert_eq!(kind, ExitKind::Code(0));
+        assert!(output.contains("done"), "printed {output:?}");
+        assert!(
+            took < EXIT_OUTPUT_DRAIN + Duration::from_secs(5),
+            "reported after {took:?}"
+        );
     }
 }

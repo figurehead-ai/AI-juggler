@@ -20,6 +20,17 @@ afterEach(() => {
 
 const stored = () => (window as unknown as Seams).__AIJ_SESSION_PREFS__;
 
+/** Renders the card inside `act`, so its settings have loaded and each
+ * field's first effect (which sets its draft from the saved value) has
+ * run before the test types. Found by the input alone, a field could
+ * still settle after the typing and put the saved value back: on a busy
+ * CI runner the range alert then never came (#154). */
+async function renderLoaded(): Promise<void> {
+  await act(async () => {
+    render(<SessionsSettingsCard />);
+  });
+}
+
 describe("AJ-E1505 Settings › Sessions", () => {
   it("shows each setting with its one-line why; the terminal ones wait behind Terminal", async () => {
     render(<SessionsSettingsCard />);
@@ -36,8 +47,8 @@ describe("AJ-E1505 Settings › Sessions", () => {
   });
 
   it("saves on Enter, never mid-typing, and offers Reset until it's back at the default", async () => {
-    render(<SessionsSettingsCard />);
-    const stuck = (await screen.findByLabelText("Stuck after")) as HTMLInputElement;
+    await renderLoaded();
+    const stuck = screen.getByLabelText("Stuck after") as HTMLInputElement;
     fireEvent.change(stuck, { target: { value: "1" } });
     expect(stored()).toBeUndefined();
     fireEvent.change(stuck, { target: { value: "10" } });
@@ -56,8 +67,8 @@ describe("AJ-E1505 Settings › Sessions", () => {
   });
 
   it("says why a value outside its range isn't saved, and keeps the old one", async () => {
-    render(<SessionsSettingsCard />);
-    const scrollback = (await screen.findByLabelText("Scrollback")) as HTMLInputElement;
+    await renderLoaded();
+    const scrollback = screen.getByLabelText("Scrollback") as HTMLInputElement;
     fireEvent.change(scrollback, { target: { value: "100" } });
     await act(async () => {
       fireEvent.blur(scrollback);

@@ -529,17 +529,17 @@ fn rank_candidates_for(
         // originals carry the source's TTE for the return bonus.
         let (fidelity, switch_cost) = match switch {
             Some(context) => (
-                juggler_handover::validation::advertised_ceiling_number(
+                Some(juggler_handover::validation::advertised_ceiling_number(
                     &context.source_provider,
                     account.harness.as_str(),
                     dogfood.get(&dogfood_key(
                         context.source_provider.as_str(),
                         account.harness.as_str(),
                     )),
-                ),
+                )),
                 replay_cost_for(context, account, &catalog, now),
             ),
-            None => (0.5, 0.0), // launch-neutral, documented (§Q6)
+            None => (None, 0.0), // launch-neutral, documented (§Q6)
         };
         let projected_usd = projected_usd.map(|usd| usd + switch_cost);
         candidates.push(juggler_core::ranking::Candidate {
@@ -5313,7 +5313,7 @@ pub(crate) fn preflight_with(
     target_profile_id: &str,
     compacted: Option<bool>,
 ) -> AppResult<PreflightInfo> {
-    use juggler_handover::pipeline::{self, CopySituation};
+    use juggler_handover::pipeline;
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
     let (source, account_a) = handover_source(state, session_id)?;
@@ -5342,11 +5342,20 @@ pub(crate) fn preflight_with(
 
     // One disposition pass feeds both the fidelity engine and the
     // door's carry-list (same names, same truth).
-    let dispositions = juggler_handover::fidelity::base_dispositions(
+    let mut dispositions = juggler_handover::fidelity::base_dispositions(
         account_a.harness.as_str(),
         account_b.harness.as_str(),
     );
     let carry = carry_lists_of(&dispositions);
+    // AJ-E808: the door shows the same validation verdict as the rows, and
+    // the fidelity engine caps an unproven pair from the same cell (QA P23:
+    // it used to treat every pair as unproven).
+    let validated = pair_validated_now(
+        state,
+        account_a.harness.as_str(),
+        account_b.harness.as_str(),
+    )?;
+    dispositions.flags.validated = validated;
 
     let input = pipeline::PreflightInput {
         fidelity: dispositions,
@@ -5388,8 +5397,7 @@ pub(crate) fn preflight_with(
         target_headroom_ok: tight.is_none(),
         rules_diverged: false,
     };
-    let (door, wizard_steps, wizard_reasons) =
-        door_verdict(&door_inputs, &carry, report.pair.label);
+    let (door, wizard_steps, wizard_reasons) = door_verdict(&door_inputs, &carry, validated);
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
@@ -5399,31 +5407,25 @@ pub(crate) fn preflight_with(
         );
         (policy, redaction_items_of(&source))
     };
-    // AJ-E808: the door shows the same validation verdict as the rows.
-    let validated = pair_validated_now(
-        state,
-        account_a.harness.as_str(),
-        account_b.harness.as_str(),
-    )?;
-
+    let tool_b = crate::features::tools::display_name(&state.registry, account_b.harness.as_str());
     Ok(PreflightInfo {
-        mechanism: match report.mechanism {
-            pipeline::Mechanism::NativeResume => "native-resume".to_owned(),
-            pipeline::Mechanism::Transplant => "transplant".to_owned(),
-            pipeline::Mechanism::Replay => "replay".to_owned(),
-            pipeline::Mechanism::PackOnly => "pack".to_owned(),
-        },
+        mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
-        fidelity_words: report.pair.label.user_label().to_owned(),
+        // What the move does; "not proven yet" is said beside it (P23).
+        fidelity_words: report.pair.described.user_label().to_owned(),
         score: report.pair.score,
         warnings,
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
         source_keeps_running,
-        experimental_copy: pipeline::user_copy(CopySituation::TransplantUnproven {
-            account_a: account_a.label.clone(),
-        }),
+        experimental_copy: move_copy(
+            report.mechanism,
+            validated,
+            &account_a.label,
+            &account_b.label,
+            &tool_b,
+        ),
         door,
         wizard_steps,
         wizard_reasons,
@@ -5490,7 +5492,7 @@ fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Optio
 fn door_verdict(
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
-    label: juggler_handover::fidelity::FidelityLabel,
+    validated: bool,
 ) -> (String, Vec<String>, Vec<String>) {
     let door = juggler_handover::door::choose_door(inputs);
     match &door {
@@ -5498,8 +5500,47 @@ fn door_verdict(
         juggler_handover::door::Door::Wizard { steps } => (
             "wizard".to_owned(),
             steps.iter().map(|step| step.title().to_owned()).collect(),
-            wizard_reasons_of(inputs, carry, label),
+            wizard_reasons_of(inputs, carry, validated),
         ),
+    }
+}
+
+/// QA P23: the Beta line under the switch, for what this move does: a
+/// transplant moves the whole session; a replay starts fresh from the
+/// story; a pack is read by the new session.
+fn move_copy(
+    mechanism: juggler_handover::pipeline::Mechanism,
+    validated: bool,
+    account_a: &str,
+    account_b: &str,
+    tool_b: &str,
+) -> String {
+    use juggler_handover::pipeline::{CopySituation, Mechanism, user_copy};
+    let unproven = |words: String| {
+        if validated {
+            words
+        } else {
+            format!("Beta, not proven yet: {words}")
+        }
+    };
+    match mechanism {
+        Mechanism::NativeResume | Mechanism::Transplant if validated => {
+            user_copy(CopySituation::TransplantProven {
+                account_b: account_b.to_owned(),
+                account_a: account_a.to_owned(),
+            })
+        }
+        Mechanism::NativeResume | Mechanism::Transplant => {
+            user_copy(CopySituation::TransplantUnproven {
+                account_a: account_a.to_owned(),
+            })
+        }
+        Mechanism::Replay => unproven(format!(
+            "a fresh start on {tool_b}, which reads the conversation, what each tool did, the task list and the project's changes. Tool state and subagents don't carry. {account_a} stays resumable."
+        )),
+        Mechanism::PackOnly => unproven(format!(
+            "{tool_b} gets the conversation as a pack to read, and starts from it. {account_a} stays resumable."
+        )),
     }
 }
 
@@ -5578,9 +5619,8 @@ pub(crate) fn carry_lists_of(input: &juggler_handover::fidelity::FidelityInput) 
 fn wizard_reasons_of(
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
-    label: juggler_handover::fidelity::FidelityLabel,
+    validated: bool,
 ) -> Vec<String> {
-    use juggler_handover::fidelity::FidelityLabel;
     use juggler_handover::pipeline::Mechanism;
     let mut reasons = Vec::new();
     if !inputs.usual_account {
@@ -5595,11 +5635,11 @@ fn wizard_reasons_of(
         }
         _ => {}
     }
-    if matches!(inputs.fidelity, Some(shown) if shown < FidelityLabel::F3) {
-        reasons.push(format!(
-            "Fidelity is {}: something would translate or drop.",
-            label.as_str()
-        ));
+    // QA P23: no F-number. A lower label always has its own, plainer
+    // reason here (it replays, was compacted, or leaves something behind);
+    // "not proven" is said as itself.
+    if !validated {
+        reasons.push("This move hasn't been proven on a real setup yet.".to_owned());
     }
     if inputs.compacted {
         reasons.push("The source was compacted — the tail may not carry.".to_owned());
