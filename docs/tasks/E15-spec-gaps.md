@@ -114,7 +114,7 @@
 **Handover note**: —
 **Done (2026-10-21)**: `settings_policy.rs` `session_prefs_get/set` (typed `SessionPrefsInfo`, ranges checked) is stored in app settings. The `HeuristicEngine` holds its thresholds behind a lock (`set_thresholds`), so "Stuck after" sets the no-output and transcript windows (SPEC's "same window") at the next tick, and it's applied over `heuristics.json` at launch. A per-tool override in `heuristics.json` (AJ-E1004) still wins for that tool. In the UI it's Settings › Sessions, with Terminal behind a disclosure; `TerminalView` applies font and scrollback live.
 
-### AJ-E1506 Terminal tools | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1506 Terminal tools | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: —
 **Goal**: The built-in terminal does what a terminal user expects.
 **User story**: As a user reading a long session, I search it, click a file path, copy a block, zoom the text, and pop the terminal out to a second screen.
 **Requirements**:

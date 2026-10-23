@@ -418,6 +418,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Terminal tools** (AJ-E1506). Above every session's terminal: whether
+  it's Live, Reconnecting or Ended, and Find (⌘F, with next, previous and
+  a count), Copy, text size, Maximize (⌘↩) and Own window (the same
+  terminal in its own window, for another display). ⌘-click opens a web
+  address or a file path the terminal printed: a file in your editor, a
+  folder in Finder; nothing printed is ever run. Scrolled up, a button
+  takes you back to the bottom.
 - **Keep work going** (AJ-E1509). Settings › Sessions has four new
   switches. "Restart sessions that crash" (off by default) starts a
   crashed session again on the same launch settings with its conversation
