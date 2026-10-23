@@ -87,8 +87,22 @@ def selftest() -> int:
     changed = notes(["feat: x (#1)"], "2026-10-20", schema_changed=True)
     assert changed.rstrip().endswith(DOWNGRADE) and "## Known issues" in changed, changed
     assert "## Known issues" not in notes(["feat: x (#1)"], "2026-10-20")
+    tags = ["v0.0.9", "v0.0.17", "v0.0.15", "beta/v0.0.15", "v0.1.32"]
+    assert earlier_version("0.1.32", tags) == "0.0.17", earlier_version("0.1.32", tags)
+    assert earlier_version("0.0.9", tags) is None
     print("nightly-notes selftest: OK")
     return 0
+
+
+def earlier_version(version: str, tags: list[str]) -> str | None:
+    """The newest `vX.Y.Z` tag below `version`: the version users come
+    from when no previous build is named (release_notes_check.sh's default,
+    so the notes and their check compare the same schemas)."""
+    def key(text: str) -> tuple[int, ...]:
+        return tuple(int(part) for part in text.split("."))
+    known = [t[1:] for t in tags if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    lower = [t for t in known if key(t) < key(version)]
+    return max(lower, key=key) if lower else None
 
 
 def main() -> int:
@@ -111,7 +125,12 @@ def main() -> int:
     sys.path.insert(0, str(ROOT / "scripts"))
     from downgrade_note import schema_at  # noqa: E402
 
-    before, now = (schema_at(start), schema_at(end)) if start else (None, None)
+    # The schema users come from: the previous build, else the newest
+    # earlier version (as the notes check reads it).
+    tags = subprocess.run(["git", "tag", "-l", "v[0-9]*"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+    earlier = earlier_version(version, tags)
+    base = start or (f"v{earlier}" if earlier else "")
+    before, now = (schema_at(base), schema_at(end)) if base else (None, None)
     changed = before is not None and now is not None and now > before
     target.write_text(notes(log, date, schema_changed=changed))
     print(target.relative_to(ROOT))
