@@ -5,6 +5,7 @@
 import type { JSX } from "react";
 import { ToolMark } from "../components/ToolMark";
 import { toolSpec } from "../lib/tools";
+import { trustOpen } from "../lib/ipc/trust";
 
 export type Step = "found" | "fresh" | "folder" | "signin" | "access";
 
@@ -61,9 +62,9 @@ export function TermsLine({ tools }: { tools: string[] }): JSX.Element | null {
           <ToolMark tool={id} size={13} className="mt-0.5 shrink-0 text-faint" />
           <span>
             {terms.accounts}{" "}
-            <a href={terms.url} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
+            <button type="button" onClick={() => void trustOpen({ kind: "terms", id })} className="text-accent underline underline-offset-2">
               {terms.name} ↗
-            </a>
+            </button>
           </span>
         </li>
       ))}

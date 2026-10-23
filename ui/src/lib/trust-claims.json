@@ -7,7 +7,7 @@
       "claims": [
         {
           "id": "no-credentials",
-          "text": "It never reads your passwords, tokens or API keys, or the tools' Keychain items. It checks only whether a sign-in is there.",
+          "text": "It never reads your passwords, tokens or API keys, or the tools' Keychain items. It reads only whether you're signed in, and as which account: its email and organisation.",
           "tests": [
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read",
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_state_is_metadata_only",
@@ -17,7 +17,7 @@
         },
         {
           "id": "settings-parts",
-          "text": "From a tool's settings file it reads only the settings it needs, each one named in its code and checked.",
+          "text": "From Claude Code's settings.json it reads only the settings it needs, each one named in its code and checked.",
           "tests": [
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read"
           ]
@@ -30,14 +30,14 @@
       "claims": [
         {
           "id": "own-folder",
-          "text": "Its own data stays in its own folder: ~/Library/Application Support/AI Juggler (AI Juggler Nightly for Nightly).",
+          "text": "What it keeps lives in its own folder, ~/Library/Application Support/AI Juggler (AI Juggler Nightly for Nightly), and in its own Keychain items.",
           "tests": [
             "crates/juggler-app/src/edition.rs::ai_juggler_keeps_its_existing_folder_keychain_items_and_port"
           ]
         },
         {
           "id": "in-place-untouched",
-          "text": "A setup you use where it is, is never written to unless you turn on a change that says so first.",
+          "text": "It never writes to a setup you use where it is, unless you turn on a change that says so first.",
           "tests": [
             "crates/juggler-app/tests/in_place_accounts.rs::a_setup_used_where_it_is_is_never_written_by_ai_juggler",
             "crates/juggler-app/tests/codex_in_place.rs::a_codex_home_used_where_it_is_is_never_written_by_ai_juggler"
@@ -94,7 +94,7 @@
         },
         {
           "id": "updates",
-          "text": "It checks GitHub for updates, and only while update checks are on.",
+          "text": "It checks GitHub for updates when it starts, if that's on, or when you choose Check now.",
           "tests": [
             "crates/juggler-app/tests/updates_plugin.rs::check_off_means_zero_connections_and_on_reaches_the_feed",
             "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
@@ -102,25 +102,25 @@
         },
         {
           "id": "stats",
-          "text": "Usage statistics are off until you choose. When on, they're counts only: never your words, files, paths or names.",
+          "text": "Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.",
           "tests": [
             "crates/juggler-app/tests/stats_guardrails.rs::without_a_choice_nothing_is_created_and_nothing_is_sent",
             "crates/juggler-app/tests/stats_guardrails.rs::nothing_the_user_owns_reaches_the_stats_store_or_a_report",
-            "crates/juggler-stats/src/tests.rs::off_creates_no_folder_and_records_nothing"
-          ]
-        },
-        {
-          "id": "crash-reports",
-          "text": "Crash reports are kept on your Mac, with names and paths taken out. This version can't send them anywhere.",
-          "tests": [
-            "crates/juggler-app/src/crash.rs::a_seeded_crash_is_scrubbed_before_it_is_kept",
-            "crates/juggler-app/src/crash.rs::this_build_cannot_send",
+            "crates/juggler-stats/src/tests.rs::off_creates_no_folder_and_records_nothing",
             "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
           ]
         },
         {
+          "id": "crash-reports",
+          "text": "Crash reports are kept on your Mac, with names and paths taken out. This version has nowhere to send them.",
+          "tests": [
+            "crates/juggler-app/src/crash.rs::a_seeded_crash_is_scrubbed_before_it_is_kept",
+            "crates/juggler-app/tests/trust.rs::crash_reports_have_nowhere_to_go"
+          ]
+        },
+        {
           "id": "account",
-          "text": "The Figurehead account is optional. Signed out, or with a feature off, nothing is sent to Figurehead.",
+          "text": "The Figurehead account is optional. Signed out, nothing goes to it; signed in, a feature you've turned off sends nothing.",
           "tests": [
             "crates/juggler-app/tests/cloud_guardrails.rs::g1_signed_out_is_silent",
             "crates/juggler-app/tests/cloud_guardrails.rs::g2_a_feature_that_is_off_never_calls_its_endpoint"
@@ -128,7 +128,7 @@
         },
         {
           "id": "fleet",
-          "text": "Fleet connects only Macs you paired, directly and encrypted, each checking the other's key. No server sits in between.",
+          "text": "Fleet connects only Macs you paired, directly and encrypted, each checking the other's key, and no server carries the traffic. To be found, a Mac announces itself on your local network, and in your Figurehead account if you turn that on.",
           "tests": [
             "crates/juggler-link/tests/transport.rs::mutual_tls_with_pinned_keys_connects_and_serves",
             "crates/juggler-link/tests/transport.rs::a_node_presenting_an_unpinned_key_is_refused_at_tls",
@@ -143,7 +143,7 @@
       "claims": [
         {
           "id": "no-sign-in",
-          "text": "It never signs in for you. A sign-in is always the tool's own, and AI Juggler never reads what the tool saves.",
+          "text": "It never signs in for you. A sign-in is always the tool's own, and AI Juggler never reads the secret the tool saves.",
           "tests": [
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_spec_points_at_isolated_dir",
             "crates/juggler-adapters/tests/codex_adapter.rs::login_spec_runs_the_vendor_flow_in_the_isolated_home",
@@ -152,9 +152,10 @@
         },
         {
           "id": "no-auto-switch",
-          "text": "It never moves your work to another account by itself. Every switch starts from your click.",
+          "text": "It never moves your work to another account by itself. Every switch starts from a click, on this Mac or on a Mac you paired.",
           "tests": [
-            "crates/juggler-app/tests/trust.rs::nothing_switches_on_its_own"
+            "crates/juggler-app/tests/trust.rs::nothing_switches_on_its_own",
+            "ui/src/screens/privacy-page.test.tsx::only the switch screens start a switch"
           ]
         },
         {

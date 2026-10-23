@@ -23,6 +23,12 @@ export const GLOBAL_NAV = [
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
 
+/** `id` as a screen's id, or `null` when no screen has it (an
+ * `aij:open-screen` event can carry anything). */
+export function globalId(id: unknown): GlobalId | null {
+  return GLOBAL_NAV.find((entry) => entry.id === id)?.id ?? null;
+}
+
 /** D-25: the header's four destinations; the rest are one click away
  * under More (Fleet joins the header once a Mac is paired; Cleanup shows
  * as a pill while something is left behind). */

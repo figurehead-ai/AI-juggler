@@ -19,7 +19,7 @@ import { CrashReportPrompt } from "./components/CrashReports";
 import { CleanupCentre, focusCleanupFilter } from "./screens/CleanupCentre";
 import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
-import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, type GlobalId } from "./lib/nav";
+import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
 import { ThisMacScreen } from "./screens/ThisMacScreen";
 import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { IconJuggler, IconTerminal } from "./components/icons";
@@ -358,7 +358,7 @@ export default function App() {
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
-    const openScreen = (event: Event) => setGlobal((event as CustomEvent<{ id: GlobalId }>).detail.id);
+    const openScreen = (event: Event) => setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current);
     window.addEventListener("aij:open-accounts", openAccounts);
     window.addEventListener("aij:new-session", newSession);
     window.addEventListener("aij:open-screen", openScreen);

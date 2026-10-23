@@ -841,8 +841,8 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         terms: Some(ToolTerms {
             name: "OpenAI's Terms of Use".to_owned(),
             url: "https://openai.com/policies/terms-of-use/".to_owned(),
-            accounts: "OpenAI lets one person have several accounts; its terms say not to share \
-                       one, or to get around its usage limits."
+            accounts: "OpenAI says one person can have several accounts, and its Terms of Use say \
+                       not to share one or get around its usage limits."
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),

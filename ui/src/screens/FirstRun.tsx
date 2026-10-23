@@ -1300,7 +1300,7 @@ export function FirstRun({
           )}
           {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
-          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={tools} />}
+          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
         </div>
       </div>
     </div>

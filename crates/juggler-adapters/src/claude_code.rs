@@ -1243,8 +1243,9 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         terms: Some(ToolTerms {
             name: "Anthropic's Consumer Terms".to_owned(),
             url: "https://www.anthropic.com/legal/consumer-terms".to_owned(),
-            accounts: "Each account is yours alone: the terms say not to share one or make it \
-                       available to anyone else, and Pro and Max limits assume one person's use."
+            accounts: "For Pro and Max, the Consumer Terms say not to share an account or make it \
+                       available to anyone else, and Anthropic says those plans' limits assume one \
+                       person's use."
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),

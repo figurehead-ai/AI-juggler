@@ -68,7 +68,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(line).toBeVisible();
     // The setups found, not the look for them.
     await expect(page.getByText(/^Looking for /)).toHaveCount(0);
-    await expect(line.getByRole("link")).toHaveAttribute("href", /^https:\/\//);
+    await expect(line.getByRole("button", { name: /Terms/ })).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `add-account-${theme}.png`) });
     await axeClean(page, "Add account with the terms line");
   });

@@ -34,7 +34,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       name: "Anthropic's Consumer Terms",
       url: "https://www.anthropic.com/legal/consumer-terms",
       accounts:
-        "Each account is yours alone: the terms say not to share one or make it available to anyone else, and Pro and Max limits assume one person's use.",
+        "For Pro and Max, the Consumer Terms say not to share an account or make it available to anyone else, and Anthropic says those plans' limits assume one person's use.",
       checked: "2026-10-23",
     },
     home_env: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
@@ -62,7 +62,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     terms: {
       name: "OpenAI's Terms of Use",
       url: "https://openai.com/policies/terms-of-use/",
-      accounts: "OpenAI lets one person have several accounts; its terms say not to share one, or to get around its usage limits.",
+      accounts: "OpenAI says one person can have several accounts, and its Terms of Use say not to share one or get around its usage limits.",
       checked: "2026-10-23",
     },
     home_env: ["CODEX_HOME", "CODEX_SQLITE_HOME", "AI_JUGGLER_CODEX_BIN"],

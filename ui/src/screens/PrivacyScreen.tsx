@@ -11,6 +11,7 @@ import { SectionTitle } from "../components/SectionTitle";
 import { ToolMark } from "../components/ToolMark";
 import { useTools } from "../lib/tools";
 import claims from "../lib/trust-claims.json";
+import { trustOpen, type TrustLink } from "../lib/ipc/trust";
 
 /** The day, in the user's own words ("Oct 23, 2026"), for the `YYYY-MM-DD` a terms line was checked on. */
 function checkedWords(day: string): string {
@@ -18,8 +19,14 @@ function checkedWords(day: string): string {
   return Number.isNaN(date.getTime()) ? day : date.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Where a test's file can be read. */
-const SOURCE = "https://github.com/figurehead-ai/AI-juggler/blob/main/";
+/** A link out of the app: the app picks the address (`trust_open`). */
+function OutLink({ to, children, className = "" }: { to: TrustLink; children: ReactNode; className?: string }): JSX.Element {
+  return (
+    <button type="button" onClick={() => void trustOpen(to)} className={`text-accent underline underline-offset-2 ${className}`}>
+      {children}
+    </button>
+  );
+}
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }): JSX.Element {
   return (
@@ -34,7 +41,7 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
   return (
     <li className="border-t border-hairline/60 py-2.5 first:border-t-0" data-testid="privacy-claim">
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-start gap-2.5 rounded-lg text-sm text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="flex cursor-pointer list-none items-start [&::-webkit-details-marker]:hidden gap-2.5 rounded-lg text-sm text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           {/* The rail's fold chevron: one look for every disclosure. */}
           <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none">
             <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -48,9 +55,9 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
               const [path, name] = reference.split("::");
               return (
                 <li key={reference}>
-                  <a href={`${SOURCE}${path}`} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-accent underline-offset-2 hover:underline">
+                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-[11px] no-underline hover:underline">
                     {name}
-                  </a>
+                  </OutLink>
                   <span className="text-faint"> · {path}</span>
                 </li>
               );
@@ -87,9 +94,7 @@ export function PrivacyScreen(): JSX.Element {
               <span className="flex flex-col gap-0.5">
                 <span className="text-ink">{tool.terms!.accounts}</span>
                 <span className="text-xs text-muted">
-                  <a href={tool.terms!.url} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
-                    {tool.terms!.name} ↗
-                  </a>{" "}
+                  <OutLink to={{ kind: "terms", id: tool.id }}>{tool.terms!.name} ↗</OutLink>{" "}
                   · checked {checkedWords(tool.terms!.checked)}
                 </span>
               </span>
@@ -98,16 +103,7 @@ export function PrivacyScreen(): JSX.Element {
         </Section>
       )}
       <p className="text-xs text-muted">
-        Use only accounts that are yours: AI Juggler never shares, pools or rotates them. Found a line that isn't true? Please{" "}
-        <a
-          href="https://github.com/figurehead-ai/AI-juggler/security/advisories/new"
-          target="_blank"
-          rel="noreferrer"
-          className="text-accent underline underline-offset-2"
-        >
-          report it privately
-        </a>
-        : it's a security bug.
+        Found a line that isn't true? Please <OutLink to={{ kind: "report" }}>report it privately</OutLink>: it's a security bug.
       </p>
     </div>
   );

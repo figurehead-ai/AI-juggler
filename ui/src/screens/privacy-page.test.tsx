@@ -15,6 +15,7 @@ import { PREVIEW_TOOLS } from "../preview/tools";
 import { setToolsForTests } from "../lib/tools";
 
 const w = () => window as unknown as Record<string, unknown>;
+const opened = () => (w().__AIJ_OPENED__ ?? []) as Array<{ kind: string; id: string }>;
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -41,9 +42,11 @@ describe("AJ-E1518 the Privacy page", () => {
     fireEvent.click(row.querySelector("summary")!);
     const tests = within(row).getByTestId("privacy-tests");
     expect(tests.textContent).toContain(`Checked by these ${claim.tests.length} tests:`);
-    const links = within(tests).getAllByRole("link");
+    const links = within(tests).getAllByRole("button");
     expect(links.map((link) => link.textContent)).toEqual(claim.tests.map((reference) => reference.split("::")[1]));
-    expect(links[0]!.getAttribute("href")).toBe(`https://github.com/figurehead-ai/AI-juggler/blob/main/${claim.tests[0]!.split("::")[0]}`);
+    // The page names the file; the app picks the address (trust_open).
+    fireEvent.click(links[0]!);
+    expect(opened()).toEqual([{ kind: "source", id: claim.tests[0]!.split("::")[0] }]);
   });
 
   it("every claim names at least one test", () => {
@@ -59,10 +62,17 @@ describe("AJ-E1518 the Privacy page", () => {
     expect(rows).toHaveLength(withTerms.length);
     withTerms.forEach((tool, index) => {
       expect(rows[index]!.textContent).toContain(tool.terms!.accounts);
-      const link = within(rows[index]!).getByRole("link");
-      expect(link.getAttribute("href")).toBe(tool.terms!.url);
+      const link = within(rows[index]!).getByRole("button");
       expect(link.textContent).toContain(tool.terms!.name);
+      fireEvent.click(link);
+      expect(opened().at(-1)).toEqual({ kind: "terms", id: tool.id });
     });
+  });
+
+  it("the private report opens from the page's last line", () => {
+    const view = render(<PrivacyScreen />);
+    fireEvent.click(view.getByRole("button", { name: "report it privately" }));
+    expect(opened()).toEqual([{ kind: "report", id: "" }]);
   });
 
   it("a tool without terms has no row", () => {
@@ -92,7 +102,8 @@ describe("AJ-E1518 the terms line while accounts are added", () => {
     const line = view.getByTestId("terms-line");
     const claude = PREVIEW_TOOLS.find((tool) => tool.id === "claude-code")!;
     expect(line.textContent).toContain(claude.terms!.accounts);
-    expect(within(line).getByRole("link").getAttribute("href")).toBe(claude.terms!.url);
+    fireEvent.click(within(line).getByRole("button"));
+    expect(opened()).toEqual([{ kind: "terms", id: "claude-code" }]);
   });
 
   it("one line per tool being added, none for a tool without terms", () => {
@@ -109,5 +120,34 @@ describe("AJ-E1518 the terms line while accounts are added", () => {
     const codex = PREVIEW_TOOLS.find((tool) => tool.id === "codex")!;
     expect(line.textContent).toContain(codex.terms!.accounts);
     expect(line.textContent).not.toContain("Anthropic");
+  });
+});
+
+describe("AJ-E1518 nothing switches on its own (the window)", () => {
+  // Every source file, as text (tests excluded below).
+  const sources = import.meta.glob("../**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+  // The switch screens: each starts a switch from its own confirm button.
+  const SCREENS = [
+    "../components/SwitchFlow.tsx",
+    "../components/SwitchBackFlow.tsx",
+    "../components/CrossMachineSwitchFlow.tsx",
+    "../components/CrossMachineSwitchBack.tsx",
+  ];
+  const MOVES = ["switchExecute", "switchBackExecute", "fleetSwitchExecute", "fleetSwitchBackExecute", "switchUndo", "sessionHandover"];
+
+  it("only the switch screens start a switch", () => {
+    const callers: string[] = [];
+    for (const [path, text] of Object.entries(sources)) {
+      if (/\.test\.tsx?$/.test(path) || path.includes("/test/")) continue;
+      // Comments don't count, whatever they say.
+      const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+      for (const name of MOVES) {
+        const calls = code.match(new RegExp(`(?<![\\w.])${name}\\s*\\(`, "g")) ?? [];
+        const defined = new RegExp(`function\\s+${name}\\s*\\(`).test(code) ? 1 : 0;
+        if (calls.length - defined > 0) callers.push(`${path} calls ${name}`);
+      }
+    }
+    expect(callers.filter((caller) => !SCREENS.some((screen) => caller.startsWith(`${screen} `)))).toEqual([]);
+    expect(callers.length, "the scan found the switch screens' calls").toBeGreaterThanOrEqual(SCREENS.length);
   });
 });

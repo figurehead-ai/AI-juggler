@@ -30,11 +30,21 @@ terminal.
 | An account may not be shared or made available to anyone else | openai.com/policies/terms-of-use/ (effective 2026-01-01) · 2026-10-23 | Verified-primary | "You may not share your account credentials or make your account available to anyone else" |
 | Usage limits may not be circumvented | openai.com/policies/terms-of-use/ · 2026-10-23 | Verified-primary | You may not "circumvent any rate limits or restrictions" |
 
+## What Add account says
+
+Word for word, from each adapter's `terms` (the test
+`every_tool_names_its_terms_and_the_preview_matches` checks it):
+
+- **Claude Code**, linking Anthropic's Consumer Terms: "For Pro and Max, the Consumer Terms say not to share an account or make it available to anyone else, and Anthropic says those plans' limits assume one person's use."
+  - The first part is the Consumer Terms' own; the second is from code.claude.com's Legal and compliance page (rows 2 and 3).
+- **Codex**, linking OpenAI's Terms of Use: "OpenAI says one person can have several accounts, and its Terms of Use say not to share one or get around its usage limits."
+  - The first part is OpenAI's help centre (row 1); the second is the Terms of Use (rows 2 and 3).
+
 ## What AI Juggler does with them
 
 - Add account shows one line per tool, with its terms linked (`terms` in
   `claude_code_spec()` and `codex_spec()`; checked 2026-10-23).
-- AI Juggler never shares, pools or rotates accounts, and every switch
-  starts from the user's click (`trust.rs` `nothing_switches_on_its_own`).
+- Every switch starts from a click, on this Mac or on a Mac the user
+  paired (`trust.rs` `nothing_switches_on_its_own`).
 - Using several of your own accounts to get around a vendor's limits is the
   user's responsibility under their terms. AI Juggler doesn't do it for them.
