@@ -82,6 +82,11 @@ fn only_a_gone_sessions_copy_of_a_stored_call_goes() {
                 136_658,
                 75,
             ),
+            // A gone thread's own record, even with the same tokens: only
+            // compaction rows are ever looked at.
+            row(GONE, &format!("{GONE}/t1/r-t1"), 136_658, 74),
+            // A live thread's real compaction (no record has its tokens).
+            row(HERE, &format!("{HERE}/compacted/1792576808000/2"), 500, 1),
         ])
         .unwrap();
     let present = BTreeSet::from([PARENT.to_owned(), HERE.to_owned()]);
@@ -90,9 +95,17 @@ fn only_a_gone_sessions_copy_of_a_stored_call_goes() {
         .forget_duplicated_compactions("acc", &present)
         .unwrap();
     assert_eq!(gone, 1);
+    // Nothing else goes: every other row, by key, is still there.
     let keys: BTreeSet<String> = stored(&storage).into_keys().collect();
-    assert!(!keys.contains(&format!("{GONE}/compacted/1792576804000/1")));
-    assert_eq!(keys.len(), 4, "{keys:?}");
+    let kept = BTreeSet::from([
+        format!("{PARENT}/tp/r-compact"),
+        format!("{GONE_REAL}/compacted/1792576805000/1"),
+        format!("{HERE}/compacted/1792576806000/1"),
+        format!("{GONE}/compacted/1792576807000/2"),
+        format!("{GONE}/t1/r-t1"),
+        format!("{HERE}/compacted/1792576808000/2"),
+    ]);
+    assert_eq!(keys, kept);
     // Again: nothing more to do.
     assert_eq!(
         storage
