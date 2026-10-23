@@ -193,7 +193,7 @@ export function LimitDialog({
                   </p>
                   {carry && (
                     <p className="text-xs text-muted" data-testid="limit-drops">
-                      {target.drops.length > 0 ? `Not carried over: ${target.drops.join(", ")}.` : "Everything this pair supports carries over."}
+                      {target.drops.length > 0 ? `Doesn't carry: ${target.drops.join(", ")}.` : "Everything this pair supports carries over."}
                     </p>
                   )}
                   <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>

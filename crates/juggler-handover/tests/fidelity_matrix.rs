@@ -339,3 +339,37 @@ fn missing_artifacts_default_to_drop() {
     assert!(scored.score.abs() < 1e-9);
     assert_eq!(scored.label, FidelityLabel::F0);
 }
+
+/// QA P23: an unproven Claude → Claude move still caps at F1 for the
+/// door, but the words say what it does (the same conversation, F3);
+/// once the pair is proven both agree. A cross-tool replay reads "Full
+/// story, fresh start" either way, and a zcode target stays F0.
+#[test]
+fn the_words_say_what_the_move_does_and_the_door_keeps_the_cap() {
+    use juggler_handover::fidelity::{FidelityLabel, base_dispositions, score_pair};
+    let unproven = score_pair(&base_dispositions("claude-code", "claude-code"));
+    assert_eq!(
+        unproven.label,
+        FidelityLabel::F1,
+        "the door's label keeps the honesty cap"
+    );
+    assert_eq!(unproven.described, FidelityLabel::F3);
+    assert_eq!(
+        unproven.described.user_label(),
+        "Same conversation, new account"
+    );
+    let mut proven_input = base_dispositions("claude-code", "claude-code");
+    proven_input.flags.validated = true;
+    let proven = score_pair(&proven_input);
+    assert_eq!(
+        (proven.label, proven.described),
+        (FidelityLabel::F3, FidelityLabel::F3)
+    );
+    let replay = score_pair(&base_dispositions("claude-code", "codex"));
+    assert_eq!(replay.described.user_label(), "Full story, fresh start");
+    let zcode = score_pair(&base_dispositions("claude-code", "zcode"));
+    assert_eq!(
+        (zcode.label, zcode.described),
+        (FidelityLabel::F0, FidelityLabel::F0)
+    );
+}

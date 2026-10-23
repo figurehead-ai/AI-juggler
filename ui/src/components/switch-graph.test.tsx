@@ -46,7 +46,7 @@ const TARGETS: SwitchTargetData[] = [
     factors: [
       ["80% headroom", 0.36],
       ["usual account for this repo", 0.2],
-      ["fidelity 1 · Beta", 0.15],
+      ["starts fresh from the story", 0.04],
       ["≈$0.12 replay", 0.07],
       ["quiet", 0.1],
     ],

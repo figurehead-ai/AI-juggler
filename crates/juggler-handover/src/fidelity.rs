@@ -272,8 +272,13 @@ pub struct PairFidelity {
     pub pair: String,
     /// The weighted mean BEFORE caps (internal; the label is the UI).
     pub score: f64,
-    /// The label the user sees (always ships with the carry-list).
+    /// The label after every cap: what the door decides by (an unproven
+    /// pair caps at F1, so it never gets the one-click door).
     pub label: FidelityLabel,
+    /// What the move does, in the label the user reads: every cap but
+    /// the unvalidated pair's (QA P23). "Not proven yet" is said beside
+    /// it, never by renaming a transplant "Full story, fresh start".
+    pub described: FidelityLabel,
     /// Caps applied, in order.
     pub caps: Vec<AppliedCap>,
     /// The carry-list (one row per artifact).
@@ -395,7 +400,9 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
     }
 
     // Cap 4: an unvalidated pair (E210 cell not green) caps at F1
-    // regardless of mean — the honesty mechanism.
+    // regardless of mean — the honesty mechanism, for the door. The words
+    // the user reads keep what the move does (`described`).
+    let mut described = label;
     if !input.flags.validated && label > FidelityLabel::F1 {
         label = FidelityLabel::F1;
         caps.push(AppliedCap {
@@ -408,6 +415,7 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
     // SQLite clone + verified prime path pass (SPEC:282, E210).
     if input.to_provider == "zcode" && label > FidelityLabel::F0 {
         label = FidelityLabel::F0;
+        described = FidelityLabel::F0;
         caps.push(AppliedCap {
             cap: "zcode-target".to_owned(),
             capped_at: FidelityLabel::F0,
@@ -418,6 +426,7 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
         pair: format!("{}→{}", input.from_provider, input.to_provider),
         score,
         label,
+        described,
         caps,
         carry_list,
     }

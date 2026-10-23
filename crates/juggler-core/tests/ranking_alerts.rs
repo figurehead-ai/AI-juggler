@@ -31,7 +31,7 @@ fn candidate(account: &str, headroom: Option<f64>, confidence: Confidence) -> Ca
         headroom_pct: headroom,
         headroom_confidence: confidence,
         affinity: 0.5,
-        fidelity: 0.5,
+        fidelity: None,
         projected_usd: Some(1.0),
         active_sessions: 0,
         soft_cap: 4,
