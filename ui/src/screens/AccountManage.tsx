@@ -2,6 +2,7 @@
  * AJ-E1501 — managing an account from its card: rename it (and set its
  * plan), and remove it. Its own file, so Accounts stays a list (C.10).
  */
+import { AccountSettingsSheet } from "../components/AccountSettingsSheet";
 import { useState, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
@@ -211,8 +212,10 @@ export function useAccountManage({
 }): { host: ActionHost; element: ReactNode } {
   const [renameFor, setRenameFor] = useState<AccountInfo | null>(null);
   const [removeFor, setRemoveFor] = useState<AccountInfo | null>(null);
+  const [copyFor, setCopyFor] = useState<AccountInfo | null>(null);
   const host: ActionHost = {
     renameAccount: setRenameFor,
+    copyAccountSettings: setCopyFor,
     removeAccount: setRemoveFor,
     toggleDefaultAccount: async (account) => {
       const wasDefault = account.is_default === true;
@@ -237,6 +240,15 @@ export function useAccountManage({
           onDone={async (renamed, before) => {
             setRenameFor(null);
             await changed(renamed.label !== before ? `Renamed to ${renamed.label}.` : null);
+          }}
+        />
+      )}
+      {copyFor && (
+        <AccountSettingsSheet
+          account={copyFor}
+          onClose={async (copied) => {
+            setCopyFor(null);
+            if (copied > 0) await changed(copied === 1 ? `Copied 1 setting into ${copyFor.label}.` : `Copied ${copied} settings into ${copyFor.label}.`);
           }}
         />
       )}

@@ -1,8 +1,9 @@
 /**
  * AJ-E1508 gallery: Add account's fresh account starts with the usual
  * settings of an account of the same tool — the line, collapsed and open
- * (what comes with it, ticked), and the sign-in after it's made. Both
- * themes, axe 0 critical/serious on each.
+ * (what comes with it, ticked), and the sign-in after it's made; and an
+ * account's "Copy settings from…" (an account brought in as a copy, or
+ * any account later). Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -71,5 +72,32 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("first-run-fresh-create").click();
     await expect(page.getByTestId("first-run-signin-row")).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `signin-${theme}.png`) });
+  });
+
+  test(`an account's "Copy settings from…" — ${theme}`, async ({ page }) => {
+    await page.addInitScript(
+      ({ fixture, theme }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_FIXTURE__ = fixture;
+        localStorage.setItem("aij.theme", theme);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { fixture: structuredClone(allStatuses), theme },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await goTo(page, "Accounts");
+    await page.getByRole("button", { name: "Account actions for Personal", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Copy settings from…" }).click();
+    const sheet = page.getByRole("dialog", { name: "Copy settings into Personal" });
+    await expect(sheet.getByRole("button", { name: "Copy 3 settings" })).toBeVisible();
+    await sheet.screenshot({ path: resolve(OUT, `account-sheet-${theme}.png`) });
+    await axeClean(page, "Copy settings into an account");
+    await sheet.getByRole("button", { name: "Copy 3 settings" }).click();
+    await expect(sheet.getByRole("button", { name: "Done" })).toBeVisible();
+    await sheet.screenshot({ path: resolve(OUT, `account-sheet-done-${theme}.png`) });
+    await axeClean(page, "Copy settings, done");
   });
 }

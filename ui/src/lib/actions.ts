@@ -236,6 +236,13 @@ const ACCOUNT: ActionSpec<"account">[] = [
   },
   { id: "rename", label: "Rename…", group: "main", applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
   {
+    id: "copy-settings",
+    label: "Copy settings from…",
+    group: "main",
+    applies: (_, h) => has(h.copyAccountSettings),
+    run: (a, h) => h.copyAccountSettings!(a),
+  },
+  {
     id: "default",
     label: (a) => (a.is_default ? "Stop being the default" : "Make the default"),
     group: "main",

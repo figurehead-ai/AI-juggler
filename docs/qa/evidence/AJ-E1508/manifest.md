@@ -21,15 +21,28 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1508 (copy shared settings into a new ac
 
 | Requirement | Proof | Result |
 |---|---|---|
-| Req.1 Add account offers MCP servers, permissions, plugins and the status line from an account the user picks, each listed and ticked by default | `account_settings` `a_new_account_gets_the_usual_settings_and_never_a_credential_history_or_cache`, `codex_homes_copy_their_approval_sandbox_and_status_line`, `the_offers_before_the_account_exists_are_the_ones_it_gets`; vitest `fresh-account-settings` (5); gallery `83-account-settings` | PASS for fresh accounts |
+| Req.1 Add account offers MCP servers, permissions, plugins and the status line from an account the user picks, each listed and ticked by default, for fresh accounts and copies | Fresh accounts: `account_settings` `a_new_account_gets_the_usual_settings_and_never_a_credential_history_or_cache`, `codex_homes_copy_their_approval_sandbox_and_status_line`, `the_offers_before_the_account_exists_are_the_ones_it_gets`; vitest `fresh-account-settings` (10). Copies, and any account later: every account's "Copy settings from…" (vitest `account-settings-sheet`, 3). Gallery `83-account-settings` | PASS |
 | Req.2 Credentials, history and caches never copied (a guardrail test lists the files) | The same test lists every file in the new account's folder after the copy: exactly its marker plus `settings.json` and `.claude.json`. No `.credentials.json`, `history.jsonl`, `projects/`, `todos/` or `statsig/`, and no secret's text in any file. The Codex test does the same: only `config.toml` is new, with no `auth.json` or `sessions/`. | PASS |
 | Each copy holds exactly what was ticked | vitest "copies what's ticked once the account is made"; the Codex test (`model`, not picked, isn't copied) | PASS |
 | Never over the account's own; undone only when unchanged | `config_edit` tests (4); `a_setting_the_new_account_has_is_left_as_it_is` | PASS |
 | The switch's offers stay as they were | `a_switch_still_offers_no_account_settings` | PASS |
 | Visual: the Add account section, collapsed and open | gallery `83-account-settings` (collapsed, open, nothing to copy, the sign-in after it), both themes, axe 0 critical/serious; `71-add-account` shows the line | PASS |
 
+## After the reviews
+
+- **H1, secrets:**
+  - A setting with a secret written anywhere in it is never copied, and its text is never kept. The check reads word by word: a token-shaped or base64-shaped word, a URL with a password, `Bearer`/`Basic` and a value, a header or flag that names a secret and its value, and `-u user:password`.
+  - A `$VARIABLE` is a reference, not a secret, and names match by their parts, so `--author` isn't `auth`.
+  - Only the permission rules that hold a secret stay behind, and the line says how many.
+  - Undo records keep fingerprints, never values.
+- **M1, the fail-safe status line:** under AJ-E1530's fail-safe line, the user's own status line is unknown here, and the item says so. A stale backup beside it is never offered.
+- **M2, undo after a re-save:** undo compares values by fingerprint, so a tool re-saving the file in its own layout doesn't block it.
+- **M3, M4 and Enter:** Create (the button and Enter alike) waits for what the account offers. A change of account never carries the old ticks over, and the line shows even when the accounts arrive late.
+- **M5, what a setting holds:** each setting says what it holds ("4 allowed, 1 denied"). A mode that turns checks off is offered, never ticked.
+- **Tests:** `account_settings` (11), `config_edit` (8), `holds_secret` (2), vitest `fresh-account-settings` (10) and `account-settings-sheet` (3).
+
 ## Left
 
-- **Copies.** Req.1 also names an account brought in as a copy. A copied setup already brings its own folder's settings, so the offer is built for fresh accounts first. Bringing settings from a different account into a copy is still to come.
-- **Plugins** are listed with their install command ("Needs you"), not installed. Installing a plugin fetches it from its marketplace, and copying the plugin folder would carry absolute paths that point into the other account.
-- **The regression baselines** for Add account (`add-account-*`) change, because the line shows there. They're re-rendered in the pinned container with the PR.
+- **The offers measured against the real accounts.** QA reads `account_settings_check` through the Dev bridge, read-only, to see the secret check on real permission rules.
+- **Plugins** are listed with their install command ("Needs you"), not installed. Installing one fetches it from its marketplace, and copying the plugin folder would carry absolute paths that point into the other account.
+- **The regression baselines** for Add account and the account menu change, and are re-rendered in the pinned container.
