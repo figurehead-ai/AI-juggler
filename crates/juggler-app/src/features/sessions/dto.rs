@@ -55,8 +55,9 @@ pub struct InstanceInfo {
     /// (nothing can be running then).
     #[ts(type = "number | null")]
     pub child_count: Option<u32>,
-    /// I-08: subtask count; `null` — no transcript source exists yet
-    /// (AJ-E409 lands the signals; never a guessed count).
+    /// I-08: how many subagents the session started are still running,
+    /// read from its transcript (AJ-E1520); `null` until it has been read
+    /// (not live, or no transcript yet) — never a guessed count.
     #[ts(type = "number | null")]
     pub subtask_count: Option<u64>,
     /// I-09: git branch of the working directory, parsed from

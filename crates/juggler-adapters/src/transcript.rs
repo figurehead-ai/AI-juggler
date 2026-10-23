@@ -27,19 +27,25 @@ pub fn detect_format(bytes: &[u8]) -> TranscriptFormat {
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
             continue;
         };
-        let rollout = value.get("payload").is_some()
-            && value.get("timestamp").is_some()
-            && value
-                .get("type")
-                .and_then(serde_json::Value::as_str)
-                .is_some();
-        return if rollout {
-            TranscriptFormat::CodexRollout
-        } else {
-            TranscriptFormat::ClaudeCode
-        };
+        return line_format(&value);
     }
     TranscriptFormat::ClaudeCode
+}
+
+/// The format one parsed line is in.
+#[must_use]
+pub fn line_format(value: &serde_json::Value) -> TranscriptFormat {
+    let rollout = value.get("payload").is_some()
+        && value.get("timestamp").is_some()
+        && value
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            .is_some();
+    if rollout {
+        TranscriptFormat::CodexRollout
+    } else {
+        TranscriptFormat::ClaudeCode
+    }
 }
 
 /// Parses any supported transcript into the neutral [`ParsedTranscript`].

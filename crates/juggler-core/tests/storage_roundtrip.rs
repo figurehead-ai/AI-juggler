@@ -563,6 +563,56 @@ fn active_cwds_skip_ended_sessions_and_dedupe() {
     );
 }
 
+/// AJ-E1520: the 2 s subagent tick reads only the sessions that haven't
+/// ended (every Mac's), never the whole history.
+#[test]
+fn live_lists_only_sessions_that_havent_ended() {
+    let storage = Storage::open_in_memory().unwrap();
+    let (_, profile) = seed_chain(&storage);
+    let all = [
+        ("s-start", SessionStatus::Starting),
+        ("s-run", SessionStatus::Running),
+        ("s-wait", SessionStatus::WaitingUser),
+        ("s-stuck", SessionStatus::Stuck),
+        ("s-quota", SessionStatus::QuotaBlocked),
+        ("s-done", SessionStatus::Finished),
+        ("s-stop", SessionStatus::Stopped),
+        ("s-fail", SessionStatus::Failed),
+        ("s-handed", SessionStatus::HandedOver),
+    ];
+    for (id, status) in all {
+        let mut session = SessionRecord {
+            id: SessionId::new(id),
+            conversation: None,
+            profile: profile.id.clone(),
+            machine: MachineId::new("this-mac"),
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: None,
+            cwd: PathBuf::from("/w"),
+            status: SessionStatus::Starting,
+            started_at: Timestamp::from_millis(7),
+            last_activity: None,
+            usage: UsageSnapshot::default(),
+            attention: None,
+            running: None,
+            window: None,
+            transcript_ref: None,
+        };
+        storage.sessions().insert(&session).unwrap();
+        session.status = status;
+        storage.sessions().update(&session).unwrap();
+    }
+    let mut live: Vec<String> = storage
+        .sessions()
+        .live()
+        .unwrap()
+        .into_iter()
+        .map(|session| session.id.as_str().to_owned())
+        .collect();
+    live.sort();
+    assert_eq!(live, ["s-quota", "s-run", "s-start", "s-stuck", "s-wait"]);
+}
+
 #[test]
 fn projects_touch_creates_then_refreshes_activity() {
     let storage = Storage::open_in_memory().unwrap();

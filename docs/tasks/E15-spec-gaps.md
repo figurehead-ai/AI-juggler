@@ -628,7 +628,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 
 ## Wave 3 — robustness and quality
 
-### AJ-E1520 Subtask count and the agent subtask tree | Status: TODO | Priority P2 | Effort M | Depends: AJ-E401
+### AJ-E1520 Subtask count and the agent subtask tree | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E401
 **Goal**: The status row's subtask field (I-08) means something.
 **User story**: As a user, I see that a session spawned four subagents and what each is doing.
 **Requirements**:
@@ -640,8 +640,8 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1520/manifest.md`.
 **Visual testing**: the row and the tree.
 **Files to touch**: the transcript parsers, `commands.rs` (I-08), `RightInspector.tsx`.
-**Research basis**: SPEC I-08.
-**Handover note**: —
+**Research basis**: SPEC I-08; Codex's multi-agent handlers and rollout policy (read 2026-10-23, in the manifest).
+**Handover note**: Built: `juggler_adapters::subtasks` (the record and the tail reader), each tool's lines in its parser (`claude_transcript::subtask_line`, `codex_transcript::subtask_line`), `features::subtasks` (the tick, the row's count, `subtasks_list`), `SubagentsSection.tsx` and the rail row's note. The count is the subagents still running; the list shows them all. A new tool adds its `subtask_line` and nothing else. Left: when a Claude subagent started in the background ends (check live), and Codex's depth-2 subagents.
 
 ### AJ-E1521 Robustness: a database busy timeout and an adapter conformance kit | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: No read fails during a long write, and every adapter keeps the same rules.

@@ -3687,6 +3687,7 @@ pub fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<In
     let storage = lock_storage(&state)?;
     let rows = session_infos(&storage, &live, &labels, &adopted)?;
     drop(storage);
+    let rows = crate::features::subtasks::counted(state.inner(), rows);
     crate::features::conversations::titled(state.inner(), rows)
 }
 
@@ -3714,6 +3715,7 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
     let storage = lock_storage_arc(state)?;
     let rows = session_infos(&storage, &live, &labels, &adopted)?;
     drop(storage);
+    let rows = crate::features::subtasks::counted(state, rows);
     crate::features::conversations::titled(state, rows)
 }
 
@@ -4291,6 +4293,7 @@ pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
             &state.supervisor.alive_adopted_sessions(),
         )?
     };
+    let sessions = crate::features::subtasks::counted(state, sessions);
     let sessions = crate::features::conversations::titled(state, sessions)?;
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, sessions);
     Ok(())
@@ -4754,8 +4757,8 @@ fn session_infos(
                 } else {
                     stats.map(|s| s.child_count)
                 },
-                // No transcript-derived source exists yet (AJ-E409) —
-                // shipped nullable, never backfilled with a guess.
+                // AJ-E1520: filled from the live transcript reads by
+                // `features::subtasks::counted`; null until read.
                 subtask_count: None,
                 git_branch: crate::worktree::branch_of(&record.cwd),
                 // AJ-E1002: changed + untracked from the cached git

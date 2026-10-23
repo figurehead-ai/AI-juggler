@@ -343,6 +343,7 @@ macro_rules! app_commands {
             Read  features::terminal::commands::terminal_windows,
             Read  commands::instance_quality,
             Read  commands::instance_processes,
+            Read  features::subtasks::commands::subtasks_list,
             Read  commands::cleanup_inventory,
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
@@ -981,6 +982,9 @@ fn spawn_read_model_ticks(
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
             commands::detect_running_models(&processes_app, &processes_state, None);
+            if features::subtasks::tick(&processes_state) {
+                let _ = commands::emit_sessions(&processes_app, &processes_state);
+            }
         }
     });
     std::thread::spawn(move || {
