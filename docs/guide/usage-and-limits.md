@@ -13,6 +13,25 @@ session logs. It doesn't ask any provider for anything.
 - Costs use the providers' published prices. A model without a published
   price says "No price for this model yet" instead of $0.
 
+### Monthly caps
+
+If you work for clients, or keep an eye on what an API key costs, set a
+monthly cap: **Usage** › **Set a monthly cap**. Give it a name, an amount
+in US dollars, and what it counts: one account, or a group of projects on
+any account.
+
+- **Needs you** on Home tells you when this month reaches 80 % of the cap,
+  and again at 100 %. **Got it** hides the warning until the next one, or
+  next month.
+- **Nothing is ever stopped.** A cap only tells you; your sessions keep
+  running.
+- The month is your calendar month, and the amounts are the estimates
+  above, at the providers' published prices. Usage without a price isn't
+  counted, and the cap says so.
+- On a subscription, the estimate is what your use would cost by the
+  token, not what you pay, so a cap there measures how much of the plan's
+  value you use.
+
 ## Limits: how much room is left
 
 Your plan's 5-hour and weekly limits, as the tool itself reports them.
