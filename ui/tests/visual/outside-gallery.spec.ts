@@ -6,7 +6,8 @@
  * Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -43,7 +44,7 @@ async function shoot(page: Page, name: string, theme: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`Home and the rail with sessions started outside AI Juggler — ${theme}`, async ({ page }) => {
+  test(`Home and the rail with sessions started outside AI Juggler — ${theme}`, gate("78-outside"), async ({ page }) => {
     await seed(page, theme);
     await expect(page.getByTestId("home-outside").first()).toBeVisible();
     await shoot(page, "home-rail", theme);

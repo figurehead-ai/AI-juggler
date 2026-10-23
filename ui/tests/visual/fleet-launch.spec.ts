@@ -6,7 +6,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -60,7 +61,7 @@ async function axe(page: Page, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`a session starts on a paired Mac from New session — ${theme}`, async ({ page }) => {
+  test(`a session starts on a paired Mac from New session — ${theme}`, gate("88-fleet-launch"), async ({ page }) => {
     await open(page, theme);
     await page.getByRole("button", { name: "New session", exact: true }).first().click();
     await page.getByTestId("machine-picker").getByRole("radio", { name: "Mac mini" }).click();

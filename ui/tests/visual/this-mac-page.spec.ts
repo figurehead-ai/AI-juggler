@@ -5,7 +5,8 @@
  * (`?aij_load=heavy`). Both themes and densities; axe 0 critical/serious.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -17,6 +18,8 @@ async function open(page: Page, theme: "dark" | "light", density: "comfortable" 
   await page.addInitScript(
     ({ theme, density }) => {
       localStorage.setItem("aij.theme", theme);
+      // AJ-E1522: a pinned clock, so the capture is the same every run.
+      Date.now = () => 1_728_800_000_000;
       localStorage.setItem("aij.density", density);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
@@ -63,7 +66,7 @@ test("the window itself never scrolls, on Home or the page", async ({ page }) =>
 
 for (const theme of ["dark", "light"] as const) {
   for (const density of ["comfortable", "compact"] as const) {
-    test(`the page, six Claude app windows and a heavy session — ${theme} ${density}`, async ({ page }) => {
+    test(`the page, six Claude app windows and a heavy session — ${theme} ${density}`, gate("81-this-mac"), async ({ page }) => {
       await open(page, theme, density, "?aij_windows=6&aij_load=heavy");
       await goTo(page, "This Mac");
       const page_ = page.getByTestId("this-mac-page");

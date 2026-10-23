@@ -5,7 +5,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -16,6 +17,8 @@ test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 async function open(page: Page, theme: "dark" | "light") {
   await page.addInitScript((theme) => {
     localStorage.setItem("aij.theme", theme);
+    // AJ-E1522: a pinned clock, so the capture is the same every run.
+    Date.now = () => 1_728_800_000_000;
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
     sessionStorage.setItem("aij.ready.skipped", "1");
@@ -33,7 +36,7 @@ async function axe(page: Page, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`diagnostics are shown before they're saved — ${theme}`, async ({ page }) => {
+  test(`diagnostics are shown before they're saved — ${theme}`, gate("85-diagnostics"), async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
     const card = page.getByTestId("settings-diagnostics");

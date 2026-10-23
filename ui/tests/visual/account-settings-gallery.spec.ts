@@ -6,7 +6,8 @@
  * any account later). Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo } from "./fixtures";
@@ -22,6 +23,8 @@ async function openFresh(page: Page, theme: "dark" | "light") {
       w.__AIJ_FIXTURE__ = fixture;
       w.__AIJ_SCAN_REPORT__ = { installs: [], probes: [], seeds: [], desktop_apps: [], cancelled: false };
       localStorage.setItem("aij.theme", theme);
+      // AJ-E1522: a pinned clock, so the capture is the same every run.
+      Date.now = () => 1_728_800_000_000;
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
     },
@@ -42,7 +45,7 @@ async function axeClean(page: Page, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the line, collapsed — ${theme}`, async ({ page }) => {
+  test(`the line, collapsed — ${theme}`, gate("83-account-settings"), async ({ page }) => {
     await openFresh(page, theme);
     const line = page.getByTestId("start-with-settings");
     await expect(line).toContainText("Start with the same settings as");
@@ -80,6 +83,8 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         localStorage.setItem("aij.theme", theme);
+        // AJ-E1522: a pinned clock, so the capture is the same every run.
+        Date.now = () => 1_728_800_000_000;
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
       },

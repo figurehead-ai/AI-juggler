@@ -6,7 +6,8 @@
  * (Shift+F10 on a focused row, Escape back).
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo } from "./fixtures";
@@ -59,7 +60,7 @@ async function shoot(page: Page, name: string, theme: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`a session row: ⋯, right-click and Shift+F10 open the same menu — ${theme}`, async ({ page }) => {
+  test(`a session row: ⋯, right-click and Shift+F10 open the same menu — ${theme}`, gate("77-menus"), async ({ page }) => {
     await seed(page, theme);
     // The row and its ⋯: the same session either way.
     const row = page.locator(".group", { has: page.locator('[data-instance-id="sess-2"]') }).first();

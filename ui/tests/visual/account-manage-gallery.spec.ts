@@ -6,7 +6,8 @@
  * Both themes, axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, openFilters } from "./fixtures";
@@ -57,7 +58,7 @@ function card(page: Page, label: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`account menu — ${theme}`, async ({ page }) => {
+  test(`account menu — ${theme}`, gate("75-account-manage"), async ({ page }) => {
     await seed(page, theme);
     await card(page, "personal-max").click();
     const menu = page.getByRole("menu", { name: "Actions for personal-max" });

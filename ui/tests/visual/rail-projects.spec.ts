@@ -6,7 +6,8 @@
  * everything foldable and remembered, no "0".
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { readyHome, type FixtureSet } from "./fixtures";
@@ -63,7 +64,7 @@ async function seed(page: Page, theme: "dark" | "light") {
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
 for (const theme of ["dark", "light"] as const) {
-  test(`rail — projects from history, grouped, foldable — ${theme}`, async ({ page }) => {
+  test(`rail — projects from history, grouped, foldable — ${theme}`, gate("74-rail-projects"), async ({ page }) => {
     await seed(page, theme);
     const list = page.getByTestId("rail-history-projects");
     await expect(list).toBeVisible();
