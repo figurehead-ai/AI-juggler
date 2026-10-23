@@ -16,7 +16,7 @@ ed25519-dalek = "3"
 getrandom = "0.4"
 hmac = "0.13"
 hyper-util = "0.1"
-juggler-core = { version = "0.0.1", path = "../juggler-core" }
+juggler-core = { version = "0.1.0", path = "../juggler-core" }
 mdns-sd = "0.21"
 prost = "0.14"
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem"] }
