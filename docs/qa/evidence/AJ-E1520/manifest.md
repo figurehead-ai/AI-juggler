@@ -6,12 +6,27 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1520 (the subtask count and the agent su
 
 | Requirement | Proof | Result |
 |---|---|---|
-| Req.1 I-08 from Claude Code's agent calls | Claude Code starts a subagent with its Task tool (named Agent in later versions); the call's `tool_result` ends it, and an error result fails it. One parked in the background (`toolUseResult.status` `async_launched`) stays running. Other tool calls aren't counted. `juggler-adapters` `claude_transcript` `subagents_are_read_from_task_and_agent_calls` (fixture `claude-code/session-subagents.jsonl`). | PASS |
-| Req.1 Codex's equivalent | Codex starts one with `spawn_agent`, whose output names it (`{"agent_id", "nickname"}`). A later `wait`/`wait_agent` output says how each named agent stands (`{"status": {id: status}}`); a `close_agent` output ends the agent it targeted. A `sub_agent_activity` `completed` event ends one too, and a spawn that gave no agent failed. `codex_transcript` `subagents_are_read_from_spawn_wait_and_close` (fixture `codex/rollout-subagents.jsonl`: one finished by a wait, one closed, one failed spawn, one running). | PASS |
-| Req.1 the count on the status row | The row's count is how many of the session's subagents are still running. It's read on the existing 2 s tick, taking only what the transcript gained (`SubtaskTail`; a half-written line waits for the next read; a replaced file is read again from the start). It's `null` until the transcript has been read (no transcript, or not live), never a guessed 0. `juggler-app` `subtasks` `the_count_follows_a_live_transcript_and_the_list_outlives_the_session`, `a_codex_session_is_counted_the_same_way`; unit `a_line_still_being_written_waits_for_the_next_read`, `a_replaced_file_is_read_again_from_the_start`. | PASS |
+| Req.1 I-08 from Claude Code's agent calls | Claude Code starts a subagent with its Task tool (named Agent in later versions); the call's `tool_result` ends it, and an error result fails it. One started in the background (`toolUseResult.status` `async_launched`) is marked "in the background" and not counted as running: its transcript doesn't say when it ends. Other tool calls aren't counted. `juggler-adapters` `claude_transcript` `subagents_are_read_from_task_and_agent_calls` (fixture `claude-code/session-subagents.jsonl`). | PASS |
+| Req.1 Codex's equivalent | Codex starts one with `spawn_agent`, whose output names it (`{"agent_id", "nickname"}`). A later `wait`/`wait_agent` output says how each named agent stands (`{"status": {id: status}}`); a `close_agent` output ends the agent it targeted. A `sub_agent_activity` `completed` event ends one too, and a spawn that gave no agent failed. Done and failed are final: an agent that errored and was then closed stays failed, and a close answered with an error string changes nothing. Other calls' outputs (a shell's) aren't read at all. `codex_transcript` `subagents_are_read_from_spawn_wait_and_close` (fixture `codex/rollout-subagents.jsonl`: one finished by a wait, one closed, one failed spawn, one errored then closed, one running, a shell call); unit `done_and_failed_are_final`. | PASS |
+| Req.1 the count on the status row | The row's count is how many of the session's subagents are still running. It's read on the existing 2 s tick, taking only what the transcript gained (`SubtaskTail`; a half-written line waits for the next read; a replaced file, shorter or not, is read again from the start). Readers see what the last tick published, never a map being read. It's `null` until the transcript has been read (no transcript, or not live), never a guessed 0. `juggler-app` `subtasks` `the_count_follows_a_live_transcript_and_the_list_outlives_the_session`, `a_codex_session_is_counted_the_same_way`, `a_new_transcript_path_is_read_afresh_and_its_drop_is_reported`; unit `a_line_still_being_written_waits_for_the_next_read`, `a_replaced_file_is_read_again_from_the_start`, `a_file_replaced_by_one_as_long_is_read_from_its_start`. | PASS |
 | Req.1 tool knowledge stays in the adapters | Each tool's lines are read in its own parser module (`claude_transcript::subtask_line`, `codex_transcript::subtask_line`). The record (`juggler_adapters::subtasks`) and the app (`features::subtasks`) never name a tool: the format is recognised from the transcript's first line. | PASS |
-| Req.2 the tree in the inspector | The session's page lists every subagent behind a "Subagents" disclosure, with the summary "2 running · 4 in all". Each row shows what it was asked (first line, 80 characters), its kind when the call named one, and where it stands: running, done, failed, or "didn't finish" once the session ended without the transcript saying so. Hidden when the session started none. The list is read again when the row's count moves. UI `subagents-section.test.tsx` (6 tests). | PASS |
+| Req.2 the tree in the inspector | The session's page lists every subagent behind a "Subagents" disclosure, with the summary "2 running · 4 in all". Each row shows what it was asked (first line, 80 characters), its kind when the call named one, and where it stands: running, in the background, done, failed, or "didn't finish" once the session ended without the transcript saying so. Hidden when the session started none. The list is read again when the row's count moves and every 5 s while the session runs. An ended session's list is read from its file 16 MiB at a time. UI `subagents-section.test.tsx` (8 tests). | PASS |
 | The row (D-25) | The rail row's second line adds a quiet "· 2 subagents" like "· 3 changed", and the screen reader's text "2 subagents running". `subagents-section.test.tsx` `the rail row notes running subagents quietly…`. | PASS |
+
+## After the independent review
+
+The review found no blockers. Fixed from its list:
+- **Readers see a published view.** The tick used to take the whole map out of its lock while it read, so a list or a count in that moment saw nothing.
+- **A new transcript path reports its drop.** The count before was taken after the reset, so 2 → 0 never emitted.
+- **An ended session's list is read in bounded chunks.** It used to be read in one piece, with no cap.
+- **Codex's final states stay final.** An errored agent that was then closed stayed failed; a close answered with an error string no longer fails its target.
+- **A background Claude subagent isn't counted as running.** The count was a guess for those.
+- **The open list refreshes while the session runs.** It missed changes that left the count the same.
+- **Smaller fixes:**
+  - a replaced file of the same length is told apart by its inode;
+  - only the new bytes are scanned for a line end;
+  - shell outputs aren't parsed;
+  - doc comments and the "none running" wording.
 
 ## Decisions
 
@@ -40,5 +55,5 @@ The approved baselines are unchanged: no baseline fixture has subagents, so the 
 
 ## Left
 
-- **When a background subagent ends.** Claude Code's transcript isn't known to say when a subagent started in the background ends, so it stays "running" until the session ends ("didn't finish"). To check in a live lab session (AJ-E1539).
+- **When a background subagent ends.** Claude Code's transcript isn't known to say when a subagent started in the background ends, so it shows "in the background" and isn't counted. To check in a live lab session (AJ-E1539).
 - **Codex subagents' own subagents** (depth 2): see Decisions.

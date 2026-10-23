@@ -2,12 +2,18 @@
  * AJ-E1520: the subagents a session started, in the inspector — what each
  * was asked to do and where it stands, behind a disclosure (the row only
  * says how many still run, I-08). Hidden when the session started none.
+ * Read again when the row's count moves, and every 5 s while the session
+ * runs (one can end as another starts, leaving the count as it was).
  */
 import { useEffect, useState, type JSX } from "react";
 import { subtasksList, type SubtaskInfo, type SubtaskStateInfo, type SubtasksInfo } from "../lib/ipc/subtasks";
 
+/** How often a live session's list is read again. */
+const REFRESH_MS = 5_000;
+
 const STATE_WORDS: Record<SubtaskStateInfo, string> = {
   running: "running",
+  background: "in the background",
   done: "done",
   failed: "failed",
   unfinished: "didn't finish",
@@ -15,34 +21,49 @@ const STATE_WORDS: Record<SubtaskStateInfo, string> = {
 
 const STATE_TONE: Record<SubtaskStateInfo, string> = {
   running: "text-accent-hi",
+  background: "text-muted",
   done: "text-muted",
   failed: "text-warning",
   unfinished: "text-muted",
 };
 
-/** `2 running · 4 in all`, or `4, all done`. */
+/** `2 running · 4 in all`, or `4 · none running`. */
 export function subagentsSummary(items: SubtaskInfo[]): string {
   const running = items.filter((item) => item.state === "running").length;
-  if (running === 0) return `${items.length}, none running`;
+  if (running === 0) return `${items.length} · none running`;
   return `${running} running · ${items.length} in all`;
 }
 
-export function SubagentsSection({ sessionId, running }: { sessionId: string; running: number | null }): JSX.Element | null {
+export function SubagentsSection({
+  sessionId,
+  running,
+  live,
+}: {
+  sessionId: string;
+  running: number | null;
+  live: boolean;
+}): JSX.Element | null {
   const [info, setInfo] = useState<SubtasksInfo | null>(null);
-  // Read again whenever the row's count moves: a subagent started or ended.
+  // Read again whenever the row's count moves (a subagent started or
+  // ended), and every few seconds while the session runs.
   useEffect(() => {
     let current = true;
-    subtasksList(sessionId)
-      .then((next) => {
-        if (current) setInfo(next);
-      })
-      .catch(() => {
-        if (current) setInfo(null);
-      });
+    const load = () => {
+      subtasksList(sessionId)
+        .then((next) => {
+          if (current) setInfo(next);
+        })
+        .catch(() => {
+          if (current) setInfo(null);
+        });
+    };
+    load();
+    const timer = live ? window.setInterval(load, REFRESH_MS) : undefined;
     return () => {
       current = false;
+      if (timer !== undefined) window.clearInterval(timer);
     };
-  }, [sessionId, running]);
+  }, [sessionId, running, live]);
 
   if (!info || info.items.length === 0) return null;
   return (

@@ -20,10 +20,15 @@ use crate::commands::{is_terminal, lock_storage_arc};
 use crate::error::AppResult;
 use crate::state::AppState;
 
-/// Each live session's transcript, as read so far.
+/// Each live session's subagents. The tick reads transcripts into its own
+/// map; readers see the last published view, so a read in progress never
+/// hides a count.
 #[derive(Debug, Default)]
 pub struct Subtasks {
-    tails: Mutex<HashMap<SessionId, (PathBuf, SubtaskTail)>>,
+    /// The tick's own: each live session's transcript, as read so far.
+    work: Mutex<HashMap<SessionId, (PathBuf, SubtaskTail)>>,
+    /// What the tick last published, per live session.
+    view: Mutex<HashMap<SessionId, SubtaskLog>>,
 }
 
 impl Subtasks {
@@ -31,14 +36,12 @@ impl Subtasks {
     /// its transcript hasn't been read (not live, or no transcript yet).
     #[must_use]
     pub fn running(&self, session: &SessionId) -> Option<u64> {
-        let tails = self.tails.lock().ok()?;
-        let (_, tail) = tails.get(session)?;
-        Some(tail.log().running() as u64)
+        let view = self.view.lock().ok()?;
+        Some(view.get(session)?.running() as u64)
     }
 
     fn log(&self, session: &SessionId) -> Option<SubtaskLog> {
-        let tails = self.tails.lock().ok()?;
-        tails.get(session).map(|(_, tail)| tail.log().clone())
+        self.view.lock().ok()?.get(session).cloned()
     }
 }
 
@@ -55,8 +58,9 @@ pub fn counted(
     rows
 }
 
-/// Reads what each live session's transcript gained; forgets sessions
-/// that ended. True when a running count changed (the caller emits).
+/// Reads what each live session's transcript gained and publishes it;
+/// forgets sessions that ended. True when a running count changed (the
+/// caller emits).
 pub fn tick(state: &Arc<AppState>) -> bool {
     let live: Vec<(SessionId, PathBuf)> = {
         let Ok(storage) = state.storage.lock() else {
@@ -71,38 +75,51 @@ pub fn tick(state: &Arc<AppState>) -> bool {
             .filter_map(|record| Some((record.id, record.transcript_ref?.path)))
             .collect()
     };
-    // The transcript is read outside the lock: a slow disk never holds up
-    // the status row.
-    let mut current: HashMap<SessionId, (PathBuf, SubtaskTail)> = match state.subtasks.tails.lock()
-    {
-        Ok(mut tails) => std::mem::take(&mut *tails),
-        Err(_) => return false,
+    // Only the tick takes `work` (one tick at a time); readers use `view`.
+    let Ok(mut work) = state.subtasks.work.lock() else {
+        return false;
     };
+    let mut previous = std::mem::take(&mut *work);
     let mut changed = false;
-    let mut next = HashMap::with_capacity(live.len());
+    let mut updates: Vec<(SessionId, SubtaskLog)> = Vec::new();
     for (session, path) in live {
-        let (old_path, mut tail) = current
+        let (old_path, mut tail) = previous
             .remove(&session)
             .unwrap_or_else(|| (path.clone(), SubtaskTail::default()));
+        let before = tail.log().running();
         if old_path != path {
             tail = SubtaskTail::default();
         }
-        let before = tail.log().running();
         // No transcript (yet, or any more): not read, so not counted —
         // never a guessed 0.
-        if tail.read(&path).is_err() {
+        let Ok(read) = tail.read(&path) else {
             changed |= before > 0;
             continue;
-        }
+        };
         changed |= tail.log().running() != before;
-        next.insert(session, (path, tail));
+        if read || old_path != path || !state.subtasks.published(&session) {
+            updates.push((session.clone(), tail.log().clone()));
+        }
+        work.insert(session, (path, tail));
     }
     // Sessions that ended or went away.
-    changed |= current.values().any(|(_, tail)| tail.log().running() > 0);
-    if let Ok(mut tails) = state.subtasks.tails.lock() {
-        *tails = next;
+    changed |= previous.values().any(|(_, tail)| tail.log().running() > 0);
+    let live_ids: std::collections::HashSet<SessionId> = work.keys().cloned().collect();
+    drop(work);
+    if let Ok(mut view) = state.subtasks.view.lock() {
+        view.retain(|session, _| live_ids.contains(session));
+        view.extend(updates);
     }
     changed
+}
+
+impl Subtasks {
+    fn published(&self, session: &SessionId) -> bool {
+        self.view
+            .lock()
+            .map(|view| view.contains_key(session))
+            .unwrap_or(false)
+    }
 }
 
 /// Every subagent session `session_id` started, for the inspector: from
@@ -117,8 +134,15 @@ pub fn list(state: &Arc<AppState>, session_id: &str) -> AppResult<dto::SubtasksI
     let live = !is_terminal(record.status);
     let log = state.subtasks.log(&session).or_else(|| {
         let path = record.transcript_ref.as_ref()?.path.clone();
-        let bytes = juggler_adapters::read_session_file(&path).ok()?;
-        Some(juggler_adapters::subtasks_of(&bytes))
+        if juggler_adapters::is_compressed(&path) {
+            // Bounded by `SESSION_FILE_MAX`.
+            let bytes = juggler_adapters::read_session_file(&path).ok()?;
+            return Some(juggler_adapters::subtasks_of(&bytes));
+        }
+        // 16 MiB at a time: memory stays bounded by what the log keeps.
+        let mut tail = SubtaskTail::default();
+        tail.read_all(&path).ok()?;
+        Some(tail.log().clone())
     });
     Ok(dto::SubtasksInfo::new(log.as_ref(), live))
 }

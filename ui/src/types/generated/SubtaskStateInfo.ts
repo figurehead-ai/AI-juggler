@@ -3,4 +3,4 @@
 /**
  * Where a subagent stands, as the inspector shows it.
  */
-export type SubtaskStateInfo = "running" | "done" | "failed" | "unfinished";
+export type SubtaskStateInfo = "running" | "background" | "done" | "failed" | "unfinished";

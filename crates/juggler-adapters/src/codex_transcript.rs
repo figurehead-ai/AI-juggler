@@ -241,15 +241,21 @@ pub fn rollout_cwd(bytes: &[u8]) -> Option<String> {
 /// policy.rs` keeps them out).
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
-    let payload = value.get("payload").cloned().unwrap_or_default();
-    let item = text(&payload, "type");
+    let null = serde_json::Value::Null;
+    let payload = value.get("payload").unwrap_or(&null);
+    let item = text(payload, "type");
     match (text(value, "type").as_deref(), item.as_deref()) {
         (Some("response_item"), Some("function_call")) => {
-            let (Some(name), Some(call)) = (text(&payload, "name"), text(&payload, "call_id"))
-            else {
+            let (Some(name), Some(call)) = (text(payload, "name"), text(payload, "call_id")) else {
                 return;
             };
-            let arguments: serde_json::Value = text(&payload, "arguments")
+            if !matches!(
+                name.as_str(),
+                "spawn_agent" | "close_agent" | "wait" | "wait_agent"
+            ) {
+                return;
+            }
+            let arguments: serde_json::Value = text(payload, "arguments")
                 .and_then(|arguments| serde_json::from_str(&arguments).ok())
                 .unwrap_or_default();
             match name.as_str() {
@@ -265,34 +271,37 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                         log.awaits(&call, &target);
                     }
                 }
-                _ => {}
+                _ => log.polls(&call),
             }
         }
         (Some("response_item"), Some("function_call_output")) => {
-            let Some(call) = text(&payload, "call_id") else {
+            // Other calls' outputs (a shell's, often large) aren't read.
+            let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
                 return;
             };
             let output: serde_json::Value =
                 serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
             if let Some(agent) = text(&output, "agent_id") {
                 log.named(&call, &agent);
-            } else if output.get("previous_status").is_some() {
-                log.answered(&call, SubtaskState::Done);
+            } else if let Some(previous) = output.get("previous_status") {
+                // Closed: as it last stood when it had ended, else done.
+                log.answered(&call, agent_state(previous).unwrap_or(SubtaskState::Done));
             } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
+                log.heard(&call);
                 for (agent, status) in statuses {
                     if let Some(state) = agent_state(status) {
                         log.ended(agent, state);
                     }
                 }
             } else {
-                // A spawn that gave no agent never started.
-                log.answered(&call, SubtaskState::Failed);
+                // Nothing usable: a spawn that named no agent never started.
+                log.not_started(&call);
             }
         }
         (Some("event_msg"), Some("sub_agent_activity"))
-            if text(&payload, "kind").as_deref() == Some("completed") =>
+            if text(payload, "kind").as_deref() == Some("completed") =>
         {
-            if let Some(agent) = text(&payload, "agent_thread_id") {
+            if let Some(agent) = text(payload, "agent_thread_id") {
                 log.ended(&agent, SubtaskState::Done);
             }
         }

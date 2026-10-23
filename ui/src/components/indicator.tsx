@@ -238,13 +238,13 @@ export function formatBytes(bytes: number): string {
 // --- small shared renderers ---------------------------------------------------
 
 /** I-02 initials disc with the per-Account hue. */
-/** I-08 children and running-subagent badges — hidden at 0/`null` (no
- * `⑂ 0` noise). AJ-E1520: subagents still running, from the transcript. */
-/** `1 subagent running`, `3 subagents running`. */
+/** `1 subagent running`, `3 subagents running` (AJ-E1520). */
 export function subagentsRunning(count: number): string {
   return `${count} ${count === 1 ? "subagent" : "subagents"} running`;
 }
 
+/** I-08 children and running-subagent badges — hidden at 0/`null` (no
+ * `⑂ 0` noise). AJ-E1520: subagents still running, from the transcript. */
 export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const children = session.child_count ?? 0;
   const subtasks = session.subtask_count ?? 0;

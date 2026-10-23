@@ -381,13 +381,25 @@ fn subagents_are_read_from_spawn_wait_and_close() {
                 SubtaskState::Done
             ),
             ("call_c", "Run the slow suite", None, SubtaskState::Failed),
+            // A close that answered with an error string changes nothing.
             (
                 "call_d",
                 "Write tests for the tail reader",
                 Some("worker"),
                 SubtaskState::Running
             ),
+            // Errored, then closed: it stays failed.
+            (
+                "call_f",
+                "Profile the parser",
+                Some("worker"),
+                SubtaskState::Failed
+            ),
         ]
     );
-    assert_eq!(log.running(), 1);
+    assert_eq!(
+        log.running(),
+        1,
+        "a shell call's output is never a subagent"
+    );
 }

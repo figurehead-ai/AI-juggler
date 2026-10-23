@@ -276,12 +276,12 @@ fn subagents_are_read_from_task_and_agent_calls() {
                 SubtaskState::Failed
             ),
             // Started in the background: this transcript doesn't say when
-            // it ends.
+            // it ends, so it isn't counted as running.
             (
                 "toolu_bg",
                 "Run the slow suite",
                 Some("general-purpose"),
-                SubtaskState::Running
+                SubtaskState::Background
             ),
             // No description: the prompt's first line.
             (
@@ -292,5 +292,5 @@ fn subagents_are_read_from_task_and_agent_calls() {
             ),
         ]
     );
-    assert_eq!(log.running(), 2);
+    assert_eq!(log.running(), 1);
 }

@@ -536,7 +536,7 @@ function InstanceOverview(props: PanelProps) {
             <WorktreeGit sessionId={session.id} live={live} />
             <ParkCard session={session} now={props.now} />
           </div>
-          <SubagentsSection sessionId={session.id} running={session.subtask_count} />
+          <SubagentsSection sessionId={session.id} running={session.subtask_count} live={live} />
           <details className="group text-[11px]" data-testid="instance-details">
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
               Details

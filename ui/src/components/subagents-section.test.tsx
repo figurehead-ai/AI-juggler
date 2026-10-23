@@ -67,7 +67,7 @@ afterEach(() => {
 describe("AJ-E1520 subagents", () => {
   it("lists each subagent with what it was asked and where it stands, behind a disclosure", async () => {
     list.mockResolvedValue(FOUR);
-    render(<SubagentsSection sessionId="s1" running={2} />);
+    render(<SubagentsSection sessionId="s1" running={2} live={false} />);
     const section = await screen.findByTestId("subagents-section");
     expect(section.tagName).toBe("DETAILS");
     expect(section.hasAttribute("open")).toBe(false);
@@ -84,26 +84,26 @@ describe("AJ-E1520 subagents", () => {
 
   it("says a subagent its ended session never saw finish didn't finish", async () => {
     list.mockResolvedValue({ live: false, items: [{ id: "t1", label: "Map the parsers", kind: null, state: "unfinished" }] });
-    render(<SubagentsSection sessionId="s1" running={null} />);
+    render(<SubagentsSection sessionId="s1" running={null} live={false} />);
     expect(await screen.findByText("didn't finish")).toBeTruthy();
-    expect(screen.getByText("1, none running")).toBeTruthy();
+    expect(screen.getByText("1 · none running")).toBeTruthy();
   });
 
   it("shows nothing for a session that started none", async () => {
     list.mockResolvedValue({ live: true, items: [] });
-    const { container } = render(<SubagentsSection sessionId="s1" running={null} />);
+    const { container } = render(<SubagentsSection sessionId="s1" running={null} live={false} />);
     await waitFor(() => expect(list).toHaveBeenCalled());
     expect(container.innerHTML).toBe("");
   });
 
   it("reads the list again when the row's count moves", async () => {
     list.mockResolvedValue(FOUR);
-    const { rerender } = render(<SubagentsSection sessionId="s1" running={2} />);
+    const { rerender } = render(<SubagentsSection sessionId="s1" running={2} live={false} />);
     await screen.findByTestId("subagents-section");
     expect(list).toHaveBeenCalledTimes(1);
     list.mockResolvedValue({ ...FOUR, items: FOUR.items.map((item) => ({ ...item, state: item.state === "running" ? "done" : item.state })) });
-    rerender(<SubagentsSection sessionId="s1" running={0} />);
-    expect(await screen.findByText("4, none running")).toBeTruthy();
+    rerender(<SubagentsSection sessionId="s1" running={0} live={false} />);
+    expect(await screen.findByText("4 · none running")).toBeTruthy();
     expect(list).toHaveBeenCalledTimes(2);
   });
 
@@ -118,6 +118,29 @@ describe("AJ-E1520 subagents", () => {
     for (const none of [0, null]) {
       rerender(<RailRow session={session(none)} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />);
       expect(screen.queryByTestId("rail-subagents")).toBeNull();
+    }
+  });
+
+  it("says a subagent started in the background is in the background", async () => {
+    list.mockResolvedValue({ live: true, items: [{ id: "t1", label: "Run the slow suite", kind: null, state: "background" }] });
+    render(<SubagentsSection sessionId="s1" running={0} live={false} />);
+    expect(await screen.findByText("in the background")).toBeTruthy();
+    expect(screen.getByText("1 · none running")).toBeTruthy();
+  });
+
+  it("reads a live session's list again every 5 s, and stops when it unmounts", async () => {
+    vi.useFakeTimers();
+    try {
+      list.mockResolvedValue(FOUR);
+      const { unmount } = render(<SubagentsSection sessionId="s1" running={2} live={true} />);
+      expect(list).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(list).toHaveBeenCalledTimes(2);
+      unmount();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
     }
   });
 

@@ -209,3 +209,36 @@ fn a_codex_session_is_counted_the_same_way() {
         vec![("Map the parsers".to_owned(), SubtaskStateInfo::Running)]
     );
 }
+
+/// A session that moves to a new transcript (a resume, a `/clear`) is read
+/// from the new file, and a count that drops is reported as a change.
+#[test]
+fn a_new_transcript_path_is_read_afresh_and_its_drop_is_reported() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = seeded_state(dir.path(), None);
+    let first = dir.path().join("first.jsonl");
+    append(&first, &task_call("t1", "Map the parsers"));
+    append(&first, &task_call("t2", "Review errors"));
+    let session = seed_instance(&state, dir.path(), "sess-moved", &first);
+    assert!(subtasks::tick(&state));
+    assert_eq!(count(&state, &session), Some(2));
+
+    let second = dir.path().join("second.jsonl");
+    append(&second, &task_call("t9", "Write tests"));
+    append(&second, &task_answer("t9"));
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&session).unwrap();
+        record.transcript_ref = Some(TranscriptRef {
+            native_id: Some("native-2".into()),
+            path: second.clone(),
+        });
+        storage.sessions().update(&record).unwrap();
+    }
+    assert!(subtasks::tick(&state), "2 running → 0 is a change");
+    assert_eq!(count(&state, &session), Some(0));
+    assert_eq!(
+        states(&state, &session),
+        vec![("Write tests".to_owned(), SubtaskStateInfo::Done)]
+    );
+}

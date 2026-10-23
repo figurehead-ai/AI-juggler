@@ -169,8 +169,8 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
 /// (named Agent in later versions) starts one; the call's `tool_result`
 /// ends it, failed when it's an error. A subagent started in the
 /// background is answered at once (`toolUseResult.status`
-/// `async_launched`): this transcript doesn't say when it ends, so it stays
-/// running.
+/// `async_launched`): this transcript doesn't say when it ends, so it's
+/// marked as in the background, not counted as running.
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
     let content = value.get("message").and_then(|m| m.get("content"));
@@ -224,7 +224,7 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 let state = if failed {
                     SubtaskState::Failed
                 } else if background {
-                    SubtaskState::Running
+                    SubtaskState::Background
                 } else {
                     SubtaskState::Done
                 };

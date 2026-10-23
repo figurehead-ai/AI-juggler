@@ -9,7 +9,7 @@
 //! this module keeps the tool-neutral record, and reads a growing file a
 //! piece at a time, so a tick only reads what was appended.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read as _, Seek as _, SeekFrom};
 use std::path::Path;
 
@@ -27,10 +27,21 @@ const READ_PER_CALL: u64 = 16 * 1024 * 1024;
 pub enum SubtaskState {
     /// Started, and nothing in the transcript says it has ended.
     Running,
+    /// Started in the background: this transcript doesn't say when it
+    /// ends, so it isn't counted as running.
+    Background,
     /// Ended (finished, or closed by the session).
     Done,
     /// Ended with an error, or never started.
     Failed,
+}
+
+impl SubtaskState {
+    /// Done or failed: nothing later changes it.
+    #[must_use]
+    pub fn is_final(self) -> bool {
+        matches!(self, Self::Done | Self::Failed)
+    }
 }
 
 /// One subagent a session started.
@@ -56,6 +67,8 @@ pub struct SubtaskLog {
     agents: HashMap<String, usize>,
     /// A call whose answer ends a named agent (Codex's `close_agent`).
     awaited: HashMap<String, String>,
+    /// A call whose answer says how named agents stand (Codex's `wait`).
+    waits: HashSet<String>,
     /// Decided by the first parsable line.
     format: Option<TranscriptFormat>,
 }
@@ -123,13 +136,42 @@ impl SubtaskLog {
         self.awaited.insert(call.to_owned(), agent.to_owned());
     }
 
+    /// A later call's answer says how named agents stand.
+    pub(crate) fn polls(&mut self, call: &str) {
+        self.waits.insert(call.to_owned());
+    }
+
+    /// Whether a call's answer matters here (it started, ends or reports on
+    /// a subagent); any other call's output needn't be read.
+    pub(crate) fn wants(&self, call: &str) -> bool {
+        self.calls.contains_key(call)
+            || self.awaited.contains_key(call)
+            || self.waits.contains(call)
+    }
+
     /// A call was answered: the subagent it started, or the one it was
     /// waiting on, now stands at `state`.
     pub(crate) fn answered(&mut self, call: &str, state: SubtaskState) {
+        self.waits.remove(call);
         if let Some(&index) = self.calls.get(call) {
             self.set(index, state);
         } else if let Some(agent) = self.awaited.remove(call) {
             self.ended(&agent, state);
+        }
+    }
+
+    /// A wait's answer arrived (what it said is applied by the caller).
+    pub(crate) fn heard(&mut self, call: &str) {
+        self.waits.remove(call);
+    }
+
+    /// A call's answer said nothing usable: a start that named no agent
+    /// failed; a close or a wait changes nothing.
+    pub(crate) fn not_started(&mut self, call: &str) {
+        self.waits.remove(call);
+        self.awaited.remove(call);
+        if let Some(&index) = self.calls.get(call) {
+            self.set(index, SubtaskState::Failed);
         }
     }
 
@@ -140,8 +182,11 @@ impl SubtaskLog {
         }
     }
 
+    /// Done and failed are final: a later close says nothing new.
     fn set(&mut self, index: usize, state: SubtaskState) {
-        if let Some(item) = self.items.get_mut(index) {
+        if let Some(item) = self.items.get_mut(index)
+            && !item.state.is_final()
+        {
             item.state = state;
         }
     }
@@ -163,34 +208,53 @@ pub struct SubtaskTail {
     log: SubtaskLog,
     offset: u64,
     partial: Vec<u8>,
+    /// The file read so far (inode), to tell a replaced file.
+    file: Option<u64>,
 }
 
 impl SubtaskTail {
     /// Reads what was appended to `path` (at most 16 MiB a call). A file
-    /// that got shorter was replaced: it's read again from the start.
+    /// that was replaced (another file, or a shorter one) is read again
+    /// from the start. Returns whether anything was read.
     ///
     /// # Errors
     ///
     /// The file can't be opened or read.
-    pub fn read(&mut self, path: &Path) -> std::io::Result<()> {
+    pub fn read(&mut self, path: &Path) -> std::io::Result<bool> {
         let mut file = std::fs::File::open(path)?;
-        let len = file.metadata()?.len();
-        if len < self.offset {
+        let metadata = file.metadata()?;
+        let identity = file_identity(&metadata);
+        if metadata.len() < self.offset || (self.file.is_some() && self.file != identity) {
             *self = Self::default();
         }
-        if len == self.offset {
-            return Ok(());
+        self.file = identity;
+        if metadata.len() == self.offset {
+            return Ok(false);
         }
         file.seek(SeekFrom::Start(self.offset))?;
         let mut chunk = Vec::new();
         file.take(READ_PER_CALL).read_to_end(&mut chunk)?;
         self.offset += chunk.len() as u64;
+        // Only the new bytes are searched for a line's end.
+        let line_end = chunk.iter().rposition(|b| *b == b'\n');
+        let kept = self.partial.len();
         self.partial.extend_from_slice(&chunk);
-        if let Some(end) = self.partial.iter().rposition(|b| *b == b'\n') {
-            let rest = self.partial.split_off(end + 1);
+        if let Some(end) = line_end {
+            let rest = self.partial.split_off(kept + end + 1);
             let whole = std::mem::replace(&mut self.partial, rest);
             self.log.feed(&whole);
         }
+        Ok(!chunk.is_empty())
+    }
+
+    /// Reads all of `path`, 16 MiB at a time (memory stays bounded by what
+    /// the log keeps, not by the file's size).
+    ///
+    /// # Errors
+    ///
+    /// As [`SubtaskTail::read`].
+    pub fn read_all(&mut self, path: &Path) -> std::io::Result<()> {
+        while self.read(path)? {}
         Ok(())
     }
 
@@ -199,6 +263,18 @@ impl SubtaskTail {
     pub fn log(&self) -> &SubtaskLog {
         &self.log
     }
+}
+
+/// A file's identity, to tell it from another at the same path.
+#[cfg(unix)]
+fn file_identity(metadata: &std::fs::Metadata) -> Option<u64> {
+    use std::os::unix::fs::MetadataExt as _;
+    Some(metadata.ino())
+}
+
+#[cfg(not(unix))]
+fn file_identity(_metadata: &std::fs::Metadata) -> Option<u64> {
+    None
 }
 
 /// The first line of a task, cut to [`LABEL_CHARS`].
@@ -254,6 +330,60 @@ mod tests {
         reader.read(&path).unwrap();
         assert_eq!(reader.log().subtasks().len(), 1);
         assert_eq!(reader.log().running(), 1);
+    }
+
+    #[test]
+    fn a_file_replaced_by_one_as_long_is_read_from_its_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        std::fs::write(&path, format!("{CLAUDE_START}\n{CLAUDE_DONE}\n")).unwrap();
+        let mut reader = SubtaskTail::default();
+        reader.read(&path).unwrap();
+        assert_eq!(reader.log().running(), 0);
+        // Another file of the same length, moved into place: the start
+        // only, padded.
+        let other = dir.path().join("other.jsonl");
+        let mut body = format!("{CLAUDE_START}\n");
+        let pad = std::fs::metadata(&path).unwrap().len() as usize - body.len() - 1;
+        body.push_str(&" ".repeat(pad));
+        body.push('\n');
+        std::fs::write(&other, body).unwrap();
+        std::fs::rename(&other, &path).unwrap();
+        reader.read(&path).unwrap();
+        assert_eq!(reader.log().subtasks().len(), 1);
+        assert_eq!(
+            reader.log().running(),
+            1,
+            "read from the start, not the old offset"
+        );
+    }
+
+    #[test]
+    fn read_all_takes_a_whole_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.jsonl");
+        std::fs::write(&path, format!("{CLAUDE_START}\n{CLAUDE_DONE}\n")).unwrap();
+        let mut reader = SubtaskTail::default();
+        reader.read_all(&path).unwrap();
+        assert_eq!(reader.log().subtasks()[0].state, SubtaskState::Done);
+    }
+
+    #[test]
+    fn done_and_failed_are_final() {
+        let mut log = super::SubtaskLog::default();
+        log.started("c1", "one", None);
+        log.named("c1", "a1");
+        log.ended("a1", SubtaskState::Failed);
+        log.ended("a1", SubtaskState::Done);
+        log.ended("a1", SubtaskState::Running);
+        assert_eq!(log.subtasks()[0].state, SubtaskState::Failed);
+        // A close or a wait with nothing usable changes nothing.
+        log.started("c2", "two", None);
+        log.named("c2", "a2");
+        log.awaits("x2", "a2");
+        log.not_started("x2");
+        assert_eq!(log.subtasks()[1].state, SubtaskState::Running);
+        assert!(!log.wants("x2"));
     }
 
     #[test]

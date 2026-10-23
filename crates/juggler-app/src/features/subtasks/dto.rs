@@ -36,6 +36,8 @@ pub struct SubtaskInfo {
 pub enum SubtaskStateInfo {
     /// Still working.
     Running,
+    /// Started in the background; the transcript doesn't say when it ends.
+    Background,
     /// Finished, or closed by its session.
     Done,
     /// Ended with an error, or never started.
@@ -57,6 +59,7 @@ impl SubtasksInfo {
                 state: match (item.state, live) {
                     (SubtaskState::Running, true) => SubtaskStateInfo::Running,
                     (SubtaskState::Running, false) => SubtaskStateInfo::Unfinished,
+                    (SubtaskState::Background, _) => SubtaskStateInfo::Background,
                     (SubtaskState::Done, _) => SubtaskStateInfo::Done,
                     (SubtaskState::Failed, _) => SubtaskStateInfo::Failed,
                 },
