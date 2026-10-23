@@ -3152,6 +3152,26 @@ mod exit_after_output_tests {
         assert!(output.contains("last line"), "printed {output:?}");
     }
 
+    /// Nothing of the supervisor's keeps a child's output open: with no
+    /// helper, the readers end with the process and the exit never waits
+    /// out the bound (a stray fd would make every exit take all of it).
+    /// Here both paths take about 5–10 ms, the same as without the wait.
+    #[test]
+    fn an_exit_without_a_helper_never_waits_out_the_bound() {
+        for needs_pty in [false, true] {
+            for n in 0..3 {
+                let id = format!("s-prompt-{needs_pty}-{n}");
+                let (kind, output, took) = run(&id, "printf 'x\\n'; exit 0", needs_pty, false);
+                assert_eq!(kind, ExitKind::Code(0));
+                assert!(output.contains('x'), "printed {output:?}");
+                assert!(
+                    took < EXIT_OUTPUT_DRAIN,
+                    "{id}: the exit took {took:?}, the whole drain bound"
+                );
+            }
+        }
+    }
+
     /// The app's lifecycle forwarder classifies a non-zero exit with this
     /// engine, from the ring's tail, when `Exited` arrives.
     #[test]
