@@ -18,7 +18,8 @@
 //! given. Then it calls the commands the UI calls: projects (after the
 //! history backfill), the session list, quota displays, cost rollups after
 //! usage ingest passes, and This Mac over about a minute of the app's
-//! process ticks (with `ps` pid/ppid/rss/cpu/elapsed/name at each read). It never
+//! process ticks (with `ps` pid/ppid/rss/cpu/elapsed/name, and `vm_stat` with
+//! the pressure level, swap and physical memory, at each read). It never
 //! launches, signs in or writes into a setup. The output holds real paths
 //! and labels: keep it out of the repository; the compare step redacts.
 
@@ -124,7 +125,35 @@ fn real_setup_read_models() {
         serde_json::to_value(&projects_before).unwrap(),
     );
     report.insert("projects_backfilled".into(), backfilled.into());
+    // AJ-E1529: the accounts as the UI reads them (the replica fixture).
+    report.insert(
+        "accounts_info".into(),
+        serde_json::to_value(commands::accounts_info(&state).unwrap()).unwrap(),
+    );
+    // AJ-E1529: every account's conversations, and which are live.
+    juggler_app::features::conversations::tick(&state).unwrap();
+    report.insert(
+        "conversations".into(),
+        serde_json::to_value(
+            juggler_app::features::conversations::commands::list_impl(&state).unwrap(),
+        )
+        .unwrap(),
+    );
     report.insert("projects".into(), serde_json::to_value(&projects).unwrap());
+    // AJ-E1532: each project's own icon, as the UI reads it — only when the
+    // replica fixture asks (`just replica-fixture`); a pass over real data
+    // records none.
+    if std::env::var_os("AIJ_QA_ICONS").is_some() {
+        let icons: serde_json::Map<String, serde_json::Value> = projects
+            .iter()
+            .filter_map(|p| {
+                let url = juggler_app::features::projects::icon::icon_read_impl(&state, &p.id)
+                    .unwrap()?;
+                Some((p.id.clone(), url.into()))
+            })
+            .collect();
+        report.insert("project_icons".into(), icons.into());
+    }
 
     let app = tauri::test::mock_builder()
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
@@ -134,6 +163,14 @@ fn real_setup_read_models() {
     report.insert(
         "sessions".into(),
         serde_json::to_value(commands::sessions_list(managed.clone()).unwrap()).unwrap(),
+    );
+    // The launch settings each import made ("Main"), as the UI lists them.
+    report.insert(
+        "launch_recipes".into(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::profiles_list(managed.clone())).unwrap(),
+        )
+        .unwrap(),
     );
 
     // Usage: the pipeline's passes (spool, transcripts, rollouts), then
@@ -168,8 +205,9 @@ fn real_setup_read_models() {
     // machine tick) for about a minute, read as the UI polls it, with
     // every alert the notifications would have shown. A fresh store has
     // no ledger rows, so the tick's cleanup sweep has nothing to act on.
-    // `ps` (pid, ppid, rss, cpu; no arguments) is taken right after each
-    // read, for the compare step.
+    // `ps` (pid, ppid, rss, cpu, elapsed, the command's file name; no
+    // arguments) and `vm_stat` (with the pressure level, swap and physical
+    // memory) are taken right after each read, for the compare step.
     let mut alerts = Vec::new();
     let mut panels = Vec::new();
     for n in 0..36 {
@@ -204,6 +242,20 @@ fn real_setup_read_models() {
                 })
                 .collect::<Vec<_>>()
                 .into();
+            // macOS's own memory figures, as numbers only.
+            let run = |cmd: &str, args: &[&str]| {
+                std::process::Command::new(cmd)
+                    .args(args)
+                    .output()
+                    .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+                    .unwrap_or_default()
+            };
+            panel["qa_vm"] = serde_json::json!({
+                "vm_stat": run("vm_stat", &[]),
+                "pressure_level": run("sysctl", &["-n", "kern.memorystatus_vm_pressure_level"]),
+                "swapusage": run("sysctl", &["-n", "vm.swapusage"]),
+                "memsize": run("sysctl", &["-n", "hw.memsize"]),
+            });
             panels.push(panel);
         }
         alerts.extend(
