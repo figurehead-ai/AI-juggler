@@ -283,3 +283,39 @@ fn turning_it_off_leaves_no_index_behind() {
     assert!(!outside_search::pass(&lab.state, Duration::from_secs(5)).unwrap());
     assert!(index_files(&lab.data).is_empty());
 }
+
+/// E1529's first pass is as fast with this on: the builder does nothing
+/// until the conversations index has read the tools' files (and skips
+/// any round while a pass is reading).
+#[test]
+fn nothing_is_built_before_the_first_conversations_pass() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let cwd = root.join("Dev/shop");
+    std::fs::create_dir_all(cwd.join(".git")).unwrap();
+    let config = root.join("claude");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    transcript(&config, &cwd, "conv-1", &["Fix the stripe webhook retry"]);
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    commands::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        commands::ImportRequest {
+            in_place: true,
+            ..commands::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    outside_search::set_impl(&state, true).unwrap();
+    // The conversations index hasn't read anything yet: no work done.
+    assert!(!outside_search::pass(&state, Duration::from_secs(5)).unwrap());
+    assert_eq!(outside_search::status_impl(&state).unwrap().indexed, 0);
+    juggler_app::features::conversations::tick(&state).unwrap();
+    build(&state);
+    assert_eq!(outside_search::status_impl(&state).unwrap().indexed, 1);
+}

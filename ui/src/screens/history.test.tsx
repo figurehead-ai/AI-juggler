@@ -250,3 +250,17 @@ describe("AJ-E1007 retention", () => {
     expect(calls()).toContain("retention-apply:acc:dry-1");
   });
 });
+
+describe("AJ-E1538 History searches every session's words when that's on", () => {
+  it("finds an outside session by what was said in it, with the words around it", async () => {
+    w().__AIJ_TRANSCRIPT_HITS__ = [
+      { session_id: null, account_id: "acc2", conversation_id: "c1", snippet: "…now the refund path for annual plans…" },
+    ];
+    const sessions = [row("s1", "finished", { title: "Fix the invoice export" })];
+    const { container } = render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />, [outsideOne("c1")]));
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1", "s/s1"]));
+    fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "refund" } });
+    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
+    expect(container.querySelector("[data-testid='history-snippet']")!.textContent).toContain("refund path");
+  });
+});
