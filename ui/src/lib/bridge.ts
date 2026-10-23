@@ -2255,6 +2255,18 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   redaction_items: [],
 };
 
+/** AJ-E206 §5: the switch screen counts the door it shows (local
+ * diagnostics); the preflight itself only reads. The preview records it
+ * in `__AIJ_DOOR_COUNTS__`. */
+export async function switchDoorCount(door: string, steps: string[]): Promise<void> {
+  if (!hasBackend) {
+    const w = window as unknown as { __AIJ_DOOR_COUNTS__?: Array<{ door: string; steps: string[] }> };
+    (w.__AIJ_DOOR_COUNTS__ ??= []).push({ door, steps });
+    return;
+  }
+  await invoke<void>("switch_door_count", { door, steps });
+}
+
 /** AJ-E205: preflight — ordered checks stop BEFORE any byte moves;
  * warnings render in the freeze dialog. */
 export async function switchPreflight(

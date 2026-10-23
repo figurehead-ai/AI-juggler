@@ -5334,7 +5334,7 @@ pub fn switch_preflight_impl(
         rules_diverged: false,
     };
     let (door, wizard_steps, wizard_reasons) =
-        door_verdict(state, &door_inputs, &carry, report.pair.label);
+        door_verdict(&door_inputs, &carry, report.pair.label);
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
@@ -5428,18 +5428,16 @@ fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Optio
     }
 }
 
-/// AJ-E206 §8: chooses the door from the preflight facts and counts
-/// the choice (local telemetry). Returns the wire name, the wizard
-/// step titles (empty for 1-click — never phantom steps), and the
-/// wizard's opening lines.
+/// AJ-E206 §8: chooses the door from the preflight facts. Returns the
+/// wire name, the wizard step titles (empty for 1-click — never phantom
+/// steps), and the wizard's opening lines. Counting the door is the
+/// switch screen's ([`switch_door_count`]): the preflight only reads.
 fn door_verdict(
-    state: &Arc<AppState>,
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
     label: juggler_handover::fidelity::FidelityLabel,
 ) -> (String, Vec<String>, Vec<String>) {
     let door = juggler_handover::door::choose_door(inputs);
-    record_door_counter(state, &door);
     match &door {
         juggler_handover::door::Door::OneClick => ("one-click".to_owned(), Vec::new(), Vec::new()),
         juggler_handover::door::Door::Wizard { steps } => (
@@ -5563,9 +5561,47 @@ fn wizard_reasons_of(
     reasons
 }
 
-/// AJ-E206 §5 telemetry: count the door the preflight chose — local
-/// KV diagnostics only (never networked); a failed read or write
-/// never blocks the switch.
+/// AJ-E206 §5 telemetry: the switch screen counts the door it shows,
+/// from the preflight's own answer (`door`, and `steps` for a wizard).
+/// Local KV diagnostics only, never networked. Anything that isn't a
+/// door the preflight can choose is refused.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+#[tauri::command]
+pub async fn switch_door_count(
+    state: tauri::State<'_, Arc<AppState>>,
+    door: String,
+    steps: Vec<String>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "count the switch screen", move |state| {
+        switch_door_count_impl(state, &door, &steps)
+    })
+    .await
+}
+
+/// [`switch_door_count`]'s work, for tests.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+pub fn switch_door_count_impl(
+    state: &Arc<AppState>,
+    door: &str,
+    steps: &[String],
+) -> AppResult<()> {
+    let door =
+        juggler_handover::door::Door::from_wire(door, steps).ok_or(AppError::Validation {
+            subject: "door",
+            message: "That isn't a switch screen.".to_owned(),
+        })?;
+    record_door_counter(state, &door);
+    Ok(())
+}
+
+/// Counts `door` in the local KV: a failed read or write never blocks
+/// the switch.
 fn record_door_counter(state: &Arc<AppState>, door: &juggler_handover::door::Door) {
     let Ok(storage) = lock_storage_arc(state) else {
         return;
