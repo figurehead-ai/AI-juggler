@@ -3,6 +3,7 @@
     "pair": "claude-code→claude-code",
     "score": 0.9500000000000002,
     "label": "F1",
+    "described": "F3",
     "caps": [
       {
         "cap": "f4-requires-same-account-native-resume",
@@ -60,6 +61,7 @@
     "pair": "codex→codex",
     "score": 0.9000000000000001,
     "label": "F1",
+    "described": "F3",
     "caps": [
       {
         "cap": "unvalidated-pair",
@@ -113,6 +115,7 @@
     "pair": "zcode→zcode",
     "score": 0.5499999999999999,
     "label": "F0",
+    "described": "F0",
     "caps": [
       {
         "cap": "zcode-target",
@@ -166,6 +169,7 @@
     "pair": "claude-code→codex",
     "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -214,6 +218,7 @@
     "pair": "codex→claude-code",
     "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -262,6 +267,7 @@
     "pair": "claude-code→zcode",
     "score": 0.77,
     "label": "F0",
+    "described": "F0",
     "caps": [
       {
         "cap": "unvalidated-pair",
@@ -319,6 +325,7 @@
     "pair": "zcode→claude-code",
     "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -367,6 +374,7 @@
     "pair": "codex→zcode",
     "score": 0.75,
     "label": "F0",
+    "described": "F0",
     "caps": [
       {
         "cap": "unvalidated-pair",
@@ -424,6 +432,7 @@
     "pair": "zcode→codex",
     "score": 0.72,
     "label": "F1",
+    "described": "F1",
     "caps": [],
     "carry_list": [
       {
@@ -472,6 +481,7 @@
     "pair": "claude-code→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {
@@ -520,6 +530,7 @@
     "pair": "codex→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {
@@ -568,6 +579,7 @@
     "pair": "zcode→gemini",
     "score": 0.27,
     "label": "F0",
+    "described": "F0",
     "caps": [],
     "carry_list": [
       {

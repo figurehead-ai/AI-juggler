@@ -518,7 +518,7 @@ export function SwitchFlow({
                       className="rounded border border-warning/40 px-2 py-1 text-warning"
                       data-testid="switch-carry-dropped"
                     >
-                      Not carried (stays on the source): {phase.preflight.carry.dropped.join(", ")}
+                      Doesn't carry: {phase.preflight.carry.dropped.join(", ")}
                     </p>
                   )}
                 </div>
