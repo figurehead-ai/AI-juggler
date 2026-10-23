@@ -21,6 +21,7 @@ pub mod model;
 pub mod quality;
 pub mod quota;
 pub mod quota_forecast;
+pub mod quota_runway;
 pub mod ranking;
 pub mod recommendation;
 pub mod renewal;

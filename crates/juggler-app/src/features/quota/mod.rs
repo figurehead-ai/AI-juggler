@@ -45,6 +45,61 @@ pub struct WindowDisplay {
     /// known — the admission verdict's input (AJ-E306); unknown
     /// stays None, never a fabricated number.
     pub headroom_tokens: Option<f64>,
+    /// AJ-E1512: sessions left and the burn-down, from the vendor's own
+    /// readings of this window and the account's typical session. Absent
+    /// without a Measured reading of a window that hasn't reset.
+    pub runway: Option<RunwayDisplay>,
+}
+
+/// AJ-E1512: a window's runway on the wire (`juggler_core::quota_runway`).
+#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+pub struct RunwayDisplay {
+    /// The window's readings so far, oldest first: `[epoch ms, percent used]`.
+    pub series: Vec<(i64, f64)>,
+    /// When the window began.
+    pub starts_ms: i64,
+    /// When it resets.
+    pub resets_at_ms: i64,
+    /// Percent used now.
+    pub used_pct: f64,
+    /// The recent pace, percent of the window per hour.
+    pub pct_per_hour: Option<f64>,
+    /// When it runs out at that pace, only when before the reset.
+    pub exhausts_at_ms: Option<i64>,
+    /// A typical session's cost, percent of the window.
+    pub session_pct: Option<f64>,
+    /// Typical sessions left in the window.
+    pub sessions_left: Option<u32>,
+    /// The past sessions the typical one is the median of.
+    pub sessions_counted: usize,
+    /// `measured|computed|estimated`, the lowest of what went in.
+    pub badge: String,
+}
+
+fn runway_display(
+    samples: &[juggler_core::quota::QuotaSample],
+    events: &[juggler_core::quota::UsageEvent],
+    kind: juggler_core::quota::WindowKind,
+    now_ms: i64,
+) -> Option<RunwayDisplay> {
+    juggler_core::quota_runway::runway(samples, events, kind.width_ms(), now_ms).map(|runway| {
+        RunwayDisplay {
+            series: runway
+                .series
+                .iter()
+                .map(|point| (point.at_ms, point.used_pct))
+                .collect(),
+            starts_ms: runway.starts_ms,
+            resets_at_ms: runway.resets_at_ms,
+            used_pct: runway.used_pct,
+            pct_per_hour: runway.pct_per_hour,
+            exhausts_at_ms: runway.exhausts_at_ms,
+            session_pct: runway.session_pct,
+            sessions_left: runway.sessions_left,
+            sessions_counted: runway.sessions_counted,
+            badge: confidence_name(runway.confidence).to_owned(),
+        }
+    })
 }
 
 /// A window's state on the wire. Tracking or stale with no percentage
@@ -240,7 +295,18 @@ pub fn quota_display_inner(
     let stale_note_ms =
         last_measured.filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
 
-    let window_display = |reading: &quota::WindowReading, cap: QuotaCap| WindowDisplay {
+    let runway_five_hour =
+        runway_display(&samples_five_hour, &events, WindowKind::FiveHour, now_ms);
+    let runway_weekly = runway_display(
+        &samples_weekly,
+        &events,
+        WindowKind::Weekly { anchor_ms: anchor },
+        now_ms,
+    );
+    let window_display = |reading: &quota::WindowReading,
+                          cap: QuotaCap,
+                          runway: &Option<RunwayDisplay>| WindowDisplay {
+        runway: runway.clone(),
         state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
         badge: reading
@@ -397,13 +463,19 @@ pub fn quota_display_inner(
                 }
             };
             (
-                five_reported
-                    .then(|| window_display(&evaluation.five_hour, cap(WindowKind::FiveHour))),
+                five_reported.then(|| {
+                    window_display(
+                        &evaluation.five_hour,
+                        cap(WindowKind::FiveHour),
+                        &runway_five_hour,
+                    )
+                }),
                 (!five_reported).then(|| reason("five-hour")),
                 weekly_reported.then(|| {
                     window_display(
                         &evaluation.weekly,
                         cap(WindowKind::Weekly { anchor_ms: anchor }),
+                        &runway_weekly,
                     )
                 }),
                 (!weekly_reported).then(|| reason("weekly")),
@@ -413,11 +485,13 @@ pub fn quota_display_inner(
             Some(window_display(
                 &evaluation.five_hour,
                 cap(WindowKind::FiveHour),
+                &runway_five_hour,
             )),
             None,
             Some(window_display(
                 &evaluation.weekly,
                 cap(WindowKind::Weekly { anchor_ms: anchor }),
+                &runway_weekly,
             )),
             None,
         ),
