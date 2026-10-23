@@ -103,6 +103,8 @@ pub struct AppState {
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
+    /// AJ-E1538: the opt-in index of outside sessions' words, while on.
+    pub outside_search: crate::features::outside_search::OutsideSearch,
     /// AJ-E1532: the icon each project's mark uses, as the project list
     /// last found it: the only files `projects_icon_read` reads.
     pub project_icons: std::sync::Mutex<std::collections::HashMap<String, PathBuf>>,
@@ -300,6 +302,7 @@ impl AppState {
             provider_versions: Mutex::new(std::collections::HashMap::new()),
             switching: Mutex::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
+            outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),

@@ -152,6 +152,12 @@ pub struct ConversationIndex {
 }
 
 impl ConversationIndex {
+    /// A pass is reading the tools' files now (AJ-E1538's builder waits).
+    #[must_use]
+    pub fn is_reading(&self) -> bool {
+        self.pass.try_lock().is_err()
+    }
+
     /// Every conversation now in the index, one per account and id,
     /// newest activity first.
     ///
