@@ -790,6 +790,7 @@ fn group_members(pgid: u32) -> Vec<(u32, String)> {
         .collect()
 }
 
+#[cfg(target_os = "macos")]
 fn wait_for(what: &str, limit: Duration, mut done: impl FnMut() -> bool) {
     let until = Instant::now() + limit;
     while !done() {
@@ -865,6 +866,7 @@ fn killed_outright_ai_juggler_comes_back_by_itself() {
 }
 
 /// Kills one process, not its group.
+#[cfg(target_os = "macos")]
 fn kill_pid(pid: u32) {
     let _ = Command::new("kill")
         .args(["-s", "KILL", &pid.to_string()])
