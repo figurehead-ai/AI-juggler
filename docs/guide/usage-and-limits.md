@@ -50,3 +50,23 @@ file since, it removes only AI Juggler's part.
 
 Because a limit belongs to the account, one session started in AI Juggler
 also measures it for every other session on that account.
+
+## How long a limit will last
+
+Each account's card on the **Usage** page shows, for its 5-hour window and
+its week:
+
+- **Sessions left:** for example "About 6 usual sessions left (each about
+  10%)". A usual session is the median of your past sessions on that
+  account, so it appears after a few of them. Until then it says when it
+  will show.
+- **A burn-down chart:** what's been used so far, a dashed line for where
+  the current pace leads, and the reset at the right edge. The projection
+  turns amber, and ends at a "runs out" line, when the limit would run out
+  before the reset.
+- **A line under the chart:** "At this pace it runs out about 3:40 PM,
+  before the reset at 5:00 PM", or "At this pace it lasts past the reset".
+
+These are worked out from the tool's own readings of the window and from
+your past sessions, never guessed. With too little to go on, the card says
+so instead of showing a number.

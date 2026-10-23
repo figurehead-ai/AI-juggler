@@ -570,7 +570,7 @@ export default function App() {
   });
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
-  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =

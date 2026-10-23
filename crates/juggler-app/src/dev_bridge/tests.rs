@@ -600,3 +600,43 @@ fn over_the_wire_refresh_events_stream_behind_the_token() {
     );
     assert!(!seen.contains("secret"), "{seen}");
 }
+
+/// A secret's masked preview never leaves the bridge: the switch check's
+/// reply keeps each item's kind and count, and every preview, however
+/// deep, becomes the mask. Other replies pass as they are.
+#[test]
+fn the_switch_checks_secret_previews_never_leave() {
+    let body = serde_json::json!({
+        "door": "wizard",
+        "redaction_items": [
+            { "kind": "api_key", "preview": "s•••9f2a" },
+            { "kind": "token", "preview": "g•••0b1c" }
+        ],
+        "nested": { "items": [{ "preview": "x•••1234" }] }
+    });
+    let reply = super::routes::masked(
+        "switch_preflight",
+        super::routes::Reply {
+            status: hyper::StatusCode::OK,
+            body: serde_json::to_vec(&body).unwrap(),
+        },
+    );
+    let text = String::from_utf8(reply.body).unwrap();
+    for leaked in ["9f2a", "0b1c", "1234", "s•••", "g•••"] {
+        assert!(!text.contains(leaked), "{leaked} left the bridge: {text}");
+    }
+    let out: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(out["redaction_items"].as_array().unwrap().len(), 2);
+    assert_eq!(out["redaction_items"][0]["kind"], "api_key");
+    assert_eq!(out["redaction_items"][1]["preview"], "•••");
+    assert_eq!(out["door"], "wizard");
+
+    let other = super::routes::masked(
+        "switch_targets",
+        super::routes::Reply {
+            status: hyper::StatusCode::OK,
+            body: b"{\"preview\":\"kept\"}".to_vec(),
+        },
+    );
+    assert_eq!(other.body, b"{\"preview\":\"kept\"}".to_vec());
+}

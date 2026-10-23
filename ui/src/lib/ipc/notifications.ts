@@ -24,6 +24,8 @@ export const NOTIFY_DEFAULT: SystemNotificationsInfo = {
 export interface OpenRequest {
   session_id: string | null;
   page: "this_mac" | null;
+  /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
+  machine_id?: string | null;
 }
 
 /** The preview's stand-in for a click. */

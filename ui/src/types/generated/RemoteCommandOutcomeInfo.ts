@@ -15,4 +15,8 @@ reason_code: string | null,
 /**
  * Plain words for the UI.
  */
-message: string, };
+message: string, 
+/**
+ * AJ-E1515: the session a launch started there, to follow.
+ */
+started_instance_id?: string, };

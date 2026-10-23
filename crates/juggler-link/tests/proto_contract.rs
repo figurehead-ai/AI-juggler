@@ -111,6 +111,45 @@ fn no_field_can_carry_a_secret_or_a_transcript() {
     }
 }
 
+/// AJ-E1515 (the Privacy page's Fleet line): what a paired Mac adds for
+/// starting sessions and usage by machine is numbers and an id — exactly
+/// these fields, these types. A new field in them fails here until it's
+/// listed, and named on the Privacy page if it says more.
+#[test]
+fn what_starting_there_and_usage_by_machine_send_is_numbers_and_an_id() {
+    let allowed = [
+        "juggler.link.v1.CatalogDelta.last_day = 4:Message .juggler.link.v1.UsageTotals",
+        "juggler.link.v1.CommandResult.started_instance_id = 5:String",
+        "juggler.link.v1.UsageTotals.sessions = 3:Uint32",
+        "juggler.link.v1.UsageTotals.since_ms = 4:Int64",
+        "juggler.link.v1.UsageTotals.usd_est = 2:Double",
+        "juggler.link.v1.UsageTotals.used_units = 1:Uint64",
+    ];
+    let current = current_fields();
+    let added: Vec<&String> = current
+        .iter()
+        .filter(|line| {
+            line.starts_with("juggler.link.v1.UsageTotals.")
+                || line.starts_with("juggler.link.v1.CommandResult.started_instance_id ")
+                || line.starts_with("juggler.link.v1.CatalogDelta.last_day ")
+        })
+        .collect();
+    assert_eq!(added, allowed.iter().collect::<Vec<_>>());
+    // Totals are numbers; the started session is an id (the node's own
+    // session id, which its telemetry already carries).
+    for line in &added {
+        assert!(
+            line.ends_with(":Uint32")
+                || line.ends_with(":Int64")
+                || line.ends_with(":Double")
+                || line.ends_with(":Uint64")
+                || line.ends_with("_instance_id = 5:String")
+                || line.ends_with(".UsageTotals"),
+            "{line}"
+        );
+    }
+}
+
 #[test]
 fn random_and_mutated_frames_never_panic_the_decoder() {
     // A deterministic xorshift so failures reproduce.

@@ -78,6 +78,24 @@ pub trait PeerDirectory: Send + Sync + 'static {
     fn hello_accepted(&self, _key: &[u8; 32], _machine_id: &str) {}
 }
 
+/// What a command the node's handler ran came to.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct CommandDone {
+    /// Plain words for the console.
+    pub message: String,
+    /// AJ-E1515: the session a launch started.
+    pub started_instance_id: Option<String>,
+}
+
+impl From<String> for CommandDone {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            started_instance_id: None,
+        }
+    }
+}
+
 /// Why the node's handler refused a command.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CommandRejection {
@@ -155,7 +173,7 @@ pub trait NodeHandler: Send + Sync + 'static {
         &self,
         peer: &PeerAccess,
         action: &proto::control_command::Action,
-    ) -> Result<String, CommandRejection>;
+    ) -> Result<CommandDone, CommandRejection>;
     /// AJ-E706: takes work a console pushed (`TakeHandover` or
     /// `SwitchBack`), after every command check passed and the bundle's
     /// sha256 matched. Runs on a blocking thread; the default refuses.
@@ -492,6 +510,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
             outcome: "rejected".to_owned(),
             reason_code: code.to_owned(),
             message: message.to_owned(),
+            started_instance_id: None,
         };
         let (access, session) = match self.authorize(conn) {
             Ok(pair) => pair,
@@ -589,6 +608,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                 outcome: "rejected".to_owned(),
                 reason_code: code.to_owned(),
                 message: message.to_owned(),
+                started_instance_id: None,
             }
         };
         let Some(action) = &command.action else {
@@ -602,7 +622,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
             return fail("malformed", "Handovers go through the Handover call.");
         }
         match self.handler.execute(&access, action) {
-            Ok(message) => {
+            Ok(done) => {
                 self.handler.audit(LinkAuditEvent {
                     peer: access.machine_id.clone(),
                     kind: "command_accepted".to_owned(),
@@ -614,7 +634,8 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                     sequence,
                     outcome: "accepted".to_owned(),
                     reason_code: String::new(),
-                    message,
+                    message: done.message,
+                    started_instance_id: done.started_instance_id,
                 }
             }
             Err(rejection) => fail(&rejection.reason_code, &rejection.message),
@@ -785,6 +806,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                         outcome: "accepted".to_owned(),
                         reason_code: String::new(),
                         message: accepted.message,
+                        started_instance_id: None,
                     }),
                     instance_id: accepted.instance_id,
                     divergence: None,
@@ -815,6 +837,7 @@ fn refused(sequence: u64, code: &str, message: &str) -> proto::HandoverProgress 
             outcome: "rejected".to_owned(),
             reason_code: code.to_owned(),
             message: message.to_owned(),
+            started_instance_id: None,
         }),
         ..proto::HandoverProgress::default()
     }

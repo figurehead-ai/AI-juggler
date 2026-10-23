@@ -81,7 +81,7 @@ impl NodeHandler for Handler {
         &self,
         _peer: &PeerAccess,
         _action: &proto::control_command::Action,
-    ) -> Result<String, CommandRejection> {
+    ) -> Result<juggler_link::node::CommandDone, CommandRejection> {
         Err(CommandRejection {
             reason_code: "unknown_record".into(),
             message: "none".into(),

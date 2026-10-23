@@ -1,6 +1,6 @@
 # Evidence manifest — AJ-E1540
 
-Task: `docs/tasks/E15-spec-gaps.md` AJ-E1540 (same-tool switches done right). Status: **IN-PROGRESS**. 2026-10-22, claude-opus.
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1540 (same-tool switches done right). Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). 2026-10-23, claude-opus.
 
 ## Done
 
@@ -22,7 +22,14 @@ Live: the register's claude→claude transcript-resume, todos and mcp-references
 - **No usage pass mid-switch.** Between the install and the launch record, a back-and-forth's copy was still keyed by the source's id. A pass in that gap dropped the target's own history, and kept that for good because offsets are saved. No pass runs while a switch holds its slot (`usage_carried` `no_pass_reads_a_copy_while_its_switch_runs`, which fails without the guard).
 - **Bundles from a paired Mac.** A bundle can't bring another conversation in beside the transcript (`claude_handover` `a_bundle_cant_bring_in_another_conversation`).
 
-## Left
+## Live (labs 9–11, 2026-10-23)
 
-- **Codex → Codex live (Req.4, the gate).** The lab needs a second signed-in Codex home; this Mac has only `~/.codex`, and signing in another is the maintainer's to do. Then a Codex→Codex hop goes into the journey.
-- **The other claude→claude cells: decided live (labs 9 and 10, 2026-10-23).** Rules, subagents, the folder and worktree edges and switch-back are PASS: B quoted the rule only `CLAUDE.md` states, the session's `subagents/` folder travelled, B continued inside a git worktree (its change landed there, not in the root), and switching straight back gave A what B had only said (`docs/qa/evidence/AJ-E1539/manifest.md`). File history stays UNVALIDATED live: the lab's first turn is headless and leaves none to carry (it travels whole in the adapter's test).
+- **Codex → Codex (Req.4, the gate): PASS (lab 11).** A task begun in the Mac's Codex home was switched to a second signed-in Codex home (the maintainer's, for the lab): the rollout was installed there and resumed by id in that `CODEX_HOME`, and Codex answered with the codename and the open plan item only the conversation held. No `auth.json` was copied, moved or changed. Cells: codex→codex transcript-resume and todos PASS.
+- **Claude → Claude: PASS (labs 9–11).** Rules, subagents, the folder and worktree edges and switch-back: B quoted the rule only `CLAUDE.md` states, the session's `subagents/` folder travelled, B continued inside a git worktree (its change landed there, not in the root), and switching straight back gave A what B had only said; transcript, todos and MCP from labs 5–8.
+
+All in `docs/qa/evidence/AJ-E1539/manifest.md`, rendered in `docs/qa/evidence/AJ-E808/register.md`.
+
+## Not covered live
+
+- **File history (claude→claude).** The lab's first turn is headless and leaves none to carry; it travels whole in the adapter's test (`a_session_with_its_folder_and_file_history_travels_whole`).
+- **Codex → Codex beyond the transcript and its plan** (rules, MCP, edges, switch-back): the second home was a lab one, signed out afterwards.

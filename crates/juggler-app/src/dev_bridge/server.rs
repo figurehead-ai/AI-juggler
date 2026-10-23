@@ -333,9 +333,10 @@ async fn invoke<R: tauri::Runtime>(
             }
         }
     };
-    let Reply { status, body } = routes::dispatch(&shared.app, route.ipc, args)
+    let reply = routes::dispatch(&shared.app, route.ipc, args)
         .await
         .unwrap_or_else(Reply::internal);
+    let Reply { status, body } = routes::masked(route.ipc, reply);
     json_response(status, body)
 }
 

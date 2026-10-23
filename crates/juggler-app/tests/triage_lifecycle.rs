@@ -102,12 +102,18 @@ fn reviewed_is_an_explicit_recorded_step_and_only_for_an_ended_instance() {
         "unreviewed until the user says so"
     );
 
-    let started = std::time::Instant::now();
+    // This thread's CPU time (other programs' turns on a busy machine
+    // don't count against it); wall time is printed beside it.
+    let wall = std::time::Instant::now();
+    let started = cpu_time::ThreadTime::now();
     let at = lifecycle::instance_mark_reviewed_impl(&state, "s-done").unwrap();
     let done = row("s-done");
-    let took = started.elapsed();
-    eprintln!("[perf] mark reviewed → visible in the snapshot: {took:?}");
-    assert!(took < std::time::Duration::from_millis(200), "{took:?}");
+    let (took, wall) = (started.elapsed(), wall.elapsed());
+    eprintln!("[perf] mark reviewed → visible in the snapshot: {took:?} CPU, {wall:?} wall");
+    assert!(
+        took < std::time::Duration::from_millis(200),
+        "{took:?} CPU (wall {wall:?})"
+    );
     assert_eq!(done.lifecycle.as_deref(), Some("reviewed"));
     assert_eq!(done.lifecycle_at_ms, Some(at));
 

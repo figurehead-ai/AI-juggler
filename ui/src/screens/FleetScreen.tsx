@@ -5,25 +5,10 @@ import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconFleet } from "../components/icons";
 import { PairingWizard, type PairingMode } from "./PairingWizard";
-import {
-  errorText,
-  fleetPeers,
-  fleetRemote,
-  fleetDivergences,
-  type DivergenceRecordInfo,
-  fleetSetPermission,
-  linkSetEnabled,
-  linkStatus,
-  type RemoteMachineInfo,
-  type LinkStatusInfo,
-  fleetResetIdentity,
-  fleetResetTrust,
-  fleetSelf,
-  fleetSetLabel,
-  fleetUnpair,
-  type FleetPeerInfo,
-  type FleetSelfInfo,
-} from "../lib/bridge";
+import { errorText, fleetPeers, fleetRemote, fleetDivergences, fleetSetPermission, linkSetEnabled, linkStatus } from "../lib/bridge";
+import { fleetResetIdentity, fleetResetTrust, fleetSelf, fleetSetLabel, fleetUnpair } from "../lib/bridge";
+import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetSelfInfo } from "../lib/bridge";
+import { MachineUsageCard } from "../components/MachineUsage";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -253,6 +238,7 @@ export function FleetScreen({
         />
       )}
 
+      <MachineUsageCard />
       <Card className="flex flex-col gap-3 p-5" data-testid="fleet-peers">
         <div className="flex items-center gap-2">
           <IconFleet width={14} height={14} />
