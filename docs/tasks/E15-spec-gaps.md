@@ -596,7 +596,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: SPEC §8.
 **Handover note**: —
 
-### AJ-E1518 A trust page and vendor terms on Add account | Status: IN-PROGRESS (claude-opus, 2026-10-23) | Priority P1 | Effort S | Depends: —
+### AJ-E1518 A trust page and vendor terms on Add account | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: People can see what AI Juggler touches and what the vendors allow.
 **User story**: As a security-minded user, I read one page on what is read, stored and sent; as a new user, I see the tool's terms before adding an account.
 **Requirements**:
