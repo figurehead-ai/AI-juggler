@@ -409,6 +409,10 @@ macro_rules! app_commands {
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
+            // AJ-E1517: reads the logs (scrubbed): never over the bridge.
+            Write features::app::diagnostics::app_diagnostics_preview,
+            Write features::app::diagnostics::app_diagnostics_export,
+            Write features::app::diagnostics::app_report_bug_open,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
             // Reads `git status` (the 2 s cache, like a session's).

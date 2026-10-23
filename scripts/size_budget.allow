@@ -34,4 +34,4 @@ ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 524
 ui/src/screens/PairingWizard.tsx 816
 ui/src/screens/Profiles.tsx 713
-ui/src/screens/Settings.tsx 780
+ui/src/screens/Settings.tsx 778

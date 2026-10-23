@@ -418,6 +418,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Report a problem** (AJ-E1517). Settings › General has **Report a
+  bug** (the GitHub form) and **Export diagnostics…**: one zip with
+  AI Juggler's version, the database's schema, your settings and its own
+  logs, scrubbed on this Mac (no transcripts, terminal output,
+  credentials, home folder or user name; settings that hold tokens,
+  addresses or paths are left out and named). Every file is shown before
+  it's saved, and the zip holds exactly what you saw; if anything still
+  looks like a secret, nothing is saved. Crash reports now also mask a
+  `NAME_KEY=value` in the middle of a line.
 - **macOS notifications, when you want them** (AJ-E1510). Settings ›
   Notifications › **Notify me outside AI Juggler** has five switches, all
   off until you choose: a session waits for you, looks stuck, hits its

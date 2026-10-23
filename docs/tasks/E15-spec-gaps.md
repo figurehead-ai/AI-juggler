@@ -581,7 +581,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: AJ-E1107.
 **Handover note**: The service and its address are the maintainer's step; the code waits behind it.
 
-### AJ-E1517 Export diagnostics | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1517 Export diagnostics | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: A bug report comes with what we need, and nothing it shouldn't have.
 **User story**: As a beta tester, I export diagnostics, look them over and attach them.
 **Requirements**:
