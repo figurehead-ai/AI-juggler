@@ -93,7 +93,7 @@ fn sources(state: &Arc<AppState>) -> AppResult<Vec<Source>> {
         .into_iter()
         .filter(|conversation| !owned.contains(&conversation.summary.id))
         .collect();
-    conversations.sort_by(|a, b| b.summary.last_ms.cmp(&a.summary.last_ms));
+    conversations.sort_by_key(|conversation| std::cmp::Reverse(conversation.summary.last_ms));
     Ok(conversations
         .into_iter()
         .filter_map(|conversation| {

@@ -7,6 +7,23 @@ including ones you started in a terminal or in the Claude app. Those say
 "outside AI Juggler". History holds every session that has ended, and you
 can search it.
 
+### Searching what was said
+
+History finds a session by what it was about, its project, account, tool,
+model, branch or date, and by the words said in it. For sessions AI Juggler
+started, words are searched as they are. For the ones started outside it,
+turn on **Search the words of every session** in Settings › Privacy:
+
+- **Off by default.** It builds an index of those sessions' words on your
+  Mac, and the setting says how much room the index would take before you
+  turn it on.
+- **Built in the background**, newest first, from the tools' own files,
+  which AI Juggler only reads. The setting shows how far it has got.
+- **The index holds the words to search, not the conversations.** A match
+  is shown by reading the words around it from the tool's own file. A
+  session the tool deletes leaves the index too.
+- **Turning it off deletes the index.**
+
 To start one, choose **New session**. Pick the project folder, the tool and
 the account. A project can have its own account (the project's menu: **Set
 its account…**). Otherwise new sessions use your default account.
