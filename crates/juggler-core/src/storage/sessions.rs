@@ -163,7 +163,7 @@ impl SessionsRepo<'_> {
         Ok(at)
     }
 
-    /// AJ-E1005/AJ-E1007: the latest state event ([`STATE_EVENTS`]: reviewed
+    /// AJ-E1005/AJ-E1007: the latest state event (`STATE_EVENTS`: reviewed
     /// or archived, and their undoing) per Instance, `session id → (event,
     /// at_ms)`; Instances without one are absent. Other lifecycle events (a
     /// restart, AJ-E1509) are history only and never change that state.
