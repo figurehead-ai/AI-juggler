@@ -304,6 +304,7 @@ macro_rules! app_commands {
             Write features::switch_setup::switch_setup_forget,
             Read  features::account_settings::commands::account_settings_check,
             Write features::account_settings::commands::account_settings_apply,
+            Write features::trust::commands::trust_open,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,

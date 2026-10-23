@@ -2,6 +2,7 @@
 import type { SetupGroupInfo } from "./SetupGroupInfo";
 import type { ToolFlowInfo } from "./ToolFlowInfo";
 import type { ToolSupportsInfo } from "./ToolSupportsInfo";
+import type { ToolTermsInfo } from "./ToolTermsInfo";
 
 /**
  * One tool, as every screen reads it (ADR-0019 §1).
@@ -80,9 +81,9 @@ default_label: string | null,
  */
 flow: ToolFlowInfo, 
 /**
- * Terms the user should know.
+ * Its vendor's terms, shown when an account is added.
  */
-terms_notes: Array<string>, 
+terms: ToolTermsInfo | null, 
 /**
  * The environment keys that point it at an account's folder.
  */
