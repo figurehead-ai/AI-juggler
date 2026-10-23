@@ -78,6 +78,7 @@ terminology:
     ./scripts/terminology_lint.sh
     python3 scripts/plain_words_lint.py --selftest
     python3 scripts/plain_words_lint.py
+    python3 scripts/docs_links_check.py
 
 # AJ-E1525 (ADR-0019 §5): no tool-id literal outside the adapters; the
 # allowlist of today's sites only shrinks.
