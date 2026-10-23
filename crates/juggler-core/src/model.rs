@@ -241,6 +241,10 @@ pub struct SettingsOverlay {
     /// Extra environment variables injected into the launched process.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub env: BTreeMap<String, String>,
+    /// AJ-E1509: restart a session of these settings that crashes —
+    /// `None` follows Settings › Sessions, `Some` overrides it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restart_on_crash: Option<bool>,
 }
 
 /// Launch settings: a per-Account overlay applied when an Instance

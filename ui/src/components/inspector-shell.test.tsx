@@ -86,7 +86,7 @@ const recipe: LaunchRecipeInfo = {
   account_label: "Personal",
   provider: "claude-code",
   model: null,
-  default_cwd: null,
+  default_cwd: null, restart_on_crash: null,
 };
 
 const props = {

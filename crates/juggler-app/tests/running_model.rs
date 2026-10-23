@@ -48,6 +48,7 @@ fn seeded_state(dir: &Path, launch_model: Option<&str>) -> Arc<AppState> {
                 settings_overlay: SettingsOverlay {
                     model: launch_model.map(str::to_string),
                     env: Default::default(),
+                    restart_on_crash: None,
                 },
                 default_cwd: None,
             })

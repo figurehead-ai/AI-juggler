@@ -124,6 +124,27 @@ pub fn quota_signature(tail: &str) -> bool {
     signatures.iter().any(|signature| lower.contains(signature))
 }
 
+/// AJ-E1509: true when an output tail says the tool couldn't sign in
+/// (expired or missing credentials). Restarting can't fix that, so a
+/// crash with this signature is never restarted. Observed signatures,
+/// like [`quota_signature`].
+#[must_use]
+pub fn signin_signature(tail: &str) -> bool {
+    let signatures: [&str; 9] = [
+        "invalid api key",
+        "please run /login",
+        "not logged in",
+        "authentication_error",
+        "authentication failed",
+        "oauth token has expired",
+        "token expired",
+        "please log in",
+        "401 unauthorized",
+    ];
+    let lower = tail.to_lowercase();
+    signatures.iter().any(|signature| lower.contains(signature))
+}
+
 #[derive(Debug, Default, Clone)]
 struct DebounceState {
     candidate: Option<(AttentionTransition, i64)>,

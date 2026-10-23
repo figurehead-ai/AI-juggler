@@ -423,25 +423,8 @@ import { useEffect, useRef, useState } from "react";
  * changes are never conveyed by colour alone. The message is the badge
  * text plus the rule (`Needs you — waiting_prompt`).
  */
-/** D-25: an attention rule in plain words (never the rule's code). */
-export function attentionWords(rule: string | null | undefined): string {
-  switch (rule) {
-    case "waiting_prompt":
-    case "waiting_user":
-      return "waiting for your reply";
-    case "stuck_no_output":
-    case "stuck":
-      return "no output for a while";
-    case "quota_exit":
-    case "quota_blocked":
-    case "quota_wall":
-      return "hit its usage limit";
-    case "failed":
-      return "stopped with an error";
-    default:
-      return "needs attention";
-  }
-}
+import { attentionWords } from "../lib/attention";
+export { attentionWords };
 
 export function AttentionAnnouncer({ sessions }: { sessions: InstanceInfo[] }) {
   const [message, setMessage] = useState("");

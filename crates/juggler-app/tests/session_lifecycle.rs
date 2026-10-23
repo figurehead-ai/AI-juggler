@@ -371,3 +371,43 @@ fn retention_lists_first_and_never_deletes_without_its_dry_run() {
     assert_eq!(after[0].instances, 2);
     assert!(work.path().join("s-old.jsonl").exists(), "transcripts stay");
 }
+
+/// The write-transaction audit (#130 review L10): deleting an Instance's
+/// records waits for another connection that is writing, instead of
+/// failing with "database is locked".
+#[test]
+fn deleting_an_instance_waits_for_another_connections_write() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed_account(&state, work.path());
+    let now = Timestamp::now().millis();
+    session(
+        &state,
+        work.path(),
+        "s-done",
+        SessionStatus::Finished,
+        now,
+        &["done"],
+    );
+    let token = history::instance_delete_preview_impl(&state, "s-done")
+        .unwrap()
+        .token
+        .unwrap();
+    let db = work.path().join("app-data/juggler.sqlite");
+    let (locked, wait) = std::sync::mpsc::channel();
+    let other = std::thread::spawn(move || {
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', '1')",
+            [],
+        )
+        .unwrap();
+        locked.send(()).unwrap();
+        std::thread::sleep(Duration::from_millis(400));
+        conn.execute_batch("COMMIT").unwrap();
+    });
+    wait.recv().unwrap();
+    history::instance_delete_impl(&state, "s-done", &token).expect("the delete waits its turn");
+    other.join().unwrap();
+}

@@ -624,6 +624,140 @@ fn a_compactions_own_usage_counts_once_never_the_starting_total() {
     );
 }
 
+/// A Codex usage object with its six classes (the shape a record's
+/// `usage` and a compaction's named record share).
+fn usage_json(input: u64, cached: u64, output: u64) -> String {
+    format!(
+        r#"{{"input_tokens":{input},"cached_input_tokens":{cached},"cache_write_input_tokens":0,"output_tokens":{output},"reasoning_output_tokens":0,"total_tokens":{}}}"#,
+        input + output
+    )
+}
+
+fn record_of(thread: &str, ts: &str, turn: &str, response: &str, input: u64) -> String {
+    codex_line(
+        "token_usage_record",
+        ts,
+        &format!(
+            r#"{{"thread_id":"{thread}","turn_id":"{turn}","response_id":"{response}","usage":{}}}"#,
+            usage_json(input, 0, 0)
+        ),
+    )
+}
+
+/// A `compacted` line as current Codex writes it (QA, every key the real
+/// lines have; values invented): `latest` names the compaction's own
+/// model call (thread, turn, response, input tokens), or is `null`.
+fn compacted_naming(ts: &str, latest: Option<(&str, &str, &str, u64)>) -> String {
+    let (record, response) = match latest {
+        Some((thread, turn, response, input)) => (
+            format!(
+                r#"{{"thread_id":"{thread}","turn_id":"{turn}","response_id":"{response}","root_turn_id":"{turn}","session_id":"{thread}","usage":{u},"turn_token_usage":{u},"thread_token_usage":{u}}}"#,
+                u = usage_json(input, 0, 0)
+            ),
+            format!(r#""{response}""#),
+        ),
+        None => ("null".to_owned(), r#""resp-copied""#.to_owned()),
+    };
+    codex_line(
+        "compacted",
+        ts,
+        &format!(
+            r#"{{"compaction_response_id":{response},"first_window_id":"w0","latest_token_usage_record":{record},"message":"","previous_window_id":"w0","replacement_history":[],"replacement_history_metadata":{{}},"retained_context":{{}},"window_id":"w1","window_number":1}}"#
+        ),
+    )
+}
+
+/// Stores each file's events, in order, and returns the stored keys with
+/// their input tokens.
+fn stored(files: &[&str]) -> BTreeMap<String, u64> {
+    let storage = Storage::open_in_memory().unwrap();
+    for bytes in files {
+        let outcome = rollout_events("acc", bytes.as_bytes());
+        storage.usage().store_events(&outcome.events).unwrap();
+    }
+    storage
+        .usage()
+        .events_for_account("acc", 0)
+        .unwrap()
+        .into_iter()
+        .map(|row| (row.msg_uuid.unwrap(), row.tokens.input))
+        .collect()
+}
+
+/// P21 (QA, 367,324 tokens on the real setup): a thread that opens with a
+/// `compacted` line naming ANOTHER thread's record. That record is that
+/// thread's model call, already counted from its own rollout. The
+/// `token_count` after it is not this thread's usage, and is never
+/// counted again, whichever file is read first.
+#[test]
+fn a_compaction_naming_another_threads_call_counts_it_once() {
+    let parent = [
+        started("00:00"),
+        record_of("th-parent", "00:01", "tp", "r-compact", 136_658),
+        count("00:02", 136_658, 1_899_060),
+    ]
+    .concat();
+    let child = [
+        compacted_naming("00:03", Some(("th-parent", "tp", "r-compact", 136_658))),
+        count("00:04", 136_658, 1_899_060),
+        started("00:05"),
+        record_of("th-sub", "00:06", "t1", "r-t1", 100),
+        count("00:07", 100, 1_899_160),
+    ]
+    .concat();
+    let want = BTreeMap::from([
+        ("th-parent/tp/r-compact".to_owned(), 136_658),
+        ("th-sub/t1/r-t1".to_owned(), 100),
+    ]);
+    assert_eq!(stored(&[&parent, &child]), want);
+    assert_eq!(stored(&[&child, &parent]), want, "either order");
+}
+
+/// A forked thread whose copied summary opens with a `compacted` line
+/// that names no call (`null`): no usage of its own there.
+#[test]
+fn a_compaction_naming_no_call_adds_nothing() {
+    let child = [
+        compacted_naming("00:00", None),
+        count("00:01", 4_000, 52_000),
+        started("00:02"),
+        record_of("th-sub", "00:03", "t1", "r-t1", 100),
+    ]
+    .concat();
+    assert_eq!(
+        stored(&[&child]),
+        BTreeMap::from([("th-sub/t1/r-t1".to_owned(), 100)])
+    );
+}
+
+/// QA's mid-file shape: the record just before `compacted` is the
+/// compaction's own call, and the `compacted` line names it. Each record
+/// counts once; the `token_count` after the compaction repeats the total
+/// before it and adds nothing.
+#[test]
+fn a_mid_file_compaction_counts_its_call_once() {
+    let thread = [
+        started("00:00"),
+        record_of("th-sub", "00:01", "t1", "r-a", 223_574),
+        count("00:02", 223_574, 11_294_597),
+        record_of("th-sub", "00:03", "t1", "r-compact", 234_936),
+        compacted_naming("00:04", Some(("th-sub", "t1", "r-compact", 234_936))),
+        codex_line("turn_context", "00:05", r#"{"model":"gpt-5"}"#),
+        count("00:06", 20_240, 11_294_597),
+        record_of("th-sub", "00:07", "t1", "r-b", 35_615),
+        count("00:08", 35_615, 11_330_212),
+    ]
+    .concat();
+    assert_eq!(
+        stored(&[&thread]),
+        BTreeMap::from([
+            ("th-sub/t1/r-a".to_owned(), 223_574),
+            ("th-sub/t1/r-b".to_owned(), 35_615),
+            ("th-sub/t1/r-compact".to_owned(), 234_936),
+        ])
+    );
+}
+
 /// A compaction mid-thread whose token_count only repeats the total
 /// before it adds nothing.
 fn repeated_total() -> Vec<String> {
@@ -1556,4 +1690,206 @@ fn the_fail_safe_line_runs_the_wrapper_while_it_is_there_else_the_users_own() {
         (true, String::new()),
         "never chains a wrapper of its own"
     );
+}
+
+/// Fix batch 5 (P0 for 0.1): Codex compresses older rollouts to
+/// `rollout-*.jsonl.zst` (2,043 of 2,375 files on the maintainer's Mac),
+/// and none were read. A compressed copy of a real-shaped rollout gives
+/// the same events and limit readings as the plain file, read whole once;
+/// a later pass with the file unchanged reads nothing.
+#[test]
+fn a_compressed_rollout_reads_like_the_plain_one_once() {
+    let plain = fixture("codex-rollout-rate-limits.jsonl");
+    let bytes = std::fs::read(&plain).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir
+        .path()
+        .join("rollout-2026-10-21T10-00-00-th-9.jsonl.zst");
+    std::fs::write(&zst, zstd::encode_all(&bytes[..], 3).unwrap()).unwrap();
+
+    let want = tail_rollout(&plain, "acc", 0, &RolloutCarry::default());
+    let got = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert!(!want.events.is_empty() || !want.samples.is_empty());
+    assert_eq!(got.events, want.events);
+    assert_eq!(got.samples, want.samples);
+    assert_eq!(got.credits, want.credits);
+    assert_eq!(got.offset, std::fs::metadata(&zst).unwrap().len());
+    let again = tail_rollout(&zst, "acc", got.offset, &RolloutCarry::default());
+    assert!(
+        again.events.is_empty() && again.samples.is_empty(),
+        "read once"
+    );
+    assert_eq!(again.offset, got.offset);
+}
+
+/// Back-dates a file, as one written a while ago.
+fn written_a_minute_ago(path: &Path) {
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))
+        .unwrap();
+}
+
+/// A compressed rollout that won't decode, written a while ago, is one bad
+/// line and isn't read again until its size changes; then it is, and once
+/// whole it reads like any other.
+#[test]
+fn a_damaged_compressed_rollout_is_one_bad_line_until_it_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir.path().join("rollout-x.jsonl.zst");
+    std::fs::write(&zst, b"not zstd at all").unwrap();
+    written_a_minute_ago(&zst);
+    let first = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert!(first.events.is_empty());
+    assert_eq!(first.parse_errors, 1);
+    assert_eq!(first.offset, 15);
+    let again = tail_rollout(&zst, "acc", first.offset, &RolloutCarry::default());
+    assert_eq!(again.parse_errors, 0, "counted once");
+    // Rewritten whole: its size changed, so it is read again.
+    let plain = std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap();
+    std::fs::write(&zst, zstd::encode_all(&plain[..], 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let whole = tail_rollout(&zst, "acc", again.offset, &RolloutCarry::default());
+    assert_eq!(whole.parse_errors, 0);
+    assert_eq!(whole.offset, std::fs::metadata(&zst).unwrap().len());
+    assert!(!whole.samples.is_empty() || !whole.events.is_empty());
+}
+
+/// One that won't decode and changed in the last few seconds may still be
+/// being written: not ready, nothing counted, read again next pass.
+#[test]
+fn a_compressed_rollout_still_being_written_is_not_ready() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir.path().join("rollout-x.jsonl.zst");
+    let plain = std::fs::read(fixture("codex-rollout-rate-limits.jsonl")).unwrap();
+    let full = zstd::encode_all(&plain[..], 3).unwrap();
+    std::fs::write(&zst, &full[..full.len() / 2]).unwrap();
+    let outcome = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    assert_eq!(outcome.parse_errors, 0, "not counted against its health");
+    assert_eq!(outcome.offset, 0, "read again next pass");
+}
+
+/// A compressed rollout that grew (rewritten with more) is read again; its
+/// events are keyed, so only the new ones add anything once stored.
+#[test]
+fn a_compressed_rollout_that_grows_is_read_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let zst = dir
+        .path()
+        .join("rollout-2026-10-21T10-00-00-th-sub.jsonl.zst");
+    let first = [started("00:00"), record("00:01", "t1", 100)].concat();
+    std::fs::write(&zst, zstd::encode_all(first.as_bytes(), 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let storage = Storage::open_in_memory().unwrap();
+    let pass1 = tail_rollout(&zst, "acc", 0, &RolloutCarry::default());
+    storage.usage().store_events(&pass1.events).unwrap();
+    let grown = [first, started("00:02"), record("00:03", "t2", 50)].concat();
+    std::fs::write(&zst, zstd::encode_all(grown.as_bytes(), 3).unwrap()).unwrap();
+    written_a_minute_ago(&zst);
+    let pass2 = tail_rollout(&zst, "acc", pass1.offset, &RolloutCarry::default());
+    assert_ne!(pass2.offset, pass1.offset);
+    storage.usage().store_events(&pass2.events).unwrap();
+    let rows = storage.usage().events_for_account("acc", 0).unwrap();
+    assert_eq!(rows.iter().map(|row| row.tokens.input).sum::<u64>(), 150);
+}
+
+/// QA's mid-file shape, as lines.
+fn mid_file_named() -> Vec<String> {
+    vec![
+        started("00:00"),
+        record_of("th-sub", "00:01", "t1", "r-a", 223_574),
+        count("00:02", 223_574, 11_294_597),
+        record_of("th-sub", "00:03", "t1", "r-compact", 234_936),
+        compacted_naming("00:04", Some(("th-sub", "t1", "r-compact", 234_936))),
+        codex_line("turn_context", "00:05", r#"{"model":"gpt-5"}"#),
+        count("00:06", 20_240, 11_294_597),
+        record_of("th-sub", "00:07", "t1", "r-b", 35_615),
+        count("00:08", 35_615, 11_330_212),
+    ]
+}
+
+/// P21's opening shape, as lines (the named call is another thread's).
+fn opens_with_another_threads_call() -> Vec<String> {
+    vec![
+        compacted_naming("00:03", Some(("th-parent", "tp", "r-compact", 136_658))),
+        count("00:04", 136_658, 1_899_060),
+        started("00:05"),
+        record_of("th-sub", "00:06", "t1", "r-t1", 100),
+        count("00:07", 100, 1_899_160),
+    ]
+}
+
+/// #134 review: a `compacted` line that names no call (`null`) further
+/// into a file, followed by a total that moves: that usage still counts,
+/// as P17's does. Never silently dropped.
+#[test]
+fn a_mid_file_compaction_naming_no_call_still_counts_its_usage() {
+    let thread = [
+        started("00:00"),
+        record_of("th-sub", "00:01", "t1", "r-t1", 100),
+        count("00:02", 100, 500),
+        compacted_naming("00:03", None),
+        count("00:04", 60, 560),
+        started("00:05"),
+        record_of("th-sub", "00:06", "t2", "r-t2", 50),
+    ]
+    .concat();
+    assert_eq!(
+        stored(&[&thread]),
+        BTreeMap::from([
+            ("th-sub/compacted/1792576804000/1".to_owned(), 60),
+            ("th-sub/t1/r-t1".to_owned(), 100),
+            ("th-sub/t2/r-t2".to_owned(), 50),
+        ])
+    );
+}
+
+/// A named call is never counted again wherever a pass ends: in a file
+/// that opens with another thread's, and mid-file.
+#[test]
+fn a_named_call_counts_once_wherever_a_pass_ends() {
+    assert_eq!(
+        every_split_reads_as_one(&opens_with_another_threads_call()),
+        BTreeMap::from([("th-sub/t1/r-t1".to_owned(), 100)])
+    );
+    assert_eq!(
+        every_split_reads_as_one(&mid_file_named()),
+        BTreeMap::from([
+            ("th-sub/t1/r-a".to_owned(), 223_574),
+            ("th-sub/t1/r-b".to_owned(), 35_615),
+            ("th-sub/t1/r-compact".to_owned(), 234_936),
+        ])
+    );
+}
+
+/// The same inside a compressed rollout (`.jsonl.zst`): the events read
+/// like the plain file's.
+#[test]
+fn a_named_call_in_a_compressed_rollout_reads_like_the_plain_one() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, lines) in [
+        ("opens", opens_with_another_threads_call()),
+        ("mid", mid_file_named()),
+    ] {
+        let bytes = lines.concat();
+        let plain = dir.path().join(format!("rollout-{name}.jsonl"));
+        let zst = dir.path().join(format!("rollout-{name}.jsonl.zst"));
+        std::fs::write(&plain, &bytes).unwrap();
+        std::fs::write(&zst, zstd::encode_all(bytes.as_bytes(), 3).unwrap()).unwrap();
+        let keys = |path: &Path| -> Vec<String> {
+            tail_rollout(path, "acc", 0, &RolloutCarry::default())
+                .events
+                .into_iter()
+                .map(|event| event.msg_uuid.unwrap())
+                .collect()
+        };
+        let read = keys(&zst);
+        assert_eq!(read, keys(&plain), "{name}");
+        assert!(
+            read.iter().all(|key| !key.contains("/compacted/")),
+            "{name}: {read:?}"
+        );
+    }
 }

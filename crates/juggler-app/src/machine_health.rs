@@ -16,6 +16,7 @@
 // Tauri command signatures take State/values by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
 
+pub use crate::machine_recommendations::recommendations;
 pub use crate::machine_tools::{ToolGroupInfo, ToolTotalsInfo};
 use crate::machine_tools::{by_tool, totals};
 use std::path::PathBuf;
@@ -276,10 +277,10 @@ pub struct MachineWatch {
     /// Whether a running-tools scan has read a process table yet.
     tools_scanned: bool,
     /// Bumped whenever footprints are written or pruned.
-    footprints_written: u64,
+    pub(crate) footprints_written: u64,
     /// What This Mac's recommendations read from storage (AJ-E1409),
     /// re-read only when footprints changed or after a minute (names).
-    advice_inputs: Option<AdviceInputs>,
+    pub(crate) advice_inputs: Option<crate::machine_recommendations::AdviceInputs>,
 }
 
 impl MachineWatch {
@@ -291,19 +292,6 @@ impl MachineWatch {
         self.ticks
     }
 }
-
-/// The storage half of the recommendations, cached between 5 s reads.
-#[derive(Debug, Clone)]
-struct AdviceInputs {
-    footprints_written: u64,
-    read_ms: i64,
-    stats: Vec<juggler_core::storage::FootprintStats>,
-    names: std::collections::HashMap<String, String>,
-}
-
-/// Launch-setting names may change without a footprint write; the cached
-/// advice inputs are re-read at least this often.
-const ADVICE_INPUTS_MAX_AGE_MS: i64 = 60_000;
 
 impl Default for MachineWatch {
     fn default() -> Self {
@@ -411,7 +399,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
 /// Before 3 footprints exist, a launch is assumed to take this much.
 const UNMEASURED_PROJECTION: u64 = 1_000_000_000;
 /// Projections need this many footprints of the launch setting.
-const MIN_FOOTPRINTS: u32 = 3;
+pub(crate) const MIN_FOOTPRINTS: u32 = 3;
 
 /// "Can this Mac take another session?" for one launch setting (AJ-E1407).
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
@@ -915,6 +903,8 @@ pub struct ThisMacInfo {
     /// Advice from this Mac's own history (AJ-E1409); empty until there
     /// is enough of it.
     pub recommendations: Vec<String>,
+    /// AJ-E1509: what keeps the Mac awake for the sessions, and why.
+    pub awake: crate::features::app::awake::AwakeInfo,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -1085,6 +1075,7 @@ pub fn assemble(
         leftover_ports: leftovers.1,
         alerts: Vec::new(),
         recommendations: Vec::new(),
+        awake: crate::features::app::awake::AwakeInfo::default(),
         machine,
     }
 }
@@ -1225,7 +1216,9 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .unwrap_or(u32::MAX),
     );
     let mut info = assemble(machine, &trees, leftovers);
-    info.recommendations = recommendations_for(state, &info, now_ms);
+    info.recommendations =
+        crate::machine_recommendations::recommendations_for(state, &info, now_ms);
+    info.awake = crate::features::app::awake::current(&state.awake);
     if let Ok(mut watch) = state.machine.lock() {
         watch.alerts.evaluate(&info, now_ms);
         info.alerts = watch.alerts.active();
@@ -1286,154 +1279,6 @@ pub async fn machine_alerts_take(
             context: "read the overload alerts",
             message: error.to_string(),
         })?
-}
-
-// --- AJ-E1409: recommendations from real data -------------------------------
-
-/// Pure (AJ-E1409): advice from this Mac's own footprints. `names` maps a
-/// launch setting id to how the user knows it. Nothing until a setting has
-/// at least three measured sessions.
-#[must_use]
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
-pub fn recommendations<S: std::hash::BuildHasher>(
-    machine: &MachineHealthInfo,
-    ours_rss: u64,
-    footprints: &[juggler_core::storage::FootprintStats],
-    names: &std::collections::HashMap<String, String, S>,
-) -> Vec<String> {
-    // Only launch settings that still exist (a deleted one's footprints
-    // are pruned within 10 minutes; until then they don't count).
-    let measured: Vec<&juggler_core::storage::FootprintStats> = footprints
-        .iter()
-        .filter(|stats| {
-            stats
-                .key
-                .strip_prefix("recipe:")
-                .is_some_and(|id| names.contains_key(id))
-                && stats.count >= MIN_FOOTPRINTS
-        })
-        .collect();
-    if measured.is_empty() || !machine.sampled || machine.memory_total == 0 {
-        return Vec::new();
-    }
-    let sessions: u32 = measured.iter().map(|stats| stats.count).sum();
-    let typical = measured
-        .iter()
-        .map(|stats| stats.median_peak_rss as f64 * f64::from(stats.count))
-        .sum::<f64>()
-        / f64::from(sessions);
-    let mut out = Vec::new();
-    // Keep a fifth of memory free; what isn't AI Juggler's sessions stays
-    // as it is now. Only our trees' memory is measured — a tool AI Juggler
-    // didn't start is an estimate that counts shared memory more than once
-    // (AJ-E1402), so it stays in "the rest" rather than inflate the room.
-    // Used as the reading measured it; total − available only when it
-    // couldn't (the OS's available figure is then the best there is).
-    let used = machine.memory_used.unwrap_or_else(|| {
-        machine
-            .memory_total
-            .saturating_sub(machine.memory_available)
-    });
-    let others = used.saturating_sub(ours_rss) as f64;
-    let room = machine.memory_total as f64 * 0.8 - others;
-    if typical > 0.0 {
-        let fits = (room / typical).floor().max(0.0) as u64;
-        out.push(if fits == 0 {
-            format!(
-                "With what else is open, this Mac is short of room for even one session (about {} each, from your last {sessions})",
-                bytes_words(typical as u64)
-            )
-        } else {
-            format!(
-                "This Mac comfortably runs about {fits} session{} at once (about {} each, from your last {sessions})",
-                if fits == 1 { "" } else { "s" },
-                bytes_words(typical as u64)
-            )
-        });
-    }
-    if measured.len() >= 2 {
-        let mut by_weight = measured.clone();
-        by_weight.sort_by_key(|stats| std::cmp::Reverse(stats.median_peak_rss));
-        let heaviest = by_weight[0];
-        let next = by_weight[1];
-        if heaviest.median_peak_rss as f64 >= next.median_peak_rss as f64 * 1.5 {
-            let id = heaviest.key.trim_start_matches("recipe:");
-            let name = names
-                .get(id)
-                .cloned()
-                .unwrap_or_else(|| "One launch setting".into());
-            out.push(format!(
-                "{name} is the heaviest launch setting — about {} a session",
-                bytes_words(heaviest.median_peak_rss)
-            ));
-        }
-    }
-    out
-}
-
-fn recommendations_for(state: &Arc<AppState>, info: &ThisMacInfo, now_ms: i64) -> Vec<String> {
-    let (cached, written) = match state.machine.lock() {
-        Ok(watch) => (watch.advice_inputs.clone(), watch.footprints_written),
-        Err(_) => return Vec::new(),
-    };
-    let inputs = match cached {
-        Some(inputs)
-            if inputs.footprints_written == written
-                && now_ms - inputs.read_ms < ADVICE_INPUTS_MAX_AGE_MS =>
-        {
-            inputs
-        }
-        _ => {
-            let Some(inputs) = read_advice_inputs(state, written, now_ms) else {
-                return Vec::new();
-            };
-            if let Ok(mut watch) = state.machine.lock() {
-                watch.advice_inputs = Some(inputs.clone());
-            }
-            inputs
-        }
-    };
-    recommendations(
-        &info.machine,
-        info.ours.rss_bytes,
-        &inputs.stats,
-        &inputs.names,
-    )
-}
-
-/// The footprint medians and launch-setting names, from storage.
-fn read_advice_inputs(
-    state: &Arc<AppState>,
-    footprints_written: u64,
-    now_ms: i64,
-) -> Option<AdviceInputs> {
-    let storage = state.storage.lock().ok()?;
-    let medians = storage.footprints().stats().ok()?;
-    let mut names = std::collections::HashMap::new();
-    if !medians.is_empty() {
-        for account in storage.accounts().list().unwrap_or_default() {
-            for recipe in storage
-                .profiles()
-                .list_by_account(&account.id)
-                .unwrap_or_default()
-            {
-                names.insert(
-                    recipe.id.to_string(),
-                    format!("\u{201c}{}\u{201d} ({})", recipe.name, account.label),
-                );
-            }
-        }
-    }
-    Some(AdviceInputs {
-        footprints_written,
-        read_ms: now_ms,
-        stats: medians,
-        names,
-    })
 }
 
 /// This Mac (AJ-E1403): the machine, AI tools' share, the heaviest

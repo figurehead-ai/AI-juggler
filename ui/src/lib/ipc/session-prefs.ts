@@ -14,6 +14,10 @@ export const SESSION_PREFS_DEFAULT: SessionPrefsInfo = {
   stuck_after_minutes: 5,
   terminal_font_size: 12.5,
   terminal_scrollback_lines: 5_000,
+  restart_on_crash: false,
+  keep_awake_on_power: true,
+  keep_awake_on_battery: false,
+  reopen_after_crash: true,
 };
 export const SESSION_PREFS_RANGE = {
   stuck_after_minutes: [1, 120],
@@ -36,7 +40,7 @@ export async function sessionPrefsGet(): Promise<SessionPrefsInfo> {
 export async function sessionPrefsSet(prefs: SessionPrefsInfo): Promise<SessionPrefsInfo> {
   let saved: SessionPrefsInfo;
   if (!hasLiveBackend()) {
-    for (const [key, [low, high]] of Object.entries(SESSION_PREFS_RANGE) as [keyof SessionPrefsInfo, readonly [number, number]][]) {
+    for (const [key, [low, high]] of Object.entries(SESSION_PREFS_RANGE) as [keyof typeof SESSION_PREFS_RANGE, readonly [number, number]][]) {
       if (prefs[key] < low || prefs[key] > high) throw `use ${low} to ${high}`;
     }
     previewSeams().__AIJ_SESSION_PREFS__ = { ...prefs };

@@ -1,26 +1,41 @@
-# D-20: build, sign and notarize one AI Juggler version, and publish it
-# as a pre-release with its update feeds: `latest.json` (AI Juggler) and
-# `latest-nightly.json` (AI Juggler Nightly, D-23). Called by
-# nightly.yml; promote.yml later points the beta and stable channels at
-# the same build. Nothing is ever rebuilt for a channel.
+# D-20: build, sign and notarize one AI Juggler version, both editions
+# (AI Juggler and AI Juggler Nightly, D-23). Called by nightly.yml, which
+# publishes it as a pre-release with its update feeds; promote.yml later
+# points the beta and stable channels at the same build. Nothing is ever
+# rebuilt for a channel.
 #
-# The two editions build in parallel jobs, from the same commit; one
-# publish job then puts both on one release. Each app is notarized and
-# stapled, and so is its disk image, so Gatekeeper opens the download
-# without a warning, online or off.
+# AJ-E2001: no build or dependency code ever runs where the signing keys
+# are. Three jobs here, and the caller publishes:
+# - preflight (`release` environment): every signing secret is there, or
+#   nothing is built (fails closed). It runs no code from the repository.
+# - build (no secrets, read-only token): compiles each edition unsigned
+#   and uploads the `.app`. Every crate's build script and `pnpm build`
+#   run here, and only here.
+# - sign (`release` environment, no repository token): signs, notarizes
+#   and staples each app and its disk image, makes and signs the updater
+#   archive, and checks all of it — with Apple's tools, the pinned
+#   prebuilt tauri-cli and scripts/sign_macos.sh. It builds nothing, and
+#   uploads the `release-<edition>` artifacts.
+# This workflow never writes to the repository: the caller's publish job
+# (nightly.yml) is the only one that may.
 #
-# Fails closed: without every signing secret nothing is built. No build
-# cache is restored: a signed, notarized build starts from a clean runner
-# so nothing another workflow wrote can end up inside it.
+# `dry_run` (release-rehearsal.yml) builds for real and rehearses the
+# signing with an ad-hoc signature and a throwaway updater key: no secret
+# is read, nothing is notarized.
+#
+# No build cache is restored: a signed build starts from a clean runner so
+# nothing another workflow wrote can end up inside it.
+#
+# The commit to build comes from the run itself, never from an input: the
+# pull request's head in a rehearsal on a pull request, otherwise the
+# commit the caller was started on (nightly.yml runs only from main). So
+# no caller can hand this workflow a branch nobody reviewed while it runs
+# with the default branch's cache scope (CodeQL: cache poisoning).
 name: Build (macOS)
 
 on:
   workflow_call:
     inputs:
-      ref:
-        description: "Commit to build"
-        type: string
-        required: true
       version:
         description: "X.Y.Z (release_version.py next)"
         type: string
@@ -30,65 +45,108 @@ on:
         type: string
         required: false
         default: ""
+      dry_run:
+        description: "Build, rehearse signing without secrets, publish nothing"
+        type: boolean
+        required: false
+        default: false
 
-permissions:
-  contents: write
+# Each job asks for what it needs, nothing more.
+permissions: {}
+
+env:
+  # The commit being released (see above).
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  edition:
+  preflight:
+    name: preflight
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: {}
+    steps:
+      - name: Every signing secret is set (fails closed)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+        run: |
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_TEAM_ID \
+                      TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD AIJ_UPDATER_PUBKEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          # Notarization: an App Store Connect API key (preferred), or an
+          # Apple ID with an app-specific password.
+          if [ -n "$APPLE_API_KEY$APPLE_API_KEY_ID$APPLE_API_ISSUER" ]; then
+            for name in APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
+              [ -n "${!name}" ] || missing+=("$name")
+            done
+            echo "Notarization: App Store Connect API key" >> "$GITHUB_STEP_SUMMARY"
+          else
+            for name in APPLE_ID APPLE_PASSWORD; do
+              [ -n "${!name}" ] || missing+=("$name (or an App Store Connect API key)")
+            done
+            echo "Notarization: Apple ID and app-specific password" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Not building — missing: ${missing[*]} (docs/RELEASING.md § One-time setup)"
+            exit 1
+          fi
+
+  build:
     name: build ${{ matrix.edition }}
+    needs: preflight
+    # Runs after a passed preflight, or without one in a dry run.
+    if: ${{ !cancelled() && (needs.preflight.result == 'success' || (inputs.dry_run && needs.preflight.result == 'skipped')) }}
     runs-on: macos-latest
-    # Apple's notary service can take most of an hour for a new team's
-    # first submissions, and each edition waits for it twice (app, disk
-    # image).
-    timeout-minutes: 240
+    timeout-minutes: 90
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         include:
           - edition: main
-            prefix: AI-Juggler
             overlay: ""
             label: ""
           - edition: nightly
-            prefix: AI-Juggler-Nightly
             overlay: crates/juggler-app/tauri.nightly.conf.json
             label: Nightly
     env:
       VERSION: ${{ inputs.version }}
-      EDITION: ${{ matrix.edition }}
-      PREFIX: ${{ matrix.prefix }}
       OVERLAY: ${{ matrix.overlay }}
+      # The release's pnpm: exact version and its npm sha512 (hex). To
+      # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
+      PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.REF }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Preflight — secrets, version, notes (fails closed)
+      - name: Crates, exactly as locked
+        # Every crate from the committed Cargo.lock, fetched fresh (no cache
+        # is ever restored here), before the version stamp below edits the
+        # manifests. The build then runs --offline: only our own crates'
+        # stamped versions change in the lock, and nothing is downloaded.
+        run: cargo fetch --locked
+
+      - name: Version and notes
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
           PREVIOUS: ${{ inputs.previous }}
-          REF: ${{ inputs.ref }}
         run: |
-          missing=()
-          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
-                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID \
-                      TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD AIJ_UPDATER_PUBKEY; do
-            [ -n "${!name}" ] || missing+=("$name")
-          done
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Not building — missing: ${missing[*]} (docs/RELEASING.md § One-time setup)"
-            exit 1
-          fi
           # The version is stamped into this checkout only (never committed).
           python3 scripts/release_version.py stamp "$VERSION"
           # Nightly notes from the commits since the previous nightly; a
@@ -104,12 +162,19 @@ jobs:
         with:
           node-version: 22
 
-      - name: Toolchain
+      - name: Toolchain (pinned)
         run: |
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
-          command -v cargo-tauri >/dev/null || cargo install tauri-cli --version "^2" --locked
+          # tauri-cli: Tauri's prebuilt release, checked against its digest.
+          ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+          # pnpm: this exact version, which corepack checks against its
+          # sha512 (a mismatch stops the job). Activated as the default, so
+          # tauri's `pnpm build` uses it too.
           corepack enable
+          corepack prepare "$PNPM" --activate
+          pnpm --version
           pnpm --dir ui install --frozen-lockfile
+
 
       - name: Icon
         # Generated from the brand PNG at build time; no generated binaries
@@ -125,17 +190,9 @@ jobs:
           fi
           cargo tauri icon "$source" --output "$RUNNER_TEMP/icons"
 
-      - name: Build, sign and notarize the app (universal)
+      - name: Build the app, unsigned (universal)
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Baked into the app: the key its updater verifies against.
+          # Public: baked into the app as the key its updater verifies.
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
         run: |
           set -euo pipefail
@@ -147,62 +204,100 @@ jobs:
           icons = os.environ["RUNNER_TEMP"] + "/icons"
           config["bundle"] = {
             "active": True,
-            "targets": ["app", "dmg"],
-            "createUpdaterArtifacts": True,
+            "targets": ["app"],
+            # The updater archive is made from the signed, stapled app in
+            # the sign job; nothing here can sign it.
+            "createUpdaterArtifacts": False,
             "icon": [icons + "/icon.icns", icons + "/icon.png"],
-            "macOS": {"minimumSystemVersion": "14.0"},
+            # Apple Events for "jump to a session's window" (hardened
+            # runtime): passed to codesign with the app's signature.
+            "macOS": {"minimumSystemVersion": "14.0", "entitlements": "entitlements.plist"},
           }
-          config["plugins"] = {"updater": {"pubkey": os.environ["AIJ_UPDATER_PUBKEY"], "requireSignedVersion": True}}
+          config["plugins"] = {"updater": {"pubkey": os.environ.get("AIJ_UPDATER_PUBKEY", ""), "requireSignedVersion": True}}
           print(json.dumps(config))
           PY
           )
           # From the repository root, as `just app` does: that's where the
           # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-          # Signing reaches Apple's timestamp and notary services; a blip
-          # there is retried, any other failure stops the build at once.
-          python3 scripts/apple_retry.py -- cargo tauri build --target universal-apple-darwin --config "$config"
+          cargo tauri build --target universal-apple-darwin --config "$config" -- --offline
+          bundle=target/universal-apple-darwin/release/bundle/macos
+          out="$RUNNER_TEMP/unsigned" && mkdir -p "$out"
+          # A tar keeps the bundle's modes and links (an artifact wouldn't).
+          (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
+          tar -tf "$out/app.tar" | head -3
 
-      - name: Notarize and staple the disk image
-        # Tauri notarizes and staples the app; the .dmg around it is
-        # signed but not notarized, so it gets its own ticket here.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-${{ matrix.edition }}
+          path: ${{ runner.temp }}/unsigned/
+          retention-days: 3
+          if-no-files-found: error
+
+  sign:
+    name: sign ${{ matrix.edition }}
+    # Explicit status: a job skipped anywhere up the chain (preflight,
+    # in a dry run) would otherwise skip this one too.
+    if: ${{ !cancelled() && !inputs.dry_run && needs.build.result == 'success' }}
+    needs: build
+    runs-on: macos-latest
+    # Apple's notary service can take most of an hour for a new team's
+    # first submissions, and each edition waits for it twice (app, disk
+    # image).
+    timeout-minutes: 240
+    # The release keys exist only here: the environment allows `main` only.
+    environment: release
+    # Read-only: the sparse checkout of the signing scripts.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: main
+            prefix: AI-Juggler
+          - edition: nightly
+            prefix: AI-Juggler-Nightly
+    env:
+      VERSION: ${{ inputs.version }}
+      PREFIX: ${{ matrix.prefix }}
+    steps:
+      # The signing scripts only, from the commit being released.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/sign_macos.sh
+            scripts/apple_retry.py
+            scripts/updater_sig_check.py
+            scripts/install_tauri_cli.sh
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unsigned-${{ matrix.edition }}
+          path: ${{ runner.temp }}/unsigned/
+
+      - name: Pinned tauri-cli (for `signer sign`)
+        run: ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+
+      - name: Sign, notarize, staple; the updater archive; verify
         env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          dmg="$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)"
-          python3 scripts/apple_retry.py -- xcrun notarytool submit "$dmg" \
-            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
-            --wait --timeout 90m
-          # A fresh ticket can take a moment to reach Apple's CDN.
-          python3 scripts/apple_retry.py -- xcrun stapler staple "$dmg"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
+        run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
 
-      - name: Verify the signatures, notarization and updater signature
-        run: |
-          set -euo pipefail
-          bundle=target/universal-apple-darwin/release/bundle
-          app="$(ls -d "$bundle"/macos/*.app | head -1)"
-          dmg="$(ls "$bundle"/dmg/*.dmg | head -1)"
-          codesign --verify --deep --strict --verbose=2 "$app"
-          python3 scripts/apple_retry.py -- spctl --assess --type execute --verbose=4 "$app"
-          xcrun stapler validate "$app"
-          xcrun stapler validate "$dmg"
-          python3 scripts/apple_retry.py -- spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
-          ls "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
-          # No test seam ships (SECURITY-GUIDELINES C8): the variables that
-          # silence or answer dialogs are compiled into debug builds only.
-          scripts/release_seams_check.sh "$app"/Contents/MacOS/*
-
-      - name: Collect this edition's assets
-        run: |
-          bundle=target/universal-apple-darwin/release/bundle
-          out="$RUNNER_TEMP/assets" && mkdir -p "$out"
-          cp "$(ls "$bundle"/dmg/*.dmg | head -1)" "$out/${PREFIX}-${VERSION}-universal.dmg"
-          cp "$(ls "$bundle"/macos/*.app.tar.gz | head -1)" "$out/${PREFIX}-${VERSION}-universal.app.tar.gz"
-          cp "$(ls "$bundle"/macos/*.app.tar.gz.sig | head -1)" "$out/${PREFIX}-${VERSION}-universal.app.tar.gz.sig"
-          ls -l "$out"
-
+      # The caller publishes these (nightly.yml).
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-${{ matrix.edition }}
@@ -210,68 +305,57 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  publish:
-    name: publish
-    needs: edition
-    runs-on: ubuntu-latest
+  sign-rehearsal:
+    name: sign ${{ matrix.edition }} (rehearsal)
+    # The dry run skips preflight; without an explicit status check that
+    # skip would carry down and skip the rehearsal too.
+    if: ${{ !cancelled() && inputs.dry_run && needs.build.result == 'success' }}
+    needs: build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    # No environment, no secret: an ad-hoc signature and a throwaway key.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: main
+            prefix: AI-Juggler
+          - edition: nightly
+            prefix: AI-Juggler-Nightly
     env:
       VERSION: ${{ inputs.version }}
+      PREFIX: ${{ matrix.prefix }}
     steps:
+      # The signing scripts only, from the commit being released.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.ref }}
-          fetch-depth: 0
+          ref: ${{ env.REF }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/sign_macos.sh
+            scripts/apple_retry.py
+            scripts/updater_sig_check.py
+            scripts/install_tauri_cli.sh
+          sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: release-*
+          name: unsigned-${{ matrix.edition }}
+          path: ${{ runner.temp }}/unsigned/
+
+      - name: Pinned tauri-cli (for `signer sign`)
+        run: ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+
+      - name: Rehearse signing (no secrets)
+        env:
+          REHEARSAL: "1"
+        run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rehearsal-${{ matrix.edition }}
           path: ${{ runner.temp }}/assets/
-          merge-multiple: true
-
-      - name: Release notes (as the build jobs wrote them)
-        env:
-          PREVIOUS: ${{ inputs.previous }}
-          REF: ${{ inputs.ref }}
-        run: |
-          if [ ! -f "docs/releases/${VERSION}.md" ]; then
-            python3 scripts/nightly_notes.py "$VERSION" "$PREVIOUS" "$REF"
-          fi
-          # A database change since the previous nightly needs a downgrade
-          # note (nightly_notes.py writes it; hand-written notes must too).
-          ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
-
-      - name: Assemble the update feeds and checksums
-        run: |
-          python3 - <<PY
-          import json, os, datetime
-          version = os.environ["VERSION"]
-          out = os.environ["RUNNER_TEMP"] + "/assets"
-          notes = open(f"docs/releases/{version}.md").read()
-          date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-          # latest.json: AI Juggler (what beta and stable point at later).
-          # latest-nightly.json: AI Juggler Nightly (the nightly feed).
-          for feed_name, prefix in (("latest.json", "AI-Juggler"), ("latest-nightly.json", "AI-Juggler-Nightly")):
-              archive = f"{prefix}-{version}-universal.app.tar.gz"
-              sig = open(f"{out}/{archive}.sig").read().strip()
-              url = f"https://github.com/${{ github.repository }}/releases/download/v{version}/{archive}"
-              feed = {
-                "version": version,
-                "notes": notes,
-                "pub_date": date,
-                "platforms": {p: {"signature": sig, "url": url} for p in ("darwin-aarch64", "darwin-x86_64")},
-              }
-              json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
-          PY
-          (cd "$RUNNER_TEMP/assets" && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
-
-      - name: Publish the build (pre-release; channels point at it later)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REF: ${{ inputs.ref }}
-        run: |
-          gh release create "v${VERSION}" "$RUNNER_TEMP"/assets/* \
-            --repo "${{ github.repository }}" \
-            --target "$REF" \
-            --prerelease \
-            --title "${VERSION}" \
-            --notes-file "docs/releases/${VERSION}.md"
+          retention-days: 3
+          if-no-files-found: error

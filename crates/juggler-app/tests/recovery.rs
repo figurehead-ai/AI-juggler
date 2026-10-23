@@ -27,6 +27,11 @@ use juggler_app::state::AppState;
 use juggler_core::model::Timestamp;
 use juggler_supervisor::tree::LedgerStore as _;
 
+// The shared reaper and bounded server (nothing else from the kit).
+#[allow(dead_code)]
+#[path = "../../juggler-supervisor/tests/fixtures/mod.rs"]
+mod fixtures;
+
 fn alive(pid: u32) -> bool {
     std::process::Command::new("kill")
         .arg("-0")
@@ -89,6 +94,9 @@ fn tick_until_helpers(state: &Arc<AppState>, session: &str, helpers: usize) -> b
 #[test]
 fn crash_drill_readopts_verifies_and_reports() {
     let dir = tempfile::tempdir().unwrap();
+    // Every tree and the forged process die with the test, a failed
+    // assertion's unwind included.
+    let mut reaper = fixtures::Reaper::default();
     let data = dir.path().join("app-data");
     // ---- BEFORE the crash -------------------------------------------
     let state1 =
@@ -99,11 +107,13 @@ fn crash_drill_readopts_verifies_and_reports() {
         .supervisor
         .spawn(&a, &sh_spec("sleep 300 & wait", dir.path()), &ctx(&state1))
         .unwrap();
+    reaper.group(spawned_a.pid);
     let b = juggler_core::model::SessionId::new("sess-b");
-    state1
+    let spawned_b = state1
         .supervisor
         .spawn(&b, &sh_spec("sleep 300 & wait", dir.path()), &ctx(&state1))
         .unwrap();
+    reaper.group(spawned_b.pid);
     assert!(
         tick_until_helpers(&state1, "sess-a", 1),
         "A's helper landed"
@@ -126,12 +136,13 @@ fn crash_drill_readopts_verifies_and_reports() {
         .spawn(
             &c,
             &sh_spec(
-                &format!("python3 -m http.server {port} --bind 127.0.0.1 & wait"),
+                &format!("{} & wait", fixtures::http_server(port)),
                 dir.path(),
             ),
             &ctx(&state1),
         )
         .unwrap();
+    reaper.group(spawned_c.pid);
     assert!(
         tick_until_helpers(&state1, "sess-c", 1),
         "C's dev-server helper landed"
@@ -153,6 +164,7 @@ fn crash_drill_readopts_verifies_and_reports() {
         .trim()
         .parse::<u32>()
         .unwrap();
+    reaper.pid(forged_pid);
     assert!(alive(forged_pid), "forged fixture process is live");
     let boot_id = state1.ledger.boot_id().to_string();
     state1

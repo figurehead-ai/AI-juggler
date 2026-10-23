@@ -89,8 +89,8 @@ const PROJECTS: ProjectInfo[] = [
 ];
 
 const RECIPES: LaunchRecipeInfo[] = [
-  { id: "p-work", name: "Deep work", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: "opus", default_cwd: null },
-  { id: "p-personal", name: "Weekend", account_id: "claude-personal", account_label: "Personal", provider: "claude-code", model: null, default_cwd: null },
+  { id: "p-work", name: "Deep work", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: "opus", default_cwd: null, restart_on_crash: null },
+  { id: "p-personal", name: "Weekend", account_id: "claude-personal", account_label: "Personal", provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null },
 ];
 
 function shell(kind: "provider" | "account" | "project", id: string) {

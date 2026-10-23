@@ -60,6 +60,76 @@ impl UsageRepo<'_> {
         Ok(stored)
     }
 
+    /// Whether usage rows were written that the holders don't account for
+    /// (a build without them wrote here): every transcript and rollout
+    /// should be read again.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn derived_dirty(&self) -> Result<bool, CoreError> {
+        self.conn
+            .query_row("SELECT dirty FROM usage_derived WHERE id = 1", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .optional()
+            .map(|dirty| dirty.unwrap_or(0) != 0)
+            .map_err(CoreError::Storage)
+    }
+
+    /// The accounts whose usage keys name their own session (their tool's
+    /// adapter says so): no holders are kept for them, and any kept before
+    /// go. An account that leaves the set has none, so the holders are
+    /// marked dirty and everything is read again. Writes only when the set
+    /// changed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn set_unshared_accounts(&self, accounts: &BTreeSet<String>) -> Result<(), CoreError> {
+        let now: BTreeSet<String> = self
+            .conn
+            .prepare("SELECT account FROM usage_unshared")?
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        if &now == accounts {
+            return Ok(());
+        }
+        let tx = write_transaction(self.conn)?;
+        if now.iter().any(|account| !accounts.contains(account)) {
+            tx.execute("UPDATE usage_derived SET dirty = 1 WHERE id = 1", [])?;
+        }
+        tx.execute("DELETE FROM usage_unshared", [])?;
+        for account in accounts {
+            tx.execute(
+                "INSERT INTO usage_unshared (account) VALUES (?1)",
+                params![account],
+            )?;
+            tx.execute(
+                "DELETE FROM usage_holders WHERE account = ?1",
+                params![account],
+            )?;
+            tx.execute(
+                "DELETE FROM usage_spans WHERE account = ?1",
+                params![account],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Marks the holders whole again (after reading everything again).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn clear_derived_dirty(&self) -> Result<(), CoreError> {
+        self.conn
+            .execute("UPDATE usage_derived SET dirty = 0 WHERE id = 1", [])
+            .map(|_| ())
+            .map_err(CoreError::Storage)
+    }
+
     /// [`Self::delete_session_events`] and then [`Self::store_events`],
     /// in ONE transaction: the re-read replaces a session's rows, or
     /// nothing changes.
@@ -465,6 +535,17 @@ fn from_sql(count: i64) -> u64 {
 ///   whichever one keeps it.
 /// - `usage_spans`: each session's standing under the shared-message rule
 ///   ([`Span`]).
+/// - `usage_unshared`: accounts whose usage keys name their own session (a
+///   tool's adapter says so): no holders are kept for them.
+/// - `usage_derived`: one row, `dirty` once something wrote usage rows the
+///   holders don't account for. A build that predates these tables (gone
+///   back to, then forward again) does exactly that, and the triggers below
+///   fire for it too, since they live in the file: a row inserted, or moved
+///   to a session, that holds no holder row. This build records the holder
+///   first, so its own writes never set it. The pipeline reads everything
+///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
+///   dropped and made again at each open, so a change to them always
+///   lands.
 pub(crate) const DERIVED: &str = "
 CREATE TABLE IF NOT EXISTS usage_holders (
     account TEXT NOT NULL,
@@ -482,6 +563,32 @@ CREATE TABLE IF NOT EXISTS usage_spans (
     own_start INTEGER,
     PRIMARY KEY (account, session)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_unshared (
+    account TEXT PRIMARY KEY
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_derived (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    dirty INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
+DROP TRIGGER IF EXISTS usage_events_unheld_insert;
+CREATE TRIGGER usage_events_unheld_insert AFTER INSERT ON usage_events
+WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM usage_holders h
+    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+  AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
+BEGIN
+    UPDATE usage_derived SET dirty = 1 WHERE id = 1;
+END;
+DROP TRIGGER IF EXISTS usage_events_unheld_move;
+CREATE TRIGGER usage_events_unheld_move AFTER UPDATE OF session ON usage_events
+WHEN NEW.msg_uuid IS NOT NULL AND NEW.session IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM usage_holders h
+    WHERE h.account = NEW.account AND h.msg_uuid = NEW.msg_uuid AND h.session = NEW.session)
+  AND NOT EXISTS (SELECT 1 FROM usage_unshared u WHERE u.account = NEW.account)
+BEGIN
+    UPDATE usage_derived SET dirty = 1 WHERE id = 1;
+END;
 ";
 
 /// One session's standing for the messages it shares, from every message
@@ -793,6 +900,10 @@ fn store_in(
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
     let mut owners = Owners::new(conn)?;
+    let unshared: BTreeSet<String> = conn
+        .prepare("SELECT account FROM usage_unshared")?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<_, _>>()?;
     owners.recount.extend(removed.recheck);
     owners.keys.extend(removed.keys);
     let mut insert = conn.prepare(
@@ -822,7 +933,9 @@ fn store_in(
                 .optional()?,
             None => None,
         };
-        if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session) {
+        if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session)
+            && !unshared.contains(&event.account)
+        {
             owners.offer(&event.account, key, session, event.ts)?;
         }
         let Some(was) = known else {

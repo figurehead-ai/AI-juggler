@@ -798,16 +798,10 @@ pub fn update_install_impl(
         status.progress = Some(0);
         status.backup_path = Some(backup_path.clone());
     }));
-    let mut received = 0u64;
-    let mut last = 0u8;
+    let mut meter = ProgressMeter::default();
     let bytes = feed.download(&mut |chunk, total| {
-        received += chunk;
-        if let Some(total) = total.filter(|t| *t > 0) {
-            let pct = u8::try_from((received.min(total) * 100) / total).unwrap_or(100);
-            if pct > last {
-                last = pct;
-                on_progress(&state.updates.update(|status| status.progress = Some(pct)));
-            }
+        if let Some(pct) = meter.add(chunk, total) {
+            on_progress(&state.updates.update(|status| status.progress = Some(pct)));
         }
     });
     let bytes = match bytes {
@@ -823,6 +817,53 @@ pub fn update_install_impl(
         status.progress = Some(100);
     });
     Ok(update_status_impl(state))
+}
+
+/// Download progress in whole percent: a value each time it rises, so every
+/// rise the download brings is shown and none twice.
+#[derive(Default)]
+struct ProgressMeter {
+    received: u64,
+    last: u8,
+}
+
+impl ProgressMeter {
+    /// `chunk` more bytes of `total` arrived: the new percentage, when it rose.
+    fn add(&mut self, chunk: u64, total: Option<u64>) -> Option<u8> {
+        self.received += chunk;
+        let total = total.filter(|total| *total > 0)?;
+        let pct = u8::try_from((self.received.min(total) * 100) / total).unwrap_or(100);
+        (pct > self.last).then(|| {
+            self.last = pct;
+            pct
+        })
+    }
+}
+
+#[cfg(test)]
+mod progress_tests {
+    use super::ProgressMeter;
+
+    /// #131 review: with the feed's 32 KB pieces of a 4 MB package, every
+    /// rise is shown, one percent at a time, and 100 at the end.
+    #[test]
+    fn every_rise_is_shown_once() {
+        let total = 4 << 20;
+        let mut meter = ProgressMeter::default();
+        let shown: Vec<u8> = (0..total / (32 << 10))
+            .filter_map(|_| meter.add(32 << 10, Some(total)))
+            .collect();
+        assert_eq!(shown.last(), Some(&100));
+        assert!(
+            shown.windows(2).all(|w| w[1] > w[0] && w[1] - w[0] <= 1),
+            "{shown:?}"
+        );
+        // Several pieces read at once (a loaded machine): one bigger step.
+        let mut meter = ProgressMeter::default();
+        assert_eq!(meter.add(7 * (32 << 10), Some(total)), Some(5));
+        // No total: nothing to show.
+        assert_eq!(ProgressMeter::default().add(10, None), None);
+    }
 }
 
 // --- the real feed (the Tauri updater plugin) ------------------------------

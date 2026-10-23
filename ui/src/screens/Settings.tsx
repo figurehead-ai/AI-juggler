@@ -8,11 +8,11 @@ import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } fr
 import { PackSecretsCard } from "../components/PackSecretsCard";
 import {
   CleanupSettingsCard,
-  SessionsSettingsCard,
   FleetPermissionsCard,
   NotificationSettingsCard,
   RenewalSettingsCard,
 } from "../components/SettingsSections";
+import { SessionsSettingsCard } from "../components/SessionsSettings";
 import { Button, Card, Chip } from "../components/primitives";
 import {
   accountsList,

@@ -647,14 +647,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
 /// AJ-E1301 (re-exported here so existing paths keep working).
 pub use juggler_adapter::environment::LoginState;
 
-/// Current epoch seconds (std-only).
-fn epoch_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|since| i64::try_from(since.as_secs()).unwrap_or(i64::MAX))
-        .unwrap_or_default()
-}
-
 impl ClaudeCodeAdapter {
     /// Probes whether the account in `state_dir` is logged in.
     ///
@@ -674,13 +666,13 @@ impl ClaudeCodeAdapter {
         if state_dir.join("claude-sso-session.json").exists() {
             return LoginState::SsoPending;
         }
-        let credentials = state_dir.join(".credentials.json");
-        if let Ok(meta) = std::fs::metadata(&credentials) {
+        // Presence and size only: the file holds the OAuth tokens, and AI
+        // Juggler never opens it (ADR-0003). Whether a sign-in has expired
+        // can't be told without its contents; Claude says so itself when
+        // it's used.
+        if let Some(meta) = crate::sign_in::metadata(CLAUDE_CODE_ID, state_dir) {
             if meta.len() == 0 {
                 return LoginState::Partial;
-            }
-            if Self::credential_expiry_passed(&credentials) {
-                return LoginState::Expired;
             }
             return LoginState::SignedIn;
         }
@@ -700,37 +692,25 @@ impl ClaudeCodeAdapter {
         LoginState::LoggedOut
     }
 
-    /// True when the credentials file's expiry claim is in the past
-    /// (the documented field only; the token is never read or logged).
-    fn credential_expiry_passed(path: &Path) -> bool {
-        let Ok(raw) = std::fs::read_to_string(path) else {
-            return false;
-        };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-            return false;
-        };
-        value
-            .get("expires_at")
-            .or_else(|| value.get("expiry"))
-            .and_then(serde_json::Value::as_i64)
-            .is_some_and(|at| at < epoch_secs())
-    }
-
-    /// True when settings.json carries a non-empty API-key FIELD
-    /// (existence only — the value is never read, ADR-0003).
+    /// True when settings.json carries a non-empty API-key FIELD. The file
+    /// is streamed into a shape that keeps only whether each key field is
+    /// filled; the key itself is skipped while parsing and never stored
+    /// (ADR-0003).
     fn settings_name_an_api_key(path: &Path) -> bool {
-        let Ok(raw) = std::fs::read_to_string(path) else {
+        #[derive(Default, serde::Deserialize)]
+        #[serde(default)]
+        struct KeyShape {
+            #[serde(rename = "primaryApiKey")]
+            primary: crate::presence::Present,
+            #[serde(rename = "apiKey")]
+            camel: crate::presence::Present,
+            api_key: crate::presence::Present,
+        }
+        let Ok(file) = std::fs::File::open(path) else {
             return false;
         };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-            return false;
-        };
-        value
-            .get("primaryApiKey")
-            .or_else(|| value.get("apiKey"))
-            .or_else(|| value.get("api_key"))
-            .and_then(|key| key.as_str())
-            .is_some_and(|text| !text.is_empty())
+        serde_json::from_reader::<_, KeyShape>(std::io::BufReader::new(file))
+            .is_ok_and(|shape| shape.primary.0 || shape.camel.0 || shape.api_key.0)
     }
 
     /// Builds the launch spec for the vendor's own interactive login flow —
@@ -1171,33 +1151,6 @@ fn keychain_entry_exists(service: &str) -> bool {
         .stderr(std::process::Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
-}
-
-/// Writes the managed `settings.json` for a config dir from a profile's
-/// settings overlay (model preference). Atomic, and confined to the managed
-/// dir by construction.
-///
-/// # Errors
-///
-/// Returns [`AdapterError::AccountDir`] when the file cannot be written.
-pub fn write_settings_overlay(
-    state_dir: &Path,
-    overlay: &juggler_core::model::SettingsOverlay,
-) -> Result<(), AdapterError> {
-    let Some(model) = &overlay.model else {
-        return Ok(()); // nothing to overlay — no file written
-    };
-    let settings = serde_json::json!({ "model": model });
-    let bytes = serde_json::to_vec_pretty(&settings).map_err(|error| AdapterError::AccountDir {
-        path: state_dir.to_path_buf(),
-        message: error.to_string(),
-    })?;
-    juggler_core::fs::atomic_write(&state_dir.join("settings.json"), &bytes).map_err(|error| {
-        AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: error.to_string(),
-        }
-    })
 }
 
 /// AJ-E1001: Claude Code's sign-in metadata for a config dir (see

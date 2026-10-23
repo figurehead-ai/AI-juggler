@@ -81,7 +81,8 @@ with open(args.ready + ".pid", "w") as handle:
 with open(args.ready, "w") as handle:
     handle.write(f"{bound_port}\n")
 
-# 5-minute cap: fixtures outlive every suite, and a tree leaked by a
-# failing test self-cleans instead of lingering for an hour.
+# 5-minute cap (FIXTURE_LIFETIME_SECS in mod.rs): fixtures outlive every
+# suite, and a tree leaked by a failing test self-cleans instead of
+# lingering for an hour.
 for _ in range(1500):
     time.sleep(0.2)

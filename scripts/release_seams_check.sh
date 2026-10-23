@@ -9,7 +9,7 @@
 #   (the self-test: the debug binary must contain them, so the check
 #   can see them when they're there)
 set -euo pipefail
-SEAMS='AIJ_NO_DIALOGS|AIJ_DIALOG_ANSWER'
+SEAMS='AIJ_NO_DIALOGS|AIJ_DIALOG_ANSWER|AIJ_WATCHDOG'
 if [ "${1:-}" = "--selftest" ]; then
   bin=${2:?a debug binary}
   if strings -a "$bin" | grep -E "$SEAMS" >/dev/null; then

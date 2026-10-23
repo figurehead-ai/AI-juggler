@@ -700,4 +700,20 @@ fn the_sample_ring_keeps_the_newest_five_minutes() {
     assert_eq!(ring.len(), 150);
     assert_eq!(ring.front().unwrap().at_ms, 50, "the oldest samples go");
     assert_eq!(ring.back().unwrap().at_ms, 199, "the newest sample stays");
+    // Sampled every 4 s (the other tools' trees), it still keeps 5 minutes,
+    // not 10.
+    let mut ring = std::collections::VecDeque::new();
+    for at in 0..200_i64 {
+        push_ring_sample(
+            &mut ring,
+            TreeSample {
+                at_ms: at * 4_000,
+                cpu_pct: None,
+                rss_bytes: 0,
+            },
+        );
+    }
+    let newest = ring.back().unwrap().at_ms;
+    assert!(newest - ring.front().unwrap().at_ms <= 300_000);
+    assert_eq!(ring.len(), 76);
 }
