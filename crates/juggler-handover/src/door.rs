@@ -55,6 +55,20 @@ pub enum WizardStep {
 }
 
 impl WizardStep {
+    /// The step whose [`Self::title`] is `title`.
+    #[must_use]
+    pub fn from_title(title: &str) -> Option<Self> {
+        [
+            Self::Target,
+            Self::Carried,
+            Self::Conflicts,
+            Self::RulesDiff,
+            Self::Confirm,
+        ]
+        .into_iter()
+        .find(|step| step.title() == title)
+    }
+
     /// The step's title (the wizard's step indicator).
     #[must_use]
     pub fn title(self) -> &'static str {
@@ -82,6 +96,20 @@ pub enum Door {
 }
 
 impl Door {
+    /// The door a switch screen shows, from its wire form (`"one-click"`,
+    /// or `"wizard"` with its step titles): `None` for anything else.
+    #[must_use]
+    pub fn from_wire(door: &str, steps: &[String]) -> Option<Self> {
+        match door {
+            "one-click" if steps.is_empty() => Some(Self::OneClick),
+            "wizard" if !steps.is_empty() => steps
+                .iter()
+                .map(|title| WizardStep::from_title(title))
+                .collect::<Option<Vec<_>>>()
+                .map(|steps| Self::Wizard { steps }),
+            _ => None,
+        }
+    }
     /// The telemetry discriminator (`switch_oneclick` vs
     /// `switch_wizard{steps_shown}`) — local counters only, never
     /// network.
@@ -133,6 +161,25 @@ pub fn choose_door(inputs: &DoorInputs) -> Door {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A door read back from its wire form is the door it was, and
+    /// nothing else reads as one.
+    #[test]
+    fn a_door_reads_back_from_its_wire_form() {
+        let wizard = Door::Wizard {
+            steps: vec![WizardStep::Target, WizardStep::Carried, WizardStep::Confirm],
+        };
+        let titles: Vec<String> = [WizardStep::Target, WizardStep::Carried, WizardStep::Confirm]
+            .iter()
+            .map(|step| step.title().to_owned())
+            .collect();
+        assert_eq!(Door::from_wire("wizard", &titles), Some(wizard));
+        assert_eq!(Door::from_wire("one-click", &[]), Some(Door::OneClick));
+        assert_eq!(Door::from_wire("one-click", &titles), None);
+        assert_eq!(Door::from_wire("wizard", &[]), None);
+        assert_eq!(Door::from_wire("wizard", &["Elsewhere".to_owned()]), None);
+        assert_eq!(Door::from_wire("teleport", &[]), None);
+    }
 
     // One breaker per §8 NO leaf.
     fn fail_usual(base: &DoorInputs) -> DoorInputs {

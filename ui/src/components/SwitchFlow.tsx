@@ -20,6 +20,7 @@ import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import {
   switchPreflight,
+  switchDoorCount,
   switchExecute,
   switchUndo,
   redactionPolicySetGlobal,
@@ -238,6 +239,8 @@ export function SwitchFlow({
         if (alive) {
           setStep(0);
           setPhase({ kind: "confirm", preflight });
+          // The door shown, counted once per opening (local only).
+          void switchDoorCount(preflight.door, preflight.wizard_steps).catch(() => undefined);
         }
       })
       .catch((cause) => {
