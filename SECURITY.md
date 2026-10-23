@@ -51,6 +51,12 @@ In scope:
   around its checks before it stops one.
 - Context packs: secret redaction that doesn't follow your settings.
 - Fleet: pairing, transport security and control between Macs.
+- Reading other tools' files: anything beyond what the
+  [trust page](./docs/guide/trust.md) lists, from Claude Squad's or Vibe
+  Kanban's files, or a sign-in or key file read at all.
+- The opt-in search index of sessions started outside AI Juggler: anything
+  of it left behind after it's turned off.
+- Crash reports: anything sent without your choice, or not scrubbed first.
 - Updates: signature checks and downgrade protection.
 - The optional Figurehead account client: device-token handling, backup
   encryption, and anything that sends data you didn't turn on.
@@ -68,12 +74,14 @@ and the [security guidelines](./docs/engineering/SECURITY-GUIDELINES.md)):
   happens in the tool's own flow. AI Juggler checks only whether a sign-in
   exists, never its contents, and never opens the tools' Keychain items.
 - **No proxying or interception.** AI Juggler runs the real, unmodified tools.
-- **No writes into your own setups that you didn't choose.** The only two
-  are the ones you turn on yourself: measuring Claude limits for sessions
-  started elsewhere (previewed, one setting, restored exactly when you turn
-  it off), and switching a conversation into an account (it adds a file and
-  never changes existing ones). Copies are made in AI Juggler's own folder,
-  and the original is never modified.
+- **No writes into your own setups that you didn't choose.** Each one is a
+  change you apply, shown before it's made: measuring Claude limits for
+  sessions started elsewhere (one setting, restored exactly when you turn it
+  off); switching a conversation into an account (it adds files and never
+  changes existing ones); and the settings, MCP servers, skills and rules
+  files you tick to copy or bring in line, each with an Undo that takes out
+  only what was added. A secret is never copied. Copies of whole setups are
+  made in AI Juggler's own folder, and the original is never modified.
 - **Local-first, account optional.** Without a Figurehead account, AI Juggler
   makes no calls to figurehead.ai. Backups are encrypted on your Mac and the
   server stores only ciphertext. Transcripts and credentials never leave
