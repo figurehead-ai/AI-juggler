@@ -889,6 +889,8 @@ pub fn alerts_tick(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     local_hour: Option<u32>,
 ) -> Vec<AlertEventInfo> {
+    // AJ-E1510: the local hour, for notifications' quiet hours.
+    state.notifier.local_hour_seen(local_hour, now_millis());
     let events = alerts_tick_inner(&state, local_hour);
     // AJ-E709: route them to paired consoles too (a no-op with Link off).
     crate::link::publish_alerts(state.inner(), &events);
@@ -3872,7 +3874,7 @@ pub fn apply_attention_recovery(storage: &Storage, session: &SessionId) -> Optio
 pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     let engine = &state.heuristics;
     let live = live_stats_of(state);
-    let mut changed = false;
+    let mut entered = Vec::new();
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         // AJ-E1004 Req.1: each Instance is judged against its Provider's
@@ -3922,11 +3924,17 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             if let Some(transition) = engine.evaluate_for(&record.id, &inputs, provider_stuck_secs)
             {
                 apply_attention_transition(&storage, &record.id, &transition);
-                changed = true;
+                entered.push((record.id.to_string(), transition.status));
             }
         }
     }
-    if changed {
+    // AJ-E1510: waiting or stuck, as a notification when asked for (and
+    // what quiet hours held, once they end).
+    for (session, status) in &entered {
+        crate::features::notifications::session_status(state, session, status.as_str());
+    }
+    crate::features::notifications::show_due(state);
+    if !entered.is_empty() {
         emit_sessions(app, state)?;
     }
     Ok(())
@@ -3951,6 +3959,7 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
                     changed = true;
                 }
             }
+            crate::features::notifications::session_status(state, session.as_str(), "running");
         }
     }
     if changed {

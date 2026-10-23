@@ -181,7 +181,7 @@
 **Research basis**: SPEC §1 and §5.4; EPICS M2-7; the maintainer's "always on" request (2026-10-22); Apple: IOKit power assertions, `NSProcessInfo` activities, `SMAppService`.
 **Handover note**: Widened from "Auto-restart a crashed session (opt-in)" (2026-10-22); the ID is kept so the counts don't change. Built (2026-10-22): Req.1–3, Req.4's crash relaunch (a watchdog of the app's own binary rather than launchd's KeepAlive, which covers only processes launchd started) and Req.5; see the evidence manifest. Req.4's login item: the audited `juggler-login-item` crate (D-26, approved by the maintainer 2026-10-22); its live registration needs an installed build.
 
-### AJ-E1510 System notifications | Status: TODO | Priority P1 | Effort M | Depends: AJ-E611, AJ-E1408
+### AJ-E1510 System notifications | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E611, AJ-E1408
 **Goal**: What needs the user reaches them outside the window, when they want it to.
 **User story**: As a user in another app, I get a macOS notification when a session waits for me, and clicking it opens that session.
 **Requirements**:

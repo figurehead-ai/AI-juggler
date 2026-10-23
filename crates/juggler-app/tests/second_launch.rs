@@ -377,7 +377,9 @@ fn a_launch_whose_helpers_hold_its_stderr_never_hangs_the_test() {
     let mut command = Command::new("sh");
     command.args([
         "-c",
-        "sleep 120 & python3 -c 'import os, time; os.setsid(); time.sleep(20)' & echo said >&2; exit 3",
+        // An odd duration of its own: another `sleep 120` on the Mac
+        // (any other program's) must not read as this helper left behind.
+        "sleep 120.731 & python3 -c 'import os, time; os.setsid(); time.sleep(20)' & echo said >&2; exit 3",
     ]);
     let began = Instant::now();
     let (status, stderr, _) = bounded(command);
@@ -391,7 +393,7 @@ fn a_launch_whose_helpers_hold_its_stderr_never_hangs_the_test() {
         began.elapsed()
     );
     let left = Command::new("pgrep")
-        .args(["-f", "^sleep 120$"])
+        .args(["-f", "^sleep 120.731$"])
         .output()
         .unwrap();
     assert!(left.stdout.is_empty(), "the helper in its group was ended");

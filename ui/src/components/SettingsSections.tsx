@@ -1,6 +1,7 @@
 /**
  * Settings › the policies the user owns (wireframe 26; D-08, D-12, D-14):
- * Cleanup, Accounts & renewal dates, Notifications and Fleet permissions.
+ * Cleanup, Accounts & renewal dates and Fleet permissions (Notifications:
+ * NotificationSettings.tsx).
  * Each is the user's choice, remembered, and shown before it takes
  * effect; nothing here is inferred or switched on by AI Juggler.
  */
@@ -20,18 +21,15 @@ import {
   errorText,
   fleetPeers,
   fleetSetPermission,
-  notificationPrefsGet,
-  notificationPrefsSet,
   type AccountInfo,
   type FleetPeerInfo,
-  type NotificationPrefsInfo,
 } from "../lib/bridge";
 
-function accountName(account: AccountInfo): string {
+export function accountName(account: AccountInfo): string {
   return `${providerDisplayName(account.provider)} · ${account.label}`;
 }
 
-function NoAccounts(): JSX.Element {
+export function NoAccounts(): JSX.Element {
   return <p className="text-xs text-muted">No Accounts yet. Add one on the Accounts screen.</p>;
 }
 
@@ -255,126 +253,6 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       <div className="flex flex-col divide-y divide-hairline">
         {accounts.length === 0 ? <NoAccounts /> : accounts.map((account) => <RenewalRow key={account.id} account={account} />)}
       </div>
-    </Card>
-  );
-}
-
-const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
-const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
-
-/** AJ-E611's anti-fatigue rules, now the user's: quiet hours for the
- * hourly digest and which Accounts it includes. Actionable alerts (an
- * Account about to run out, a parked Instance ready to resume) always
- * show once per window. */
-export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
-  const [prefs, setPrefs] = useState<NotificationPrefsInfo | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    void notificationPrefsGet().then(setPrefs, (cause) => setError(errorText(cause)));
-  }, []);
-  const save = (next: NotificationPrefsInfo, done: string) => {
-    setError(null);
-    setPrefs(next);
-    void notificationPrefsSet(next).then(
-      (saved) => {
-        setPrefs(saved);
-        setStatus(done);
-      },
-      (cause) => setError(errorText(cause)),
-    );
-  };
-  const quietOff = prefs !== null && prefs.quiet_start === prefs.quiet_end;
-  return (
-    <Card className="flex flex-col gap-3 p-5" data-testid="settings-notifications">
-      <div>
-        <h3 className="text-sm font-semibold">Notifications</h3>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          Alerts you can act on, such as an Account about to run out or a parked session ready to resume, show once
-          each time. Everything else waits for an hourly digest.
-        </p>
-      </div>
-      {prefs && (
-        <>
-          <fieldset className="flex flex-wrap items-center gap-2 text-xs" data-testid="quiet-hours">
-            <legend className="mb-1 w-full font-medium text-ink">Quiet hours for the digest</legend>
-            <label className="flex items-center gap-1.5">
-              <span className="text-muted">From</span>
-              <select
-                value={prefs.quiet_start}
-                onChange={(event) => {
-                  const start = Number.parseInt(event.target.value, 10);
-                  save({ ...prefs, quiet_start: start }, `The digest waits from ${hourLabel(start)} to ${hourLabel(prefs.quiet_end)}.`);
-                }}
-                className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-                data-testid="quiet-start"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hourLabel(hour)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-1.5">
-              <span className="text-muted">to</span>
-              <select
-                value={prefs.quiet_end}
-                onChange={(event) => {
-                  const end = Number.parseInt(event.target.value, 10);
-                  save({ ...prefs, quiet_end: end }, `The digest waits from ${hourLabel(prefs.quiet_start)} to ${hourLabel(end)}.`);
-                }}
-                className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-                data-testid="quiet-end"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hourLabel(hour)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="w-full text-[11px] text-muted">
-              {quietOff
-                ? "No quiet hours: the digest comes every hour."
-                : "During quiet hours the digest waits; nothing is dropped. The same hour twice means no quiet hours."}
-            </span>
-          </fieldset>
-          <fieldset className="flex flex-col gap-1.5 text-xs" data-testid="digest-accounts">
-            <legend className="mb-1 font-medium text-ink">In the hourly digest</legend>
-            {accounts.length === 0 ? (
-              <NoAccounts />
-            ) : (
-              accounts.map((account) => {
-                const muted = prefs.digest_muted_accounts.includes(account.id);
-                return (
-                  <label key={account.id} className="flex items-center gap-2" data-testid="digest-account">
-                    <input
-                      type="checkbox"
-                      checked={!muted}
-                      onChange={(event) =>
-                        save(
-                          {
-                            ...prefs,
-                            digest_muted_accounts: event.target.checked
-                              ? prefs.digest_muted_accounts.filter((id) => id !== account.id)
-                              : [...prefs.digest_muted_accounts, account.id],
-                          },
-                          event.target.checked
-                            ? `${accountName(account)} is back in the digest.`
-                            : `${accountName(account)} is left out of the digest.`,
-                        )
-                      }
-                    />
-                    <span>{accountName(account)}</span>
-                  </label>
-                );
-              })
-            )}
-          </fieldset>
-        </>
-      )}
-      <Status status={status} error={error} />
     </Card>
   );
 }

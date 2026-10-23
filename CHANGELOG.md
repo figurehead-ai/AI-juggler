@@ -418,6 +418,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **macOS notifications, when you want them** (AJ-E1510). Settings ›
+  Notifications › **Notify me outside AI Juggler** has five switches, all
+  off until you choose: a session waits for you, looks stuck, hits its
+  usage limit or finishes, and This Mac is getting tight. Each state is
+  told once, never while AI Juggler is in front; the quiet hours hold
+  them until they end, and an Account left out of the digest stays quiet
+  too. Clicking one brings AI Juggler forward on that session (or This
+  Mac).
 - **A new account starts with your usual settings** (AJ-E1508). Add
   account's fresh account offers **Start with the same settings as …**
   an account of the same tool: its MCP servers, its permissions and its
