@@ -2936,6 +2936,7 @@ dependencies = [
  "juggler-adapter",
  "juggler-adapters",
  "juggler-core",
+ "juggler-vm-stats",
  "netstat2",
  "nix 0.31.3",
  "objc2-foundation",
@@ -2947,6 +2948,13 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "juggler-vm-stats"
+version = "0.0.1"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

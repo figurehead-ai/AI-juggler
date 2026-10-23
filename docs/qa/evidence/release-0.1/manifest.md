@@ -47,6 +47,7 @@ app then opened.
 | F4 | The load gate's Cleanup timing counted opening More (Cleanup moved there after the baseline) | d95e97eb: timed from its own click |
 | F5 | (§3.1, real data) Codex subagent threads were listed as conversations of their own: 399 extra on one account | 5ebfbe61: a rollout whose `session_meta` names `source.subagent` is part of the conversation that started it, as Claude Code's subagents are; its usage still counts |
 | F6 | macOS ran out of application memory, juggler-app near 42 GB: the maintainer's Mac has a 5 GB Codex rollout and Claude transcripts of 200–670 MB, and listing conversations read each rollout whole and copied it into a parse (6.9 GB peak in a test) | 486980e7, e12f9022, 646b309e: every routine read holds one line or one chunk at a time (conversation lists, the transcript watcher, usage ingest, the session page's quality scan, the model scan, a switch's checks, ranking's estimate); what still needs a whole parse is refused past 512 MB, in words. A synthetic 2 GB rollout lists in 1.6 s at a 39 MB peak, tokens exact; streamed reads equal the whole-file code on 500 mixes of lines |
+| F7 | (§3.4, real data) This Mac's memory used read 3.0–3.4 GB low (3.2 % of physical memory) against `vm_stat`: its compressed term was the compressed data, not the pages the compressor occupies | D-27 (the maintainer's approval): `juggler-vm-stats`, an audited `host_statistics64` shim; its test holds it to `vm_stat`'s "Pages occupied by compressor" |
 
 ## Redaction checklist (tick before commit)
 
