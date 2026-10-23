@@ -5637,6 +5637,22 @@ pub async fn switch_execute(
     .await
 }
 
+/// AJ-E1523: a switch away from a session that had reached its usage
+/// limit is counted as the limit's (`quota_wall`), however the switch
+/// screen was opened. A successful one is a juggling loop: the limit hit,
+/// and the work went on elsewhere. `source` is the session as it was
+/// before the switch stopped it.
+fn loop_trigger(
+    source: &juggler_core::model::InstanceRecord,
+    trigger: &'static str,
+) -> &'static str {
+    if source.status == juggler_core::model::SessionStatus::QuotaBlocked {
+        "quota_wall"
+    } else {
+        trigger
+    }
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -5753,7 +5769,7 @@ fn switch_execute_core(
         account_a.harness.as_str(),
         account_b.harness.as_str(),
         "transplant",
-        trigger,
+        loop_trigger(&source, trigger),
     );
 
     // The pipeline: snapshot → stage → verify → launch (the app's
@@ -6016,7 +6032,7 @@ fn switch_replay(
         sides.account_a.harness.as_str(),
         sides.account_b.harness.as_str(),
         "pack_replay",
-        trigger,
+        loop_trigger(&sides.source, trigger),
     );
     let project = {
         let storage = lock_storage_arc(state)?;
@@ -10635,6 +10651,33 @@ mod tests {
             running: None,
             window: None,
             transcript_ref: None,
+        }
+    }
+
+    /// AJ-E1523: a switch away from a session at its usage limit counts
+    /// as the limit's, however the screen was opened (a juggling loop when
+    /// it succeeds); any other switch keeps its own reason.
+    #[test]
+    fn a_switch_from_a_session_at_its_limit_counts_as_a_juggling_loop() {
+        let cwd = std::env::temp_dir();
+        let at_limit = record("s1", "p1", SessionStatus::QuotaBlocked, cwd.clone());
+        for trigger in ["manual", "suggestion", "quota_wall"] {
+            assert_eq!(super::loop_trigger(&at_limit, trigger), "quota_wall");
+        }
+        for status in [
+            SessionStatus::Running,
+            SessionStatus::WaitingUser,
+            SessionStatus::Stuck,
+            SessionStatus::Finished,
+            SessionStatus::Failed,
+        ] {
+            let other = record("s2", "p1", status, cwd.clone());
+            assert_eq!(
+                super::loop_trigger(&other, "manual"),
+                "manual",
+                "{status:?}"
+            );
+            assert_eq!(super::loop_trigger(&other, "suggestion"), "suggestion");
         }
     }
 
