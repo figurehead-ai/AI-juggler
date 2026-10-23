@@ -674,8 +674,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 31,
-        "v4 → current (v31, AJ-E1502 naming and pins) exactly once, on open"
+        version, 32,
+        "v4 → current (v32, AJ-E1519 worktree homes) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -702,7 +702,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 31);
+    assert_eq!(version, 32);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1199,8 +1199,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 31,
-        "v12 → current (v31, AJ-E1502) exactly once, on open"
+        version, 32,
+        "v12 → current (v32, AJ-E1519) exactly once, on open"
     );
     drop(storage);
 

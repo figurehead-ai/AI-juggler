@@ -6,6 +6,9 @@
   updates, and going back to an earlier version.
 - [Your first run](first-run.md): finding your accounts, using them where
   they are or as copies, signing in, optional permissions.
+- [Coming from another tool](coming-from-other-tools.md): what comes
+  across from Claude Squad, Vibe Kanban, Crystal and cc-switch, and what
+  to do about the rest.
 
 **Everyday use**
 

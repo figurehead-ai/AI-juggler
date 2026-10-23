@@ -201,7 +201,8 @@ impl ScanHealth {
 }
 
 /// A path-valued env assignment found in a shell rc file (S5):
-/// `CLAUDE_CONFIG_DIR=~/work-claude` at `~/.zshrc:42`. Parsing is
+/// `CLAUDE_CONFIG_DIR=~/work-claude` at `~/.zshrc:42`, or in another
+/// manager's settings (AJ-E1519). Parsing is
 /// line-scoped to the two known variable names — never general shell
 /// evaluation, never other variables.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -217,6 +218,9 @@ pub struct AliasHint {
     /// False when the assigned dir doesn't exist (the dangling case
     /// — shown as a hint, never an import candidate).
     pub target_exists: bool,
+    /// The tool whose settings set it (`Claude Squad`'s profile, `Vibe
+    /// Kanban`'s executor profile, AJ-E1519); `None` for the shell.
+    pub set_by: Option<String>,
 }
 
 /// Another manager tool's presence (S3/S4): metadata only —

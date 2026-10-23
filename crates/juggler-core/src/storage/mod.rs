@@ -51,7 +51,7 @@ pub use process_ledger::{
 };
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
-pub use projects::{project_root, worktree_repo_root};
+pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
@@ -547,9 +547,22 @@ ALTER TABLE projects ADD COLUMN pinned_at INTEGER;
 ALTER TABLE projects ADD COLUMN forgotten_at INTEGER;
 ";
 
+/// v32 (AJ-E1519): the repository each of another manager's worktrees
+/// (Claude Squad's, Vibe Kanban's) belongs to, remembered while that
+/// manager knows it, so the worktree's sessions stay with their project
+/// after it's removed. Folders only.
+const V32: &str = "
+CREATE TABLE worktree_homes (
+    folder TEXT PRIMARY KEY,
+    repo TEXT NOT NULL,
+    manager TEXT NOT NULL,
+    seen_at INTEGER NOT NULL
+);
+";
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
