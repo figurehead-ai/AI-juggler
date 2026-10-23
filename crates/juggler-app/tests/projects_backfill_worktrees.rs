@@ -251,3 +251,80 @@ fn a_worktree_project_with_sessions_is_kept() {
         "referenced by a session: kept"
     );
 }
+
+/// AJ-E1519: Claude Squad removes a session's worktree when it's paused
+/// or killed. While its `state.json` lists the worktree, AI Juggler
+/// remembers the repository, so the worktree's conversations stay with
+/// it afterwards instead of becoming a project named `fix-login_18a3b2c4`.
+#[test]
+fn a_worktree_claude_squad_removed_stays_with_its_repository() {
+    let work = tempfile::tempdir().unwrap();
+    let work_root = work.path().canonicalize().unwrap();
+    let home = work_root.join("home");
+    let repo = home.join("Dev/app");
+    git_repo(&repo, "git@github.com:owner/app.git");
+    // Removed already: only its transcript remains, and Claude Squad's
+    // record of it.
+    let tree = home.join(".claude-squad/worktrees/fix-login_18a3b2c4");
+    std::fs::create_dir_all(home.join(".claude-squad")).unwrap();
+    std::fs::write(
+        home.join(".claude-squad/state.json"),
+        serde_json::json!({
+            "instances": [{
+                "title": "fix-login",
+                "worktree": { "repo_path": repo, "worktree_path": tree }
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let config = work_root.join("setup");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(config.join("settings.json"), "{}").unwrap();
+    transcript(&config, &repo, "a");
+    transcript(&config, &tree, "b");
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state =
+        Arc::new(AppState::init_with_registry(work_root.join("app-data"), registry).unwrap());
+    commands::account_import_mode_impl(
+        &state,
+        CLAUDE_CODE_ID,
+        config.to_str().unwrap(),
+        "Work",
+        commands::ImportRequest {
+            in_place: true,
+            ..commands::ImportRequest::default()
+        },
+    )
+    .unwrap();
+    // Before AI Juggler read Claude Squad's record, the worktree was a
+    // project of its own.
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .projects()
+        .touch(&tree, None)
+        .unwrap();
+
+    commands::projects_backfill_with(&state, Some(&home)).unwrap();
+    let projects = commands::projects_list_impl(&state).unwrap();
+    let names: Vec<&str> = projects.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, vec!["app"], "no project of its own: {names:?}");
+    assert_eq!(projects[0].history_sessions, 2);
+
+    // Claude Squad forgets it (the session was killed): AI Juggler still
+    // knows where it belongs.
+    std::fs::write(
+        home.join(".claude-squad/state.json"),
+        r#"{"instances": []}"#,
+    )
+    .unwrap();
+    commands::projects_backfill_with(&state, Some(&home)).unwrap();
+    let conversations = juggler_app::features::conversations::commands::list_impl(&state).unwrap();
+    let in_tree = conversations.iter().find(|c| c.id == "b").unwrap();
+    assert_eq!(in_tree.project_id.as_deref(), Some(projects[0].id.as_str()));
+}

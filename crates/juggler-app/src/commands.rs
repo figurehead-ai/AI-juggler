@@ -4826,6 +4826,21 @@ pub fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u3
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
+    projects_backfill_with(state, dirs::home_dir().as_deref())
+}
+
+/// [`projects_backfill_impl`] with the other managers' worktrees read
+/// under `home` (AJ-E1519: Claude Squad's, Vibe Kanban's), remembered
+/// first so a worktree they remove later still folds into its project.
+/// `None` reads none.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn projects_backfill_with(
+    state: &Arc<AppState>,
+    home: Option<&std::path::Path>,
+) -> AppResult<u32> {
     use std::collections::{BTreeMap, BTreeSet};
 
     /// What the conversations say about one project.
@@ -4836,6 +4851,18 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         last_ms: Option<i64>,
     }
 
+    // Read outside the storage lock: their files, not ours.
+    let managed: Vec<juggler_core::storage::WorktreeHome> = home
+        .map(juggler_adapters::other_managers::worktrees)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|worktree| juggler_core::storage::WorktreeHome {
+            folder: worktree.worktree,
+            repo: worktree.repo,
+            manager: worktree.manager.to_owned(),
+        })
+        .collect();
+
     crate::features::conversations::read_if_cold(state)?;
     let labels: std::collections::HashMap<String, String> = lock_storage_arc(state)?
         .accounts()
@@ -4843,12 +4870,27 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         .into_iter()
         .map(|account| (account.id.to_string(), account.label))
         .collect();
+    let homes = {
+        let storage = lock_storage_arc(state)?;
+        let known = storage.projects().worktree_homes()?;
+        // Written only when new or moved: this runs on every change.
+        let changed: Vec<_> = managed
+            .into_iter()
+            .filter(|home| !known.contains(home))
+            .collect();
+        storage.projects().remember_worktree_homes(&changed)?;
+        if changed.is_empty() {
+            known
+        } else {
+            storage.projects().worktree_homes()?
+        }
+    };
     let mut found: BTreeMap<PathBuf, Found> = BTreeMap::new();
     for conversation in state.conversations.all()? {
         let Some(folder) = conversation.folder.as_deref() else {
             continue; // no folder recorded: nothing to attach it to
         };
-        let root = juggler_core::storage::project_root(folder);
+        let root = juggler_core::storage::project_root_with(folder, &homes);
         let entry = found.entry(root).or_default();
         if let Some(label) = labels.get(&conversation.account_id)
             && !entry.accounts.contains(label)
@@ -4865,7 +4907,7 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
     // Rows an earlier backfill made for a worktree or a repository's
     // subfolder fold into their project: removed when nothing refers to them.
     for project in storage.projects().list()? {
-        if juggler_core::storage::project_root(&project.root) != project.root {
+        if juggler_core::storage::project_root_with(&project.root, &homes) != project.root {
             let _ = storage.projects().delete_if_unused(&project.id);
         }
     }
@@ -14409,7 +14451,11 @@ pub fn alias_installs_of(
     let mut dangling = 0_u32;
     for hint in alias_rows {
         let path = hint.path.to_string_lossy().into_owned();
-        let signal = format!("{} in {}:{}", hint.variable, hint.source_file, hint.line);
+        // AJ-E1519: another manager's profile names its file, not a line.
+        let signal = match &hint.set_by {
+            Some(_) => format!("{} in {}", hint.variable, hint.source_file),
+            None => format!("{} in {}:{}", hint.variable, hint.source_file, hint.line),
+        };
         if !hint.target_exists {
             dangling += 1;
             continue;
@@ -14423,23 +14469,34 @@ pub fn alias_installs_of(
             continue;
         }
         let harness = provider_of_variable(&hint.variable);
+        let origin = if hint.set_by.is_some() {
+            "other-manager"
+        } else {
+            "shell-alias"
+        };
         let credentials_len =
             juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
-            signals: vec!["shell-alias".to_owned()],
+            signals: vec![origin.to_owned()],
             harness: harness.to_owned(),
             path,
-            origin: "shell-alias".to_owned(),
+            origin: origin.to_owned(),
             login: "logged_out".to_owned(),
             bytes: 0,
             last_used_secs: None,
             managed: false,
             in_use: Vec::new(),
-            notes: vec![format!(
-                "Set by {} in your shell — {}:{}.",
-                hint.variable, hint.source_file, hint.line
-            )],
+            notes: vec![match &hint.set_by {
+                Some(manager) => format!(
+                    "Set by {} in {manager}'s settings — {}.",
+                    hint.variable, hint.source_file
+                ),
+                None => format!(
+                    "Set by {} in your shell — {}:{}.",
+                    hint.variable, hint.source_file, hint.line
+                ),
+            }],
         });
     }
     let health = if dangling > 0 {
@@ -14503,7 +14560,11 @@ fn scan_probe_rows(
             },
             format!(
                 "{} assignment(s){}",
-                alias_rows.len(),
+                // The shell's own: other managers' profiles aren't shell settings.
+                alias_rows
+                    .iter()
+                    .filter(|hint| hint.set_by.is_none())
+                    .count(),
                 if dangling > 0 {
                     format!(" ({dangling} dangling)")
                 } else {

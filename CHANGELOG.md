@@ -426,6 +426,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Coming from another tool** (AJ-E1519). A guide for Claude Squad,
+  Vibe Kanban, Crystal and cc-switch users says what comes across and what
+  to do about the rest. A worktree Claude Squad or Vibe Kanban removed now
+  stays with its repository's project instead of becoming a project of
+  its own (AI Juggler remembers where each one belongs while they list
+  it), and a config folder their profiles point Claude Code or Codex at is
+  offered in Add account. Their files are read without being changed, and
+  only those folders.
 - **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
   account and window, about how many of your usual sessions are left
   (worked out from the tool's own readings and your past sessions, with
