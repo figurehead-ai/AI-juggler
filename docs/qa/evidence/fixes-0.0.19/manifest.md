@@ -14,6 +14,6 @@ Not a task's evidence. This covers the two Lows from #135's re-review. The third
 
 | Gate | Head | Result |
 |---|---|---|
-| `just verify` (`CARGO_INCREMENTAL=0`) | 5f38c38c | 150 test binaries, 1,227 passed, 0 failed; every step after the tests OK; nothing left running |
-| `cargo deny check` | 5f38c38c | advisories, bans, licenses, sources ok |
+| `just verify` (`CARGO_INCREMENTAL=0`) | bdc6b21c (with the #137 review) | 150 test binaries, 1,229 passed, 0 failed; every step after the tests OK; nothing left running |
+| `cargo deny check` | bdc6b21c | advisories, bans, licenses, sources ok |
 | vitest, visual, a11y | — | nothing under `ui/` changed |
