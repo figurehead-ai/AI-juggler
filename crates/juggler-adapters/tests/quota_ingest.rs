@@ -1629,7 +1629,11 @@ fn run(command: &str) -> (bool, String) {
         .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    std::io::Write::write_all(child.stdin.as_mut().unwrap(), b"{}").unwrap();
+    // The command may exit without reading what it was given (a status
+    // line that ignores its input): a closed pipe is that, nothing else.
+    if let Err(error) = std::io::Write::write_all(child.stdin.as_mut().unwrap(), b"{}") {
+        assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe, "{error}");
+    }
     let out = child.wait_with_output().unwrap();
     (
         out.status.success(),

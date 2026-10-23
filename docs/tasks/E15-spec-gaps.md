@@ -536,7 +536,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: SPEC §7.
 **Handover note**: —
 
-### AJ-E1514 Budget caps | Status: TODO | Priority P2 | Effort M | Depends: AJ-E609
+### AJ-E1514 Budget caps | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E609
 **Goal**: A user who pays per client sees spending against a cap.
 **User story**: As a consultant, I set $300 a month for a client's projects and hear about it at 80%.
 **Requirements**:

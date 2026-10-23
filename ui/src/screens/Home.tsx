@@ -19,7 +19,7 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
-import { providerDisplayName } from "../lib/providers";
+import { ownSignIn, providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "../components/Avatar";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
@@ -34,7 +34,6 @@ import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
 import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
-import { ownSignIn } from "../lib/providers";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
@@ -47,17 +46,14 @@ import {
   accountLoginState,
   dashboardStats,
   errorText,
-  instanceMarkReviewed,
-  instanceUnmarkReviewed,
+  instanceMarkReviewed, instanceUnmarkReviewed,
   parkedResume,
   quotaDisplayAll,
   signedIn,
   terminalSpawnLogin,
-  type AccountInfo,
-  type InstanceInfo,
-  type ProjectInfo,
-  type QuotaDisplayData,
+  type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData,
 } from "../lib/bridge";
+import { capHeadline, CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -161,6 +157,7 @@ export function HomeScreen({
   onOpenThisMac?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   useEffect(() => {
     let alive = true;
@@ -402,6 +399,8 @@ export function HomeScreen({
         ? signIns.length === 1
           ? `${signIns[0]!.label} needs its sign-in`
           : `${signIns.length} accounts need their sign-in`
+      : capNeeds.caps.length > 0
+        ? capHeadline(capNeeds.caps)
       : // QA batch 9: never "All clear" while an account has run out.
         out.length > 0
         ? out.length === 1
@@ -469,7 +468,7 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) > 0 && (
+          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) + capNeeds.caps.length > 0 && (
             <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
               <SectionTitle id="home-needs">Needs you</SectionTitle>
               <ul className="flex flex-col gap-2.5">
@@ -520,6 +519,7 @@ export function HomeScreen({
                     </Button>
                   </li>
                 )}
+                <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
                 {needs.map(({ session, need }) => {
                   const words = needWords(need, session);
                   const glyph = NEED_GLYPH[need];
