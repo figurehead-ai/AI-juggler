@@ -1,6 +1,6 @@
 # Evidence manifest — AJ-E1508
 
-Task: `docs/tasks/E15-spec-gaps.md` AJ-E1508 (copy shared settings into a new account). Status: **IN-PROGRESS**. 2026-10-22, claude-opus.
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1508 (copy shared settings into a new account). Status: **DONE-EVIDENCED**. 2026-10-22, claude-opus.
 
 ## What changed
 
@@ -69,7 +69,7 @@ redacted labels. Nothing was copied, and no account was made.
   status-line cases (the user's own; AI Juggler's wrapper or fail-safe as "can't be copied …
   usage capture") rest on the unit and integration tests (`holds_secret`, `account_settings`).
 
-## Left
+## Follow-ups
 
 - **Plugins** are listed with their install command ("Needs you"), not installed. Installing one fetches it from its marketplace, and copying the plugin folder would carry absolute paths that point into the other account.
 - **The regression baselines** for Add account and the account menu change, and are re-rendered in the pinned container.
