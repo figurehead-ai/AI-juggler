@@ -12,11 +12,15 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs).</sub>
 - With crash reports on, it looks through macOS's new crash reports for AI Juggler's own, and keeps only what failed and where.
   <sub>Checked by [`an_ips_crash_keeps_its_kind_and_frames_and_nothing_else`](../../crates/juggler-app/src/crash_native.rs), [`only_crashes_after_the_first_look_are_kept_and_never_reads_nothing`](../../crates/juggler-app/src/crash_native.rs), [`links_and_oversized_files_are_not_read`](../../crates/juggler-app/src/crash_native.rs).</sub>
+- If you use Claude Squad or Vibe Kanban, it reads their own lists for which repository each of their worktrees belongs to and which config folders their profiles use, and nothing else they keep. It never opens their sign-in or key files.
+  <sub>Checked by [`claude_squad_worktrees_come_with_their_repositories`](../../crates/juggler-adapters/tests/other_managers.rs), [`vibe_kanban_profiles_offer_the_folders_they_point_at`](../../crates/juggler-adapters/tests/other_managers.rs), [`the_importers_never_name_a_sign_in_or_key_file`](../../crates/juggler-adapters/tests/other_managers.rs).</sub>
 
 ## What it changes
 
 - What it keeps lives in its own folder, ~/Library/Application Support/AI Juggler (AI Juggler Nightly for Nightly), and in its own Keychain items.
   <sub>Checked by [`ai_juggler_keeps_its_existing_folder_keychain_items_and_port`](../../crates/juggler-app/src/edition.rs).</sub>
+- With Search the words of every session on, its index holds the words to search, not the conversations, in its own folder; turning it off deletes the index.
+  <sub>Checked by [`turning_it_off_leaves_no_index_behind`](../../crates/juggler-app/tests/outside_search.rs), [`a_search_index_file_is_the_same_index_and_removes_whole`](../../crates/juggler-core/src/storage/transcript_index.rs).</sub>
 - It never writes to a setup you use where it is, unless you turn on a change that says so first.
   <sub>Checked by [`a_setup_used_where_it_is_is_never_written_by_ai_juggler`](../../crates/juggler-app/tests/in_place_accounts.rs), [`a_codex_home_used_where_it_is_is_never_written_by_ai_juggler`](../../crates/juggler-app/tests/codex_in_place.rs).</sub>
 - It changes your setups and projects only when you apply a change, shows it first, and can undo it.
