@@ -17,6 +17,7 @@ pub mod group;
 pub mod heuristics;
 pub mod journal;
 pub mod lifecycle;
+pub mod live_stats;
 pub mod machine;
 pub mod orphans;
 pub mod ports;
