@@ -12,6 +12,6 @@ Not a task's evidence. From #134's review (the coordinator's decision, 2026-10-2
 
 | Gate | Head | Result |
 |---|---|---|
-| `just verify` (`CARGO_INCREMENTAL=0`, includes the three clippy variants) | 5c3c4446 (the review, main merged in) | 151 test binaries, 1,232 passed, 0 failed |
-| `cargo deny check` | 5c3c4446 | ok |
+| `just verify` (`CARGO_INCREMENTAL=0`, includes the three clippy variants) | 39c7597a (the review; main with #142 merged in) | 151 test binaries, 1,232 passed, 0 failed |
+| `cargo deny check` | 39c7597a | ok |
 | vitest, visual, a11y | — | nothing under `ui/` changed |
