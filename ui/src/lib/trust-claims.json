@@ -21,6 +21,15 @@
           "tests": [
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read"
           ]
+        },
+        {
+          "id": "native-crash-reports",
+          "text": "With crash reports on, it looks through macOS's new crash reports for AI Juggler's own, and keeps only what failed and where.",
+          "tests": [
+            "crates/juggler-app/src/crash_native.rs::an_ips_crash_keeps_its_kind_and_frames_and_nothing_else",
+            "crates/juggler-app/src/crash_native.rs::only_crashes_after_the_first_look_are_kept_and_never_reads_nothing",
+            "crates/juggler-app/src/crash_native.rs::links_and_oversized_files_are_not_read"
+          ]
         }
       ]
     },
@@ -115,7 +124,8 @@
           "text": "Crash reports are kept on your Mac, with names and paths taken out. This version has nowhere to send them.",
           "tests": [
             "crates/juggler-app/src/crash.rs::a_seeded_crash_is_scrubbed_before_it_is_kept",
-            "crates/juggler-app/tests/trust.rs::crash_reports_have_nowhere_to_go"
+            "crates/juggler-app/tests/trust.rs::crash_reports_have_nowhere_to_go",
+            "crates/juggler-app/tests/trust.rs::the_crash_sender_is_built_only_with_an_address"
           ]
         },
         {

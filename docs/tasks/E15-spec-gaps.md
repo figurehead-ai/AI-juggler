@@ -566,7 +566,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: EPICS M7-2 and M7-4; PROPOSAL §6.6.
 **Handover note**: The two-Mac proof stays the maintainer's (AJ-E710).
 
-### AJ-E1516 Crash report sender and native crash dumps | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1107
+### AJ-E1516 Crash report sender and native crash dumps | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E1107
 **Goal**: Crash reports the user agreed to actually reach us.
 **User story**: As a user who chose "Ask", I review a report after a crash and send it.
 **Requirements**:
@@ -579,7 +579,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Visual testing**: unchanged screens.
 **Files to touch**: `crates/juggler-app/src/crash.rs`.
 **Research basis**: AJ-E1107.
-**Handover note**: The service and its address are the maintainer's step; the code waits behind it.
+**Handover note**: The service and its address are the maintainer's step; the code waits behind it. Built: `crash_send.rs` (sends `queued/` over HTTPS, 5 a day, as stored), compiled only when `build.rs` sees a release build with `AI_JUGGLER_CRASH_ENDPOINT` (`cfg(crash_sender)`), started from `lib.rs`; `crash_native.rs` turns macOS's `.ips` report of this app's own crash into a kept report at the next launch. Setting the address: add it to the release workflow, then update the Privacy line and `crash_reports_have_nowhere_to_go` together.
 
 ### AJ-E1517 Export diagnostics | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: A bug report comes with what we need, and nothing it shouldn't have.
