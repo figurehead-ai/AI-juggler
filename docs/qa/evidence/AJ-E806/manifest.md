@@ -626,3 +626,15 @@
   thread's CPU time, with wall time printed beside them; the 20 ms
   wall-time maximum under the lock still catches the disk listing it
   guards against. Same approach as #131's orphan tick budget.
+- **Flake record, 2026-10-22 (open; a test-design weakness).** In #143's
+  verify (5c3c4446), at load 34, with many Claude Code sessions running
+  on this Mac,
+  `load_budgets :: monitoring_beside_a_busy_claude_app` failed
+  "read at the listings only: 7125 for 12 listings of 543 processes":
+  the bound is 12 × (543 + 30) = 6,876. The observed trees include this
+  Mac's real AI tools. Their size is taken once, at the end of the
+  simulated minute, while other sessions' builds start and end processes
+  in them during it, so the end size understates what each listing read.
+  Alone it passed 3 of 3 (8,905–10,591 read), and the rerun was green.
+  Fix proposed to the coordinator: bound each listing by the trees' size
+  at that listing (or the largest seen), not the size at the end.
