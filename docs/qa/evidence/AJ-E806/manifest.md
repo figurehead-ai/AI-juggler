@@ -686,3 +686,23 @@
   turn the card to Allowed. The wait can be generous (5 s) without
   weakening the proof. With the focus listener removed, the test fails;
   it passed 3 of 3, and the whole UI suite passes.
+- **Fixed, 2026-10-23 (fix/exit-after-output).** #145's Linux verify
+  failed `node_script_tool :: a_node_script_tool_is_found_and_starts_with_the_finder_path`
+  with `s-headless: printed ""`.
+  - **Cause:** a product bug, not the PATH or a timeout. The supervisor
+    sent `Exited` as soon as the process ended, while the output readers
+    could still be copying its last lines into the ring.
+  - **Effect in the app:** the lifecycle forwarder classifies a non-zero
+    exit from that tail, so a quota exit could be marked Failed with no
+    reason. The terminal pump could also stop before the last output.
+  - Locally it failed 1 in 60 runs at load 45–60.
+  - **Fix:** on both the piped and the terminal path, `Exited` waits
+    until the readers have finished, at most `EXIT_OUTPUT_DRAIN` (1 s).
+    That bound only runs out when a helper keeps the output open. The
+    terminal path's force-kill no longer signals a pid it has reaped.
+  - **Tests:** a test-only hook holds the reader back. Without the wait,
+    the piped, terminal and quota tests fail every time ("printed ''"),
+    and the quota exit is not classified as the limit.
+  - It doesn't explain attention_corpus's "no Exited event" on #143's CI:
+    there the event is missing, not its output. That is the separate
+    `Exited`-before-`Started` report.
