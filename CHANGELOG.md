@@ -202,6 +202,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quota warnings come back in the next window: after an account's first
+  warning, later windows never warned again. A window with no known reset
+  time still warns once.
 - A switch to another account of the same tool says the same thing in the
   list and on the switch screen: "Same conversation, new account" (the
   list said "Full story, fresh start", though the switch resumes the same
@@ -427,6 +430,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The switch is ready before the limit** (AJ-E1513). Once an account
+  nears its limit (80 % of a window, or under 45 minutes left at the
+  current pace), AI Juggler prepares the switch for the session in the
+  background: it checks the switch to the account it would suggest and
+  keeps a redacted copy of the conversation in its own folder, readable by
+  you only. When the limit is hit, the dialog says "Ready to continue on
+  Work · prepared 4 min ago". Nothing switches by itself; the copy is
+  deleted when the session ends or the window resets.
 - **Monthly caps** (AJ-E1514). Set an amount a month for an account or a
   group of projects (Usage › Set a monthly cap), and Needs you tells you at
   80 % and 100 % of this month's estimated cost. Nothing is ever stopped.

@@ -51,6 +51,11 @@ pub struct AlertFsm {
     pub phase: AlertPhase,
     /// Snooze deadline (the actionable re-fires only after it).
     pub snoozed_until_ms: Option<i64>,
+    /// AJ-E1513: the reset instant of the window this machine fired in,
+    /// epoch ms. Once it passes (or a later window is reported) the
+    /// machine re-arms; without one it never re-arms on a guess.
+    #[serde(default)]
+    pub window_resets_at_ms: Option<i64>,
 }
 
 /// The thresholds (§Q5 table, verbatim).
@@ -71,19 +76,46 @@ pub struct WindowObservation {
     pub used_pct: Option<f64>,
     /// The reading's confidence (Estimated alerts read differently).
     pub confidence: crate::model::Confidence,
+    /// The window's reset instant, epoch ms, when one is known.
+    pub resets_at_ms: Option<i64>,
+}
+
+/// How much later a reported reset instant must be than the recorded
+/// one to count as the next window: readings of one window jitter by
+/// seconds, while the next window resets hours later.
+pub const NEXT_WINDOW_SLACK_MS: i64 = 30 * 60 * 1000;
+
+/// AJ-E1513: re-arms a machine whose window has reset — `now_ms` is
+/// past the reset instant it recorded when it fired, or `resets_at_ms`
+/// reports a later window. A machine with no recorded instant stays as
+/// it is: it never re-arms on a guess.
+#[must_use]
+pub fn rearmed(fsm: &AlertFsm, resets_at_ms: Option<i64>, now_ms: i64) -> AlertFsm {
+    match fsm.window_resets_at_ms {
+        Some(end)
+            if fsm.phase != AlertPhase::Armed
+                && (now_ms >= end
+                    || resets_at_ms.is_some_and(|next| next > end + NEXT_WINDOW_SLACK_MS)) =>
+        {
+            AlertFsm::default()
+        }
+        _ => fsm.clone(),
+    }
 }
 
 /// Steps the machine with one observation. Pure — the caller owns
 /// time and persistence. Returns the emission (at most one) and the
-/// next state. Backward transitions never happen without
-/// [`AlertSignal::Reset`]: a re-crossing in the same phase emits
-/// nothing (the at-most-once law).
+/// next state. Backward transitions never happen without a reset —
+/// [`AlertSignal::Reset`], or the window's own reset ([`rearmed`]): a
+/// re-crossing in the same window emits nothing (the at-most-once law).
 #[must_use]
 pub fn step(
     fsm: &AlertFsm,
     observation: WindowObservation,
     now_ms: i64,
 ) -> (AlertFsm, AlertEmission) {
+    let fsm = &rearmed(fsm, observation.resets_at_ms, now_ms);
+    let window_resets_at_ms = fsm.window_resets_at_ms.or(observation.resets_at_ms);
     let confidence = observation.confidence;
     let snoozed = fsm.snoozed_until_ms.is_some_and(|until| now_ms < until);
 
@@ -103,6 +135,7 @@ pub fn step(
         let next = AlertFsm {
             phase: AlertPhase::Critical,
             snoozed_until_ms: fsm.snoozed_until_ms,
+            window_resets_at_ms,
         };
         let emission = if fsm.phase == AlertPhase::Armed || fsm.phase == AlertPhase::Warned {
             AlertEmission::Actionable { confidence }
@@ -127,6 +160,7 @@ pub fn step(
         let next = AlertFsm {
             phase,
             snoozed_until_ms: fsm.snoozed_until_ms,
+            window_resets_at_ms,
         };
         let emission = if fsm.phase == AlertPhase::Armed {
             AlertEmission::TrayAmber { confidence }
@@ -160,6 +194,7 @@ pub fn signal(fsm: &AlertFsm, sig: AlertSignal, now_ms: i64) -> (AlertFsm, Alert
             let next = AlertFsm {
                 phase: AlertPhase::Exhausted,
                 snoozed_until_ms: None,
+                window_resets_at_ms: fsm.window_resets_at_ms,
             };
             let emission = if fsm.phase == AlertPhase::Exhausted {
                 AlertEmission::None
@@ -173,6 +208,7 @@ pub fn signal(fsm: &AlertFsm, sig: AlertSignal, now_ms: i64) -> (AlertFsm, Alert
             AlertFsm {
                 phase: fsm.phase,
                 snoozed_until_ms: Some(now_ms + SNOOZE_MS),
+                window_resets_at_ms: fsm.window_resets_at_ms,
             },
             AlertEmission::None,
         ),
