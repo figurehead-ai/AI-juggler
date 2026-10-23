@@ -774,3 +774,31 @@
     threshold is unchanged.
   - **Checked:** guardrails 10 of 10, and the supervisor's collateral,
     observed and reaper suites pass.
+- **Fixed, 2026-10-23 (fix/exit-after-output).** #145's Linux verify
+  failed `node_script_tool :: a_node_script_tool_is_found_and_starts_with_the_finder_path`
+  with `s-headless: printed ""`.
+  - **Cause:** a product bug, not the PATH or a timeout. The supervisor
+    sent `Exited` as soon as the process ended, while the output readers
+    could still be copying its last lines into the ring.
+  - **Effect in the app:** the lifecycle forwarder classifies a non-zero
+    exit from that tail, so a quota exit could be marked Failed with no
+    reason. The terminal pump could also stop before the last output.
+  - Locally it failed 1 in 60 runs at load 45–60.
+  - **Fix:** on both the piped and the terminal path, `Exited` waits
+    until the readers have finished, at most `EXIT_OUTPUT_DRAIN` (1 s).
+    That bound only runs out when a helper keeps the output open. The
+    exit is still recorded when it happens (eviction timer, journal,
+    ledger), so the cleanup grace isn't shifted. The terminal path's
+    force-kill no longer signals a pid it has reaped.
+  - **Tests:** a test-only hook holds the reader back. Without the wait,
+    the piped, terminal and quota tests fail every time ("printed ''"),
+    and the quota exit is not classified as the limit.
+  - **Timing:** with no helper, an exit never waits out the bound. Over
+    five runs per path, piped took 4–7 ms with the wait and 5–6 ms without
+    it, and the terminal took 9–11 ms with it and 9–10 ms without. Nothing
+    of the supervisor's keeps a child's output open.
+    `an_exit_without_a_helper_never_waits_out_the_bound` asserts it on both
+    paths: a stray fd would make every exit take the whole bound.
+  - It doesn't explain attention_corpus's "no Exited event" on #143's CI:
+    there the event is missing, not its output. That is the separate
+    `Exited`-before-`Started` report.
