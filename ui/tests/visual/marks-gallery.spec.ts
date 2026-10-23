@@ -7,7 +7,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -57,7 +58,7 @@ test("the replica has the projects to tell apart: 15+, every one with a mark, ic
 });
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail: marks, stacks and a folded project — ${theme}`, async ({ page }) => {
+  test(`the rail: marks, stacks and a folded project — ${theme}`, gate("80-marks"), async ({ page }) => {
     await seed(page, theme);
     const rail = page.getByTestId("rail");
     await expect(rail.getByTestId("rail-project").first().getByTestId("mark-project")).toBeVisible();

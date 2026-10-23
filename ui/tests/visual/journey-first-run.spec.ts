@@ -5,7 +5,8 @@
  * computer access → Home, a screenshot per step.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { resolve } from "node:path";
 // The journey's screenshots are evidence: the gallery's 66-first-run.
 const OUT = process.env.AIJ_JOURNEY_OUT ?? resolve(process.cwd(), "../docs/qa/evidence/_gallery/66-first-run");
@@ -58,7 +59,7 @@ async function axeClean(page: Page, step: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${step}`).toEqual([]);
 }
 
-test("first run on a Mac with Claude Code already set up", async ({ page }) => {
+test("first run on a Mac with Claude Code already set up", gate("66-first-run"), async ({ page }) => {
   await page.addInitScript((scan) => {
     const w = window as unknown as Record<string, unknown>;
     w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };

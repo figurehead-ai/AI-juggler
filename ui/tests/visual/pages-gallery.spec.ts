@@ -8,7 +8,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo } from "./fixtures";
@@ -79,7 +80,7 @@ for (const viewport of VIEWPORTS) {
   for (const theme of ["dark", "light"] as const) {
     const at = `${viewport.width} — ${theme}`;
 
-    test(`a session's page: its terminal — ${at}`, async ({ page }) => {
+    test(`a session's page: its terminal — ${at}`, gate("79-pages"), async ({ page }) => {
       await seed(page, theme, viewport);
       await openSession(page);
       await page.getByRole("tab", { name: "Terminal" }).click();

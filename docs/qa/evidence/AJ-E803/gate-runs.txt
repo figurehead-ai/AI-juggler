@@ -42,3 +42,22 @@
   136 passed; 1 timed out under load (add account — light-compact-1024x680; recorded in AJ-E806)
 ## Clean tree
   137 passed (6.5m)
+
+# 2026-10-23: AJ-E1522, the gallery families in the gate (container, emulated amd64 on Apple silicon)
+## gallery project --update-snapshots=all (first render)
+  90 passed (3.4m)
+## gallery project, compare only
+  90 passed (3.2m)
+## both projects, after the no-capture guard was added
+  296 passed, 3 failed (9.8m; load average 15): the guard caught three
+  element-only gate states (83-account-settings, 76-project-manage,
+  82-project-sync); element captures are now compared too
+## gallery project --update-snapshots=missing (the three element baselines)
+  86 passed, 4 failed (12.8m; load average 16, a page crashed): host load, not the change
+## gallery project, compare only
+  90 passed (3.2m)
+## gallery self-test (every button shifted 2 px)
+  84 failed
+  6 passed (5.2m)   # kill-sheet, recovery summary, switch confirm, door popover,
+                    # redaction chooser, the ? sheet: a dialog over a dimmed page
+  differing pixels per failing cell: 599 – 50,872

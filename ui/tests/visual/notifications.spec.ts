@@ -7,7 +7,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
@@ -18,6 +19,8 @@ test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 async function open(page: Page, theme: "dark" | "light") {
   await page.addInitScript((theme) => {
     localStorage.setItem("aij.theme", theme);
+    // AJ-E1522: a pinned clock, so the capture is the same every run.
+    Date.now = () => 1_728_800_000_000;
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
     sessionStorage.setItem("aij.ready.skipped", "1");
@@ -39,7 +42,7 @@ async function click(page: Page, open: { session_id: string | null; page: string
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`Settings › Notifications: every kind off until chosen — ${theme}`, async ({ page }) => {
+  test(`Settings › Notifications: every kind off until chosen — ${theme}`, gate("84-notifications"), async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
     await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Notifications" }).click();
