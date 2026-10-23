@@ -247,8 +247,10 @@ possible.
   quit the other copy.
 - **An update failed, or you want the previous version.** Settings › About &
   updates › **Go back to an earlier version**.
-- **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
-  or [open an issue](https://github.com/figurehead-ai/AI-juggler/issues/new/choose).
+- **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions),
+  or report a bug from Settings › General › **Report a problem**. **Export
+  diagnostics…** there shows you, file by file, what it would save (scrubbed
+  of names, paths and keys) before you attach it.
 
 ## Uninstall
 
