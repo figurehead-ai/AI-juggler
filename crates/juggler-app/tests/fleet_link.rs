@@ -909,3 +909,55 @@ fn link_off_answers_a_waiting_question_no_at_once() {
     );
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// Off then on: questions are asked again. A peer's "Ask each time"
+/// command after Link came back is put to this Mac's user, and Allow lets
+/// it run.
+#[test]
+fn after_link_off_and_on_a_question_is_asked_and_allow_runs() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+    let b_on_a = fleet::fleet_peers_impl(&a).unwrap()[0].machine_id.clone();
+    let a_on_b = fleet::fleet_peers_impl(&b).unwrap()[0].machine_id.clone();
+    fleet::fleet_set_permission_impl(&a, &b_on_a, "control", true).unwrap();
+
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&a, true).unwrap();
+    wait_for("B connected to A again", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.freshness == "live")
+    });
+    link::refresh_permissions_for_test(&b);
+
+    let command = {
+        let b = Arc::clone(&b);
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(remote::fleet_remote_stop_impl(
+                    b,
+                    a_on_b,
+                    "no-such-instance".to_owned(),
+                ))
+                .unwrap()
+        })
+    };
+    let prompt = wait_for("A asks its user", || {
+        link::prompts_impl(&a).into_iter().next()
+    });
+    link::prompt_decide_impl(&a, prompt.id, true);
+    let outcome = command.join().unwrap();
+    assert_eq!(
+        outcome.reason_code.as_deref(),
+        Some("unknown_record"),
+        "allowed, it ran to the node's own checks: {outcome:?}"
+    );
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}

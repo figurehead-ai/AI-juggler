@@ -452,6 +452,24 @@ struct AppNode {
 /// inside the 30 s command expiry).
 pub const PROMPT_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// What a peer hears when Link was off (or went off) on this Mac before
+/// its command or handover could run.
+pub(crate) const NOTHING_RAN: &str = "Link is off on that Mac — nothing ran.";
+
+/// What this Mac's user hears when Link off kept a command or handover
+/// from going out.
+pub(crate) const NOTHING_SENT: &str = "Link is off on this Mac — nothing was sent.";
+
+/// How a question to this Mac's user ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Answer {
+    Allowed,
+    /// Denied, or no answer in time.
+    Denied,
+    /// Link is going off or off: nobody was asked.
+    LinkOff,
+}
+
 /// A control command from an "Ask each time" machine, waiting for this
 /// Mac's user to Allow or Deny it.
 #[derive(Debug)]
@@ -501,13 +519,13 @@ impl Prompts {
     /// Asks this Mac's user; blocks the command (never the runtime) for
     /// at most [`PROMPT_TIMEOUT`]. Anything but an explicit Allow is a
     /// Deny.
-    fn ask(&self, peer_label: &str, action: &str) -> bool {
+    fn ask(&self, peer_label: &str, action: &str) -> Answer {
         let (respond, decision) = std::sync::mpsc::channel();
         let id = self.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         if let Ok(mut pending) = self.pending.lock() {
-            // Link going off or off: the answer is "no" without asking.
+            // Link going off or off: refused without asking.
             if pending.closed {
-                return false;
+                return Answer::LinkOff;
             }
             pending.waiting.push(PendingPrompt {
                 id,
@@ -523,7 +541,11 @@ impl Prompts {
         if let Ok(mut pending) = self.pending.lock() {
             pending.waiting.retain(|prompt| prompt.id != id);
         }
-        allowed
+        if allowed {
+            Answer::Allowed
+        } else {
+            Answer::Denied
+        }
     }
 }
 
@@ -842,16 +864,19 @@ impl NodeHandler for AppNode {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
             let what = describe_action(&state, action);
-            if !self.prompts.ask(&label, &what) {
-                return Err(reject(
-                    "not_confirmed",
-                    "Not allowed on that Mac — nothing ran.",
-                ));
+            match self.prompts.ask(&label, &what) {
+                Answer::Allowed => {}
+                Answer::Denied => {
+                    return Err(reject(
+                        "not_confirmed",
+                        "Not allowed on that Mac — nothing ran.",
+                    ));
+                }
+                Answer::LinkOff => return Err(reject("link_off", NOTHING_RAN)),
             }
         }
         // Held through the action, never through the question above.
-        let _open = link_open(&state, self.run)
-            .ok_or_else(|| reject("link_off", "Link is off on that Mac — nothing ran."))?;
+        let _open = link_open(&state, self.run).ok_or_else(|| reject("link_off", NOTHING_RAN))?;
         match action {
             proto::control_command::Action::StopInstance(stop) => {
                 let known = state
@@ -929,17 +954,20 @@ impl NodeHandler for AppNode {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
             let what = describe_action(&state, action);
-            if !self.prompts.ask(&label, &what) {
-                return Err(refuse(
-                    "not_confirmed",
-                    "Not allowed on that Mac — nothing ran.",
-                ));
+            match self.prompts.ask(&label, &what) {
+                Answer::Allowed => {}
+                Answer::Denied => {
+                    return Err(refuse(
+                        "not_confirmed",
+                        "Not allowed on that Mac — nothing ran.",
+                    ));
+                }
+                Answer::LinkOff => return Err(refuse("link_off", NOTHING_RAN)),
             }
         }
         // Held through the take (Link going off waits for it), never
         // through the question above.
-        let _open = link_open(&state, self.run)
-            .ok_or_else(|| refuse("link_off", "Link is off on that Mac — nothing ran."))?;
+        let _open = link_open(&state, self.run).ok_or_else(|| refuse("link_off", NOTHING_RAN))?;
         crate::crossmachine::take_handover_here(&state, peer, action, bundle)
     }
 
@@ -2937,7 +2965,7 @@ mod unfinished_pairing_tests {
         let prompts = Prompts::default();
         prompts.close();
         let started = std::time::Instant::now();
-        assert!(!prompts.ask("Laptop", "stop a session"));
+        assert_eq!(prompts.ask("Laptop", "stop a session"), Answer::LinkOff);
         assert!(started.elapsed() < Duration::from_secs(1));
         assert!(prompts.pending.lock().unwrap().waiting.is_empty());
 
@@ -2962,6 +2990,58 @@ mod unfinished_pairing_tests {
             assert!(std::time::Instant::now() < deadline, "never asked");
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(asking.join().unwrap(), "asked again once on");
+        assert_eq!(
+            asking.join().unwrap(),
+            Answer::Allowed,
+            "asked again once on"
+        );
+    }
+
+    /// A peer's "Ask each time" command arriving while Link goes off is
+    /// refused as Link off ("nothing ran"), not as a "no" nobody said.
+    #[test]
+    fn a_question_refused_by_link_off_says_link_off() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let peer_key = juggler_link::MachineIdentity::load_or_create(&dir.path().join("peer"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let candidate = PairCandidate {
+            machine_id: "m-peer".to_owned(),
+            label: "Laptop".to_owned(),
+            key: peer_key,
+            reach: None,
+            fingerprint: juggler_link::fingerprint_of(&peer_key),
+        };
+        let _ = crate::fleet::pin_candidate(&state, &candidate, Permission::Control);
+        crate::fleet::fleet_set_permission_impl(&state, "m-peer", "control", true).unwrap();
+        let prompts = Prompts::default();
+        prompts.close();
+        let node = AppNode {
+            state: Arc::downgrade(&state),
+            live: tokio::sync::broadcast::channel(1).0,
+            prompts,
+            run: 1,
+        };
+        let refused = node
+            .execute(
+                &PeerAccess {
+                    machine_id: "m-peer".to_owned(),
+                    permission: Permission::Control,
+                },
+                &proto::control_command::Action::StopInstance(proto::StopInstance {
+                    instance_id: "s1".to_owned(),
+                }),
+            )
+            .unwrap_err();
+        assert_eq!(refused.reason_code, "link_off");
+        assert_eq!(refused.message, NOTHING_RAN);
     }
 }

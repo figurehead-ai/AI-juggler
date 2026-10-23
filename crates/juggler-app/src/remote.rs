@@ -736,19 +736,22 @@ pub async fn send_action_for_test(
     send_action(state, machine_id, action, "view").await
 }
 
-/// A command Link off kept from finishing: it never went out, or it went
-/// out and the answer never came.
-fn link_off_outcome(sent: bool) -> RemoteCommandOutcomeInfo {
-    RemoteCommandOutcomeInfo {
+/// The command's answer, or what the user hears when Link off kept it
+/// from finishing: it never went out, or it went out and the answer never
+/// came.
+fn finished_or_link_off<T>(sent: crate::link::Outbound<T>) -> Result<T, RemoteCommandOutcomeInfo> {
+    let message = match sent {
+        crate::link::Outbound::Done(result) => return Ok(result),
+        crate::link::Outbound::NotSent => crate::link::NOTHING_SENT,
+        crate::link::Outbound::Ended => {
+            "Link went off before that machine answered — it may still have run there."
+        }
+    };
+    Err(RemoteCommandOutcomeInfo {
         accepted: false,
         reason_code: Some("link_off".to_owned()),
-        message: if sent {
-            "Link went off before that machine answered — it may still have run there."
-        } else {
-            "Link is off on this Mac — nothing was sent."
-        }
-        .to_owned(),
-    }
+        message: message.to_owned(),
+    })
 }
 
 async fn send_action(
@@ -798,10 +801,9 @@ async fn send_action(
         .await
     })
     .await?;
-    let result = match sent {
-        crate::link::Outbound::Done(result) => result,
-        crate::link::Outbound::NotSent => return Ok(link_off_outcome(false)),
-        crate::link::Outbound::Ended => return Ok(link_off_outcome(true)),
+    let result = match finished_or_link_off(sent) {
+        Ok(result) => result,
+        Err(link_off) => return Ok(link_off),
     };
     let outcome = match result {
         Err(_) => RemoteCommandOutcomeInfo {
@@ -997,17 +999,23 @@ mod tests {
 
 #[cfg(test)]
 mod link_off_tests {
-    use super::link_off_outcome;
+    use super::finished_or_link_off;
+    use crate::link::Outbound;
 
     /// A command Link off kept from going out says nothing was sent; one
-    /// it cut off after sending says it may still have run there.
+    /// it cut off after sending says it may still have run there; one that
+    /// finished gives its answer.
     #[test]
     fn link_off_says_whether_anything_was_sent() {
-        let never = link_off_outcome(false);
+        let never = finished_or_link_off(Outbound::<u8>::NotSent).unwrap_err();
         assert_eq!(never.message, "Link is off on this Mac — nothing was sent.");
-        let cut = link_off_outcome(true);
-        assert!(cut.message.contains("may still have run there"));
+        let cut = finished_or_link_off(Outbound::<u8>::Ended).unwrap_err();
+        assert_eq!(
+            cut.message,
+            "Link went off before that machine answered — it may still have run there."
+        );
         assert_eq!(never.reason_code.as_deref(), Some("link_off"));
         assert!(!never.accepted && !cut.accepted);
+        assert_eq!(finished_or_link_off(Outbound::Done(7_u8)).ok(), Some(7));
     }
 }
