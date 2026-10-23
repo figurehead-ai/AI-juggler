@@ -664,3 +664,13 @@
   - `transport :: mutual_tls_with_pinned_keys_connects_and_serves`: the
     heartbeat RTT p95 (50 ms, across threads) stays wall time, as the
     best of up to three rounds of 40.
+- **Fixed, 2026-10-22 (fix/load-budget-listings).** #143's `ui` CI job
+  failed `first-run-access-reopen :: back from System Settings: the
+  window's focus checks again at once` with "Unable to find
+  role=status" after 1,012 ms. The test raced its 1 s wait against the
+  1.5 s poll, and on a loaded runner the focus-driven check itself took
+  over 1 s. The poll's interval is now faked before the component
+  mounts and never advanced, so it can't fire, and only the focus can
+  turn the card to Allowed. The wait can be generous (5 s) without
+  weakening the proof. With the focus listener removed, the test fails;
+  it passed 3 of 3, and the whole UI suite passes.
