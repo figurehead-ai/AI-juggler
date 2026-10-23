@@ -128,7 +128,7 @@ describe("D-25 limit decision — the dialog", () => {
     w().__AIJ_SWITCH_TARGETS__ = [target("acct-personal", "Personal")];
     const { findByRole, getByTestId } = renderIt();
     fireEvent.click(await findByRole("button", { name: "see what carries over" }));
-    expect(getByTestId("limit-drops").textContent).toBe("Not carried over: tool approvals.");
+    expect(getByTestId("limit-drops").textContent).toBe("Doesn't carry: tool approvals.");
   });
 
   it("Park parks the session and says it comes back at the reset", async () => {

@@ -338,6 +338,19 @@ pub enum Mechanism {
     PackOnly,
 }
 
+impl Mechanism {
+    /// Its wire word (`native-resume`, `transplant`, `replay`, `pack`).
+    #[must_use]
+    pub const fn as_wire(self) -> &'static str {
+        match self {
+            Self::NativeResume => "native-resume",
+            Self::Transplant => "transplant",
+            Self::Replay => "replay",
+            Self::PackOnly => "pack",
+        }
+    }
+}
+
 /// Runs preflight: ordered checks, each failure stopping BEFORE any
 /// byte moves (Req.1). Pure.
 ///

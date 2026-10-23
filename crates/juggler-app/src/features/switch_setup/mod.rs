@@ -249,7 +249,13 @@ pub(crate) fn offers(
     let have: std::collections::HashSet<(ItemKind, String)> = to.iter().map(key).collect();
     let mut already_there: u32 = 0;
     let mut offers = Vec::new();
+    // QA P24: ticks are keyed by an offer's id, so an item is offered
+    // (or counted as there) once, whatever an inventory listed twice.
+    let mut seen = std::collections::HashSet::new();
     for item in from {
+        if !seen.insert(offer_id(item)) {
+            continue;
+        }
         if have.contains(&key(item)) {
             already_there += 1;
             continue;
@@ -775,4 +781,42 @@ pub async fn switch_setup_undo(
         undo_impl(state, &record)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use juggler_adapter::inventory::{Detail, Scope};
+
+    /// QA P24: an item an inventory lists twice is offered once, so its
+    /// tick (keyed by the offer's id) is one tick.
+    #[test]
+    fn an_item_listed_twice_is_offered_once() {
+        let skill = |name: &str| Item {
+            tool: "claude-code".to_owned(),
+            kind: ItemKind::Skill,
+            name: name.to_owned(),
+            scope: Scope::User,
+            detail: Detail::FromTheAccount,
+        };
+        let target = juggler_core::model::Account {
+            id: juggler_core::model::AccountId::new("codex-1"),
+            harness: juggler_core::model::HarnessId::new("fake"),
+            label: "Codex".into(),
+            plan: None,
+            state_dir: std::path::PathBuf::from("/nonexistent"),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        };
+        let adapter = juggler_adapters::fake::FakeHarnessAdapter::new("/bin/true");
+        let from = [skill("pdf"), skill("pdf"), skill("docs")];
+        let (offers, there) = offers(&target, &adapter, &from, &[skill("docs"), skill("docs")]);
+        assert_eq!(offers.len(), 1, "{offers:?}");
+        assert_eq!(there, 1);
+    }
 }

@@ -72,16 +72,23 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
         }
     }
     let skills = dir.join("skills");
+    // claude.ai's skills sync into one folder per id they were synced
+    // under, often with the same skills in each (QA P24): one item per
+    // name, and none for a skill the account also has as its own files.
+    let mut synced = std::collections::BTreeSet::new();
+    let mut own = std::collections::BTreeSet::new();
     for (name, path) in children(&skills, true) {
         if name == "synced" {
             for (_, set) in children(&path, true) {
-                for (skill, _) in children(&set, true) {
-                    items.push(item(ItemKind::Skill, &skill, Detail::FromTheAccount));
-                }
+                synced.extend(children(&set, true).into_iter().map(|(skill, _)| skill));
             }
         } else if path.join("SKILL.md").is_file() {
+            own.insert(name.clone());
             items.push(item(ItemKind::Skill, &name, Detail::Files { path }));
         }
+    }
+    for skill in synced.difference(&own) {
+        items.push(item(ItemKind::Skill, skill, Detail::FromTheAccount));
     }
     for (kind, folder) in [
         (ItemKind::Command, "commands"),
@@ -814,5 +821,41 @@ mod tests {
             renumber_arguments("Fix $1 then $2; cost $$ stays"),
             "Fix $0 then $1; cost $$ stays"
         );
+    }
+
+    /// QA P24: claude.ai's skills, synced under two ids with the same
+    /// skills in each, are one item per name; a skill the account also has
+    /// as its own files is that one item.
+    #[test]
+    fn synced_skills_are_listed_once_each() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = dir.path();
+        for set in ["org-a_user", "org-b_user"] {
+            for skill in ["pdf", "docs", "release-notes"] {
+                std::fs::create_dir_all(d.join("skills/synced").join(set).join(skill)).unwrap();
+            }
+        }
+        std::fs::create_dir_all(d.join("skills/release-notes")).unwrap();
+        std::fs::write(
+            d.join("skills/release-notes/SKILL.md"),
+            "---\nname: release-notes\n---\n",
+        )
+        .unwrap();
+        let items = inventory(d, &d.join("state.json"), None);
+        let skills: Vec<(&str, bool)> = items
+            .iter()
+            .filter(|i| i.kind == ItemKind::Skill)
+            .map(|i| (i.name.as_str(), matches!(i.detail, Detail::FromTheAccount)))
+            .collect();
+        assert_eq!(
+            skills,
+            vec![("release-notes", false), ("docs", true), ("pdf", true)]
+        );
+        let mut keys: Vec<(ItemKind, &str)> =
+            items.iter().map(|i| (i.kind, i.name.as_str())).collect();
+        let all = keys.len();
+        keys.sort_unstable();
+        keys.dedup();
+        assert_eq!(keys.len(), all, "one item per kind and name");
     }
 }
