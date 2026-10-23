@@ -35,6 +35,11 @@ fn stuck_after_applies_live_survives_a_restart_and_resets() {
         stuck_after_minutes: 10,
         terminal_font_size: 14.0,
         terminal_scrollback_lines: 20_000,
+        // AJ-E1509: the always-on switches survive a restart too.
+        restart_on_crash: true,
+        keep_awake_on_power: false,
+        keep_awake_on_battery: true,
+        reopen_after_crash: false,
     };
     let saved = settings_policy::session_prefs_set_impl(&state, &quiet_builds).unwrap();
     assert_eq!(saved, quiet_builds);

@@ -20,6 +20,8 @@ sysinfo = "0.39.6"
 thiserror = "2.0.21"
 
 [dev-dependencies]
+# This thread's CPU time for the hot path's budget (as juggler-app's tests).
+cpu-time = "1"
 juggler-adapters = { version = "0.0.1", path = "../juggler-adapters" }
 tempfile = "3.27.0"
 
@@ -34,5 +36,7 @@ netstat2 = "0.11"
 # Foundation bindings; no `unsafe` in this crate).
 [target."cfg(target_os = \"macos\")".dependencies]
 sysctl = "0.6"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo", "NSString", "block2"] }
+# AJ-E1509: the block an activity is held in (`awake.rs`).
+block2 = { version = "0.6.2", default-features = false, features = ["std"] }
 objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "ps"] }

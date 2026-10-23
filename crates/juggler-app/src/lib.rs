@@ -39,6 +39,7 @@ pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod machine_recommendations;
 pub mod machine_tools;
 pub mod manage;
 pub mod newer_data;
@@ -401,6 +402,7 @@ macro_rules! app_commands {
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::sessions::commands::sessions_resume_command,
+            Write features::sessions::commands::sessions_restart_choice_set,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
@@ -434,6 +436,8 @@ pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
+    // AJ-E1509: a launch that only watches for this app's crash.
+    features::app::crash::watch_if_asked();
     // A launch that only shows another launch's "can't start" alert.
     launch_alert::show_if_asked();
     // AJ-E1103: cold start runs from here to the end of setup.
@@ -506,6 +510,16 @@ pub fn run() {
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
+    // AJ-E1509: the watchdog that reopens the app after a crash (when on),
+    // and the sessions the last crash ended, resumed where that's on.
+    {
+        let reopen = app_state
+            .storage
+            .lock()
+            .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
+        features::app::crash::follow_setting(&app_state, reopen);
+        features::app::crash::resume_after_crash(&app_state);
+    }
 
     let attention_state = Arc::clone(&app_state);
     let heuristic_tick_state = Arc::clone(&app_state);
@@ -633,6 +647,8 @@ pub fn run() {
         })
         .run(move |_app, event| {
             if let tauri::RunEvent::Exit = event {
+                // AJ-E1509: quit as asked — the watchdog lets it be.
+                features::app::crash::end_run(&data_dir);
                 if let Some(handover) = &handover {
                     handover.stop();
                 }
@@ -900,6 +916,9 @@ fn spawn_read_model_ticks(
         loop {
             std::thread::sleep(std::time::Duration::from_secs(5));
             let _ = commands::emit_resources(&app, &resource_state);
+            // AJ-E1509: the Mac kept awake (and App Nap off) for the
+            // sessions working here, before This Mac says so.
+            features::app::awake::tick(&resource_state);
             let _ = machine_health::emit_this_mac(&app, &resource_state);
         }
     });
@@ -988,12 +1007,31 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
                 juggler_supervisor::LifecycleEvent::Started { .. }
                 | juggler_supervisor::LifecycleEvent::HelperOrphaned { .. } => None,
             };
-            if let juggler_supervisor::LifecycleEvent::Exited { kind, session, pid } = &event {
-                // AJ-E410: freeze the pre-exit descendant rows into the
-                // orphan tracker + journal the durable allow-list BEFORE
-                // the status mapping consumes the event.
-                commands::record_exit_snapshot(&state, session, *pid, kind);
-            }
+            // AJ-E1509: how it ended, for the restarter (after the status
+            // is stored, with storage free again).
+            let ending = match &event {
+                juggler_supervisor::LifecycleEvent::Exited { kind, session, pid } => {
+                    // AJ-E410: freeze the pre-exit descendant rows into the
+                    // orphan tracker + journal the durable allow-list BEFORE
+                    // the status mapping consumes the event.
+                    commands::record_exit_snapshot(&state, session, *pid, kind);
+                    let tail = if kind.is_success() {
+                        String::new()
+                    } else {
+                        state
+                            .supervisor
+                            .output_tail(session, 4096)
+                            .unwrap_or_default()
+                    };
+                    Some(features::sessions::restart::Ending::of(
+                        kind,
+                        stopped_by_user,
+                        quota_blocked.is_some(),
+                        &tail,
+                    ))
+                }
+                _ => None,
+            };
             if let Ok(storage) = state.storage.lock() {
                 drop(commands::apply_lifecycle_event(
                     &storage,
@@ -1005,6 +1043,9 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
                 if quota_blocked.is_some() {
                     state.heuristics.forget(&quota_session);
                 }
+            }
+            if let Some(ending) = ending {
+                features::sessions::restart::after_exit(&state, &quota_session, ending);
             }
         }
     });

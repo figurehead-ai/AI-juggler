@@ -68,6 +68,7 @@ fn arb_overlay() -> impl Strategy<Value = SettingsOverlay> {
         .prop_map(|(model, env)| SettingsOverlay {
             model: model.map(|m| format!("model-{m}")),
             env,
+            restart_on_crash: None,
         })
 }
 
@@ -393,6 +394,8 @@ fn profile_update_and_delete() {
     profile.settings_overlay = SettingsOverlay {
         model: Some("m2".into()),
         env: BTreeMap::from([("A".into(), "B".into())]),
+        // AJ-E1509: a launch setting's own restart choice round-trips.
+        restart_on_crash: Some(true),
     };
     profile.default_cwd = Some(PathBuf::from("/tmp/x"));
     storage.profiles().update(&profile).unwrap();
@@ -716,6 +719,7 @@ fn launch_recipe_alias_roundtrip_pre_rename_values() {
         settings_overlay: SettingsOverlay {
             model: Some("opus".into()),
             env: BTreeMap::new(),
+            restart_on_crash: None,
         },
         default_cwd: None,
     };
@@ -1364,6 +1368,11 @@ fn lifecycle_events_append_and_the_latest_wins() {
             .sessions()
             .record_lifecycle(&id, "archived")
             .unwrap();
+        // AJ-E1509: a restart is history, never the archived state.
+        storage
+            .sessions()
+            .record_lifecycle(&id, "restarted after a crash (try 1 of 3)")
+            .unwrap();
         assert!(
             storage
                 .sessions()
@@ -1382,5 +1391,5 @@ fn lifecycle_events_append_and_the_latest_wins() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(events, 2, "history is appended, never rewritten");
+    assert_eq!(events, 3, "history is appended, never rewritten");
 }

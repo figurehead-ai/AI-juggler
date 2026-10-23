@@ -16,4 +16,24 @@ terminal_font_size: number,
 /**
  * Lines the terminal keeps above the screen.
  */
-terminal_scrollback_lines: number, };
+terminal_scrollback_lines: number, 
+/**
+ * AJ-E1509: a session that crashes is started again and resumed
+ * (a launch setting can override it). Off by default.
+ */
+restart_on_crash: boolean, 
+/**
+ * AJ-E1509: the Mac stays awake while sessions work, when plugged
+ * in. On by default.
+ */
+keep_awake_on_power: boolean, 
+/**
+ * AJ-E1509: …on battery too (with the switch above on). Off by
+ * default.
+ */
+keep_awake_on_battery: boolean, 
+/**
+ * AJ-E1509: AI Juggler is opened again when it quits unexpectedly
+ * (a crash; never a quit the user asked for). On by default.
+ */
+reopen_after_crash: boolean, };

@@ -10,7 +10,7 @@
  */
 import { useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { MachineState, MemoryMeter, TreeRow } from "./this-mac-parts";
+import { AwakeLine, MachineState, MemoryMeter, TreeRow } from "./this-mac-parts";
 import { machineStatus, type ThisMacInfo } from "../lib/machine";
 
 
@@ -57,6 +57,7 @@ export function ThisMacPanel({
         <MachineState info={info} />
 
         <MemoryMeter info={info} />
+        <AwakeLine info={info} />
 
         {info.top.length > 0 && (
           <ul className="flex flex-col" aria-label="Heaviest right now" data-testid="this-mac-top">

@@ -25,6 +25,10 @@ pub struct SessionsRepo<'a> {
     conn: &'a Connection,
 }
 
+/// The lifecycle events that set a session's reviewed and archived state
+/// ([`SessionsRepo::lifecycle_latest`]); any other event is history only.
+pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unarchived"];
+
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
     #[must_use]
@@ -159,8 +163,10 @@ impl SessionsRepo<'_> {
         Ok(at)
     }
 
-    /// AJ-E1005/AJ-E1007: the latest lifecycle event per Instance,
-    /// `session id → (event, at_ms)`; Instances without one are absent.
+    /// AJ-E1005/AJ-E1007: the latest state event (`STATE_EVENTS`: reviewed
+    /// or archived, and their undoing) per Instance, `session id → (event,
+    /// at_ms)`; Instances without one are absent. Other lifecycle events (a
+    /// restart, AJ-E1509) are history only and never change that state.
     ///
     /// # Errors
     ///
@@ -170,7 +176,10 @@ impl SessionsRepo<'_> {
     ) -> Result<std::collections::BTreeMap<String, (String, i64)>, CoreError> {
         let mut statement = self
             .conn
-            .prepare("SELECT session_id, event, at_ms FROM instance_lifecycle ORDER BY rowid")?;
+            .prepare(&format!(
+                "SELECT session_id, event, at_ms FROM instance_lifecycle WHERE event IN ({}) ORDER BY rowid",
+                STATE_EVENTS.map(|event| format!("'{event}'")).join(", ")
+            ))?;
         let rows = statement.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,

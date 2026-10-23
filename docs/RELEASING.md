@@ -29,6 +29,40 @@ workflows do the mechanical work:
 - **`promote.yml`** moves the beta or stable feed to an existing version
   after its checks and the maintainer's approval.
 
+### Where the keys are (AJ-E2001)
+
+No build or dependency code ever runs where the signing keys are.
+`build-macos.yml` has three jobs, and `nightly.yml` publishes:
+
+| Job | Holds | Runs |
+|---|---|---|
+| **preflight** | the `release` environment's secrets | a check that every one is set (nothing is built otherwise); no repository code |
+| **build**, per edition | no secret; a read-only token | the compile: every crate's build script and `pnpm build`. Uploads the unsigned `.app` |
+| **sign**, per edition | the `release` environment's secrets; a read-only token | `scripts/sign_macos.sh` only: Apple's `codesign`, `notarytool`, `stapler`, `hdiutil`, and the pinned prebuilt tauri-cli's `signer sign`. Signs, notarizes and staples the app and its disk image, makes and signs the updater archive, and checks all of it |
+| **publish** (`nightly.yml`) | the only token that may write (with the nightly feed job) | the feeds and checksums, then the pre-release; no build code |
+
+The `release` environment only allows `main`, so a branch can never reach
+the keys. Tools in the release jobs are pinned to an exact version and
+checksum:
+- tauri-cli: Tauri's prebuilt binary, checked against its SHA-256 by
+  `scripts/install_tauri_cli.sh`;
+- pnpm: the exact version and sha512 in `build-macos.yml`, which corepack
+  checks.
+
+Before anything is published, the sign job checks:
+- the app's signature, hardened runtime and lack of entitlements;
+- Gatekeeper, for the app and the disk image;
+- both stapled tickets;
+- the updater signature, against the public key baked into the app
+  (`scripts/updater_sig_check.py`).
+
+**A dry run** (`release-rehearsal.yml`) builds both editions for real and
+rehearses the sign job with an ad-hoc signature and a throwaway updater
+key. No secret is passed or read, and nothing is notarized or published.
+It runs on any pull request that changes the release workflows or their
+scripts, and by hand on any branch (Actions › Release rehearsal › Run
+workflow).
+
 ## Editions: side by side on one Mac (D-23)
 
 Every version is built as two apps from the same commit, and developers
@@ -99,20 +133,65 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
 
 ## One-time setup (maintainer)
 
-Repository settings → Secrets and variables → Actions.
+Settings › Environments, then Settings › Secrets and variables › Actions.
+Repository settings and secrets are yours to change; no workflow or agent
+changes them.
+
+**1. Create the `release` environment** (Settings › Environments › New
+environment, name `release`):
+
+- **Deployment branches and tags:** Selected branches and tags → add the
+  rule `main`. Only `main` may use the keys; a run from any other branch
+  waits and then fails at its preflight.
+- **Required reviewers:** none. Nightly runs unattended; beta and stable
+  already wait for you in Promote.
+- **Allow administrators to bypass:** off, if your plan offers it.
+
+**2. Move the signing secrets into it.** Add each one under the
+environment's **Environment secrets**, then delete it from **Repository
+secrets**. Until you delete them there, nightly keeps working from the
+repository copies, and only the preflight and sign jobs read them.
 
 | Name | Kind | What it is |
 |---|---|---|
-| `APPLE_CERTIFICATE` | secret | The Developer ID Application certificate, exported as `.p12`, base64-encoded |
-| `APPLE_CERTIFICATE_PASSWORD` | secret | The password of that `.p12` |
-| `APPLE_SIGNING_IDENTITY` | secret | For example `Developer ID Application: Name (TEAMID)` |
-| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | secret | The notarization account; `APPLE_PASSWORD` is an app-specific password |
-| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | secret | The updater signing key, from `cargo tauri signer generate` |
-| `AIJ_UPDATER_PUBKEY` | **variable** | The matching public key (it is public, and it is baked into the app) |
+| `APPLE_CERTIFICATE` | environment secret | The Developer ID Application certificate, exported as `.p12`, base64-encoded |
+| `APPLE_CERTIFICATE_PASSWORD` | environment secret | The password of that `.p12` |
+| `APPLE_SIGNING_IDENTITY` | environment secret | For example `Developer ID Application: Name (TEAMID)` |
+| `APPLE_TEAM_ID` | environment secret | The team id (10 characters) |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | environment secret | The updater signing key, from `cargo tauri signer generate` |
+| `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | environment secret | Notarization with an App Store Connect API key (step 3; preferred) |
+| `APPLE_ID`, `APPLE_PASSWORD` | environment secret | Notarization with an Apple ID and an app-specific password, if there is no API key |
+| `AIJ_UPDATER_PUBKEY` | **repository variable** (stays) | The updater's public key (public; baked into the app) |
+
+**3. Optional, recommended: an App Store Connect API key for
+notarization**, instead of the Apple ID and app-specific password:
+
+1. App Store Connect › Users and Access › Integrations › App Store
+   Connect API › Team Keys › Generate API Key. Name it
+   `AI Juggler notarization`, access **Developer**.
+2. Download the `.p8` (it can be downloaded once). Note the **Key ID** and
+   the **Issuer ID** shown above the keys list.
+3. In the `release` environment, set `APPLE_API_KEY` to the `.p8` file's
+   whole text (`-----BEGIN PRIVATE KEY-----` … `-----END PRIVATE KEY-----`),
+   `APPLE_API_KEY_ID` to the Key ID and `APPLE_API_ISSUER` to the Issuer ID.
+4. Once a nightly has notarized with it (its preflight summary says
+   "App Store Connect API key"), delete `APPLE_ID` and `APPLE_PASSWORD`
+   and revoke the app-specific password at account.apple.com.
+
+With all three `APPLE_API_*` set, the key is used; with none, the Apple ID.
+A partial set stops the preflight.
+
+**4. Check it.** Run **Release rehearsal** on any branch: it must pass,
+and touch none of these secrets. Then run **Nightly** by hand with
+`force`. Its preflight and sign jobs show **release** as their
+environment, and the build jobs show none.
 
 Keep the updater private key outside the repository, with a backup. If it is
 lost, installed apps can never verify another update and must be reinstalled
 by hand. `build-macos.yml` stops before building if any of these is missing.
+If a signing secret may have leaked, rotate it at once: a new `.p12`, a new
+API key or app-specific password, or (last resort, see above) a new updater
+key.
 
 Windows releases: the updater plugin is built without its `zip` feature
 (Windows installer extraction), because the `zip` version it uses has open

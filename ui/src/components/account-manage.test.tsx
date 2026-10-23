@@ -39,6 +39,7 @@ const recipe = (id: string, accountId: string, label: string): LaunchRecipeInfo 
   provider: "claude-code",
   model: null,
   default_cwd: null,
+  restart_on_crash: null,
 });
 
 const session = (id: string, accountId: string, status: string, branch: string): InstanceInfo =>

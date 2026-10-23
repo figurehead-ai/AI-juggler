@@ -77,6 +77,7 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     tools: total(trees),
     ours: total(trees.filter((t) => t.session_id)),
     theirs: total(trees.filter((t) => !t.session_id)),
+    awake: { working: 0, kept_awake: false, on_battery: false },
     by_tool: [],
     top: trees.slice(0, 3),
     others: trees.slice(3),

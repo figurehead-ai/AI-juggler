@@ -28,8 +28,10 @@ pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;
+mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod sign_in;
 pub mod tool_summary;
 pub mod transcript;
 

@@ -32,8 +32,10 @@ on:
         required: false
         default: ""
 
-permissions:
-  contents: write
+# Each job asks for what it needs (AJ-E2001): the checks and the
+# accessibility gate (which installs and runs the UI's dependencies) read;
+# only the approved promote job writes.
+permissions: {}
 
 concurrency:
   group: promote-${{ inputs.channel }}
@@ -48,11 +50,14 @@ jobs:
   check:
     name: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       ref: ${{ steps.check.outputs.ref }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: main
           # Tags: the downgrade-note check compares the database schema of
           # this version with the version the channel serves now.
@@ -109,6 +114,8 @@ jobs:
     name: a11y (${{ matrix.shard }}/4)
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -120,10 +127,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
       - name: Install
         working-directory: ui
-        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+        # The release's pnpm, pinned with its sha512 as build-macos.yml does.
+        run: corepack enable && corepack prepare "pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd" --activate && pnpm install --frozen-lockfile
       - name: Accessibility gate, shard ${{ matrix.shard }}/4
         env:
           A11Y_SKIP_SUMMARY: "1"
@@ -142,9 +151,12 @@ jobs:
     name: a11y
     needs: [check, a11y-shard]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -160,11 +172,14 @@ jobs:
     name: promote to ${{ inputs.channel }}
     needs: [check, a11y]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # The approval: the environment requires the maintainer.
     environment: ${{ inputs.channel }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: main
       - name: Point the channel at this build
         env:

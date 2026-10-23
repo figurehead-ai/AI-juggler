@@ -13,3 +13,10 @@ export async function sessionsResumeCommand(sessionId: string): Promise<string> 
   }
   return invoke<string>("sessions_resume_command", { sessionId });
 }
+
+/** AJ-E1509: a launch setting's own choice about restarting its crashed
+ * sessions; `null` follows Settings › Sessions. */
+export async function sessionsRestartChoiceSet(recipeId: string, restart: boolean | null): Promise<void> {
+  if (!hasLiveBackend()) return;
+  return invoke<void>("sessions_restart_choice_set", { recipeId, restart });
+}

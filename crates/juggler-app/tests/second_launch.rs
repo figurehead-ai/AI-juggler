@@ -769,3 +769,103 @@ fn handed_to_another(stderr: &str) -> bool {
     }
     other
 }
+
+/// This launch's process group: (pid, command line) of each member that
+/// still runs (a zombie waiting to be reaped isn't one).
+fn group_members(pgid: u32) -> Vec<(u32, String)> {
+    let out = Command::new("ps")
+        .args(["-axo", "pid=,pgid=,stat=,command="])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split_whitespace();
+            let pid: u32 = parts.next()?.parse().ok()?;
+            let group: u32 = parts.next()?.parse().ok()?;
+            let zombie = parts.next()?.starts_with('Z');
+            (group == pgid && !zombie).then(|| (pid, parts.collect::<Vec<_>>().join(" ")))
+        })
+        .collect()
+}
+
+fn wait_for(what: &str, limit: Duration, mut done: impl FnMut() -> bool) {
+    let until = Instant::now() + limit;
+    while !done() {
+        assert!(Instant::now() < until, "{what} within {limit:?}");
+        std::thread::sleep(Duration::from_millis(250));
+    }
+}
+
+/// AJ-E1509 Req.4 on the real binary: AI Juggler killed outright
+/// (SIGKILL, so it never marks a clean quit) comes back by itself — its
+/// watchdog sees it gone and starts it again, once. Everything it started
+/// is ended with the test (the group).
+#[test]
+#[cfg(target_os = "macos")]
+fn killed_outright_ai_juggler_comes_back_by_itself() {
+    let _serial = serial();
+    if cannot_run() {
+        return;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let data = dev_data_dir(home.path());
+    let (mut first, tap) = launch(
+        Command::new(app_binary())
+            .env("HOME", home.path())
+            .env("XDG_DATA_HOME", home.path().join(".local/share"))
+            .env("AIJ_NO_DIALOGS", "1")
+            .env("AIJ_WATCHDOG", "1"),
+        |_| {},
+    );
+    let pgid = first.0.id();
+    let marker = || std::fs::read_to_string(data.join("last-run")).unwrap_or_default();
+    let watchdogs = || {
+        group_members(pgid)
+            .into_iter()
+            .filter(|(_, command)| command.contains("--aij-watch"))
+            .count()
+    };
+    wait_for("the app up, its watchdog watching", LAUNCH_LIMIT, || {
+        marker().trim() == "running" && watchdogs() >= 1
+    });
+
+    // Killed outright: no clean mark.
+    kill_pid(pgid);
+    let _ = first.0.wait();
+    let apps = || {
+        group_members(pgid)
+            .into_iter()
+            .filter(|(pid, command)| {
+                *pid != pgid && !command.contains("--aij-watch") && command.contains("juggler-app")
+            })
+            .count()
+    };
+    wait_for("a new AI Juggler", LAUNCH_LIMIT, || apps() >= 1);
+    let relaunches = std::fs::read_to_string(data.join("crash-relaunches")).unwrap_or_default();
+    assert_eq!(
+        relaunches.lines().count(),
+        1,
+        "started again once: {relaunches}"
+    );
+    wait_for("the new run's own watchdog", LAUNCH_LIMIT, || {
+        watchdogs() >= 1
+    });
+    assert_eq!(marker().trim(), "running", "the new run holds the data");
+
+    kill_group(pgid);
+    wait_for("nothing of it left", Duration::from_secs(20), || {
+        group_members(pgid).is_empty()
+    });
+    let _ = tap.text(Duration::ZERO);
+    if !ai_juggler_is_open() {
+        let _ = std::fs::remove_file(SOCKET);
+    }
+}
+
+/// Kills one process, not its group.
+fn kill_pid(pid: u32) {
+    let _ = Command::new("kill")
+        .args(["-s", "KILL", &pid.to_string()])
+        .status();
+}

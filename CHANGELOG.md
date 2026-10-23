@@ -201,6 +201,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the others) work while you type in a session's terminal, as ⌘⇧ ones
   do on a Mac. Ctrl+Shift+C and Ctrl+Shift+V stay the terminal's copy and
   paste.
+- Turning Fleet Link off stops this Mac hearing from your other machines
+  at once, and ends a pairing still in progress. Before, a connection that
+  was open when you turned it off kept receiving their sessions and saving
+  them until it broke, and a pairing could still finish afterwards.
+- Codex: a conversation that opens by summarising another one no longer
+  counts that conversation's last model call again (on the maintainer's
+  Mac, about 367,000 tokens across three conversations). Usage already
+  counted is read again once.
+- Codex's older conversations count: Codex compresses older session files
+  (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
+  costs were missing (on a Mac used for a while, most of them).
+- AI Juggler no longer opens Claude Code's `.credentials.json`: it read the
+  file to check an expiry date. Whether you're signed in is told from the
+  file being there, as the docs promised; Claude says itself when a sign-in
+  has expired.
+- Fleet can find your other Macs on macOS 15 and later: AI Juggler now
+  says why it needs the local network, so macOS asks instead of silently
+  blocking it.
+- Jumping to a session's window works in signed builds: AI Juggler now
+  carries the Apple Events permission macOS asks about, instead of being
+  refused without a prompt.
+- Watching your Mac's processes stays under 1 % of one core beside a busy
+  Claude app: the other tools' processes are now measured every 4 seconds
+  (8 at most), in the same read that finds new ones, instead of every 2
+  seconds on top of it.
+- Going back to an earlier version and forward again no longer leaves
+  some cost credited to the wrong session: AI Juggler notices what the
+  earlier version wrote and reads the conversations again once.
 - This Mac counts what a session starts as soon as it starts (within about
   4 seconds). A build fanning out under a Claude app session could be
   missed for up to 10 seconds, so the app's figure read far too low.
@@ -398,6 +426,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copied to another account in that tool's own form; secrets stay
   behind, named. Every change can be undone there or in Settings.
 
+- **Keep work going** (AJ-E1509). Settings › Sessions has four new
+  switches. "Restart sessions that crash" (off by default) starts a
+  crashed session again on the same launch settings with its conversation
+  resumed, at most 3 times in 10 minutes. It never restarts after a usage
+  limit, a stop you made or a failed sign-in, and a launch setting can
+  choose for itself under its Options. "Keep the Mac awake while sessions
+  work" (on when plugged in; "On battery too" is off) holds off idle sleep
+  only while a session is working; the screen can still sleep and the lid
+  still sleeps the Mac. Monitoring isn't throttled by App Nap while
+  sessions run. "Reopen AI Juggler if it quits unexpectedly" (on) brings
+  it back after a crash, and the sessions it was running show "ended when
+  AI Juggler quit unexpectedly" and resume where restarting is on. This
+  Mac says what's keeping the Mac awake, with the setting a click away.
 - **A This Mac page** (AJ-E1528). "See what's using it", the This Mac
   panel's "See all", More › This Mac and the rail's "This Mac" line open
   it. It shows the Mac's state in words and meters, then what's using it:

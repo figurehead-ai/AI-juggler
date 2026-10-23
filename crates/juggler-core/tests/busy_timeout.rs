@@ -186,3 +186,174 @@ fn a_usage_write_waits_for_another_connection_that_changes_the_database() {
         other.join().unwrap();
     }
 }
+
+/// One store write, run against a competing writer.
+type Write<'a> = Box<dyn Fn() -> Result<(), juggler_core::error::CoreError> + 'a>;
+
+/// The other stores' write transactions, audited after #126's CI (only the
+/// usage store read before it wrote): each begins with a write, so SQLite
+/// takes the lock with a fresh snapshot and waits its turn. Each is run
+/// while another connection holds the write lock with a change pending.
+#[test]
+fn every_store_write_waits_for_another_connection_that_changes_the_database() {
+    use juggler_core::model::SessionId;
+    use juggler_core::storage::SyncEntry;
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&db).unwrap();
+    let ledger = ProcessLedgerRepo::open(&db).unwrap();
+    let session = SessionId::new("s");
+    let entry = SyncEntry {
+        seq: 1,
+        kind: "instance".into(),
+        record_id: "r".into(),
+        payload: vec![1],
+        wall_ms: 1,
+    };
+    let helper = || juggler_core::storage::LedgerRow {
+        pid: Some(4242),
+        pgid: Some(4242),
+        started_at: Some(1),
+        exe_path: "/bin/sh".into(),
+        cmdline_hash: "h".into(),
+        cmdline_trunc: "sh".into(),
+        boot_id: "boot".into(),
+        session_id: "s".into(),
+        instance_id: None,
+        provider: "claude-code".into(),
+        account_id: None,
+        project_id: None,
+        machine_id: "m".into(),
+        root_pid: None,
+        parent_pid: None,
+        depth: 1,
+        role: juggler_core::storage::ROLE_HELPER.into(),
+        state: String::new(),
+        listens_on: None,
+        cwd: "/".into(),
+        peak_rss: None,
+        peak_cpu: None,
+        exit_kind: None,
+        reaped_by_us: None,
+        escaped_group: false,
+        down_period: false,
+        first_seen: 1,
+        last_seen: 1,
+    };
+    let writes: Vec<(&str, Write<'_>)> = vec![
+        (
+            "transcript index append",
+            Box::new(|| {
+                storage
+                    .transcript_index()
+                    .append(&session, "/t.jsonl", &[(0, 4, "text".into())], 4)
+            }),
+        ),
+        (
+            "transcript index forget",
+            Box::new(|| storage.transcript_index().forget(&session)),
+        ),
+        (
+            "fleet outbox",
+            Box::new(|| {
+                storage
+                    .fleet_sync()
+                    .outbox_append("instance", "r", b"x", 1)
+                    .map(drop)
+            }),
+        ),
+        (
+            "fleet replica epoch",
+            Box::new(|| storage.fleet_sync().replica_set_epoch("peer", "e1")),
+        ),
+        (
+            "fleet replica apply",
+            Box::new(|| {
+                storage
+                    .fleet_sync()
+                    .replica_apply("peer", &entry, 1)
+                    .map(drop)
+            }),
+        ),
+        (
+            "fleet replica forget",
+            Box::new(|| storage.fleet_sync().replica_forget("peer")),
+        ),
+        (
+            "ledger ports",
+            Box::new(|| ledger.apply_ports(&[(1, "boot", "[]")])),
+        ),
+        (
+            "ledger helpers",
+            Box::new(|| ledger.upsert_helpers("s", &[helper()])),
+        ),
+    ];
+    for (round, (name, write)) in writes.iter().enumerate() {
+        let path = db.clone();
+        let (locked, wait) = std::sync::mpsc::channel();
+        let other = std::thread::spawn(move || {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+            conn.execute(
+                "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', ?1)",
+                [round.to_string()],
+            )
+            .unwrap();
+            locked.send(()).unwrap();
+            std::thread::sleep(HELD);
+            conn.execute_batch("COMMIT").unwrap();
+        });
+        wait.recv().unwrap();
+        write().unwrap_or_else(|error| panic!("{name} waits for the other write: {error}"));
+        other.join().unwrap();
+    }
+}
+
+/// The audit (#130 review L10): an upgrade's migrations wait for another
+/// connection that is writing (opening a database a version behind).
+#[test]
+fn a_migration_waits_for_another_connection_that_changes_the_database() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    drop(Storage::open(&db).unwrap());
+    // One version behind: the last migration (v31, AJ-E1502) is undone by
+    // hand and runs again on open.
+    let version: i64 = Connection::open(&db)
+        .unwrap()
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(
+        version, 31,
+        "a new migration landed: undo it here instead (this test's undo is v31's)"
+    );
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE instances DROP COLUMN label;
+             ALTER TABLE instances DROP COLUMN pinned_at;
+             ALTER TABLE projects DROP COLUMN pinned_at;
+             ALTER TABLE projects DROP COLUMN forgotten_at;",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", version - 1)
+            .unwrap();
+    }
+    let path = db.clone();
+    let (locked, wait) = std::sync::mpsc::channel();
+    let other = std::thread::spawn(move || {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('other', '1')",
+            [],
+        )
+        .unwrap();
+        locked.send(()).unwrap();
+        std::thread::sleep(HELD);
+        conn.execute_batch("COMMIT").unwrap();
+    });
+    wait.recv().unwrap();
+    let storage = Storage::open(&db).expect("the migration waits its turn");
+    assert!(storage.migrated_on_open());
+    other.join().unwrap();
+}

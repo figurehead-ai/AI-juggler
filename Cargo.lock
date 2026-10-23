@@ -2918,6 +2918,8 @@ dependencies = [
 name = "juggler-supervisor"
 version = "0.0.1"
 dependencies = [
+ "block2",
+ "cpu-time",
  "juggler-adapter",
  "juggler-adapters",
  "juggler-core",

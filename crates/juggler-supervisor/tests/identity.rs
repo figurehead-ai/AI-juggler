@@ -82,7 +82,7 @@ fn pid_reuse_drill_fails_closed_and_refuses_to_signal() {
     // The fixture: a TERM-trapping root that writes a log line on
     // EVERY signal it receives — the drill's 0-signal witness.
     let trap = trap_log.to_string_lossy().into_owned();
-    let script = format!("trap 'echo signal >> \"{trap}\"' TERM; sleep 600 & wait");
+    let script = format!("trap 'echo signal >> \"{trap}\"' TERM; sleep 300 & wait");
     let spawned = supervisor
         .spawn(&session, &sh_spec(&script, dir.path()), &ctx())
         .unwrap();
@@ -201,7 +201,7 @@ fn control_arm_true_identity_stops_normally() {
     let supervisor = Supervisor::new();
     let session = SessionId::new("sess-control");
     let trap = trap_log.to_string_lossy().into_owned();
-    let script = format!("trap 'echo signal >> \"{trap}\"' TERM; sleep 600 & wait");
+    let script = format!("trap 'echo signal >> \"{trap}\"' TERM; sleep 300 & wait");
     let spawned = supervisor
         .spawn(&session, &sh_spec(&script, dir.path()), &ctx())
         .unwrap();

@@ -53,6 +53,7 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     leftover_ports: 0,
     alerts: [],
     recommendations: [],
+    awake: { working: 0, kept_awake: false, on_battery: false },
     ...extra,
   };
 }

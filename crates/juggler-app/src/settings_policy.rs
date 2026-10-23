@@ -168,6 +168,15 @@ const TERMINAL_FONT_KEY: &str = "terminal_font_size";
 /// The terminal's scrollback (lines kept above the screen).
 const TERMINAL_SCROLLBACK_KEY: &str = "terminal_scrollback_lines";
 
+/// AJ-E1509: restart a session that crashes (off unless the user asks).
+const RESTART_ON_CRASH_KEY: &str = "sessions.restart_on_crash";
+/// AJ-E1509: keep the Mac awake while sessions work, on power.
+const AWAKE_ON_POWER_KEY: &str = "sessions.keep_awake_on_power";
+/// AJ-E1509: …and on battery too.
+const AWAKE_ON_BATTERY_KEY: &str = "sessions.keep_awake_on_battery";
+/// AJ-E1509: reopen AI Juggler when it quits unexpectedly.
+const REOPEN_KEY: &str = "app.reopen_after_crash";
+
 /// The defaults: SPEC §5.1's 5 minutes, and the terminal as it shipped.
 pub const STUCK_AFTER_DEFAULT: u32 = 5;
 /// The terminal font size as it shipped.
@@ -185,6 +194,7 @@ pub const TERMINAL_SCROLLBACK_RANGE: (u32, u32) = (500, 100_000);
 /// Settings › Sessions.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[allow(clippy::struct_excessive_bools)] // settings: each switch is its own choice
 pub struct SessionPrefsInfo {
     /// A session with no output for this many minutes (and low CPU) is
     /// marked Stuck.
@@ -193,6 +203,18 @@ pub struct SessionPrefsInfo {
     pub terminal_font_size: f64,
     /// Lines the terminal keeps above the screen.
     pub terminal_scrollback_lines: u32,
+    /// AJ-E1509: a session that crashes is started again and resumed
+    /// (a launch setting can override it). Off by default.
+    pub restart_on_crash: bool,
+    /// AJ-E1509: the Mac stays awake while sessions work, when plugged
+    /// in. On by default.
+    pub keep_awake_on_power: bool,
+    /// AJ-E1509: …on battery too (with the switch above on). Off by
+    /// default.
+    pub keep_awake_on_battery: bool,
+    /// AJ-E1509: AI Juggler is opened again when it quits unexpectedly
+    /// (a crash; never a quit the user asked for). On by default.
+    pub reopen_after_crash: bool,
 }
 
 impl Default for SessionPrefsInfo {
@@ -201,7 +223,28 @@ impl Default for SessionPrefsInfo {
             stuck_after_minutes: STUCK_AFTER_DEFAULT,
             terminal_font_size: TERMINAL_FONT_DEFAULT,
             terminal_scrollback_lines: TERMINAL_SCROLLBACK_DEFAULT,
+            restart_on_crash: false,
+            keep_awake_on_power: true,
+            keep_awake_on_battery: false,
+            reopen_after_crash: true,
         }
+    }
+}
+
+/// AJ-E1509: what Settings › Sessions says about keeping work going,
+/// read where it applies (the restarter, the awake keeper).
+#[must_use]
+pub fn always_on(storage: &Storage) -> SessionPrefsInfo {
+    let defaults = SessionPrefsInfo::default();
+    SessionPrefsInfo {
+        restart_on_crash: stored(storage, RESTART_ON_CRASH_KEY)
+            .unwrap_or(defaults.restart_on_crash),
+        keep_awake_on_power: stored(storage, AWAKE_ON_POWER_KEY)
+            .unwrap_or(defaults.keep_awake_on_power),
+        keep_awake_on_battery: stored(storage, AWAKE_ON_BATTERY_KEY)
+            .unwrap_or(defaults.keep_awake_on_battery),
+        reopen_after_crash: stored(storage, REOPEN_KEY).unwrap_or(defaults.reopen_after_crash),
+        ..defaults
     }
 }
 
@@ -261,6 +304,7 @@ pub fn session_prefs_get_impl(state: &Arc<AppState>) -> AppResult<SessionPrefsIn
         terminal_font_size: stored(&storage, TERMINAL_FONT_KEY).unwrap_or(TERMINAL_FONT_DEFAULT),
         terminal_scrollback_lines: stored(&storage, TERMINAL_SCROLLBACK_KEY)
             .unwrap_or(TERMINAL_SCROLLBACK_DEFAULT),
+        ..always_on(&storage)
     })
 }
 
@@ -314,7 +358,16 @@ pub fn session_prefs_set_impl(
             TERMINAL_SCROLLBACK_KEY,
             &prefs.terminal_scrollback_lines.to_string(),
         )?;
+        settings.set(RESTART_ON_CRASH_KEY, &prefs.restart_on_crash.to_string())?;
+        settings.set(AWAKE_ON_POWER_KEY, &prefs.keep_awake_on_power.to_string())?;
+        settings.set(
+            AWAKE_ON_BATTERY_KEY,
+            &prefs.keep_awake_on_battery.to_string(),
+        )?;
+        settings.set(REOPEN_KEY, &prefs.reopen_after_crash.to_string())?;
     }
+    // AJ-E1509: the watchdog follows the switch at once.
+    crate::features::app::crash::follow_setting(state, prefs.reopen_after_crash);
     state.heuristics.set_thresholds(thresholds_with_stuck_after(
         state.heuristics.thresholds(),
         prefs.stuck_after_minutes,

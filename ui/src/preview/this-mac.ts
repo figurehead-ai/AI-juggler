@@ -108,6 +108,13 @@ export function mockThisMac(
     heavy: all.filter((tree) => tree.heavy_note !== null),
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
+    // As the backend's awake keeper, with Settings' defaults: kept awake
+    // while sessions work, on power.
+    awake: (() => {
+      const working = live.filter((session) => session.status === "running" || session.status === "starting").length;
+      const onBattery = machine.power?.on_battery ?? false;
+      return { working, kept_awake: working > 0 && !onBattery, on_battery: onBattery };
+    })(),
     alerts,
     recommendations,
   };

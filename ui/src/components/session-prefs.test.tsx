@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { SessionsSettingsCard } from "./SettingsSections";
+import { SessionsSettingsCard } from "./SessionsSettings";
 import { applyTerminalPrefs } from "./TerminalView";
 import { SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, sessionPrefsSet, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 

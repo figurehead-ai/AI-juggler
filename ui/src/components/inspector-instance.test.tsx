@@ -87,7 +87,7 @@ const account: AccountInfo = {
 };
 const recipe: LaunchRecipeInfo = {
   id: "p-1", name: "Deep work", account_id: "claude-work", account_label: "Work Max",
-  provider: "claude-code", model: "opus", default_cwd: null,
+  provider: "claude-code", model: "opus", default_cwd: null, restart_on_crash: null,
 };
 
 function shell(instance: InstanceInfo | null, selection?: InspectorSelection) {
