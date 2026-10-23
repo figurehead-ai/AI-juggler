@@ -3933,6 +3933,8 @@ export async function environmentScanFull(
       progress?.(done, total);
       await new Promise((resolve) => setTimeout(resolve, 40));
     }
+    const fails = (window as unknown as { __AIJ_SCAN_FAILS__?: string }).__AIJ_SCAN_FAILS__;
+    if (fails) throw new Error(fails);
     return seam ?? DEFAULT_SCAN_REPORT;
   }
   let stop: (() => void) | undefined;
