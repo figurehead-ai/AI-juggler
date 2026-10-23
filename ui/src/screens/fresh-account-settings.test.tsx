@@ -198,4 +198,19 @@ describe("a fresh account's usual settings", () => {
     expect(await view.findByText(/runs a script from the other account's folder/)).toBeTruthy();
     expect(onCreated).not.toHaveBeenCalled();
   });
+
+  it("Enter waits for what the account offers too", async () => {
+    // Re-review of AJ-E1508: Enter in the name field skipped the wait.
+    let answer: (check: SetupCheckInfo) => void = () => undefined;
+    vi.spyOn(copy, "accountSettingsCheck").mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const made = vi.spyOn(bridge, "createAccount").mockResolvedValue(NEW);
+    const { view } = step([WORK]);
+    fireEvent.submit(view.getByTestId("first-run-fresh"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(made).not.toHaveBeenCalled();
+    answer(structuredClone(OFFERS));
+    await view.findByRole("button", { name: /Its MCP servers/ });
+    fireEvent.submit(view.getByTestId("first-run-fresh"));
+    await waitFor(() => expect(made).toHaveBeenCalled());
+  });
 });

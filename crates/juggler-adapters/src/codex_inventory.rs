@@ -149,11 +149,11 @@ fn own_settings(home: &Path) -> Vec<Item> {
             .join(", ");
         // No approval and no sandbox: offered, never ticked for the user
         // (review of AJ-E1508, M5).
-        let check = if value("approval_policy").as_deref() == Some("never")
-            && value("sandbox_mode").as_deref() == Some("danger-full-access")
-        {
+        // No sandbox at all: offered, never ticked for the user (re-review
+        // of AJ-E1508: danger-full-access alone is enough).
+        let check = if value("sandbox_mode").as_deref() == Some("danger-full-access") {
             SettingCheck::Caution(
-                "it runs everything without asking and without a sandbox: tick it only if you \
+                "it runs commands without a sandbox (danger-full-access): tick it only if you \
                  mean that"
                     .to_owned(),
             )

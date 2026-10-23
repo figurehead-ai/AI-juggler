@@ -100,7 +100,9 @@ export function FreshAccountStep({
       data-testid="first-run-fresh"
       onSubmit={(event) => {
         event.preventDefault();
-        if (shown.trim().length > 0 && !busy) void create();
+        // Enter waits for what the account offers, as the button does
+        // (re-review of AJ-E1508: Enter copied nothing).
+        if (shown.trim().length > 0 && !busy && settings?.pending !== true) void create();
       }}
     >
       <div className="flex flex-col gap-2">

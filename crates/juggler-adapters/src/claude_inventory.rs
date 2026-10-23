@@ -148,7 +148,25 @@ fn own_settings(dir: &Path) -> Vec<Item> {
                 .any(|c| !matches!(c, '{' | '}' | ' ' | '\n' | '\r' | '\t'))
         })
     {
+        // Rules with a secret written in them stay behind, one by one; the
+        // rest go (re-review of AJ-E1508).
+        let (permissions, left_out) = without_secret_rules(&permissions);
         let (about, check) = permissions_words(&permissions);
+        // Nothing left once they're out: nothing to copy.
+        let check = if left_out > 0 && about.is_none() {
+            SettingCheck::Cannot(
+                "each of its rules has a secret written in it, and secrets are never copied: set \
+                 them in the new account yourself"
+                    .to_owned(),
+            )
+        } else {
+            check
+        };
+        let about = match (about, left_out) {
+            (about, 0) => about,
+            (Some(about), n) => Some(format!("{about}; {} with a secret left out", rules(n))),
+            (None, n) => Some(format!("{} with a secret left out", rules(n))),
+        };
         items.push(item(
             ItemKind::Permissions,
             "permissions",
@@ -225,6 +243,42 @@ fn setting(
         about,
         check,
     }
+}
+
+/// `n` rules, in words.
+fn rules(n: usize) -> String {
+    if n == 1 {
+        "1 rule".to_owned()
+    } else {
+        format!("{n} rules")
+    }
+}
+
+/// A `permissions` value without the rules (and folders) that have a secret
+/// written in them, and how many were left out. A value that isn't plain
+/// JSON is kept as it is: the whole-value check refuses it if it holds one.
+fn without_secret_rules(value: &str) -> (String, usize) {
+    let Ok(mut parsed) = serde_json::from_str::<serde_json::Value>(value.trim()) else {
+        return (value.to_owned(), 0);
+    };
+    let mut left_out = 0;
+    if let Some(map) = parsed.as_object_mut() {
+        for key in ["allow", "deny", "ask", "additionalDirectories"] {
+            if let Some(list) = map.get_mut(key).and_then(serde_json::Value::as_array_mut) {
+                let before = list.len();
+                list.retain(|rule| {
+                    !rule
+                        .as_str()
+                        .is_some_and(juggler_adapter::inventory::holds_secret)
+                });
+                left_out += before - list.len();
+            }
+        }
+    }
+    if left_out == 0 {
+        return (value.to_owned(), 0);
+    }
+    (parsed.to_string(), left_out)
 }
 
 /// What a `permissions` value holds, in words ("2 allowed, 1 denied"), and

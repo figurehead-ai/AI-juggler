@@ -227,18 +227,8 @@ pub fn remove(
                     }
                 }
                 table.remove(last);
-                // A table the setting left empty goes with it.
-                if !parts.is_empty() && table.is_empty() {
-                    let mut parent = Some(doc.as_table_mut());
-                    for part in &parts[..parts.len() - 1] {
-                        parent = parent
-                            .and_then(|t| t.get_mut(part))
-                            .and_then(toml_edit::Item::as_table_mut);
-                    }
-                    if let Some(parent) = parent {
-                        parent.remove(parts[parts.len() - 1]);
-                    }
-                }
+                // A table left empty stays: it may be the user's, with
+                // their comments (re-review of AJ-E1508).
             }
             doc.to_string()
         }
@@ -442,8 +432,11 @@ mod tests {
         let after: toml::Table = std::fs::read_to_string(&file).unwrap().parse().unwrap();
         assert!(after.get("approval_policy").is_none() && after.get("sandbox_mode").is_none());
         assert!(
-            after.get("tui").is_none(),
-            "the table the setting made goes with it"
+            after
+                .get("tui")
+                .and_then(|tui| tui.get("status_line"))
+                .is_none(),
+            "the setting goes; a table stays, in case it's the user's"
         );
         assert_eq!(after["model"].as_str(), Some("gpt-6"));
     }

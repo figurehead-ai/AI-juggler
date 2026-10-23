@@ -444,7 +444,13 @@ fn permissions_say_what_they_hold_and_a_bypass_is_never_ticked() {
     assert!(!permissions.suggested, "never ticked for the user");
     assert_eq!(permissions.about.as_deref(), Some("mode bypassPermissions"));
     // Ticked by the user, it's set up.
-    let applied = apply_impl(&lab.state, &new, &work, &[permissions.id.clone()]).unwrap();
+    let applied = apply_impl(
+        &lab.state,
+        &new,
+        &work,
+        std::slice::from_ref(&permissions.id),
+    )
+    .unwrap();
     assert!(applied[0].record.is_some(), "{applied:?}");
 }
 
@@ -480,4 +486,38 @@ fn settings_name_a_setting_once_and_records_hold_no_values() {
         !records.contains("Bash(npm test)") && !records.contains("my-line"),
         "{records}"
     );
+}
+
+#[test]
+fn a_rule_with_a_secret_stays_behind_and_the_rest_go() {
+    // Re-review of AJ-E1508: one rule with a secret no longer refuses them
+    // all.
+    let lab = lab();
+    let (work, work_dir) = claude_work(&lab);
+    work_settings(
+        &work_dir,
+        r#"{"permissions": {"allow": ["Bash(npm test)", "Bash(curl -u alice:hunter2 https://x)"]}}"#,
+    );
+    let (new, new_dir) = fresh(&lab, CLAUDE_CODE_ID, "Side project");
+    let check = check_impl(&lab.state, Some(&new), &work).unwrap();
+    let permissions = check
+        .offers
+        .iter()
+        .find(|o| o.kind == "permissions")
+        .unwrap();
+    assert_eq!(permissions.verdict, "copy");
+    assert_eq!(
+        permissions.about.as_deref(),
+        Some("1 allowed; 1 rule with a secret left out")
+    );
+    apply_impl(
+        &lab.state,
+        &new,
+        &work,
+        std::slice::from_ref(&permissions.id),
+    )
+    .unwrap();
+    let settings = std::fs::read_to_string(new_dir.join("settings.json")).unwrap();
+    assert!(settings.contains("Bash(npm test)"), "{settings}");
+    assert!(!settings.contains("hunter2"), "{settings}");
 }
