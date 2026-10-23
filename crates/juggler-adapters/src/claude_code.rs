@@ -536,7 +536,21 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             LaunchMode::Interactive => (Vec::new(), true),
             // `claude "<prompt>"` — an interactive session whose first
             // turn is the prompt (AJ-E706 T3 replay).
-            LaunchMode::Primed { prompt } => (vec![prompt.clone()], true),
+            // AJ-E1541: the handover's folder may be read without a
+            // prompt. `--add-dir` takes several folders, so it comes after
+            // the prompt (it would take the prompt for one).
+            LaunchMode::Primed { prompt, read_dirs } => {
+                let mut args = vec![prompt.clone()];
+                if !read_dirs.is_empty() {
+                    args.push("--add-dir".into());
+                    args.extend(
+                        read_dirs
+                            .iter()
+                            .map(|dir| dir.to_string_lossy().into_owned()),
+                    );
+                }
+                (args, true)
+            }
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),

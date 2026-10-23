@@ -77,6 +77,7 @@ fn check(adapter: &dyn HarnessAdapter, harness: &str) {
             &project,
             &LaunchMode::Primed {
                 prompt: "carry on".into(),
+                read_dirs: Vec::new(),
             },
         )
         .unwrap();

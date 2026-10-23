@@ -5,7 +5,9 @@
 pub mod account_settings;
 pub mod app;
 pub mod conversations;
+pub mod handover;
 pub mod notifications;
+pub mod packs;
 pub mod project_sync;
 pub mod projects;
 pub mod quota;

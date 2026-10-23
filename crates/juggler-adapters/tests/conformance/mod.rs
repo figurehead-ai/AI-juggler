@@ -257,6 +257,7 @@ fn all_modes(resume_id: &str) -> Vec<LaunchMode> {
         },
         LaunchMode::Primed {
             prompt: "kit prompt".into(),
+            read_dirs: Vec::new(),
         },
         LaunchMode::Resume {
             session_id: resume_id.into(),

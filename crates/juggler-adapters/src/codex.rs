@@ -576,7 +576,8 @@ impl HarnessAdapter for CodexAdapter {
         // (verified on 0.163.0: `codex -- "- fix X"` parses, without `--`
         // it is an "unexpected argument").
         match mode {
-            LaunchMode::Headless { prompt } | LaunchMode::Primed { prompt } => {
+            // Codex reads outside its folder already: `read_dirs` needs no flag.
+            LaunchMode::Headless { prompt } | LaunchMode::Primed { prompt, .. } => {
                 args.extend(["--".into(), prompt.clone()]);
             }
             LaunchMode::Resume {

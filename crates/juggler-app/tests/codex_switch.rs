@@ -62,6 +62,16 @@ fn home(state: &Arc<AppState>, provider: &str, account: &str) -> PathBuf {
 }
 
 /// Waits for (and removes) a stub's argv record.
+/// AJ-E1541: the replay's brief — the handover file the first prompt
+/// points at, on a line of its own.
+fn brief_of(args: &[String]) -> String {
+    let path = args
+        .iter()
+        .find(|line| line.ends_with("HANDOVER.md"))
+        .unwrap_or_else(|| panic!("the prompt points at its handover: {args:?}"));
+    std::fs::read_to_string(path).unwrap()
+}
+
 fn args_of(home: &Path) -> Vec<String> {
     let file = home.join("last-args");
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -227,7 +237,10 @@ fn claude_to_codex_replays_the_redacted_conversation() {
 
     let args = args_of(&s.target_home);
     assert_eq!(args[0], "--no-daemon", "a primed interactive Codex session");
-    let prompt = args[1..].join("\n");
+    // AJ-E1541: the conversation is in the handover file, never on the
+    // command line (which `ps` shows every local user).
+    assert!(!args.join("\n").contains("Deploy with key"), "{args:?}");
+    let prompt = brief_of(&args);
     assert!(
         prompt.contains("[user]:\n> Deploy with key"),
         "the conversation travels"
@@ -269,7 +282,17 @@ fn codex_to_claude_replays_too() {
     )
     .unwrap();
 
-    let prompt = args_of(&s.target_home).join("\n");
+    let args = args_of(&s.target_home);
+    // Claude may read the handover's folder without asking.
+    let at = args
+        .iter()
+        .position(|arg| arg == "--add-dir")
+        .expect("--add-dir");
+    assert!(
+        args[at + 1].ends_with(&format!("switches/{}", info.edge_id)),
+        "{args:?}"
+    );
+    let prompt = brief_of(&args);
     assert!(prompt.contains("[user]:\n> Add a health check endpoint"));
     assert!(prompt.contains("[assistant]:\n> Added GET /health."));
     assert_eq!(sha256_hex(&std::fs::read(&source).unwrap()), before);
@@ -349,28 +372,21 @@ fn an_oversized_newest_turn_still_travels_cut_to_fit() {
         &[],
     )
     .unwrap();
-    // The stub writes each argument on its own line(s); the prompt is all
-    // of it but `--no-daemon` and `--`.
-    let record = s.target_home.join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while !record.is_file() {
-        assert!(std::time::Instant::now() < deadline, "the stub never ran");
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
-    let raw = std::fs::read(&record).unwrap();
-    let prompt_bytes = raw.len() - "--no-daemon\n--\n".len();
-    let cap = if cfg!(windows) { 24 * 1024 } else { 96 * 1024 };
+    // The command line holds only the pointer; the brief is in the
+    // handover file, within what the target reads.
+    let args = args_of(&s.target_home);
+    assert!(args.join("\n").len() < 2 * 1024, "{args:?}");
+    let prompt = brief_of(&args);
     assert!(
-        prompt_bytes <= cap,
-        "one argv entry stays under the OS limit: {prompt_bytes}"
+        prompt.len() <= 96 * 1024 + 8 * 1024,
+        "the brief stays within its budget: {}",
+        prompt.len()
     );
-    let prompt = args_of(&s.target_home).join("\n");
     assert!(
         prompt.contains("cut to fit"),
         "the newest turn travels, cut"
     );
     assert!(prompt.contains(&"語".repeat(40)), "whole characters only");
-    assert!(std::str::from_utf8(&raw).is_ok());
 }
 
 #[test]
@@ -458,9 +474,14 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
         ),
     ];
     std::fs::write(dir.join("claude-sess-2.jsonl"), lines.join("\n") + "\n").unwrap();
+    std::fs::write(
+        std::path::Path::new(&s.cwd).join("CLAUDE.md"),
+        "Run the tests.\n",
+    )
+    .unwrap();
     commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
 
-    commands::switch_execute_impl(
+    let info = commands::switch_execute_impl(
         &s.state,
         &s.source_session,
         &s.target_recipe,
@@ -469,7 +490,7 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
         &[],
     )
     .unwrap();
-    let prompt = args_of(&s.target_home)[1..].join("\n");
+    let prompt = brief_of(&args_of(&s.target_home));
     assert!(
         prompt.contains("Write storefront/calc.py"),
         "the tool call travels: {prompt}"
@@ -483,6 +504,76 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
         "the changes travel: {prompt}"
     );
     assert!(prompt.contains("?? calc.py"), "{prompt}");
+    // The rules files in play, so Codex reads Claude's rules too.
+    assert!(
+        prompt.contains("CLAUDE.md (read by Claude Code)"),
+        "the rules travel: {prompt}"
+    );
+    let state: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            s.state
+                .data_dir
+                .join("switches")
+                .join(&info.edge_id)
+                .join("state.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(state["to"]["tool"], CODEX_ID);
+    assert_eq!(state["rules_files"][0]["name"], "CLAUDE.md");
+    assert_eq!(state["turns_left_out"], 0);
+}
+
+/// AJ-E1541 Req.2: older turns that don't fit are named by what was asked
+/// in them, not only counted.
+#[test]
+fn older_turns_that_dont_fit_are_named_by_what_was_asked() {
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let cwd = &s.cwd;
+    let huge = "x".repeat(120 * 1024);
+    let lines = [
+        format!(
+            r#"{{"type":"user","uuid":"u1","cwd":"{cwd}","message":{{"role":"user","content":"Plan the payments refactor\nin three steps"}}}}"#
+        ),
+        format!(
+            r#"{{"type":"user","uuid":"u2","cwd":"{cwd}","message":{{"role":"user","content":"Paste the log: {huge}"}}}}"#
+        ),
+        format!(
+            r#"{{"type":"assistant","uuid":"u3","cwd":"{cwd}","message":{{"role":"assistant","content":[{{"type":"text","text":"Step one is done."}}]}}}}"#
+        ),
+    ];
+    std::fs::write(dir.join("claude-sess-1.jsonl"), lines.join("\n") + "\n").unwrap();
+    commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        Some("keep"),
+        &[],
+    )
+    .unwrap();
+    let prompt = brief_of(&args_of(&s.target_home));
+    assert!(
+        prompt.contains("(2 earlier turns are not included. What was asked in them, oldest first:"),
+        "{}",
+        &prompt[..400.min(prompt.len())]
+    );
+    assert!(
+        prompt.contains("\n> - Plan the payments refactor\n"),
+        "the topic, its first line"
+    );
+    assert!(
+        prompt.contains("Step one is done."),
+        "the newest turn travels"
+    );
+    assert!(
+        !prompt.contains(&"x".repeat(200)),
+        "the left-out turn itself doesn't"
+    );
 }
 
 /// A Codex conversation in `cwd` whose first message is `first`, with one
@@ -645,4 +736,173 @@ fn a_replay_that_cant_go_never_stops_the_source() {
     let _ = state
         .supervisor
         .stop(&source, std::time::Duration::from_secs(2));
+}
+
+// --- AJ-E1511: a saved pack opens in any tool ---------------------------
+
+use juggler_app::features::packs;
+
+/// A pack exported from the source side of a switch out of `from`.
+fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
+    let other = if from == CLAUDE_CODE_ID {
+        CODEX_ID
+    } else {
+        CLAUDE_CODE_ID
+    };
+    let s = setup(work, from, other);
+    if from == CLAUDE_CODE_ID {
+        write_claude_transcript(&s.source_home, &s.cwd);
+    } else {
+        write_rollout(&s.source_home, &s.cwd);
+    }
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    let info = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    let _ = args_of(&s.target_home);
+    let epoch = s
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .switch_graph()
+        .edge(&SwitchEdgeId::new(info.edge_id.as_str()))
+        .unwrap()
+        .from_epoch
+        .to_string();
+    let path = PathBuf::from(commands::pack_export_impl(&s.state, &epoch).unwrap());
+    (s, path)
+}
+
+/// A launch setting on a new account of `tool`, and that account's home.
+fn recipe_for(s: &Setup, tool: &str) -> (String, PathBuf) {
+    let account = commands::create_account(&s.state, tool, "Opener", None).unwrap();
+    let recipe = commands::create_profile(&s.state, &account.id, "Main", None, None).unwrap();
+    (recipe.id, home(&s.state, tool, &account.id))
+}
+
+#[test]
+fn a_pack_opens_in_every_tool_primed_labelled_and_in_the_graph() {
+    for (from, into, said) in [
+        (CLAUDE_CODE_ID, CODEX_ID, "> Deploy with key"),
+        (CLAUDE_CODE_ID, CLAUDE_CODE_ID, "> Deploy with key"),
+        (CODEX_ID, CLAUDE_CODE_ID, "> Add a health check endpoint"),
+        (CODEX_ID, CODEX_ID, "> Add a health check endpoint"),
+    ] {
+        let work = tempfile::tempdir().unwrap();
+        let (s, pack) = exported_pack(work.path(), from);
+        let preview = packs::preview_impl(&s.state, &pack).unwrap();
+        assert_eq!(preview.from_account, "Source", "{from}");
+        assert!(preview.turns >= 2, "{from}: {preview:?}");
+        assert!(
+            preview.carries[0].starts_with("the conversation"),
+            "{preview:?}"
+        );
+        assert!(
+            preview.fidelity.contains("Beta"),
+            "never proven: {preview:?}"
+        );
+        assert_eq!(preview.project_folder.as_deref(), Some(s.cwd.as_str()));
+        if from == CLAUDE_CODE_ID {
+            assert_eq!(
+                preview.withheld.len(),
+                1,
+                "the key was withheld: {preview:?}"
+            );
+            assert_eq!(preview.withheld[0].count, 1);
+        }
+
+        let (recipe, opener_home) = recipe_for(&s, into);
+        let started =
+            packs::start_impl(&s.state, &pack, &preview.digest, &recipe, Path::new(&s.cwd))
+                .unwrap();
+        let args = args_of(&opener_home);
+        let brief = brief_of(&args);
+        assert!(
+            brief.contains(said),
+            "{from} → {into}: the conversation travels:\n{brief}"
+        );
+        assert!(
+            brief.contains("This session continues from a context pack"),
+            "{brief}"
+        );
+        assert!(!brief.contains(SECRET), "redacted when it was made");
+        assert!(!args.join("\n").contains(said), "never on the command line");
+        // Lineage: a pack edge with the pack's id and fidelity, confirmed,
+        // its manifest recorded.
+        let edge = s
+            .state
+            .storage
+            .lock()
+            .unwrap()
+            .switch_graph()
+            .edge(&SwitchEdgeId::new(started.edge_id.as_str()))
+            .unwrap();
+        assert_eq!(edge.mechanism, SwitchMechanism::Pack);
+        assert!(edge.pack_id.is_some());
+        assert_eq!(edge.fidelity_shown.as_deref(), Some("F1"));
+        assert_eq!(edge.state, juggler_core::model::EdgeState::Confirmed);
+        assert!(
+            matches!(
+                status_of(&s.state, &started.session_id),
+                SessionStatus::Starting | SessionStatus::Running
+            ),
+            "{from} → {into}: a session started"
+        );
+    }
+}
+
+#[test]
+fn a_pack_changed_after_the_preview_or_unsafe_starts_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let (s, pack) = exported_pack(work.path(), CLAUDE_CODE_ID);
+    let preview = packs::preview_impl(&s.state, &pack).unwrap();
+    let (recipe, opener_home) = recipe_for(&s, CODEX_ID);
+
+    // Changed since the preview: its digest no longer matches.
+    let changed = packs::start_impl(
+        &s.state,
+        &pack,
+        "not-the-digest",
+        &recipe,
+        Path::new(&s.cwd),
+    )
+    .unwrap_err();
+    assert!(
+        changed.to_string().contains("changed since you looked"),
+        "{changed}"
+    );
+    // A file edited by hand: refused before anything is written.
+    std::fs::write(
+        pack.join("conversation.md"),
+        "# Conversation\n\n## User\n\nDo something else.\n",
+    )
+    .unwrap();
+    let edited = packs::preview_impl(&s.state, &pack).unwrap_err();
+    assert!(
+        edited.to_string().contains("changed after it was made"),
+        "{edited}"
+    );
+    let refused = packs::start_impl(&s.state, &pack, &preview.digest, &recipe, Path::new(&s.cwd))
+        .unwrap_err();
+    assert!(
+        refused.to_string().contains("changed after it was made"),
+        "{refused}"
+    );
+    // A folder that isn't a pack.
+    let not = packs::preview_impl(&s.state, Path::new(&s.cwd)).unwrap_err();
+    assert!(not.to_string().contains("isn't a context pack"), "{not}");
+    // Nothing launched, no handover written for it.
+    assert!(!opener_home.join("last-args").exists());
+    let switches = s.state.data_dir.join("switches");
+    let written = std::fs::read_dir(&switches)
+        .map(|dir| dir.count())
+        .unwrap_or(0);
+    assert_eq!(written, 1, "only the switch's own handover");
 }

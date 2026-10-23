@@ -186,7 +186,7 @@ impl HarnessAdapter for FakeHarnessAdapter {
                 args.push(prompt.clone());
                 juggler_adapter::launch::headless_spec(self.bin.clone(), args, env, effective_cwd)
             }
-            LaunchMode::Primed { prompt } => {
+            LaunchMode::Primed { prompt, .. } => {
                 args.push("--prompt".to_string());
                 args.push(prompt.clone());
                 juggler_adapter::launch::interactive_spec(
