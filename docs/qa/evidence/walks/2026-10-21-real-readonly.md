@@ -1855,6 +1855,49 @@ with each account's own files, read independently: counts and kinds only.
   `remote-settings.json` files (Claude Code's own sync). The Dev folder is now
   `AI Juggler Dev (qa-e1508 walk 2026-10-22)`, with no set-up records in it.
 
+## Batch 28 — the switch screen up to Confirm (AJ-E1543 Req.4, `release/0.1` `ff7970c6`)
+
+A Dev build with the bridge, which since #153 serves `switch_targets`, `switch_preflight`
+(its secret previews masked "•••") and `switch_setup_check`, all read-only. The setups were
+brought in where they are, with redacted labels (7 of 7 signed in).
+
+- **The session:** the screen opens from one of AI Juggler's own sessions, and the real setup
+  has none. So `tests/qa_switch_session.rs` added one finished session record to AI Juggler
+  Dev's own data, for Account A's newest conversation quiet for two hours. No process ran and
+  nothing was launched. The record (and the 269 rows the app wrote for it while it was shown)
+  was removed afterwards.
+- **The walk:** the switch screen was walked to Confirm for Account B (Claude Code) and Account G
+  (Codex). Switch was never pressed: it stayed disabled, since no secrets choice was saved.
+
+| | Account B (Claude Code) | Account G (Codex) | |
+|---|---|---|---|
+| The list | "Same conversation, new account · Beta · Not proven yet"; "fidelity 1 · quiet · headroom unknown — ranked without quota" (the same on B–F) | "Full story, fresh start · Beta · Not proven yet", Suggested; "Doesn't carry: skills & commands, subagent state"; "70% headroom · Measured" (the rollouts: 30% of the week used) | list OK |
+| Target | "Full story, fresh start · Beta · Not proven yet"; "Fidelity is F1: something would translate or drop" | "Full story, fresh start · Beta · Not proven yet"; replays, can't resume natively; leaves behind skills & commands, subagent state | **B: MISMATCH** |
+| What's carried | carried: transcript, rules, uncommitted diff, MCP config, skills & commands, model settings, subagent state; rebuilt: todo list; nothing dropped | the same without skills & commands and subagent state, "Not carried (stays on the source)" | OK |
+| Secrets | the policy isn't set, so "Choose how secrets are handled (required, once)"; the bridge reply holds 2 `sk-key` items, previews "•••" | the same | OK |
+| Confirm | "Full story, fresh start", then "the whole session moves, with its subagents and file history. Account A stays resumable." | the same two lines | **both: MISMATCH** |
+| Set-up list | 1 skill, "Set up as it is", ticked: Account A's own skill, which B lacks. 18 already there (the 9 claude.ai skills, under two folders) | "doesn't have 19 things"; 1 translated into `~/.agents/skills`, ticked; 18 "Can't be set up: it comes with the claude.ai account", each of the 9 skills twice | **G: duplicates** |
+| Freeze choice | "The source is at rest": "Finish this turn, then switch (default)" | the same | OK |
+| Switch | disabled (no secrets choice) | disabled | not pressed |
+
+- **P23 — `switch_preflight` names every switch "Full story, fresh start", F1:**
+  - For the five Claude Code targets the preflight says `mechanism: transplant`, yet gives
+    `fidelity F1` and `fidelity_words "Full story, fresh start"`.
+  - The screen then contradicts the list ("Same conversation, new account") and the
+    preflight's own `experimental_copy`.
+  - That copy ("the whole session moves, with its subagents and file history") is the
+    transplant's, and the Codex replay gets it too, under "Not carried: subagent state".
+  - The words should follow the mechanism.
+- **P24 — the set-up list repeats each claude.ai skill.** The 9 skills sit in `skills/synced`
+  under two folders, and each becomes its own item. The Codex list has 19 rows for 10 skills,
+  "doesn't have 19 things", and the duplicates share an offer id (ticks are keyed by it). The
+  Claude list counts them twice in "already there" (18).
+- **Wording:** "fidelity 1" in the list, and "Fidelity is F1" on the screen, mean nothing to a
+  user. The list's "Doesn't carry" and the screen's "Not carried (stays on the source)" say the
+  same thing in two ways.
+- **Snapshots:** no path added or removed. One `remote-settings.json` has a new mtime at the same
+  size (Claude Code's own sync). The Dev folder is now `AI Juggler Dev (qa-e1543 walk 2026-10-23)`.
+
 ## Not walked (blocked by W0, before the bridge)
 
 These need the window:
