@@ -81,7 +81,15 @@ struct IngestState {
     /// The [`REREAD_VERSION`] the stored rows were last read under.
     #[serde(default)]
     reread: u32,
+    /// Codex accounts whose P21 leftovers were looked for (once each; see
+    /// `forget_duplicated_compactions`).
+    #[serde(default)]
+    compactions_checked: std::collections::BTreeSet<String>,
 }
+
+/// A Codex account's P21 check to make, with the threads whose rollouts
+/// are still there.
+type CompactionCheck = (String, std::collections::BTreeSet<String>);
 
 /// Spawns the pipeline thread (called once from app setup).
 pub fn spawn(state: Arc<AppState>) {
@@ -138,6 +146,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
     let mut sample_batch: SampleBatch = Vec::new();
     let mut credits_batch: Vec<(String, juggler_adapters::CreditsSnapshot)> = Vec::new();
+    let mut checks: Vec<CompactionCheck> = Vec::new();
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -169,7 +178,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    &mut credits_batch,
+                    (&mut credits_batch, &mut checks),
                 );
             }
             "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
@@ -204,8 +213,29 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             return;
         }
         save_credits(&storage, &credits_batch);
+        forget_duplicated_compactions(&storage, &mut ingest, &checks);
         if let Ok(blob) = serde_json::to_string(&ingest) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
+        }
+    }
+}
+
+/// P21's leftovers, once per Codex account: an older build stored a
+/// compaction row for another thread's model call, and when its rollout
+/// is gone no re-read replaces it. Only such a row goes (its tokens equal a
+/// stored record's); every other row of a gone file stays.
+fn forget_duplicated_compactions(
+    storage: &juggler_core::storage::Storage,
+    ingest: &mut IngestState,
+    checks: &[CompactionCheck],
+) {
+    for (account, present) in checks {
+        if storage
+            .usage()
+            .forget_duplicated_compactions(account, present)
+            .is_ok()
+        {
+            ingest.compactions_checked.insert(account.clone());
         }
     }
 }
@@ -358,7 +388,7 @@ fn ingest_claude(
     // Transcripts: <dir>/projects/**/*.jsonl, offset-tracked.
     let projects = dir.join("projects");
     let mut files = Vec::new();
-    collect_files(&projects, &mut files, is_jsonl);
+    let _ = collect_files(&projects, &mut files, is_jsonl);
     forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
@@ -379,16 +409,37 @@ fn ingest_codex(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    credits: &mut Vec<(String, juggler_adapters::CreditsSnapshot)>,
+    (credits, checks): (
+        &mut Vec<(String, juggler_adapters::CreditsSnapshot)>,
+        &mut Vec<CompactionCheck>,
+    ),
 ) {
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
-    collect_files(
+    let complete = collect_files(
         &sessions,
         &mut files,
         juggler_adapters::codex::is_rollout_file,
     );
     forget_missing(ingest, account, &sessions, &files);
+    // Only from a whole listing with rollouts in it: an empty, missing or
+    // unreadable folder would make every thread look gone, and the check
+    // is made once. Left for a pass that reads them.
+    if !ingest.compactions_checked.contains(account) && complete && !files.is_empty() {
+        // Every rollout still here, by thread; a name that doesn't give
+        // its thread skips the check (its session can't be told present).
+        let present: Option<std::collections::BTreeSet<String>> = files
+            .iter()
+            .map(|path| {
+                path.file_name().and_then(|name| {
+                    juggler_adapters::codex_transcript::thread_id_from_name(&name.to_string_lossy())
+                })
+            })
+            .collect();
+        if let Some(present) = present {
+            checks.push((account.to_owned(), present));
+        }
+    }
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
         let outcome = tail_one(
@@ -654,25 +705,34 @@ fn load_state(state: &Arc<AppState>) -> IngestState {
 /// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that
 /// `keep` accepts: the one walk for every source the pipeline tails. What a
 /// source's files look like is its adapter's to say.
-fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) {
-    walk(root, out, keep, 0);
+fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) -> bool {
+    walk(root, out, keep, 0)
 }
 
-fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) {
+/// `false` when the listing may be missing files: a folder that couldn't
+/// be read (the root included), an entry that couldn't, or one deeper
+/// than [`MAX_WALK_DEPTH`].
+fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) -> bool {
     if depth > MAX_WALK_DEPTH {
-        return;
+        return false;
     }
     let Ok(entries) = std::fs::read_dir(root) else {
-        return;
+        return false;
     };
-    for entry in entries.flatten() {
+    let mut complete = true;
+    for entry in entries {
+        let Ok(entry) = entry else {
+            complete = false;
+            continue;
+        };
         let path = entry.path();
         if path.is_dir() {
-            walk(&path, out, keep, depth + 1);
+            complete &= walk(&path, out, keep, depth + 1);
         } else if keep(&path) {
             out.push(path);
         }
     }
+    complete
 }
 
 /// A Claude transcript (`.jsonl`).
