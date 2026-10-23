@@ -10158,19 +10158,12 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             continue;
         }
         let Some(pid) = row.pid else { continue };
+        // Its CPU now (the session's rows froze when its root exited); not
+        // known yet, or gone, is never idle.
         let cpu_ok = state
             .resources
             .lock()
-            .ok()
-            .and_then(|collector| {
-                collector
-                    .rows(&SessionId::new(row.session_id.clone()))
-                    .into_iter()
-                    .flatten()
-                    .find(|live| live.pid == pid)
-                    .map(|live| live.cpu_pct.is_none_or(|cpu| cpu < 1.0))
-            })
-            .unwrap_or(true);
+            .is_ok_and(|collector| collector.cpu_now(pid).is_some_and(|cpu| cpu < 1.0));
         if !cpu_ok {
             continue;
         }
