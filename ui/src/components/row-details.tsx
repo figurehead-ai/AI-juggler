@@ -15,10 +15,10 @@ import {
   isActiveStatus,
   providerMark,
   stateChip,
-  subagentsRunning,
   tokenSummary,
 } from "./indicator";
 import { quotaTierTag } from "./primitives";
+import { subagentsRunning } from "../lib/subagents";
 
 /** Full field text for `aria-label`: every number reachable as text. */
 export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {

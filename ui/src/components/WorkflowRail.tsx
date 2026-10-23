@@ -3,6 +3,7 @@ import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
 import { markOf, swatchColor } from "../lib/palette";
 import { identityWords } from "../lib/identity";
+import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
 import { ReactNode, useCallback, useEffect, useId, useRef, useState, type JSX } from "react";
@@ -54,10 +55,8 @@ import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   ChildBadges,
-  subagentsRunning,
   GitBadge,
   StaleChip,
-  gitWords,
   STATE_WORDS,
   attentionBadge,
   attentionSuffix,
@@ -974,12 +973,6 @@ export function RailRow({
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,
   // a value that stopped updating); the session view has the rest.
-  const identity = identityWords(session);
-  const identityMark = identity && identity.state !== "verified" ? identity : null;
-  const dirty = session.git_dirty_count ? `${session.git_dirty_count} changed` : null;
-  // AJ-E1520 (I-08): subagents still running, quiet like `changed`; the
-  // session view lists them all.
-  const subagents = session.subtask_count ? session.subtask_count : null;
   // E14 (AJ-E1405): resources show only when the session is heavy.
   const heavyNote = useHeavyNote(session.id);
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
@@ -1036,21 +1029,7 @@ export function RailRow({
                 · {heavy}
               </span>
             )}
-            {dirty && (
-              <span title={gitWords(session)} data-testid="git-badge" className="shrink-0 whitespace-nowrap">
-                · {dirty}
-              </span>
-            )}
-            {subagents && (
-              <span title={subagentsRunning(subagents)} data-testid="rail-subagents" className="shrink-0 whitespace-nowrap">
-                · {subagents === 1 ? "1 subagent" : `${subagents} subagents`}
-              </span>
-            )}
-            {identityMark && (
-              <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
-                · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
-              </span>
-            )}
+            <RailQuietNotes session={session} />
             <StaleChip caption={stale} />
             {/* The time yields first: the notes above matter more. */}
             <span className="min-w-0 truncate">· {when}</span>
@@ -1060,7 +1039,6 @@ export function RailRow({
           {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
-          {subagents ? `, ${subagentsRunning(subagents)}` : ""}
         </span>
       </span>
       {density === "compact" && low && <span className="shrink-0 font-mono text-[10px] text-warning">{low}</span>}

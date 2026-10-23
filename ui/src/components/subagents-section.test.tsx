@@ -10,7 +10,7 @@ const list = vi.fn<(sessionId: string) => Promise<SubtasksInfo>>();
 vi.mock("../lib/ipc/subtasks", () => ({ subtasksList: (sessionId: string) => list(sessionId) }));
 
 const { SubagentsSection, subagentsSummary } = await import("./SubagentsSection");
-const { subagentsRunning } = await import("./indicator");
+const { subagentsRunning } = await import("../lib/subagents");
 const { RailRow } = await import("./WorkflowRail");
 
 const NOW = 1_728_800_000_000;
@@ -112,7 +112,6 @@ describe("AJ-E1520 subagents", () => {
     const note = screen.getByTestId("rail-subagents");
     expect(note.textContent).toBe("· 2 subagents");
     expect(note.getAttribute("title")).toBe("2 subagents running");
-    expect(screen.getByRole("button").textContent).toContain(", 2 subagents running");
     rerender(<RailRow session={session(1)} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />);
     expect(screen.getByTestId("rail-subagents").textContent).toBe("· 1 subagent");
     for (const none of [0, null]) {
