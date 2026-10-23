@@ -170,6 +170,119 @@ pub struct LinkManager {
     reconnect: Arc<Mutex<std::collections::HashSet<String>>>,
     /// Test seam: skip mDNS (tests must not advertise on a real LAN).
     no_discovery: std::sync::atomic::AtomicBool,
+    /// Held through every start and stop (and a join's start), so two
+    /// never interleave: a click during the launch start waits for it,
+    /// and the setting always matches what runs.
+    lifecycle: Mutex<()>,
+    /// The run Link is on for (each start is a new one; 0 when off), for
+    /// whatever a peer causes on this Mac: a launch, a command, a pin.
+    /// Each effect belongs to the run it came in on and runs holding a
+    /// read guard ([`link_open`]) only while that run is the current one:
+    /// `stop` closes it first, waiting for the ones under way, and an
+    /// effect from before an off-then-on is refused too.
+    open: std::sync::RwLock<u64>,
+    /// The last run number given out.
+    runs: std::sync::atomic::AtomicU64,
+    /// Remote commands this console has sent and still waits on; `stop`
+    /// ends them ([`run_outbound`]).
+    outbound: Mutex<Vec<tokio::task::AbortHandle>>,
+    /// Test seam: how long a pairing waits for the other machine's first
+    /// Hello before its row says it didn't finish. Never a stored setting,
+    /// so nothing in a real install can hide or flash the line.
+    pub(crate) unfinished_wait_ms: Mutex<Option<i64>>,
+    /// Reconcile loops running (one per run), for tests.
+    loops: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+/// Counts a reconcile loop for as long as it runs (its future is dropped
+/// when the loop ends or is ended).
+struct LoopAlive(Arc<std::sync::atomic::AtomicUsize>);
+
+impl LoopAlive {
+    fn new(loops: &Arc<std::sync::atomic::AtomicUsize>) -> Self {
+        loops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Self(loops.clone())
+    }
+}
+
+impl Drop for LoopAlive {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// A start's run number: what its node and host may cause belongs to it
+/// ([`link_open`]).
+fn next_run(manager: &LinkManager) -> u64 {
+    manager
+        .runs
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        + 1
+}
+
+/// `work`, counted in `loops` while it runs: the count drops with its
+/// future, ended or aborted.
+fn counted(
+    loops: Arc<std::sync::atomic::AtomicUsize>,
+    work: impl std::future::Future<Output = ()>,
+) -> impl std::future::Future<Output = ()> {
+    let alive = LoopAlive::new(&loops);
+    async move {
+        let _alive = alive;
+        work.await;
+    }
+}
+
+/// Runs `work` this console started on another machine on Link's runtime,
+/// where Link off (`stop`) ends it: `None` when it did.
+///
+/// # Errors
+///
+/// Returns [`AppError::Io`] when the runtime is unavailable or the work
+/// panicked.
+pub(crate) async fn run_outbound<T: Send + 'static>(
+    state: &AppState,
+    work: impl std::future::Future<Output = T> + Send + 'static,
+) -> AppResult<Option<T>> {
+    // Started and recorded only while Link is on, so `stop` (which closes
+    // the gate before it ends these) finds it, or it never goes out.
+    let task = {
+        let Some(_open) = link_open(state, link_run(state)) else {
+            return Ok(None);
+        };
+        let task = state.link.runtime()?.spawn(work);
+        if let Ok(mut outbound) = state.link.outbound.lock() {
+            outbound.retain(|task| !task.is_finished());
+            outbound.push(task.abort_handle());
+        }
+        task
+    };
+    match task.await {
+        Ok(done) => Ok(Some(done)),
+        Err(error) if error.is_cancelled() => Ok(None),
+        Err(error) => Err(AppError::Io {
+            context: "remote action",
+            message: error.to_string(),
+        }),
+    }
+}
+
+/// The run Link is on for now, 0 when off.
+pub(crate) fn link_run(state: &AppState) -> u64 {
+    state.link.open.read().map_or(0, |run| *run)
+}
+
+/// The "Link is on" guard for an effect that came in on `run`, or `None`
+/// when Link is off, going off, or was turned off and on since. Held only
+/// around the effect itself (never across a wait for this Mac's user or
+/// the network).
+pub(crate) fn link_open(state: &AppState, run: u64) -> Option<std::sync::RwLockReadGuard<'_, u64>> {
+    state
+        .link
+        .open
+        .read()
+        .ok()
+        .filter(|open| run != 0 && **open == run)
 }
 
 impl std::fmt::Debug for LinkManager {
@@ -307,6 +420,12 @@ impl PeerDirectory for AppDirectory {
         let identity = PublicIdentity::from_bytes(key).ok()?;
         crate::fleet::bind_account_peer(&state, &identity, machine_id)
     }
+
+    fn hello_accepted(&self, _key: &[u8; 32], machine_id: &str) {
+        if let Some(state) = self.0.upgrade() {
+            crate::fleet::pairing_finished(&state, machine_id);
+        }
+    }
 }
 
 /// What this node serves and executes.
@@ -314,6 +433,8 @@ struct AppNode {
     state: Weak<AppState>,
     live: tokio::sync::broadcast::Sender<proto::TelemetryDelta>,
     prompts: Prompts,
+    /// The run this node serves ([`link_open`]).
+    run: u64,
 }
 
 /// How long an "Ask each time" command waits for this Mac's user (well
@@ -339,6 +460,15 @@ struct Prompts {
 }
 
 impl Prompts {
+    /// Answers every question still waiting "no" and drops them.
+    fn deny_all(&self) {
+        if let Ok(mut pending) = self.pending.lock() {
+            for prompt in pending.drain(..) {
+                let _ = prompt.respond.send(false);
+            }
+        }
+    }
+
     /// Asks this Mac's user; blocks the command (never the runtime) for
     /// at most [`PROMPT_TIMEOUT`]. Anything but an explicit Allow is a
     /// Deny.
@@ -686,6 +816,9 @@ impl NodeHandler for AppNode {
                 ));
             }
         }
+        // Held through the action, never through the question above.
+        let _open = link_open(&state, self.run)
+            .ok_or_else(|| reject("link_off", "Link is off on that Mac — nothing ran."))?;
         match action {
             proto::control_command::Action::StopInstance(stop) => {
                 let known = state
@@ -770,6 +903,10 @@ impl NodeHandler for AppNode {
                 ));
             }
         }
+        // Held through the take (Link going off waits for it), never
+        // through the question above.
+        let _open = link_open(&state, self.run)
+            .ok_or_else(|| refuse("link_off", "Link is off on that Mac — nothing ran."))?;
         crate::crossmachine::take_handover_here(&state, peer, action, bundle)
     }
 
@@ -996,6 +1133,8 @@ struct AppPairing {
     phase: Arc<Mutex<HostPhase>>,
     message: Arc<Mutex<Option<(String, String)>>>,
     key: [u8; 32],
+    /// The run this host serves ([`link_open`]).
+    run: u64,
 }
 
 impl AppPairing {
@@ -1073,15 +1212,27 @@ impl PairingHost for AppPairing {
         rx
     }
 
-    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) {
-        let _ = self.with_guard(PairingGuard::succeed);
-        if let Some(state) = self.state.upgrade() {
-            let _ = crate::fleet::pin_candidate(&state, candidate, permission);
-            SettingsReplayStore(self.state.clone()).reset(&candidate.machine_id);
-            mark_reconnect(&state, &candidate.machine_id);
-            if let Some(reach) = candidate.reach {
-                remember_address(&state, &candidate.machine_id, reach);
+    fn succeeded(&self, candidate: &PairCandidate, permission: Permission) -> bool {
+        let Some(state) = self.state.upgrade() else {
+            return false;
+        };
+        // Only while this run's Link is on: the pin is the effect. Refused,
+        // the joiner is told and pins nothing either.
+        let Some(_open) = link_open(&state, self.run) else {
+            if let Ok(mut phase) = self.phase.lock() {
+                *phase = HostPhase::Idle;
             }
+            return false;
+        };
+        let _ = self.with_guard(PairingGuard::succeed);
+        let _ = crate::fleet::pin_candidate(&state, candidate, permission);
+        // Until its first Hello here: the joiner may have stopped before it
+        // pinned this Mac.
+        crate::fleet::mark_pairing_unfinished(&state, &candidate.machine_id, now_ms());
+        SettingsReplayStore(self.state.clone()).reset(&candidate.machine_id);
+        mark_reconnect(&state, &candidate.machine_id);
+        if let Some(reach) = candidate.reach {
+            remember_address(&state, &candidate.machine_id, reach);
         }
         if let Ok(mut phase) = self.phase.lock() {
             *phase = HostPhase::Paired {
@@ -1089,6 +1240,7 @@ impl PairingHost for AppPairing {
             };
         }
         crate::usage_stats::fleet_pairing(None);
+        true
     }
 }
 
@@ -1191,6 +1343,11 @@ pub fn link_status_impl(state: &Arc<AppState>) -> LinkStatusInfo {
 ///
 /// Returns the typed [`AppError`] when the identity can't load.
 pub fn link_set_enabled_impl(state: &Arc<AppState>, enabled: bool) -> AppResult<LinkStatusInfo> {
+    let lifecycle = state
+        .link
+        .lifecycle
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?;
     {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         storage
@@ -1202,6 +1359,7 @@ pub fn link_set_enabled_impl(state: &Arc<AppState>, enabled: bool) -> AppResult<
     } else {
         stop(state);
     }
+    drop(lifecycle);
     Ok(link_status_impl(state))
 }
 
@@ -1211,6 +1369,13 @@ pub fn resume_if_enabled(state: Arc<AppState>) {
         let _ = std::thread::Builder::new()
             .name("aij-link-resume".to_owned())
             .spawn(move || {
+                let Ok(_lifecycle) = state.link.lifecycle.lock() else {
+                    return;
+                };
+                // Turned off while this waited: stays off.
+                if !link_settings_enabled(&state) {
+                    return;
+                }
                 if let Err(error) = start(&state)
                     && let Ok(mut last) = state.link.last_error.lock()
                 {
@@ -1277,12 +1442,14 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
     if let Ok(storage) = state.storage.lock() {
         let _ = storage.app_settings().set(LAST_PORT_KEY, &port.to_string());
     }
+    let run = next_run(manager);
     let pairing = Arc::new(AppPairing {
         state: weak.clone(),
         guard: manager.guard.clone(),
         phase: manager.host.clone(),
         message: manager.host_message.clone(),
         key,
+        run,
     });
     let node = {
         let _enter = runtime.enter();
@@ -1293,6 +1460,7 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
                 state: weak.clone(),
                 live: live.clone(),
                 prompts: manager.prompts.clone(),
+                run,
             }),
             Arc::new(AppDirectory(weak.clone())),
             Arc::new(SettingsReplayStore(weak.clone())),
@@ -1309,14 +1477,17 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
     })?;
     let (advertiser, browser, discovery_error) = start_discovery(manager, port, &key, &instance_id);
     let watches = Watches::default();
-    let reconcile = runtime.spawn(reconcile_loop(
-        weak.clone(),
-        browser.clone(),
-        certificate,
-        manager.peers.clone(),
-        manager.remote.clone(),
-        manager.reconnect.clone(),
-        watches.clone(),
+    let reconcile = runtime.spawn(counted(
+        manager.loops.clone(),
+        reconcile_loop(
+            weak.clone(),
+            browser.clone(),
+            certificate,
+            manager.peers.clone(),
+            manager.remote.clone(),
+            manager.reconnect.clone(),
+            watches.clone(),
+        ),
     ));
     let ticker = runtime.spawn(resource_ticker(weak, live));
     if let Ok(mut last) = manager.last_error.lock() {
@@ -1334,6 +1505,9 @@ fn start(state: &Arc<AppState>) -> AppResult<()> {
         ticker,
         watches,
     });
+    if let Ok(mut open) = manager.open.write() {
+        *open = run;
+    }
     Ok(())
 }
 
@@ -1371,6 +1545,36 @@ fn start_discovery(
 
 fn stop(state: &Arc<AppState>) {
     let manager = &state.link;
+    // Closed first: an effect a peer caused that is under way finishes
+    // (taking the write side waits for it), and none starts after.
+    if let Ok(mut open) = manager.open.write() {
+        *open = 0;
+    }
+    // A question a peer's command is waiting on is answered "no" now:
+    // the command ends at once (it would wait up to 20 s), and an answer
+    // after Link is on again can't let it run.
+    manager.prompts.deny_all();
+    // What this console started on other machines: a command it still
+    // waits on ends, and a handover it is pushing is cancelled.
+    let outbound: Vec<_> = manager
+        .outbound
+        .lock()
+        .map(|mut tasks| tasks.drain(..).collect())
+        .unwrap_or_default();
+    for task in &outbound {
+        task.abort();
+    }
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    while outbound.iter().any(|task| !task.is_finished()) && std::time::Instant::now() < deadline {
+        // poll: ended commands this console sent finishing after their
+        // abort (an AbortHandle can't be awaited); 1 s at most.
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    if let Ok(cancels) = manager.handover_cancel.lock() {
+        for cancel in cancels.values() {
+            let _ = cancel.send(true);
+        }
+    }
     let running = manager
         .running
         .lock()
@@ -2077,6 +2281,13 @@ pub fn pairing_join_start_impl(
         message: "Enter the 6-digit code shown on the other Mac.".to_owned(),
     })?;
     let manager = &state.link;
+    // Held until the join is recorded, so Link can't go off in between
+    // (it would find no join to end).
+    let _lifecycle = manager
+        .lifecycle
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?;
+    let run = link_run(state);
     let Some(own_port) = link_status_impl(state).port else {
         return Err(AppError::Validation {
             subject: "pairing",
@@ -2088,6 +2299,17 @@ pub fn pairing_join_start_impl(
     let key = crate::fleet::local_public_key(state)?;
     let own = crate::commands::local_machine_id(state).to_string();
     let label = crate::fleet::fleet_self_impl(state)?.label;
+    // A newer join replaces one still in flight, which ends first, so it
+    // can't write "failed" over this one's state.
+    let older = manager
+        .join_task
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .take();
+    if let Some(older) = older {
+        older.abort();
+        let _ = manager.runtime()?.block_on(older);
+    }
     *manager.join.lock().map_err(|_| AppError::StatePoisoned)? = JoinPhase::Connecting;
     let join = manager.join.clone();
     let weak = Arc::downgrade(state);
@@ -2119,13 +2341,18 @@ pub fn pairing_join_start_impl(
             .await;
             match result {
                 Ok(joined) => {
-                    if let Some(app) = weak.upgrade() {
-                        let _ =
-                            crate::fleet::pin_candidate(&app, &joined.candidate, joined.permission);
-                        SettingsReplayStore(weak.clone()).reset(&joined.candidate.machine_id);
-                        remember_address(&app, &joined.candidate.machine_id, address);
-                        mark_reconnect(&app, &joined.candidate.machine_id);
-                    }
+                    let Some(app) = weak.upgrade() else {
+                        return;
+                    };
+                    // Only while this run's Link is on: the pin is the effect.
+                    let Some(open) = link_open(&app, run) else {
+                        return;
+                    };
+                    let _ = crate::fleet::pin_candidate(&app, &joined.candidate, joined.permission);
+                    SettingsReplayStore(weak.clone()).reset(&joined.candidate.machine_id);
+                    remember_address(&app, &joined.candidate.machine_id, address);
+                    mark_reconnect(&app, &joined.candidate.machine_id);
+                    drop(open);
                     if let Ok(mut phase) = join.lock() {
                         *phase = JoinPhase::Paired {
                             label: joined.candidate.label,
@@ -2149,15 +2376,10 @@ pub fn pairing_join_start_impl(
             };
         }
     });
-    // A newer join replaces one still in flight.
-    if let Some(older) = manager
+    *manager
         .join_task
         .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .replace(task)
-    {
-        older.abort();
-    }
+        .map_err(|_| AppError::StatePoisoned)? = Some(task);
     pairing_join_state_impl(state)
 }
 
@@ -2321,18 +2543,23 @@ pub fn pairing_re_enable(state: tauri::State<'_, Arc<AppState>>) {
 ///
 /// Returns the typed [`AppError`] per [`pairing_join_start_impl`].
 #[tauri::command]
-pub fn pairing_join_start(
+pub async fn pairing_join_start(
     state: tauri::State<'_, Arc<AppState>>,
     instance_id: Option<String>,
     address: Option<String>,
     code: String,
 ) -> AppResult<PairingStateInfo> {
-    pairing_join_start_impl(
-        state.inner(),
-        instance_id.as_deref(),
-        address.as_deref(),
-        &code,
-    )
+    // It waits its turn with Link on/off and for a join it replaces:
+    // never on the main thread or an async worker.
+    let state = Arc::clone(state.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        pairing_join_start_impl(&state, instance_id.as_deref(), address.as_deref(), &code)
+    })
+    .await
+    .map_err(|e| AppError::Io {
+        context: "pairing",
+        message: e.to_string(),
+    })?
 }
 
 /// AJ-E704: the joiner's pairing state.
@@ -2372,6 +2599,22 @@ pub fn link_disable_discovery_for_test(state: &Arc<AppState>) {
         .link
         .no_discovery
         .store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Test seam: how many Link runs are going (their reconcile loops).
+#[doc(hidden)]
+#[must_use]
+pub fn link_runs_for_test(state: &Arc<AppState>) -> usize {
+    state.link.loops.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Test seam: how long a pairing waits for the other machine's first
+/// Hello before its row says it may not have finished (30 s otherwise).
+#[doc(hidden)]
+pub fn pairing_wait_for_test(state: &Arc<AppState>, wait_ms: i64) {
+    if let Ok(mut wait) = state.link.unfinished_wait_ms.lock() {
+        *wait = Some(wait_ms);
+    }
 }
 
 /// A command waiting for this Mac's user.
@@ -2451,5 +2694,202 @@ pub fn refresh_permissions_for_test(state: &Arc<AppState>) {
                 crate::remote::refresh_permission(&state.link.remote, &id, &own).await;
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod unfinished_pairing_tests {
+    use super::*;
+
+    /// A pairing this Mac finished as host: unfinished until the other
+    /// machine's first Hello here (it may have stopped before it pinned
+    /// this Mac), shown only once that is longer than a pairing takes.
+    #[test]
+    fn a_hosts_pairing_is_unfinished_until_the_other_machines_first_hello() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        if let Ok(mut open) = state.link.open.write() {
+            *open = 1;
+        }
+        let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let host = AppPairing {
+            state: Arc::downgrade(&state),
+            guard: state.link.guard.clone(),
+            phase: state.link.host.clone(),
+            message: state.link.host_message.clone(),
+            key: [0; 32],
+            run: 1,
+        };
+        host.succeeded(
+            &PairCandidate {
+                machine_id: "m-joiner".to_owned(),
+                label: "Laptop".to_owned(),
+                key: joiner,
+                reach: None,
+                fingerprint: juggler_link::fingerprint_of(&joiner),
+            },
+            Permission::View,
+        );
+        let unfinished = || {
+            crate::fleet::fleet_peers_impl(&state)
+                .unwrap()
+                .into_iter()
+                .find(|peer| peer.machine_id == "m-joiner")
+                .map(|peer| peer.pairing_unfinished)
+        };
+        assert_eq!(unfinished(), Some(false), "not within a pairing's time");
+        pairing_wait_for_test(&state, 0);
+        assert_eq!(unfinished(), Some(true), "no Hello from it since");
+        AppDirectory(Arc::downgrade(&state)).hello_accepted(&joiner, "m-joiner");
+        assert_eq!(unfinished(), Some(false), "its first Hello finishes it");
+    }
+
+    /// The note never touches the signed peer list: while a peer is
+    /// unfinished, `peers.json` holds only what older builds read (they
+    /// refuse an unknown field), noting and finishing never rewrite it,
+    /// and a restart keeps both the peer and the note.
+    #[test]
+    fn an_unfinished_pairing_leaves_the_peer_list_as_older_builds_read_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().join("app-data");
+        let open = |data: &std::path::Path| {
+            let state = Arc::new(
+                AppState::init_with_registry(
+                    data.to_path_buf(),
+                    juggler_adapter::AdapterRegistry::new(),
+                )
+                .unwrap(),
+            );
+            if let Ok(mut open) = state.link.open.write() {
+                *open = 1;
+            }
+            pairing_wait_for_test(&state, 0);
+            state
+        };
+        let state = open(&data);
+        let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let candidate = PairCandidate {
+            machine_id: "m-joiner".to_owned(),
+            label: "Laptop".to_owned(),
+            key: joiner,
+            reach: None,
+            fingerprint: juggler_link::fingerprint_of(&joiner),
+        };
+        let _ = crate::fleet::pin_candidate(&state, &candidate, Permission::View);
+        let peers = data.join("fleet/peers.json");
+        let pinned = std::fs::read(&peers).unwrap();
+
+        crate::fleet::mark_pairing_unfinished(&state, "m-joiner", 1);
+        assert_eq!(
+            std::fs::read(&peers).unwrap(),
+            pinned,
+            "noting never rewrites it"
+        );
+        let file: serde_json::Value = serde_json::from_slice(&pinned).unwrap();
+        let older = [
+            "machine_id",
+            "label",
+            "public_key",
+            "fingerprint",
+            "permission",
+            "ask_each_time",
+            "paired_via",
+            "paired_at_ms",
+            "last_seen_ms",
+        ];
+        for peer in file["body"]["peers"].as_array().unwrap() {
+            for key in peer.as_object().unwrap().keys() {
+                assert!(
+                    older.contains(&key.as_str()),
+                    "a field older builds refuse: {key}"
+                );
+            }
+        }
+
+        drop(state);
+        let restarted = open(&data);
+        let row = crate::fleet::fleet_peers_impl(&restarted)
+            .unwrap()
+            .into_iter()
+            .find(|peer| peer.machine_id == "m-joiner")
+            .expect("the peer list still loads (trust intact)");
+        assert!(row.pairing_unfinished, "a restart keeps the note");
+        AppDirectory(Arc::downgrade(&restarted)).hello_accepted(&joiner, "m-joiner");
+        assert_eq!(
+            std::fs::read(&peers).unwrap(),
+            pinned,
+            "finishing never rewrites it"
+        );
+    }
+
+    /// A peer set to No access before its first Hello can't say one: the
+    /// note goes with the change.
+    #[test]
+    fn no_access_clears_an_unfinished_pairing() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        pairing_wait_for_test(&state, 0);
+        let joiner = juggler_link::MachineIdentity::load_or_create(&dir.path().join("joiner"))
+            .unwrap()
+            .public()
+            .to_bytes();
+        let candidate = PairCandidate {
+            machine_id: "m-joiner".to_owned(),
+            label: "Laptop".to_owned(),
+            key: joiner,
+            reach: None,
+            fingerprint: juggler_link::fingerprint_of(&joiner),
+        };
+        let _ = crate::fleet::pin_candidate(&state, &candidate, Permission::View);
+        crate::fleet::mark_pairing_unfinished(&state, "m-joiner", 1);
+        let rows = crate::fleet::fleet_set_permission_impl(&state, "m-joiner", "no_access", false)
+            .unwrap();
+        assert!(rows.iter().all(|row| !row.pairing_unfinished));
+    }
+
+    /// Work this console starts on another machine goes out only while
+    /// Link is on, and an effect from an earlier run is refused after an
+    /// off-then-on.
+    #[test]
+    fn nothing_starts_or_lands_outside_its_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            AppState::init_with_registry(
+                dir.path().join("app-data"),
+                juggler_adapter::AdapterRegistry::new(),
+            )
+            .unwrap(),
+        );
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let sent = runtime.block_on(run_outbound(&state, async { 1 })).unwrap();
+        assert_eq!(sent, None, "Link off: nothing goes out");
+        if let Ok(mut open) = state.link.open.write() {
+            *open = 2;
+        }
+        assert_eq!(
+            runtime.block_on(run_outbound(&state, async { 1 })).unwrap(),
+            Some(1)
+        );
+        assert!(link_open(&state, 1).is_none(), "an earlier run's effect");
+        assert!(link_open(&state, 2).is_some());
+        assert!(link_open(&state, 0).is_none());
     }
 }

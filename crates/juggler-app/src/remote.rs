@@ -774,19 +774,23 @@ async fn send_action(
     }
     let console = crate::commands::local_machine_id(&state).to_string();
     let sequence = next_command_sequence(&state, &machine_id)?;
-    let runtime = state.link.runtime()?;
     // The node may wait for its user ("Ask each time"), up to 20 s.
-    let task = runtime.spawn(async move {
+    let sent = crate::link::run_outbound(&state, async move {
         tokio::time::timeout(
             COMMAND_TIMEOUT,
             juggler_link::client::send_command(&peer, &console, sequence, action),
         )
         .await
-    });
-    let result = task.await.map_err(|e| AppError::Io {
-        context: "remote action",
-        message: e.to_string(),
-    })?;
+    })
+    .await?;
+    let Some(result) = sent else {
+        return Ok(RemoteCommandOutcomeInfo {
+            accepted: false,
+            reason_code: Some("link_off".to_owned()),
+            message: "Link went off before that machine answered — it may still have run there."
+                .to_owned(),
+        });
+    };
     let outcome = match result {
         Err(_) => RemoteCommandOutcomeInfo {
             accepted: false,

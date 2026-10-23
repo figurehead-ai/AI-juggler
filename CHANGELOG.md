@@ -142,6 +142,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at once, and ends a pairing still in progress. Before, a connection that
   was open when you turned it off kept receiving their sessions and saving
   them until it broke, and a pairing could still finish afterwards.
+- Turning Fleet Link off also stops your other machines acting on this
+  one: a session they were moving here, a command they sent, or a
+  pairing they were finishing is refused from that moment, even if you
+  then say yes to a question it asked. Clicking Link on and off quickly,
+  or while AI Juggler is starting, no longer leaves it running when it
+  shows as off, and its port is free again at once.
+- Fleet: a pairing that finished on this Mac but may not have on the
+  other one (it was stopped before the end) says so on that machine's row:
+  "Pairing may not have finished on {name}. Pair again to be sure.", with
+  Pair again starting a new pairing. It clears once that machine connects,
+  or when it is set to No access or unpaired.
 - Codex: a conversation that opens by summarising another one no longer
   counts that conversation's last model call again (on the maintainer's
   Mac, about 367,000 tokens across three conversations). Usage already

@@ -332,11 +332,13 @@ export function FleetScreen({
                 {peer.paired_via === "account" && (
                   <span className="text-[11px] text-muted">via your Figurehead account</span>
                 )}
-                <span className="text-[11px] text-muted">
-                  {peer.last_seen_ms === null
-                    ? "Not seen yet"
-                    : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
-                </span>
+                {!peer.pairing_unfinished && (
+                  <span className="text-[11px] text-muted">
+                    {peer.last_seen_ms === null
+                      ? "Not seen yet"
+                      : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
+                  </span>
+                )}
                 {onInspectRemote && (
                   <Button
                     size="sm"
@@ -357,6 +359,28 @@ export function FleetScreen({
                 >
                   Unpair…
                 </Button>
+                {peer.pairing_unfinished && (
+                  // Its own line in the row: the longer note never squeezes
+                  // the fingerprint.
+                  <div className="flex basis-full flex-wrap items-center gap-3">
+                    <span
+                      className="text-[11px] text-muted"
+                      role="status"
+                      data-testid="fleet-pairing-unfinished"
+                    >
+                      Pairing may not have finished on {peer.label}. Pair again to be sure.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!link?.enabled || self?.trust === "broken"}
+                      onClick={() => setWizard("host")}
+                      data-testid="fleet-pair-again"
+                    >
+                      Pair again<span className="sr-only"> with {peer.label}</span>
+                    </Button>
+                  </div>
+                )}
                 <ClockSkewNote
                   label={peer.label}
                   skewMs={remote.find((entry) => entry.machine_id === peer.machine_id)?.clock_skew_ms ?? null}

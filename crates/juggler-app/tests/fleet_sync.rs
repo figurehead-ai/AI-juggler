@@ -645,3 +645,194 @@ fn a_thousand_queued_changes_catch_up_inside_three_seconds() {
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// Link off means off however clicks race: several "on" at once start
+/// one Link, and the "off" after them leaves none running: no run's loop
+/// is left, and the port it took is free.
+#[test]
+fn starts_at_once_run_one_link_and_off_ends_it() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    // Its own port (tests here share the preferred one), free to check.
+    let own = std::net::TcpListener::bind("0.0.0.0:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    a.storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("fleet_link_last_port", &own.to_string())
+        .unwrap();
+    let ports: Vec<Option<u16>> = std::thread::scope(|scope| {
+        let starts: Vec<_> = (0..4)
+            .map(|_| scope.spawn(|| link::link_set_enabled_impl(&a, true).unwrap().port))
+            .collect();
+        starts
+            .into_iter()
+            .map(|start| start.join().unwrap())
+            .collect()
+    });
+    let first = ports[0];
+    assert!(first.is_some());
+    assert!(
+        ports.iter().all(|port| *port == first),
+        "one Link: {ports:?}"
+    );
+    assert_eq!(first, Some(own), "the run took its own port");
+    assert_eq!(link::link_runs_for_test(&a), 1, "one run");
+    let off = link::link_set_enabled_impl(&a, false).unwrap();
+    assert!(!off.enabled && off.port.is_none());
+    assert_eq!(link::link_runs_for_test(&a), 0, "no run left");
+    assert!(
+        std::net::TcpListener::bind(("0.0.0.0", own)).is_ok(),
+        ":{own} is free after off"
+    );
+}
+
+/// Off during the launch start (Link left on last time): the start
+/// waits its turn or finds the setting off, and Link stays off.
+#[test]
+fn off_during_the_launch_start_stays_off() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&a, false).unwrap();
+    {
+        // As a quit with Link on leaves it.
+        let storage = a.storage.lock().unwrap();
+        storage
+            .app_settings()
+            .set("fleet_link_enabled", "1")
+            .unwrap();
+    }
+    link::resume_if_enabled(Arc::clone(&a));
+    let off = link::link_set_enabled_impl(&a, false).unwrap();
+    assert!(!off.enabled);
+    std::thread::sleep(Duration::from_secs(3));
+    let status = link::link_status_impl(&a);
+    assert!(
+        !status.enabled && status.port.is_none(),
+        "the setting says off and nothing runs: {status:?}"
+    );
+}
+
+/// A join started while Link goes off: it either never starts ("Turn Link
+/// on first") or is ended by the off. Nothing pairs and no join is left
+/// "connecting".
+#[test]
+fn a_join_racing_link_off_pairs_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+    for _ in 0..5 {
+        link::link_set_enabled_impl(&b, true).unwrap();
+        let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                let _ = link::pairing_join_start_impl(&b, None, Some(&address), &code);
+            });
+            scope.spawn(|| link::link_set_enabled_impl(&b, false).unwrap());
+        });
+        // Whatever the order, a confirm now finds nothing to finish.
+        let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+        let _ = link::pairing_host_decide_impl(&a, true, Permission::View);
+        let phase = link::pairing_join_state_impl(&b).unwrap().phase;
+        if !link::link_status_impl(&b).enabled {
+            assert!(
+                phase != "connecting" && phase != "confirm",
+                "a join left {phase} after Link off"
+            );
+        }
+        link::pairing_host_close_impl(&a);
+    }
+    std::thread::sleep(Duration::from_secs(1));
+    assert!(
+        fleet::fleet_peers_impl(&b).unwrap().is_empty(),
+        "nothing paired after Link off"
+    );
+}
+
+/// The "unfinished" note on `node`'s row for `peer`, when it lists it.
+fn unfinished(node: &Arc<AppState>, peer: &Arc<AppState>) -> Option<bool> {
+    let id = machine_id(peer);
+    fleet::fleet_peers_impl(node)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.machine_id == id)
+        .map(|row| row.pairing_unfinished)
+}
+
+/// Shows the note as soon as a pairing has no Hello (tests don't wait).
+fn no_wait(state: &Arc<AppState>) {
+    link::pairing_wait_for_test(state, 0);
+}
+
+/// A normal pairing (no new message: an older joiner pairs the same way)
+/// never leaves the line: the joiner's first Hello finishes it, even
+/// with no wait.
+#[test]
+fn a_normal_pairing_never_shows_it_unfinished() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    no_wait(&a);
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b);
+    wait_for("the joiner's Hello", || {
+        (unfinished(&a, &b) == Some(false)).then_some(())
+    });
+    assert_eq!(unfinished(&b, &a), Some(false), "the joiner notes nothing");
+}
+
+/// A joiner stopped between the decisions and the end of the exchange:
+/// whenever the host pinned it and it didn't pin the host, the host's row
+/// says the pairing didn't finish. Pairing again (its Hello) finishes it.
+#[test]
+fn a_joiner_stopped_mid_way_leaves_the_host_unfinished() {
+    let mut reached = 0;
+    for _ in 0..4 {
+        let work = tempfile::tempdir().unwrap();
+        let a = app_state(&work.path().join("a"));
+        let b = app_state(&work.path().join("b"));
+        no_wait(&a);
+        link::link_set_enabled_impl(&a, true).unwrap();
+        link::link_set_enabled_impl(&b, true).unwrap();
+        let code = link::pairing_host_open_impl(&a).unwrap().code.unwrap();
+        let address = format!("127.0.0.1:{}", link::link_status_impl(&a).port.unwrap());
+        link::pairing_join_start_impl(&b, None, Some(&address), &code).unwrap();
+        wait_for("joiner confirm", || {
+            phase(link::pairing_join_state_impl(&b).unwrap(), "confirm")
+        });
+        wait_for("host confirm", || {
+            phase(link::pairing_host_state_impl(&a).unwrap(), "confirm")
+        });
+        link::pairing_host_decide_impl(&a, true, Permission::View).unwrap();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                let _ = link::pairing_join_decide_impl(&b, true, Permission::View);
+            });
+            scope.spawn(|| link::link_set_enabled_impl(&b, false).unwrap());
+        });
+        std::thread::sleep(Duration::from_secs(1));
+        let joiner_pinned = !fleet::fleet_peers_impl(&b).unwrap().is_empty();
+        match unfinished(&a, &b) {
+            Some(shown) if !joiner_pinned => {
+                reached += 1;
+                assert!(shown, "the host shows it may not have finished");
+                // Pairing again finishes it.
+                link::link_set_enabled_impl(&b, true).unwrap();
+                pair(&a, &b);
+                wait_for("the joiner's Hello", || {
+                    (unfinished(&a, &b) == Some(false)).then_some(())
+                });
+            }
+            _ => {}
+        }
+    }
+    assert!(reached > 0, "no round stopped the joiner mid-way");
+}

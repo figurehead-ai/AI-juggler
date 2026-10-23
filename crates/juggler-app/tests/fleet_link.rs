@@ -862,3 +862,50 @@ fn a_console_cleans_only_what_the_node_verifies_and_hears_each_outcome() {
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }
+
+/// Link off answers a question a peer's command is waiting on "no" at
+/// once: the off doesn't wait out the 20 s, and the command ends.
+#[test]
+fn link_off_answers_a_waiting_question_no_at_once() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+    let b_on_a = fleet::fleet_peers_impl(&a).unwrap()[0].machine_id.clone();
+    let a_on_b = fleet::fleet_peers_impl(&b).unwrap()[0].machine_id.clone();
+    fleet::fleet_set_permission_impl(&a, &b_on_a, "control", true).unwrap();
+    wait_for("B connected to A", || {
+        remote::fleet_remote_impl(&b)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.freshness == "live")
+    });
+    link::refresh_permissions_for_test(&b);
+
+    let command = {
+        let b = Arc::clone(&b);
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(remote::fleet_remote_stop_impl(
+                    b,
+                    a_on_b,
+                    "no-such-instance".to_owned(),
+                ))
+        })
+    };
+    wait_for("A's question", || link::prompts_impl(&a).into_iter().next());
+    let started = std::time::Instant::now();
+    link::link_set_enabled_impl(&a, false).unwrap();
+    let took = started.elapsed();
+    assert!(took < Duration::from_secs(5), "Link off took {took:?}");
+    assert!(link::prompts_impl(&a).is_empty(), "nothing left waiting");
+    let outcome = command.join().unwrap();
+    assert!(
+        outcome.as_ref().map_or(true, |outcome| !outcome.accepted),
+        "{outcome:?}"
+    );
+    link::link_set_enabled_impl(&b, false).unwrap();
+}
