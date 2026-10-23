@@ -239,9 +239,14 @@ def read_codex_rollout(path: Path) -> dict:
                 roll["session"] = payload.get("id")
                 roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
                 roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
-                spawn = ((payload.get("source") or {}).get("subagent") or {}).get("thread_spawn") \
-                    if isinstance(payload.get("source"), dict) else None
-                roll["parent"] = payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+                # Any `source.subagent` (a spawned thread, or `other`:
+                # an auto-review run) is a subagent's rollout: its tokens
+                # count, but it isn't a conversation of its own.
+                source = payload.get("source") if isinstance(payload.get("source"), dict) else {}
+                subagent = source.get("subagent")
+                spawn = (subagent or {}).get("thread_spawn") if isinstance(subagent, dict) else None
+                roll["parent"] = (payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+                                  or ("subagent" if subagent is not None else None))
         elif line.get("type") == "token_usage_record":
             # Each model response's own usage, keyed. A context compaction
             # is a response too: its record is the only place it is counted,
@@ -533,7 +538,8 @@ def build(args) -> dict:
         for name, span in WINDOWS:
             acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
             acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in claude_lines[idx] if now - ts < span)
-    carried_sessions = sum(1 for held in copies.values() if len(held) > 1)
+    carried_ids = sorted(sid for sid, held in copies.items() if len(held) > 1)
+    carried_sessions = len(carried_ids)
 
     live = []
     for proc in processes():
@@ -580,7 +586,7 @@ def build(args) -> dict:
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
-            "carried": {"sessions": carried_sessions, "tokens": carried},
+            "carried": {"sessions": carried_sessions, "tokens": carried, "ids": carried_ids},
             "codex_sessions": sorted(s for s, (i, _) in transcripts_by_session.items() if accounts[i][1] == "codex"),
             "live": live, "session_totals": session_totals, "session_mtime": session_mtime, "desktop_roots": desktop_roots()}
 
@@ -981,7 +987,14 @@ def compare(truth: dict, harness: dict) -> str:
     oracle_sessions = {k: v for k, v in truth["session_totals"].items()
                        if truth["session_mtime"].get(k, 0) < ingested_s}
     skipped = len(truth["session_totals"]) - len(oracle_sessions)
-    both = [k for k in backend_sessions if k in oracle_sessions and oracle_sessions[k]]
+    # A switch copy's earlier lines are left out by the app through its own
+    # switch records, which a fresh data folder doesn't have: not checkable.
+    carried_ids = set((truth.get("carried") or {}).get("ids") or [])
+    both = [k for k in backend_sessions if k in oracle_sessions and oracle_sessions[k] and k not in carried_ids]
+    copies_seen = [k for k in backend_sessions if k in oracle_sessions and k in carried_ids]
+    if copies_seen:
+        verdict(None, f"cost rows of {len(copies_seen)} switch copies: not checkable without the switch records "
+                      "(a fresh data folder has none), left out of the check below")
     ratios = sorted(backend_sessions[k] / oracle_sessions[k] for k in both)
     close = sum(1 for r in ratios if 0.95 <= r <= 1.05)
     only_backend = len([k for k in backend_sessions if k not in truth["session_totals"]])
@@ -1204,6 +1217,11 @@ def selftest_rollouts() -> None:
         (day / "rollout-a.jsonl").rename(day / "rollout-a.jsonl.zst")  # compressed after listing
         (day / "rollout-a.jsonl.zst").write_bytes(packed)
         assert read_codex_rollout(day / "rollout-a.jsonl")["compressed"]
+        assert plain["parent"] is None
+        review = [{"timestamp": "2026-01-01T00:00:00Z", "type": "session_meta",
+                   "payload": {"id": "t2", "cwd": "/r", "source": {"subagent": "other"}}}]
+        (day / "rollout-d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in review))
+        assert read_codex_rollout(day / "rollout-d.jsonl")["parent"] == "subagent"
 
 
 def main() -> int:

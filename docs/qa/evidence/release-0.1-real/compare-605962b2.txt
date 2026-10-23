@@ -1,0 +1,90 @@
+OK        setups found: 7 of 7
+OK        brought in where they are: 7 of 7
+OK        projects: backend 26 rows, oracle 26
+OK        Project 1: backend 15 conversations in 1 row(s), accounts ['Account E']; oracle 15 Claude + 0 Codex, accounts ['Account E']
+OK        Project 2: backend 14 conversations in 1 row(s), accounts ['Account A']; oracle 14 Claude + 0 Codex, accounts ['Account A']
+OK        Project 3: backend 10 conversations in 1 row(s), accounts ['Account A', 'Account G']; oracle 8 Claude + 2 Codex, accounts ['Account A', 'Account G']
+OK        Project 4: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account F', 'Account G']; oracle 3 Claude + 3 Codex, accounts ['Account A', 'Account F', 'Account G']
+OK        Project 5: backend 6 conversations in 1 row(s), accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']; oracle 6 Claude + 0 Codex, accounts ['Account A', 'Account B', 'Account C', 'Account D', 'Account E', 'Account F']
+OK        Project 6: backend 5 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 2 Claude (1 also in another account) + 3 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 7: backend 4 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 2 Claude (1 also in another account) + 2 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 8: backend 4 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 2 Claude (1 also in another account) + 2 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 9: backend 4 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 2 Claude (1 also in another account) + 2 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 10: backend 3 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 2 Claude (1 also in another account) + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 11: backend 4 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 3 Claude + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 12: backend 2 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 1 Claude (1 also in another account) + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 13: backend 2 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 1 Claude (1 also in another account) + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 14: backend 2 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 1 Claude (1 also in another account) + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 15: backend 2 conversations in 1 row(s), accounts ['Account B', 'Account C', 'Account G']; oracle 1 Claude (1 also in another account) + 1 Codex, accounts ['Account B', 'Account C', 'Account G']
+OK        Project 16: backend 1 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 1 Claude (1 also in another account) + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 17: backend 1 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 1 Claude (1 also in another account) + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 18: backend 1 conversations in 1 row(s), accounts ['Account B', 'Account C']; oracle 1 Claude (1 also in another account) + 0 Codex, accounts ['Account B', 'Account C']
+OK        Project 19: backend 1 conversations in 1 row(s), accounts ['Account C']; oracle 1 Claude + 0 Codex, accounts ['Account C']
+OK        Project 20: backend 1 conversations in 1 row(s), accounts ['Account C']; oracle 1 Claude + 0 Codex, accounts ['Account C']
+OK        Project 21: backend 1 conversations in 1 row(s), accounts ['Account D']; oracle 1 Claude + 0 Codex, accounts ['Account D']
+OK        Project 22: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Project 23: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Project 24: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Project 25: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+OK        Project 26: backend 1 conversations in 1 row(s), accounts ['Account G']; oracle 0 Claude + 1 Codex, accounts ['Account G']
+INFO      switch copies: 12 conversation(s) also in another account; 1,833,069 tokens of their earlier messages count once, on the account they came from (windows and cost rows that count them again read high)
+OK        Account A conversations: backend 25, oracle 25
+OK        Account A live: backend 1, running 1
+OK        Account B conversations: backend 20, oracle 20
+OK        Account B live: backend 1, running 1
+OK        Account C conversations: backend 16, oracle 16
+OK        Account C live: backend 1, running 1
+OK        Account D conversations: backend 2, oracle 2
+OK        Account D live: backend 1, running 1
+OK        Account E conversations: backend 16, oracle 16
+OK        Account E live: backend 3, running 3
+OK        Account F conversations: backend 2, oracle 2
+OK        Account F live: backend 1, running 1
+OK        Account G conversations: backend 25, oracle 25
+OK        Account G live: backend 0, running 0
+OK        live sessions with no account in the oracle: 0
+OK        Account A 5h: no percent and no reset time (nothing measured)
+OK        Account A 5h tokens: backend 264,762,690, oracle 272,165,423 at the ingest's start to 264,762,690 at its end (live writers) (×0.97)
+OK        Account A 7d: no percent and no reset time (nothing measured)
+OK        Account A 7d tokens: backend 10,265,712,325, oracle 10,265,712,325 (×1.00)
+OK        Account B 5h: no percent and no reset time (nothing measured)
+OK        Account B 5h tokens: backend 194,767,386, oracle 196,561,882 at the ingest's start to 194,767,386 at its end (live writers) (×0.99)
+OK        Account B 7d: no percent and no reset time (nothing measured)
+OK        Account B 7d tokens: backend 7,597,084,130, oracle 7,603,678,553 at the ingest's start to 7,597,084,130 at its end (live writers) (×1.00)
+OK        Account C 5h: no percent and no reset time (nothing measured)
+OK        Account C 5h tokens: backend 215,158,960, oracle 209,321,077 at the ingest's start to 215,300,875 at its end (live writers) (×1.00)
+OK        Account C 7d: no percent and no reset time (nothing measured)
+OK        Account C 7d tokens: backend 8,997,623,414, oracle 8,992,461,088 at the ingest's start to 8,995,790,345 at its end (live writers) (×1.00)
+OK        Account D 5h: no percent and no reset time (nothing measured)
+OK        Account D 5h tokens: backend 831,431,265, oracle 815,095,744 at the ingest's start to 831,431,265 at its end (live writers) (×1.00)
+OK        Account D 7d: no percent and no reset time (nothing measured)
+OK        Account D 7d tokens: backend 12,726,536,157, oracle 12,711,251,465 at the ingest's start to 12,726,536,157 at its end (live writers) (×1.00)
+OK        Account E 5h: no percent and no reset time (nothing measured)
+OK        Account E 5h tokens: backend 288,389,951, oracle 289,044,666 at the ingest's start to 288,389,951 at its end (live writers) (×1.00)
+OK        Account E 7d: no percent and no reset time (nothing measured)
+OK        Account E 7d tokens: backend 12,960,457,709, oracle 12,957,688,794 at the ingest's start to 12,960,457,709 at its end (live writers) (×1.00)
+OK        Account F 5h: no percent and no reset time (nothing measured)
+OK        Account F 5h tokens: backend 365,917,022, oracle 362,905,942 at the ingest's start to 365,917,022 at its end (live writers) (×1.00)
+OK        Account F 7d: no percent and no reset time (nothing measured)
+OK        Account F 7d tokens: backend 3,159,946,332, oracle 3,178,243,174 at the ingest's start to 3,159,946,332 at its end (live writers) (×0.99)
+OK        Account G 5-hour window: none, as Codex reports (secondary null)
+OK        Account G weekly: backend 8.0; rollouts say 8.0% used, resets Fri 2026-10-30 13:41
+OK        Account G 7d tokens: backend 8,695,322,632, oracle 8,695,581,319 at the ingest's start to 8,696,612,213 at its end (live writers) (×1.00)
+INFO      cost payload: null flat_fee_usd, value_ratio; 2619 of 2619 rows with null credits/usd (honest nulls; main's CostMatrix.tsx crashes on them until its guards check for null)
+INFO      cost rows of 12 switch copies: not checkable without the switch records (a fresh data folder has none), left out of the check below
+OK        cost rows per session: 2295 sessions in both; 2295 within 5% of the transcripts; ratio min ×1.00, median ×1.00, max ×1.00; 0 only in the backend, 0 with tokens only in the transcripts; 7 still being written during the run, left out
+OK        Codex all time: backend 19,638,902,172 tokens in 2245 sessions, oracle 19,638,902,172 in 2245 (×1.00)
+MISMATCH  cost rows priced: 763 of 2619
+OK        This Mac machine: CPU 24%, memory 77.7 of 103 GB (app_wired_compressed), pressure warning; tools 6
+OK        This Mac memory vs vm_stat: backend 77.7 GB used, vm_stat app+wired+compressed 78.1 GB (off by 0.4% of 103 GB)
+OK        This Mac total memory: backend 103.1 GB, hw.memsize 103.1 GB
+OK        This Mac pressure: backend warning, kern.memorystatus_vm_pressure_level 2 (warn)
+OK        This Mac tools: backend 6; ps has 6 Claude app instances + 1 ChatGPT (Codex) not counted by design
+OK        This Mac tools memory: backend 12.5 GB; ps RSS of the Claude app trees 12.4 GB (×1.01)
+OK        This Mac top rows (GB): backend [3.8, 2.9, 1.9]; ps trees [3.7, 2.8, 1.9]; 3 instance(s) not shown
+OK        This Mac every tree: backend 6 (top 3 + others 3) [3.8, 2.9, 1.9, 1.8, 1.1, 1.1]; ps 6 [3.7, 2.8, 1.9, 1.8, 1.1, 1.1]
+OK        This Mac page, Claude app group: backend 6 windows; ps 6
+OK        This Mac page group Claude app: 6 rows for its 6 trees
+OK        This Mac rows by root: 6 of 6 within 15% of their own ps tree
+OK        This Mac tools CPU: backend 7.7% of all cores (ps %CPU is a decaying average, not compared)
+OK        alerts over the run: 1 (memory_pressure)
