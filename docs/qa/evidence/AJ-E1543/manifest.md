@@ -1,6 +1,6 @@
 # Evidence manifest — AJ-E1543
 
-Task: `docs/tasks/E15-spec-gaps.md` AJ-E1543 (one switch screen). Status: **IN-PROGRESS**. 2026-10-22, claude-opus.
+Task: `docs/tasks/E15-spec-gaps.md` AJ-E1543 (one switch screen). Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). 2026-10-23, claude-opus.
 
 ## Done
 
@@ -77,9 +77,10 @@ on `claude/qa-real-walk-clean` (`e878e5f9`, `18fa9d89`, `dfa259b2`).
   - **Secrets:** 2 detected `sk-key` items, previews "•••".
 
 The switch itself is proven live in the labs (AJ-E1539, labs 9–11). These walks add the screen on
-real data, up to Confirm.
+real data, up to Confirm. Batch 29's one wording note (Target's reason said "This switch leaves
+behind:") is fixed: it says "Doesn't carry:", as the list and What's carried do.
 
 ## Left
 
-- **Wording, minor:** Target's reason "This switch leaves behind: skills & commands, subagent
-  state." says in other words what the list and What's carried call "Doesn't carry".
+Nothing. Req.4's real-data walk passed in batch 29, and its one wording note is fixed.
+

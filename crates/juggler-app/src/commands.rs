@@ -5646,7 +5646,7 @@ fn wizard_reasons_of(
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!(
-            "This switch leaves behind: {}.",
+            "Doesn't carry: {}.",
             carry.dropped.join(", ")
         ));
     }
