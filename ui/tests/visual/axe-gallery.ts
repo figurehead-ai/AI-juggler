@@ -78,6 +78,9 @@ async function scanAsIs(page: import("@playwright/test").Page): Promise<Finding[
  * worker registers the tests in the same order). */
 const gated = new Set<string>();
 
+/** The gate's clock: `regression.spec.ts`'s T0 (2024-10-13). */
+const GATE_NOW = 1_728_800_000_000;
+
 /** Tags the first test `family` registers as its gate state: in a loop,
  * its first cell (themes list dark first). */
 export function gate(family: string): { tag?: string } {
@@ -127,6 +130,10 @@ export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
     if (testInfo.project.name === "gallery") {
       const gate = compareInstead(page);
+      // One instant for every gate state, the regression screens' T0: a
+      // state that reads the clock ("740 d ago") would differ tomorrow. A
+      // spec that pins its own clock still wins (its init script runs later).
+      await page.clock.setFixedTime(GATE_NOW);
       // The gate's self-test, as the regression screens have it: a 2 px
       // shift of every button must fail the comparison (AJ-E803).
       if (process.env.AIJ_VISUAL_SELFTEST === "1") {

@@ -61,3 +61,12 @@
   6 passed (5.2m)   # kill-sheet, recovery summary, switch confirm, door popover,
                     # redaction chooser, the ? sheet: a dialog over a dimmed page
   differing pixels per failing cell: 599 – 50,872
+## the tags were shifted by one in three places (41-policy, 43-pairing, 44-settings): fixed;
+## every gallery folder now has its gate state (91), 42-fleet/trust-broken dropped
+## one fixed clock for every gate state (T0); --update-snapshots=changed
+  91 passed (3.5m)   # changed: 87-burn-down and the new 41-policy captures (they read the real clock)
+## gallery project, compare only
+  91 passed (3.5m)
+## gallery self-test on all 91
+  85 failed
+  6 passed (6.8m)   # the same six dialog states

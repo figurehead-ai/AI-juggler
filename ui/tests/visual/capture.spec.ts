@@ -3896,7 +3896,7 @@ const TOOL_VIEW_VP = [
 ] as const;
 for (const theme of THEMES) {
   for (const vp of TOOL_VIEW_VP) {
-    test(`72 tool view — from a session's tool chip — ${vp.name} — ${theme}`, gate("41-policy"), async ({ page }) => {
+    test(`72 tool view — from a session's tool chip — ${vp.name} — ${theme}`, gate("72-tool-view"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -3948,7 +3948,7 @@ const ACCOUNTS_VP = [
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
-    test(`41 policy — Accounts → Pack secrets + env overrides — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`41 policy — Accounts → Pack secrets + env overrides — ${vp.name} — ${theme}`, gate("41-policy"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t }) => {
           const w = window as unknown as Record<string, unknown>;
@@ -4071,7 +4071,7 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `42-fleet/connection-banners-${vp.name}-${theme}.png`), fullPage: true });
     });
 
-    test(`42 fleet — trust broken — ${vp.name} — ${theme}`, gate("43-pairing"), async ({ page }) => {
+    test(`42 fleet — trust broken — ${vp.name} — ${theme}`, async ({ page }) => {
       await openFleet(page, theme, vp, {
         __AIJ_FLEET_PEERS__: [],
         __AIJ_FLEET_SELF__: { trust: "broken", trust_reason: "an older copy of the registry was restored (rollback)" },
@@ -4165,7 +4165,7 @@ for (const theme of THEMES) {
       await shot43(page, "fail-cancelled", vp, theme);
     });
 
-    test(`43 pairing — paused and turned off — ${vp.name} — ${theme}`, gate("44-settings"), async ({ page }) => {
+    test(`43 pairing — paused and turned off — ${vp.name} — ${theme}`, gate("43-pairing"), async ({ page }) => {
       await openFleet(page, theme, vp, { __AIJ_FLEET_PEERS__: [], __AIJ_LINK__: LINK_ON, __AIJ_PAIR_LOCK__: "locked_out" });
       await page.getByTestId("fleet-add").click();
       await expect(page.getByTestId("pairing-failure")).toHaveAttribute("data-reason", "locked_out");
@@ -4235,7 +4235,7 @@ const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name:
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
-    test(`44 settings — signed out, code, linking — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`44 settings — signed out, code, linking — ${vp.name} — ${theme}`, gate("44-settings"), async ({ page }) => {
       await openSettings(page, theme, vp, {});
       await expect(page.getByTestId("cloud-signed-out")).toBeVisible();
       await shot44(page, "signed-out", vp, theme);

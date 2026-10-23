@@ -672,7 +672,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Visual testing**: n/a.
 **Files to touch**: `ui/tests/visual/`, `crates/juggler-adapters/tests/`.
 **Research basis**: AJ-E803, E210 and E306.
-**Handover note**: Done in three PRs (2026-10-23). The gallery: one state per family in the visual gate's `gallery` project, 90 families and 137 baselines, pinned clocks first, and a state that compares nothing fails (`docs/qa/evidence/AJ-E803/manifest.md`). Adapter coverage 87.0 % (#167, the AJ-E210 manifest). Two concurrent sessions end to end, which found and fixed duplicate session ids on concurrent launches (#164, the AJ-E306 manifest).
+**Handover note**: Done in three PRs (2026-10-23). The gallery: one state per family in the visual gate's `gallery` project, all 91 families and 141 baselines, one fixed clock first, and a state that compares nothing fails (`docs/qa/evidence/AJ-E803/manifest.md`). Adapter coverage 87.0 % (#167, the AJ-E210 manifest). Two concurrent sessions end to end, which found and fixed duplicate session ids on concurrent launches (#164, the AJ-E306 manifest).
 
 ### AJ-E1523 North-star metric: weekly juggling loops completed | Status: DONE-EVIDENCED | Priority P2 | Effort S | Depends: AJ-E1103
 **Goal**: We can tell whether AI Juggler does its job.
