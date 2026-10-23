@@ -28,6 +28,7 @@ pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;
+pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;

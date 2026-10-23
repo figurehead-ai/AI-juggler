@@ -668,9 +668,11 @@ pub fn continue_impl(
                     account.label
                 ))
             })?;
-        let project = storage
-            .projects()
-            .touch(&juggler_core::storage::project_root(&cwd), None)?;
+        let homes = storage.projects().worktree_homes()?;
+        let project = storage.projects().touch(
+            &juggler_core::storage::project_root_with(&cwd, &homes),
+            None,
+        )?;
         (profile, project)
     };
     let adapter = state

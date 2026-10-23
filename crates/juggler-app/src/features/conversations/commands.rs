@@ -20,8 +20,9 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     // The first ask after a start reads the files itself, unless the
     // background pass already is.
     super::read_if_cold(state)?;
-    let (labels, projects, sessions) = {
+    let (labels, projects, sessions, homes) = {
         let storage = lock_storage_arc(state)?;
+        let homes = storage.projects().worktree_homes()?;
         let labels: HashMap<String, String> = storage
             .accounts()
             .list()?
@@ -45,7 +46,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 ))
             })
             .collect();
-        (labels, projects, sessions)
+        (labels, projects, sessions, homes)
     };
     Ok(state
         .conversations
@@ -56,7 +57,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             let root = conversation
                 .folder
                 .as_deref()
-                .map(juggler_core::storage::project_root);
+                .map(|folder| juggler_core::storage::project_root_with(folder, &homes));
             ConversationInfo {
                 live: state.conversations.is_live(
                     &conversation.account_id,

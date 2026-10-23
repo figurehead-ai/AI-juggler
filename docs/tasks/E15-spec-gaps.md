@@ -611,7 +611,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: PROPOSAL §5.7; Max-Depth report (trust page).
 **Handover note**: Vendor terms are research claims; label them per AJ-E810.
 
-### AJ-E1519 Migration guides and importers | Status: TODO | Priority P2 | Effort M | Depends: AJ-E307
+### AJ-E1519 Migration guides and importers | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E307
 **Goal**: People coming from other tools get their setup across.
 **User story**: As a Claude Squad user, I import my sessions' worktrees and keep going.
 **Requirements**:

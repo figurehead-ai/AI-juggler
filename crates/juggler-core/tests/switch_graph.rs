@@ -294,7 +294,8 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "ALTER TABLE instances DROP COLUMN label;
+                "DROP TABLE worktree_homes;
+                 ALTER TABLE instances DROP COLUMN label;
                  ALTER TABLE instances DROP COLUMN pinned_at;
                  ALTER TABLE projects DROP COLUMN pinned_at;
                  ALTER TABLE projects DROP COLUMN forgotten_at;
