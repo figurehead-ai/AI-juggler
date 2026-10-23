@@ -31,6 +31,8 @@ dev-bridge = [
 workspace = true
 
 [dependencies]
+# D-26: open at login (a safe stub off macOS).
+juggler-login-item = { version = "0.0.1", path = "../juggler-login-item" }
 base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"

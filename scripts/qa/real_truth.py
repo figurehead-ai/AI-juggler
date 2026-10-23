@@ -5,14 +5,17 @@ Read only. It opens nothing but:
 
 - each Claude config folder's `projects/**/*.jsonl` (the default
   `~/.claude` and every `~/Library/Application Support/ClaudeCodeProfiles/*`);
-- each Codex home's `sessions/**/rollout-*.jsonl` (`~/.codex`);
+- each Codex home's `sessions/**/rollout-*.jsonl` (`~/.codex`), and the
+  `rollout-*.jsonl.zst` Codex compresses once a thread goes quiet (read
+  with Python 3.14's `compression.zstd`, else `zstd -dc`; never skipped);
 - the `.git` file of a worktree folder that still exists (to find its repo);
 - `ps` and `lsof -d cwd` for the running `claude` / `codex` processes.
 
 From the transcripts it keeps only names, mtimes and these fields: `cwd`,
 `gitBranch`, `sessionId`, `timestamp`, `type`, `uuid`, `message.id`,
 `requestId`, `message.usage`, and Codex's `session_meta` (id, cwd,
-timestamp) and `token_count` (`info.total_token_usage`, `rate_limits`). No
+timestamp), `turn_context.model` and `token_count` (`info.total_token_usage`,
+`info.last_token_usage`, `rate_limits`). No
 message text, no credential files, no Keychain, no environment of other
 processes.
 
@@ -28,6 +31,7 @@ mapping to a private file, never commit it):
 
 Usage: scripts/qa/real_truth.py [--json] [--key FILE] [--live-minutes N]
                                 [--claude-dir DIR]... [--codex-dir DIR]...
+                                [--plain-rollouts-only]   (what a reader that skips .jsonl.zst sees)
        scripts/qa/real_truth.py --codex-history   (rate_limits cadence and conflicts)
        scripts/qa/real_truth.py --compare OUT.json   (after the backend
            harness crates/juggler-app/tests/qa_real_readonly.rs wrote OUT.json)
@@ -41,6 +45,7 @@ import json
 import os
 import pwd
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -50,6 +55,9 @@ from pathlib import Path
 HOME = Path.home()
 PROFILES = HOME / "Library/Application Support/ClaudeCodeProfiles"
 WINDOWS = (("5h", 5 * 3600), ("7d", 7 * 86400))
+ZSTD_COMMANDS = ("zstd", "/opt/homebrew/bin/zstd", "/usr/local/bin/zstd")
+CODEX_CLASSES = (("input", "input_tokens"), ("cached_input", "cached_input_tokens"),
+                 ("output", "output_tokens"), ("reasoning", "reasoning_output_tokens"))
 WORKTREE = re.compile(r"^(?P<repo>.+?)/\.(?:claude|codex)/worktrees/[^/]+(?:/.*)?$")
 
 
@@ -165,40 +173,103 @@ def usage_tokens(usage: dict) -> dict:
             "cache_write": num("cache_creation_input_tokens"), "cache_read": num("cache_read_input_tokens")}
 
 
+def rollout_files(sessions: Path, plain_only: bool = False) -> list[Path]:
+    """A Codex home's rollouts: `rollout-*.jsonl` and, unless `plain_only`, the
+    `rollout-*.jsonl.zst` Codex compresses quiet threads into (a compressed
+    file keeps the plain one's mtime). A thread caught mid-compression, with
+    both files, is read once, from the plain one."""
+    plain = set(sessions.rglob("rollout-*.jsonl"))
+    packed = set() if plain_only else {p for p in sessions.rglob("rollout-*.jsonl.zst") if p.with_suffix("") not in plain}
+    return sorted(plain | packed)
+
+
+def current_rollout(path: Path) -> Path:
+    """`path`, or its `.zst` if Codex compressed it since it was listed."""
+    packed = path.with_name(path.name + ".zst")
+    return packed if path.suffix != ".zst" and not path.exists() and packed.exists() else path
+
+
+def rollout_lines(path: Path):
+    """A rollout's raw lines; a `.zst` one decompressed with `compression.zstd`
+    (Python 3.14+), else the `zstd` command. One that can't be read stops the
+    run: skipping it quietly is the blind spot this reader exists to close."""
+    if path.suffix != ".zst":
+        with path.open("rb") as fh:
+            yield from fh
+        return
+    try:
+        from compression import zstd  # Python 3.14+
+    except ImportError:
+        zstd = None
+    if zstd is not None:
+        with zstd.open(path, "rb") as fh:
+            yield from fh
+        return
+    cli = next((found for found in map(shutil.which, ZSTD_COMMANDS) if found), None)
+    if cli is None:
+        raise SystemExit(f"{path.name} is compressed, and there is neither Python 3.14+ (compression.zstd) "
+                         "nor a zstd command: run with Homebrew's python3, or pass --plain-rollouts-only")
+    done = subprocess.run([cli, "-dc", "--", str(path)], capture_output=True, check=False)
+    if done.returncode != 0:
+        raise SystemExit(f"{path.name}: zstd -dc failed with {done.returncode}")
+    yield from done.stdout.splitlines(keepends=True)
+
+
 def read_codex_rollout(path: Path) -> dict:
-    roll = {"session": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None,
-            "totals": [], "turns": [], "rate_limits": None, "rate_ts": None}
-    with path.open("rb") as fh:
-        for raw in fh:
-            if b'"session_meta"' not in raw and b'"token_count"' not in raw:
-                continue
-            try:
-                line = json.loads(raw)
-            except ValueError:
-                continue
-            payload = line.get("payload") if isinstance(line, dict) else None
-            if not isinstance(payload, dict):
-                continue
-            ts = iso_to_epoch(line.get("timestamp"))
-            if line.get("type") == "session_meta":
-                roll["session"] = payload.get("id") or roll["session"]
-                roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else roll["cwd"]
+    path = current_rollout(path)
+    roll = {"session": None, "parent": None, "mtime": path.stat().st_mtime, "cwd": None, "first": None, "model": None,
+            "compressed": path.suffix == ".zst", "totals": [], "turns": [], "turn_detail": [], "records": [],
+            "rate_limits": None, "rate_ts": None}
+    for raw in rollout_lines(path):
+        if (b'"session_meta"' not in raw and b'"token_count"' not in raw and b'"turn_context"' not in raw
+                and b'"token_usage_record"' not in raw):
+            continue
+        try:
+            line = json.loads(raw)
+        except ValueError:
+            continue
+        payload = line.get("payload") if isinstance(line, dict) else None
+        if not isinstance(payload, dict):
+            continue
+        ts = iso_to_epoch(line.get("timestamp"))
+        if line.get("type") == "session_meta":
+            # The first names the file's own thread. A subagent's rollout
+            # then carries its parent's (the history it was forked from).
+            if roll["session"] is None:
+                roll["session"] = payload.get("id")
+                roll["cwd"] = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
                 roll["first"] = iso_to_epoch(payload.get("timestamp")) or ts
-            elif payload.get("type") == "token_count" and ts is not None:
-                info = payload.get("info") or {}
-                total = info.get("total_token_usage") or {}
-                last = info.get("last_token_usage") or {}
-                if isinstance(total.get("total_tokens"), int):
-                    # A repeat (running total unchanged) is not a new turn. A
-                    # thread's first total can carry tokens from before it
-                    # (a subagent or compacted thread), so a thread's own use
-                    # is its turns' `last_token_usage`, not its final total.
-                    moved = not roll["totals"] or roll["totals"][-1][1]["total_tokens"] != total["total_tokens"]
-                    roll["totals"].append((ts, total))
-                    if moved and isinstance(last.get("total_tokens"), int):
-                        roll["turns"].append((ts, last["total_tokens"], total["total_tokens"]))
-                if isinstance(payload.get("rate_limits"), dict):
-                    roll["rate_limits"], roll["rate_ts"] = payload["rate_limits"], ts
+                spawn = ((payload.get("source") or {}).get("subagent") or {}).get("thread_spawn") \
+                    if isinstance(payload.get("source"), dict) else None
+                roll["parent"] = payload.get("forked_from_id") or (spawn or {}).get("parent_thread_id")
+        elif line.get("type") == "token_usage_record":
+            # Each model response's own usage, keyed. A context compaction
+            # is a response too: its record is the only place it is counted,
+            # since `token_count`'s running total leaves it out.
+            usage = payload.get("usage") or {}
+            if ts is not None and isinstance(usage.get("total_tokens"), int):
+                key = (payload.get("thread_id"), payload.get("turn_id"), payload.get("response_id"))
+                roll["records"].append((ts, key, usage["total_tokens"], (roll["model"], {
+                    name: usage.get(field) if isinstance(usage.get(field), int) else 0 for name, field in CODEX_CLASSES})))
+        elif line.get("type") == "turn_context":
+            roll["model"] = payload.get("model") if isinstance(payload.get("model"), str) else roll["model"]
+        elif payload.get("type") == "token_count" and ts is not None:
+            info = payload.get("info") or {}
+            total = info.get("total_token_usage") or {}
+            last = info.get("last_token_usage") or {}
+            if isinstance(total.get("total_tokens"), int):
+                # A repeat (running total unchanged) is not a new turn. A
+                # thread's first total can carry tokens from before it
+                # (a subagent or compacted thread), so a thread's own use
+                # is its turns' `last_token_usage`, not its final total.
+                moved = not roll["totals"] or roll["totals"][-1][1]["total_tokens"] != total["total_tokens"]
+                roll["totals"].append((ts, total))
+                if moved and isinstance(last.get("total_tokens"), int):
+                    roll["turns"].append((ts, last["total_tokens"], total["total_tokens"]))
+                    roll["turn_detail"].append((roll["model"], {name: last.get(key) if isinstance(last.get(key), int) else 0
+                                                                for name, key in CODEX_CLASSES}))
+            if isinstance(payload.get("rate_limits"), dict):
+                roll["rate_limits"], roll["rate_ts"] = payload["rate_limits"], ts
     return roll
 
 
@@ -298,7 +369,8 @@ def build(args) -> dict:
     for d in codex_dirs(args.codex_dir):
         accounts.append(("~/.codex" if d == HOME / ".codex" else d.name, "codex", d))
 
-    projects = defaultdict(lambda: {"how": set(), "per_account": defaultdict(int), "cwds": set(), "last": 0.0})
+    projects = defaultdict(lambda: {"how": set(), "per_account": defaultdict(int), "cwds": set(), "last": 0.0,
+                                    "claude_sessions": set()})
     per_account = {}
     transcripts_by_session = {}
     session_usage = defaultdict(dict)  # session id → {(message id, request id): (ts, tokens)}
@@ -308,6 +380,14 @@ def build(args) -> dict:
     # (account idx, the folder resolved) → [(mtime, session)]: a running
     # CLI's folder (from lsof, resolved) finds its conversations by it.
     newest_in_folder = defaultdict(list)
+    # A switch copies a conversation into the next account under the same
+    # session id, its earlier messages included (same message and request
+    # ids). Those were used on the account they came from: each Claude
+    # account's records are kept here and a message shared by copies is
+    # credited to one account once every account is read.
+    claude_records = {}  # account idx → {(message id, request id): (ts, tokens)}
+    claude_lines = {}  # account idx → [(ts, tokens)] per line
+    copies = defaultdict(dict)  # session id → {account idx: (first, last)}
     for idx, (label, tool, folder) in enumerate(accounts):
         acc = {"label": label, "tool": tool, "conversations": 0, "empty_files": 0, "subagent_files": 0,
                "changed": {"1h": 0, "24h": 0}, "tokens": {}, "tokens_per_line": {}, "codex_limits": None}
@@ -324,6 +404,13 @@ def build(args) -> dict:
                 if conv["last"] is not None:
                     last = conv["last"] if last is None else max(last, conv["last"])
                 session_span[sid] = (first, last)
+                if "subagents" not in path.parts:
+                    first, last = copies[sid].get(idx, (None, None))
+                    if conv["first"] is not None:
+                        first = conv["first"] if first is None else min(first, conv["first"])
+                    if conv["last"] is not None:
+                        last = conv["last"] if last is None else max(last, conv["last"])
+                    copies[sid][idx] = (first, last)
                 if "subagents" in path.parts:
                     # A subagent's usage is the account's usage; it is
                     # not a conversation of its own.
@@ -347,21 +434,27 @@ def build(args) -> dict:
                 p = projects[root]
                 p["how"].add(how)
                 p["per_account"][idx] += 1
+                p["claude_sessions"].add(sid)
                 p["cwds"].add(conv["cwd"])
                 p["last"] = max(p["last"], conv["last"] or conv["mtime"])
-            # Each message's (time, tokens), for a compare that cuts at the
-            # moment the backend read the files.
-            acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
-            for name, span in WINDOWS:
-                acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
-                acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in lines if now - ts < span)
+            claude_records[idx], claude_lines[idx] = records, lines
         else:
             newest = None
             window_tokens = {name: 0 for name, _ in WINDOWS}
             threads = set()  # a resumed thread is a rollout per resume: one conversation
-            seen_turns = set()  # (thread, timestamp, running total): a resume that repeats its parent's rows counts them once
-            for path in (folder / "sessions").rglob("rollout-*.jsonl"):
+            # A thread's use is its `token_usage_record`s (one per model
+            # response, compactions included), or, in a rollout without
+            # them, its turns' `last_token_usage`. A record counts once by
+            # its key, a turn by (timestamp, running total): a resume, or a
+            # subagent forked from its parent's history, repeats what it
+            # carries, and each counts on the thread that wrote it first.
+            seen_turns = set()
+            acc["files"] = {"plain": 0, "compressed": 0}
+            all_time = acc["codex_all_time"] = {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES},
+                                                "by_model": {}}
+            for path in rollout_files(folder / "sessions", args.plain_rollouts_only):
                 roll = read_codex_rollout(path)
+                acc["files"]["compressed" if roll["compressed"] else "plain"] += 1
                 age = now - roll["mtime"]
                 acc["active_threads"] = acc.get("active_threads", 0) + (age < args.live_minutes * 60)
                 acc["changed"]["1h"] += age < 3600
@@ -369,8 +462,24 @@ def build(args) -> dict:
                 if roll["session"] and roll["cwd"]:
                     newest_in_folder[(idx, os.path.realpath(roll["cwd"]))].append((roll["mtime"], roll["session"]))
                 thread = roll["session"] or str(path)
-                own = [(ts, n) for ts, n, running in roll["turns"] if (thread, ts, running) not in seen_turns]
-                seen_turns.update((thread, ts, running) for ts, _, running in roll["turns"])
+                units = roll["records"] or [(ts, ("turn", ts, running), n, detail)
+                                            for (ts, n, running), detail in zip(roll["turns"], roll["turn_detail"])]
+                own, own_detail = [], []
+                for ts, key, n, detail in units:
+                    if key not in seen_turns:
+                        seen_turns.add(key)
+                        own.append((ts, n))
+                        own_detail.append(detail)
+                for (_, n), (model, classes) in zip(own, own_detail):
+                    all_time["turns"] += 1
+                    all_time["total"] += n
+                    per_model = all_time["by_model"].setdefault(
+                        model or "unknown", {"turns": 0, "total": 0, **{name: 0 for name, _ in CODEX_CLASSES}})
+                    per_model["turns"] += 1
+                    per_model["total"] += n
+                    for name, _ in CODEX_CLASSES:
+                        all_time[name] += classes[name]
+                        per_model[name] += classes[name]
                 if roll["session"]:
                     transcripts_by_session[roll["session"]] = (idx, roll)
                     session_mtime[roll["session"]] = max(session_mtime.get(roll["session"], 0), roll["mtime"])
@@ -386,7 +495,11 @@ def build(args) -> dict:
                     continue
                 root, how = project_of(roll["cwd"])
                 p = projects[root]
-                if thread not in threads:
+                if roll["parent"]:
+                    # A subagent's thread: its tokens are its own session's,
+                    # but it is not a conversation of its own.
+                    acc["subagent_files"] += 1
+                elif thread not in threads:
                     threads.add(thread)
                     acc["conversations"] += 1
                     p["per_account"][idx] += 1
@@ -397,6 +510,30 @@ def build(args) -> dict:
             if newest:
                 acc["codex_limits"] = codex_limits(newest[1], newest[0], now)
         per_account[idx] = acc
+
+    # A message in several accounts' copies of one conversation belongs to
+    # the copy it was first written in: the one whose last message is
+    # earliest (the copy a switch left), then the earlier first, then the
+    # account's order.
+    inf = float("inf")
+    carried = 0
+    for sid, held in copies.items():
+        if len(held) < 2:
+            continue
+        order = sorted(held, key=lambda i: (inf if held[i][1] is None else held[i][1],
+                                            inf if held[i][0] is None else held[i][0], i))
+        for n, later in enumerate(order[1:], 1):
+            for key in [k for k in claude_records[later] if any(k in claude_records[o] for o in order[:n])]:
+                carried += sum(claude_records[later].pop(key)[1].values())
+    for idx, records in claude_records.items():
+        acc = per_account[idx]
+        # Each message's (time, tokens), for a compare that cuts at the
+        # moment the backend read the files.
+        acc["points"] = [(ts, sum(t.values())) for ts, t in records.values()]
+        for name, span in WINDOWS:
+            acc["tokens"][name] = sum_tokens((ts, t) for ts, t in records.values() if now - ts < span)
+            acc["tokens_per_line"][name] = sum_tokens((ts, t) for ts, t in claude_lines[idx] if now - ts < span)
+    carried_sessions = sum(1 for held in copies.values() if len(held) > 1)
 
     live = []
     for proc in processes():
@@ -430,7 +567,6 @@ def build(args) -> dict:
     for session, records in session_usage.items():
         for key in records:
             holders[key].append(session)
-    inf = float("inf")
 
     def rank(session):
         first, last = session_span.get(session, (None, None))
@@ -444,6 +580,8 @@ def build(args) -> dict:
         if records:
             session_totals[session] = sum_tokens(records.values())["total"]
     return {"generated": now, "accounts": accounts, "per_account": per_account, "projects": projects,
+            "carried": {"sessions": carried_sessions, "tokens": carried},
+            "codex_sessions": sorted(s for s, (i, _) in transcripts_by_session.items() if accounts[i][1] == "codex"),
             "live": live, "session_totals": session_totals, "session_mtime": session_mtime, "desktop_roots": desktop_roots()}
 
 
@@ -473,7 +611,7 @@ def codex_limits(rl: dict, at: float, now: float) -> dict:
                 "resets_at": time.strftime("%a %Y-%m-%d %H:%M", time.localtime(resets)) if isinstance(resets, (int, float)) else None,
                 "reset_passed": isinstance(resets, (int, float)) and resets < now}
     credits = rl.get("credits") if isinstance(rl.get("credits"), dict) else None
-    return {"read_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(at)), "age_minutes": round((now - at) / 60),
+    return {"read_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(at)), "age_minutes": max(0, round((now - at) / 60)),
             "primary": window(rl.get("primary")), "secondary": window(rl.get("secondary")),
             "plan_type": rl.get("plan_type"),
             "credits": None if credits is None else {"has_credits": credits.get("has_credits"),
@@ -527,12 +665,22 @@ def report(truth: dict, key_file: str | None, as_json: bool, live_minutes: int =
                            f"  (summed per line instead: out {per_line['output']:,})")
             else:
                 out.append(f"    {w}: {t.get('total', 0):,} tokens (its turns' last_token_usage)")
+        if a["tool"] == "codex":
+            files, every = a.get("files", {}), a.get("codex_all_time", {})
+            out.append(f"    rollouts: {files.get('plain', 0)} plain, {files.get('compressed', 0)} compressed (.jsonl.zst); "
+                       f"all time {every.get('turns', 0):,} turns, {every.get('total', 0):,} tokens "
+                       f"(in {every.get('input', 0):,} of which cached {every.get('cached_input', 0):,} · "
+                       f"out {every.get('output', 0):,} of which reasoning {every.get('reasoning', 0):,})")
         lim = a.get("codex_limits")
         if lim:
             p = lim["primary"]
             out.append(f"    limits (read {lim['age_minutes']} min ago): primary {p and p['used_percent']}% used = {p and p['left_percent']}% left, "
                        f"window {p and p['window_minutes']} min, resets {p and p['resets_at']}{' (passed)' if p and p['reset_passed'] else ''}; "
                        f"secondary {lim['secondary'] or 'none'}; plan {lim['plan_type']}; credits {lim['credits']}")
+    carried = truth.get("carried") or {}
+    if carried.get("sessions"):
+        out.append(f"- {carried['sessions']} conversation(s) carried into another account by a switch: "
+                   f"{carried['tokens']:,} tokens of their earlier messages counted once, on the account they came from")
     out += ["", f"Projects ({len(data['projects'])}; agent worktrees folded into their repo)"]
     for p in data["projects"]:
         convs = ", ".join(f"{k} {v}" for k, v in p["conversations"].items())
@@ -561,25 +709,24 @@ def codex_history(dirs: list[Path], now: float) -> str:
     out = []
     for n, home in enumerate(dirs):
         ev = []  # (ts, thread, used %, resets_at, window minutes, plan)
-        for t, path in enumerate(sorted((home / "sessions").rglob("rollout-*.jsonl"))):
-            with path.open("rb") as fh:
-                for raw in fh:
-                    if b'"rate_limits"' not in raw:
-                        continue
-                    try:
-                        line = json.loads(raw)
-                    except ValueError:
-                        continue
-                    payload = line.get("payload") if isinstance(line, dict) else None
-                    if not isinstance(payload, dict) or payload.get("type") != "token_count":
-                        continue
-                    rl = payload.get("rate_limits")
-                    ts = iso_to_epoch(line.get("timestamp"))
-                    if not isinstance(rl, dict) or ts is None:
-                        continue
-                    pr = rl.get("primary") if isinstance(rl.get("primary"), dict) else {}
-                    ev.append((ts, t, pr.get("used_percent"), pr.get("resets_at"), pr.get("window_minutes"),
-                               rl.get("plan_type"), rl.get("secondary") is not None))
+        for t, path in enumerate(rollout_files(home / "sessions")):
+            for raw in rollout_lines(current_rollout(path)):
+                if b'"rate_limits"' not in raw:
+                    continue
+                try:
+                    line = json.loads(raw)
+                except ValueError:
+                    continue
+                payload = line.get("payload") if isinstance(line, dict) else None
+                if not isinstance(payload, dict) or payload.get("type") != "token_count":
+                    continue
+                rl = payload.get("rate_limits")
+                ts = iso_to_epoch(line.get("timestamp"))
+                if not isinstance(rl, dict) or ts is None:
+                    continue
+                pr = rl.get("primary") if isinstance(rl.get("primary"), dict) else {}
+                ev.append((ts, t, pr.get("used_percent"), pr.get("resets_at"), pr.get("window_minutes"),
+                           rl.get("plan_type"), rl.get("secondary") is not None))
         if not ev:
             continue
         ev.sort(key=lambda e: e[0])
@@ -665,7 +812,10 @@ def compare(truth: dict, harness: dict) -> str:
     verdict(len(harness["projects"]) == len(ranked),
             f"projects: backend {len(harness['projects'])} rows, oracle {len(ranked)}")
     for root, p in ranked:
-        claude_convs = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "claude")
+        # A conversation a switch carried into another account is one
+        # conversation, in both accounts' lists.
+        claude_convs = len(p["claude_sessions"])
+        carried = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "claude") - claude_convs
         codex_convs = sum(n for i, n in p["per_account"].items() if accounts[i][1] == "codex")
         got = rows.get(root, [])
         shown = sum(r["history_sessions"] or 0 for r in got)
@@ -674,8 +824,14 @@ def compare(truth: dict, harness: dict) -> str:
         want = sorted({acc_name[i] for i in p["per_account"]})
         detail = (f"{proj_name[root]}: backend {shown} conversations in {len(got)} row(s)"
                   f"{' (' + str(len(extra)) + ' split off as their own projects)' if extra else ''}, accounts {names or '-'}; "
-                  f"oracle {claude_convs} Claude + {codex_convs} Codex, accounts {want}")
+                  f"oracle {claude_convs} Claude{f' ({carried} also in another account)' if carried else ''} + {codex_convs} Codex, accounts {want}")
         verdict(len(got) == 1 and shown == claude_convs + codex_convs and names == want, detail)
+
+    carried = truth.get("carried") or {}
+    if carried.get("sessions"):
+        verdict(None, f"switch copies: {carried['sessions']} conversation(s) also in another account; "
+                      f"{carried['tokens']:,} tokens of their earlier messages count once, on the account they came from "
+                      "(windows and cost rows that count them again read high)")
 
     # Sessions: the rail's list against what is running.
     live = [l for l in truth["live"] if l["kind"] == "session"]
@@ -746,17 +902,31 @@ def compare(truth: dict, harness: dict) -> str:
             elif resets is not None and resets < now_ms:
                 verdict(False, f"{name} {window}: reset time already passed ({round((now_ms - resets) / 60000)} min ago)")
             truth_tokens = (acc["tokens"].get(window) or {}).get("total")
+            band = None
             if "ingested_ms" in harness and acc.get("points") is not None:
                 # Only what was on disk when the backend read it, in the window
                 # as it stood then: live writers after that aren't a miss.
                 cut = harness["ingested_ms"] / 1000
                 span = dict(WINDOWS)[window]
                 truth_tokens = sum(n for ts, n in acc["points"] if cut - span <= ts <= cut)
+                done = harness.get("ingest_done_ms")
+                if done is not None:
+                    # Live writers during the passes: anything between the
+                    # files as they were at the start and at the end is right.
+                    end = done / 1000
+                    upper = sum(n for ts, n in acc["points"] if end - span <= ts <= end)
+                    burned_now = w.get("burned_tokens")
+                    if upper != truth_tokens:
+                        band = (truth_tokens, upper)
+                    if burned_now is not None and truth_tokens <= burned_now <= upper:
+                        truth_tokens = burned_now
             burned = w.get("burned_tokens")
             if truth_tokens is not None and burned is not None:
                 ratio = burned / truth_tokens if truth_tokens else (0 if burned == 0 else float("inf"))
+                said = (f"oracle {band[0]:,} at the ingest's start to {band[1]:,} at its end (live writers)"
+                        if band else f"oracle {truth_tokens:,}")
                 verdict(0.9 <= ratio <= 1.1 or (truth_tokens == 0 and burned == 0),
-                        f"{name} {window} tokens: backend {burned:,}, oracle {truth_tokens:,} (×{ratio:.2f})")
+                        f"{name} {window} tokens: backend {burned:,}, {said} (×{ratio:.2f})")
 
     # Usage screen payload: nulls the UI's `!== undefined` guards let through.
     cost = harness["cost_rollups"]
@@ -784,13 +954,24 @@ def compare(truth: dict, harness: dict) -> str:
     ratios = sorted(backend_sessions[k] / oracle_sessions[k] for k in both)
     close = sum(1 for r in ratios if 0.95 <= r <= 1.05)
     only_backend = len([k for k in backend_sessions if k not in truth["session_totals"]])
-    only_oracle = len([k for k in oracle_sessions if k not in backend_sessions])
+    # A session with tokens and no cost row is history the backend never
+    # read (e.g. Codex's compressed rollouts); one with no tokens has no row.
+    only_oracle = len([k for k, v in oracle_sessions.items() if v and k not in backend_sessions])
     if ratios:
-        verdict(close == len(ratios),
+        verdict(close == len(ratios) and only_backend == 0 and only_oracle == 0,
                 f"cost rows per session: {len(both)} sessions in both; {close} within 5% of the transcripts; "
                 f"ratio min ×{ratios[0]:.2f}, median ×{ratios[len(ratios) // 2]:.2f}, max ×{ratios[-1]:.2f}; "
-                f"{only_backend} only in the backend, {only_oracle} only in the transcripts; "
+                f"{only_backend} only in the backend, {only_oracle} with tokens only in the transcripts; "
                 f"{skipped} still being written during the run, left out")
+    # All of Codex's history, summed: the sessions both read (left out:
+    # those written during the run).
+    codex = [k for k in truth.get("codex_sessions", []) if k in oracle_sessions]
+    if codex:
+        mine = sum(oracle_sessions[k] for k in codex)
+        theirs = sum(backend_sessions.get(k, 0) for k in codex)
+        verdict(abs(theirs - mine) <= 0.05 * mine,
+                f"Codex all time: backend {theirs:,} tokens in {sum(1 for k in codex if k in backend_sessions)} sessions, "
+                f"oracle {mine:,} in {len(codex)} (×{theirs / mine:.2f})")
     unpriced = sum(1 for r in cost["rows"] if (r.get("usd") or {}).get("usd") is None)
     verdict(unpriced == 0, f"cost rows priced: {len(cost['rows']) - unpriced} of {len(cost['rows'])}")
 
@@ -800,6 +981,14 @@ def compare(truth: dict, harness: dict) -> str:
         verdict(True, f"This Mac machine: CPU {round(m['machine'].get('cpu_pct') or -1)}%, memory {m['machine']['memory_used'] / 1e9:.1f} of "
                       f"{m['machine']['memory_total'] / 1e9:.0f} GB ({m['machine']['memory_basis']}), pressure {m['machine']['pressure']}; "
                       f"tools {m['tools']['count']}")
+    # This Mac counts the whole Mac. On a replica (a HOME that isn't this
+    # user's own) the host's apps are in it too, so these lines are facts
+    # there, not checks.
+    replica = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir) != os.path.realpath(HOME)
+
+    def mac_verdict(ok, text: str) -> None:
+        verdict(None if replica else ok, text + (" (a replica: This Mac counts the whole Mac)" if replica else ""))
+
     # This Mac's tools against `ps` trees of the desktop apps' main processes
     # and the CLIs outside them, from the ps rows the harness took with its last read.
     panel = (harness.get("this_mac") or [{}])[-1]
@@ -845,39 +1034,55 @@ def compare(truth: dict, harness: dict) -> str:
         claude = sorted((tree(r["pid"]) for r in roots if r["app"] == "Claude"), reverse=True)
         chatgpt = [tree(r["pid"]) for r in roots if r["app"] == "ChatGPT"]
         tools = panel.get("tools") or {}
-        verdict(tools.get("count") == len(claude),
+        mac_verdict(tools.get("count") == len(claude),
                 f"This Mac tools: backend {tools.get('count')}; ps has {len(claude)} Claude app instances"
                 f"{' + ' + str(len(chatgpt)) + ' ChatGPT (Codex) not counted by design' if chatgpt else ''}")
         total = tools.get("rss_bytes") or 0
         want = sum(claude)
-        verdict(want and 0.85 <= total / want <= 1.15,
+        mac_verdict(want and 0.85 <= total / want <= 1.15,
                 f"This Mac tools memory: backend {total / 1e9:.1f} GB; ps RSS of the Claude app trees {want / 1e9:.1f} GB"
                 + (f" (×{total / want:.2f})" if want else ""))
         top = [r.get("rss_bytes") or 0 for r in panel.get("top") or []]
-        verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
+        mac_verdict(len(top) == min(3, len(claude)) and all(abs(a - b) <= 0.15 * b for a, b in zip(top, claude)),
                 f"This Mac top rows (GB): backend {[round(t / 1e9, 1) for t in top]}; ps trees {[round(t / 1e9, 1) for t in claude[:3]]}"
                 f"; {max(0, len(claude) - len(top))} instance(s) not shown")
         others = panel.get("others")
         if others is not None:
             shown = sorted(top + [r.get("rss_bytes") or 0 for r in others], reverse=True)
-            verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
+            mac_verdict(len(shown) == len(claude) and all(abs(a - b) <= 0.15 * b for a, b in zip(shown, claude)),
                     f"This Mac every tree: backend {len(shown)} (top {len(top)} + others {len(others)}) "
                     f"{[round(t / 1e9, 1) for t in shown]}; ps {len(claude)} {[round(t / 1e9, 1) for t in claude]}")
         # AJ-E1528: the This Mac page's groups, by tool: the Claude app's
-        # windows against ps, and each group's rows against its own count.
+        # windows against ps, and each group's rows against its own count
+        # (the backend says each tree's group; older builds by tool/place).
         groups = panel.get("by_tool") or []
         desktop = next((g for g in groups if not g.get("ours") and g.get("tool") == "desktop"), None)
         verdict(((desktop or {}).get("totals") or {}).get("count", 0) == len(claude),
                 f"This Mac page, Claude app group: backend {((desktop or {}).get('totals') or {}).get('count', 0)} windows; ps {len(claude)}")
         every = (panel.get("top") or []) + (panel.get("others") or [])
+        def in_group(t: dict, g: dict) -> bool:
+            if (t.get("session_id") is not None) != bool(g.get("ours")):
+                return False
+            if "group" in t:
+                return t.get("group") == g.get("tool")
+            return (t.get("tool") or "claude-code") == g.get("tool") if g.get("ours") else t.get("place") == g.get("tool")
         for g in groups:
-            rows = [t for t in every if (t.get("session_id") is not None and (t.get("tool") or "claude-code") == g.get("tool"))
-                    or (t.get("session_id") is None and t.get("place") == g.get("tool"))]
+            rows = [t for t in every if in_group(t, g)]
             count = (g.get("totals") or {}).get("count", 0)
-            verdict(len(rows) == count if g.get("ours") or g.get("tool") in ("desktop", "terminal") else True,
-                    f"This Mac page group {g.get('label')}: {len(rows)} rows for its {count} trees")
+            verdict(len(rows) == count, f"This Mac page group {g.get('label')}: {len(rows)} rows for its {count} trees")
+        # Rows that name their tree's root: each against that root's ps tree.
+        rows_all = list(panel.get("top") or []) + list(others or [])
+        paired = [(r.get("root_pid"), r.get("rss_bytes") or 0) for r in rows_all if r.get("root_pid")]
+        if paired:
+            off = []
+            for pid, got in paired:
+                want_tree = tree(pid) if pid in rss else None
+                if want_tree is None or not (abs(got - want_tree) <= 0.15 * max(want_tree, 1)):
+                    off.append((pid, got, want_tree))
+            mac_verdict(not off, f"This Mac rows by root: {len(paired) - len(off)} of {len(paired)} within 15% of their own ps tree"
+                        + (f"; off: {[(round(g / 1e9, 1), None if w is None else round(w / 1e9, 1)) for _, g, w in off]}" if off else ""))
         cpu = tools.get("cpu_pct")
-        verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
+        mac_verdict(True, f"This Mac tools CPU: backend {cpu if cpu is None else round(cpu, 1)}% of all cores (ps %CPU is a decaying average, not compared)")
     kinds = [a["kind"] for a in harness.get("machine_alerts", [])]
     verdict(len(kinds) == len(set(kinds)), f"alerts over the run: {len(kinds)} ({', '.join(kinds) or 'none'})")
     return "\n".join(lines)
@@ -910,7 +1115,57 @@ def selftest() -> None:
     assert not is_temp(str(HOME / "bin/claude"))
     assert not is_host(None) and not is_host(str(HOME / "Dev/app"))
     assert dict(WINDOWS)["5h"] == 5 * 3600 and dict(WINDOWS)["7d"] == 7 * 86400
+    selftest_rollouts()
     print("real_truth selftest: OK")
+
+
+def selftest_rollouts() -> None:
+    """A compressed rollout reads like its plain twin; both forms of one thread read once."""
+    import tempfile
+    rows = [{"timestamp": "2026-01-01T00:00:00Z", "type": "session_meta",
+             "payload": {"id": "t1", "cwd": "/r", "timestamp": "2026-01-01T00:00:00Z"}},
+            {"timestamp": "2026-01-01T00:00:01Z", "type": "turn_context", "payload": {"model": "m1"}},
+            {"timestamp": "2026-01-01T00:00:02Z", "type": "event_msg", "payload": {"type": "token_count", "info": {
+                "total_token_usage": {"total_tokens": 30},
+                "last_token_usage": {"total_tokens": 30, "input_tokens": 20, "cached_input_tokens": 5,
+                                     "output_tokens": 10, "reasoning_output_tokens": 4}}}},
+            {"timestamp": "2026-01-01T00:00:02Z", "type": "token_usage_record", "payload": {
+                "thread_id": "t1", "turn_id": "u1", "response_id": "r1",
+                "usage": {"total_tokens": 30, "input_tokens": 20, "cached_input_tokens": 5,
+                          "output_tokens": 10, "reasoning_output_tokens": 4}}},
+            # A compaction's own response: a record no token_count reports.
+            {"timestamp": "2026-01-01T00:00:03Z", "type": "token_usage_record", "payload": {
+                "thread_id": "t1", "turn_id": "u1", "response_id": "r2", "usage": {"total_tokens": 7}}},
+            {"timestamp": "2026-01-01T00:00:03Z", "type": "compacted", "payload": {}}]
+    data = "".join(json.dumps(r) + "\n" for r in rows).encode()
+    with tempfile.TemporaryDirectory() as tmp:
+        day = Path(tmp) / "sessions/2026/01/01"
+        day.mkdir(parents=True)
+        (day / "rollout-a.jsonl").write_bytes(data)
+        (day / "rollout-b.jsonl").write_bytes(data)
+        try:
+            from compression import zstd
+            packed = zstd.compress(data)
+        except ImportError:
+            cli = next((found for found in map(shutil.which, ZSTD_COMMANDS) if found), None)
+            if cli is None:
+                print("real_truth selftest: no zstd here; compressed rollouts not exercised")
+                return
+            packed = subprocess.run([cli, "-c"], input=data, capture_output=True, check=True).stdout
+        (day / "rollout-b.jsonl.zst").write_bytes(packed)  # mid-compression: read once, plain
+        (day / "rollout-c.jsonl.zst").write_bytes(packed)
+        names = [f.name for f in rollout_files(Path(tmp) / "sessions")]
+        assert names == ["rollout-a.jsonl", "rollout-b.jsonl", "rollout-c.jsonl.zst"], names
+        assert [f.name for f in rollout_files(Path(tmp) / "sessions", plain_only=True)] == names[:2]
+        plain, comp = read_codex_rollout(day / "rollout-a.jsonl"), read_codex_rollout(day / "rollout-c.jsonl.zst")
+        assert comp["compressed"] and not plain["compressed"]
+        for key in ("session", "cwd", "first", "model", "turns", "turn_detail", "records"):
+            assert plain[key] == comp[key], key
+        assert comp["turn_detail"] == [("m1", {"input": 20, "cached_input": 5, "output": 10, "reasoning": 4})]
+        assert [(key[2], n) for _, key, n, _ in comp["records"]] == [("r1", 30), ("r2", 7)]
+        (day / "rollout-a.jsonl").rename(day / "rollout-a.jsonl.zst")  # compressed after listing
+        (day / "rollout-a.jsonl.zst").write_bytes(packed)
+        assert read_codex_rollout(day / "rollout-a.jsonl")["compressed"]
 
 
 def main() -> int:
@@ -923,6 +1178,8 @@ def main() -> int:
     ap.add_argument("--codex-dir", action="append", default=[])
     ap.add_argument("--compare", help="the JSON the qa_real_readonly test wrote: print OK / MISMATCH lines")
     ap.add_argument("--codex-history", action="store_true", help="Codex rate_limits over time: cadence and conflicts")
+    ap.add_argument("--plain-rollouts-only", action="store_true",
+                    help="leave Codex's compressed rollouts (.jsonl.zst) out: what a reader that skips them shows")
     args = ap.parse_args()
     if args.selftest:
         selftest()

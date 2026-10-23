@@ -2,13 +2,15 @@
  * Settings › Sessions (AJ-E1505, AJ-E1509): when a quiet session is
  * marked Looks stuck, how its terminal reads, and what keeps work going —
  * restarting a crashed session, keeping the Mac awake while sessions
- * work, and reopening AI Juggler after it quits unexpectedly. One card
+ * work, reopening AI Juggler after it quits unexpectedly, and opening it
+ * at login. One card
  * owns the prefs, so no part of it saves over another's.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { Status } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
+import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc/app";
 import {
   sessionPrefsGet,
   sessionPrefsSet,
@@ -19,32 +21,35 @@ import {
 
 type BooleanPref = "restart_on_crash" | "keep_awake_on_power" | "keep_awake_on_battery" | "reopen_after_crash";
 
-/** One switch in Settings › Sessions, with one line of why. */
-function PrefSwitch({
+/** One switch in Settings › Sessions, with one line of why (and a word
+ * on what just happened, when there is one). */
+function Switch({
   id,
   label,
   hint,
-  prefs,
+  checked,
   nested = false,
   disabled = false,
-  onSave,
+  note,
+  onChange,
 }: {
-  id: BooleanPref;
+  id: string;
   label: string;
   hint: string;
-  prefs: SessionPrefsInfo;
+  checked: boolean;
   nested?: boolean;
   disabled?: boolean;
-  onSave: (on: boolean) => void;
+  note?: string | null;
+  onChange: (on: boolean) => void;
 }): JSX.Element {
   return (
     <div className={"flex items-start gap-2 text-xs" + (nested ? " ml-5" : "") + (disabled ? " opacity-60" : "")} data-testid={`pref-${id}`}>
       <input
         id={`pref-${id}-input`}
         type="checkbox"
-        checked={prefs[id]}
+        checked={checked}
         disabled={disabled}
-        onChange={(event) => onSave(event.target.checked)}
+        onChange={(event) => onChange(event.target.checked)}
         aria-describedby={`pref-${id}-hint`}
         className="mt-0.5 size-3.5 accent-[var(--color-accent)]"
       />
@@ -55,8 +60,71 @@ function PrefSwitch({
         <span id={`pref-${id}-hint`} className="text-[11px] leading-relaxed text-muted">
           {hint}
         </span>
+        {note && (
+          <span className="text-[11px] text-ink" role="status">
+            {note}
+          </span>
+        )}
       </span>
     </div>
+  );
+}
+
+/** A switch for one of Settings › Sessions' own prefs. */
+function PrefSwitch({
+  id,
+  prefs,
+  onSave,
+  ...rest
+}: {
+  id: BooleanPref;
+  label: string;
+  hint: string;
+  prefs: SessionPrefsInfo;
+  nested?: boolean;
+  disabled?: boolean;
+  onSave: (on: boolean) => void;
+}): JSX.Element {
+  return <Switch id={id} checked={prefs[id]} onChange={onSave} {...rest} />;
+}
+
+/** AJ-E1509 Req.4: open at login, through macOS's own login items (the
+ * system keeps the choice; off until turned on). */
+function LoginItemSwitch(): JSX.Element | null {
+  const [state, setState] = useState<LoginItemInfo["state"] | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    void appLoginItemGet().then(
+      (info) => setState(info.state),
+      () => setState("unavailable"),
+    );
+  }, []);
+  if (state === null) return null;
+  const hint =
+    state === "unavailable"
+      ? "Only the installed AI Juggler can open at login."
+      : state === "needs_approval"
+        ? "Waiting for your approval in System Settings › General › Login Items."
+        : "When you log in. It's listed in System Settings › General › Login Items.";
+  return (
+    <Switch
+      id="open_at_login"
+      label="Open AI Juggler at login"
+      hint={hint}
+      checked={state === "on" || state === "needs_approval"}
+      disabled={state === "unavailable"}
+      note={note}
+      onChange={(on) => {
+        setNote(null);
+        void appLoginItemSet(on).then(
+          (info) => {
+            setState(info.state);
+            setNote(info.state === "on" ? "AI Juggler opens at login." : info.state === "needs_approval" ? "Approve it in System Settings › General › Login Items." : "AI Juggler doesn't open at login.");
+          },
+          (cause) => setNote(errorText(cause)),
+        );
+      }}
+    />
   );
 }
 
@@ -98,6 +166,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
         prefs={prefs}
         onSave={(on) => save({ ...prefs, reopen_after_crash: on }, on ? "AI Juggler opens again after a crash." : "After a crash, AI Juggler stays closed.")}
       />
+      <LoginItemSwitch />
     </fieldset>
   );
 }

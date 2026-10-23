@@ -119,9 +119,10 @@ pub struct AppState {
 
 impl Drop for AppState {
     /// The state closed as asked (tests; the app itself marks a quit in
-    /// its exit path, where nothing is dropped): not a crash.
+    /// its exit path, where nothing is dropped): not a crash, and its
+    /// watchdog ends with it.
     fn drop(&mut self) {
-        crate::features::app::crash::end_run(&self.data_dir);
+        crate::features::app::crash::before_exit(self);
     }
 }
 

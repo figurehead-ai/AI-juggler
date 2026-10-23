@@ -12,7 +12,7 @@ import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { SectionTitle } from "../components/SectionTitle";
 import { ToolMark } from "../components/ToolMark";
-import { AwakeLine, MachineState, MemoryMeter, TreeRow, cpuWords } from "../components/this-mac-parts";
+import { AwakeLine, MachineState, MemoryMeter, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
@@ -118,6 +118,7 @@ export function ThisMacScreen({
                 </>
               )}
             </dl>
+            <OwnLine info={info} />
           </Section>
 
           <Section id="this-mac-using" title="What's using it">

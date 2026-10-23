@@ -545,6 +545,7 @@ mod tests {
             alerts: Vec::new(),
             recommendations: Vec::new(),
             awake: crate::features::app::awake::AwakeInfo::default(),
+            own: crate::features::app::own::OwnInfo::default(),
         }
     }
 

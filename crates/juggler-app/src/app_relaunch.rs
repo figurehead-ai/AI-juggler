@@ -85,7 +85,11 @@ pub async fn app_relaunch(
     .await?;
     match reopen_decision(busy, anyway) {
         ReopenDecision::Hold(block) => Ok(Some(block)),
-        ReopenDecision::Relaunch => app.restart(),
+        ReopenDecision::Relaunch => {
+            // AJ-E1509: restart() skips the exit event: clean, watchdog ended.
+            crate::features::app::crash::before_exit(state.inner());
+            app.restart()
+        }
     }
 }
 

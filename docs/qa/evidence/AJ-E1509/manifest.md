@@ -1,11 +1,8 @@
 # Evidence manifest — AJ-E1509
 
 Task: `docs/tasks/E15-spec-gaps.md` AJ-E1509, Always on: keep working sessions going (P1).
-Status: **IN-PROGRESS**. Req.1–3, Req.4's crash relaunch, and Req.5 are built
-and evidenced here. Req.4's "Open AI Juggler at login" waits on a decision:
-every `SMAppService` call is `unsafe` in its bindings, and the workspace
-forbids `unsafe` outside an audited crate with a decision-log entry (asked
-of the coordinator on 2026-10-22).
+Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). One live
+check needs an installed build: registering the login item (below).
 
 Gallery: `docs/qa/evidence/_gallery/83-keep-going/` (This Mac's line,
 Settings › Sessions' Keep work going, a launch setting's own choice; both
@@ -62,11 +59,26 @@ themes).
      quit. After a crash they're Failed with "ended when AI Juggler quit
      unexpectedly", and resumed where restarting is on. Survivors are
      picked up as before.
-5. **Honest about it**: This Mac (Home's panel and the page) says "Kept
+5. **Open AI Juggler at login** (D-26, the audited `juggler-login-item`
+   crate: `SMAppService`, its four `unsafe` calls behind a safe API).
+   Off by default; Settings › Sessions › Keep work going and the welcome's
+   Make it smoother card offer it; the system keeps the choice and AI
+   Juggler reads it back (at most once a minute). A development build
+   reads "unavailable": the switch is disabled and says "Only the installed
+   AI Juggler can open at login."
+6. **The watchdog never outlives a clean quit or an update install.** A
+   quit marks the run clean and ends the watchdog in the exit path. Tauri's
+   `restart()` on the main thread relaunches without that exit event, so
+   an update's restart and a reopen first go through the same
+   `before_exit`. Release builds carry no `AIJ_WATCHDOG` seam
+   (`release_seams_check.sh`).
+7. **Honest about it**: This Mac (Home's panel and the page) says "Kept
    awake while 2 AI Juggler sessions work", or why not ("On battery, so…",
    "…(off in Settings)"), with Settings › Sessions one click away. It
    shows only while sessions work, and counts only AI Juggler's own
-   sessions.
+   sessions. The page also says "AI Juggler itself: 214 MB · with its
+   crash watchdog · opens at login": the watchdog is part of AI Juggler,
+   never a stray process.
 
 ## Proof
 
@@ -80,7 +92,10 @@ themes).
 | Req.3 App Nap held off while supervised, released after; never a sleep blocker | keeper unit `it_holds_what_the_plan_asks_and_lets_go_of_the_rest`; `awake_pmset` (no `PreventUserIdleSystemSleep` while only supervised) | PASS |
 | Req.4 a crash found at the next start; sessions shown as they are, resumed where on; a quit stops them | crash unit `a_run_not_ended_as_asked_is_found_at_the_next_start`, `three_relaunches_in_ten_minutes_then_no_more`; `restart_crashed` `after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop` | PASS |
 | Req.4 killed with SIGKILL, it comes back by itself | `second_launch` `killed_outright_ai_juggler_comes_back_by_itself`: the real Dev binary with its watchdog; SIGKILL; a new AI Juggler starts once, with its own watchdog, holding the data; everything ended with the group afterwards | PASS |
-| Req.4 Open at login | waits on the `unsafe` decision | OPEN |
+| Req.4 Open at login, off by default, offered in Settings and the welcome | crate test `an_unbundled_build_reads_unavailable_or_off_and_never_claims_on`; `login_item` unit tests (each status's word; a test build never reads on); vitest `keep-going` (off by default and saving on; disabled with its reason when unavailable; the welcome's row, gone once on); Playwright `keep-going` | PASS |
+| Req.4 registering and unregistering on the real system | needs the installed, signed app (a development build has no bundle to register) | NEEDS AN INSTALLED BUILD |
+| Req.4 the watchdog ends with a clean quit, and before an update's restart | `second_launch` `the_watchdog_ends_with_a_clean_quit_and_starts_nothing` (the real binary's watch mode: the app gone with the run clean, it ends and starts nothing), `before_a_restart_the_watchdog_ends_and_the_run_is_clean` | PASS |
+| The watchdog shows as part of AI Juggler | vitest `keep-going` (This Mac's "AI Juggler itself … with its crash watchdog … opens at login"); Playwright `keep-going` | PASS |
 | Req.5 the This Mac row, the setting one click away | vitest `keep-going` (silent with nothing working; kept, on battery, off; the button opens Settings › Sessions); Playwright `keep-going` (from the page to Settings, axe 0 critical/serious, both themes) | PASS |
 | Nothing left running after any test | the restart tests stop their replacements; the crash test kills its group and waits until it's empty; `pgrep` clean after each run | PASS |
 
