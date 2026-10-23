@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri_plugin_opener::OpenerExt;
@@ -7401,13 +7401,7 @@ fn not_found_or_core(error: juggler_core::CoreError, entity: &'static str, id: &
     }
 }
 
-pub(crate) fn unique_suffix() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default()
-        % 1_000_000_000_000
-}
+pub(crate) use crate::ids::unique_suffix;
 
 // ---------------------------------------------------------------------------
 // AJ-E410: the Processes tab data, the orphan contract, and the Tier-1
