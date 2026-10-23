@@ -5645,10 +5645,7 @@ fn wizard_reasons_of(
         reasons.push("The source was compacted — the tail may not carry.".to_owned());
     }
     if !carry.dropped.is_empty() {
-        reasons.push(format!(
-            "Doesn't carry: {}.",
-            carry.dropped.join(", ")
-        ));
+        reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));
     }
     if !inputs.target_headroom_ok {
         reasons.push("The target is running low on quota.".to_owned());
