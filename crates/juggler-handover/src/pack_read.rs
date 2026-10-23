@@ -10,8 +10,9 @@ use std::path::{Component, Path};
 use crate::manifest::{ManifestRow, credential_scan, sha256_hex};
 use crate::pack::{PACK_FORMAT_VERSION, PackState};
 
-/// The most one file in a pack may weigh.
-const MAX_FILE: u64 = 16 * 1024 * 1024;
+/// The most one file in a pack may weigh (AJ-E1513: also the largest
+/// transcript staged in the background).
+pub const MAX_FILE: u64 = 16 * 1024 * 1024;
 /// The most a whole pack may weigh.
 const MAX_TOTAL: u64 = 64 * 1024 * 1024;
 /// The files every pack has.

@@ -2,7 +2,8 @@
  * D-25 — an account hit its limit: one decision, three ways on.
  *
  * 1. **Continue now** on the best other account (the ranker's pick),
- *    with its runway in words and what a switch carries over.
+ *    with its runway in words and what a switch carries over — and, when
+ *    the switch was prepared before the limit (AJ-E1513), "Ready".
  * 2. **Wait for the reset**: park the session; at the reset it is offered
  *    back — nothing restarts on its own (AJ-E1003).
  * 3. **Choose another…**: the session view, with every target ranked.
@@ -21,6 +22,7 @@ import {
   type QuotaDisplayData,
   type SwitchTargetData,
 } from "../lib/bridge";
+import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 
 function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -31,6 +33,10 @@ function inWords(ms: number): string {
   const hours = Math.floor(minutes / 60);
   if (hours === 0) return `${minutes} min`;
   return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+}
+
+function ago(ms: number): string {
+  return ms < 60_000 ? "just now" : `${inWords(ms)} ago`;
 }
 
 /** The pick: the ranker's suggestion on another account, else its best. */
@@ -58,6 +64,7 @@ export function LimitDialog({
 }): JSX.Element {
   const [targets, setTargets] = useState<SwitchTargetData[] | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  const [staged, setStaged] = useState<StagedSwitchInfo | null>(null);
   const [carry, setCarry] = useState(false);
   const [parking, setParking] = useState<"idle" | "busy" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +75,7 @@ export function LimitDialog({
     let alive = true;
     switchTargets(session.id).then((rows) => alive && setTargets(rows), () => alive && setTargets([]));
     quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
+    stagingReady(session.id).then((ready) => alive && setStaged(ready), () => null);
     return () => {
       alive = false;
     };
@@ -85,6 +93,7 @@ export function LimitDialog({
 
   const resetAt = session.quota?.resets_at_ms ?? null;
   const target = targets ? pickTarget(targets, session.account_id) : null;
+  const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target
     ? runwayLines(
         displays.find((d) => d.account === target.account_id),
@@ -174,6 +183,11 @@ export function LimitDialog({
                       <span className="rounded-full border border-accent/40 px-1.5 text-[10.5px] font-medium text-accent-hi">Recommended</span>
                     )}
                   </div>
+                  {ready && (
+                    <p className="text-xs text-success" data-testid="limit-ready">
+                      Ready to continue on {target.account_label} · prepared {ago(now - ready.prepared_at_ms)}
+                    </p>
+                  )}
                   {targetLines.length > 0 && (
                     <p className="text-xs text-muted" data-testid="limit-target-runway">
                       {targetLines.map((line) => `${line.label}: ${line.words}`).join(" · ")}

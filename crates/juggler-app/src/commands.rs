@@ -5260,6 +5260,17 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
+    preflight_with(state, session_id, target_profile_id, None)
+}
+
+/// [`switch_preflight_impl`], given the compaction scan when the caller
+/// already parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn preflight_with(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    compacted: Option<bool>,
+) -> AppResult<PreflightInfo> {
     use juggler_handover::pipeline::{self, CopySituation};
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
@@ -5270,8 +5281,10 @@ pub fn switch_preflight_impl(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = std::fs::read(&reference.path)
-        .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary());
+    let compacted = compacted.unwrap_or_else(|| {
+        std::fs::read(&reference.path)
+            .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary())
+    });
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -11628,10 +11641,19 @@ fn transcript_side(
     std::collections::HashSet<String>,
     Vec<juggler_handover::pack::IrTurn>,
 )> {
-    use juggler_adapters::claude_transcript::MessageRole;
     // AJ-E1540: a compressed rollout (`.jsonl.zst`) reads like any other.
     let bytes = juggler_adapters::read_session_file(path).ok()?;
-    let parsed = juggler_adapters::parse_any(&bytes);
+    Some(turns_of(juggler_adapters::parse_any(&bytes)))
+}
+
+/// A parsed transcript's uuid set and user/assistant turns, in file order.
+pub(crate) fn turns_of(
+    parsed: juggler_adapters::claude_transcript::ParsedTranscript,
+) -> (
+    std::collections::HashSet<String>,
+    Vec<juggler_handover::pack::IrTurn>,
+) {
+    use juggler_adapters::claude_transcript::MessageRole;
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
     for message in parsed.messages {
@@ -11658,7 +11680,7 @@ fn transcript_side(
             tokens: None,
         });
     }
-    Some((uuids, turns))
+    (uuids, turns)
 }
 
 /// AJ-E1541: what changed in the project while away, for the switch-back
@@ -13500,7 +13522,20 @@ pub(crate) fn stage_session_pack(
     ids: &PackIds,
     dir: &std::path::Path,
 ) -> AppResult<()> {
-    use juggler_handover::pack::{ConversationMode, IrTurn, PackInput, PackSource};
+    write_session_pack(state, session_row, account, ids, dir, None)
+}
+
+/// [`stage_session_pack`], given the turns when the caller already
+/// parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn write_session_pack(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &Account,
+    ids: &PackIds,
+    dir: &std::path::Path,
+    turns: Option<Vec<juggler_handover::pack::IrTurn>>,
+) -> AppResult<()> {
+    use juggler_handover::pack::{ConversationMode, PackInput, PackSource};
     use juggler_handover::redaction::{RedactionApply, RedactionPolicy, redacted_pack};
 
     let policy = {
@@ -13519,9 +13554,11 @@ pub(crate) fn stage_session_pack(
             context: "export pack",
             message: "The epoch has no transcript to pack".to_owned(),
         })?;
-    let turns: Vec<IrTurn> = transcript_side(&reference.path)
-        .map(|(_, turns)| turns)
-        .unwrap_or_default();
+    let turns = turns.unwrap_or_else(|| {
+        transcript_side(&reference.path)
+            .map(|(_, turns)| turns)
+            .unwrap_or_default()
+    });
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),
         created_at_ms: Timestamp::now().millis(),

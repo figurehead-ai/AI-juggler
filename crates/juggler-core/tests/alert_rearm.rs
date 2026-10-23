@@ -2,7 +2,10 @@
 //! then. Before this, a machine that warned once stayed Warned forever:
 //! nothing in production sent the reset, so the next window never warned.
 
-use juggler_core::alerts::{rearmed, step, AlertEmission, AlertFsm, AlertPhase, WindowObservation};
+// Test crates are pragmatic by policy (QUALITY.md §2).
+#![allow(clippy::expect_used)]
+
+use juggler_core::alerts::{AlertEmission, AlertFsm, AlertPhase, WindowObservation, rearmed, step};
 use juggler_core::model::Confidence;
 
 const HOUR: i64 = 60 * 60 * 1000;
@@ -132,7 +135,11 @@ fn a_machine_saved_before_the_reset_instant_existed_still_loads() {
     // after it.
     let (fsm, _) = step(&fsm, obs(Some(40.0), None, Some(T0 + HOUR)), T0);
     assert_eq!(fsm.window_resets_at_ms, Some(T0 + HOUR));
-    let (fsm, emission) = step(&fsm, obs(Some(40.0), None, Some(T0 + 6 * HOUR)), T0 + 2 * HOUR);
+    let (fsm, emission) = step(
+        &fsm,
+        obs(Some(40.0), None, Some(T0 + 6 * HOUR)),
+        T0 + 2 * HOUR,
+    );
     assert!(matches!(emission, AlertEmission::TrayAmber { .. }));
     assert_eq!(fsm.window_resets_at_ms, Some(T0 + 6 * HOUR));
 }
