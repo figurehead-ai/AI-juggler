@@ -804,7 +804,7 @@ impl HarnessAdapter for CodexAdapter {
 /// this instead of the id).
 #[must_use]
 pub fn codex_spec() -> juggler_adapter::ToolSpec {
-    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
     ToolSpec {
         id: CODEX_ID.to_owned(),
         display_name: "Codex".to_owned(),
@@ -838,6 +838,14 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
             first_run: true,
             primary: false,
         },
-        terms_notes: Vec::new(),
+        // Checked against the terms on 2026-10-23 (AJ-E1518's register).
+        terms: Some(ToolTerms {
+            name: "OpenAI's Terms of Use".to_owned(),
+            url: "https://openai.com/policies/terms-of-use/".to_owned(),
+            accounts: "OpenAI says one person can have several accounts, and its Terms of Use say \
+                       not to share one or get around its usage limits."
+                .to_owned(),
+            checked: "2026-10-23".to_owned(),
+        }),
     }
 }

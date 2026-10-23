@@ -26,6 +26,20 @@ pub struct ToolFlowInfo {
     pub primary: bool,
 }
 
+/// A tool's own terms, and one line on several accounts under them.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ToolTermsInfo {
+    /// The terms' name ("Anthropic's Consumer Terms").
+    pub name: String,
+    /// Where they are, on the vendor's own site.
+    pub url: String,
+    /// What several accounts mean under them.
+    pub accounts: String,
+    /// The day the line was checked against them (`YYYY-MM-DD`).
+    pub checked: String,
+}
+
 /// What a screen needs to know a tool can do.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -76,8 +90,8 @@ pub struct ToolSpecInfo {
     pub default_label: Option<String>,
     /// Where it sits in the app's flows.
     pub flow: ToolFlowInfo,
-    /// Terms the user should know.
-    pub terms_notes: Vec<String>,
+    /// Its vendor's terms, shown when an account is added.
+    pub terms: Option<ToolTermsInfo>,
     /// The environment keys that point it at an account's folder.
     pub home_env: Vec<String>,
     /// What it can do that screens show.

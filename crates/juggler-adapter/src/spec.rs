@@ -96,8 +96,24 @@ pub struct ToolSpec {
     pub default_label: Option<String>,
     /// Where it sits in the app's flows.
     pub flags: ToolFlags,
-    /// Terms the user should know.
-    pub terms_notes: Vec<String>,
+    /// Its vendor's terms, shown when an account is added (AJ-E1518).
+    pub terms: Option<ToolTerms>,
+}
+
+/// A tool's own terms, and what they say about one person using several
+/// accounts, shown when an account is added (AJ-E1518). What the vendor's
+/// terms say is research: each line is recorded with its source and the
+/// day it was checked in `docs/qa/evidence/AJ-E1518/terms-claims-register.md`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ToolTerms {
+    /// The terms' name, as the vendor titles them.
+    pub name: String,
+    /// Where they are, on the vendor's own site.
+    pub url: String,
+    /// One line on what several accounts mean under them.
+    pub accounts: String,
+    /// The day the line was last checked against them (`YYYY-MM-DD`).
+    pub checked: String,
 }
 
 impl ToolSpec {
@@ -135,7 +151,7 @@ impl ToolSpec {
             }],
             default_label: None,
             flags: ToolFlags::default(),
-            terms_notes: Vec::new(),
+            terms: None,
         }
     }
 

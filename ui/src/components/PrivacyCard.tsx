@@ -134,9 +134,20 @@ export function PrivacyCard(): JSX.Element {
       data-mode={info.chosen}
       data-effective={info.effective}
     >
-      <h3 className="text-sm font-semibold" id="privacy-title">
-        Privacy
-      </h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-semibold" id="privacy-title">
+          Privacy
+        </h3>
+        {/* AJ-E1518: the full list, each line tested. */}
+        <button
+          type="button"
+          className="text-[11px] text-accent underline-offset-2 hover:underline"
+          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "privacy" } }))}
+          data-testid="privacy-open-page"
+        >
+          What AI Juggler reads, changes and sends ›
+        </button>
+      </div>
       <p className="text-[11px] text-ink" data-testid="privacy-state" aria-live="polite">
         {stateLine(overview)}
       </p>

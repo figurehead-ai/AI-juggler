@@ -432,6 +432,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its confidence word), and draws the window's burn-down: what's been
   used, where this pace goes (and when it runs out, if that's before the
   reset), and the reset.
+- **A Privacy page** (AJ-E1518), under More and linked from Settings ›
+  Privacy: what AI Juggler reads, changes and sends, and what it never
+  does. Each line names the tests that check it, behind the line, and a
+  test fails the build if a line names a test that isn't there. The same
+  list is in `docs/guide/trust.md`. New tests back the lines no test held
+  before: only three crates can reach the network, each to its own address
+  (Figurehead, GitHub, your paired Macs); the window can talk only to the
+  app; no tool is pointed at a proxy or another provider address; and no
+  switch starts without a click.
+- **The tools' terms on Add account** (AJ-E1518): one line on what each
+  tool's terms say about several accounts, with the terms linked. The
+  words are checked against the vendors' own pages, with the source and
+  date in a register.
 - **Start from a context pack** (AJ-E1511). New session › **Start from a
   context pack…** opens a pack you saved: it's checked whole first (every
   file as the pack recorded it, nothing outside it, no keys), then shown

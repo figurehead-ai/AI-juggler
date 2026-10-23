@@ -23,8 +23,13 @@
   `AGENTS.md` the same, and your accounts' MCP servers.
 - [This Mac](this-mac.md): what your AI tools use, and cleaning up what's
   left behind.
+- [Notifications](notifications.md): being told when a session needs you,
+  while you're in another app.
 - [Keep work going](keep-work-going.md): restarting crashed sessions,
   keeping the Mac awake, reopening after a crash, opening at login.
+
+- [What AI Juggler touches](trust.md): what it reads, changes and sends,
+  and what it never does, each line checked by tests.
 
 **When things go wrong**
 

@@ -118,6 +118,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | Rules files and MCP servers compared across your tools, brought in line when you apply | Works |
 | Restarting crashed sessions, keeping the Mac awake while they work, reopening after a crash | Works (each one is a setting) |
 | Opening AI Juggler at login | Beta: new in 0.1, not yet checked on an installed build |
+| macOS notifications when a session needs you (each kind off until you choose) | Beta: new in 0.1, not yet checked on an installed build |
 | Backups, and going back to an earlier version | Works |
 | Switching a conversation to another account or tool | Beta: Claude Code → Claude Code → Codex → back has been checked live; every pair still says "Not proven yet" |
 | Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
@@ -188,6 +189,10 @@ tokens or API keys, and never opens the tools' Keychain items.
 
 AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
 
+[What AI Juggler touches](./docs/guide/trust.md) has the full list, and
+names the tests that check each line. The same list is in the app, under
+More › **Privacy**.
+
 ## Permissions
 
 All optional. AI Juggler works without any of them.
@@ -242,8 +247,10 @@ possible.
   quit the other copy.
 - **An update failed, or you want the previous version.** Settings › About &
   updates › **Go back to an earlier version**.
-- **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
-  or [open an issue](https://github.com/figurehead-ai/AI-juggler/issues/new/choose).
+- **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions),
+  or report a bug from Settings › General › **Report a problem**. **Export
+  diagnostics…** there shows you, file by file, what it would save (scrubbed
+  of names, paths and keys) before you attach it.
 
 ## Uninstall
 
