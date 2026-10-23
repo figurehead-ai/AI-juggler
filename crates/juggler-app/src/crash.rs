@@ -13,7 +13,11 @@
 //!   Don't send, or Always send.
 //! - **Sending** needs the reporting service's address, compiled into
 //!   release builds only. This build has none, so a report the user
-//!   chose to send stays queued on this Mac until one that does.
+//!   chose to send stays queued on this Mac until one that does. The
+//!   sender is its own module (`crash_send`, AJ-E1516), built only with
+//!   an address; this file holds no way to send.
+//! - **Crashes outside Rust** (AJ-E1516): macOS's own report of the crash
+//!   is read at the next launch and kept the same way (`crash_native`).
 
 // Tauri command signatures take State/String by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
@@ -101,6 +105,12 @@ fn apply(state: &AppState) {
 
 fn dir(state: &AppState) -> PathBuf {
     state.data_dir.join("crashes")
+}
+
+/// Where kept reports live (`asking/`, `queued/`, the limits' logs).
+#[must_use]
+pub fn reports_dir(state: &AppState) -> PathBuf {
+    dir(state)
 }
 
 fn do_not_track() -> bool {

@@ -16,6 +16,9 @@ pub mod backup;
 pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
+pub mod crash_native;
+#[cfg(any(crash_sender, test))]
+pub mod crash_send;
 pub mod crossmachine;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
@@ -531,6 +534,25 @@ pub fn run() {
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
+    // AJ-E1516: a crash outside Rust last time, from macOS's own report;
+    // and, in a build given the service's address, sending what the user
+    // chose to send.
+    {
+        let state = Arc::clone(&app_state);
+        let bundle_id = context.config().identifier.clone();
+        std::thread::spawn(move || {
+            if let Some(reports) = crash_native::system_reports() {
+                let _ = crash_native::collect(
+                    &reports,
+                    &crash::reports_dir(&state),
+                    &bundle_id,
+                    &crash::effective(&state),
+                );
+            }
+        });
+    }
+    #[cfg(crash_sender)]
+    crash_send::start(&app_state);
     spawn_lifecycle_forwarder(Arc::clone(&app_state));
     // AJ-E1509: the watchdog that reopens the app after a crash (when on),
     // and the sessions the last crash ended, resumed where that's on.

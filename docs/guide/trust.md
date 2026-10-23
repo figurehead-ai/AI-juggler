@@ -10,6 +10,8 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs), [`login_state_is_metadata_only`](../../crates/juggler-adapters/tests/claude_code_adapter.rs), [`scan_code_never_reads_credential_contents`](../../crates/juggler-adapters/tests/scan.rs), [`the_environment_scan_runs_no_vendor_cli`](../../crates/juggler-app/tests/environment_scan_no_cli.rs).</sub>
 - From Claude Code's settings.json it reads only the settings it needs, each one named in its code and checked.
   <sub>Checked by [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs).</sub>
+- With crash reports on, after AI Juggler crashes it reads the report macOS wrote about that crash, and keeps only what failed and where.
+  <sub>Checked by [`an_ips_crash_keeps_its_kind_and_frames_and_nothing_else`](../../crates/juggler-app/src/crash_native.rs), [`only_crashes_after_the_first_look_are_kept_and_never_reads_nothing`](../../crates/juggler-app/src/crash_native.rs).</sub>
 
 ## What it changes
 
@@ -35,7 +37,7 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
 - Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.
   <sub>Checked by [`without_a_choice_nothing_is_created_and_nothing_is_sent`](../../crates/juggler-app/tests/stats_guardrails.rs), [`nothing_the_user_owns_reaches_the_stats_store_or_a_report`](../../crates/juggler-app/tests/stats_guardrails.rs), [`off_creates_no_folder_and_records_nothing`](../../crates/juggler-stats/src/tests.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>
 - Crash reports are kept on your Mac, with names and paths taken out. This version has nowhere to send them.
-  <sub>Checked by [`a_seeded_crash_is_scrubbed_before_it_is_kept`](../../crates/juggler-app/src/crash.rs), [`crash_reports_have_nowhere_to_go`](../../crates/juggler-app/tests/trust.rs).</sub>
+  <sub>Checked by [`a_seeded_crash_is_scrubbed_before_it_is_kept`](../../crates/juggler-app/src/crash.rs), [`crash_reports_have_nowhere_to_go`](../../crates/juggler-app/tests/trust.rs), [`the_crash_sender_is_built_only_with_an_address`](../../crates/juggler-app/tests/trust.rs).</sub>
 - The Figurehead account is optional. Signed out, nothing goes to it; signed in, a feature you've turned off sends nothing.
   <sub>Checked by [`g1_signed_out_is_silent`](../../crates/juggler-app/tests/cloud_guardrails.rs), [`g2_a_feature_that_is_off_never_calls_its_endpoint`](../../crates/juggler-app/tests/cloud_guardrails.rs).</sub>
 - Fleet connects only Macs you paired, directly and encrypted, each checking the other's key, and no server carries the traffic. To be found, a Mac announces itself on your local network, and in your Figurehead account if you turn that on.
