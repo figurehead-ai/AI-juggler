@@ -69,6 +69,10 @@ redacted labels. Nothing was copied, and no account was made.
   status-line cases (the user's own; AI Juggler's wrapper or fail-safe as "can't be copied …
   usage capture") rest on the unit and integration tests (`holds_secret`, `account_settings`).
 
+## Found while writing the guide
+
+- Settings › Context packs & secrets titled its undo list "Set up by switches", though it also lists rules applies (AJ-E1507) and settings copies. It's now "Set up by AI Juggler" and says what it holds.
+
 ## Follow-ups
 
 - **Plugins** are listed with their install command ("Needs you"), not installed. Installing one fetches it from its marketplace, and copying the plugin folder would carry absolute paths that point into the other account.
