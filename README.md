@@ -38,6 +38,8 @@ of it in one window:
   account can start with your usual MCP servers and permissions.
 - **Carry a conversation to another account or tool** when one runs out of
   room, and switch back later.
+- **Find anything you said.** History searches every ended session by what
+  it was about, and by the words said in it.
 - **Your rules and MCP servers, the same everywhere.** See where
   `CLAUDE.md` and `AGENTS.md` differ, and bring them in line when you choose.
 
@@ -106,22 +108,28 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | | Status |
 | --- | --- |
 | Every session and project, including ones started outside AI Juggler | Works |
-| History of finished sessions, searchable | Works |
+| History of finished sessions, searchable by what was said in them (for sessions started outside AI Juggler, turn it on in Settings › Privacy) | Works |
+| How many subagents a session is running, and what each was asked to do | Works |
 | The terminal: Find, clickable links and paths, text size, Maximize, its own window | Works |
 | Starting a session from a saved context pack, in either tool | Works |
 | Usage and costs per session, account and project, from the tools' own records | Works |
 | Codex limits, read from what Codex records | Works |
+| About how many of your usual sessions are left in each window, and a burn-down chart | Works |
+| Monthly caps for an account or a group of projects: a warning at 80 % and 100 %, never a stop | Works |
 | Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
 | This Mac: memory and CPU of your AI tools, including the Claude app | Works |
 | Cleaning up leftover processes (automatic cleanup is off unless you turn it on) | Works |
 | Rename, remove and choose a default account | Works |
+| Coming from Claude Squad or Vibe Kanban: their worktrees stay with your projects, and the accounts their profiles use are found | Works |
 | A new account starting with your usual MCP servers, permissions and status line | Works |
 | Rules files and MCP servers compared across your tools, brought in line when you apply | Works |
 | Restarting crashed sessions, keeping the Mac awake while they work, reopening after a crash | Works (each one is a setting) |
 | Opening AI Juggler at login | Beta: new in 0.1, not yet checked on an installed build |
 | macOS notifications when a session needs you (each kind off until you choose) | Beta: new in 0.1, not yet checked on an installed build |
 | Backups, and going back to an earlier version | Works |
-| Switching a conversation to another account or tool | Beta: checked live between Claude Code accounts and between Claude Code and Codex, both ways; every pair still says "Not proven yet" |
+| Switching a conversation to another account or tool | Beta: checked live between Claude Code accounts, between Codex accounts, and between Claude Code and Codex, both ways; every pair still says "Not proven yet" |
+| A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
+| Crash reports, scrubbed on your Mac (off unless you choose) | Kept on your Mac; this version can't send them anywhere yet |
 | Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
 | More tools (OpenCode, ZCode, Kimi and others) | Planned |
 | Windows and Linux | Not before 1.0 |
@@ -147,6 +155,9 @@ does, even when you open the app from Finder.
 - Account names and emails from those setups, so you can tell accounts
   apart.
 - The list of running processes, to show live sessions and This Mac.
+- If you use Claude Squad or Vibe Kanban: their own lists, read without
+  changing them, for which repository each of their worktrees belongs to and
+  which config folders their profiles use. Nothing else they keep.
 
 It checks only whether a sign-in exists. It never reads your passwords,
 tokens or API keys, and never opens the tools' Keychain items.
@@ -155,7 +166,9 @@ tokens or API keys, and never opens the tools' Keychain items.
 
 - Its own data folder, `~/Library/Application Support/AI Juggler`
   (`AI Juggler Nightly` for Nightly). Copies of setups, backups and settings
-  live there.
+  live there, and the search index of sessions started outside AI Juggler
+  if you turn that on (it holds the words to search, not the conversations,
+  and turning it off deletes it).
 - In your own setups and projects, only what you choose, each shown before
   it's made:
   - **Measuring Claude limits for sessions started elsewhere** (off by
@@ -186,7 +199,9 @@ tokens or API keys, and never opens the tools' Keychain items.
   [docs/usage-stats.md](./docs/usage-stats.md)), Fleet (your own Macs talk
   directly to each other on your network, with no relay), and the optional
   Figurehead account.
-- Crash reports stay on your Mac. Nothing is ever sent automatically.
+- Crash reports stay on your Mac. Nothing is ever sent automatically. With
+  crash reports on, it also looks through macOS's own crash reports for AI
+  Juggler's, and keeps only what failed and where.
 
 AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
 
@@ -201,6 +216,8 @@ All optional. AI Juggler works without any of them.
 | Permission | What it's for | Without it |
 | --- | --- | --- |
 | Accessibility and Automation | Jumping to a session's own window | The app opens, but not the exact window |
+| Screen Recording | A live preview of a session's window, on this Mac only (offered only where a tool can show one) | No live preview |
+| Notifications | Telling you when a session needs you while you're in another app | You see it when you come back to AI Juggler |
 | Local Network | Fleet, finding your other Macs | Fleet stays off |
 
 ## Staying within your tools' terms
@@ -234,6 +251,16 @@ accounts of the same tool, the conversation's files move and it resumes.
 Between Claude Code and Codex, the other tool is told the story so far. The
 switch screen shows exactly what carries over before you confirm, and you
 can switch back. See [Continue on another account](./docs/guide/switching.md).
+
+**I'm coming from Claude Squad, Vibe Kanban, Crystal or cc-switch.** Most of
+it comes across by itself, since AI Juggler reads the tools' own files.
+[Coming from another tool](./docs/guide/coming-from-other-tools.md) says what
+does and what to do about the rest.
+
+**Can it stop me spending too much?** It warns, and never stops anything. Set
+a monthly cap for an account or a group of projects (Usage › **Set a monthly
+cap**), and Needs you tells you at 80 % and 100 %. See
+[Monthly caps](./docs/guide/usage-and-limits.md#monthly-caps).
 
 **Windows or Linux?** Not before 1.0. The core is written to make that port
 possible.
@@ -270,7 +297,6 @@ Your own `~/.claude` and `~/.codex` folders are otherwise left as they are.
 ## Roadmap
 
 - More tools: OpenCode, ZCode, Kimi and others.
-- Notifications when a session needs you.
 - Groups of accounts, and agents that can message each other.
 
 Ideas and votes are welcome in
