@@ -18,11 +18,13 @@ import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
 import { SessionsList, useSessionRows, type Row } from "../pages/SessionsList";
 import { providerDisplayName } from "../lib/providers";
+import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import {
   errorText,
   instanceArchive,
   instanceUnarchive,
   transcriptSearch,
+  type TranscriptHitInfo,
   type InstanceInfo,
   type ProjectInfo,
 } from "../lib/bridge";
@@ -83,6 +85,12 @@ function rowMatches(row: Row, project: string, query: string): boolean {
   );
 }
 
+/** A hit's key: its session, or (AJ-E1538) an outside conversation's
+ * account and id, as the rows name them. */
+export function hitKey(hit: TranscriptHitInfo): string {
+  return hit.session_id ?? `${hit.account_id ?? ""}:${hit.conversation_id ?? ""}`;
+}
+
 export function History({
   sessions,
   projects,
@@ -96,6 +104,9 @@ export function History({
   const [query, setQuery] = useState("");
   const [snippets, setSnippets] = useState<Map<string, string>>(new Map());
   const [searching, setSearching] = useState(false);
+  // AJ-E1538: whether outside sessions' words are searched (opt-in).
+  const [everyWord, setEveryWord] = useState(false);
+  useEffect(() => void outsideSearchStatus().then((info) => setEveryWord(info.enabled), () => null), []);
   const [replay, setReplay] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -116,7 +127,7 @@ export function History({
     setSearching(true);
     const timer = window.setTimeout(() => {
       transcriptSearch(trimmed)
-        .then((hits) => alive && setSnippets(new Map(hits.map((hit) => [hit.session_id, hit.snippet]))))
+        .then((hits) => alive && setSnippets(new Map(hits.map((hit) => [hitKey(hit), hit.snippet]))))
         .catch(() => alive && setSnippets(new Map()))
         .finally(() => alive && setSearching(false));
     }, 250);
@@ -128,10 +139,10 @@ export function History({
 
   const archived = (session: InstanceInfo) => session.lifecycle === "archived";
   const sessionOf = (row: Row) => (row.item.kind === "conversation" ? null : row.item.session);
-  const snippetOf = (row: Row) => {
-    const session = sessionOf(row);
-    return session ? snippets.get(session.id) : undefined;
-  };
+  const snippetOf = (row: Row) =>
+    row.item.kind === "conversation"
+      ? snippets.get(`${row.item.conversation.account_id}:${row.item.conversation.id}`)
+      : snippets.get(row.item.session.id);
   const rows = all
     .filter((row) => !row.live)
     .filter((row) => {
@@ -179,8 +190,10 @@ export function History({
         <h2 className="text-lg font-semibold tracking-tight">History</h2>
         <p className="text-xs text-muted" data-testid="history-scope">
           Every session that has ended, AI Juggler's and the ones started outside it. Search by what it was about,
-          project, account, tool, model, branch or date (2026-10-01). Words said in a conversation are searched in AI
-          Juggler's sessions only; sessions started outside it are found by everything else.
+          project, account, tool, model, branch or date (2026-10-01), or by what was said in it.
+          {everyWord
+            ? " Words are searched in every session."
+            : " Words are searched in AI Juggler's sessions; for the ones started outside it, turn on Search the words of every session in Settings › Privacy."}
         </p>
       </header>
       <div className="flex flex-wrap items-center gap-2">
@@ -227,7 +240,7 @@ export function History({
           projects={projects}
           empty={
             query.trim()
-              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}. Words said in sessions started outside AI Juggler aren't searched.`
+              ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.${everyWord ? "" : " Words said in sessions started outside AI Juggler aren't searched (Settings › Privacy)."}`
               : list === "archived"
                 ? "Nothing archived. Archive an ended session to tidy the rail — nothing is deleted."
                 : "No ended sessions yet."

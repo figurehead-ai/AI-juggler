@@ -231,6 +231,17 @@ fn tries_words(attempt: usize) -> String {
 /// Starts `crashed` again and records the try on both sessions.
 fn restart(state: &Arc<AppState>, crashed: &SessionId, attempt: usize) {
     let outcome = start_again(state, crashed);
+    // The try is counted before it's noted: whoever reads the note (the
+    // next crash's verdict, a test) finds it counted.
+    if let Ok((replacement, _)) = &outcome
+        && let Ok(mut restarts) = state.restarts.lock()
+    {
+        restarts.record(
+            crashed.as_str(),
+            replacement.as_str(),
+            crate::commands::now_millis(),
+        );
+    }
     let Ok(storage) = state.storage.lock() else {
         return;
     };
@@ -252,14 +263,6 @@ fn restart(state: &Arc<AppState>, crashed: &SessionId, attempt: usize) {
                     tries_words(attempt)
                 ),
             );
-            drop(storage);
-            if let Ok(mut restarts) = state.restarts.lock() {
-                restarts.record(
-                    crashed.as_str(),
-                    replacement.as_str(),
-                    crate::commands::now_millis(),
-                );
-            }
         }
         Err(error) => {
             let _ = storage.sessions().record_lifecycle(

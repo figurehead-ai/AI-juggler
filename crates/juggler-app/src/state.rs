@@ -57,6 +57,8 @@ pub struct AppState {
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
+    /// AJ-E1520: each live session's subagents, read on the same tick.
+    pub subtasks: crate::features::subtasks::Subtasks,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -103,6 +105,8 @@ pub struct AppState {
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
+    /// AJ-E1538: the opt-in index of outside sessions' words, while on.
+    pub outside_search: crate::features::outside_search::OutsideSearch,
     /// AJ-E1532: the icon each project's mark uses, as the project list
     /// last found it: the only files `projects_icon_read` reads.
     pub project_icons: std::sync::Mutex<std::collections::HashMap<String, PathBuf>>,
@@ -285,6 +289,7 @@ impl AppState {
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
+            subtasks: crate::features::subtasks::Subtasks::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
@@ -300,6 +305,7 @@ impl AppState {
             provider_versions: Mutex::new(std::collections::HashMap::new()),
             switching: Mutex::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
+            outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),

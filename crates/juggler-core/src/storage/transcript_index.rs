@@ -205,6 +205,112 @@ impl TranscriptIndexRepo<'_> {
     }
 }
 
+/// AJ-E1538: a search index in a file of its own: the opt-in index of
+/// the sessions started outside AI Juggler. It has the main store's
+/// index tables (schema v27, applied as it was), so
+/// [`TranscriptIndexRepo`] reads and writes it; removing the file
+/// ([`SearchIndexFile::remove`]) removes every trace, deleted pages
+/// included.
+#[derive(Debug)]
+pub struct SearchIndexFile {
+    conn: Connection,
+}
+
+impl SearchIndexFile {
+    /// Opens (creating) the index at `path`, readable by the user only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] when the file can't be opened or
+    /// its tables made.
+    pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
+        let conn = Connection::open(path)?;
+        Self::set_up(conn, Some(path))
+    }
+
+    /// An index in memory (the size estimate's sample, and tests).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn in_memory() -> Result<Self, CoreError> {
+        Self::set_up(Connection::open_in_memory()?, None)
+    }
+
+    fn set_up(conn: Connection, path: Option<&std::path::Path>) -> Result<Self, CoreError> {
+        conn.busy_timeout(super::BUSY_TIMEOUT)?;
+        let version: i64 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if version == 0 {
+            conn.execute_batch(super::V27)?;
+            conn.pragma_update(None, "user_version", 1)?;
+        }
+        #[cfg(unix)]
+        if let Some(path) = path {
+            use std::os::unix::fs::PermissionsExt as _;
+            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+        }
+        #[cfg(not(unix))]
+        let _ = path;
+        Ok(Self { conn })
+    }
+
+    /// Merges the search index into one segment: the smallest it can
+    /// be, the fastest to search, and a size that depends on what it
+    /// holds, not on how it was written.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn optimize(&self) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT INTO transcript_fts(transcript_fts) VALUES('optimize')",
+            [],
+        )?;
+        self.conn.execute_batch("VACUUM")?;
+        Ok(())
+    }
+
+    /// Its tables.
+    #[must_use]
+    pub fn repo(&self) -> TranscriptIndexRepo<'_> {
+        TranscriptIndexRepo::new(&self.conn)
+    }
+
+    /// The index's size in bytes (its pages, what the file holds).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn size_bytes(&self) -> Result<u64, CoreError> {
+        let pages: i64 = self
+            .conn
+            .query_row("PRAGMA page_count", [], |row| row.get(0))?;
+        let size: i64 = self
+            .conn
+            .query_row("PRAGMA page_size", [], |row| row.get(0))?;
+        Ok((pages * size).unsigned_abs())
+    }
+
+    /// Deletes the index at `path` and the files SQLite keeps beside it.
+    /// A file that isn't there is not an error.
+    ///
+    /// # Errors
+    ///
+    /// The first removal that fails for any other reason.
+    pub fn remove(path: &std::path::Path) -> std::io::Result<()> {
+        let name = path.as_os_str().to_owned();
+        for suffix in ["", "-journal", "-wal", "-shm"] {
+            let mut file = name.clone();
+            file.push(suffix);
+            match std::fs::remove_file(&file) {
+                Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+}
+
 /// The FTS5 expression for plain user words: every word quoted (so no
 /// operator or column syntax can be injected) as a prefix term.
 #[must_use]
@@ -254,7 +360,56 @@ pub fn line_text(line: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{fts_expression, line_text};
+    use super::{SearchIndexFile, fts_expression, line_text};
+    use crate::model::SessionId;
+
+    /// AJ-E1538: the file has the main store's index; searched the same
+    /// way; removed whole, with SQLite's side files.
+    #[test]
+    fn a_search_index_file_is_the_same_index_and_removes_whole() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("outside-search.sqlite");
+        {
+            let index = SearchIndexFile::open(&path).unwrap();
+            let key = SessionId::new("acc:conv-1");
+            index
+                .repo()
+                .append(
+                    &key,
+                    "/t.jsonl",
+                    &[(0, 10, "the webhook retry".to_owned())],
+                    11,
+                )
+                .unwrap();
+            let hits = index.repo().search("webhook", 10).unwrap();
+            assert_eq!(hits.len(), 1);
+            assert_eq!(hits[0].session, "acc:conv-1");
+            assert!(index.size_bytes().unwrap() > 0);
+        }
+        let reopened = SearchIndexFile::open(&path).unwrap();
+        assert_eq!(
+            reopened
+                .repo()
+                .line_count(&SessionId::new("acc:conv-1"))
+                .unwrap(),
+            1
+        );
+        drop(reopened);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+        std::fs::write(dir.path().join("outside-search.sqlite-journal"), b"x").unwrap();
+        SearchIndexFile::remove(&path).unwrap();
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            0,
+            "nothing left behind"
+        );
+        SearchIndexFile::remove(&path).unwrap();
+    }
 
     #[test]
     fn user_words_never_become_fts_syntax() {

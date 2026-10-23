@@ -325,17 +325,30 @@ impl SessionsRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn active_cwds(&self, machine: &MachineId) -> Result<Vec<std::path::PathBuf>, CoreError> {
-        let mut stmt = self.conn.prepare(
+        let mut stmt = self.conn.prepare(&format!(
             "SELECT DISTINCT cwd FROM instances
-             WHERE machine = ?1
-               AND status NOT IN ('finished', 'stopped', 'failed', 'handed_over')",
-        )?;
+             WHERE machine = ?1 AND status NOT IN {ENDED}"
+        ))?;
         let rows = stmt.query_map(params![machine.as_str()], |row| row.get::<_, String>(0))?;
         rows.map(|row| {
             row.map(std::path::PathBuf::from)
                 .map_err(CoreError::Storage)
         })
         .collect()
+    }
+
+    /// The sessions that haven't ended, newest first: one query for a
+    /// frequent tick, never the whole history (AJ-E1520).
+    ///
+    /// # Errors
+    ///
+    /// Same as [`SessionsRepo::get`].
+    pub fn live(&self) -> Result<Vec<InstanceRecord>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT * FROM instances WHERE status NOT IN {ENDED} ORDER BY started_at DESC, id"
+        ))?;
+        let rows = stmt.query_map([], map_session)?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
     /// Lists sessions, newest first, optionally filtered by profile.
@@ -365,6 +378,10 @@ impl SessionsRepo<'_> {
         Ok(out)
     }
 }
+
+/// The statuses of a session that has ended, as SQL (`SessionStatus`'s
+/// `Finished`, `Stopped`, `Failed`, `HandedOver`).
+const ENDED: &str = "('finished', 'stopped', 'failed', 'handed_over')";
 
 /// Maps a row to an [`InstanceRecord`] (row values unchanged; ADR-0008 A-1).
 fn map_session(row: &Row<'_>) -> rusqlite::Result<InstanceRecord> {

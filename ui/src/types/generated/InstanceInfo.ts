@@ -80,8 +80,9 @@ rss_bytes: number | null,
  */
 child_count: number | null, 
 /**
- * I-08: subtask count; `null` — no transcript source exists yet
- * (AJ-E409 lands the signals; never a guessed count).
+ * I-08: how many subagents the session started are still running,
+ * read from its transcript (AJ-E1520); `null` until it has been read
+ * (not live, or no transcript yet) — never a guessed count.
  */
 subtask_count: number | null, 
 /**

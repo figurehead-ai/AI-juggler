@@ -36,8 +36,6 @@ const RETENTION_KEY: &str = "retention_days";
 const TOKEN_TTL_MS: i64 = 10 * 60 * 1000;
 /// Replay returns at most this much transcript text.
 const REPLAY_CAP_BYTES: u64 = 16 * 1024 * 1024;
-/// Transcript lines read per indexing step (bounded memory).
-const INDEX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
 fn validation(subject: &'static str, message: impl Into<String>) -> AppError {
     AppError::Validation {
@@ -322,8 +320,13 @@ pub fn instance_delete_impl(state: &Arc<AppState>, session_id: &str, token: &str
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct TranscriptHitInfo {
-    /// The Instance.
-    pub session_id: String,
+    /// The Instance, for a hit in one of AI Juggler's sessions.
+    pub session_id: Option<String>,
+    /// AJ-E1538: the account of a session started outside AI Juggler (the
+    /// opt-in index), with the tool's id for it.
+    pub account_id: Option<String>,
+    /// That session's conversation id.
+    pub conversation_id: Option<String>,
     /// The matching text around the first match.
     pub snippet: String,
 }
@@ -336,40 +339,6 @@ pub struct IndexReportInfo {
     pub sessions: u32,
     /// Lines added.
     pub lines: u32,
-}
-
-/// Indexed lines `(offset, len, text)` and the offset consumed up to.
-type LineBatch = (Vec<(u64, u64, String)>, u64);
-
-/// Reads complete lines of `path` from `start` (at most one chunk):
-/// `(offset, len, text)` for lines with searchable text, and the offset
-/// up to which the file was consumed.
-fn read_lines(path: &Path, start: u64, size: u64) -> std::io::Result<LineBatch> {
-    let mut file = std::fs::File::open(path)?;
-    file.seek(SeekFrom::Start(start))?;
-    let take = (size - start).min(INDEX_CHUNK_BYTES);
-    let mut buf = Vec::new();
-    file.take(take).read_to_end(&mut buf)?;
-    // Only complete lines; a partial last line waits for its newline.
-    let Some(end) = buf.iter().rposition(|byte| *byte == b'\n') else {
-        // One line longer than a chunk: index the chunk as a whole.
-        return Ok(if take == INDEX_CHUNK_BYTES {
-            let text = juggler_core::storage::line_text(&String::from_utf8_lossy(&buf));
-            (vec![(start, take, text)], start + take)
-        } else {
-            (Vec::new(), start)
-        });
-    };
-    let mut out = Vec::new();
-    let mut offset = 0usize;
-    for line in buf[..end].split(|byte| *byte == b'\n') {
-        let text = juggler_core::storage::line_text(&String::from_utf8_lossy(line));
-        if !text.trim().is_empty() {
-            out.push((start + offset as u64, line.len() as u64, text));
-        }
-        offset += line.len() + 1;
-    }
-    Ok((out, start + end as u64 + 1))
 }
 
 /// Core: one incremental indexing pass over every Instance's transcript.
@@ -419,7 +388,7 @@ pub fn index_transcripts(state: &Arc<AppState>) -> AppResult<IndexReportInfo> {
         };
         let mut touched = false;
         while start < size {
-            let Ok((lines, next)) = read_lines(&path, start, size) else {
+            let Ok((lines, next)) = crate::transcript_text::read_lines(&path, start, size) else {
                 break;
             };
             if next == start {
@@ -437,35 +406,6 @@ pub fn index_transcripts(state: &Arc<AppState>) -> AppResult<IndexReportInfo> {
         }
     }
     Ok(report)
-}
-
-/// The text around the first query word in a transcript line.
-fn snippet(path: &Path, offset: u64, len: u64, query: &str) -> Option<String> {
-    let mut file = std::fs::File::open(path).ok()?;
-    file.seek(SeekFrom::Start(offset)).ok()?;
-    let mut buf = Vec::new();
-    file.take(len.min(1024 * 1024)).read_to_end(&mut buf).ok()?;
-    let text = juggler_core::storage::line_text(&String::from_utf8_lossy(&buf));
-    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let lower = text.to_lowercase();
-    let at = query
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|word| !word.is_empty())
-        .filter_map(|word| lower.find(&word.to_lowercase()))
-        .min()
-        .unwrap_or(0);
-    let chars: Vec<char> = text.chars().collect();
-    let at_char = text[..at.min(text.len())].chars().count();
-    let from = at_char.saturating_sub(60);
-    let to = (at_char + 120).min(chars.len());
-    let mut out: String = chars[from..to].iter().collect();
-    if from > 0 {
-        out.insert(0, '…');
-    }
-    if to < chars.len() {
-        out.push('…');
-    }
-    Some(out)
 }
 
 /// Core: transcript text search (the index is brought up to date first).
@@ -493,16 +433,36 @@ pub fn transcript_search_impl(
             .collect();
         (hits, paths)
     };
-    Ok(hits
+    let mut out: Vec<TranscriptHitInfo> = hits
         .into_iter()
         .filter_map(|hit| {
             let path = paths.get(&hit.session)?;
             Some(TranscriptHitInfo {
-                snippet: snippet(Path::new(path), hit.offset, hit.len, query)?,
-                session_id: hit.session,
+                snippet: crate::transcript_text::snippet(
+                    Path::new(path),
+                    hit.offset,
+                    hit.len,
+                    query,
+                )?,
+                session_id: Some(hit.session),
+                account_id: None,
+                conversation_id: None,
             })
         })
-        .collect())
+        .collect();
+    // AJ-E1538: the sessions started outside AI Juggler, when the user
+    // turned their search on (nothing otherwise).
+    out.extend(
+        crate::features::outside_search::search(state, query, 100)?
+            .into_iter()
+            .map(|hit| TranscriptHitInfo {
+                session_id: None,
+                account_id: Some(hit.account_id),
+                conversation_id: Some(hit.conversation_id),
+                snippet: hit.snippet,
+            }),
+    );
+    Ok(out)
 }
 
 // --- replay ----------------------------------------------------------------
