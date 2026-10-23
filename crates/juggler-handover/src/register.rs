@@ -602,17 +602,18 @@ mod tests {
         let open = embedded().beta_exit_open(&unknown_versions, &|_, to| {
             to == "gemini-cli" || to == "opencode"
         });
-        // The live labs (AJ-E1539) passed sixteen cells. Labs 5–8
+        // The live labs (AJ-E1539) passed eighteen cells. Labs 5–8
         // (2026-10-22): claude→claude transcript, todos and MCP;
         // claude→codex those three and switch-back. Labs 9 and 10
         // (2026-10-23): claude→claude rules, subagents, folder and
         // worktree edges and switch-back; claude→codex rules; codex→claude
-        // transcript, todos, rules and switch-back. Every other shipped
-        // cell is open.
+        // transcript, todos, rules and switch-back. Lab 11 (2026-10-23):
+        // codex→codex transcript and todos. Every other shipped cell is
+        // open.
         assert_eq!(
             open.len(),
-            9 * AREAS.len() - 16,
-            "only the labs' sixteen PASS cells are closed"
+            9 * AREAS.len() - 18,
+            "only the labs' eighteen PASS cells are closed"
         );
     }
 }

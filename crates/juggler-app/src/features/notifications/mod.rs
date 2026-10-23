@@ -29,6 +29,9 @@ pub struct OpenRequest {
     pub session_id: Option<String>,
     /// `this_mac` for the This Mac page.
     pub page: Option<String>,
+    /// AJ-E1515: the paired Mac the session runs on (`None`: this one).
+    #[serde(default)]
+    pub machine_id: Option<String>,
 }
 
 /// One notification as the system shows it.
@@ -296,10 +299,12 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
         Some(Target::Session(session_id)) => Some(OpenRequest {
             session_id: Some(session_id),
             page: None,
+            machine_id: None,
         }),
         Some(Target::ThisMac) => Some(OpenRequest {
             session_id: None,
             page: Some("this_mac".to_owned()),
+            machine_id: None,
         }),
         None => None,
     };

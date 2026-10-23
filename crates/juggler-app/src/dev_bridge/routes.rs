@@ -203,6 +203,12 @@ read_routes! {
     "projects_list" => result commands::projects_list(state);
     "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => result commands::switch_back_suggestions(state);
+    // The switch screen (AJ-E1543): its targets, its check and its
+    // set-up list, all reads. The check's secret previews are masked
+    // before they leave ([`masked`]).
+    "switch_targets" => result commands::switch_targets(state; session_id: String);
+    "switch_preflight" => async_result commands::switch_preflight(state; session_id: String, target_profile_id: String);
+    "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "parked_list" => value parked::parked_list(state);
     "overnight_summary" => result overnight::overnight_summary(state; since_ms: Option<i64>);
     "dashboard_stats" => result commands::dashboard_stats(state);
@@ -249,4 +255,49 @@ read_routes! {
     "project_sync_servers" => async_result features::project_sync::commands::project_sync_servers(state; project_id: String);
     // AJ-E1508: what a new account could start with (reads only).
     "account_settings_check" => async_result features::account_settings::commands::account_settings_check(state; target: Option<String>, source: String);
+}
+
+/// The fields a reply may not carry out of the app, by command: each is
+/// set to a mask in every object that holds it. A secret's masked preview
+/// (its first character and last four) still says too much for a walk's
+/// record; its kind and count stay.
+const MASKED: &[(&str, &[&str])] = &[("switch_preflight", &["preview"])];
+
+/// `reply` with the fields [`MASKED`] names for `ipc` replaced, wherever
+/// they are in its JSON. Other replies pass as they are.
+pub(super) fn masked(ipc: &str, reply: Reply) -> Reply {
+    let Some((_, fields)) = MASKED.iter().find(|(name, _)| *name == ipc) else {
+        return reply;
+    };
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&reply.body) else {
+        return Reply::internal();
+    };
+    mask_fields(&mut value, fields);
+    match serde_json::to_vec(&value) {
+        Ok(body) => Reply {
+            status: reply.status,
+            body,
+        },
+        Err(_) => Reply::internal(),
+    }
+}
+
+fn mask_fields(value: &mut serde_json::Value, fields: &[&str]) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, inner) in map.iter_mut() {
+                if fields.contains(&key.as_str()) && inner.is_string() {
+                    *inner = serde_json::Value::String("•••".to_owned());
+                } else {
+                    mask_fields(inner, fields);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                mask_fields(item, fields);
+            }
+        }
+        _ => {}
+    }
 }

@@ -9,6 +9,7 @@ import { WelcomePointer } from "../components/Welcome";
 import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
 import { BurnDowns } from "../components/BurnDown";
+import { MachineUsageCard } from "../components/MachineUsage";
 import { CostMatrix } from "../components/CostMatrix";
 import { Button, Card } from "../components/primitives";
 import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
@@ -81,6 +82,8 @@ export function UsageScreen({
           </ul>
         </section>
       )}
+
+      <MachineUsageCard />
 
       <section aria-labelledby="usage-costs" className="flex flex-col gap-2.5">
         <h3 id="usage-costs" className="text-[11px] font-semibold uppercase tracking-wider text-muted">

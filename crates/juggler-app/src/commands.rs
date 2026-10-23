@@ -75,7 +75,7 @@ pub struct CostRollupsInfo {
 
 /// The catalog as loaded: bundled seed + user overrides + staleness.
 #[must_use]
-fn pricing_catalog(
+pub(crate) fn pricing_catalog(
     storage: &juggler_core::storage::Storage,
 ) -> juggler_core::cost_ledger::PricingCatalog {
     use juggler_core::cost_ledger::PricingCatalog;
@@ -5375,7 +5375,7 @@ pub fn switch_preflight_impl(
         rules_diverged: false,
     };
     let (door, wizard_steps, wizard_reasons) =
-        door_verdict(state, &door_inputs, &carry, report.pair.label);
+        door_verdict(&door_inputs, &carry, report.pair.label);
     let (redaction, redaction_items) = {
         let storage = lock_storage_arc(state)?;
         let policy = RedactionPolicyInfo::from_parts(
@@ -5469,18 +5469,16 @@ fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Optio
     }
 }
 
-/// AJ-E206 §8: chooses the door from the preflight facts and counts
-/// the choice (local telemetry). Returns the wire name, the wizard
-/// step titles (empty for 1-click — never phantom steps), and the
-/// wizard's opening lines.
+/// AJ-E206 §8: chooses the door from the preflight facts. Returns the
+/// wire name, the wizard step titles (empty for 1-click — never phantom
+/// steps), and the wizard's opening lines. Counting the door is the
+/// switch screen's ([`switch_door_count`]): the preflight only reads.
 fn door_verdict(
-    state: &Arc<AppState>,
     inputs: &juggler_handover::door::DoorInputs,
     carry: &CarryListInfo,
     label: juggler_handover::fidelity::FidelityLabel,
 ) -> (String, Vec<String>, Vec<String>) {
     let door = juggler_handover::door::choose_door(inputs);
-    record_door_counter(state, &door);
     match &door {
         juggler_handover::door::Door::OneClick => ("one-click".to_owned(), Vec::new(), Vec::new()),
         juggler_handover::door::Door::Wizard { steps } => (
@@ -5604,9 +5602,47 @@ fn wizard_reasons_of(
     reasons
 }
 
-/// AJ-E206 §5 telemetry: count the door the preflight chose — local
-/// KV diagnostics only (never networked); a failed read or write
-/// never blocks the switch.
+/// AJ-E206 §5 telemetry: the switch screen counts the door it shows,
+/// from the preflight's own answer (`door`, and `steps` for a wizard).
+/// Local KV diagnostics only, never networked. Anything that isn't a
+/// door the preflight can choose is refused.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+#[tauri::command]
+pub async fn switch_door_count(
+    state: tauri::State<'_, Arc<AppState>>,
+    door: String,
+    steps: Vec<String>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "count the switch screen", move |state| {
+        switch_door_count_impl(state, &door, &steps)
+    })
+    .await
+}
+
+/// [`switch_door_count`]'s work, for tests.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for an unknown door or step.
+pub fn switch_door_count_impl(
+    state: &Arc<AppState>,
+    door: &str,
+    steps: &[String],
+) -> AppResult<()> {
+    let door =
+        juggler_handover::door::Door::from_wire(door, steps).ok_or(AppError::Validation {
+            subject: "door",
+            message: "That isn't a switch screen.".to_owned(),
+        })?;
+    record_door_counter(state, &door);
+    Ok(())
+}
+
+/// Counts `door` in the local KV: a failed read or write never blocks
+/// the switch.
 fn record_door_counter(state: &Arc<AppState>, door: &juggler_handover::door::Door) {
     let Ok(storage) = lock_storage_arc(state) else {
         return;
@@ -5677,6 +5713,22 @@ pub async fn switch_execute(
         )
     })
     .await
+}
+
+/// AJ-E1523: a switch away from a session that had reached its usage
+/// limit is counted as the limit's (`quota_wall`), however the switch
+/// screen was opened. A successful one is a juggling loop: the limit hit,
+/// and the work went on elsewhere. `source` is the session as it was
+/// before the switch stopped it.
+fn loop_trigger(
+    source: &juggler_core::model::InstanceRecord,
+    trigger: &'static str,
+) -> &'static str {
+    if source.status == juggler_core::model::SessionStatus::QuotaBlocked {
+        "quota_wall"
+    } else {
+        trigger
+    }
 }
 
 /// Core implementation shared with integration tests.
@@ -5795,7 +5847,7 @@ fn switch_execute_core(
         account_a.harness.as_str(),
         account_b.harness.as_str(),
         "transplant",
-        trigger,
+        loop_trigger(&source, trigger),
     );
 
     // The pipeline: snapshot → stage → verify → launch (the app's
@@ -6058,7 +6110,7 @@ fn switch_replay(
         sides.account_a.harness.as_str(),
         sides.account_b.harness.as_str(),
         "pack_replay",
-        trigger,
+        loop_trigger(&sides.source, trigger),
     );
     let project = {
         let storage = lock_storage_arc(state)?;
@@ -10680,6 +10732,33 @@ mod tests {
         }
     }
 
+    /// AJ-E1523: a switch away from a session at its usage limit counts
+    /// as the limit's, however the screen was opened (a juggling loop when
+    /// it succeeds); any other switch keeps its own reason.
+    #[test]
+    fn a_switch_from_a_session_at_its_limit_counts_as_a_juggling_loop() {
+        let cwd = std::env::temp_dir();
+        let at_limit = record("s1", "p1", SessionStatus::QuotaBlocked, cwd.clone());
+        for trigger in ["manual", "suggestion", "quota_wall"] {
+            assert_eq!(super::loop_trigger(&at_limit, trigger), "quota_wall");
+        }
+        for status in [
+            SessionStatus::Running,
+            SessionStatus::WaitingUser,
+            SessionStatus::Stuck,
+            SessionStatus::Finished,
+            SessionStatus::Failed,
+        ] {
+            let other = record("s2", "p1", status, cwd.clone());
+            assert_eq!(
+                super::loop_trigger(&other, "manual"),
+                "manual",
+                "{status:?}"
+            );
+            assert_eq!(super::loop_trigger(&other, "suggestion"), "suggestion");
+        }
+    }
+
     /// Storage seeded with one account, two launch recipes (with and
     /// without a model) and the four AJ-E401 fixture rows.
     fn fixture_storage() -> Storage {
@@ -10974,9 +11053,14 @@ mod tests {
             };
             storage.sessions().insert(&record).expect("seed row");
         }
+        // This thread's CPU time: the join runs here, and other programs'
+        // turns on a busy machine don't count against it (wall time read
+        // 25.7 ms at load 36 for a join that takes well under 1 ms).
         let mut samples: Vec<u128> = Vec::new();
+        let mut walls: Vec<u128> = Vec::new();
         for _ in 0..100 {
-            let start = std::time::Instant::now();
+            let wall = std::time::Instant::now();
+            let start = cpu_time::ThreadTime::now();
             let rows = session_infos(
                 &storage,
                 &LiveStatsMap::new(),
@@ -10984,12 +11068,18 @@ mod tests {
                 &[],
             )
             .expect("rows");
-            assert_eq!(rows.len(), 50);
             samples.push(start.elapsed().as_micros());
+            walls.push(wall.elapsed().as_micros());
+            assert_eq!(rows.len(), 50);
         }
         samples.sort_unstable();
+        walls.sort_unstable();
         let p95 = samples[94]; // 95th of 100
-        assert!(p95 < 20_000, "join p95 {p95}µs exceeds the 20 ms budget");
+        assert!(
+            p95 < 20_000,
+            "join p95 {p95}µs CPU exceeds the 20 ms budget (wall p95 {}µs)",
+            walls[94]
+        );
     }
 
     /// Unknown statuses cannot reach the read model: storage rejects them

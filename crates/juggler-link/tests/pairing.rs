@@ -47,7 +47,7 @@ impl NodeHandler for Audit {
         &self,
         _p: &PeerAccess,
         _a: &proto::control_command::Action,
-    ) -> Result<String, CommandRejection> {
+    ) -> Result<juggler_link::node::CommandDone, CommandRejection> {
         Err(CommandRejection {
             reason_code: "x".into(),
             message: "x".into(),

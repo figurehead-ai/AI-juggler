@@ -307,6 +307,22 @@ pub(crate) fn target_views(cache: &RemoteCache) -> Vec<(String, TargetView)> {
         .unwrap_or_default()
 }
 
+/// AJ-E1515: each paired machine's last-day usage, as it last reported
+/// it with its catalog, and when.
+pub(crate) fn reported_usage(cache: &RemoteCache) -> Vec<(String, proto::UsageTotals, i64)> {
+    cache
+        .lock()
+        .map(|map| {
+            map.iter()
+                .filter_map(|(id, entry)| {
+                    let (catalog, at) = entry.catalog.as_ref()?;
+                    Some((id.clone(), catalog.last_day?, *at))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Forgets machines that are no longer pinned.
 pub(crate) fn retain(cache: &RemoteCache, pinned: &[(String, [u8; 32])]) {
     if let Ok(mut map) = cache.lock() {
@@ -494,6 +510,9 @@ pub struct RemoteCommandOutcomeInfo {
     pub reason_code: Option<String>,
     /// Plain words for the UI.
     pub message: String,
+    /// AJ-E1515: the session a launch started there, to follow.
+    #[ts(optional)]
+    pub started_instance_id: Option<String>,
 }
 
 fn freshness(connection: &str, last_heard_ms: Option<i64>, now: i64) -> &'static str {
@@ -751,10 +770,11 @@ fn finished_or_link_off<T>(sent: crate::link::Outbound<T>) -> Result<T, RemoteCo
         accepted: false,
         reason_code: Some("link_off".to_owned()),
         message: message.to_owned(),
+        started_instance_id: None,
     })
 }
 
-async fn send_action(
+pub(crate) async fn send_action(
     state: Arc<AppState>,
     machine_id: String,
     action: proto::control_command::Action,
@@ -788,6 +808,7 @@ async fn send_action(
             accepted: false,
             reason_code: Some("permission_denied".to_owned()),
             message: "View-only pairing — change it in Fleet on that machine.".to_owned(),
+            started_instance_id: None,
         });
     }
     let console = crate::commands::local_machine_id(&state).to_string();
@@ -810,16 +831,19 @@ async fn send_action(
             accepted: false,
             reason_code: Some("timeout".to_owned()),
             message: "That machine didn't answer in time — nothing was confirmed.".to_owned(),
+            started_instance_id: None,
         },
         Ok(Err(error)) => RemoteCommandOutcomeInfo {
             accepted: false,
             reason_code: Some("unreachable".to_owned()),
             message: error.to_string(),
+            started_instance_id: None,
         },
         Ok(Ok(result)) => RemoteCommandOutcomeInfo {
             accepted: result.outcome == "accepted",
             reason_code: (!result.reason_code.is_empty()).then_some(result.reason_code),
             message: result.message,
+            started_instance_id: result.started_instance_id.filter(|id| !id.is_empty()),
         },
     };
     // AJ-E1103: the kind and how it went, never what or where.

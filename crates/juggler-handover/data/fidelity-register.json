@@ -88,7 +88,13 @@
       "cells": [
         {
           "area": "transcript-resume",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "0.163.0",
+          "date": "2026-10-23",
+          "fixture": "switch-lab lab 11",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "rules-carry",
@@ -96,7 +102,13 @@
         },
         {
           "area": "todos",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "0.163.0",
+          "date": "2026-10-23",
+          "fixture": "switch-lab lab 11",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "subagents",

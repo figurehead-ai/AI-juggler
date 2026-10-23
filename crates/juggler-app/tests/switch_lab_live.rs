@@ -84,12 +84,16 @@ const HELPER: &str = "flip";
 /// A name decided on Claude B after the forward hop, only said: switching
 /// back to Codex can know it only from the conversation.
 const RELEASE_X: &str = "Silver Finch";
+/// The Codex → Codex leg's codename (`AIJ_LAB_CODEX_B`).
+const CODENAME_XX: &str = "PLOVER";
 
 struct Lab {
     project: PathBuf,
     claude_a: PathBuf,
     claude_b: PathBuf,
     codex: PathBuf,
+    /// A second Codex home (`AIJ_LAB_CODEX_B`), for the Codex → Codex leg.
+    codex_b: Option<PathBuf>,
     steps: Vec<Value>,
     /// The probe's name (`AIJ_LAB_PROBE`), when the set-up step is checked.
     probe: Option<String>,
@@ -226,9 +230,20 @@ fn codex_turn_with(
     flags: &[&str],
     prompt: &str,
 ) -> (Option<String>, String, bool) {
+    codex_turn_in(lab, &lab.codex, resume, flags, prompt)
+}
+
+/// [`codex_turn_with`] on the Codex home `home`.
+fn codex_turn_in(
+    lab: &Lab,
+    home: &Path,
+    resume: Option<&str>,
+    flags: &[&str],
+    prompt: &str,
+) -> (Option<String>, String, bool) {
     let mut cmd = Command::new("codex");
     cmd.current_dir(&lab.project)
-        .env("CODEX_HOME", &lab.codex)
+        .env("CODEX_HOME", home)
         .arg("exec")
         .args(flags);
     if let Some(id) = resume {
@@ -445,13 +460,15 @@ fn switch_lab_live() {
     ]);
 
     let home = dirs::home_dir().unwrap();
-    let roots: Vec<PathBuf> = vec![
+    let codex_b = var("AIJ_LAB_CODEX_B");
+    let mut roots: Vec<PathBuf> = vec![
         claude_a.clone(),
         claude_b.clone(),
         codex.clone(),
         home.join(".claude.json"),
         home.join(".agents"),
     ];
+    roots.extend(codex_b.clone());
     let before = snapshot(&roots);
 
     let state = Arc::new(AppState::init(data).unwrap());
@@ -460,6 +477,7 @@ fn switch_lab_live() {
         claude_a: claude_a.clone(),
         claude_b: claude_b.clone(),
         codex: codex.clone(),
+        codex_b: codex_b.clone(),
         steps: Vec::new(),
         probe: std::env::var("AIJ_LAB_PROBE").ok(),
         records: Vec::new(),
@@ -698,6 +716,16 @@ fn switch_lab_live() {
 
     forward_codex_to_claude(&state, &mut lab, &profile_x, &profile_b);
     worktree_leg(&state, &mut lab, &profile_a, &profile_b);
+    if let Some(home_b) = lab.codex_b.clone() {
+        let account_xb = import(&state, CODEX_ID, &home_b, "Lab Codex B");
+        codex_to_codex(
+            &state,
+            &mut lab,
+            &profile_x,
+            &profile_of(&state, &account_xb),
+            &home_b,
+        );
+    }
 
     if lab.probe.is_some() {
         let undone: Vec<Value> = lab
@@ -1089,4 +1117,62 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
         .arg(&wt)
         .current_dir(&lab.project)
         .output();
+}
+
+/// Step 8, Codex → Codex (`AIJ_LAB_CODEX_B`): a task begun in the Mac's
+/// Codex home is switched to the second home the way the product does it
+/// — the conversation (its rollout) moves, no sign-in file is read,
+/// copied or moved — and resumed there, asked what only it knows.
+fn codex_to_codex(
+    state: &Arc<AppState>,
+    lab: &mut Lab,
+    profile_x: &str,
+    profile_xb: &str,
+    home_b: &Path,
+) {
+    let (thread, first, ok) = codex_turn(
+        lab,
+        None,
+        &format!(
+            "This project's third codename is {CODENAME_XX}; remember it. Keep a plan with two items, \
+             modulo and power, and mark modulo done. Don't change any file."
+        ),
+    );
+    let Some(thread) = thread.filter(|_| ok) else {
+        lab.steps
+            .push(json!({"step": "8 Codex task", "ok": false, "result": first}));
+        return;
+    };
+    let source = adopt(state, profile_x, &thread, &lab.project);
+    let to_xb = commands::switch_execute_impl(state, &source, profile_xb, "stop-now", None, &[]);
+    let step = match &to_xb {
+        Ok(done) => {
+            let argv = take_launch(state, &done.session_id, done.pid);
+            // `codex … resume <id>`: the conversation as it lives in the second home.
+            let resumed = argv
+                .iter()
+                .position(|arg| arg == "resume")
+                .and_then(|at| argv.get(at + 1))
+                .cloned()
+                .unwrap_or_else(|| thread.clone());
+            let installed = std::fs::read_dir(home_b.join("sessions")).is_ok();
+            let (_, answer, ok) = codex_turn_in(
+                lab,
+                home_b,
+                Some(&resumed),
+                &[],
+                "Without changing any file: what is the third codename, and which plan items are still \
+                 open? Answer in one short line.",
+            );
+            let carried = mentions(&answer, CODENAME_XX);
+            json!({"step": "8 switch Codex→Codex", "ok": ok && carried,
+                   "transcript_resume": carried, "todos": mentions(&answer, "power"),
+                   "probe": answer, "launch": argv, "resumed": resumed,
+                   "installed_in_second_home": installed})
+        }
+        Err(error) => {
+            json!({"step": "8 switch Codex→Codex", "ok": false, "error": format!("{error:?}")})
+        }
+    };
+    lab.steps.push(step);
 }

@@ -27,15 +27,20 @@ which kind it is before you confirm.
   copied to the new account, which resumes the conversation. The task list
   is rebuilt from the conversation.
 - **Full story, fresh start.** Between two tools, for example Claude Code to
-  Codex. The other tool starts a new session that's told the story so far:
+  Codex. The other tool starts a new session and reads a handover that AI
+  Juggler writes into its own folder, readable only by you. The handover
+  holds the story so far:
   - the newest turns that fit, word for word;
   - each tool call, in one line (such as "Edit calc.py");
+  - the earlier turns, listed by what was asked;
   - the task list as it was last set;
   - which files aren't committed yet. They're already in your project, so
-    the new session works on them where they are.
+    the new session works on them where they are;
+  - the project's rules files, and a request to read the other tool's
+    (`CLAUDE.md` or `AGENTS.md`).
 
-  When earlier turns don't fit, the new session is told how many were left
-  out. A very long last turn is shortened to fit.
+  A very long last turn is shortened to fit. Claude Code is allowed to read
+  the handover's folder, so it doesn't stop to ask.
 
 A conversation that was compacted carries its early part as a summary, so
 the new session may ask about early decisions. The screen tells you when
@@ -48,11 +53,16 @@ that pair has been checked live. A pair that has been reads **Proven**, and
 a new version of the tool puts it back to Beta. AI Juggler never calls a
 switch lossless.
 
-So far, one journey has been run live, in a small test project, with
-Claude Code 2.1.302 and Codex 0.163.0: Claude Code account A → account B →
-Codex → back to A. At every step, the new session knew what had been
-decided before it, and the open tasks. A switch from one Codex account to
-another, and from Codex forward to Claude Code, haven't been run live yet.
+These switches have been run live on real accounts, in small test projects,
+with Claude Code 2.1.302 and Codex 0.163.0:
+- Claude Code account A → account B → Codex → back to A;
+- Codex → Claude Code, and back again;
+- a switch in a git worktree, where the work stayed in the worktree;
+- a project with a rules file and a subagent.
+
+At every step, the new session knew what had been decided before it, the
+open tasks and the project's rules. A switch from one Codex account to
+another hasn't been run live yet.
 
 ## The switch screen
 
@@ -136,6 +146,24 @@ previous account or the one where the work started.
 
 The original is told what happened while it was away, on every account
 the work passed through: their new turns, the changes and the task list.
+
+## Start from a context pack
+
+A context pack is a conversation's story saved as a folder, the same thing
+a switch hands over. Save one from a project's **Overview**, under **How
+this work travelled**: choose a step, then **Export pack…**. Secrets are
+handled by your choice in Settings › Context packs & secrets.
+
+To pick the work up later, in any tool, choose **New session** › **Start
+from a context pack…** and pick the pack's folder. AI Juggler checks the
+pack, then shows what it is: where it came from, what it continues as,
+what it carries, what it doesn't carry, and what was withheld. Choose the
+account and folder (the pack's own project is picked for you when it's on
+this Mac), then **Launch**.
+
+A pack that was edited by hand, holds something that looks like a key,
+points outside itself, or comes from a newer AI Juggler is refused, with a
+one-line reason, and nothing starts.
 
 ## What a switch changes
 

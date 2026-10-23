@@ -231,7 +231,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Codex: a conversation that opens by summarising another one no longer
   counts that conversation's last model call again (on the maintainer's
   Mac, about 367,000 tokens across three conversations). Usage already
-  counted is read again once.
+  counted is read again once, and a copy left from a conversation whose
+  file is gone is removed too.
 - Codex's older conversations count: Codex compresses older session files
   (`.jsonl.zst`), and AI Juggler read none of them, so their tokens and
   costs were missing (on a Mac used for a while, most of them).
@@ -426,6 +427,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Start a session on another Mac** (AJ-E1515). With paired Macs, New
+  session asks where it runs: pick a paired Mac and choose from its own
+  projects and accounts; it starts there over the link (that Mac checks
+  everything, as for any remote action) and opens here. A Mac that can't
+  (not connected, view only) says why. Usage and Fleet show what each Mac
+  used in the last 24 hours.
+- **The number that says AI Juggler works** (AJ-E1523): a "juggling loop", a session that reached its usage limit with its work going on elsewhere, counted in the opt-in usage statistics and documented in `docs/usage-stats.md`. A switch away from a session at its limit now counts as the limit's, however the switch screen was opened.
 - **Coming from another tool** (AJ-E1519). A guide for Claude Squad,
   Vibe Kanban, Crystal and cc-switch users says what comes across and what
   to do about the rest. A worktree Claude Squad or Vibe Kanban removed now
