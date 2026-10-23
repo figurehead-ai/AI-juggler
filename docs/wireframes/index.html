@@ -595,7 +595,8 @@
     document.querySelectorAll('section.screen[id^="s"]').forEach(function(sec){
       var title=sec.querySelector('h2').textContent.replace(/\s+/g,' ').trim();
       var d=data[sec.id]||{};
-      rows+='<tr><td>'+title+'</td><td>'+(d.v||'— not reviewed')+'</td><td>'+((d.note||'').replace(/</g,'&lt;'))+'</td></tr>';
+      var esc=function(text){return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      rows+='<tr><td>'+esc(title)+'</td><td>'+esc(d.v||'— not reviewed')+'</td><td>'+esc(d.note||'')+'</td></tr>';
     });
     t.innerHTML=rows; markNav();
   }
