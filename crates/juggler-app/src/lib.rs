@@ -57,6 +57,7 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
@@ -314,6 +315,9 @@ macro_rules! app_commands {
             Write features::budgets::commands::budgets_save,
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
+            Read  features::outside_search::commands::outside_search_status,
+            Read  features::outside_search::commands::outside_search_estimate,
+            Write features::outside_search::commands::outside_search_set,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -1048,6 +1052,8 @@ fn spawn_read_model_ticks(
             }
         });
     }
+    // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
+    features::outside_search::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

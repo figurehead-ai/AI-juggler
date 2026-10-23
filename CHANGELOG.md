@@ -430,6 +430,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Search the words of every session** (AJ-E1538, opt-in). Settings ›
+  Privacy can let History find sessions started outside AI Juggler by
+  what was said in them, too. It says how much room the index will take
+  before you turn it on, builds it in the background from the tools' own
+  files (read only), and deletes it when you turn it off.
 - **The switch is ready before the limit** (AJ-E1513). Once an account
   nears its limit (80 % of a window, or under 45 minutes left at the
   current pace), AI Juggler prepares the switch for the session in the

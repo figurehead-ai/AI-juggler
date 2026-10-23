@@ -5,9 +5,18 @@
  */
 export type TranscriptHitInfo = { 
 /**
- * The Instance.
+ * The Instance, for a hit in one of AI Juggler's sessions.
  */
-session_id: string, 
+session_id: string | null, 
+/**
+ * AJ-E1538: the account of a session started outside AI Juggler (the
+ * opt-in index), with the tool's id for it.
+ */
+account_id: string | null, 
+/**
+ * That session's conversation id.
+ */
+conversation_id: string | null, 
 /**
  * The matching text around the first match.
  */

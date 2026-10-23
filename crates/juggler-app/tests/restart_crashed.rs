@@ -118,6 +118,19 @@ fn history(state: &Arc<AppState>, session: &str) -> Vec<String> {
         .collect()
 }
 
+/// `session`'s history once it has an event containing `needle` (the
+/// replacement is started before its notes are written): at most 10 s.
+fn history_with(state: &Arc<AppState>, session: &str, needle: &str) -> Vec<String> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let said = history(state, session);
+        if said.iter().any(|event| event.contains(needle)) || Instant::now() >= deadline {
+            return said;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn set_restart(state: &Arc<AppState>, on: bool) {
     let prefs = juggler_app::settings_policy::SessionPrefsInfo {
         restart_on_crash: on,
@@ -155,7 +168,7 @@ fn on_it_restarts_three_times_in_ten_minutes_then_says_why() {
         crashed(&state, &current);
         let next = wait_for_new_session(&state, &seen);
         assert_ne!(next, current);
-        let said = history(&state, &current);
+        let said = history_with(&state, &current, "restarted after a crash");
         assert!(
             said.iter()
                 .any(|event| event
@@ -163,7 +176,7 @@ fn on_it_restarts_three_times_in_ten_minutes_then_says_why() {
             "{said:?}"
         );
         assert!(
-            history(&state, &next)
+            history_with(&state, &next, "started again after")
                 .iter()
                 .any(|event| event.contains(&format!("crashed (try {attempt} of 3)"))),
             "the new session says where it came from"

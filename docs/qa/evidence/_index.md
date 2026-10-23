@@ -101,6 +101,7 @@
 | AJ-E1535 | PASS8 | — | [manifest](AJ-E1535/manifest.md) |
 | AJ-E1536 | PASS4 | 2026-10-22 | [manifest](AJ-E1536/manifest.md) |
 | AJ-E1537 | PASS6 | 2026-10-21 | [manifest](AJ-E1537/manifest.md) |
+| AJ-E1538 | (no claims yet) | 2026-10-23 | [manifest](AJ-E1538/manifest.md) |
 | AJ-E1539 | PASS8 | 2026-10-23 | [manifest](AJ-E1539/manifest.md) |
 | AJ-E1540 | PASS7 | 2026-10-23 | [manifest](AJ-E1540/manifest.md) |
 | AJ-E1541 | PASS9 | 2026-10-23 | [manifest](AJ-E1541/manifest.md) |

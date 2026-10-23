@@ -248,7 +248,7 @@ fn search_finds_the_session_with_a_snippet_over_1000_sessions_and_replay_is_byte
         "{took:?} CPU (wall {wall:?})"
     );
     assert_eq!(hits.len(), 1, "{hits:?}");
-    assert_eq!(hits[0].session_id, "s-777");
+    assert_eq!(hits[0].session_id.as_deref(), Some("s-777"));
     assert!(
         hits[0].snippet.contains("Stripe webhook retry"),
         "{}",
@@ -267,7 +267,7 @@ fn search_finds_the_session_with_a_snippet_over_1000_sessions_and_replay_is_byte
     let hits = history::transcript_search_impl(&state, "kubernetes").unwrap();
     assert_eq!(
         hits.iter()
-            .map(|h| h.session_id.as_str())
+            .filter_map(|h| h.session_id.as_deref())
             .collect::<Vec<_>>(),
         ["s-3"]
     );
@@ -275,7 +275,8 @@ fn search_finds_the_session_with_a_snippet_over_1000_sessions_and_replay_is_byte
     for n in [0, 1, 500, 999] {
         let hits = history::transcript_search_impl(&state, &format!("note {n} about")).unwrap();
         assert!(
-            hits.iter().any(|h| h.session_id == format!("s-{n}")),
+            hits.iter()
+                .any(|h| h.session_id.as_deref() == Some(format!("s-{n}").as_str())),
             "{n}: {hits:?}"
         );
     }

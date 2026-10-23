@@ -423,7 +423,7 @@ walk alone isn't enough.
 **Quality gates**: the same items for every trigger; keyboard access; a11y (`role=menu`, focus return); a snapshot of each type's menu; a disabled item's handler never runs. Right-click checked by hand on the replica's rows.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1537/manifest.md`.
 
-### AJ-E1538 Search the words of sessions started outside AI Juggler (opt-in) | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1536
+### AJ-E1538 Search the words of sessions started outside AI Juggler (opt-in) | Status: DONE-EVIDENCED | Priority P2 | Effort M | Depends: AJ-E1536
 **Goal**: History's search finds words said in any session, including the ones started outside AI Juggler, for people who choose to index them.
 **Context** (P20, the coordinator's option (c), 2026-10-22): today History finds sessions started outside AI Juggler by their title, project, account, tool, branch and date. Only AI Juggler's own sessions have their words indexed. History says so in its description and when nothing matches.
 **Requirements**:
