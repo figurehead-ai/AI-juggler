@@ -6,7 +6,7 @@
  * when the OS does. First run comes back at this step after the reopen.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun } from "./FirstRun";
 import { RESUME_ACCESS_KEY, takeResumeAccess } from "../lib/osAccess";
 import type { OsAccessInfo } from "../lib/bridge";
@@ -57,17 +57,24 @@ describe("Screen Recording after System Settings (0.0.12)", () => {
   });
 
   it("back from System Settings: the window's focus checks again at once", async () => {
-    const view = renderAccess();
-    await view.findByTestId("first-run-access-reopen");
-    // The OS now says yes (after a reopen, or a change it reports live).
-    w().__AIJ_OS_ACCESS__ = [preview({ status: "allowed", action: "none", note: null })];
-    act(() => {
-      window.dispatchEvent(new Event("focus"));
-    });
-    // Sooner than the 1.5 s poll: the focus did it.
-    const allowed = await view.findByRole("status", {}, { timeout: 1000 });
-    expect(allowed.textContent).toContain("Allowed");
-    expect(view.queryByTestId("first-run-access-reopen")).toBeNull();
+    // The 1.5 s poll can never fire (its interval is faked and never
+    // advanced), so whatever turns the card to Allowed is the focus, on a
+    // machine of any speed. Timeouts and promises stay real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const view = renderAccess();
+      await view.findByTestId("first-run-access-reopen");
+      // The OS now says yes (after a reopen, or a change it reports live).
+      w().__AIJ_OS_ACCESS__ = [preview({ status: "allowed", action: "none", note: null })];
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      const allowed = await view.findByRole("status", {}, { timeout: 5000 });
+      expect(allowed.textContent).toContain("Allowed");
+      expect(view.queryByTestId("first-run-access-reopen")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Reopen with nothing live relaunches, and first run will come back at this step", async () => {
