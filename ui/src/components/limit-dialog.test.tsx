@@ -85,6 +85,35 @@ describe("D-25 limit decision — the dialog", () => {
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
 
+  it("says the switch is ready when it was prepared for the pick (AJ-E1513)", async () => {
+    w().__AIJ_SWITCH_TARGETS__ = [target("acct-personal", "Personal", { suggested: true })];
+    w().__AIJ_STAGED__ = {
+      session_id: "s-1",
+      target_recipe_id: "r-acct-personal",
+      target_account_id: "acct-personal",
+      target_account_label: "Personal",
+      prepared_at_ms: NOW - 3 * 60_000,
+      fidelity_words: "Full story",
+    };
+    const { findByTestId } = renderIt();
+    expect((await findByTestId("limit-ready")).textContent).toBe("Ready to continue on Personal · prepared 3 min ago");
+  });
+
+  it("says nothing about a prepared switch for another account", async () => {
+    w().__AIJ_SWITCH_TARGETS__ = [target("acct-personal", "Personal", { suggested: true })];
+    w().__AIJ_STAGED__ = {
+      session_id: "s-1",
+      target_recipe_id: "r-acct-lab",
+      target_account_id: "acct-lab",
+      target_account_label: "Lab",
+      prepared_at_ms: NOW - 30_000,
+      fidelity_words: "Full story",
+    };
+    const { findByRole, queryByTestId } = renderIt();
+    await findByRole("button", { name: "Continue on Personal" });
+    expect(queryByTestId("limit-ready")).toBeNull();
+  });
+
   it("a click on the dialog's text keeps focus inside it", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();

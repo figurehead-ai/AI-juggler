@@ -697,12 +697,12 @@ pub(crate) fn scan_completed(
                 ("provenance", provenance),
             ],
         );
-        // A config dir matched by name pattern is none of the schema's
-        // sources, so it isn't counted here.
+        // A config dir found by its name isn't a schema source: not counted.
         let source = match install.origin.as_str() {
             "vendor-default" => Some("vendor_default"),
             "env-override" => Some("env_override"),
             "shell-alias" => Some("alias"),
+            "other-manager" => Some("other_manager"), // AJ-E1519: a manager's profile
             _ => None,
         };
         if let Some(source) = source {

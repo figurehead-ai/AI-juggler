@@ -683,6 +683,7 @@ fn step_account_alerts(
             tte_min: display.forecast.tte_min,
             used_pct: window.percentage,
             confidence,
+            resets_at_ms: window.resets_at_ms,
         };
         let machine = if slot == "five_hour" {
             &entry.five_hour
@@ -4826,6 +4827,21 @@ pub fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u3
 ///
 /// Returns the typed [`AppError`] message on failure.
 pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
+    projects_backfill_with(state, dirs::home_dir().as_deref())
+}
+
+/// [`projects_backfill_impl`] with the other managers' worktrees read
+/// under `home` (AJ-E1519: Claude Squad's, Vibe Kanban's), remembered
+/// first so a worktree they remove later still folds into its project.
+/// `None` reads none.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn projects_backfill_with(
+    state: &Arc<AppState>,
+    home: Option<&std::path::Path>,
+) -> AppResult<u32> {
     use std::collections::{BTreeMap, BTreeSet};
 
     /// What the conversations say about one project.
@@ -4836,6 +4852,18 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         last_ms: Option<i64>,
     }
 
+    // Read outside the storage lock: their files, not ours.
+    let managed: Vec<juggler_core::storage::WorktreeHome> = home
+        .map(juggler_adapters::other_managers::worktrees)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|worktree| juggler_core::storage::WorktreeHome {
+            folder: worktree.worktree,
+            repo: worktree.repo,
+            manager: worktree.manager.to_owned(),
+        })
+        .collect();
+
     crate::features::conversations::read_if_cold(state)?;
     let labels: std::collections::HashMap<String, String> = lock_storage_arc(state)?
         .accounts()
@@ -4843,12 +4871,27 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
         .into_iter()
         .map(|account| (account.id.to_string(), account.label))
         .collect();
+    let homes = {
+        let storage = lock_storage_arc(state)?;
+        let known = storage.projects().worktree_homes()?;
+        // Written only when new or moved: this runs on every change.
+        let changed: Vec<_> = managed
+            .into_iter()
+            .filter(|home| !known.contains(home))
+            .collect();
+        storage.projects().remember_worktree_homes(&changed)?;
+        if changed.is_empty() {
+            known
+        } else {
+            storage.projects().worktree_homes()?
+        }
+    };
     let mut found: BTreeMap<PathBuf, Found> = BTreeMap::new();
     for conversation in state.conversations.all()? {
         let Some(folder) = conversation.folder.as_deref() else {
             continue; // no folder recorded: nothing to attach it to
         };
-        let root = juggler_core::storage::project_root(folder);
+        let root = juggler_core::storage::project_root_with(folder, &homes);
         let entry = found.entry(root).or_default();
         if let Some(label) = labels.get(&conversation.account_id)
             && !entry.accounts.contains(label)
@@ -4865,7 +4908,7 @@ pub fn projects_backfill_impl(state: &Arc<AppState>) -> AppResult<u32> {
     // Rows an earlier backfill made for a worktree or a repository's
     // subfolder fold into their project: removed when nothing refers to them.
     for project in storage.projects().list()? {
-        if juggler_core::storage::project_root(&project.root) != project.root {
+        if juggler_core::storage::project_root_with(&project.root, &homes) != project.root {
             let _ = storage.projects().delete_if_unused(&project.id);
         }
     }
@@ -5259,6 +5302,17 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
+    preflight_with(state, session_id, target_profile_id, None)
+}
+
+/// [`switch_preflight_impl`], given the compaction scan when the caller
+/// already parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn preflight_with(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    compacted: Option<bool>,
+) -> AppResult<PreflightInfo> {
     use juggler_handover::pipeline;
 
     let (_profile_b, account_b) = find_profile_with_account_arc(state, target_profile_id)?;
@@ -5269,8 +5323,10 @@ pub fn switch_preflight_impl(
     })?;
 
     // Compaction scan from the source transcript (the F2 signal).
-    let compacted = std::fs::read(&reference.path)
-        .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary());
+    let compacted = compacted.unwrap_or_else(|| {
+        std::fs::read(&reference.path)
+            .is_ok_and(|bytes| juggler_adapters::parse_any(&bytes).has_compact_boundary())
+    });
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -11667,10 +11723,19 @@ fn transcript_side(
     std::collections::HashSet<String>,
     Vec<juggler_handover::pack::IrTurn>,
 )> {
-    use juggler_adapters::claude_transcript::MessageRole;
     // AJ-E1540: a compressed rollout (`.jsonl.zst`) reads like any other.
     let bytes = juggler_adapters::read_session_file(path).ok()?;
-    let parsed = juggler_adapters::parse_any(&bytes);
+    Some(turns_of(juggler_adapters::parse_any(&bytes)))
+}
+
+/// A parsed transcript's uuid set and user/assistant turns, in file order.
+pub(crate) fn turns_of(
+    parsed: juggler_adapters::claude_transcript::ParsedTranscript,
+) -> (
+    std::collections::HashSet<String>,
+    Vec<juggler_handover::pack::IrTurn>,
+) {
+    use juggler_adapters::claude_transcript::MessageRole;
     let mut uuids = std::collections::HashSet::new();
     let mut turns = Vec::new();
     for message in parsed.messages {
@@ -11697,7 +11762,7 @@ fn transcript_side(
             tokens: None,
         });
     }
-    Some((uuids, turns))
+    (uuids, turns)
 }
 
 /// AJ-E1541: what changed in the project while away, for the switch-back
@@ -13539,7 +13604,20 @@ pub(crate) fn stage_session_pack(
     ids: &PackIds,
     dir: &std::path::Path,
 ) -> AppResult<()> {
-    use juggler_handover::pack::{ConversationMode, IrTurn, PackInput, PackSource};
+    write_session_pack(state, session_row, account, ids, dir, None)
+}
+
+/// [`stage_session_pack`], given the turns when the caller already
+/// parsed the transcript (AJ-E1513: staging reads it once).
+pub(crate) fn write_session_pack(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &Account,
+    ids: &PackIds,
+    dir: &std::path::Path,
+    turns: Option<Vec<juggler_handover::pack::IrTurn>>,
+) -> AppResult<()> {
+    use juggler_handover::pack::{ConversationMode, PackInput, PackSource};
     use juggler_handover::redaction::{RedactionApply, RedactionPolicy, redacted_pack};
 
     let policy = {
@@ -13558,9 +13636,11 @@ pub(crate) fn stage_session_pack(
             context: "export pack",
             message: "The epoch has no transcript to pack".to_owned(),
         })?;
-    let turns: Vec<IrTurn> = transcript_side(&reference.path)
-        .map(|(_, turns)| turns)
-        .unwrap_or_default();
+    let turns = turns.unwrap_or_else(|| {
+        transcript_side(&reference.path)
+            .map(|(_, turns)| turns)
+            .unwrap_or_default()
+    });
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),
         created_at_ms: Timestamp::now().millis(),
@@ -14539,7 +14619,11 @@ pub fn alias_installs_of(
     let mut dangling = 0_u32;
     for hint in alias_rows {
         let path = hint.path.to_string_lossy().into_owned();
-        let signal = format!("{} in {}:{}", hint.variable, hint.source_file, hint.line);
+        // AJ-E1519: another manager's profile names its file, not a line.
+        let signal = match &hint.set_by {
+            Some(_) => format!("{} in {}", hint.variable, hint.source_file),
+            None => format!("{} in {}:{}", hint.variable, hint.source_file, hint.line),
+        };
         if !hint.target_exists {
             dangling += 1;
             continue;
@@ -14553,23 +14637,34 @@ pub fn alias_installs_of(
             continue;
         }
         let harness = provider_of_variable(&hint.variable);
+        let origin = if hint.set_by.is_some() {
+            "other-manager"
+        } else {
+            "shell-alias"
+        };
         let credentials_len =
             juggler_adapters::sign_in::metadata(harness, &hint.path).map(|meta| meta.len());
         out.push(DiscoveredInfo {
             inference: inference_info_of(&hint.path, None, false, credentials_len, None, false),
-            signals: vec!["shell-alias".to_owned()],
+            signals: vec![origin.to_owned()],
             harness: harness.to_owned(),
             path,
-            origin: "shell-alias".to_owned(),
+            origin: origin.to_owned(),
             login: "logged_out".to_owned(),
             bytes: 0,
             last_used_secs: None,
             managed: false,
             in_use: Vec::new(),
-            notes: vec![format!(
-                "Set by {} in your shell — {}:{}.",
-                hint.variable, hint.source_file, hint.line
-            )],
+            notes: vec![match &hint.set_by {
+                Some(manager) => format!(
+                    "Set by {} in {manager}'s settings — {}.",
+                    hint.variable, hint.source_file
+                ),
+                None => format!(
+                    "Set by {} in your shell — {}:{}.",
+                    hint.variable, hint.source_file, hint.line
+                ),
+            }],
         });
     }
     let health = if dangling > 0 {
@@ -14633,7 +14728,11 @@ fn scan_probe_rows(
             },
             format!(
                 "{} assignment(s){}",
-                alias_rows.len(),
+                // The shell's own: other managers' profiles aren't shell settings.
+                alias_rows
+                    .iter()
+                    .filter(|hint| hint.set_by.is_none())
+                    .count(),
                 if dangling > 0 {
                     format!(" ({dangling} dangling)")
                 } else {

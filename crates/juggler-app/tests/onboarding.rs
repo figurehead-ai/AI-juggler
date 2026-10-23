@@ -390,6 +390,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         source_file: "/Users/dev/.zshrc".to_owned(),
         line: 12,
         target_exists: true,
+        set_by: None,
     };
     let dangling = juggler_adapter::environment::AliasHint {
         variable: "CLAUDE_CONFIG_DIR".to_owned(),
@@ -397,6 +398,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         source_file: "/Users/dev/.zshrc".to_owned(),
         line: 40,
         target_exists: false,
+        set_by: None,
     };
     let (added, health, dangling_count) =
         commands::alias_installs_of(&[hint, dangling], &mut known);
@@ -429,10 +431,29 @@ fn alias_and_pattern_merge_into_one_candidate() {
         source_file: "/Users/dev/.zshrc".to_owned(),
         line: 60,
         target_exists: true,
+        set_by: None,
     };
     let (added, _, _) = commands::alias_installs_of(&[hint], &mut known);
     assert_eq!(added.len(), 1);
     assert_eq!(added[0].origin, "shell-alias");
+
+    // AJ-E1519: one another manager's profile set says so, not "your shell".
+    let squad = work.path().join("claude-squad-work");
+    std::fs::create_dir_all(&squad).unwrap();
+    let hint = juggler_adapter::environment::AliasHint {
+        variable: "CLAUDE_CONFIG_DIR".to_owned(),
+        path: squad,
+        source_file: "/Users/dev/.claude-squad/config.json".to_owned(),
+        line: 0,
+        target_exists: true,
+        set_by: Some("Claude Squad".to_owned()),
+    };
+    let (added, _, _) = commands::alias_installs_of(&[hint], &mut known);
+    assert_eq!(added[0].origin, "other-manager");
+    assert_eq!(
+        added[0].notes,
+        vec!["Set by CLAUDE_CONFIG_DIR in Claude Squad's settings — /Users/dev/.claude-squad/config.json.".to_owned()]
+    );
 }
 
 /// AJ-E304 Req.7 (the staging guardrail): the recommendation engine

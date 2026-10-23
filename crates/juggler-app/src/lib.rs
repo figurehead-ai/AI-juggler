@@ -422,6 +422,7 @@ macro_rules! app_commands {
             Read  features::fleet::fleet_launch_options,
             Write features::fleet::fleet_launch_start,
             Read  features::fleet::fleet_usage_by_machine,
+            Read  features::staging::staging_ready,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
             // Reads `git status` (the 2 s cache, like a session's).
@@ -541,6 +542,8 @@ pub fn run() {
         features::app::crash::follow_setting(&app_state, reopen);
         features::app::crash::resume_after_crash(&app_state);
     }
+    // AJ-E1513: prepared switches a crash left for sessions now ended.
+    features::staging::sweep_at_startup(&app_state);
 
     let attention_state = Arc::clone(&app_state);
     let heuristic_tick_state = Arc::clone(&app_state);
@@ -980,6 +983,8 @@ fn spawn_read_model_ticks(
         loop {
             std::thread::sleep(std::time::Duration::from_secs(30));
             let _ = commands::emit_quota(&quota_app, &quota_state);
+            // AJ-E1513: the switch prepared before the limit (never run).
+            features::staging::tick(&quota_state, commands::now_millis());
         }
     });
     // AJ-E1529: every account's conversations and which are live, read

@@ -57,7 +57,7 @@ fn assignment_path(line: &str, home: &Path) -> Option<(String, std::path::PathBu
 
 /// Normalizes one raw value: strips trailing comments and quotes,
 /// expands a leading `~` against `home`. Empty values yield `None`.
-fn expand_value(raw: &str, home: &Path) -> Option<std::path::PathBuf> {
+pub(crate) fn expand_value(raw: &str, home: &Path) -> Option<std::path::PathBuf> {
     let mut value = raw.split(" #").next().unwrap_or(raw).trim();
     if (value.starts_with('"') && value.ends_with('"') && value.len() >= 2)
         || (value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2)
@@ -98,6 +98,7 @@ pub fn scan_rc_assignments(home: &Path) -> (Vec<AliasHint>, ScanHealth) {
                     path,
                     source_file: file.to_string_lossy().into_owned(),
                     line: u32::try_from(index + 1).unwrap_or_default(),
+                    set_by: None,
                 });
             }
         }

@@ -13,6 +13,7 @@ pub mod project_sync;
 pub mod projects;
 pub mod quota;
 pub mod sessions;
+pub mod staging;
 pub mod switch_setup;
 pub mod terminal;
 pub mod tools;
