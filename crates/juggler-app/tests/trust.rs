@@ -613,6 +613,12 @@ fn the_window_can_reach_nothing_but_the_app() {
     {
         let capability: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(entry.path()).unwrap()).unwrap();
+        // No remote page is given the app's commands.
+        assert!(
+            capability.get("remote").is_none(),
+            "{} lets remote URLs in",
+            entry.path().display()
+        );
         for permission in capability["permissions"].as_array().unwrap() {
             let permission = permission
                 .as_str()
