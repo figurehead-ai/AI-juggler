@@ -57,4 +57,6 @@ pub use transcript::{
     session_lines, transcript_tokens,
 };
 pub mod fake_desktop;
+#[cfg(test)]
+mod stream_equivalence;
 pub use fake_desktop::{FAKE_DESKTOP_ID, FakeDesktopAdapter, SINGLE_ACCOUNT_LABEL};

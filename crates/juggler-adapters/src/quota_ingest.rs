@@ -1182,7 +1182,18 @@ pub fn tail_jsonl(
     path: &Path,
     offset: u64,
     carry: &RolloutCarry,
+    parse: impl FnMut(&[u8], RolloutCarry) -> TailOutcome,
+) -> TailOutcome {
+    tail_jsonl_by(path, offset, carry, parse, TAIL_CHUNK)
+}
+
+/// [`tail_jsonl`], `chunk` bytes at a time (the tests read in small ones).
+pub(crate) fn tail_jsonl_by(
+    path: &Path,
+    offset: u64,
+    carry: &RolloutCarry,
     mut parse: impl FnMut(&[u8], RolloutCarry) -> TailOutcome,
+    chunk: u64,
 ) -> TailOutcome {
     use std::io::Seek as _;
     let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
@@ -1214,7 +1225,7 @@ pub fn tail_jsonl(
     let mut bytes = Vec::new();
     while at < len {
         bytes.clear();
-        let _ = (&mut file).take(TAIL_CHUNK).read_to_end(&mut bytes);
+        let _ = (&mut file).take(chunk).read_to_end(&mut bytes);
         if bytes.is_empty() {
             break;
         }
@@ -1225,14 +1236,14 @@ pub fn tail_jsonl(
             .rposition(|byte| *byte == b'\n')
             .map_or(0, |index| index + 1);
         if consumed == 0 {
-            if (bytes.len() as u64) < TAIL_CHUNK {
+            if (bytes.len() as u64) < chunk {
                 break; // the last line, still being written
             }
             // One line longer than a chunk: no usage line is; skipped
             // whole, never held.
             match skip_line(&mut file) {
                 Some(skipped) => {
-                    at += TAIL_CHUNK + skipped;
+                    at += chunk + skipped;
                     total.parse_errors += 1;
                     continue;
                 }

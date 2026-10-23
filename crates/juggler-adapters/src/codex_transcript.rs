@@ -434,3 +434,124 @@ fn accumulate(total: &mut TokenCounts, usage: &serde_json::Value) {
     total.cache_write += read("cache_write_input_tokens");
     total.reasoning += read("reasoning_output_tokens");
 }
+
+/// The whole-file parser this module's [`RolloutParser`] replaced, kept
+/// as it was so the tests can hold the new one to it (0.1: transcripts
+/// read in bounded memory must say exactly what they said).
+#[cfg(test)]
+pub(crate) mod reference {
+    use super::*;
+
+    pub fn parse_rollout(bytes: &[u8]) -> ParsedTranscript {
+        let mut parsed = ParsedTranscript::default();
+        let mut session_id: Option<String> = None;
+        let mut model: Option<String> = None;
+        // One usage row per response: a forked or resumed rollout repeats
+        // its parent's rows (the usage pipeline's dedupe key).
+        let mut counted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        // AJ-E1541: tool calls wait for what Codex says next, so a call and
+        // the reply after it are one turn ("ran tests; added the test").
+        let mut pending_tools: Vec<String> = Vec::new();
+        for (index, line) in bytes.split(|b| *b == b'\n').enumerate() {
+            if line.iter().all(u8::is_ascii_whitespace) {
+                continue;
+            }
+            parsed.lines_total += 1;
+            let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
+                parsed.lines_malformed += 1;
+                continue;
+            };
+            let kind = text(&value, "type").unwrap_or_else(|| "unknown".to_owned());
+            *parsed.kinds.entry(kind.clone()).or_default() += 1;
+            let payload = value.get("payload").cloned().unwrap_or_default();
+            if let Some(subtype) = text(&payload, "type") {
+                *parsed
+                    .subtypes
+                    .entry(format!("{kind}/{subtype}"))
+                    .or_default() += 1;
+            }
+            match kind.as_str() {
+                "session_meta" => session_id = text(&payload, "id").or(session_id),
+                "turn_context" => model = text(&payload, "model").or(model),
+                "token_usage_record" => {
+                    let key = ["thread_id", "turn_id", "response_id"]
+                        .map(|field| text(&payload, field).unwrap_or_default())
+                        .join("/");
+                    if let Some(usage) = payload.get("usage")
+                        && counted.insert(key)
+                    {
+                        accumulate(&mut parsed.usage, usage);
+                    }
+                }
+                "response_item" if text(&payload, "type").as_deref() == Some("message") => {
+                    let role = match text(&payload, "role").as_deref() {
+                        Some("user") => MessageRole::User,
+                        Some("assistant") => MessageRole::Assistant,
+                        _ => continue, // developer/system instructions
+                    };
+                    let body = message_text(payload.get("content"));
+                    if body.trim().is_empty()
+                        || (role == MessageRole::User
+                            && INJECTED_PREFIXES
+                                .iter()
+                                .any(|prefix| body.trim_start().starts_with(prefix)))
+                    {
+                        continue;
+                    }
+                    if role == MessageRole::User && !pending_tools.is_empty() {
+                        flush_tools(
+                            &mut parsed,
+                            &mut pending_tools,
+                            session_id.as_deref(),
+                            index,
+                        );
+                    }
+                    parsed.messages.push(ParsedMessage {
+                        // Rollouts are append-only: the line number is a
+                        // stable identity when the item carries no id.
+                        // Scoped by thread: line numbers repeat across
+                        // rollouts, ids from two files must never collide.
+                        uuid: text(&payload, "id").or_else(|| {
+                            Some(format!(
+                                "{}:line:{index}",
+                                session_id.as_deref().unwrap_or("rollout")
+                            ))
+                        }),
+                        parent_uuid: None,
+                        session_id: session_id.clone(),
+                        role,
+                        text: body,
+                        tools: if role == MessageRole::Assistant {
+                            std::mem::take(&mut pending_tools)
+                        } else {
+                            Vec::new()
+                        },
+                        usage: None,
+                        model: (role == MessageRole::Assistant)
+                            .then(|| model.clone())
+                            .flatten(),
+                        sidechain: false,
+                    });
+                }
+                // AJ-E1541: a tool call is its own item in a rollout: one line
+                // saying what it did, and the plan it set.
+                "response_item"
+                    if matches!(
+                        text(&payload, "type").as_deref(),
+                        Some("function_call" | "custom_tool_call")
+                    ) =>
+                {
+                    tool_call(&mut parsed, &mut pending_tools, &payload);
+                }
+                _ => {}
+            }
+        }
+        flush_tools(
+            &mut parsed,
+            &mut pending_tools,
+            session_id.as_deref(),
+            usize::MAX,
+        );
+        parsed
+    }
+}
