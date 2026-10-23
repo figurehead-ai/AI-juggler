@@ -130,7 +130,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | Switching a conversation to another account or tool | Beta: checked live between Claude Code accounts, between Codex accounts, and between Claude Code and Codex, both ways; every pair still says "Not proven yet" |
 | A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
 | Crash reports, scrubbed on your Mac (off unless you choose) | Kept on your Mac; this version can't send them anywhere yet |
-| Fleet: your other Macs in the same window | Beta: not yet verified across two Macs |
+| Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
 | More tools (OpenCode, ZCode, Kimi and others) | Planned |
 | Windows and Linux | Not before 1.0 |
 
