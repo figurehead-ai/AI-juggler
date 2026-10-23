@@ -202,6 +202,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quota warnings come back in the next window: after an account's first
+  warning, later windows never warned again. A window with no known reset
+  time still warns once.
 - A switch to another account of the same tool says the same thing in the
   list and on the switch screen: "Same conversation, new account" (the
   list said "Full story, fresh start", though the switch resumes the same
@@ -427,6 +430,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The switch is ready before the limit** (AJ-E1513). Once an account
+  nears its limit (80 % of a window, or under 45 minutes left at the
+  current pace), AI Juggler prepares the switch for the session in the
+  background: it checks the switch to the account it would suggest and
+  keeps a redacted copy of the conversation in its own folder, readable by
+  you only. When the limit is hit, the dialog says "Ready to continue on
+  Work · prepared 4 min ago". Nothing switches by itself; the copy is
+  deleted when the session ends or the window resets.
 - **Start a session on another Mac** (AJ-E1515). With paired Macs, New
   session asks where it runs: pick a paired Mac and choose from its own
   projects and accounts; it starts there over the link (that Mac checks
@@ -434,6 +445,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (not connected, view only) says why. Usage and Fleet show what each Mac
   used in the last 24 hours.
 - **The number that says AI Juggler works** (AJ-E1523): a "juggling loop", a session that reached its usage limit with its work going on elsewhere, counted in the opt-in usage statistics and documented in `docs/usage-stats.md`. A switch away from a session at its limit now counts as the limit's, however the switch screen was opened.
+- **Coming from another tool** (AJ-E1519). A guide for Claude Squad,
+  Vibe Kanban, Crystal and cc-switch users says what comes across and what
+  to do about the rest. A worktree Claude Squad or Vibe Kanban removed now
+  stays with its repository's project instead of becoming a project of
+  its own (AI Juggler remembers where each one belongs while they list
+  it), and a config folder their profiles point Claude Code or Codex at is
+  offered in Add account. Their files are read without being changed, and
+  only those folders.
 - **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
   account and window, about how many of your usual sessions are left
   (worked out from the tool's own readings and your past sessions, with
