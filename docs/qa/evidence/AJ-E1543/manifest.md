@@ -45,6 +45,41 @@ the failing cell's one-level drop, `advertised_ceiling_number`),
 register's "Switch rows show" column regenerated; the preview's matrix
 and default preflight follow.
 
+## Req.4: the screen on real data, up to Confirm (2026-10-23)
+
+QA walked the switch screen in a Dev build on the real setup, through the read-only Dev bridge (#153
+serves `switch_targets`, `switch_preflight` with secret previews masked, and `switch_setup_check`).
+The full record is walk batches 28 and 29 in `docs/qa/evidence/walks/2026-10-21-real-readonly.md`
+on `claude/qa-real-walk-clean` (`e878e5f9`, `18fa9d89`, `dfa259b2`).
+
+- **Setup:**
+  - The real setups were brought in where they are, with redacted labels.
+  - The screen opens from AI Juggler's own sessions, and the real setup has none, so one finished
+    session record was added to AI Juggler Dev's own data for a real Claude Code conversation
+    (`tests/qa_switch_session.rs`). No process ran and nothing was launched.
+  - The record was removed after each walk.
+  - Switch stayed disabled (no secrets choice saved) and was never pressed.
+  - The real folders were unchanged.
+- **Batch 28 (`ff7970c6`)** found two problems:
+  - P23: the screen named a Claude Code → Claude Code switch "Full story, fresh start" (F1), unlike
+    its list row, and the Codex replay showed the transplant's Beta line.
+  - P24: the set-up list showed each claude.ai skill twice, with duplicate offer ids.
+- **Batch 29 (`beda0d7d`, #160): all OK.** The raw replies were checked for all six targets, and
+  the screen was walked for one Claude Code account and for Codex:
+  - **Claude Code → Claude Code:** "Same conversation, new account" in the list, on Target and on
+    Confirm, with "Not proven yet" said separately. Its reasons include "This move hasn't been
+    proven on a real setup yet.", and its Beta line is the transplant's (`mechanism: transplant`).
+  - **Claude Code → Codex:** "Full story, fresh start". Its Beta line starts "a fresh start on
+    Codex…" and never says "the whole session moves". What's carried says "Doesn't carry".
+  - **Labels:** no "F1" or "fidelity N" anywhere. `validated` is the same in the list and the
+    preflight.
+  - **Set-up list to Codex:** 10 rows for 10 skills, with no duplicate ids.
+  - **Secrets:** 2 detected `sk-key` items, previews "•••".
+
+The switch itself is proven live in the labs (AJ-E1539, labs 9–11). These walks add the screen on
+real data, up to Confirm.
+
 ## Left
 
-- **Req.4 once on the real lab.** The switch screen still has to be walked in the real Dev app during a live switch. The lab drives the same commands without the screen.
+- **Wording, minor:** Target's reason "This switch leaves behind: skills & commands, subagent
+  state." says in other words what the list and What's carried call "Doesn't carry".
