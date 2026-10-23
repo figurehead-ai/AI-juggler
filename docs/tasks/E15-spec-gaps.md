@@ -674,7 +674,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: AJ-E803, E210 and E306.
 **Handover note**: —
 
-### AJ-E1523 North-star metric: weekly juggling loops completed | Status: TODO | Priority P2 | Effort S | Depends: AJ-E1103
+### AJ-E1523 North-star metric: weekly juggling loops completed | Status: DONE-EVIDENCED | Priority P2 | Effort S | Depends: AJ-E1103
 **Goal**: We can tell whether AI Juggler does its job.
 **User story**: As the maintainer, I see how often a session hit a limit and carried on elsewhere.
 **Requirements**:

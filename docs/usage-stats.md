@@ -37,6 +37,19 @@ Settings ▸ Privacy. Switching to Off deletes everything stored locally.
   that. Because a report has no id, a report that was already sent can't
   be found and deleted later.
 
+## The one number we watch
+
+AI Juggler is there so you can keep working when a limit stops you. The
+number that says whether it does is the **juggling loop**: a session
+reached its usage limit, and its work went on, on another account or
+tool.
+
+In a report, that's `switch.completed` with `trigger` `quota_wall` and
+`outcome` `success`. A switch away from a session at its limit counts as
+`quota_wall` however you opened the switch screen. It's counted per week,
+like everything else. With **Keep stats on this Mac only**, you can see
+your own count in Settings ▸ Privacy.
+
 ## Never collected
 
 - Prompts, responses, transcripts, code, diffs, file or folder names,
