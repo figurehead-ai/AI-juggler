@@ -388,7 +388,7 @@ fn ingest_claude(
     // Transcripts: <dir>/projects/**/*.jsonl, offset-tracked.
     let projects = dir.join("projects");
     let mut files = Vec::new();
-    collect_files(&projects, &mut files, is_jsonl);
+    let _ = collect_files(&projects, &mut files, is_jsonl);
     forget_missing(ingest, account, &projects, &files);
     ingest_files(
         account,
@@ -416,13 +416,16 @@ fn ingest_codex(
 ) {
     let sessions = dir.join("sessions");
     let mut files = Vec::new();
-    collect_files(
+    let complete = collect_files(
         &sessions,
         &mut files,
         juggler_adapters::codex::is_rollout_file,
     );
     forget_missing(ingest, account, &sessions, &files);
-    if !ingest.compactions_checked.contains(account) {
+    // Only from a whole listing with rollouts in it: an empty, missing or
+    // unreadable folder would make every thread look gone, and the check
+    // is made once. Left for a pass that reads them.
+    if !ingest.compactions_checked.contains(account) && complete && !files.is_empty() {
         // Every rollout still here, by thread; a name that doesn't give
         // its thread skips the check (its session can't be told present).
         let present: Option<std::collections::BTreeSet<String>> = files
@@ -702,25 +705,34 @@ fn load_state(state: &Arc<AppState>) -> IngestState {
 /// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that
 /// `keep` accepts: the one walk for every source the pipeline tails. What a
 /// source's files look like is its adapter's to say.
-fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) {
-    walk(root, out, keep, 0);
+fn collect_files(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool) -> bool {
+    walk(root, out, keep, 0)
 }
 
-fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) {
+/// `false` when the listing may be missing files: a folder that couldn't
+/// be read (the root included), an entry that couldn't, or one deeper
+/// than [`MAX_WALK_DEPTH`].
+fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32) -> bool {
     if depth > MAX_WALK_DEPTH {
-        return;
+        return false;
     }
     let Ok(entries) = std::fs::read_dir(root) else {
-        return;
+        return false;
     };
-    for entry in entries.flatten() {
+    let mut complete = true;
+    for entry in entries {
+        let Ok(entry) = entry else {
+            complete = false;
+            continue;
+        };
         let path = entry.path();
         if path.is_dir() {
-            walk(&path, out, keep, depth + 1);
+            complete &= walk(&path, out, keep, depth + 1);
         } else if keep(&path) {
             out.push(path);
         }
     }
+    complete
 }
 
 /// A Claude transcript (`.jsonl`).
