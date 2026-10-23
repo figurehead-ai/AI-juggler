@@ -403,7 +403,7 @@ fn monitoring_costs_under_one_percent_of_a_core() {
     for _ in 0..4 {
         commands::processes_tick(&state);
     }
-    let (used, before, after) = simulated_minute(&state);
+    let (used, before, after, _) = simulated_minute(&state);
     // The breakdown: E14's machine half (sampler, running tools,
     // footprints, This Mac) on its own, over another minute.
     let machine_started = ThreadTime::now();
@@ -446,30 +446,44 @@ fn monitoring_costs_under_one_percent_of_a_core() {
 }
 
 /// One simulated minute of monitoring: 30 of the 2 s ticks and 12 of the
-/// 5 s This Mac emissions. This thread's CPU time, and the collector's work
-/// before and after.
+/// 5 s This Mac emissions. This thread's CPU time over the ticks, the
+/// collector's work before and after, and each listing's reads of the
+/// observed tools' processes beside those trees' size at that listing
+/// (read between ticks, outside the CPU time).
 fn simulated_minute(
     state: &Arc<AppState>,
 ) -> (
     Duration,
     juggler_supervisor::CollectorWork,
     juggler_supervisor::CollectorWork,
+    Vec<(u64, u64)>,
 ) {
     use cpu_time::ThreadTime;
     let before = state.resources.lock().unwrap().work();
-    let started = ThreadTime::now();
+    let mut used = Duration::ZERO;
+    let mut listings = Vec::new();
+    let mut last = before;
     for tick in 0..30 {
+        let started = ThreadTime::now();
         commands::processes_tick(state);
         if tick % 5 == 2 || tick % 5 == 4 {
             // 12 emissions a minute (every 5 s).
             juggler_app::machine_health::this_mac_impl(state, Timestamp::now().millis()).unwrap();
         }
+        used += started.elapsed();
+        let collector = state.resources.lock().unwrap();
+        let work = collector.work();
+        if work.listings > last.listings {
+            let trees: u64 = collector
+                .observed_snapshot()
+                .values()
+                .map(|tree| tree.pids.len() as u64)
+                .sum();
+            listings.push((work.targeted_observed - last.targeted_observed, trees));
+        }
+        last = work;
     }
-    (
-        started.elapsed(),
-        before,
-        state.resources.lock().unwrap().work(),
-    )
+    (used, before, last, listings)
 }
 
 /// The CPU budget. Other work on the machine only ever adds to this
@@ -487,7 +501,7 @@ fn assert_cpu_within_budget(state: &Arc<AppState>, first: f64) {
         && readings.len() < 3
         && busy()
     {
-        let (used, _, _) = simulated_minute(state);
+        let (used, _, _, _) = simulated_minute(state);
         readings.push(used.as_secs_f64() / 60.0 * 100.0);
         loads.push(sysinfo::System::load_average().one);
     }
@@ -729,7 +743,7 @@ fn monitoring_beside_a_busy_claude_app() {
     for _ in 0..4 {
         commands::processes_tick(&state);
     }
-    let (used, before, after) = simulated_minute(&state);
+    let (used, before, after, each) = simulated_minute(&state);
     let share = used.as_secs_f64() / 60.0 * 100.0;
     let observed = after.targeted_observed - before.targeted_observed;
     let ticks = after.ticks - before.ticks;
@@ -744,20 +758,19 @@ fn monitoring_beside_a_busy_claude_app() {
     );
     // Its processes are read at each listing only, never every tick (the
     // old code read them at all 24 ticks between full scans: about twice
-    // this). The trees' size now, with room for a few that came and went.
+    // this). Each listing against the trees' size at that listing, with
+    // room for a few that came and went: the size at the end of the minute
+    // understates it on a Mac whose real tools churn (7,125 read against
+    // 12 × (543 + 30) = 6,876 at load 34). A read every tick would still
+    // show: twice the reads against the same trees.
     let listings = after.listings - before.listings;
     assert_eq!(listings, 12);
-    let trees: u64 = state
-        .resources
-        .lock()
-        .unwrap()
-        .observed_snapshot()
-        .values()
-        .map(|tree| tree.pids.len() as u64)
-        .sum();
-    assert!(
-        observed <= listings * (trees + 30),
-        "read at the listings only: {observed} for {listings} listings of {trees} processes"
-    );
+    assert_eq!(each.len(), 12, "every listing measured: {each:?}");
+    for (read, trees) in &each {
+        assert!(
+            *read <= trees + 30,
+            "read at the listings only: {read} at a listing of {trees} processes ({each:?})"
+        );
+    }
     assert_cpu_within_budget(&state, share);
 }

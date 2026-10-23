@@ -647,3 +647,20 @@
   The budgets of a second or more (session launch, preview, cancel,
   revocation) are left alone. None was seen to flake; a repeat would
   make them the next ones.
+- **Fixed, 2026-10-22 (fix/load-budget-listings).** The load_budgets
+  flake above, plus two p95 budgets the first timing sweep missed (it
+  looked for `elapsed() <`, not for percentiles):
+  - `load_budgets :: monitoring_beside_a_busy_claude_app` now bounds
+    each listing by the observed trees' size at that listing:
+    `read ≤ trees + 30`, the same slack as before. The simulated minute
+    records each listing's reads and trees between ticks, outside the
+    CPU time it measures. The failing run read 7,125 against
+    12 × (543 + 30) = 6,876 from the end size. A read every tick would
+    still fail: each listing would show about twice its trees.
+  - `commands :: session_info_join_p95_under_budget_at_50_instances`:
+    the join runs on the test thread, so its p95 is now this thread's
+    CPU time, with wall time in the message. It read 25.7 ms of wall
+    time at load 36, for a join that takes under 1 ms.
+  - `transport :: mutual_tls_with_pinned_keys_connects_and_serves`: the
+    heartbeat RTT p95 (50 ms, across threads) stays wall time, as the
+    best of up to three rounds of 40.
