@@ -68,7 +68,7 @@ export function genericTool(id: string): ToolSpecInfo {
     setup_groups: [{ id: "setups", title: `${id} setups`, path_contains: null, origin: null, shows_install: true }],
     default_label: null,
     flow: { first_run: false, primary: false },
-    terms_notes: [],
+    terms: null,
     home_env: [],
     supports: { in_place: false, limits: false },
   };

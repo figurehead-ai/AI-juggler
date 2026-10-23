@@ -188,6 +188,10 @@ tokens or API keys, and never opens the tools' Keychain items.
 
 AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
 
+[What AI Juggler touches](./docs/guide/trust.md) has the full list, and
+names the tests that check each line. The same list is in the app, under
+More › **Privacy**.
+
 ## Permissions
 
 All optional. AI Juggler works without any of them.

@@ -1194,7 +1194,7 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
 /// reads this instead of the id).
 #[must_use]
 pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
-    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
+    use juggler_adapter::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
     let group = |id: &str,
                  title: &str,
                  path_contains: Option<&str>,
@@ -1239,7 +1239,15 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
             first_run: true,
             primary: true,
         },
-        terms_notes: Vec::new(),
+        // Checked against the terms on 2026-10-23 (AJ-E1518's register).
+        terms: Some(ToolTerms {
+            name: "Anthropic's Consumer Terms".to_owned(),
+            url: "https://www.anthropic.com/legal/consumer-terms".to_owned(),
+            accounts: "Each account is yours alone: the terms say not to share one or make it \
+                       available to anyone else, and Pro and Max limits assume one person's use."
+                .to_owned(),
+            checked: "2026-10-23".to_owned(),
+        }),
     }
 }
 

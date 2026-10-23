@@ -418,6 +418,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Privacy page** (AJ-E1518), under More and linked from Settings ›
+  Privacy: what AI Juggler reads, changes and sends, and what it never
+  does. Each line names the tests that check it, behind the line, and a
+  test fails the build if a line names a test that isn't there. The same
+  list is in `docs/guide/trust.md`. New tests back the lines no test held
+  before: only three crates can reach the network, each to its own address
+  (Figurehead, GitHub, your paired Macs); the window can talk only to the
+  app; no tool is pointed at a proxy or another provider address; and no
+  switch starts without a click.
+- **The tools' terms on Add account** (AJ-E1518): one line on what each
+  tool's terms say about several accounts, with the terms linked. The
+  words are checked against the vendors' own pages, with the source and
+  date in a register.
 - **A new account starts with your usual settings** (AJ-E1508). Add
   account's fresh account offers **Start with the same settings as …**
   an account of the same tool: its MCP servers, its permissions and its

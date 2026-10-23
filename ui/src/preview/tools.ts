@@ -30,7 +30,13 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     ],
     default_label: "Default",
     flow: { first_run: true, primary: true },
-    terms_notes: [],
+    terms: {
+      name: "Anthropic's Consumer Terms",
+      url: "https://www.anthropic.com/legal/consumer-terms",
+      accounts:
+        "Each account is yours alone: the terms say not to share one or make it available to anyone else, and Pro and Max limits assume one person's use.",
+      checked: "2026-10-23",
+    },
     home_env: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
     supports: { in_place: true, limits: true },
   },
@@ -53,7 +59,12 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     setup_groups: [{ id: "codex", title: "Codex", path_contains: null, origin: null, shows_install: true }],
     default_label: "Codex",
     flow: { first_run: true, primary: false },
-    terms_notes: [],
+    terms: {
+      name: "OpenAI's Terms of Use",
+      url: "https://openai.com/policies/terms-of-use/",
+      accounts: "OpenAI lets one person have several accounts; its terms say not to share one, or to get around its usage limits.",
+      checked: "2026-10-23",
+    },
     home_env: ["CODEX_HOME", "CODEX_SQLITE_HOME", "AI_JUGGLER_CODEX_BIN"],
     supports: { in_place: true, limits: false },
   },

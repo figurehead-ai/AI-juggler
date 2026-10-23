@@ -102,3 +102,14 @@ function ProblemPanel({
     </div>
   );
 }
+
+/** A screen that scrolls in the main area, inside its own boundary. */
+export function ScrollingScreen({ screen, label, children }: { screen: string; label: string; children: ReactNode }): JSX.Element {
+  return (
+    <div className="relative h-full overflow-y-auto">
+      <ScreenBoundary screen={screen} label={label}>
+        {children}
+      </ScreenBoundary>
+    </div>
+  );
+}

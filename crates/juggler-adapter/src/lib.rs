@@ -45,5 +45,5 @@ pub use error::AdapterError;
 pub use identity::IdentityProbe;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
-pub use spec::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec};
+pub use spec::{SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
 pub use watcher::{SessionEvent, SessionWatcher};

@@ -6,7 +6,7 @@
 pub mod commands;
 pub mod dto;
 
-pub use dto::{SetupGroupInfo, ToolFlowInfo, ToolSpecInfo, ToolSupportsInfo};
+pub use dto::{SetupGroupInfo, ToolFlowInfo, ToolSpecInfo, ToolSupportsInfo, ToolTermsInfo};
 
 use std::sync::Arc;
 
@@ -55,7 +55,12 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
             first_run: spec.flags.first_run,
             primary: spec.flags.primary,
         },
-        terms_notes: spec.terms_notes,
+        terms: spec.terms.map(|terms| ToolTermsInfo {
+            name: terms.name,
+            url: terms.url,
+            accounts: terms.accounts,
+            checked: terms.checked,
+        }),
         home_env: adapter
             .isolation_env_keys()
             .iter()

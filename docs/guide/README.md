@@ -26,6 +26,9 @@
 - [Keep work going](keep-work-going.md): restarting crashed sessions,
   keeping the Mac awake, reopening after a crash, opening at login.
 
+- [What AI Juggler touches](trust.md): what it reads, changes and sends,
+  and what it never does, each line checked by tests.
+
 **When things go wrong**
 
 - [When a provider is down](when-a-provider-is-down.md): moving your work

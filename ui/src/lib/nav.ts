@@ -17,6 +17,8 @@ export const GLOBAL_NAV = [
   { id: "settings", label: "Settings" },
   // AJ-E1528: what Home's This Mac panel sums up, in full.
   { id: "thismac", label: "This Mac" },
+  // AJ-E1518: what AI Juggler reads, changes and sends, each line tested.
+  { id: "privacy", label: "Privacy" },
 ] as const;
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
@@ -35,4 +37,5 @@ export const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
   { id: "thismac", label: "This Mac", hint: "What your AI tools use on this Mac" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
   { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
+  { id: "privacy", label: "Privacy", hint: "What AI Juggler reads, changes and sends" },
 ];

@@ -21,6 +21,7 @@ import { toolFound } from "./lib/providers";
 import { launchPortWarning, type PortWarningInfo,} from "./lib/bridge";
 import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, type GlobalId } from "./lib/nav";
 import { ThisMacScreen } from "./screens/ThisMacScreen";
+import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -77,7 +78,7 @@ import { IsolationOfferDialog } from "./components/IsolationOfferDialog";
 import { funnelEvent } from "./lib/funnel";
 import { SessionPanel } from "./screens/WorkPanels";
 import { NotificationRegion } from "./components/NotificationRegion";
-import { ScreenBoundary } from "./components/ScreenBoundary";
+import { ScreenBoundary, ScrollingScreen } from "./components/ScreenBoundary";
 import { SwitchFlow, showSwitchUndoToast } from "./components/SwitchFlow";
 import { SwitchBackFlow } from "./components/SwitchBackFlow";
 import { RightInspector } from "./components/RightInspector";
@@ -357,11 +358,14 @@ export default function App() {
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
+    const openScreen = (event: Event) => setGlobal((event as CustomEvent<{ id: GlobalId }>).detail.id);
     window.addEventListener("aij:open-accounts", openAccounts);
     window.addEventListener("aij:new-session", newSession);
+    window.addEventListener("aij:open-screen", openScreen);
     return () => {
       window.removeEventListener("aij:open-accounts", openAccounts);
       window.removeEventListener("aij:new-session", newSession);
+      window.removeEventListener("aij:open-screen", openScreen);
     };
   }, []);
 
@@ -781,62 +785,54 @@ export default function App() {
               </ScreenBoundary>
             </div>
           ) : global === "accounts" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="accounts" screen="accounts" label="Accounts">
-                <ProfilesScreen
-                  key={accountsNonce}
-                  sessions={sessions}
-                  onAddAccounts={() => startAddAccount()}
-                  onAccountsChanged={() => void refresh()}
-                  openTerminal={openLoginTerminal}
-                  onInspectAccount={(id) => {
-                    setGlobal(null);
-                    setSelection({ kind: "account", id });
-                  }}
-                />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
+              <ProfilesScreen
+                key={accountsNonce}
+                sessions={sessions}
+                onAddAccounts={() => startAddAccount()}
+                onAccountsChanged={() => void refresh()}
+                openTerminal={openLoginTerminal}
+                onInspectAccount={(id) => {
+                  setGlobal(null);
+                  setSelection({ kind: "account", id });
+                }}
+              />
+            </ScrollingScreen>
           ) : global === "history" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="history" screen="history" label="History">
-                <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="history" screen="history" label="History">
+              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+            </ScrollingScreen>
           ) : global === "usage" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="usage" screen="usage" label="Usage">
-                <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="usage" screen="usage" label="Usage">
+              <UsageScreen accounts={accounts} sessions={sessions} onAddAccounts={() => setFirstRun(true)} onOpenHome={openHome} />
+            </ScrollingScreen>
           ) : global === "fleet" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="fleet" screen="fleet" label="Fleet">
-                <FleetScreen
-                  onOpenCloud={openCloudSettings}
-                  onInspectRemote={inspectRemote}
-                  onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
-                />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="fleet" screen="fleet" label="Fleet">
+              <FleetScreen
+                onOpenCloud={openCloudSettings}
+                onInspectRemote={inspectRemote}
+                onOpenHome={accounts.length === 0 && loaded ? openHome : undefined}
+              />
+            </ScrollingScreen>
           ) : global === "thismac" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="thismac" screen="this-mac-page" label="This Mac">
-                <ThisMacScreen
-                  nameOf={(id) => {
-                    const session = sessions.find((s) => s.id === id);
-                    return session ? placeOf(session, projects).title : "A session";
-                  }}
-                  onOpenSession={selectSession}
-                  onOpenCleanup={() => setGlobal("cleanup")}
-                />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="thismac" screen="this-mac-page" label="This Mac">
+              <ThisMacScreen
+                nameOf={(id) => {
+                  const session = sessions.find((s) => s.id === id);
+                  return session ? placeOf(session, projects).title : "A session";
+                }}
+                onOpenSession={selectSession}
+                onOpenCleanup={() => setGlobal("cleanup")}
+              />
+            </ScrollingScreen>
+          ) : global === "privacy" ? (
+            <ScrollingScreen key="privacy" screen="privacy" label="Privacy">
+              <PrivacyScreen />
+            </ScrollingScreen>
           ) : global === "settings" ? (
-            <div className="relative h-full overflow-y-auto">
-              <ScreenBoundary key="settings" screen="settings" label="Settings">
-                <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="settings" screen="settings" label="Settings">
+              <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
+            </ScrollingScreen>
           ) : selectedLogin ? (
             <SessionPanel
               session={null}

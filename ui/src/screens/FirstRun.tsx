@@ -39,6 +39,7 @@ import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
+import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import {
   accountImport,
@@ -63,7 +64,6 @@ import {
   type ScanReportData,
 } from "../lib/bridge";
 
-type Step = "found" | "fresh" | "folder" | "signin" | "access";
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
 type Group = { key: string; id: string; tool: string; title: string; showsInstall: boolean };
@@ -139,42 +139,6 @@ export function preselected(found: DiscoveredInfo, nowSecs: number): boolean {
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
-
-function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
-  // The fresh-account and folder steps are the first step's other doors.
-  const first = step === "fresh" ? "Name the account" : step === "folder" ? "Check the folder" : "Bring in your accounts";
-  const steps: Array<{ id: Step; label: string }> = [
-    { id: step === "fresh" || step === "folder" ? step : "found", label: first },
-    { id: "signin", label: "Sign in where needed" },
-    ...(skipAccess ? [] : [{ id: "access" as Step, label: "Computer access" }]),
-  ];
-  const at = steps.findIndex((entry) => entry.id === step);
-  return (
-    <ol className="flex flex-wrap items-center gap-3 text-xs text-muted" aria-label="First-run steps">
-      {steps.map((entry, index) => (
-        <li key={entry.id} className="flex items-center gap-3" aria-current={index === at ? "step" : undefined}>
-          {index > 0 && <span aria-hidden="true" className="h-px w-6 bg-hairline" />}
-          <span className={"flex items-center gap-2 " + (index === at ? "font-semibold text-ink" : "")}>
-            <span
-              aria-hidden="true"
-              className={
-                "flex size-5 items-center justify-center rounded-full text-[11px] " +
-                (index < at
-                  ? "bg-success-soft text-success"
-                  : index === at
-                    ? "bg-accent text-canvas"
-                    : "border border-hairline")
-              }
-            >
-              {index < at ? "✓" : index + 1}
-            </span>
-            {entry.label}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 type ImportState = {
   state: "pending" | "working" | "done" | "already" | "failed";
@@ -1336,6 +1300,7 @@ export function FirstRun({
           )}
           {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
           {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
+          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={tools} />}
         </div>
       </div>
     </div>
