@@ -626,6 +626,27 @@
   thread's CPU time, with wall time printed beside them; the 20 ms
   wall-time maximum under the lock still catches the disk listing it
   guards against. Same approach as #131's orphan tick budget.
+- **Timing sweep, 2026-10-22 (fix/timing-budgets).** The coordinator's
+  load-heavy run failed release/0.1's
+  `manage_projects :: relocate_repoints_a_moved_folder_and_refuses_a_missing_or_taken_one`
+  at 419 ms against a 100 ms wall budget. That test is only on
+  release/0.1; its `timed` helper and the fix are for the release
+  session. On main, the tests that assert tight wall-clock budgets were
+  swept:
+  - `manage_accounts`: `BUDGET` is 200 ms over rename, remove and set
+    default. These are synchronous, so the check is now this thread's
+    CPU time (`within_budget`), with wall time printed beside it. They
+    measure about 0.4–0.9 ms.
+  - `juggler-link` `registry :: fifty_peers_load_fast_and_stay_small`:
+    a 50 ms load budget, now this thread's CPU time.
+  - `transport :: mutual_tls_with_pinned_keys_connects_and_serves`: the
+    300 ms LAN handshake budget runs across the runtime's threads, so
+    it stays wall time (what a user waits), passing if any of up to
+    three tries fits.
+
+  The budgets of a second or more (session launch, preview, cancel,
+  revocation) are left alone. None was seen to flake; a repeat would
+  make them the next ones.
 - **Flake record, 2026-10-22 (open; a test-design weakness).** In #143's
   verify (5c3c4446), at load 34, with many Claude Code sessions running
   on this Mac,
