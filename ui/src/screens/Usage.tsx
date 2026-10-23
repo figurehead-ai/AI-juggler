@@ -8,6 +8,7 @@ import { ToolMark } from "../components/ToolMark";
 import { WelcomePointer } from "../components/Welcome";
 import { useEffect, useState, type JSX } from "react";
 import { AccountRunway } from "../components/AccountRunway";
+import { BurnDowns } from "../components/BurnDown";
 import { CostMatrix } from "../components/CostMatrix";
 import { Button, Card } from "../components/primitives";
 import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
@@ -73,6 +74,7 @@ export function UsageScreen({
                     display={displays.find((d) => d.account === account.id)}
                     sessions={sessions.filter((s) => s.account_id === account.id)}
                   />
+                  <BurnDowns display={displays.find((d) => d.account === account.id)} />
                 </Card>
               </li>
             ))}

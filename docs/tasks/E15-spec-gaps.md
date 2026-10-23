@@ -506,7 +506,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1543/manifest.md`.
 ## Wave 2 — usage you can act on, Fleet and support
 
-### AJ-E1512 Sessions left and a burn-down chart | Status: TODO | Priority P1 | Effort M | Depends: AJ-E608
+### AJ-E1512 Sessions left and a burn-down chart | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E608
 **Goal**: Usage answers "how much more can I do?" in the units people plan with.
 **User story**: As a user mid-afternoon, I see "about 4 sessions left in this window", and when it runs out.
 **Requirements**:

@@ -26,6 +26,29 @@ export interface WindowDisplay {
   burned_tokens: number;
   burned_credits: number | null;
   headroom_tokens: number | null;
+  /** AJ-E1512: sessions left and the burn-down (absent without a measured
+   * reading of a window that hasn't reset). */
+  runway?: RunwayDisplay | null;
+}
+
+/** AJ-E1512: a window's runway — worked out from the vendor's readings of
+ * it and the account's typical session (`juggler_core::quota_runway`). */
+export interface RunwayDisplay {
+  /** The window's readings so far, oldest first: `[epoch ms, percent used]`. */
+  series: [number, number][];
+  starts_ms: number;
+  resets_at_ms: number;
+  used_pct: number;
+  /** The recent pace, percent of the window per hour. */
+  pct_per_hour: number | null;
+  /** When it runs out at that pace — only when before the reset. */
+  exhausts_at_ms: number | null;
+  /** A typical session's cost, percent of the window. */
+  session_pct: number | null;
+  sessions_left: number | null;
+  sessions_counted: number;
+  /** `measured|computed|estimated`: the lowest of what went in. */
+  badge: string;
 }
 
 /** AJ-E610: the subscription clock's typed state (calendar line, D-12). */

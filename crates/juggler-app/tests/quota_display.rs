@@ -313,3 +313,71 @@ fn epoch_of(date: &str) -> i64 {
     let days = era * 146_097 + doe - 719_468;
     days * 86_400_000
 }
+
+/// AJ-E1512: each window's runway reaches the display — sessions left
+/// from the account's typical session, the burn-down's readings, and the
+/// confidence word — and a window with no reading has none.
+#[test]
+fn a_measured_window_carries_its_runway() {
+    use juggler_core::model::{Confidence, TokenCounts};
+    use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let storage = state.storage.lock().unwrap();
+    let now = Timestamp::now().millis();
+    let (min, hour) = (60_000_i64, 3_600_000_i64);
+    let resets_at = now + 2 * hour;
+    let event = |ts: i64, session: &str, tokens: u64| UsageEvent {
+        account: "acc-d".into(),
+        session: Some(session.into()),
+        ts,
+        model: None,
+        tokens: TokenCounts {
+            input: tokens,
+            ..TokenCounts::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: UsageSource::Transcript,
+        confidence: Confidence::Measured,
+        msg_uuid: None,
+    };
+    let mut events: Vec<UsageEvent> = (0..4)
+        .map(|n| event(now - 24 * hour + n * hour, &format!("past-{n}"), 100_000))
+        .collect();
+    events.extend((0..8).map(|n| event(now - 110 * min + n * 13 * min, "today", 50_000)));
+    storage.usage().insert_events(&events).unwrap();
+    let samples: Vec<(String, WindowKind, QuotaSample)> = (0..=12)
+        .map(|i| {
+            (
+                "acc-d".to_owned(),
+                WindowKind::FiveHour,
+                QuotaSample {
+                    ts: now - (120 - i * 10) * min,
+                    used_pct: f64::from(i as i32) * 40.0 / 12.0,
+                    resets_at: Some(resets_at),
+                    confidence: Confidence::Measured,
+                },
+            )
+        })
+        .collect();
+    storage.usage().insert_samples(&samples).unwrap();
+
+    let info = quota_display_inner(&storage, &account("claude-code", Some("max")), now);
+    let runway = info
+        .five_hour
+        .as_ref()
+        .unwrap()
+        .runway
+        .as_ref()
+        .expect("a runway");
+    assert_eq!(runway.sessions_left, Some(6));
+    assert_eq!(runway.series.len(), 13);
+    assert_eq!(runway.resets_at_ms, resets_at);
+    assert_eq!(runway.badge, "computed");
+    assert!(
+        info.weekly
+            .as_ref()
+            .is_none_or(|weekly| weekly.runway.is_none())
+    );
+}

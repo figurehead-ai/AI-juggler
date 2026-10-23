@@ -426,6 +426,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sessions left and a burn-down** (AJ-E1512). Usage now says, per
+  account and window, about how many of your usual sessions are left
+  (worked out from the tool's own readings and your past sessions, with
+  its confidence word), and draws the window's burn-down: what's been
+  used, where this pace goes (and when it runs out, if that's before the
+  reset), and the reset.
 - **Start from a context pack** (AJ-E1511). New session › **Start from a
   context pack…** opens a pack you saved: it's checked whole first (every
   file as the pack recorded it, nothing outside it, no keys), then shown
