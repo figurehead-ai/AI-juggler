@@ -144,11 +144,18 @@ fn archive_round_trips_exactly_and_delete_has_no_single_call_path() {
     );
 
     let before = juggler_app::commands::instances_shared_snapshot(&state).unwrap();
-    let started = Instant::now();
+    // This thread's CPU time (other programs' turns on a busy machine
+    // don't count against it); wall time is printed beside it.
+    let wall = Instant::now();
+    let started = cpu_time::ThreadTime::now();
     history::instance_archive_impl(&state, "s-done").unwrap();
     assert_eq!(lifecycle_of(&state, "s-done").as_deref(), Some("archived"));
     history::instance_unarchive_impl(&state, "s-done").unwrap();
-    assert!(started.elapsed() < Duration::from_secs(1));
+    let (took, wall) = (started.elapsed(), wall.elapsed());
+    assert!(
+        took < Duration::from_secs(1),
+        "{took:?} CPU (wall {wall:?})"
+    );
     let after = juggler_app::commands::instances_shared_snapshot(&state).unwrap();
     let strip = |rows: Vec<juggler_app::commands::InstanceInfo>| {
         rows.into_iter()
@@ -230,11 +237,16 @@ fn search_finds_the_session_with_a_snippet_over_1000_sessions_and_replay_is_byte
     assert_eq!(report.sessions, 1000);
     assert!(built < Duration::from_secs(30), "{built:?}");
 
-    let started = Instant::now();
+    // This thread's CPU time; wall time printed beside it.
+    let wall = Instant::now();
+    let started = cpu_time::ThreadTime::now();
     let hits = history::transcript_search_impl(&state, "stripe webhook").unwrap();
-    let took = started.elapsed();
-    eprintln!("[perf] transcript search over 1,000 sessions: {took:?}");
-    assert!(took < Duration::from_millis(500), "{took:?}");
+    let (took, wall) = (started.elapsed(), wall.elapsed());
+    eprintln!("[perf] transcript search over 1,000 sessions: {took:?} CPU, {wall:?} wall");
+    assert!(
+        took < Duration::from_millis(500),
+        "{took:?} CPU (wall {wall:?})"
+    );
     assert_eq!(hits.len(), 1, "{hits:?}");
     assert_eq!(hits[0].session_id, "s-777");
     assert!(

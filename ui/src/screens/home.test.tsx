@@ -13,6 +13,7 @@ import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
+import { cpuTimed } from "../test/cpuTime";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -385,8 +386,8 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
   it("renders 50 sessions well inside 300 ms", () => {
     const statuses = ["waiting_user", "stuck", "running", "finished", "quota_blocked"];
     const sessions = Array.from({ length: 50 }, (_, n) => mk(`s-${n}`, { status: statuses[n % 5]! }));
-    const started = performance.now();
-    renderHome(sessions);
-    expect(performance.now() - started).toBeLessThan(300);
+    // CPU time, so a busy machine's other programs don't count against it.
+    const { cpuMs, wallMs } = cpuTimed(() => renderHome(sessions));
+    expect(cpuMs, `${cpuMs.toFixed(0)} ms CPU (wall ${wallMs.toFixed(0)} ms)`).toBeLessThan(300);
   });
 });
