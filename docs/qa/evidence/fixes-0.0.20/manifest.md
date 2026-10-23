@@ -6,3 +6,11 @@ Not a task's evidence. From #134's review (the coordinator's decision, 2026-10-2
 |---|---|---|---|---|---|---|---|
 | Only a gone thread's copy of a stored call goes | `UsageRepo::forget_duplicated_compactions`: a `…/compacted/…` row goes only when its session isn't among the listed rollouts' threads and its five token classes equal a stored record's (`thread/turn/response`). `juggler-core :: compaction_leftovers :: only_a_gone_sessions_copy_of_a_stored_call_goes` (the copy goes, and nothing else: every other row stays, checked by key. That covers a gone file's real compaction, the same tokens in a thread still here, a near-copy with one class different, a gone thread's own record with the same tokens, and a live thread's real compaction; a second run deletes nothing) | — | passed | PASS | da999c73 | 2026-10-22 | claude-opus |
 | Once per account, no file re-read | Its own marker in the ingest state (`compactions_checked`), not `REREAD_VERSION`: nothing is read again, so there's nothing to coordinate with release/0.1. A listing with a rollout name that gives no thread skips the check. `usage_pipeline :: a_gone_threads_copy_of_a_stored_call_goes_once` (the copy goes on the first pass; one stored later stays: the check ran once) | fails on main | main: the copy stays; now passes | PASS | da999c73 | 2026-10-22 | claude-opus |
+
+## Gates
+
+| Gate | Head | Result |
+|---|---|---|
+| `just verify` (`CARGO_INCREMENTAL=0`, includes the three clippy variants) | 0c78cf97 | 151 test binaries, 1,227 passed, 0 failed, at load 14–45 |
+| `cargo deny check` | 0c78cf97 | ok |
+| vitest, visual, a11y | — | nothing under `ui/` changed |
