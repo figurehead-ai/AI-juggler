@@ -3,6 +3,9 @@
 // count against it, as wall time does. Wall time is returned beside it.
 // Tests run under Node; the app's types don't include Node's, so the one
 // call is typed here.
+// It counts the whole process: right with vitest's default `forks` pool
+// (one process per file); under `pool: "threads"` it would count the
+// other workers too.
 
 interface CpuUsage {
   user: number;
