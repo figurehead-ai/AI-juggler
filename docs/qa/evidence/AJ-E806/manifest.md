@@ -736,3 +736,20 @@
   Alone it passed 3 of 3, with p95 36, 61 and 37 ms (the third run was
   quarantined at load 69). This PR doesn't touch the supervisor; the
   budget is the next one to move off wall time.
+- **Fixed, 2026-10-23 (fix/idle-fixture).** #147's Linux CI failed
+  `guardrails :: idle_nudge_fires_exactly_once_per_orphan`: "never
+  idle-eligible: state orphaned, age 37,140 ms, cpu 3.85 %".
+  - **Cause:** the fixture (`trap_helper.py`) waited out its 5-minute
+    life in a 0.2 s poll, so it woke 5 times a second.
+  - Linux charges CPU in whole 10 ms clock ticks, and the test samples
+    about every 250 ms. 3.85 % is exactly one tick in a 260 ms window: one
+    wake was charged a tick.
+  - macOS accounts precisely, so it doesn't show there: run side by side
+    for 20 s at load 58, both versions read 0.00 s CPU and 0 of 74 samples
+    at 1 % or more.
+  - **Fix:** the fixture now sleeps in one blocking call, with no wakes.
+    A signal still interrupts it and the handler runs at once; after a
+    logged-and-ignored TERM, Python sleeps out the rest. The idle
+    threshold is unchanged.
+  - **Checked:** guardrails 10 of 10, and the supervisor's collateral,
+    observed and reaper suites pass.
