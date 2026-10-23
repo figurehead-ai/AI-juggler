@@ -17,6 +17,7 @@ pub mod cloud_backup;
 pub mod commands;
 pub mod crash;
 pub mod crossmachine;
+pub mod ids;
 // The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
 // the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
