@@ -418,6 +418,7 @@ macro_rules! app_commands {
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_resume_command,
+            Write features::conversations::commands::conversations_go_to,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::sessions::commands::sessions_resume_command,
@@ -1029,6 +1030,7 @@ fn spawn_read_model_ticks(
             features::staging::tick(&quota_state, commands::now_millis());
         }
     });
+    let live_app = conversations_app.clone();
     // AJ-E1529: every account's conversations and which are live, read
     // from the tools' own files every 15 s (only changed files are read
     // again); the UI hears of it only when something changed.
@@ -1051,6 +1053,25 @@ fn spawn_read_model_ticks(
                 std::thread::sleep(std::time::Duration::from_secs(15));
             }
         });
+    }
+    // AJ-E2101: what is open now, from the tools' own session files and
+    // the process table (never an environment): small files every 2 s,
+    // known pids every 5 s, the whole table at most once a minute. The UI
+    // hears of it only when something changed.
+    {
+        let live_state = index_state.clone();
+        let _ = std::thread::Builder::new()
+            .name("live-sessions".to_owned())
+            .spawn(move || {
+                loop {
+                    use tauri::Emitter;
+                    if let Ok(true) = features::conversations::live_tick(&live_state) {
+                        let _ = live_app.emit(features::conversations::EVENT_CHANGED, ());
+                    }
+                    // poll: the live view's cadence (scan::TICK, 2 s).
+                    std::thread::sleep(features::conversations::scan::TICK);
+                }
+            });
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());

@@ -245,25 +245,62 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
-    /// AJ-E2101 (D-37): the sessions open now in the profile at
-    /// `profile_dir`, from the tool's own per-session files (never a
-    /// process's environment). Each names its pid and start time when the
-    /// tool records them; the app checks both against the process table.
-    /// Read-only and tolerant. Default: none.
+    /// AJ-E2101 (D-37): the per-session files in the profile at
+    /// `profile_dir` that say which sessions are open (Claude Code's
+    /// `sessions/<pid>.json`). Lists only; reads nothing. Default: none.
     #[must_use]
-    fn live_sessions(&self, profile_dir: &Path) -> Vec<crate::live::LiveSession> {
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
         let _ = profile_dir;
         Vec::new()
     }
 
-    /// AJ-E2101: the sessions this tool's desktop app keeps in the
-    /// instance whose data folder is `instance_dir` (its sidebar), read
-    /// field by field: titles, archived, when last in front, and the last
-    /// turn's status word, never summary text. Default: none.
+    /// AJ-E2101: what one of [`HarnessAdapter::live_session_files`] says:
+    /// the session, its pid and start time when recorded. Read-only and
+    /// tolerant: `None` for a file of another shape. Default: `None`.
     #[must_use]
-    fn app_sessions(&self, instance_dir: &Path) -> Vec<crate::live::AppSession> {
+    fn read_live_session(&self, path: &Path) -> Option<crate::live::LiveSession> {
+        let _ = path;
+        None
+    }
+
+    /// AJ-E2101 (D-37): the sessions open now in the profile at
+    /// `profile_dir`, from the tool's own per-session files (never a
+    /// process's environment). Each names its pid and start time when the
+    /// tool records them; the app checks both against the process table.
+    #[must_use]
+    fn live_sessions(&self, profile_dir: &Path) -> Vec<crate::live::LiveSession> {
+        self.live_session_files(profile_dir)
+            .iter()
+            .filter_map(|path| self.read_live_session(path))
+            .collect()
+    }
+
+    /// AJ-E2101: the files in which this tool's desktop app keeps its
+    /// sessions, for the instance whose data folder is `instance_dir`.
+    /// Lists only. Default: none.
+    #[must_use]
+    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
         let _ = instance_dir;
         Vec::new()
+    }
+
+    /// AJ-E2101: one of [`HarnessAdapter::app_session_files`], read field
+    /// by field: its title, archived, when last in front, and the last
+    /// turn's status word, never summary text. Default: `None`.
+    #[must_use]
+    fn read_app_session(&self, path: &Path) -> Option<crate::live::AppSession> {
+        let _ = path;
+        None
+    }
+
+    /// AJ-E2101: the sessions this tool's desktop app keeps in the
+    /// instance at `instance_dir` (its sidebar).
+    #[must_use]
+    fn app_sessions(&self, instance_dir: &Path) -> Vec<crate::live::AppSession> {
+        self.app_session_files(instance_dir)
+            .iter()
+            .filter_map(|path| self.read_app_session(path))
+            .collect()
     }
 
     /// AJ-E2101: the sessions a running process of this tool holds open,

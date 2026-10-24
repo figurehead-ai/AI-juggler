@@ -431,7 +431,7 @@ impl juggler_app::focus::ScriptRunner for FocusFixture {
         }
         Ok(String::new())
     }
-    fn activate(&self, _bundle_id: &str) -> Result<(), String> {
+    fn activate(&self, _pid: u32) -> Result<(), String> {
         Ok(())
     }
 }
@@ -462,7 +462,7 @@ fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
     });
-    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner).unwrap();
+    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
     assert_eq!(outcome.outcome, "Focused window");
     assert!(!outcome.permission_missing);
     assert_eq!(outcome.window_title.as_deref(), Some("notes-a"));
@@ -508,7 +508,7 @@ fn desktop_focus_on_a_ended_instance_reports_not_running_without_scripts() {
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
     });
-    let outcome = commands::desktop_focus_with(&state, "sess-desk-done", runner).unwrap();
+    let outcome = commands::desktop_focus_with(&state, "sess-desk-done", runner, true).unwrap();
     assert_eq!(outcome.outcome, "App not running — Relaunch?");
     assert_eq!(outcome.window_title, None);
 }
@@ -543,7 +543,7 @@ fn desktop_focus_refuses_terminal_instances_by_name() {
         })
         .unwrap();
     drop(storage);
-    let error = commands::desktop_focus_with(&state, "sess-term", runner).unwrap_err();
+    let error = commands::desktop_focus_with(&state, "sess-term", runner, true).unwrap_err();
     assert!(error.to_string().contains("desktop sessions"), "{error}");
 }
 
@@ -578,7 +578,7 @@ fn desktop_focus_without_recorded_identity_redisovers_by_bundle() {
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
     });
-    let outcome = commands::desktop_focus_with(&state, "sess-desk-legacy", runner).unwrap();
+    let outcome = commands::desktop_focus_with(&state, "sess-desk-legacy", runner, true).unwrap();
     assert_eq!(outcome.outcome, "Focused window");
     // The synthesized identity was enriched and persisted.
     let storage = state.storage.lock().unwrap();
@@ -600,7 +600,7 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(true),
     });
-    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner).unwrap();
+    let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
     assert_eq!(outcome.outcome, "App opened — window not found");
     assert!(
         outcome.permission_missing,

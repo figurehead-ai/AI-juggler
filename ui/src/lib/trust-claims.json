@@ -39,6 +39,25 @@
             "crates/juggler-adapters/tests/other_managers.rs::vibe_kanban_profiles_offer_the_folders_they_point_at",
             "crates/juggler-adapters/tests/other_managers.rs::the_importers_never_name_a_sign_in_or_key_file"
           ]
+        },
+        {
+          "id": "open-sessions",
+          "text": "To show what's open, it reads each tool's own session files: Claude Code's list of running sessions, and from the Claude app only each session's ids, folder, title, times, archived mark and status word, never its summaries. For the Codex app it reads which of its files the app has open. It never reads a running program's environment, where the Claude app keeps a sign-in token.",
+          "tests": [
+            "crates/juggler-app/tests/trust.rs::no_process_environment_is_ever_read",
+            "crates/juggler-app/src/features/conversations/procs.rs::the_process_read_never_asks_for_environments",
+            "crates/juggler-adapters/src/claude_live.rs::an_app_session_keeps_its_status_word_and_never_its_summary_text",
+            "crates/juggler-adapters/src/claude_live.rs::a_pid_file_reads_its_session_and_the_key_file_is_never_listed",
+            "crates/juggler-adapters/src/codex_live.rs::held_locks_and_rollouts_name_their_threads_once"
+          ]
+        },
+        {
+          "id": "parent-chain",
+          "text": "To know which app and profile a session runs in, it looks at which program started it and with what options, on your Mac only.",
+          "tests": [
+            "crates/juggler-app/src/features/conversations/places.rs::a_desktop_session_is_in_its_claude_instance_by_its_argument",
+            "crates/juggler-app/src/features/conversations/places.rs::a_terminal_session_is_in_its_terminal_and_an_unknown_app_by_its_name"
+          ]
         }
       ]
     },
@@ -185,6 +204,15 @@
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_spec_points_at_isolated_dir",
             "crates/juggler-adapters/tests/codex_adapter.rs::login_spec_runs_the_vendor_flow_in_the_isolated_home",
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read"
+          ]
+        },
+        {
+          "id": "no-prompt-click",
+          "text": "Going to a session never asks for a permission. It uses Accessibility and Automation only when you turned them on in Settings.",
+          "tests": [
+            "crates/juggler-app/src/features/conversations/goto/tests.rs::window_counts_and_minimised_need_window_focus_turned_on",
+            "crates/juggler-app/src/features/conversations/goto/tests.rs::a_terminal_tab_is_selected_only_when_tabs_are_on",
+            "crates/juggler-app/src/focus.rs::without_window_focus_only_the_process_is_activated"
           ]
         },
         {

@@ -66,7 +66,7 @@ pub fn is_session_server(exe: Option<&Path>, args: &[String]) -> bool {
     codex && args.iter().skip(1).any(|arg| arg == "app-server")
 }
 
-/// The Codex app, as data: the Dock calls it ChatGPT, and a thread opens
+/// The Codex app, as data: the Dock calls it `ChatGPT`, and a thread opens
 /// with its documented link.
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {

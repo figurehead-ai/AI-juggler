@@ -855,3 +855,45 @@ fn every_tool_names_its_terms_and_the_preview_matches() {
         );
     }
 }
+
+// ---------------------------------------------------------------------
+// AJ-E2101 (D-37): no process's environment is read
+
+/// What would read another process's environment: sysinfo's environment
+/// read, and the refreshes that bring it along.
+const ENVIRONMENT_READS: [&str; 5] = [
+    "with_environ(",
+    ".environ()",
+    "ProcessRefreshKind::everything(",
+    "System::new_all(",
+    "KERN_PROCARGS2",
+];
+
+/// The Claude app's sessions carry a sign-in token in their environment:
+/// no shipped code of any crate asks for a process's environment. Which
+/// profile and app a session runs in come from its own files, its parent
+/// chain and its arguments.
+#[test]
+fn no_process_environment_is_ever_read() {
+    let mut found = Vec::new();
+    for crate_name in workspace_crates() {
+        for (path, text) in shipped(&crate_name) {
+            let code = code_only(&text);
+            for read in ENVIRONMENT_READS {
+                if code.contains(read) {
+                    found.push(format!("{}: {read}", path.display()));
+                }
+            }
+        }
+    }
+    assert!(found.is_empty(), "environment reads: {found:#?}");
+}
+
+/// The guardrail sees a read in code, and not in a comment or a string.
+#[test]
+fn the_environment_guardrail_sees_code_not_words() {
+    let code =
+        code_only("// never .environ()\nlet a = \"with_environ(\";\nlet b = process.environ();\n");
+    assert!(code.contains(".environ()"));
+    assert!(!code.contains("with_environ("));
+}

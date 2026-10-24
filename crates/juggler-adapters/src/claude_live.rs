@@ -168,7 +168,7 @@ pub fn app_files(instance_dir: &Path) -> Vec<PathBuf> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if name.starts_with("local_") && name.ends_with(".json") {
+                if name.starts_with("local_") && path.extension().is_some_and(|ext| ext == "json") {
                     out.push(path);
                     if out.len() >= APP_FILES_MAX {
                         return out;

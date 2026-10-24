@@ -494,12 +494,20 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_conversations::session_process(exe, args)
     }
 
-    fn live_sessions(&self, profile_dir: &Path) -> Vec<juggler_adapter::live::LiveSession> {
-        crate::claude_live::live_sessions(profile_dir)
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::pid_files(profile_dir)
     }
 
-    fn app_sessions(&self, instance_dir: &Path) -> Vec<juggler_adapter::live::AppSession> {
-        crate::claude_live::app_sessions(instance_dir)
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::claude_live::read_pid_file(path)
+    }
+
+    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::app_files(instance_dir)
+    }
+
+    fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
+        crate::claude_live::read_app_file(path)
     }
 
     fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {

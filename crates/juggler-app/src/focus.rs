@@ -1,17 +1,16 @@
-//! The Focus Window service (AJ-E414): tiered focus that raises the
-//! EXACT window a desktop Instance owns — activate the app, match the
+//! The Focus Window service (AJ-E414, AJ-E2102): tiered focus that raises
+//! the EXACT window a desktop Instance owns — activate the app, match the
 //! recorded window identity, clear `AXMinimized`, then `AXRaise`.
 //!
-//! Mechanism pin (recorded in this task's PR): the task named
-//! `accessibility-sys`/`objc2-app-kit`, but the workspace law
-//! `unsafe_code = "forbid"` (Cargo.toml `[workspace.lints.rust]`,
-//! QUALITY.md §1) bars their FFI. The tiers are therefore driven
-//! through `/usr/bin/osascript` + System Events (AX) and
-//! `/usr/bin/open -b` (app activation — the `LaunchServices` equivalent
-//! of `NSRunningApplication.activate`, and it needs neither the
-//! Accessibility nor the Automation grant). Scriptable through the
-//! [`ScriptRunner`] seam so the tier logic is unit-testable with no
-//! GUI, cross-platform, and 10/10-repeatable.
+//! Mechanism pin. Tier (a), the app's activation, is by the owning
+//! PROCESS (`NSRunningApplication`, safe objc2 calls, no permission):
+//! never by bundle id, which brought the wrong instance forward when an
+//! app runs several (all six of the maintainer's Claude profiles share
+//! one, AJ-E2102). Tiers (b) and (c) go through `/usr/bin/osascript` +
+//! System Events (AX), and run ONLY when the user turned window focus on
+//! in Settings: a click never raises a permission prompt (D-37).
+//! Scriptable through the [`ScriptRunner`] seam so the tier logic is
+//! unit-testable with no GUI, cross-platform, and 10/10-repeatable.
 
 use std::sync::Arc;
 
@@ -26,6 +25,9 @@ pub const OUTCOME_WINDOW_NOT_FOUND: &str = "App opened — window not found";
 pub const OUTCOME_NOT_RUNNING: &str = "App not running — Relaunch?";
 /// Honest outcome on non-macOS builds (no window system to target).
 pub const OUTCOME_UNSUPPORTED: &str = "Window focus unavailable on this platform";
+/// AJ-E2102: the app came forward; the exact window needs window focus
+/// turned on in Settings (never asked for from a click).
+pub const OUTCOME_APP_FORWARD: &str = "Brought the app forward";
 
 /// One focus attempt: the honest outcome, whether the Accessibility
 /// grant is missing (degraded tier), and the (possibly enriched)
@@ -53,17 +55,18 @@ pub trait ScriptRunner: Send + Sync {
     /// The stderr text of a failed script (non-zero exit or spawn
     /// failure) — the tiers match on it, never panic on it.
     fn osascript(&self, source: &str) -> Result<String, String>;
-    /// Activates the app by bundle id via `LaunchServices`
-    /// (`open -b`) — no permission prompts, works for a running app.
+    /// AJ-E2102: brings the app whose process is `pid` forward
+    /// (`NSRunningApplication`) — no permission prompts, the right
+    /// instance of an app that runs several.
     ///
     /// # Errors
     ///
-    /// The stderr text when the app cannot be activated (unknown
-    /// bundle id, spawn failure); focus degrades, never panics.
-    fn activate(&self, bundle_id: &str) -> Result<(), String>;
+    /// Why the app could not come forward (gone, or macOS refused);
+    /// focus degrades, never panics.
+    fn activate(&self, pid: u32) -> Result<(), String>;
 }
 
-/// The real runner: `/usr/bin/osascript -e` and `/usr/bin/open -b`.
+/// The real runner: `/usr/bin/osascript -e` and `NSRunningApplication`.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OsascriptRunner;
 
@@ -81,16 +84,12 @@ impl ScriptRunner for OsascriptRunner {
         }
     }
 
-    fn activate(&self, bundle_id: &str) -> Result<(), String> {
-        let out = std::process::Command::new("/usr/bin/open")
-            .arg("-b")
-            .arg(bundle_id)
-            .output()
-            .map_err(|e| e.to_string())?;
-        if out.status.success() {
-            Ok(())
-        } else {
-            Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    fn activate(&self, pid: u32) -> Result<(), String> {
+        use crate::features::conversations::goto::{Activation, activate_pid};
+        match activate_pid(pid) {
+            Activation::Done => Ok(()),
+            Activation::Gone => Err("not running".to_owned()),
+            Activation::Refused => Err("macOS didn't let it come forward".to_owned()),
         }
     }
 }
@@ -159,12 +158,25 @@ impl FocusService {
     /// sight; collision → `window not found`), then clear
     /// `AXMinimized` and `AXRaise` (clearing FIRST — `AXRaise` on a
     /// minimised window is a silent no-op).
+    /// `exact_windows`: the user turned window focus on in Settings;
+    /// without it only tier (a) runs, and System Events is never asked.
     #[must_use]
-    pub fn attempt(&self, identity: &WindowIdentity) -> FocusAttempt {
+    pub fn attempt(&self, identity: &WindowIdentity, exact_windows: bool) -> FocusAttempt {
         let mut identity = identity.clone();
-        // Tier (a): app activation, always (Space reveal + degrade path).
-        if let Some(bundle) = identity.bundle_id.clone() {
-            let _ = self.runner.activate(&bundle);
+        // Tier (a): app activation by its process, always (Space reveal +
+        // degrade path). Pid 0 is a pre-v10 identity: nothing to activate
+        // until tier (b) re-discovers it.
+        let activated = identity.pid != 0 && self.runner.activate(identity.pid).is_ok();
+        if !exact_windows {
+            return FocusAttempt {
+                outcome: if activated {
+                    OUTCOME_APP_FORWARD
+                } else {
+                    OUTCOME_NOT_RUNNING
+                },
+                permission_missing: activated,
+                identity: Some(identity),
+            };
         }
         // Tier (b): enumerate the app's windows by recorded PID;
         // a stale PID re-discovers the process by bundle id. A denial
@@ -205,6 +217,8 @@ impl FocusService {
                             && let Ok(pid) = pid.trim().parse::<u32>()
                         {
                             identity.pid = pid;
+                            identity.start_time = None;
+                            let _ = self.runner.activate(pid);
                         }
                         raw
                     }
@@ -283,7 +297,11 @@ fn window_not_found(identity: WindowIdentity) -> FocusAttempt {
 /// builds report the honest unsupported outcome instead of shelling
 /// out to binaries that do not exist.
 #[must_use]
-pub fn focus(runner: Arc<dyn ScriptRunner>, identity: &WindowIdentity) -> FocusAttempt {
+pub fn focus(
+    runner: Arc<dyn ScriptRunner>,
+    identity: &WindowIdentity,
+    exact_windows: bool,
+) -> FocusAttempt {
     if !cfg!(target_os = "macos") {
         return FocusAttempt {
             outcome: OUTCOME_UNSUPPORTED,
@@ -291,7 +309,7 @@ pub fn focus(runner: Arc<dyn ScriptRunner>, identity: &WindowIdentity) -> FocusA
             identity: Some(identity.clone()),
         };
     }
-    FocusService::new(runner).attempt(identity)
+    FocusService::new(runner).attempt(identity, exact_windows)
 }
 
 #[cfg(test)]
@@ -391,8 +409,8 @@ mod tests {
             Ok("System Events".into())
         }
 
-        fn activate(&self, bundle_id: &str) -> Result<(), String> {
-            self.activation_log.lock().unwrap().push(bundle_id.into());
+        fn activate(&self, pid: u32) -> Result<(), String> {
+            self.activation_log.lock().unwrap().push(pid.to_string());
             Ok(())
         }
     }
@@ -416,7 +434,7 @@ mod tests {
         let runner = FixtureRunner::two_windows();
         let service = FocusService::new(runner.clone());
         for attempt in 1..=10 {
-            let result = service.attempt(&identity());
+            let result = service.attempt(&identity(), true);
             assert_eq!(
                 result.outcome, OUTCOME_FOCUSED_WINDOW,
                 "attempt {attempt} must focus the window"
@@ -445,7 +463,7 @@ mod tests {
         let runner = FixtureRunner::two_windows();
         let mut id = identity();
         id.title = None;
-        let result = FocusService::new(runner).attempt(&id);
+        let result = FocusService::new(runner).attempt(&id, true);
         assert_eq!(result.outcome, OUTCOME_FOCUSED_WINDOW);
         assert_eq!(result.identity.unwrap().title.as_deref(), Some("notes-a"));
     }
@@ -460,7 +478,7 @@ mod tests {
             let mut windows = runner.windows.lock().unwrap();
             windows[1] = "notes-a".into();
         }
-        let result = FocusService::new(runner.clone()).attempt(&identity());
+        let result = FocusService::new(runner.clone()).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
         assert!(
             runner.raises().is_empty(),
@@ -475,10 +493,10 @@ mod tests {
     fn missing_permission_degrades_to_activation_with_flag() {
         let runner = FixtureRunner::two_windows();
         runner.permission_denied.store(true, Ordering::SeqCst);
-        let result = FocusService::new(runner.clone()).attempt(&identity());
+        let result = FocusService::new(runner.clone()).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
         assert!(result.permission_missing);
-        assert_eq!(runner.activations(), vec!["dev.aijuggler.fake-desktop"]);
+        assert_eq!(runner.activations(), vec!["111"]);
         assert!(
             runner.raises().is_empty(),
             "degraded tier must not attempt a raise"
@@ -494,7 +512,7 @@ mod tests {
         runner.window_read_denied.store(true, Ordering::SeqCst);
         let mut id = identity();
         id.pid = 0; // pre-v10-style identity: pid path errs first
-        let result = FocusService::new(runner.clone()).attempt(&id);
+        let result = FocusService::new(runner.clone()).attempt(&id, true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
         assert!(
             result.permission_missing,
@@ -509,7 +527,7 @@ mod tests {
     fn stale_pid_is_rediscovered_by_bundle_id() {
         let runner = FixtureRunner::two_windows();
         runner.pid_alive.store(false, Ordering::SeqCst);
-        let result = FocusService::new(runner).attempt(&identity());
+        let result = FocusService::new(runner).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_FOCUSED_WINDOW);
         assert_eq!(result.identity.unwrap().pid, 42_424);
     }
@@ -521,7 +539,7 @@ mod tests {
         let runner = FixtureRunner::two_windows();
         runner.pid_alive.store(false, Ordering::SeqCst);
         runner.bundle_gone.store(true, Ordering::SeqCst);
-        let result = FocusService::new(runner).attempt(&identity());
+        let result = FocusService::new(runner).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_NOT_RUNNING);
     }
 
@@ -531,7 +549,7 @@ mod tests {
     fn windowless_app_reports_window_not_found() {
         let runner = FixtureRunner::two_windows();
         runner.windows.lock().unwrap().clear();
-        let result = FocusService::new(runner).attempt(&identity());
+        let result = FocusService::new(runner).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
     }
 
@@ -541,7 +559,7 @@ mod tests {
     fn failed_raise_reports_window_not_found() {
         let runner = FixtureRunner::two_windows();
         runner.raise_fails.store(true, Ordering::SeqCst);
-        let result = FocusService::new(runner).attempt(&identity());
+        let result = FocusService::new(runner).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
     }
 
@@ -555,7 +573,7 @@ mod tests {
             let mut windows = runner.windows.lock().unwrap();
             windows[1] = "renamed".into();
         }
-        let result = FocusService::new(runner.clone()).attempt(&identity());
+        let result = FocusService::new(runner.clone()).attempt(&identity(), true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
         assert!(
             runner.raises().is_empty(),
@@ -574,8 +592,27 @@ mod tests {
         }
         let mut id = identity();
         id.title = None;
-        let result = FocusService::new(runner).attempt(&id);
+        let result = FocusService::new(runner).attempt(&id, true);
         assert_eq!(result.outcome, OUTCOME_WINDOW_NOT_FOUND);
+    }
+
+    /// AJ-E2102: window focus off in Settings — the app comes forward by
+    /// its process, and System Events is never asked (no prompt from a
+    /// click). The outcome says the window step needs the setting.
+    #[test]
+    fn without_window_focus_only_the_process_is_activated() {
+        let runner = FixtureRunner::two_windows();
+        let result = FocusService::new(runner.clone()).attempt(&identity(), false);
+        assert_eq!(result.outcome, OUTCOME_APP_FORWARD);
+        assert!(result.permission_missing);
+        assert_eq!(runner.activations(), vec!["111"]);
+        assert!(runner.scripts().is_empty(), "no AppleScript at all");
+        // A pre-v10 identity (no pid) has nothing to bring forward.
+        let mut legacy = identity();
+        legacy.pid = 0;
+        let result = FocusService::new(runner.clone()).attempt(&legacy, false);
+        assert_eq!(result.outcome, OUTCOME_NOT_RUNNING);
+        assert!(runner.scripts().is_empty());
     }
 
     /// The platform gate: on this build the entry either runs the
@@ -585,7 +622,7 @@ mod tests {
     fn public_entry_platform_gates_before_running() {
         let runner = FixtureRunner::two_windows();
         let bridged: Arc<dyn ScriptRunner> = runner.clone();
-        let result = focus(bridged, &identity());
+        let result = focus(bridged, &identity(), true);
         if cfg!(target_os = "macos") {
             assert_eq!(result.outcome, OUTCOME_FOCUSED_WINDOW);
         } else {
@@ -601,6 +638,28 @@ mod tests {
 static LINK_RUNNER: std::sync::Mutex<Option<Arc<dyn ScriptRunner + Send + Sync>>> =
     std::sync::Mutex::new(None);
 static LOCK_OVERRIDE: std::sync::Mutex<Option<bool>> = std::sync::Mutex::new(None);
+
+static LINK_EXACT: std::sync::Mutex<Option<bool>> = std::sync::Mutex::new(None);
+
+/// Whether a remote focus request may reach the exact window on this Mac:
+/// the user turned window focus on here (a test can force it).
+#[must_use]
+pub fn link_exact_windows(state: &Arc<crate::state::AppState>) -> bool {
+    LINK_EXACT
+        .lock()
+        .ok()
+        .and_then(|slot| *slot)
+        .unwrap_or_else(|| crate::os_access::exact_windows_allowed(state))
+}
+
+/// Test seam: force whether a remote focus may reach the exact window
+/// (None = the user's setting).
+#[doc(hidden)]
+pub fn set_link_exact_windows_for_test(allowed: Option<bool>) {
+    if let Ok(mut slot) = LINK_EXACT.lock() {
+        *slot = allowed;
+    }
+}
 
 /// The runner a remote focus request uses on this Mac.
 #[must_use]
