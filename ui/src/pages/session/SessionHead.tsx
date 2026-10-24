@@ -4,26 +4,29 @@
  * folder), and Go to it. One set for every kind of session.
  */
 import { useEffect, type JSX } from "react";
-import { AccountAvatar } from "../../components/Avatar";
 import { Button, Chip } from "../../components/primitives";
-import { ToolMark } from "../../components/ToolMark";
+import { PlaceMark, ProfileBadge, markPlace } from "../../components/PlaceMarks";
+import { profileColor } from "../../lib/profile-marks";
 import { IconGoTo } from "../../components/icons-actions";
 import { shortPath } from "../../screens/AccountManage";
-import { accountColor } from "../../lib/palette";
 import { ago, agoWords } from "../../lib/time-words";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, type SessionModel } from "./model";
 
-/** The app's mark, 52 px, with the profile's badge on its corner. */
+/** The profile's name as the rail's badge reads it (its place's, else
+ * its folder's): one colour and monogram everywhere. */
+function profileName(model: SessionModel): string {
+  const place = model.places[0];
+  return place?.profile ?? place?.instance ?? model.profileLabel;
+}
+
+/** The app's mark, 52 px, with the profile's badge on its corner: the
+ * same mark as the session's rail row and Home's (AJ-E2104). */
 export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
+  const place = markPlace(model.places[0], model.sessionId !== null);
   return (
     <span className="relative inline-flex" data-testid="session-mark">
-      <span className="flex size-[52px] items-center justify-center rounded-2xl border border-hairline bg-surface-2 text-accent-hi">
-        <ToolMark tool={model.tool} size={26} />
-      </span>
-      <span className="absolute -right-1.5 -bottom-1.5 rounded-full ring-[3px] ring-canvas" data-testid="session-mark-profile">
-        <AccountAvatar accountId={model.profileId} label={model.profileLabel} size={22} />
-      </span>
+      <PlaceMark place={place} profile={model.profileLabel} size={52} />
     </span>
   );
 }
@@ -58,9 +61,9 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
       <span
         data-testid="session-profile-chip"
         className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium text-ink"
-        style={{ borderColor: accountColor(model.profileId) }}
+        style={{ borderColor: profileColor(profileName(model)) }}
       >
-        <AccountAvatar accountId={model.profileId} label={model.profileLabel} size={14} />
+        <ProfileBadge name={profileName(model)} size={14} />
         Profile: {model.profileLabel}
       </span>
       {account && account.state === "signed_in" && (

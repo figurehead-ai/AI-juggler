@@ -23,7 +23,7 @@ const model = (overrides: Partial<SessionModel> = {}): SessionModel => ({
   sessionId: null,
   live: true,
   state: { words: "Asks you", tone: "warning", asks: true, since: 0 },
-  places: [{ app: "Claude", app_id: "claude-app", profile: "Work", instance: "Work", pid: 42, label: "Claude · Work" }],
+  places: [{ app: "Claude", app_id: "claude-app", profile: "Work", instance: "Work", pid: 42, kind: "desktop", app_pid: 41, label: "Claude · Work" }],
   viewedMs: null,
   cwd: "/w/app",
   model: null,

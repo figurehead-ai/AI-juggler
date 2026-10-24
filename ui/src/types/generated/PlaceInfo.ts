@@ -29,6 +29,15 @@ instance: string | null,
  */
 pid: number, 
 /**
+ * What kind of app: `desktop`, `terminal` or `editor`, when known.
+ */
+kind: string | null, 
+/**
+ * AJ-E2104: the app's own process, which the place's Open brings
+ * forward (never launches); `None` when no app runs it.
+ */
+app_pid: number | null, 
+/**
  * The place in words: `Claude · b-work`, `Terminal`.
  */
 label: string, };

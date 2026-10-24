@@ -322,6 +322,15 @@ pub trait HarnessAdapter: Send + Sync {
         false
     }
 
+    /// AJ-E2107: what the tail of an open session's transcript says it
+    /// waits on (`tail`: at most its last 64 KB, cut at a line start), for
+    /// a session whose tool records no such word itself. Default: nothing.
+    #[must_use]
+    fn pending_ask(&self, tail: &str) -> Option<crate::live::Ask> {
+        let _ = tail;
+        None
+    }
+
     /// AJ-E2102 (ADR-0019): the tool's own apps, as data: how each is
     /// recognised in a parent chain, its instances, and its links.
     /// Default: none.

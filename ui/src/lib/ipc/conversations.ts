@@ -12,17 +12,28 @@ import type { PlaceInfo } from "../../types/generated/PlaceInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
+import { placesConversations } from "../../preview/places";
 
 export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo };
 
 const NOW = Date.now();
 
+function placesPreview(): boolean {
+  try {
+    return sessionStorage.getItem("aij.preview.places") === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** The preview's conversations: two started outside AI Juggler (one
- * live). A spec that seeds a fixture gets exactly its fixture's (none
+ * live); AJ-E2104's desktop with several places open when
+ * `sessionStorage["aij.preview.places"]` is "1". A spec that seeds a fixture gets exactly its fixture's (none
  * unless it lists them), so the other captures stay as they were. */
 function previewConversations(): ConversationInfo[] {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { conversations?: ConversationInfo[] } }).__AIJ_FIXTURE__;
   if (fixture) return fixture.conversations ?? [];
+  if (placesPreview()) return placesConversations(NOW);
   const base = {
     tool: PREVIEW_TOOLS[0]!.id,
     git_branch: "main",
@@ -32,7 +43,7 @@ function previewConversations(): ConversationInfo[] {
     places: [] as PlaceInfo[],
     pid: null,
     state: null,
-    viewed_ms: null,
+    viewed_ms: null, probably: false,
     background: false,
     inactive: false,
   };
@@ -47,7 +58,7 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
-      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, label: "Claude · Work" }],
+      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" }],
       pid: 4242,
       state: "working",
       viewed_ms: NOW - 120_000,
@@ -97,6 +108,16 @@ export async function conversationsGoTo(accountId: string, conversationId: strin
       : { outcome: "It isn't open now", reached: "none" };
   }
   return invoke<GoToOutcomeInfo>("conversations_go_to", { accountId, conversationId, pid });
+}
+
+/** AJ-E2104: a place's Open: brings the running app whose process is
+ * `appPid` forward (never launches it), and says what it did. */
+export async function conversationsBringForward(appPid: number): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = previewConversations().flatMap((row) => row.places).find((p) => p.app_pid === appPid);
+    return place ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: "That app isn't open now", reached: "none" };
+  }
+  return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
 }
 
 /** Called when the backend's list changed (no payload: read it again). */

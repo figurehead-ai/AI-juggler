@@ -13,6 +13,10 @@ import { repoGroups } from "./rail-groups";
 import * as manage from "../lib/ipc/manage";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { filterSessions, groupSessions, sortSessions, NO_CHIP_FILTERS } from "../lib/railview";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();

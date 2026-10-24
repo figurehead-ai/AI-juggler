@@ -277,6 +277,56 @@ pub fn go_to_impl(
     )
 }
 
+/// AJ-E2104: a place's Open. Brings forward the app whose process is
+/// `app_pid`, only when an open session runs in it now (never another
+/// process, never a launch), within the same limit, and says what it did.
+///
+/// # Errors
+///
+/// A poisoned lock.
+pub fn bring_forward_impl(
+    state: &Arc<AppState>,
+    app_pid: u32,
+    desktop: Arc<dyn Desktop>,
+) -> AppResult<GoToOutcomeInfo> {
+    let host = state
+        .conversations
+        .model
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .entries
+        .iter()
+        .flat_map(|entry| entry.places.iter())
+        .filter_map(|place| place.host.as_ref())
+        .find(|host| host.pid == app_pid)
+        .cloned();
+    let Some(host) = host else {
+        return Ok(outcome("That app isn't open now".to_owned(), "none"));
+    };
+    let still = label(&host);
+    Ok(
+        within(LIMIT, move || bring_forward(&host, desktop.as_ref()))
+            .unwrap_or_else(|| outcome(format!("Still bringing {still} forward…"), "pending")),
+    )
+}
+
+/// Brings `host` forward by its process, when it's still the one seen.
+#[must_use]
+pub fn bring_forward(host: &Host, desktop: &dyn Desktop) -> GoToOutcomeInfo {
+    let name = label(host);
+    if !same_start(host.start, desktop.start_of(host.pid)) {
+        return outcome(format!("{name} isn't open now"), "none");
+    }
+    match desktop.activate(host.pid) {
+        Activation::Done => outcome(format!("Brought {name} forward"), "app"),
+        Activation::Gone => outcome(format!("{name} isn't open now"), "none"),
+        Activation::Refused => outcome(
+            format!("macOS didn't let {name} come forward; click it in the Dock"),
+            "none",
+        ),
+    }
+}
+
 /// The real Mac: `NSRunningApplication` by process, `open` for links.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MacDesktop;

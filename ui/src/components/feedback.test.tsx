@@ -7,6 +7,10 @@ import { WorkflowRail } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
 import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 /**
  * AJ-E1503 — one feedback system:

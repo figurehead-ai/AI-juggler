@@ -75,7 +75,7 @@ function outsideOne(id: string, over: Partial<ConversationInfo> = {}): Conversat
     places: [],
     pid: null,
     state: null,
-    viewed_ms: null,
+    viewed_ms: null, probably: false,
     background: false,
     inactive: false,
     ...over,

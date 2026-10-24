@@ -346,6 +346,12 @@ fn the_states_map_to_e21s_words() {
     assert_eq!(state_of(S::Idle, Some(O::Completed)), Some(State::Idle));
     assert_eq!(state_of(S::Idle, None), Some(State::Idle));
     assert_eq!(state_of(S::Unknown, None), None);
+    // AJ-E2107: the tool's own "waiting" asks you, whatever the app says.
+    assert_eq!(state_of(S::Waiting, None), Some(State::AsksYou));
+    assert_eq!(
+        state_of(S::Waiting, Some(O::Completed)),
+        Some(State::AsksYou)
+    );
     assert_eq!(State::DoneReview.word(), "done_review");
 }
 

@@ -7,6 +7,7 @@
 //! is written: not into a setup, and not into AI Juggler's database
 //! (there is no migration; a restart rebuilds it from the files).
 
+pub mod asks;
 pub mod commands;
 pub mod dto;
 pub mod goto;
@@ -157,6 +158,9 @@ pub struct ConversationIndex {
     model: Mutex<scan::LiveModel>,
     /// The live refresher (its thread alone uses it).
     scanner: Mutex<scan::Scanner>,
+    /// AJ-E2107: what each open terminal session's transcript tail last
+    /// said it waits on.
+    tails: Mutex<asks::Tails>,
     /// The profile folders it reads, refreshed with the accounts.
     profiles: Mutex<Option<(std::time::Instant, Vec<scan::Profile>)>>,
     /// Held while a pass reads the files: one pass at a time (QA batch 9:
@@ -377,7 +381,22 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         .map_err(|_| AppError::StatePoisoned)?
         .clone();
     let all = state.conversations.all()?;
-    let now = live::live_entries(&all, &model);
+    let mut now = live::live_entries(&all, &model);
+    // AJ-E2107: a terminal session's tail can say it waits on the user.
+    {
+        let mut tails = state
+            .conversations
+            .tails
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        let ask_of = |tool: &str, tail: &str| {
+            state
+                .registry
+                .get(&juggler_core::model::HarnessId::new(tool.to_owned()))
+                .and_then(|adapter| adapter.pending_ask(tail))
+        };
+        asks::apply(&mut now, &all, &mut tails, &ask_of, SystemTime::now());
+    }
     let idle = live::inactive_ids(&all, &model);
     let changed = {
         let mut live = state
@@ -503,7 +522,10 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
         if *known == model {
-            return Ok(false);
+            // Nothing new is open, but a tail can have gone quiet long
+            // enough to ask you (AJ-E2107).
+            drop(known);
+            return update_live(state);
         }
         *known = model;
     }

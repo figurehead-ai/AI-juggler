@@ -25,16 +25,18 @@ export function loadSubscriptions(force = false): Promise<SubscriptionInfo[]> {
   return rows;
 }
 
-/** The accounts, `null` while they load; `version` re-reads them. */
-export function useSubscriptions(version = 0): SubscriptionInfo[] | null {
+/** The accounts, `null` while they load; `version` re-reads them;
+ * `wanted` false reads nothing (a view that doesn't show them). */
+export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[] | null {
   const [rows, setRows] = useState<SubscriptionInfo[] | null>(null);
   useEffect(() => {
+    if (!wanted) return;
     let alive = true;
     void loadSubscriptions(version > 0).then((next) => alive && setRows(next));
     return () => {
       alive = false;
     };
-  }, [version]);
+  }, [version, wanted]);
   return rows;
 }
 

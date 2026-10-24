@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+
+// AJ-E2104: these galleries read the project board, every status drawn.
+projectBoardByDefault(test);
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
@@ -1739,6 +1742,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
+    // AJ-E2104: other Macs fold after this Mac; unfolded, its rows show.
+    await page.getByTestId("rail-other-mac").first().getByRole("button", { name: /^Unfold/ }).click();
     await expect(page.getByTestId("board-remote-row")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await goTo(page, "Fleet");
@@ -1887,8 +1892,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openFilters(page);
-    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await onlyMac(page, "machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
@@ -2154,7 +2158,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     // AJ-E1021: the morning triage lives on Home.
-    await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
+    await expect(page.getByTestId("home").getByRole("region", { name: /Needs you/ })).toBeVisible();
     const rows = page.getByTestId("home").locator("[data-home-row]");
     await rows.first().focus();
     await page.keyboard.press("j");
@@ -2183,7 +2187,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "History" }).click();
+    // The top bar's History (the rail's foot has one too, AJ-E2104).
+    await page.locator("header").getByRole("button", { name: "History", exact: true }).click();
     await expect(page.getByTestId("history-search")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // AJ-E1536: Delete is in the row's menu.

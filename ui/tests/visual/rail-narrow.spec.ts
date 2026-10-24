@@ -196,18 +196,14 @@ test("the rail starts at 264 px when nothing is stored", async ({ page }) => {
   await expect(rail(page)).toHaveCSS("width", "264px");
 });
 
-// 0.0.11 walk: with counts on the chips ("Needs you 5", "Running 3") the
-// Filters button overflowed the rail at its starting width and was cut.
+// 0.0.11 walk: the Filters button overflowed the rail at its starting
+// width and was cut. AJ-E2104: the View button and the search stay inside.
 for (const [name, fixture] of [["one-digit counts", allStatuses], ["two-digit counts", atScale]] as const) {
-  test(`the filter row stays inside the rail — ${name}`, async ({ page }) => {
+  test(`the toolbar stays inside the rail — ${name}`, async ({ page }) => {
     await seed(page, "dark", 1280, 800, "comfortable", fixture);
-    const filters = page.getByRole("button", { name: /^Filters/ });
-    await expect(filters).toBeVisible();
-    const [box, edge] = await Promise.all([filters.boundingBox(), rail(page).boundingBox()]);
+    const view = page.getByTestId("rail-view-button");
+    await expect(view).toBeVisible();
+    const [box, edge] = await Promise.all([view.boundingBox(), rail(page).boundingBox()]);
     expect(box!.x + box!.width).toBeLessThanOrEqual(edge!.x + edge!.width - 8);
-    for (const chip of ["Needs you", "Running", "All"]) {
-      const chipBox = await page.getByRole("group", { name: "Show" }).getByRole("button", { name: new RegExp(`^${chip}`) }).boundingBox();
-      expect(chipBox!.x + chipBox!.width, chip).toBeLessThanOrEqual(edge!.x + edge!.width - 8);
-    }
   });
 }

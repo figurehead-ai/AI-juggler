@@ -11,7 +11,7 @@ two real Macs. Tell us how it goes in
 
 ## Turn it on
 
-Fleet is under **More › Fleet** (⌘4) until you pair a Mac; then it's in the
+Fleet is under **More › Fleet** (⌘⇧F) until you pair a Mac; then it's in the
 header too.
 
 **Link** is off by default. While it's off, no other Mac can see or reach

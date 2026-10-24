@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef } from "react";
 import { hasLiveBackend, statsEvent } from "./bridge";
-import { matches, type AppShortcutId } from "./shortcuts";
+import { matches, type AppShortcutId, type KeyLike } from "./shortcuts";
 import { undoLatest } from "../components/Toast";
 
 /** AJ-E1103: one keyboard shortcut used (the schema's names). */
@@ -76,6 +76,17 @@ export function useAppKeys(actions: AppKeyActions): void {
     },
     // AJ-E1503: only when a toast can be undone; otherwise the key passes.
     undo: () => undoLatest(),
+    // AJ-E2104: the rail owns its places and its View.
+    "go-place": (event?: KeyLike) => {
+      const digit = event?.code?.startsWith("Digit") ? Number(event.code.slice(5)) : Number(event?.key);
+      if (!(digit >= 1 && digit <= 9)) return false;
+      shortcutUsed("other");
+      window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: digit - 1 } }));
+    },
+    "rail-view": () => {
+      shortcutUsed("other");
+      window.dispatchEvent(new Event("aij:rail-view"));
+    },
     "go-home": () => {
       shortcutUsed("other");
       d.goHome();
@@ -118,11 +129,11 @@ export function useAppKeys(actions: AppKeyActions): void {
       shortcutUsed("switch");
       window.dispatchEvent(new Event("aij:focus-handover"));
     },
-  } satisfies Record<AppShortcutId, () => boolean | void>;
+  } satisfies Record<AppShortcutId, (event?: KeyLike) => boolean | void>;
       // A sheet that is open owns its plain keys (`?` typed in it).
-      for (const [id, run] of Object.entries(handlers) as [AppShortcutId, () => boolean | void][]) {
+      for (const [id, run] of Object.entries(handlers) as [AppShortcutId, (event?: KeyLike) => boolean | void][]) {
         if (!matches(id, event, hasLiveBackend())) continue;
-        if (run() === false) return;
+        if (run(event) === false) return;
         event.preventDefault();
         return;
       }

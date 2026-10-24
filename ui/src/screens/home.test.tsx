@@ -123,10 +123,13 @@ describe("D-25 Home — the screen", () => {
       { onOpenSession },
     );
     const home = getByTestId("home");
-    expect(home.textContent).toContain("2 sessions need you");
-    expect(home.textContent).toContain("1 running");
-    fireEvent.click(within(home).getByRole("button", { name: /^Open — ai-juggler/ }));
+    // AJ-E2105: one sentence; the other counts are links under it.
+    expect(getByTestId("home-heading").textContent).toBe("2 things need you");
+    expect(getByTestId("home-counts").textContent).toContain("1 open");
+    fireEvent.click(within(home).getByRole("button", { name: /^Go to it/ }));
     expect(onOpenSession).toHaveBeenCalledWith("w");
+    fireEvent.click(within(home).getByRole("button", { name: /^See what happened/ }));
+    expect(onOpenSession).toHaveBeenCalledWith("f");
   });
 
   it("all clear while something runs; ready when nothing does", () => {
@@ -187,10 +190,10 @@ describe("D-25 Home — the screen", () => {
       />,
     );
     expect(getByTestId("home").textContent).toContain("Work Max needs its sign-in");
-    const item = getByTestId("home-signin");
+    const item = getByTestId("home-need-signin");
     fireEvent.click(within(item).getByRole("button", { name: /^Sign in/ }));
     await waitFor(() => expect(opened).toEqual(["Sign in · Work Max"]));
-    expect(item.textContent).toContain("Finish signing in in the terminal that opened");
+    expect(getByTestId("home-needs").textContent).toContain("Finish signing in in the terminal that opened");
   });
 
   it("a Codex account's sign-in names Codex's own sign-in (OpenAI)", () => {
@@ -207,7 +210,7 @@ describe("D-25 Home — the screen", () => {
         openLoginTerminal={() => null}
       />,
     );
-    const item = getByTestId("home-signin");
+    const item = getByTestId("home-need-signin");
     expect(item.textContent).toContain("Codex's own sign-in (OpenAI)");
     expect(item.textContent).not.toContain("Claude's own sign-in");
   });
@@ -319,21 +322,20 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     }
     const { container } = render(<Stateful />);
     const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
-    expect(rows()).toHaveLength(4);
+    // AJ-E2105: Needs you's Go to it, then the two to pick up (what runs
+    // is in the list and under Your apps).
+    expect(rows()).toHaveLength(3);
     rows()[0]!.focus();
-    await user.keyboard("j");
-    expect(document.activeElement).toBe(rows()[1]);
     await user.keyboard("{ArrowDown}");
-    expect(document.activeElement).toBe(rows()[2]);
+    expect(document.activeElement).toBe(rows()[1]);
     // A marks d1 reviewed; its row disappears; focus lands on the row now
     // in its place (d2), not on <body>, and the keys go on working.
     await user.keyboard("a");
-    await waitFor(() => expect(rows()).toHaveLength(3));
+    await waitFor(() => expect(rows()).toHaveLength(2));
     expect(calls()).toEqual(["reviewed:d1"]);
-    await waitFor(() => expect(document.activeElement).toBe(rows()[2]));
+    await waitFor(() => expect(document.activeElement).toBe(rows()[1]));
     await user.keyboard("k");
-    expect(document.activeElement).toBe(rows()[1]);
-    await user.keyboard("k");
+    expect(document.activeElement).toBe(rows()[0]);
     await user.keyboard("{Enter}");
     expect(opened).toEqual(["w"]);
     expect(container.querySelector("[data-testid='home-keys']")!.textContent).toContain("run the row's action");

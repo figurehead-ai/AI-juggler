@@ -7,7 +7,8 @@ import { ActionIcon } from "./ActionIcon";
 import { useActionHost } from "./ItemMenu";
 import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
 export { paletteSelection } from "./PaletteActions";
-import { conversationTitle, liveOutside, useConversations } from "../lib/conversations";
+import { conversationTitle, useConversations } from "../lib/conversations";
+import { paletteMatches, parseQuery } from "../lib/rail-view";
 import type { ResolvedAction } from "../lib/actions";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 
@@ -70,7 +71,7 @@ export function GoToPalette({
   // AJ-E1529: sessions started outside AI Juggler, running now, too.
   const { all: conversations } = useConversations();
   const host = useActionHost();
-  const needle = query.trim().toLowerCase();
+  const needle = parseQuery(query).text;
   // AJ-E2106: the selected item's actions first.
   const panel = usePaletteActions(selected, needle, onChanged);
   const actions = panel.actions;
@@ -83,13 +84,10 @@ export function GoToPalette({
           .slice(0, 8)
           .map((project) => ({ where: "project", project, id: `project::${project.id}`, desktop: false }))
       : [];
-    const elsewhere: PaletteRow[] = liveOutside(conversations)
-      .filter((c) => !needle || `${c.account_label} ${c.tool} ${conversationTitle(c)}`.toLowerCase().includes(needle))
-      .map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
-    const local: PaletteRow[] = sessions
-      .filter((s) => isLive(s.status))
-      .filter((s) => !needle || `${s.account_label} ${s.provider} ${s.kind}`.toLowerCase().includes(needle))
-      .map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
+    // AJ-E2104: the rail's words work here too (is:ended app:claude …).
+    const found = paletteMatches(sessions, conversations, projects, parseQuery(query));
+    const elsewhere: PaletteRow[] = found.conversations.map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
+    const local: PaletteRow[] = found.sessions.map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
     const remote: PaletteRow[] = remoteMachines.flatMap((machine) =>
       machine.instances
         .filter((row) => isLive(row.status) || row.status === "waiting_user")

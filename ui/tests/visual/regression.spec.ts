@@ -127,8 +127,8 @@ for (const theme of THEMES) {
       test(`rail + home — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expect(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
-        // D-25: the rail's tabs gave way to its quick filters.
-        await expect(page.getByRole("group", { name: "Show" })).toHaveScreenshot(`chrome-rail-filters-${cell}.png`, CHROME);
+        // AJ-E2104: the rail's search and View.
+        if (density !== "minimal") await expect(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
         await expect(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,

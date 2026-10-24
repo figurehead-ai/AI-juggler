@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import { InstanceBoard, modelDrift } from "./WorkflowRail";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 /**
  * AJ-E412 evidence: running-model telemetry — I-03 prefers the

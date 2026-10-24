@@ -417,6 +417,8 @@ macro_rules! app_commands {
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
             Write features::conversations::commands::conversations_go_to,
+            // Brings a running app forward (never launches it).
+            Write features::conversations::commands::conversations_bring_forward,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
@@ -935,7 +937,7 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
 }
 
 /// Registers the "Go to instance…" hotkey the user chose (AJ-E414
-/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to ChatGPT,
+/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to `ChatGPT`,
 /// so nothing is registered until the user picks a key in Settings ›
 /// Desktop apps. A conflict or a locked-down system key logs and
 /// continues — the palette stays reachable in-app (⌘K).

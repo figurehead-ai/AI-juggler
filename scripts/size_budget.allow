@@ -22,14 +22,14 @@ ui/src/components/RightInspector.tsx 1829
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
-ui/src/components/WorkflowRail.tsx 1752
+ui/src/components/WorkflowRail.tsx 1038
 ui/src/components/indicator.tsx 490
 ui/src/lib/bridge.ts 4952
 ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1301
 ui/src/screens/FleetScreen.tsx 765
-ui/src/screens/Home.tsx 776
+ui/src/screens/Home.tsx 596
 ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 518
 ui/src/screens/PairingWizard.tsx 816

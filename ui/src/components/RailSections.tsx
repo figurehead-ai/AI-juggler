@@ -38,10 +38,11 @@ export function railOrder(sorted: InstanceInfo[], snooze: SnoozeState, now: numb
 }
 
 /** Open now's groups: a project shows while something of it is open
- * (its header still sums up all its sessions). */
-export function openGroups(order: RailOrder | null, groups: RowGroup[], all: ConversationInfo[], scope: OutsideScope): RowGroup[] {
+ * (its header still sums up all its sessions), and a pinned one stays
+ * where the user put it (AJ-E1502). */
+export function openGroups(order: RailOrder | null, groups: RowGroup[], all: ConversationInfo[], scope: OutsideScope, pinned: ReadonlySet<string> = new Set()): RowGroup[] {
   if (!order) return groups;
-  return groups.filter((group) => order.shown(group.rows).length > 0 || railSlice(all, group.id, scope).shown.length > 0);
+  return groups.filter((group) => pinned.has(group.id) || order.shown(group.rows).length > 0 || railSlice(all, group.id, scope).shown.length > 0);
 }
 
 export type AlsoView = "ended" | "inactive" | "background";

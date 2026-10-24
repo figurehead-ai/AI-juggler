@@ -11,6 +11,10 @@ import { alsoParts } from "./RailSections";
 import { ConversationsProvider } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();
@@ -35,7 +39,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
   return {
     id, tool: "claude-code", account_id: "a1", account_label: "Work Max", project_id: "proj-1", cwd: "/Users/dev/app",
     title: `Talk ${id}`, git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null,
-    live: false, session_id: null, places: [], pid: null, state: null, viewed_ms: null, background: false, inactive: false,
+    live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false,
     ...overrides,
   };
 }
@@ -43,7 +47,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 const project = (id: string, name: string): ProjectInfo =>
   ({ id, root: `/Users/dev/${name}`, name, last_activity_ms: NOW, active_instance: null, accounts_used: [], instance_count: 1, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false }) as ProjectInfo;
 
-const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, label });
+const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label });
 
 function board(rows: InstanceInfo[], conversations: ConversationInfo[]) {
   (window as unknown as { __AIJ_FIXTURE__?: unknown }).__AIJ_FIXTURE__ = { conversations };

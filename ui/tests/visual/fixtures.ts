@@ -399,14 +399,56 @@ export async function settingsPane(page: import("@playwright/test").Page, name: 
 }
 
 /**
- * D-25: the rail's sort, group and per-field filters sit behind its
- * Filters button; open it (once) before using them.
+ * AJ-E2104: the rail's View (Group by, Show, Only) sits behind its View
+ * button (⇧V); open it (once) before using it.
  */
 export async function openFilters(page: import("@playwright/test").Page): Promise<void> {
-  const more = page.getByTestId("rail-more-filters");
-  if (await more.isVisible()) return;
-  await page.getByRole("button", { name: /^Filters/ }).click();
-  await more.waitFor();
+  const panel = page.getByTestId("rail-view");
+  if (await panel.isVisible()) return;
+  await page.getByTestId("rail-view-button").click();
+  await panel.waitFor();
+}
+
+/** AJ-E2104: the rail's View as kept, then the page again. */
+export async function railViewAs(page: import("@playwright/test").Page, view: Record<string, unknown>): Promise<void> {
+  await page.evaluate((value) => localStorage.setItem("aij.rail.view.v1", JSON.stringify(value)), view);
+  await page.reload();
+  await expect(page.getByTestId("rail")).toBeVisible();
+}
+
+/**
+ * AJ-E2104: galleries written for the project board (every session
+ * status drawn, by project) keep reading it: the Project lens with ended
+ * ones shown, unless the spec keeps its own View. The default, by place,
+ * is places-gallery's. Call once at a spec file's top.
+ */
+export function projectBoardByDefault(spec: { beforeEach: (fn: (args: { page: import("@playwright/test").Page }) => Promise<void>) => void }): void {
+  spec.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      if (localStorage.getItem("aij.rail.view.v1") === null) {
+        localStorage.setItem("aij.rail.view.v1", JSON.stringify({ group: "project", show: { ended: true } }));
+      }
+    });
+  });
+}
+
+/** AJ-E2104: the Project lens (projects' groups and their headers). */
+export async function projectLens(page: import("@playwright/test").Page): Promise<void> {
+  await railViewAs(page, { group: "project" });
+}
+
+/** AJ-E2104: Only › Mac in the View ("all" puts it back). */
+export async function onlyMac(page: import("@playwright/test").Page, value: string): Promise<void> {
+  await openFilters(page);
+  await page.getByLabel("Only this mac").selectOption(value === "all" ? "" : value);
+}
+
+/** AJ-E2104: a session started outside AI Juggler, by its page (its
+ * row's menu: Open its page). Quiet places shown, so its row is drawn. */
+export async function openOutsidePage(page: import("@playwright/test").Page): Promise<void> {
+  await railViewAs(page, { group: "place", show: { quiet: true } });
+  await page.locator("[data-testid='rail'] [data-conversation-id]").first().click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Open its page" }).click();
 }
 
 /**

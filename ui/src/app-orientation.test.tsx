@@ -8,6 +8,10 @@ import { cleanup, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
+import { useProjectLens } from "./components/project-lens.test-kit";
+
+// AJ-E2104: the project heading is the Project lens's.
+useProjectLens();
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,

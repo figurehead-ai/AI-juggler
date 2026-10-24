@@ -85,6 +85,9 @@ pub fn read_pid_file(path: &Path) -> Option<LiveSession> {
     let status = match file.status.as_deref() {
         Some("busy") => LiveStatus::Busy,
         Some("idle") => LiveStatus::Idle,
+        // AJ-E2107: newer versions record a session that waits on the
+        // user (a permission, a question) as `waiting`.
+        Some("waiting") => LiveStatus::Waiting,
         _ => LiveStatus::Unknown,
     };
     let background = file
@@ -269,6 +272,22 @@ mod tests {
         assert_eq!(session.host_session_id.as_deref(), Some("local_abc"));
         assert_eq!(session.cwd.as_deref(), Some(Path::new("/w/p")));
         assert!(!session.background);
+    }
+
+    #[test]
+    fn a_session_waiting_on_the_user_reads_as_waiting_and_its_words_are_never_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        pid_file(
+            dir.path(),
+            77,
+            &format!(
+                r#"{{"pid":77,"sessionId":"s-w","status":"waiting","waitingFor":"{SECRET}","needs":"{SECRET}","detail":"{SECRET}","kind":"interactive"}}"#
+            ),
+        );
+        let live = live_sessions(dir.path());
+        assert_eq!(live.len(), 1);
+        assert_eq!(live[0].status, LiveStatus::Waiting);
+        assert!(!format!("{:?}", live[0]).contains(SECRET));
     }
 
     #[test]

@@ -12,6 +12,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod claude_asks;
 pub mod claude_code;
 pub mod claude_conversations;
 pub mod claude_environment;

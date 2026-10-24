@@ -57,6 +57,10 @@ anything differs from the defaults.
 - **Only:** one app, profile, account, project, pool or Mac.
 - **Back to the defaults.**
 
+Search takes the same words: `is:ended`, `is:inactive`, `app:claude`,
+`profile:work`, `project:` and `mac:`, then any other words. ⌘1 to ⌘9
+bring the places in the list forward, in the list's order (Home is ⌘0).
+
 ## Last messages
 
 A session's page shows its last two or three turns, so you can read what

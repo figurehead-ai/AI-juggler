@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/76-project-manage");
 const T0 = 1_728_800_000_000;
@@ -61,6 +61,7 @@ async function axeClean(page: Page, what: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`the rail with pins and a label — ${theme}`, gate("76-project-manage"), async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const rail = page.getByTestId("rail");
     // The pinned project's group leads; the pinned session leads its group.
     await expect(rail.getByTestId("rail-project").first()).toContainText("storefront");
@@ -73,6 +74,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a session's row menu and the rename sheet — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const row = page.locator('[data-instance-id="sess-2"]');
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
@@ -93,6 +95,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a project's row menu, rename and forget — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const row = page.getByTestId("rail-history-project").filter({ hasText: "old-prototype" });
     await row.hover();
     await page.getByRole("button", { name: "Project actions for old-prototype" }).click();
@@ -114,6 +117,7 @@ for (const theme of ["dark", "light"] as const) {
   // AJ-E1537: the project page's header ⋯ is the same menu as its row's.
   test(`the project page's menu, an editor chosen — ${theme}`, async ({ page }) => {
     await seed(page, theme, "Zed");
+    await projectLens(page);
     await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
     await page.getByTestId("header-menu").click();
     const menu = page.getByRole("menu", { name: "Actions for ai-juggler" });
@@ -127,6 +131,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a moved folder: Relocate… on the banner — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     await page.getByTestId("rail-history-project").filter({ hasText: "billing" }).click();
     // AJ-E1533: the missing-folder banner sits on the project's Overview.
     await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
