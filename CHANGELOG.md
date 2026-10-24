@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pools** (0.2): group sessions that work together, name the group and
+  say who leads. A session's menu has **Move to pool…**; once you've made
+  a pool the list can group by pool and Filters and Home can show one
+  pool. **All sessions** is always there. A pool's page shows what each
+  member is working on: its state, the step it says it's on (marked as its
+  own words), the files it changed most recently, and "Unavailable" with
+  the reason where AI Juggler doesn't know. Putting a session in a pool
+  never starts, stops or types into it.
+- **Agent access** per pool (Read, Work together, Full or Custom), set by
+  you on the pool's page or in Settings › Agent access, with the "always
+  allow" rules you made, each taken back with a click, a hop limit for
+  messages put into sessions, and a stop for all of them. Agents can't
+  reach pools yet; this is ready for when they can.
+
 ### Changed
 
 - Switching to another tool (Claude Code ↔ Codex) hands over through a

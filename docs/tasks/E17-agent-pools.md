@@ -10,19 +10,33 @@
 > E17 builds pools and a read-only bridge; messaging (E18) and tasks (E19)
 > build on both.
 >
-> **Law for every task here:**
-> - **The user owns every pool.** Pools, roles and permissions change only
->   in the app, never through the bridge.
-> - **Agent-initiated only (D-28, to be ruled).** Agents call AI Juggler's
->   tools from inside their own session. AI Juggler never types into a
->   session for them.
+> **Law for every task here** (the maintainer's rulings of 2026-10-24, as
+> passed to AJ-E1702/E1703; recording them in the decision log is
+> AJ-E1701's):
+> - **The user owns every pool.** Pools, roles, access levels and rules
+>   change only in the app, never through the bridge.
+> - **Access per pool (D-28).** Read, Work together (where every pool
+>   starts), Full, or Custom: a level is a set of agent actions from a typed
+>   catalog. Above the level is an ask in Needs you (Allow once / Always
+>   allow in this pool / Deny), never a block; the second identical
+>   approval offers the rule. Rules are listed and revocable, effective on
+>   the next call; every agent action is audited. Hard lines no level or
+>   rule lifts: agents never change pools, levels or rules, never start a
+>   session or choose an account, never get credentials, and AI Juggler
+>   never answers a tool's own permission prompts.
+> - **Delivery into sessions (D-29).** Only at Full or by a user rule;
+>   between turns, labelled, rate-limited, duplicates dropped; each pool
+>   has a hop limit (default 5) that pauses and asks, and a stop-all.
 > - **Per-launch files in AI Juggler's own folder (ADR-0018).** The bridge
 >   is added through launch flags and overlay files, never written into the
 >   user's setup.
-> - **No quota routing (D-31).** Nothing in a pool chooses an account by
->   remaining quota.
-> - **Work and personal stay apart (D-33).** The default pool covers one
->   project and one identity.
+> - **Agents never launch, no quota routing (D-31).** `prepare_launch`
+>   only stages a launch for the user's click; the user picks the account;
+>   nothing reads quota for it.
+> - **Pools across Macs (D-32).** Opt-in per pool, off by default.
+> - **A project's default pool holds all its sessions (D-33)**, whatever
+>   the account. Cards may show an account's label, never an email, a plan
+>   or another detail.
 
 ### AJ-E1701 The spike, ADR-0020 and the policy rulings | Status: TODO | Priority P0 | Effort S | Depends: —
 **Goal**: The bridge's approach is proven on real tools, and the policy is written before code relies on it.
@@ -43,7 +57,7 @@
 **Research basis**: `pools-messaging-tasks.md` §2–3.
 **Handover note**: The live part of the spike needs spare accounts, which is the maintainer's step.
 
-### AJ-E1702 Pools, the default pool, roles and permissions | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E1702 Pools, the default pool, roles and permissions | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: —
 **Goal**: Sessions belong to pools that the user creates and controls.
 **User story**: As a user running a planner and two builders, I put them in a pool called "Checkout redesign" and give the planner the lead.
 **Requirements**:
@@ -51,31 +65,31 @@
    - a pool has a name, a kind (default or user) and an optional project;
    - members hang off the Work item, so membership survives switches;
    - roles are lead, member and observer, with the user as the implicit owner;
-   - the permission table is in the plan doc, with UI edits only.
-2. The default pool "All sessions" always exists, can't be deleted, and covers one project and one identity (D-33).
-3. UI: create, rename and delete pools (except the default); move sessions between pools; set roles; a pool filter on Home and the rail. All reuse the existing rows, headers and folds.
+   - permissions are D-28's access levels, rules and audit (see the law above), with UI edits only, behind one decision point (`allowed(pool, action) -> Allow | Ask | Deny`) the bridge and messaging only call; each pool also stores D-29's hop limit and stop-all and D-32's spans-Macs flag.
+2. The default pool "All sessions" always exists, can't be deleted, and covers one project, whatever the account (D-33).
+3. UI: create, rename and delete pools (except the default); move sessions between pools; set roles; a pool filter on Home and the rail; the level picker on the pool's page and Settings › Agent access. All reuse the existing rows, headers and folds.
 4. A guardrail test: pool operations never spawn, stop or type into a session.
 **UI/UX reasoning**: D-25: pools read like the rail's project groups, with the same fold and mark.
 **Performance budget**: the rail's budget is unchanged at 50 sessions.
-**Quality gates**: migration tests (with the pre-migration copy); role and permission tests; the guardrail.
+**Quality gates**: migration tests (with the pre-migration copy, from 0.1.0's schema 32 to 33); role, level, rule and decision-point tests; the guardrails (no path to a session; the hard lines; no quota).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1702/manifest.md`.
 **Visual testing**: pools in the rail, the pool sheet and the filter.
 **Files to touch**: `crates/juggler-core/src/storage/` (pools), `commands.rs`, `WorkflowRail.tsx`, `Home.tsx`.
 **Research basis**: `pools-messaging-tasks.md` §2.3.
-**Handover note**: The schema bump needs a downgrade note and a `SCHEMA_RELEASES` entry.
+**Handover note**: The schema bump (v33) needs a downgrade note in 0.2's release notes and a `SCHEMA_RELEASES` entry when 0.2 ships (0.1.0 = 32 is listed).
 
-### AJ-E1703 Context cards | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1702
+### AJ-E1703 Context cards | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1702
 **Goal**: Each pool shows what every member is working on.
 **User story**: As a user, I open a pool and see each agent's place, state, task and last activity at a glance.
 **Requirements**:
 1. Cards are built only from what AI Juggler knows: name and place, tool and state, the current task (E19), a line the agent reports itself (marked as said by the agent), last activity and recently touched files.
-2. Missing data says "Unavailable"; account details are never shown to agents.
+2. Missing data says "Unavailable"; of the account, a card shows only its label, never an email, a plan or another detail (D-33).
 **UI/UX reasoning**: Rows like Home's, with detail behind disclosure.
 **Performance budget**: built within the read model's tick.
 **Quality gates**: honest-field tests (D-06).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1703/manifest.md`.
 **Visual testing**: the pool view with cards.
-**Files to touch**: `commands.rs`, `RightInspector.tsx` (a pool selection).
+**Files to touch**: `features/pools/cards.rs`, the pool page (`pages/PoolPage.tsx`, a pool selection beside the inspector's pages).
 **Research basis**: `pools-messaging-tasks.md` §2.3 (context cards).
 **Handover note**: —
 

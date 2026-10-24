@@ -32,6 +32,8 @@
   keeping the Mac awake, reopening after a crash, opening at login.
 - [Your other Macs](fleet.md) (beta): pairing your Macs, what each one sees,
   starting a session on another Mac, and usage by machine.
+- [Pools](pools.md): grouping sessions that work together, what each
+  member is working on, and what agents may do in a pool.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.
