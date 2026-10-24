@@ -19,6 +19,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
+import { STATE_TONE, conversationItem, stateWord as railStateWord } from "../lib/rail-items";
 
 /** Ended outside conversations shown per project under the Ended filter. */
 export const RECENT_SHOWN = 3;
@@ -34,20 +35,16 @@ export function openNow(conversation: ConversationInfo): boolean {
   return conversation.live && !conversation.background && !asksYou(conversation);
 }
 
-/** E21's words for its state. */
+/** E21's words for its state: the rail's (AJ-E2104 Req.3), never a word
+ * of its own. */
 export function stateWord(conversation: ConversationInfo): string {
-  switch (conversation.state) {
-    case "asks_you":
-      return "Asks you";
-    case "working":
-      return "Working";
-    case "idle":
-      return "Idle";
-    case "done_review":
-      return "Done, review it";
-    default:
-      return conversation.live ? "Running" : conversation.inactive ? "Inactive" : "Ended";
-  }
+  const item = conversationItem(conversation, () => null, null);
+  return railStateWord(item.state, item.probably);
+}
+
+/** Its state's colour (the glyph and the word), as the place rows show it. */
+function stateTone(conversation: ConversationInfo): string {
+  return STATE_TONE[conversationItem(conversation, () => null, null).state].text;
 }
 
 
@@ -134,7 +131,7 @@ export function ConversationRow({
         }
       >
         {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
-        <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + (conversation.live ? "text-accent-hi" : "text-faint")}>
+        <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + stateTone(conversation)}>
           <Icon width={13} height={13} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
@@ -144,7 +141,7 @@ export function ConversationRow({
           </span>
           {density === "comfortable" && (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
-              <span className="shrink-0 whitespace-nowrap">{state}</span>
+              <span className={"shrink-0 whitespace-nowrap " + stateTone(conversation)} data-testid="rail-state-word">{state}</span>
               <span className="shrink-0 whitespace-nowrap" data-testid="outside-mark">
                 · outside AI Juggler
               </span>

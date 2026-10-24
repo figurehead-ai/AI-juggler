@@ -6,6 +6,7 @@
 import { useState, type JSX } from "react";
 import type { RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { FoldButton, safeId } from "./rail-groups";
+import { STATE_TONE, statusState } from "../lib/rail-items";
 
 /** The search, applied to a peer's rows. */
 export function filterRemote(rows: RemoteInstanceInfo[], query: string): RemoteInstanceInfo[] {
@@ -53,7 +54,9 @@ function RemoteBoardSection({
           const active = selected?.machineId === machine.machine_id && selected.instanceId === row.id;
           // AJ-E708: an away machine's rows are its last known state.
           const lastKnown = machine.freshness !== "live";
-          const status = (lastKnown ? "was " : "") + row.status.replace(/_/g, " ");
+          // AJ-E2104 Req.3: the rail's words for its state.
+          const said = statusState(row.status);
+          const status = lastKnown ? `was ${said.word.toLowerCase()}` : said.word;
           return (
             <button
               key={row.id}
@@ -73,13 +76,7 @@ function RemoteBoardSection({
                 <span
                   className={
                     "size-1.5 shrink-0 rounded-full " +
-                    (lastKnown
-                      ? "bg-faint"
-                      : row.status === "running"
-                        ? "bg-live"
-                        : row.status === "waiting_user"
-                          ? "bg-warning"
-                          : "bg-faint")
+                    (lastKnown ? "bg-faint" : STATE_TONE[said.state].dot)
                   }
                   aria-hidden="true"
                 />

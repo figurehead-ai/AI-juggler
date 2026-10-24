@@ -125,13 +125,17 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(goTo).toHaveBeenCalledTimes(1);
   });
 
-  it("states read in E21's words", () => {
+  it("states read in E21's words, the rail's own (AJ-E2104 Req.3)", () => {
     const word = (overrides: Partial<ConversationInfo>) => stateWord(conversation("s", overrides));
     expect(word({ live: true, state: "asks_you" })).toBe("Asks you");
     expect(word({ live: true, state: "done_review" })).toBe("Done, review it");
     expect(word({ live: true, state: "idle" })).toBe("Idle");
-    expect(word({ live: true })).toBe("Running");
-    expect(word({ inactive: true })).toBe("Inactive");
+    expect(word({ live: true, state: "working" })).toBe("Working");
+    expect(word({ live: true, state: "asks_you", probably: true })).toBe("Probably asks you");
+    // A tool that doesn't say: Idle, never a guess at Working.
+    expect(word({ live: true, state: null })).toBe("Idle");
+    // Inactive is where it's listed (the View), not a state.
+    expect(word({ inactive: true })).toBe("Ended");
     expect(word({})).toBe("Ended");
   });
 

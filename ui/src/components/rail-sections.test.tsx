@@ -128,7 +128,7 @@ it("each part of the Also line turns its view on, and History opens History", as
   fireEvent.click(view.getByTestId("rail-also-background"));
   expect(within(view.getByTestId("rail-also-view-background")).getByTestId("rail-outside").dataset.conversationId).toBe("headless");
   fireEvent.click(view.getByTestId("rail-also-inactive"));
-  expect(within(view.getByTestId("rail-also-view-inactive")).getByTestId("rail-outside").textContent).toContain("Inactive");
+  expect(within(view.getByTestId("rail-also-view-inactive")).getByTestId("rail-outside").textContent).toContain("Ended");
   // Off again: its rows go, its count stays.
   fireEvent.click(view.getByTestId("rail-also-ended"));
   expect(view.queryByTestId("rail-also-view-ended")).toBeNull();

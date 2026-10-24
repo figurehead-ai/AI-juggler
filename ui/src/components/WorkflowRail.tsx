@@ -49,6 +49,7 @@ import { PlaceBoard } from "./PlaceBoard";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { parseQuery, useRailView } from "../lib/rail-view";
+import { sessionState } from "../lib/rail-items";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
@@ -57,13 +58,11 @@ import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   StaleChip,
-  STATE_WORDS,
   attentionBadge,
   attentionTooltip,
   isActiveStatus,
   lowLeftWords,
   stateChip,
-  type StateChipTone,
 } from "./indicator";
 import { ariaSummary } from "./row-details";
 
@@ -789,9 +788,6 @@ function BoardRow({
   );
 }
 
-/** D-25: what a rail row says about its state, in plain words. */
-// D-25: the state words live in indicator.tsx (shared with the legend).
-const RAIL_STATE = STATE_WORDS;
 
 
 /**
@@ -826,7 +822,10 @@ export function RailRow({
   const title = session.label ?? session.git_branch ?? folder;
   const ended = ["finished", "stopped", "handed_over"].includes(session.status);
   const parked = parkedWords(session, now);
-  const state = parked ? parked.chip : (RAIL_STATE[session.status] ?? chip.label);
+  // AJ-E2104 Req.3: the place rows' words (Asks you, Working, Idle,
+  // Ended; why it needs you when it does), the glyph a detail beside them.
+  const said = sessionState(session);
+  const state = parked ? parked.chip : said.word;
   const low = lowLeftWords(session);
   const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
@@ -858,7 +857,7 @@ export function RailRow({
       }
     >
       {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
-      <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + minimalGlyphTone(chip.tone)}>
+      <span aria-hidden="true" data-state-glyph={said.state} className={"flex w-4 shrink-0 justify-center " + said.tone}>
         <Icon width={13} height={13} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
@@ -877,8 +876,8 @@ export function RailRow({
           <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
             <span
               title={parked ? parked.long : attentionTooltip(session)}
-              data-testid={parked ? "rail-parked" : undefined}
-              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : chip.tone === "warning" || chip.tone === "danger" ? minimalGlyphTone(chip.tone) : "")}
+              data-testid={parked ? "rail-parked" : "rail-state-word"}
+              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : said.tone)}
             >
               {state}
             </span>
@@ -956,6 +955,7 @@ export function MinimalInstanceColumn({
       {active.map((s) => {
         const chip = stateChip(s.status);
         const badge = attentionBadge(s);
+        const said = sessionState(s); // AJ-E2104 Req.3: the rail's words
         return (
           <button
             key={s.id}
@@ -974,13 +974,13 @@ export function MinimalInstanceColumn({
             </span>
             {/* WCAG 2.5.3: an icon-only button's name, in words. */}
             <span className="sr-only">
-              {s.account_label}, {badge ? badge.text : chip.label}
+              {s.account_label}, {said.word}
             </span>
             <AccountAvatar accountId={s.account_id} label={s.account_label} size={22} />
             <chip.Icon
               width={10}
               height={10}
-              className={"absolute bottom-0 right-0 rounded-full bg-surface p-px " + minimalGlyphTone(chip.tone)}
+              className={"absolute bottom-0 right-0 rounded-full bg-surface p-px " + said.tone}
             />
             {badge ? (
               <span
@@ -1022,17 +1022,6 @@ export function MinimalInstanceColumn({
       {active.length === 0 && <RailCalm />}
     </div>
   );
-}
-
-function minimalGlyphTone(tone: StateChipTone): string {
-  switch (tone) {
-    case "live": return "text-live";
-    case "success": return "text-success";
-    case "warning": return "text-warning";
-    case "danger": return "text-danger";
-    case "accent": return "text-accent-hi";
-    default: return "text-muted";
-  }
 }
 
 

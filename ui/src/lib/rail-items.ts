@@ -77,6 +77,24 @@ export function stateWord(state: RailState, probably = false): string {
   return probably ? `Probably ${WORDS[state].toLowerCase()}` : WORDS[state];
 }
 
+/** Why it needs you, in a few words — the reason line ("Limit reached",
+ * "Probably stuck") — else its state in words. One wording for every row
+ * that shows a session's state (AJ-E2104 Req.3). */
+export function needWord(item: Pick<RailItem, "need" | "state" | "probably">): string {
+  switch (item.need) {
+    case "limit":
+      return "Limit reached";
+    case "failed":
+      return "Stopped with an error";
+    case "stuck":
+      return "Probably stuck";
+    case "review":
+      return stateWord("done_review");
+    default:
+      return stateWord(item.state, item.probably);
+  }
+}
+
 /** The state's colour token (text and dot). */
 export const STATE_TONE: Record<RailState, { text: string; dot: string }> = {
   asks_you: { text: "text-warning", dot: "bg-warning" },
@@ -128,6 +146,23 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     archived: row.lifecycle === "archived",
     subagents: row.subtask_count ?? row.child_count ?? 0,
   };
+}
+
+/** An AI Juggler session's state for a row outside the rail by place (the
+ * Project lens, a page's list): the state, its word or the reason it
+ * needs you, and the word's colour — the place rows' wording. */
+export function sessionState(row: InstanceInfo): { state: RailState; word: string; tone: string; dot: string; needs: boolean } {
+  const item = sessionItem(row, () => null, false);
+  const needs = item.need !== null;
+  return { state: item.state, word: needWord(item), tone: needs ? "text-warning" : STATE_TONE[item.state].text, dot: STATE_TONE[item.state].dot, needs };
+}
+
+/** A status alone (a paired Mac's row: no attention record) as the
+ * rail's state and words. */
+export function statusState(status: string): { state: RailState; word: string } {
+  const need: Need | null = status === "waiting_user" ? "asks" : status === "quota_blocked" ? "limit" : status === "stuck" ? "stuck" : status === "failed" ? "failed" : null;
+  const state: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ENDED.has(status) ? "ended" : ACTIVE.has(status) ? "working" : "idle";
+  return { state, word: needWord({ need, state, probably: need === "stuck" }) };
 }
 
 /** A place's key: the app, then its instance or the profile. */

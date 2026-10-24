@@ -23,26 +23,12 @@ import { PinMark } from "./RailProjectRows";
 import { IconUpRight } from "./icons-places";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
-import { STATE_TONE, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
+import { STATE_TONE, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
 import { agoWords } from "../lib/time-words";
 import { markSeen } from "../lib/seen";
 import { profileColor } from "../lib/profile-marks";
 
-/** Why it needs you, in a few words. */
-export function needWord(item: RailItem): string {
-  switch (item.need) {
-    case "limit":
-      return "Limit reached";
-    case "failed":
-      return "Stopped with an error";
-    case "stuck":
-      return "Probably stuck";
-    case "review":
-      return stateWord("done_review");
-    default:
-      return stateWord(item.state, item.probably);
-  }
-}
+export { needWord } from "../lib/rail-items";
 
 /** Where it is, in words: "project · Claude · Work". */
 export function whereWords(item: RailItem): string {

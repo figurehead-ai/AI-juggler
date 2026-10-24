@@ -184,7 +184,7 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   it("a project's body lists its sessions, live first", () => {
     const { getAllByTestId, getByTestId } = shell({ kind: "project", id: "proj-1" });
     expect(getAllByTestId("page-session-row")).toHaveLength(1);
-    expect(getByTestId("page-sessions-count").textContent).toBe("1 session · 1 running");
+    expect(getByTestId("page-sessions-count").textContent).toBe("1 session · 1 open");
   });
 });
 
