@@ -162,7 +162,10 @@ fn real_setup_read_models() {
     let managed = app.state::<Arc<AppState>>();
     report.insert(
         "sessions".into(),
-        serde_json::to_value(commands::sessions_list(managed.clone()).unwrap()).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::sessions_list(managed.clone())).unwrap(),
+        )
+        .unwrap(),
     );
     // The launch settings each import made ("Main"), as the UI lists them.
     report.insert(
@@ -194,7 +197,10 @@ fn real_setup_read_models() {
     );
     report.insert(
         "quota_display_all".into(),
-        serde_json::to_value(commands::quota_display_all(managed.clone())).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::quota_display_all(managed.clone())).unwrap(),
+        )
+        .unwrap(),
     );
     report.insert(
         "cost_rollups".into(),
