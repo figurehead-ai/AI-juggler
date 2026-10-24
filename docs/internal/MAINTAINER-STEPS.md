@@ -381,3 +381,56 @@ Save the terminal output and a screen recording per check to
 `docs/research/evidence/opencode/<version>/`, then hand them to the
 agent: it files them, sets the verified versions and flips the
 "not yet checked live" note.
+
+#### Kimi Code (AJ-E1603; about 30 min)
+
+Built from the 2.3.0 docs and source. Install it the vendor's way
+(`curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash`, or
+`npm install -g @moonshot-ai/kimi-code`). Use a spare Kimi membership
+(Plus or above) and, if you have one, a Kimi Platform API key with a small
+balance.
+
+- [ ] **Found.** Accounts › Add account lists Kimi Code with its version
+      ("not tested with AI Juggler yet" is expected until this step is
+      filed). Note `kimi --version`'s exact output.
+- [ ] **Two separate sign-ins.** Add two fresh Kimi Code accounts, A and
+      B. Sign A in from AI Juggler (`kimi login` opens in a terminal);
+      leave B signed out. A shows signed in, B doesn't. Note the files
+      `kimi login` made in A's `credentials/` (names only): the membership
+      sign-in is expected as `kimi-code.json`.
+- [ ] **Devices.** In the Kimi Code Console, note how many devices the
+      membership shows after A's sign-in (each home is expected to count
+      as one device) and whether a device cap is stated.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it from
+      AI Juggler: the same conversation comes back
+      (`kimi --session <id>`). Note the lines of `session_index.jsonl` and
+      the fields of that session's `state.json` (names only, no content).
+- [ ] **Its sessions are listed.** A session you start by hand
+      (`kimi` in the throwaway project) shows in the rail's sessions from
+      outside AI Juggler, with its folder and title, and is marked running
+      while it runs.
+- [ ] **Interactive use only.** With Settings › Sessions › Restart
+      crashed sessions on, end A's running `kimi` with `kill -9`: it is not
+      started again, and its history says why. A headless run on A is
+      refused with the same words.
+- [ ] **An API key may run headless.** On a third account signed in with a
+      Kimi Platform API key (`kimi login`, "Kimi Platform API key"), note
+      the file it made in `credentials/` (name only). A headless run with a
+      prompt starting with "-" works and the prompt arrives as text
+      (`kimi -p <text> --output-format stream-json`).
+- [ ] **Usage.** The account's limits say "Kimi Code doesn't report its
+      limits to AI Juggler yet". Note what `/usage` in Kimi Code shows, for
+      the ruling on its quota source.
+- [ ] **Quota exhaustion is seen.** If a 5-hour limit is reached, note the
+      exact message and whether AI Juggler shows the session as needing
+      you.
+- [ ] **A copy keeps no sign-in.** Bring `~/.kimi-code` in as a copy: the
+      copy is signed out, has your settings, skills and MCP servers, and
+      none of your sessions; your original still works and is signed in.
+- [ ] **Rules and servers sync.** Copy an MCP server from a Claude account
+      to A: it appears in A's `mcp.json` and in Kimi Code's `/mcp`, and
+      Undo takes it out again.
+
+Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
+and hand them to the agent, as for OpenCode.

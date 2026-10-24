@@ -402,9 +402,12 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     let codex = std::sync::Arc::new(juggler_adapters::CodexAdapter::new());
     registry.register(codex.clone());
     registry.register_handover(codex);
-    // AJ-E1602: OpenCode (1.x and 2.x). No handover support yet: a
-    // switch from or to it is never offered.
+    // AJ-E1602: OpenCode (1.x and 2.x). No handover support yet: no
+    // transplant; a switch to it can only start it with a briefing.
     registry.register(std::sync::Arc::new(juggler_adapters::OpenCodeAdapter::new()));
+    // AJ-E1603: Kimi Code (2.x). No handover support, and it takes no
+    // first message, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::KimiCodeAdapter::new()));
     registry
 }
 

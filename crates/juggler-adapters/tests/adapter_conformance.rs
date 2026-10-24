@@ -10,13 +10,16 @@
 )]
 
 mod conformance;
+mod kimi_fixture;
 mod opencode_fixture;
 
 use std::path::{Path, PathBuf};
 
 use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
-use juggler_adapters::{ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, OpenCodeAdapter};
+use juggler_adapters::{
+    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, KimiCodeAdapter, OpenCodeAdapter,
+};
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
 
@@ -434,7 +437,49 @@ impl UsageSubject for OpenCodeUsage {
     }
 }
 
+// Kimi Code (AJ-E1603): no usage reader (its only quota source is the
+// maintainer's ruling), so it must claim none.
+
+struct Kimi;
+
+impl Subject for Kimi {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        Box::new(KimiCodeAdapter::with_bin(sandbox.stub("kimi", "2.3.0")).with_home(&sandbox.home))
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("kit-kimi-session-{n}");
+        kimi_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let source = sandbox.home.join(".kimi-code");
+        kimi_fixture::settings(&source, canary);
+        kimi_fixture::sign_in_membership(&source, canary);
+        write(
+            &source.join("credentials/mcp/files.json"),
+            &format!(r#"{{"token":"{canary}"}}"#),
+        );
+        kimi_fixture::add_session(&source, "ses-old", &sandbox.project, "old");
+        Some(source)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["credentials/kimi-code.json", "server.token"]
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(kimi_code, Kimi);
 conformance!(opencode_v1, OpenCode(Line::V1));
 conformance!(opencode_v2, OpenCode(Line::V2));
 conformance!(codex, Codex);

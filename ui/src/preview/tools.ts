@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
  * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
- * codex.rs and opencode.rs `*_spec()`). Preview data only — the app reads
+ * codex.rs, opencode.rs and kimi_code.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -103,6 +103,35 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "OPENCODE_TEST_HOME",
       "AI_JUGGLER_OPENCODE_BIN",
     ],
+    supports: { in_place: true, limits: false },
+  },
+  {
+    id: "kimi-code",
+    display_name: "Kimi Code",
+    short_name: "Kimi",
+    vendor: "Moonshot AI",
+    mark: "kimi",
+    vendor_mark: null,
+    install_url: "https://www.kimi.com/code/docs/en/",
+    install_command: "npm install -g @moonshot-ai/kimi-code",
+    sign_in_own: "Kimi Code's own sign-in",
+    sign_in_short: "Kimi Code's",
+    same_as: "as when you run Kimi Code yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
+    setup_groups: [{ id: "kimi-code", title: "Kimi Code", path_contains: null, origin: null, shows_install: true }],
+    default_label: "Kimi Code",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "Kimi's Terms of Service",
+      url: "https://www.kimi.ai/user/agreement/modelUse",
+      accounts:
+        "Kimi's Terms of Service let it freeze accounts registered or used improperly as several, and its Kimi Code guidelines say plans are for interactive use only.",
+      checked: "2026-10-21",
+    },
+    home_env: ["KIMI_CODE_HOME", "AI_JUGGLER_KIMI_BIN"],
     supports: { in_place: true, limits: false },
   },
 ];

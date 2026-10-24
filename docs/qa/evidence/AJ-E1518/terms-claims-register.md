@@ -40,6 +40,18 @@ site, on 2026-10-21 (Terms of Service effective 2026-08-15).
 | Several accounts may not be used to get around limits or billing | opencode.ai/legal/terms-of-service · 2026-10-21 | Verified-primary | Users may not use "multiple accounts to circumvent usage limits, access restrictions, billing obligations" |
 | No one-account-per-person rule | opencode.ai/legal/terms-of-service · 2026-10-21 | Negative-evidence | Not found by this search (research S-2) |
 
+## Kimi Code (Moonshot AI)
+
+Read for the research (`docs/research/kimi.md` §7), on the vendor's own
+sites, on 2026-10-21 (Terms of Service effective 2024-01-05; the Kimi
+Code Community Guidelines show no date).
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| Accounts registered or used improperly as several may be frozen or deleted | www.kimi.ai/user/agreement/modelUse (§Account) · 2026-10-21 | Verified-primary | "If there is evidence … that you have improperly registered or used multiple accounts, we may take measures such as freezing, deleting …" |
+| A Kimi Code plan is for interactive use only | www.kimi.com/code/docs/en/kimi-code/community-guidelines.html · 2026-10-21 | Verified-primary | "Kimi Code subscriptions are for interactive use only"; "Don't use Kimi Code for non-interactive automation" |
+| Several devices and tools on one account are normal use | www.kimi.com/code/docs/en/kimi-code/community-guidelines.html · 2026-10-21 | Verified-primary | Switching between devices or coding tools "is a completely normal usage pattern" |
+
 ## What Add account says
 
 Word for word, from each adapter's `terms` (the test
@@ -51,6 +63,8 @@ Word for word, from each adapter's `terms` (the test
   - The first part is OpenAI's help centre (row 1); the second is the Terms of Use (rows 2 and 3).
 - **OpenCode**, linking OpenCode's Terms of Service: "OpenCode's Terms of Service say not to use several accounts to get around usage limits, access restrictions or billing."
   - The OpenCode table's row 1.
+- **Kimi Code**, linking Kimi's Terms of Service: "Kimi's Terms of Service let it freeze accounts registered or used improperly as several, and its Kimi Code guidelines say plans are for interactive use only."
+  - The Kimi Code table's rows 1 and 2.
 
 ## What AI Juggler does with them
 

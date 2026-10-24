@@ -641,6 +641,17 @@ pub(crate) fn claude_entry(name: &str, server: &McpServer) -> serde_json::Value 
 }
 
 fn mcp_item(name: &str, entry: &serde_json::Value, scope: Scope) -> Item {
+    mcp_json_item(CLAUDE_CODE_ID, name, entry, scope)
+}
+
+/// A server in the `mcpServers` JSON form Claude Code uses, and the tools
+/// that adopted it (AJ-E1603: Kimi Code's `mcp.json`), as `tool`'s item.
+pub(crate) fn mcp_json_item(
+    tool: &str,
+    name: &str,
+    entry: &serde_json::Value,
+    scope: Scope,
+) -> Item {
     let text = |key: &str| {
         entry
             .get(key)
@@ -690,7 +701,7 @@ fn mcp_item(name: &str, entry: &serde_json::Value, scope: Scope) -> Item {
         },
     };
     Item {
-        tool: CLAUDE_CODE_ID.to_owned(),
+        tool: tool.to_owned(),
         kind: ItemKind::McpServer,
         name: name.to_owned(),
         scope,

@@ -26,6 +26,7 @@ guidelines decide.
 | `anthropic` | Anthropic | Claude Code (vendor) | simple-icons 16.35.0 (`anthropic`) | CC0-1.0 | as above | **No** — letter mark until approved | 2026-10-21 |
 | `openai` | OpenAI | Codex (tool and vendor) | not in simple-icons 16.35.0 | — | [Brand guidelines](https://openai.com/brand/): logo use needs permission (partnercomms@openai.com) | **No** — letter mark until approved | 2026-10-21 |
 | `opencode` | Anomaly | OpenCode (tool) | simple-icons 16.35.0 (`opencode`) | CC0-1.0 | Not checked yet | **No** — letter mark until checked | 2026-10-24 |
+| `kimi` | Moonshot AI | Kimi Code (tool) | not looked for | — | Not checked yet | **No** — letter mark until checked | 2026-10-24 |
 
 Tools coming in E16 (Gemini CLI, OpenCode, …) get a row here when their
 ToolSpec names a mark; simple-icons 16.35.0 has `googlegemini` and

@@ -11,9 +11,11 @@
 //!    writes nothing outside it.
 //! 2. **No credential copies** — bringing a setup in never copies its
 //!    sign-in (by name or by content), and never changes the original.
-//! 3. **Pinned env after overrides** — Launch-settings overrides apply,
-//!    but never over a pinned variable, never bring back a removed
-//!    credential, and never do either in the copyable shell line.
+//! 3. **Pinned env after overrides** (in every launch the tool offers: a
+//!    tool may refuse a headless run or a first message, saying so) —
+//!    Launch-settings overrides apply, but never over a pinned variable,
+//!    never bring back a removed credential, and never do either in the
+//!    copyable shell line.
 //! 4. **Refusing option-like resume ids** — an id that the tool would
 //!    read as an option is refused, never passed.
 //! 5. **Sessions found and resumed** — a session this account started in
@@ -507,9 +509,22 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
         let recipe = profile(&account, overrides.clone());
         let pins = expected_pins(adapter.as_ref(), folder);
         for mode in all_modes("kit-session-1") {
-            let spec = adapter
-                .launch_spec(&account, &recipe, &sandbox.project, &mode)
-                .unwrap_or_else(|error| panic!("{name}: {mode:?} launch failed: {error}"));
+            let spec = match adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+                Ok(spec) => spec,
+                // A tool may not offer a headless run or a first message
+                // (AJ-E1603: Kimi Code's plans are interactive only); it
+                // says so, and nothing launches. Every tool starts and
+                // resumes.
+                Err(AdapterError::Unsupported(_))
+                    if matches!(
+                        mode,
+                        LaunchMode::Headless { .. } | LaunchMode::Primed { .. }
+                    ) =>
+                {
+                    continue;
+                }
+                Err(error) => panic!("{name}: {mode:?} launch failed: {error}"),
+            };
             for (key, value) in &pins {
                 assert_eq!(
                     spec.env.get(*key),

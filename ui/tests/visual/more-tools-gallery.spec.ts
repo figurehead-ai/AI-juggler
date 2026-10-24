@@ -22,6 +22,7 @@ const now = () => Math.floor(NOW_MS / 1000);
 /** The E16 tools: id, name, version found, and a default folder. */
 const NEW_TOOLS = [
   { id: "opencode", name: "OpenCode", version: "1.19.3", binary: "/opt/homebrew/bin/opencode", folder: "/Users/you/.local/share/opencode" },
+  { id: "kimi-code", name: "Kimi Code", version: "2.3.0", binary: "/Users/you/.kimi-code/bin/kimi", folder: "/Users/you/.kimi-code" },
 ] as const;
 
 const INSTALLS = [

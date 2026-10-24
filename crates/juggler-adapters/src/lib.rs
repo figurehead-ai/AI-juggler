@@ -28,6 +28,10 @@ pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;
+pub mod kimi_code;
+pub mod kimi_environment;
+pub mod kimi_inventory;
+pub mod kimi_sessions;
 pub mod opencode;
 pub mod opencode_environment;
 pub mod opencode_inventory;
@@ -36,6 +40,7 @@ pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod settings_keys;
 pub mod sign_in;
 pub mod subtasks;
 pub mod tool_summary;
@@ -47,6 +52,7 @@ pub use claude_transcript::{
 };
 pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
+pub use kimi_code::{KIMI_CODE_ID, KimiCodeAdapter, kimi_code_spec};
 pub use opencode::{OPENCODE_ID, OpenCodeAdapter, opencode_spec};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,

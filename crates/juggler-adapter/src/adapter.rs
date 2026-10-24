@@ -262,6 +262,17 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1603: why the account at `state_dir` may only be used by a
+    /// person at the keyboard (its vendor's terms: Kimi Code's plans are
+    /// "for interactive use only"), in words; `None` when nothing limits
+    /// it. A launch nobody clicked (a restart after a crash) is never made
+    /// for it, and the adapter refuses its headless runs.
+    #[must_use]
+    fn interactive_only(&self, state_dir: &Path) -> Option<String> {
+        let _ = state_dir;
+        None
+    }
+
     /// AJ-E1529: whether a running process (its executable and its
     /// arguments, the first being the program) is one of this tool's
     /// sessions, and which conversation it resumes. Helpers and a desktop

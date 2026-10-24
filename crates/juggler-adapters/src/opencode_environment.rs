@@ -300,12 +300,12 @@ fn copy_settings(from: &Path, to: &Path, copied: &mut Copied) -> std::io::Result
         if kind.is_dir() {
             copy_settings(&entry.path(), &target, copied)?;
         } else if kind.is_file() {
-            let settings = text_name.ends_with(".json") || text_name.ends_with(".jsonc");
-            if settings && holds_key(&entry.path()) {
-                copied.kept_back.push(format!(
-                    "{text_name}: a key is written in it, and keys are never copied: sign in \
-                     once inside this account"
-                ));
+            let keyed = crate::settings_keys::format_of(&text_name)
+                .is_some_and(|format| crate::settings_keys::file_holds_key(&entry.path(), format));
+            if keyed {
+                copied
+                    .kept_back
+                    .push(crate::settings_keys::kept_back_note(&text_name));
                 continue;
             }
             copied.bytes += std::fs::copy(entry.path(), &target)?;
@@ -313,30 +313,6 @@ fn copy_settings(from: &Path, to: &Path, copied: &mut Copied) -> std::io::Result
         }
     }
     Ok(())
-}
-
-/// Whether a settings file has a key written in it: a value that looks
-/// like a secret by its name or its shape, and isn't a reference. A file
-/// that can't be read as JSON is kept back too (its contents can't be
-/// checked).
-fn holds_key(file: &Path) -> bool {
-    fn walk(key: &str, value: &serde_json::Value) -> bool {
-        match value {
-            serde_json::Value::String(text) => {
-                let reference = text.starts_with("{env:") || text.starts_with("{file:");
-                !text.is_empty()
-                    && !reference
-                    && juggler_adapter::inventory::looks_secret(key, text)
-            }
-            serde_json::Value::Array(items) => items.iter().any(|item| walk(key, item)),
-            serde_json::Value::Object(map) => map.iter().any(|(key, item)| walk(key, item)),
-            _ => false,
-        }
-    }
-    std::fs::read_to_string(file)
-        .ok()
-        .and_then(|text| juggler_adapter::jsonc::parse(&text).ok())
-        .is_none_or(|value| walk("", &value))
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {

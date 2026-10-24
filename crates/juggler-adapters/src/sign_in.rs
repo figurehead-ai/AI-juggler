@@ -3,7 +3,8 @@
 //! out, never a path to open: a file's metadata (presence, size), the
 //! presence-only shape of Codex's `auth.json` (which fields are filled, its
 //! mode and account id; every token is skipped while parsing and never
-//! stored), and the kinds of OpenCode's sign-ins (`oauth`, `api`). The name constants are the crate's own, for the copy rules
+//! stored), the kinds of OpenCode's sign-ins (`oauth`, `api`), and which
+//! of Kimi Code's sign-in files are there. The name constants are the crate's own, for the copy rules
 //! that keep these files back. `juggler-app/tests/no_bare_tools.rs` fails
 //! when the names appear anywhere else, when a function outside the lists
 //! uses the constants, or when this module reads any other way.
@@ -21,6 +22,11 @@ pub(crate) const CODEX_AUTH: &str = "auth.json";
 pub(crate) const OPENCODE_AUTH: &str = "auth.json";
 /// OpenCode's MCP servers' sign-ins.
 pub(crate) const OPENCODE_MCP_AUTH: &str = "mcp-auth.json";
+/// Kimi Code's sign-ins folder (AJ-E1603): one file per sign-in, owner
+/// only, and its MCP servers' sign-ins under `mcp/`.
+pub(crate) const KIMI_CREDENTIALS: &str = "credentials";
+/// Kimi Code's membership (OAuth) sign-in, in that folder.
+pub(crate) const KIMI_MEMBERSHIP: &str = "kimi-code.json";
 
 /// A provider's sign-in file in a config folder, when it's file-based:
 /// presence and size only, never its contents.
@@ -29,6 +35,9 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
     let name = match provider {
         crate::codex::CODEX_ID => CODEX_AUTH,
         crate::opencode::OPENCODE_ID => OPENCODE_AUTH,
+        crate::kimi_code::KIMI_CODE_ID => {
+            return std::fs::metadata(dir.join(KIMI_CREDENTIALS).join(KIMI_MEMBERSHIP)).ok();
+        }
         _ => CLAUDE_CREDENTIALS,
     };
     std::fs::metadata(dir.join(name)).ok()
@@ -111,6 +120,41 @@ pub(crate) fn opencode_auth(dir: &Path) -> OpenCodeAuth {
     )
     .map_or(OpenCodeAuth::Unreadable, |entries| {
         OpenCodeAuth::Kinds(entries.into_values().map(|entry| entry.kind).collect())
+    })
+}
+
+/// Which sign-ins a Kimi Code home holds, by the files' presence only:
+/// none is ever opened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KimiSignIn {
+    /// The membership's own sign-in (`kimi-code.json`): a subscription.
+    Membership,
+    /// Another sign-in file, and no membership one: a Kimi Platform API
+    /// key [Inferred from the layout; on the live checklist].
+    Other,
+    /// No sign-in file.
+    None,
+}
+
+/// See [`KimiSignIn`]. `None` when the home can't be listed.
+pub(crate) fn kimi_sign_in(home: &Path) -> Option<KimiSignIn> {
+    std::fs::read_dir(home).ok()?;
+    let folder = home.join(KIMI_CREDENTIALS);
+    let filled =
+        |path: &Path| std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0);
+    if filled(&folder.join(KIMI_MEMBERSHIP)) {
+        return Some(KimiSignIn::Membership);
+    }
+    let other = std::fs::read_dir(&folder).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            let path = entry.path();
+            path.extension().is_some_and(|ext| ext == "json") && filled(&path)
+        })
+    });
+    Some(if other {
+        KimiSignIn::Other
+    } else {
+        KimiSignIn::None
     })
 }
 
