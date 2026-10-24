@@ -76,6 +76,11 @@ pid: number | null,
  */
 state: string | null, 
 /**
+ * AJ-E2107: the state was worked out (from the transcript's tail),
+ * not recorded by the tool: the UI says "probably".
+ */
+probably: boolean, 
+/**
  * When the user last had it in front in its app, epoch ms, as the app
  * recorded it: "viewed N min ago", never "in front".
  */

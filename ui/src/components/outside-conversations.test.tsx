@@ -42,7 +42,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
     places: [],
     pid: null,
     state: null,
-    viewed_ms: null,
+    viewed_ms: null, probably: false,
     background: false,
     inactive: false,
     ...overrides,
@@ -50,7 +50,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 }
 
 function place(label: string, pid: number): ConversationInfo["places"][number] {
-  return { app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, label };
+  return { app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label };
 }
 
 function withFixture(conversations: ConversationInfo[], children: ReactNode, host: ActionHost = {}): JSX.Element {

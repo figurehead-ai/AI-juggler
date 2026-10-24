@@ -288,6 +288,40 @@ fn a_slow_step_answers_within_the_limit() {
 }
 
 #[test]
+fn a_places_open_brings_its_running_app_forward_and_never_a_reused_pid() {
+    let place = target(
+        Some("claude-app"),
+        "Claude",
+        Some(HostKind::Desktop),
+        Some("b-work"),
+    )
+    .place;
+    let host = place.host.unwrap();
+    let mac = FakeMac::default();
+    let said = bring_forward(&host, &mac);
+    assert_eq!(said.reached, "app");
+    assert_eq!(said.outcome, "Brought Claude · b-work forward");
+    assert_eq!(mac.log(), vec!["activate 10".to_owned()]);
+    // The app quit and its pid went to another process: nothing is touched.
+    let reused = FakeMac {
+        restarted: true,
+        ..FakeMac::default()
+    };
+    let said = bring_forward(&host, &reused);
+    assert_eq!(said.reached, "none");
+    assert!(reused.log().is_empty(), "never activates another process");
+    let refused = FakeMac {
+        refused: true,
+        ..FakeMac::default()
+    };
+    assert!(
+        bring_forward(&host, &refused)
+            .outcome
+            .contains("click it in the Dock")
+    );
+}
+
+#[test]
 fn the_registry_has_no_extension_session_link() {
     let registry = hosts();
     let vscode: &HostApp = registry.by_id("vscode").unwrap();

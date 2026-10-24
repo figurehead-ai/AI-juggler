@@ -30,7 +30,7 @@ function previewConversations(): ConversationInfo[] {
     places: [] as PlaceInfo[],
     pid: null,
     state: null,
-    viewed_ms: null,
+    viewed_ms: null, probably: false,
     background: false,
     inactive: false,
   };
@@ -45,10 +45,10 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
-      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, label: "Claude · Work" }],
+      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: null, app_pid: null, label: "Claude · Work" }],
       pid: 4242,
       state: "working",
-      viewed_ms: NOW - 120_000,
+      viewed_ms: NOW - 120_000, probably: false,
     },
     {
       ...base,

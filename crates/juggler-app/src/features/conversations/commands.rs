@@ -72,6 +72,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 places: Vec::new(),
                 pid: None,
                 state: None,
+                probably: false,
                 viewed_ms: None,
                 background: false,
                 inactive: state.conversations.is_inactive(
@@ -127,6 +128,7 @@ fn with_live(
         .collect();
     info.pid = info.places.first().map(|place| place.pid);
     info.state = entry.state.map(|state| state.word().to_owned());
+    info.probably = entry.probably && info.state.is_some();
     info.viewed_ms = entry.viewed_ms;
     info.background = entry.background;
     if let Some(title) = &entry.app_title {
@@ -164,6 +166,15 @@ fn place_info(
         profile,
         instance,
         pid: place.pid,
+        kind: place.host.as_ref().and_then(|host| host.kind).map(|kind| {
+            match kind {
+                juggler_adapter::live::HostKind::Desktop => "desktop",
+                juggler_adapter::live::HostKind::Terminal => "terminal",
+                juggler_adapter::live::HostKind::Editor => "editor",
+            }
+            .to_owned()
+        }),
+        app_pid: place.host.as_ref().map(|host| host.pid),
         label,
     }
 }
@@ -242,6 +253,24 @@ pub async fn conversations_go_to(
             pid,
             Arc::new(super::goto::MacDesktop),
         )
+    })
+    .await
+}
+
+/// AJ-E2104: a place's Open: brings the app whose process is `app_pid`
+/// forward when an open session runs in it (never launches it), off the
+/// main thread, within 1.5 s.
+///
+/// # Errors
+///
+/// As [`super::goto::bring_forward_impl`].
+#[tauri::command]
+pub async fn conversations_bring_forward(
+    state: tauri::State<'_, Arc<AppState>>,
+    app_pid: u32,
+) -> AppResult<GoToOutcomeInfo> {
+    crate::ipc::blocking(state.inner(), "bringing the app forward", move |state| {
+        super::goto::bring_forward_impl(state, app_pid, Arc::new(super::goto::MacDesktop))
     })
     .await
 }

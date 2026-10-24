@@ -419,6 +419,8 @@ macro_rules! app_commands {
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_resume_command,
             Write features::conversations::commands::conversations_go_to,
+            // Brings a running app forward (never launches it).
+            Write features::conversations::commands::conversations_bring_forward,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::sessions::commands::sessions_resume_command,

@@ -152,15 +152,16 @@ impl State {
     }
 }
 
-/// The state from what the tool recorded: a running turn is Working;
-/// otherwise the app's last-turn word decides (blocked: Asks you; review
-/// ready: Done, review it; completed: Idle); idle alone is Idle; nothing
-/// known is nothing.
+/// The state from what the tool recorded: a session the tool says waits
+/// on the user Asks you (AJ-E2107); a running turn is Working; otherwise
+/// the app's last-turn word decides (blocked: Asks you; review ready:
+/// Done, review it; completed: Idle); idle alone is Idle; nothing known is
+/// nothing.
 #[must_use]
 pub fn state_of(status: LiveStatus, outcome: Option<TurnOutcome>) -> Option<State> {
     match (status, outcome) {
         (LiveStatus::Busy, _) => Some(State::Working),
-        (_, Some(TurnOutcome::Blocked)) => Some(State::AsksYou),
+        (LiveStatus::Waiting, _) | (_, Some(TurnOutcome::Blocked)) => Some(State::AsksYou),
         (_, Some(TurnOutcome::ReviewReady)) => Some(State::DoneReview),
         (_, Some(TurnOutcome::Completed)) | (LiveStatus::Idle, None) => Some(State::Idle),
         (LiveStatus::Unknown, None) => None,
@@ -180,6 +181,9 @@ pub struct LiveEntry {
     pub places: Vec<Place>,
     /// Its state, when known.
     pub state: Option<State>,
+    /// AJ-E2107: the state was worked out from the transcript's tail, not
+    /// recorded by the tool ("probably").
+    pub probably: bool,
     /// When the user last had it in front in its app, epoch ms.
     pub viewed_ms: Option<i64>,
     /// Its title in its app's sidebar.
@@ -512,6 +516,16 @@ fn held(
     out
 }
 
+/// How much a recorded status says, to merge two places' statuses.
+fn status_rank(status: LiveStatus) -> u8 {
+    match status {
+        LiveStatus::Waiting => 3,
+        LiveStatus::Busy => 2,
+        LiveStatus::Idle => 1,
+        LiveStatus::Unknown => 0,
+    }
+}
+
 /// The model from what was found.
 fn build(
     table: &Table,
@@ -545,8 +559,10 @@ fn build(
             found.profile.account_id.clone(),
             found.session.session_id.clone(),
         );
+        // Open in two places: the one that says most wins (waiting on the
+        // user, then busy, then idle).
         let status = status_of.entry(key.clone()).or_default();
-        if *status != LiveStatus::Busy {
+        if status_rank(found.session.status) > status_rank(*status) {
             *status = found.session.status;
         }
         let entry = entries.entry(key).or_insert_with(|| LiveEntry {
@@ -555,6 +571,7 @@ fn build(
             session_id: found.session.session_id.clone(),
             places: Vec::new(),
             state: None,
+            probably: false,
             viewed_ms: None,
             app_title: None,
             background: found.session.background,
@@ -564,7 +581,7 @@ fn build(
             entry.viewed_ms = entry.viewed_ms.max(app.last_focused_ms);
             entry.app_title = entry.app_title.take().or_else(|| app.title.clone());
             entry.state = state_of(*status, app.outcome);
-        } else if entry.state.is_none() || *status == LiveStatus::Busy {
+        } else if entry.state.is_none() || status_rank(*status) >= status_rank(LiveStatus::Busy) {
             entry.state = state_of(*status, None);
         }
         entry.places.push(Place {
@@ -583,6 +600,7 @@ fn build(
                 session_id: id.clone(),
                 places: Vec::new(),
                 state: None,
+                probably: false,
                 viewed_ms: None,
                 app_title: None,
                 background: false,

@@ -2,6 +2,7 @@
 
 /// One conversation on one of the user's accounts: started by AI Juggler
 /// or not (AJ-E1529).
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the rail shows
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ConversationInfo {
@@ -43,6 +44,9 @@ pub struct ConversationInfo {
     /// Its state in E21's words: `asks_you`, `working`, `idle` or
     /// `done_review`; `None` when it isn't open or the tool doesn't say.
     pub state: Option<String>,
+    /// AJ-E2107: the state was worked out (from the transcript's tail),
+    /// not recorded by the tool: the UI says "probably".
+    pub probably: bool,
     /// When the user last had it in front in its app, epoch ms, as the app
     /// recorded it: "viewed N min ago", never "in front".
     #[ts(type = "number | null")]
@@ -71,6 +75,11 @@ pub struct PlaceInfo {
     pub instance: Option<String>,
     /// The process running the session.
     pub pid: u32,
+    /// What kind of app: `desktop`, `terminal` or `editor`, when known.
+    pub kind: Option<String>,
+    /// AJ-E2104: the app's own process, which the place's Open brings
+    /// forward (never launches); `None` when no app runs it.
+    pub app_pid: Option<u32>,
     /// The place in words: `Claude · b-work`, `Terminal`.
     pub label: String,
 }

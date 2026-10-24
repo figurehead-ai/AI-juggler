@@ -114,6 +114,7 @@ mod tests {
                 profile: None,
             }],
             state: None,
+            probably: false,
             viewed_ms: None,
             app_title: None,
             background: false,

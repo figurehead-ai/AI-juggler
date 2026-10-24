@@ -103,7 +103,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
     places: [],
     pid: null,
     state: null,
-    viewed_ms: null,
+    viewed_ms: null, probably: false,
     background: false,
     inactive: false,
     ...overrides,
