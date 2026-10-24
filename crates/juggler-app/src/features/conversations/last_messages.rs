@@ -170,7 +170,11 @@ mod tests {
             "1234567890abcdef",
             "eyJhbGciOiJIUzI1NiJ9",
         ] {
-            assert!(!all.contains(secret), "{secret} leaked: {all}");
+            // The message never prints the value (CodeQL: a secret in a log).
+            assert!(
+                !all.contains(secret),
+                "a test secret leaked into the shown text"
+            );
         }
         assert!(all.contains("•••"), "{all}");
         assert!(info.redacted >= 3, "{info:?}");
@@ -185,10 +189,13 @@ mod tests {
             "here:\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXk\n-----END OPENSSH PRIVATE KEY-----\nthanks",
         )]);
         let text = &read(Some(&path)).turns[0].text;
-        assert!(!text.contains("b3BlbnNzaC1rZXk"), "{text}");
+        assert!(
+            !text.contains("b3BlbnNzaC1rZXk"),
+            "the key block leaked into the shown text"
+        );
         assert!(
             text.starts_with("here:") && text.ends_with("thanks"),
-            "{text}"
+            "the words around the key block were lost"
         );
     }
 
