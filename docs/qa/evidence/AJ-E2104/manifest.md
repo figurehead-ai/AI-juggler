@@ -3,7 +3,7 @@
 Task: `docs/tasks/E21-desktop-first.md` AJ-E2104, places, rows and the
 View. Branch `e21-rail`. Status: **IN-PROGRESS**: every requirement is
 built and tested below, and the new gallery (`places-gallery.spec.ts`,
-92-places) passes when run on this Mac (not in the pinned container: the
+94-places) passes when run on this Mac (not in the pinned container: the
 container gate is the maintainer's run, and its baselines change, see
 the list at the end). Open: real app icons (a desktop app shows its two
 letters, a terminal and an editor their kind's glyph: the host registry
@@ -80,7 +80,7 @@ gallery families 01-rail, 01-rail-density, 01-rail-sort (quota-risk
 removed, `view-1440x900` new), 46-fleet-board, 49-fleet-sync, 51-identity,
 69-rail-narrow, 72-this-mac (now This Mac's page), 74-overload,
 76-project-manage, 77-menus, 78-outside, 80-marks, the pages and README
-shots, and the new 92-places.
+shots, and the new 94-places.
 
 ## Redaction checklist (tick before commit)
 

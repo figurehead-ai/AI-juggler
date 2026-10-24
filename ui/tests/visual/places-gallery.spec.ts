@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { expect, gate, scan, test } from "./axe-gallery";
 import { placesConversations } from "../../src/preview/places";
 
-const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/92-places");
+const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/94-places");
 const T0 = new Date(2026, 9, 24, 15, 0, 0).getTime();
 
 const ACCOUNTS = [
@@ -72,7 +72,7 @@ async function shoot(page: Page, name: string, theme: string, target: "page" | "
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail with 1 open session — ${theme}`, gate("92-places"), async ({ page }) => {
+  test(`the rail with 1 open session — ${theme}`, gate("94-places"), async ({ page }) => {
     await seed(page, "one", theme);
     await expect(page.getByTestId("rail-open-now")).toBeVisible();
     await shoot(page, "rail-1", theme, "rail");
