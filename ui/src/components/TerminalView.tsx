@@ -382,6 +382,8 @@ export function TerminalView({
  * window or nothing; not from something the user has since focused in the
  * terminal's own page (Tab, a shortcut), which a late arrival would steal. */
 export function mayTakeFocus(host: HTMLElement): boolean {
+  // Never from a dialog over the page: it owns the keys (its focus trap).
+  if (document.querySelector('[aria-modal="true"]')) return false;
   const active = document.activeElement;
   if (!active || active === document.body) return true;
   const page = host.closest("main");
