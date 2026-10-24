@@ -1,20 +1,20 @@
 /**
- * AJ-E1010 — Settings › About & updates. The version and the Beta label
- * are always shown. Updates are announced, never installed silently: a
- * check shows the new version and what changed, and nothing happens
- * until Install. Install writes a backup first (the way back), then
- * downloads, verifies the signature and installs. A failure leaves the
- * running version untouched and says why in plain words, with Try
- * again (the technical reason is behind Details). "Restart to update" is
- * the user's call and is offered only when it is safe — no session
- * running, no switch in flight, no bring-in under way; until then the
- * card says what it is waiting for. A development build says plainly
- * that it does not update itself.
+ * AJ-E1010 — Settings › General › About & updates. The version and the
+ * Beta label are always shown. Updates are announced, never installed
+ * silently: a check shows the new version and what changed, and nothing
+ * happens until Install. Install writes a backup first (the way back),
+ * then downloads, verifies the signature and installs. A failure leaves
+ * the running version untouched and says why in plain words, with Try
+ * again (the technical reason is behind Details). "Restart to update"
+ * is the user's call, offered only when safe — no session running, no
+ * switch in flight, no bring-in under way; until then the card says
+ * what it waits for. A development build says it does not update.
  */
 import { UpdateProgress } from "./UpdateProgress";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
+import { CardTitle } from "./CardTitle";
 import {
   errorText,
   goingBackOptions,
@@ -249,9 +249,9 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-updates">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 ref={heading} tabIndex={-1} id="settings-updates-title" className="scroll-mt-4 text-sm font-semibold outline-none">
+        <CardTitle ref={heading} tabIndex={-1} id="settings-updates-title" className="scroll-mt-4 outline-none">
           About &amp; updates
-        </h3>
+        </CardTitle>
         <ChannelChip channel="beta" testId="beta-label" />
       </div>
       <p className="text-[11px] text-ink" data-testid="update-version">
