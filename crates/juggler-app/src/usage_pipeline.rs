@@ -8,6 +8,8 @@
 //!   lines (Measured tokens), offset-tracked per file.
 //! - Codex: rollout `token_usage_record` lines (Measured tokens).
 //! - `ZCode`: `model_usage` via read-only SQLite (Computed credits).
+//! - A tool that keeps its usage in a store read by time (OpenCode's
+//!   `opencode.db`): through its adapter's `usage_since`, read-only.
 //! - Gemini: NO source exists at any grade (AJ-E605) — nothing to
 //!   tail; the absence is a typed decision, not an omission.
 //!
@@ -206,6 +208,13 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             }
             "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
                 ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
+            }
+            // ADR-0019 §2: a tool whose usage sits in a store read by time
+            // (a database) reads it through its adapter.
+            _ if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
+                if let Some(adapter) = state.registry.get(&account.harness) {
+                    ingest_store(adapter.as_ref(), account, &mut ingest, &mut store_batch);
+                }
             }
             _ => {}
         }
@@ -598,6 +607,52 @@ fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &
         .collect();
     offsets.files.retain(|path, _| present.contains(path));
     offsets.carries.retain(|path, _| present.contains(path));
+}
+
+/// The high-water key, in an account's offsets, of a store read by time.
+const STORE_SEEN: &str = "store:updated_ms";
+
+/// How far behind the high-water mark each store read starts: a message
+/// written in the same millisecond as the last read is read again (its
+/// key absorbs the repeat).
+const STORE_OVERLAP_MS: u64 = 60_000;
+
+/// A store read by time (AJ-E1602: OpenCode's `opencode.db`): what changed
+/// since the last pass, through the account's adapter, read-only.
+fn ingest_store(
+    adapter: &dyn juggler_adapter::HarnessAdapter,
+    account: &juggler_core::model::Account,
+    ingest: &mut IngestState,
+    store: &mut Vec<juggler_core::quota::UsageEvent>,
+) {
+    let id = account.id.as_str();
+    let seen = ingest
+        .offsets
+        .get(id)
+        .and_then(|offsets| offsets.files.get(STORE_SEEN).copied())
+        .unwrap_or(0);
+    let since = i64::try_from(seen.saturating_sub(STORE_OVERLAP_MS)).unwrap_or(0);
+    let Some(read) = adapter.usage_since(account, since) else {
+        return;
+    };
+    match read {
+        Ok(events) => {
+            let latest = events.iter().map(|event| event.ts).max();
+            if let Some(latest) = latest.and_then(|ts| u64::try_from(ts).ok()) {
+                ingest
+                    .offsets
+                    .entry(id.to_owned())
+                    .or_default()
+                    .files
+                    .insert(STORE_SEEN.to_owned(), seen.max(latest));
+            }
+            store.extend(events);
+            if let Some(latest) = latest {
+                record_health(ingest, id, "store", Some(latest), 0, "");
+            }
+        }
+        Err(error) => record_health(ingest, id, "store", None, 0, &error),
+    }
 }
 
 /// Tails a set of JSONL files with per-file offsets.

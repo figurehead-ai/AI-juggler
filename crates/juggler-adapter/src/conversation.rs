@@ -29,6 +29,19 @@ pub struct ConversationSummary {
     pub tokens: TokenCounts,
 }
 
+/// AJ-E1602: a conversation a tool keeps in a store with all the others
+/// (one database), not in a file of its own.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StoredConversation {
+    /// Its key in the index: the store's path, `#`, and its id. No file
+    /// has this path, so nothing that opens files misreads it.
+    pub key: PathBuf,
+    /// When it last changed, epoch ms: the index reads it again only then.
+    pub changed_ms: i64,
+    /// What it says about itself.
+    pub summary: ConversationSummary,
+}
+
 /// Bytes read from the start of a large conversation file for a quick
 /// read (QA batch 10: rollouts of hundreds of MB, 6.6 GB on one Mac).
 pub const QUICK_HEAD: u64 = 256 * 1024;

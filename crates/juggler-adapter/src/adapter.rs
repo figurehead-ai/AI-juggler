@@ -231,6 +231,37 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1602: the conversations of a tool that keeps them all in one
+    /// store (one database) rather than a file each, read in one pass,
+    /// read-only. Each carries a key no file has (`<store>#<id>`) and when
+    /// it last changed, so the index reads again only what changed.
+    /// Default: none (the tool keeps a file per conversation, listed by
+    /// [`HarnessAdapter::conversation_files`]).
+    #[must_use]
+    fn stored_conversations(
+        &self,
+        state_dir: &Path,
+    ) -> Vec<crate::conversation::StoredConversation> {
+        let _ = state_dir;
+        Vec::new()
+    }
+
+    /// AJ-E1602 (ADR-0019 §2, the quota-source building block): usage from
+    /// a tool that keeps it in a store queried by time (a database), not in
+    /// files tailed by offset: every message changed at or after `since_ms`
+    /// (epoch ms; 0 for all), each keyed so a message read twice counts
+    /// once, and labelled as honestly as the store allows. `None`: the tool
+    /// has no such store. `Some(Err)`: the store couldn't be read this time
+    /// (a plain message, never a secret).
+    fn usage_since(
+        &self,
+        account: &Account,
+        since_ms: i64,
+    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
+        let _ = (account, since_ms);
+        None
+    }
+
     /// AJ-E1529: whether a running process (its executable and its
     /// arguments, the first being the program) is one of this tool's
     /// sessions, and which conversation it resumes. Helpers and a desktop

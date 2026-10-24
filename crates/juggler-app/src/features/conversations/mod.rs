@@ -377,14 +377,43 @@ fn refresh_with(
     progress: &dyn Fn(),
 ) -> AppResult<bool> {
     let mut seen: Vec<PathBuf> = Vec::new();
-    let mut changed = false;
+    let mut changed_any = false;
     // Every account's files, listed first (cheap), then read newest
     // first: a running session's file is among the newest.
     let mut found = Vec::new();
+    let mut report = Reporter::new(every, progress);
     for account in accounts {
         let Some(adapter) = state.registry.get(&account.harness) else {
             continue;
         };
+        // AJ-E1602: a tool that keeps every conversation in one store
+        // gives them in one read; each is read again only once it changed.
+        for stored in adapter.stored_conversations(&account.state_dir) {
+            seen.push(stored.key.clone());
+            let changed = u64::try_from(stored.changed_ms)
+                .ok()
+                .map(|ms| std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms));
+            let unchanged = state
+                .conversations
+                .files
+                .lock()
+                .map_err(|_| AppError::StatePoisoned)?
+                .get(&stored.key)
+                .is_some_and(|entry| entry.modified == changed);
+            if !unchanged {
+                store(
+                    state,
+                    account,
+                    &stored.key,
+                    0,
+                    changed,
+                    Some(stored.summary),
+                    true,
+                )?;
+                changed_any = true;
+                report.read();
+            }
+        }
         for path in adapter.conversation_files(&account.state_dir) {
             let Ok(meta) = std::fs::metadata(&path) else {
                 continue;
@@ -399,7 +428,6 @@ fn refresh_with(
         }
     }
     found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
-    let mut report = Reporter::new(every, progress);
     // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
     // 6.6 GB, and reading each whole kept everything from showing for over
     // a minute). First every new or changed file's quick read (its start
@@ -439,7 +467,7 @@ fn refresh_with(
             None => (adapter.read_conversation(path), true),
         };
         store(state, account, path, *len, *modified, summary, complete)?;
-        changed = true;
+        changed_any = true;
         report.read();
     }
     // What's listed and live, at once, before the long round.
@@ -448,7 +476,7 @@ fn refresh_with(
         report.maybe();
         let summary = adapter.read_conversation(path);
         store(state, account, path, *len, *modified, summary, true)?;
-        changed = true;
+        changed_any = true;
         report.read();
     }
     let mut files = state
@@ -459,7 +487,7 @@ fn refresh_with(
     let before = files.len();
     let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
     files.retain(|path, _| seen.contains(path));
-    Ok(changed || files.len() != before)
+    Ok(changed_any || files.len() != before)
 }
 
 /// The conversation `id` on `account_id`, from the index.
