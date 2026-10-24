@@ -11,9 +11,11 @@
 //!    writes nothing outside it.
 //! 2. **No credential copies** — bringing a setup in never copies its
 //!    sign-in (by name or by content), and never changes the original.
-//! 3. **Pinned env after overrides** — Launch-settings overrides apply,
-//!    but never over a pinned variable, never bring back a removed
-//!    credential, and never do either in the copyable shell line.
+//! 3. **Pinned env after overrides** (in every launch the tool offers: a
+//!    tool may refuse a headless run or a first message, saying so) —
+//!    Launch-settings overrides apply, but never over a pinned variable,
+//!    never bring back a removed credential, and never do either in the
+//!    copyable shell line.
 //! 4. **Refusing option-like resume ids** — an id that the tool would
 //!    read as an option is refused, never passed.
 //! 5. **Sessions found and resumed** — a session this account started in
@@ -222,6 +224,22 @@ pub fn paths(dir: &Path) -> BTreeSet<PathBuf> {
     out
 }
 
+/// The paths that differ between two [`tree`]s (added, removed or
+/// changed) — what a failure names.
+pub fn changed(
+    before: &BTreeMap<PathBuf, Vec<u8>>,
+    after: &BTreeMap<PathBuf, Vec<u8>>,
+) -> Vec<PathBuf> {
+    before
+        .keys()
+        .chain(after.keys())
+        .filter(|path| before.get(*path) != after.get(*path))
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 fn contains(haystack: &[u8], needle: &str) -> bool {
     haystack
         .windows(needle.len())
@@ -300,10 +318,10 @@ pub fn isolates_each_home(subject: &dyn Subject) {
             path.display()
         );
     }
-    assert_eq!(
-        tree(&sandbox.home),
-        home_before,
-        "{name}: preparing an account touched the user's home"
+    let touched = changed(&home_before, &tree(&sandbox.home));
+    assert!(
+        touched.is_empty(),
+        "{name}: preparing an account touched the user's home: {touched:?}"
     );
     assert_eq!(
         adapter
@@ -422,11 +440,14 @@ pub fn copies_no_credentials(subject: &dyn Subject) {
         match import(adapter.as_ref(), &source, &dest) {
             Ok(_) => {
                 copied_any = true;
-                for file in subject.credential_files() {
-                    assert!(
-                        !dest.join(file).exists(),
-                        "{name}: the {kind} copied the sign-in file {file}"
-                    );
+                for (path, _) in tree(&dest) {
+                    for file in subject.credential_files() {
+                        assert!(
+                            !path.ends_with(Path::new(file).file_name().unwrap()),
+                            "{name}: the {kind} copied the sign-in file {file} to {}",
+                            path.display()
+                        );
+                    }
                 }
                 for (path, bytes) in tree(&dest) {
                     assert!(
@@ -446,10 +467,10 @@ pub fn copies_no_credentials(subject: &dyn Subject) {
         copied_any,
         "{name}: seeds a setup but brings nothing in (return None instead)"
     );
-    assert_eq!(
-        tree(&source),
-        before,
-        "{name}: bringing a setup in changed the original"
+    let touched = changed(&before, &tree(&source));
+    assert!(
+        touched.is_empty(),
+        "{name}: bringing a setup in changed the original: {touched:?}"
     );
 }
 
@@ -488,9 +509,22 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
         let recipe = profile(&account, overrides.clone());
         let pins = expected_pins(adapter.as_ref(), folder);
         for mode in all_modes("kit-session-1") {
-            let spec = adapter
-                .launch_spec(&account, &recipe, &sandbox.project, &mode)
-                .unwrap_or_else(|error| panic!("{name}: {mode:?} launch failed: {error}"));
+            let spec = match adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+                Ok(spec) => spec,
+                // A tool may not offer a headless run or a first message
+                // (AJ-E1603: Kimi Code's plans are interactive only); it
+                // says so, and nothing launches. Every tool starts and
+                // resumes.
+                Err(AdapterError::Unsupported(_))
+                    if matches!(
+                        mode,
+                        LaunchMode::Headless { .. } | LaunchMode::Primed { .. }
+                    ) =>
+                {
+                    continue;
+                }
+                Err(error) => panic!("{name}: {mode:?} launch failed: {error}"),
+            };
             for (key, value) in &pins {
                 assert_eq!(
                     spec.env.get(*key),
@@ -503,6 +537,13 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
                     spec.env.get(*key).map(String::as_str),
                     Some(ENV_UNSET),
                     "{name}: an override brought back {key} in a {mode:?} launch"
+                );
+            }
+            for (key, value) in adapter.launch_fixed_env() {
+                assert_eq!(
+                    spec.env.get(*key).map(String::as_str),
+                    Some(*value),
+                    "{name}: an override changed the fixed {key} in a {mode:?} launch"
                 );
             }
             assert_eq!(
@@ -716,10 +757,10 @@ pub fn labels_usage_honestly(subject: &dyn Subject) {
     usage.seed(&a);
     let before = tree(&a);
     let events = usage.read("acct-a", &a);
-    assert_eq!(
-        tree(&a),
-        before,
-        "{name}: reading usage wrote to the folder"
+    let touched = changed(&before, &tree(&a));
+    assert!(
+        touched.is_empty(),
+        "{name}: reading usage wrote to the folder: {touched:?}"
     );
 
     let keys = |events: &[UsageEvent]| -> Vec<String> {

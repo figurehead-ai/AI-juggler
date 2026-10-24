@@ -3,7 +3,9 @@
 //! setting's own choice): the same launch settings, the same folder, its
 //! conversation resumed. Never after a finish, a stop the user made, a
 //! usage limit or a failed sign-in (restarting can't fix those, and must
-//! never work around a limit: ADR-0003 point 3). At most [`TRIES`] tries
+//! never work around a limit: ADR-0003 point 3), and never for an account
+//! whose tool's terms allow interactive use only (AJ-E1603: a restart
+//! nobody clicked isn't that). At most [`TRIES`] tries
 //! in [`WINDOW_MS`]; then it stays ended and says why. Each try is in
 //! both sessions' history.
 
@@ -35,6 +37,9 @@ pub enum Ending {
     UsageLimit,
     /// It couldn't sign in (its output, or its account's sign-in state).
     SignInFailed,
+    /// Its account may only be used by a person at the keyboard (its
+    /// tool's terms, AJ-E1603).
+    InteractiveOnly,
     /// Anything else: it crashed.
     Crashed,
 }
@@ -87,6 +92,9 @@ pub fn decide(ending: Ending, enabled: bool, earlier: &[i64], now_ms: i64) -> Ve
         Ending::StoppedByUser => return Verdict::Never("you stopped it"),
         Ending::UsageLimit => return Verdict::Never("it reached a usage limit"),
         Ending::SignInFailed => return Verdict::Never("it couldn't sign in"),
+        Ending::InteractiveOnly => {
+            return Verdict::Never("its tool's terms allow interactive use only");
+        }
         Ending::Crashed => {}
     }
     if !enabled {
@@ -164,29 +172,40 @@ fn enabled_for(storage: &juggler_core::storage::Storage, session: &SessionId) ->
     own.unwrap_or_else(|| crate::settings_policy::always_on(storage).restart_on_crash)
 }
 
-/// Whether `session`'s account can't sign in now (credentials expired or
-/// half-made): restarting can't fix that.
-fn cannot_sign_in(state: &Arc<AppState>, session: &SessionId) -> bool {
-    use juggler_adapter::environment::LoginState;
-    let Ok(storage) = state.storage.lock() else {
-        return false;
-    };
-    let Some(account) = storage
+/// `session`'s account and its tool's adapter.
+fn account_of(
+    state: &Arc<AppState>,
+    session: &SessionId,
+) -> Option<(juggler_core::model::Account, juggler_adapter::SharedAdapter)> {
+    let storage = state.storage.lock().ok()?;
+    let account = storage
         .sessions()
         .get(session)
         .ok()
         .and_then(|record| storage.profiles().get(&record.profile).ok())
-        .and_then(|profile| storage.accounts().get(&profile.account).ok())
-    else {
-        return false;
-    };
+        .and_then(|profile| storage.accounts().get(&profile.account).ok())?;
     drop(storage);
-    state.registry.get(&account.harness).is_some_and(|adapter| {
+    let adapter = state.registry.get(&account.harness)?;
+    Some((account, adapter))
+}
+
+/// Whether `session`'s account can't sign in now (credentials expired or
+/// half-made): restarting can't fix that.
+fn cannot_sign_in(state: &Arc<AppState>, session: &SessionId) -> bool {
+    use juggler_adapter::environment::LoginState;
+    account_of(state, session).is_some_and(|(account, adapter)| {
         matches!(
             adapter.login_state(&account.state_dir),
             LoginState::Expired | LoginState::Partial | LoginState::SsoPending
         )
     })
+}
+
+/// Why `session`'s account may only be started by the user (its tool's
+/// terms), when it may.
+fn interactive_only(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
+    account_of(state, session)
+        .and_then(|(account, adapter)| adapter.interactive_only(&account.state_dir))
 }
 
 /// After `session` ended (its status already stored): starts it again on
@@ -196,8 +215,11 @@ pub fn after_exit(state: &Arc<AppState>, session: &SessionId, ending: Ending) {
     if ending != Ending::Crashed {
         return;
     }
+    let only_by_you = interactive_only(state, session);
     let ending = if cannot_sign_in(state, session) {
         Ending::SignInFailed
+    } else if only_by_you.is_some() {
+        Ending::InteractiveOnly
     } else {
         ending
     };
@@ -205,6 +227,15 @@ pub fn after_exit(state: &Arc<AppState>, session: &SessionId, ending: Ending) {
         .storage
         .lock()
         .is_ok_and(|storage| enabled_for(&storage, session));
+    // Restarting is on, but this account's terms say no: its history
+    // says why it stays ended.
+    if let (true, Some(why)) = (enabled, &only_by_you)
+        && let Ok(storage) = state.storage.lock()
+    {
+        let _ = storage
+            .sessions()
+            .record_lifecycle(session, &format!("not started again after a crash: {why}"));
+    }
     let earlier = state
         .restarts
         .lock()
@@ -388,6 +419,16 @@ mod tests {
         assert_eq!(
             Ending::of(&ExitKind::Signaled(Some(11)), false, false, ""),
             CRASH
+        );
+    }
+
+    /// AJ-E1603: an account its tool's terms keep to interactive use is
+    /// never restarted by itself, even with restarting on.
+    #[test]
+    fn an_interactive_only_account_is_never_restarted() {
+        assert_eq!(
+            decide(Ending::InteractiveOnly, true, &[], NOW),
+            Verdict::Never("its tool's terms allow interactive use only")
         );
     }
 

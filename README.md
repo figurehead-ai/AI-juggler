@@ -131,7 +131,8 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
 | Crash reports, scrubbed on your Mac (off unless you choose) | Kept on your Mac; this version can't send them anywhere yet |
 | Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
-| More tools (OpenCode, ZCode, Kimi and others) | Planned |
+| OpenCode, Kimi Code and Grok Build | Beta: built from their source and docs, not yet checked live |
+| More tools (ZCode, Kiro and others) | Planned |
 | Windows and Linux | Not before 1.0 |
 
 ## Supported tools
@@ -140,6 +141,9 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | --- | --- |
 | **Claude Code** (the `claude` command) | Sessions, usage, limits, starting sessions, switching (beta) |
 | **Codex** (the `codex` command) | Sessions, usage, limits, starting sessions, switching (beta) |
+| **OpenCode** (the `opencode` command, 1.x and 2.x) | Beta, not yet checked live: sessions, usage (tokens, and its own cost estimate), starting sessions, rules and MCP servers |
+| **Grok Build** (the `grok` command) | Beta, not yet checked live: sessions, starting sessions (your Claude and Cursor setups stay out of it), rules and MCP servers; its usage isn't read yet |
+| **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its usage isn't read yet |
 | **Claude app** (desktop) | Its Claude Code sessions are listed; This Mac measures its memory and CPU |
 
 AI Juggler finds each tool through your shell's `PATH`, the way your terminal
@@ -151,7 +155,10 @@ does, even when you open the app from Finder.
 
 - Your tool setups: Claude Code's `~/.claude` (and other Claude folders you
   use) and Codex's `~/.codex`, to list conversations and count usage from
-  their transcripts.
+  their transcripts; OpenCode's `~/.local/share/opencode` database, read
+  without changing it, and its settings in `~/.config/opencode`; Kimi
+  Code's `~/.kimi-code` session list and settings; Grok Build's
+  `~/.grok` sessions and settings.
 - Account names and emails from those setups, so you can tell accounts
   apart.
 - The list of running processes, to show live sessions and This Mac.
@@ -195,6 +202,9 @@ tokens or API keys, and never opens the tools' Keychain items.
 **Sends:**
 
 - An update check to GitHub at launch.
+- Once a day, a question to npm's public registry for the newest version of
+  each tool you have an account on (turn it off on any tool's page). It
+  never updates a tool.
 - Nothing else unless you turn it on: usage statistics (off by default, see
   [docs/usage-stats.md](./docs/usage-stats.md)), Fleet (your own Macs talk
   directly to each other on your network, with no relay), and the optional

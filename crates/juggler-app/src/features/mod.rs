@@ -19,5 +19,6 @@ pub mod staging;
 pub mod subtasks;
 pub mod switch_setup;
 pub mod terminal;
+pub mod tool_updates;
 pub mod tools;
 pub mod trust;

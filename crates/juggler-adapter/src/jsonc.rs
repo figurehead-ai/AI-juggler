@@ -176,6 +176,52 @@ impl Scan<'_> {
     }
 }
 
+/// `text` (a JSON object, comments and trailing commas allowed) read as a
+/// value, for a tool whose settings file is JSON with comments (AJ-E1602:
+/// OpenCode's `opencode.jsonc`).
+///
+/// # Errors
+///
+/// When `text` isn't a JSON object, in words.
+pub fn parse(text: &str) -> Result<serde_json::Value, String> {
+    root(text)?;
+    let bytes = text.as_bytes();
+    let mut plain = Vec::with_capacity(bytes.len());
+    let mut scan = Scan { bytes, at: 0 };
+    while let Some(byte) = scan.peek() {
+        match byte {
+            b'"' => {
+                let start = scan.at;
+                scan.string()?;
+                plain.extend_from_slice(&bytes[start..scan.at]);
+            }
+            b'/' => {
+                let before = scan.at;
+                scan.skip()?;
+                if scan.at == before {
+                    plain.push(byte);
+                    scan.at += 1;
+                }
+            }
+            b',' => {
+                scan.at += 1;
+                let after = scan.at;
+                scan.skip()?;
+                // A trailing comma (before `}` or `]`) is dropped.
+                if !matches!(scan.peek(), Some(b'}' | b']')) {
+                    plain.push(b',');
+                }
+                scan.at = after;
+            }
+            _ => {
+                plain.push(byte);
+                scan.at += 1;
+            }
+        }
+    }
+    serde_json::from_slice(&plain).map_err(|error| error.to_string())
+}
+
 /// Whether `text` reads as a JSON object (comments and trailing commas
 /// allowed); the reason in words when it doesn't.
 ///
@@ -375,6 +421,17 @@ mod tests {
             unset(&edited, "statusLine", OURS, None).unwrap().unwrap(),
             "{\"model\": \"sonnet\"}"
         );
+    }
+
+    #[test]
+    fn json_with_comments_reads_as_a_value() {
+        let text = "// mine\n{\n  \"mcp\": {\"a\": {\"url\": \"https://x//y\"},}, /* why */\n  \"list\": [1, 2,],\n  \"s\": \"a, }\",\n}\n";
+        assert_eq!(
+            parse(text).unwrap(),
+            serde_json::json!({"mcp": {"a": {"url": "https://x//y"}}, "list": [1, 2], "s": "a, }"})
+        );
+        assert!(parse("[1]").is_err());
+        assert!(parse("{\"a\": 1").is_err());
     }
 
     #[test]

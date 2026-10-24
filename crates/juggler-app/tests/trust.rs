@@ -409,6 +409,11 @@ const OUR_HOSTS: &[&str] = &[
     "localhost",
     // Fleet's HTTP authority over a pinned TLS connection to a paired Mac.
     "aijuggler.node",
+    // AJ-E1611: the once-a-day check for new tool versions (the Privacy
+    // page's "tool-updates" line): npm's public registry, which lists
+    // every registered tool's versions (`tool_updates.rs` checks the
+    // specs).
+    "registry.npmjs.org",
 ];
 
 /// Every `http://…` or `https://…` in `code`, by host.

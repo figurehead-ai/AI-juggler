@@ -12,7 +12,10 @@
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read",
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_state_is_metadata_only",
             "crates/juggler-adapters/tests/scan.rs::scan_code_never_reads_credential_contents",
-            "crates/juggler-app/tests/environment_scan_no_cli.rs::the_environment_scan_runs_no_vendor_cli"
+            "crates/juggler-app/tests/environment_scan_no_cli.rs::the_environment_scan_runs_no_vendor_cli",
+            "crates/juggler-adapters/tests/opencode_adapter.rs::the_sign_in_probe_reads_kinds_never_values",
+            "crates/juggler-adapters/tests/kimi_code_adapter.rs::the_sign_in_probe_reads_which_files_are_there_never_what_they_hold",
+            "crates/juggler-adapters/tests/grok_build_adapter.rs::the_sign_in_probe_reads_modes_never_values"
           ]
         },
         {
@@ -66,7 +69,10 @@
           "text": "It never writes to a setup you use where it is, unless you turn on a change that says so first.",
           "tests": [
             "crates/juggler-app/tests/in_place_accounts.rs::a_setup_used_where_it_is_is_never_written_by_ai_juggler",
-            "crates/juggler-app/tests/codex_in_place.rs::a_codex_home_used_where_it_is_is_never_written_by_ai_juggler"
+            "crates/juggler-app/tests/codex_in_place.rs::a_codex_home_used_where_it_is_is_never_written_by_ai_juggler",
+            "crates/juggler-app/tests/opencode_provider.rs::the_default_folder_is_used_where_it_is_and_never_written",
+            "crates/juggler-app/tests/kimi_provider.rs::the_default_home_is_used_where_it_is_and_never_written",
+            "crates/juggler-app/tests/grok_provider.rs::its_sessions_become_projects_and_its_default_home_is_never_written"
           ]
         },
         {
@@ -85,7 +91,10 @@
           "tests": [
             "crates/juggler-app/tests/account_settings.rs::a_setting_with_a_secret_written_in_it_is_never_copied_or_recorded",
             "crates/juggler-app/tests/project_sync.rs::a_server_is_copied_across_tools_without_its_secret_and_undone",
-            "crates/juggler-app/tests/switch_setup.rs::the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picked"
+            "crates/juggler-app/tests/switch_setup.rs::the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picked",
+            "crates/juggler-adapters/tests/opencode_adapter.rs::a_settings_file_with_a_key_written_in_it_stays_behind_named",
+            "crates/juggler-adapters/tests/kimi_code_adapter.rs::a_copy_keeps_settings_but_never_a_sign_in_a_key_or_the_sessions",
+            "crates/juggler-adapters/tests/grok_build_adapter.rs::a_copy_keeps_settings_and_sessions_but_never_a_sign_in_or_a_key"
           ]
         },
         {
@@ -123,6 +132,15 @@
           "text": "It checks GitHub for updates when it starts, if that's on, or when you choose Check now.",
           "tests": [
             "crates/juggler-app/tests/updates_plugin.rs::check_off_means_zero_connections_and_on_reaches_the_feed",
+            "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
+          ]
+        },
+        {
+          "id": "tool-updates",
+          "text": "Once a day, if that's on, it asks npm's public registry for the newest version of each tool you have an account on, and shows it on that tool's page. It never updates a tool for you.",
+          "tests": [
+            "crates/juggler-app/tests/tool_updates.rs::one_request_per_tool_a_day_only_for_tools_in_use_and_none_when_off",
+            "crates/juggler-app/src/features/tool_updates/mod.rs::no_update_is_ever_run",
             "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
           ]
         },
@@ -184,7 +202,10 @@
           "tests": [
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_spec_points_at_isolated_dir",
             "crates/juggler-adapters/tests/codex_adapter.rs::login_spec_runs_the_vendor_flow_in_the_isolated_home",
-            "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read"
+            "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read",
+            "crates/juggler-adapters/tests/opencode_adapter.rs::sign_in_runs_opencode_auth_login_in_the_accounts_folders",
+            "crates/juggler-adapters/tests/kimi_code_adapter.rs::sign_in_runs_kimi_login_in_the_accounts_home",
+            "crates/juggler-adapters/tests/grok_build_adapter.rs::sign_in_runs_grok_login_in_the_accounts_home"
           ]
         },
         {

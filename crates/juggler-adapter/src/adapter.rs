@@ -231,6 +231,48 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E1602: the conversations of a tool that keeps them all in one
+    /// store (one database) rather than a file each, read in one pass,
+    /// read-only. Each carries a key no file has (`<store>#<id>`) and when
+    /// it last changed, so the index reads again only what changed.
+    /// Default: none (the tool keeps a file per conversation, listed by
+    /// [`HarnessAdapter::conversation_files`]).
+    #[must_use]
+    fn stored_conversations(
+        &self,
+        state_dir: &Path,
+    ) -> Vec<crate::conversation::StoredConversation> {
+        let _ = state_dir;
+        Vec::new()
+    }
+
+    /// AJ-E1602 (ADR-0019 §2, the quota-source building block): usage from
+    /// a tool that keeps it in a store queried by time (a database), not in
+    /// files tailed by offset: every message changed at or after `since_ms`
+    /// (epoch ms; 0 for all), each keyed so a message read twice counts
+    /// once, and labelled as honestly as the store allows. `None`: the tool
+    /// has no such store. `Some(Err)`: the store couldn't be read this time
+    /// (a plain message, never a secret).
+    fn usage_since(
+        &self,
+        account: &Account,
+        since_ms: i64,
+    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
+        let _ = (account, since_ms);
+        None
+    }
+
+    /// AJ-E1603: why the account at `state_dir` may only be used by a
+    /// person at the keyboard (its vendor's terms: Kimi Code's plans are
+    /// "for interactive use only"), in words; `None` when nothing limits
+    /// it. A launch nobody clicked (a restart after a crash) is never made
+    /// for it, and the adapter refuses its headless runs.
+    #[must_use]
+    fn interactive_only(&self, state_dir: &Path) -> Option<String> {
+        let _ = state_dir;
+        None
+    }
+
     /// AJ-E1529: whether a running process (its executable and its
     /// arguments, the first being the program) is one of this tool's
     /// sessions, and which conversation it resumes. Helpers and a desktop
@@ -387,6 +429,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// AJ-E1604: variables every launch sets to a fixed value, whatever
+    /// Launch settings say (a guardrail: Grok Build reads the user's
+    /// Claude and Cursor setups unless told not to). The copyable shell
+    /// line sets them too, and each is one of
+    /// [`HarnessAdapter::isolation_env_keys`] so no override reaches it.
+    /// Default: none.
+    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+
     /// The value of the pinned isolation keys for `state_dir`, or `None`
     /// when the folder runs with that key unset (ADR-0018: the vendor's
     /// own default folder). Default: the path.
@@ -487,6 +539,9 @@ pub fn shell_snippet(
             Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
             None => unset.push(key.to_owned()),
         }
+    }
+    for (key, value) in adapter.launch_fixed_env() {
+        parts.push(format!("{key}={}", shell_quote(value)));
     }
     unset.extend(
         adapter

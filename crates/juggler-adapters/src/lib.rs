@@ -1,6 +1,6 @@
 //! Concrete harness adapters for AI Juggler.
 //!
-//! One module per harness — `claude_code`, `codex`, `zcode` — plus `fake`, the
+//! One module per harness — `claude_code`, `codex`, `opencode` — plus `fake`, the
 //! scriptable fake harness that drives lifecycle, stuck-detection, and
 //! crash-recovery tests across the whole system. Every adapter implements the
 //! `juggler_adapter::HarnessAdapter` contract and confines itself to its
@@ -26,12 +26,25 @@ pub mod codex_inventory;
 pub mod codex_transcript;
 pub mod config_edit;
 pub mod fake;
+pub mod grok_build;
+pub mod grok_environment;
+pub mod grok_inventory;
+pub mod grok_sessions;
 pub mod inference;
 pub mod inventory_files;
+pub mod kimi_code;
+pub mod kimi_environment;
+pub mod kimi_inventory;
+pub mod kimi_sessions;
+pub mod opencode;
+pub mod opencode_environment;
+pub mod opencode_inventory;
+pub mod opencode_store;
 pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
 pub mod scan_signals;
+pub mod settings_keys;
 pub mod sign_in;
 pub mod subtasks;
 pub mod tool_summary;
@@ -43,6 +56,9 @@ pub use claude_transcript::{
 };
 pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
+pub use grok_build::{GROK_BUILD_ID, GrokBuildAdapter, grok_build_spec};
+pub use kimi_code::{KIMI_CODE_ID, KimiCodeAdapter, kimi_code_spec};
+pub use opencode::{OPENCODE_ID, OpenCodeAdapter, opencode_spec};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,
     ensure_launch_overlay, install_statusline, overlay_dir, overlay_spool_path, rollout_events,

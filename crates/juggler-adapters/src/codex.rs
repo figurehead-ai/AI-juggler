@@ -849,5 +849,10 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "@openai/codex".to_owned(),
+        }),
+        update_command: Some("npm install -g @openai/codex@latest".to_owned()),
     }
 }

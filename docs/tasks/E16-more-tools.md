@@ -43,7 +43,7 @@
 **Research basis**: `opencode.md` §subscriptions; `kimi.md` §8.
 **Handover note**: Blocked on D-34 for the key's home.
 
-### AJ-E1602 OpenCode CLI | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1602 OpenCode CLI | Status: DONE-EVIDENCED (live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: OpenCode runs as a first-class tool with separate accounts.
 **User story**: As an OpenCode user with several providers, I run its sessions beside Claude and Codex.
 **Requirements**:
@@ -61,7 +61,7 @@
 **Research basis**: `opencode.md`.
 **Handover note**: The maintainer chooses v1, v2 or both; default both.
 
-### AJ-E1603 Kimi Code CLI | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (Req.1, 2 and 4 evidenced; Req.3's usage source awaits the maintainer's ruling; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: Kimi Code runs with separate accounts and real quota windows.
 **User story**: As a Kimi member, I see my 5-hour, 7-day and monthly windows and juggle Kimi accounts.
 **Requirements**:
@@ -78,7 +78,7 @@
 **Research basis**: `kimi.md`.
 **Handover note**: The device quota per home is unknown; the live check finds out.
 
-### AJ-E1604 Grok Build CLI | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1521
+### AJ-E1604 Grok Build CLI | Status: IN-PROGRESS (Req.1–3 evidenced; Req.4's token reading awaits the live check of signals.json; live check pending, AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E1521
 **Goal**: Grok Build runs with separate accounts and never touches the user's Claude setup.
 **User story**: As an X Subscription user, I run Grok sessions beside the rest.
 **Requirements**:
@@ -202,7 +202,7 @@
 **Research basis**: all the research files above, desktop sections.
 **Handover note**: Grok Bot runs in the cloud and is out of scope.
 
-### AJ-E1611 Tool update checks | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1611 Tool update checks | Status: DONE-EVIDENCED (the first live request is on the maintainer's checklist) | Priority P1 | Effort S | Depends: —
 **Goal**: The user knows when a tool has a new version, and whether AI Juggler has verified it.
 **User story**: As a user, I see "Claude Code 2.x is available; not yet verified with AI Juggler".
 **Requirements**:

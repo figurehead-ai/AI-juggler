@@ -308,3 +308,175 @@ shares, needs the whole gallery compared.
       holds the base/head/diff images (`index.html`).
 - [ ] Anything unexpected: ask for a fix before merging. Otherwise
       nothing else to do — routine changes need only the core check.
+
+---
+
+## Part 7 — As new tools land
+
+### 16. Live checks of new tools on spare accounts (AJ-E1612)
+
+**Why:** every new tool is built from its source and fixtures only. One
+short run on an account that doesn't matter proves what really happens,
+and the evidence records it. Use a throwaway project, and sign-ins you
+don't mind losing (a free model, or a small OpenCode Zen balance).
+
+#### OpenCode (AJ-E1602; about 30 min per version)
+
+Built from the 1.19.3 and 2.1.2 source. If you can, run it once on each
+(`brew install anomalyco/tap/opencode` gives 1.x;
+`anomalyco/tap/opencode-v2` gives 2.x — they replace each other).
+
+- [ ] **Found.** Accounts › Add account lists OpenCode with its version
+      ("not yet checked live" is expected until this step is filed).
+- [ ] **Two separate sign-ins.** Add two fresh OpenCode accounts, A and
+      B. Sign A in from AI Juggler (`opencode auth login` opens in a
+      terminal); leave B signed out. A shows signed in, B doesn't, and
+      `opencode auth list` run by hand (outside AI Juggler) doesn't
+      list A's sign-in.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it
+      from AI Juggler: the same conversation comes back. Resume with a
+      message that starts with "-" (for example `- go on`): it arrives
+      as text, not as an option.
+- [ ] **One-off runs.** If you use headless runs, start one with a
+      model set in Launch settings: it uses that model, and a prompt
+      starting with "-" is text (this checks `run --model=… -- <text>`,
+      which 2.x has not been seen to accept yet).
+- [ ] **Model in the terminal.** With a model in Launch settings, a
+      normal session opens on that model (set through
+      `OPENCODE_CONFIG_CONTENT`; 2.x's terminal has no `--model`).
+- [ ] **Usage is read.** Within about 10 seconds of a reply, the
+      account's Usage shows its tokens, with OpenCode's dollar figure as
+      an estimate, and the limit rings say "OpenCode doesn't report its
+      limits to AI Juggler yet".
+- [ ] **Its sessions are listed.** A session you start by hand in a
+      terminal (`opencode` in the throwaway project, on the default
+      folder) shows in the rail's sessions from outside AI Juggler within
+      a minute, with its folder, and is marked running while it runs;
+      Copy resume command gives `opencode --session <id>`.
+- [ ] **Rules and servers sync.** In the throwaway project, Sync shows
+      OpenCode's `AGENTS.md` beside the others. Copy an MCP server from a
+      Claude account to account A: it appears in A's
+      `config/opencode/opencode.json` under `mcp`, OpenCode lists it
+      (`opencode mcp list`), and Undo takes it out again.
+- [ ] **Quota exhaustion is seen.** Run a Zen balance or a Go plan to its
+      limit (or use a key with a tiny spend limit). Note the exact
+      message OpenCode shows, and whether AI Juggler shows the session
+      as needing you.
+- [ ] **The variables reach the agent's tools.** In an OpenCode session,
+      ask it to run `gh auth status` and `git config user.name`. Note
+      the answers: the account's own `XDG_CONFIG_HOME` hides `gh`'s
+      sign-in (a known trade-off of this isolation; `git` reads
+      `~/.gitconfig` and should be fine).
+- [ ] **A copy keeps no sign-in.** Bring your default OpenCode folder
+      in as a copy. The copy is signed out; `opencode session list` in
+      the copy (Accounts › the copy › the expert shell line) lists your
+      sessions; your original still works and is signed in.
+- [ ] **Used where it is, unwritten.** Bring the default folder in
+      where it is. With OpenCode closed, run
+      `ls -la ~/.local/share/opencode` before and after a few minutes of
+      AI Juggler running: no new files (no `opencode.db-wal`).
+
+Save the terminal output and a screen recording per check to
+`docs/research/evidence/opencode/<version>/`, then hand them to the
+agent: it files them, sets the verified versions and flips the
+"not yet checked live" note.
+
+#### Kimi Code (AJ-E1603; about 30 min)
+
+Built from the 2.3.0 docs and source. Install it the vendor's way
+(`curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash`, or
+`npm install -g @moonshot-ai/kimi-code`). Use a spare Kimi membership
+(Plus or above) and, if you have one, a Kimi Platform API key with a small
+balance.
+
+- [ ] **Found.** Accounts › Add account lists Kimi Code with its version
+      ("not tested with AI Juggler yet" is expected until this step is
+      filed). Note `kimi --version`'s exact output.
+- [ ] **Two separate sign-ins.** Add two fresh Kimi Code accounts, A and
+      B. Sign A in from AI Juggler (`kimi login` opens in a terminal);
+      leave B signed out. A shows signed in, B doesn't. Note the files
+      `kimi login` made in A's `credentials/` (names only): the membership
+      sign-in is expected as `kimi-code.json`.
+- [ ] **Devices.** In the Kimi Code Console, note how many devices the
+      membership shows after A's sign-in (each home is expected to count
+      as one device) and whether a device cap is stated.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it from
+      AI Juggler: the same conversation comes back
+      (`kimi --session <id>`). Note the lines of `session_index.jsonl` and
+      the fields of that session's `state.json` (names only, no content).
+- [ ] **Its sessions are listed.** A session you start by hand
+      (`kimi` in the throwaway project) shows in the rail's sessions from
+      outside AI Juggler, with its folder and title, and is marked running
+      while it runs.
+- [ ] **Interactive use only.** With Settings › Sessions › Restart
+      crashed sessions on, end A's running `kimi` with `kill -9`: it is not
+      started again, and its history says why. A headless run on A is
+      refused with the same words.
+- [ ] **An API key may run headless.** On a third account signed in with a
+      Kimi Platform API key (`kimi login`, "Kimi Platform API key"), note
+      the file it made in `credentials/` (name only). A headless run with a
+      prompt starting with "-" works and the prompt arrives as text
+      (`kimi -p <text> --output-format stream-json`).
+- [ ] **Usage.** The account's limits say "Kimi Code doesn't report its
+      limits to AI Juggler yet". Note what `/usage` in Kimi Code shows, for
+      the ruling on its quota source.
+- [ ] **Quota exhaustion is seen.** If a 5-hour limit is reached, note the
+      exact message and whether AI Juggler shows the session as needing
+      you.
+- [ ] **A copy keeps no sign-in.** Bring `~/.kimi-code` in as a copy: the
+      copy is signed out, has your settings, skills and MCP servers, and
+      none of your sessions; your original still works and is signed in.
+- [ ] **Rules and servers sync.** Copy an MCP server from a Claude account
+      to A: it appears in A's `mcp.json` and in Kimi Code's `/mcp`, and
+      Undo takes it out again.
+
+Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
+and hand them to the agent, as for OpenCode.
+
+#### Grok Build (AJ-E1604; about 30 min)
+
+Built from the 1.0.45 docs and source. Install it the vendor's way
+(`curl -fsSL https://x.ai/cli/install.sh | bash`), on a spare X
+Subscription account (or an xAI API key with a small balance).
+
+- [ ] **Found.** Add account lists Grok Build with its version. Note
+      `grok --version`'s exact output. If you also have the unofficial
+      `grok-cli` (`npm i -g grok-dev`), it isn't taken for Grok Build.
+- [ ] **Two separate sign-ins.** Two fresh accounts, A and B: sign A in
+      from AI Juggler (`grok login`), leave B signed out. A shows signed
+      in, B doesn't, and your own `~/.grok` sign-in is unchanged.
+- [ ] **Your Claude setup stays out.** With a Claude `PreToolUse` hook
+      that writes a file, run a Grok session on A that edits a file: the
+      hook doesn't fire. `grok inspect` in that session lists no rules,
+      MCP servers or skills from `~/.claude` or `~/.cursor`.
+- [ ] **A session starts and resumes.** Start one on A in the throwaway
+      project, send a message, stop it, resume it from AI Juggler
+      (`grok --resume <id>`): the same conversation. Note the fields of
+      its `summary.json` and `signals.json` (names only), and whether a
+      sub-agent's session names its parent there.
+- [ ] **Its sessions are listed.** A session started by hand shows in the
+      rail's outside sessions, with its folder and title, marked running.
+- [ ] **A model in Launch settings** reaches the session (`--model`).
+- [ ] **Usage.** Its limits say "Grok Build doesn't report its limits to
+      AI Juggler yet". Note what `/usage` shows, and the exact message
+      when the weekly pool runs out (a 402 is expected).
+- [ ] **A copy keeps no sign-in.** Bring `~/.grok` in as a copy: signed
+      out, settings, rules and sessions there; the original still works.
+
+Save the output to `docs/research/evidence/grok-build/<version>/` and
+hand it to the agent.
+
+#### New tool versions (AJ-E1611; 5 min, on an installed build)
+
+- [ ] About 10 minutes after AI Juggler starts, each tool's page (More ›
+      Tools) says nothing, or "<tool> <version> is out" with its update
+      command. Note one tool's line, and compare the version with
+      `npm view <package> version` in a terminal (`@anthropic-ai/claude-code`,
+      `@openai/codex`, `opencode-ai`, `@moonshot-ai/kimi-code`): the check
+      asks `https://registry.npmjs.org/<package>/latest`, with a scoped
+      name's `/` written `%2F` (not yet seen live).
+- [ ] Untick "Look for new versions of your tools once a day", restart AI
+      Juggler, and after 15 minutes check with Little Snitch or `nettop`
+      that it made no request to registry.npmjs.org.
