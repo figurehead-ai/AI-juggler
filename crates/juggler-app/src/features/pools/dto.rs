@@ -57,6 +57,11 @@ pub struct AccessInfo {
     /// The actions the level allows without an ask (rules aside), in the
     /// catalog's order.
     pub actions: Vec<String>,
+    /// D-29: hops a delivered thread may take before delivery pauses and
+    /// asks (default 5).
+    pub hop_limit: u32,
+    /// D-29: the user stopped all delivery into this pool's sessions.
+    pub delivery_stopped: bool,
 }
 
 /// One "always allow" rule the user made.

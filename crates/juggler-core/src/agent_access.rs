@@ -161,7 +161,13 @@ impl AccessLevel {
                 .chain(work)
                 .chain([A::DeliverToSession])
                 .collect(),
-            Self::Custom => custom.clone(),
+            // D-29: delivering into a session is Full's, or a rule's,
+            // never a Custom set's.
+            Self::Custom => custom
+                .iter()
+                .copied()
+                .filter(|action| *action != A::DeliverToSession)
+                .collect(),
         }
     }
 }
@@ -197,7 +203,7 @@ impl Decision {
 /// What the decision is made from: the pool's level (and its Custom
 /// set), the user's rules for the pool, how often the user allowed the
 /// action once, and whether the agent only observes.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PoolAccess {
     /// The pool's level; `None` when the pool isn't there.
     pub level: Option<AccessLevel>,
@@ -205,12 +211,37 @@ pub struct PoolAccess {
     pub custom: BTreeSet<AgentAction>,
     /// Actions the user always allows in this pool.
     pub rules: BTreeSet<AgentAction>,
+    /// D-29: how many hops a delivered thread may take before delivery
+    /// pauses and asks the user.
+    pub hop_limit: u32,
+    /// D-29: the user stopped all delivery into this pool's sessions.
+    pub delivery_stopped: bool,
 }
+
+impl Default for PoolAccess {
+    fn default() -> Self {
+        Self {
+            level: None,
+            custom: BTreeSet::new(),
+            rules: BTreeSet::new(),
+            hop_limit: DEFAULT_HOP_LIMIT,
+            delivery_stopped: false,
+        }
+    }
+}
+
+/// D-29: a pool's hop limit until the user changes it.
+pub const DEFAULT_HOP_LIMIT: u32 = 5;
+
+/// D-29: the hop limits the user can pick.
+pub const HOP_LIMITS: std::ops::RangeInclusive<u32> = 1..=20;
 
 /// The one decision: `action` by a member of a pool with `access`.
 /// `member` — the agent is in the pool; `observer` — its role there only
 /// observes, so only reading needs no ask; `approvals` — how often the
-/// user has allowed this action in this pool once.
+/// user has allowed this action in this pool once; `hop` — for a
+/// delivery, the hop the message's thread is at (D-29: with delivery
+/// stopped it's a deny; at the pool's hop limit it pauses and asks).
 #[must_use]
 pub fn decide(
     access: &PoolAccess,
@@ -218,12 +249,20 @@ pub fn decide(
     observer: bool,
     action: AgentAction,
     approvals: u32,
+    hop: Option<u32>,
 ) -> Decision {
     let Some(level) = access.level else {
         return Decision::Deny;
     };
-    if !member {
+    let delivery = action == AgentAction::DeliverToSession;
+    if !member || (delivery && access.delivery_stopped) {
         return Decision::Deny;
+    }
+    if delivery && hop.is_some_and(|hop| hop >= access.hop_limit) {
+        // Pause and ask, every time: a rule never lifts the hop limit.
+        return Decision::Ask {
+            offer_always: false,
+        };
     }
     let within = level.actions(&access.custom).contains(&action) || access.rules.contains(&action);
     if within && (!observer || action.reads_only()) {
@@ -270,17 +309,17 @@ mod tests {
     fn above_the_level_asks_and_offers_always_from_the_second_approval() {
         let access = at(AccessLevel::Read);
         assert_eq!(
-            decide(&access, true, false, AgentAction::ReadCards, 0),
+            decide(&access, true, false, AgentAction::ReadCards, 0, None),
             Decision::Allow
         );
         assert_eq!(
-            decide(&access, true, false, AgentAction::PostMessage, 0),
+            decide(&access, true, false, AgentAction::PostMessage, 0, None),
             Decision::Ask {
                 offer_always: false
             }
         );
         assert_eq!(
-            decide(&access, true, false, AgentAction::PostMessage, 1),
+            decide(&access, true, false, AgentAction::PostMessage, 1, None),
             Decision::Ask { offer_always: true }
         );
     }
@@ -290,15 +329,15 @@ mod tests {
         let mut access = at(AccessLevel::WorkTogether);
         access.rules.insert(AgentAction::AssignTask);
         assert_eq!(
-            decide(&access, true, false, AgentAction::AssignTask, 0),
+            decide(&access, true, false, AgentAction::AssignTask, 0, None),
             Decision::Allow
         );
         assert_eq!(
-            decide(&access, true, true, AgentAction::ReadTasks, 0),
+            decide(&access, true, true, AgentAction::ReadTasks, 0, None),
             Decision::Allow
         );
         assert!(matches!(
-            decide(&access, true, true, AgentAction::PostMessage, 0),
+            decide(&access, true, true, AgentAction::PostMessage, 0, None),
             Decision::Ask { .. }
         ));
     }
@@ -311,7 +350,8 @@ mod tests {
                 true,
                 false,
                 AgentAction::ReadRoster,
-                0
+                0,
+                None
             ),
             Decision::Deny
         );
@@ -321,9 +361,58 @@ mod tests {
                 false,
                 false,
                 AgentAction::ReadRoster,
-                0
+                0,
+                None
             ),
             Decision::Deny
+        );
+    }
+
+    #[test]
+    fn delivery_is_fulls_or_a_rules_stops_at_once_and_pauses_at_the_hop_limit() {
+        let deliver = AgentAction::DeliverToSession;
+        let custom: BTreeSet<_> = [deliver].into();
+        assert!(
+            AccessLevel::Custom.actions(&custom).is_empty(),
+            "never a Custom set's"
+        );
+        let mut access = at(AccessLevel::Full);
+        assert_eq!(access.hop_limit, 5);
+        assert_eq!(
+            decide(&access, true, false, deliver, 0, Some(4)),
+            Decision::Allow
+        );
+        assert_eq!(
+            decide(&access, true, false, deliver, 9, Some(5)),
+            Decision::Ask {
+                offer_always: false
+            }
+        );
+        access.rules.insert(deliver);
+        access.hop_limit = 2;
+        assert!(
+            matches!(
+                decide(&access, true, false, deliver, 0, Some(2)),
+                Decision::Ask { .. }
+            ),
+            "a rule doesn't lift it"
+        );
+        access.delivery_stopped = true;
+        assert_eq!(
+            decide(&access, true, false, deliver, 0, Some(0)),
+            Decision::Deny
+        );
+        assert_eq!(
+            decide(&access, true, false, AgentAction::PostMessage, 0, None),
+            Decision::Allow,
+            "only delivery stops"
+        );
+        let mut work = at(AccessLevel::WorkTogether);
+        work.rules.insert(deliver);
+        assert_eq!(
+            decide(&work, true, false, deliver, 0, Some(0)),
+            Decision::Allow,
+            "or a user rule"
         );
     }
 

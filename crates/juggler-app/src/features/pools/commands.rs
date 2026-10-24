@@ -136,6 +136,24 @@ pub async fn pool_set_access(
     .await
 }
 
+/// D-29: sets a pool's hop limit and its delivery stop-all.
+///
+/// # Errors
+///
+/// As [`super::access::set_delivery_impl`].
+#[tauri::command]
+pub async fn pool_set_delivery(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    hop_limit: u32,
+    stopped: bool,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::access::set_delivery_impl(state, &pool_id, hop_limit, stopped)
+    })
+    .await
+}
+
 /// Takes back an "always allow" rule; it stops applying at once.
 ///
 /// # Errors

@@ -311,6 +311,7 @@ fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
                 true,
                 false,
                 AgentAction::AssignTask,
+                None,
             )
             .unwrap()
     };
@@ -332,7 +333,8 @@ fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
                 "session:s-1",
                 true,
                 false,
-                AgentAction::AssignTask
+                AgentAction::AssignTask,
+                None
             )
             .unwrap(),
         ask(false)
@@ -371,6 +373,35 @@ fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
 }
 
 #[test]
+fn a_pool_keeps_its_hop_limit_and_delivery_stop_d29() {
+    let storage = Storage::open_in_memory().unwrap();
+    let access = storage.agent_access();
+    let start = access.access(DEFAULT_POOL_ID).unwrap();
+    assert_eq!((start.hop_limit, start.delivery_stopped), (5, false));
+    access.set_delivery(DEFAULT_POOL_ID, 3, true).unwrap();
+    let after = access.access(DEFAULT_POOL_ID).unwrap();
+    assert_eq!((after.hop_limit, after.delivery_stopped), (3, true));
+    assert_eq!(
+        access
+            .allowed(
+                DEFAULT_POOL_ID,
+                "session:s",
+                true,
+                false,
+                AgentAction::DeliverToSession,
+                Some(0)
+            )
+            .unwrap(),
+        Decision::Deny,
+        "stopped: no delivery, whatever the level"
+    );
+    for wrong in [0, 21] {
+        assert!(access.set_delivery(DEFAULT_POOL_ID, wrong, false).is_err());
+    }
+    assert!(access.set_delivery("pool-gone", 5, false).is_err());
+}
+
+#[test]
 fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
     let storage = Storage::open_in_memory().unwrap();
     let access = storage.agent_access();
@@ -381,7 +412,8 @@ fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
                 "session:x",
                 false,
                 false,
-                AgentAction::ReadRoster
+                AgentAction::ReadRoster,
+                None
             )
             .unwrap(),
         Decision::Deny
@@ -393,7 +425,8 @@ fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
                 "session:x",
                 true,
                 false,
-                AgentAction::ReadRoster
+                AgentAction::ReadRoster,
+                None
             )
             .unwrap(),
         Decision::Deny

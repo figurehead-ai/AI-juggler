@@ -32,7 +32,8 @@ use crate::model::{AccountId, ProjectId, SessionId, Timestamp, WorkItemId};
 /// row: the default pool, as a member). Deleting a pool marks it and ends
 /// its rows, so its history stays.
 ///
-/// D-28: each pool's access level (and its Custom set of actions), the
+/// D-28/D-29: each pool's access level (and its Custom set of actions),
+/// its delivery hop limit and stop-all flag, the
 /// user's "always allow" rules, the "allow once" answers (counted, so the
 /// second offers a rule), and the audit of every agent action.
 pub(super) const MIGRATION: &str = "
@@ -44,7 +45,9 @@ CREATE TABLE pools (
     created_at INTEGER NOT NULL,
     deleted_at INTEGER,
     access_level   TEXT NOT NULL DEFAULT 'work_together',
-    custom_actions TEXT NOT NULL DEFAULT ''
+    custom_actions TEXT NOT NULL DEFAULT '',
+    hop_limit        INTEGER NOT NULL DEFAULT 5,
+    delivery_stopped INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX idx_pools_one_default ON pools(kind) WHERE kind = 'default';
 INSERT INTO pools (id, name, kind, project, created_at)

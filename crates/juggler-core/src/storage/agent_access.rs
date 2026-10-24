@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::agent_access::{AccessLevel, AgentAction, Decision, PoolAccess, decide};
+use crate::agent_access::{AccessLevel, AgentAction, Decision, HOP_LIMITS, PoolAccess, decide};
 use crate::error::CoreError;
 use crate::model::Timestamp;
 
@@ -71,15 +71,16 @@ impl AgentAccessRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn access(&self, pool_id: &str) -> Result<PoolAccess, CoreError> {
-        let row: Option<(String, String)> = self
+        let row: Option<(String, String, i64, bool)> = self
             .conn
             .query_row(
-                "SELECT access_level, custom_actions FROM pools WHERE id = ?1 AND deleted_at IS NULL",
+                "SELECT access_level, custom_actions, hop_limit, delivery_stopped FROM pools
+                  WHERE id = ?1 AND deleted_at IS NULL",
                 params![pool_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()?;
-        let Some((level, custom)) = row else {
+        let Some((level, custom, hop_limit, delivery_stopped)) = row else {
             return Ok(PoolAccess::default());
         };
         Ok(PoolAccess {
@@ -92,7 +93,46 @@ impl AgentAccessRepo<'_> {
                 .into_iter()
                 .map(|rule| rule.action)
                 .collect(),
+            // Outside the range (a newer build's): the narrowest.
+            hop_limit: u32::try_from(hop_limit)
+                .ok()
+                .filter(|limit| HOP_LIMITS.contains(limit))
+                .unwrap_or(*HOP_LIMITS.start()),
+            delivery_stopped,
         })
+    }
+
+    /// D-29: the user sets a pool's hop limit and its delivery stop-all.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::Validation`] for a hop limit outside [`HOP_LIMITS`];
+    /// [`CoreError::NotFound`] for a missing or deleted pool;
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_delivery(
+        &self,
+        pool_id: &str,
+        hop_limit: u32,
+        stopped: bool,
+    ) -> Result<(), CoreError> {
+        if !HOP_LIMITS.contains(&hop_limit) {
+            return Err(CoreError::Validation {
+                subject: "hop limit",
+                message: format!(
+                    "a hop limit is {} to {}",
+                    HOP_LIMITS.start(),
+                    HOP_LIMITS.end()
+                ),
+            });
+        }
+        let changed = self.conn.execute(
+            "UPDATE pools SET hop_limit = ?2, delivery_stopped = ?3 WHERE id = ?1 AND deleted_at IS NULL",
+            params![pool_id, hop_limit, stopped],
+        )?;
+        if changed == 0 {
+            return Err(super::accounts::not_found("pool", pool_id));
+        }
+        Ok(())
     }
 
     /// Sets a pool's level (the user, in the app). `custom` is kept only
@@ -238,7 +278,8 @@ impl AgentAccessRepo<'_> {
 
     /// The one decision point (D-28): may `actor` (`session:<id>`), a
     /// member of `pool_id` or not, as an observer or not, do `action`
-    /// there? Every request is written to the audit, whatever the answer.
+    /// there? `hop` is a delivery's thread hop (D-29). Every request is
+    /// written to the audit, whatever the answer.
     ///
     /// # Errors
     ///
@@ -251,10 +292,11 @@ impl AgentAccessRepo<'_> {
         member: bool,
         observer: bool,
         action: AgentAction,
+        hop: Option<u32>,
     ) -> Result<Decision, CoreError> {
         let access = self.access(pool_id)?;
         let approvals = self.approvals(pool_id, action)?;
-        let decision = decide(&access, member, observer, action, approvals);
+        let decision = decide(&access, member, observer, action, approvals, hop);
         self.conn.execute(
             "INSERT INTO agent_audit (at, pool_id, actor_ref, action, decision) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![

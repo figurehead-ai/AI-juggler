@@ -53,6 +53,8 @@ pub fn info(storage: &Storage, pool_id: &str) -> AppResult<(AccessInfo, Vec<Agen
                 .filter(|action| allowed.contains(action))
                 .map(|action| action.as_str().to_owned())
                 .collect(),
+            hop_limit: access.hop_limit,
+            delivery_stopped: access.delivery_stopped,
         },
         rules,
     ))
@@ -91,6 +93,30 @@ pub fn set_level_impl(
         .agent_access()
         .set_level(pool_id, level, &custom)
         .map_err(|_| AppError::Refused("That pool isn't there any more".to_owned()))?;
+    pools_info(&storage)
+}
+
+/// D-29: the user sets a pool's hop limit and its delivery stop-all.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a hop limit out of range or a missing pool.
+pub fn set_delivery_impl(
+    state: &Arc<AppState>,
+    pool_id: &str,
+    hop_limit: u32,
+    stopped: bool,
+) -> AppResult<PoolsInfo> {
+    let storage = lock_storage_arc(state)?;
+    storage
+        .agent_access()
+        .set_delivery(pool_id, hop_limit, stopped)
+        .map_err(|error| match error {
+            juggler_core::error::CoreError::Validation { .. } => {
+                AppError::Refused("A hop limit is 1 to 20".to_owned())
+            }
+            _ => AppError::Refused("That pool isn't there any more".to_owned()),
+        })?;
     pools_info(&storage)
 }
 
@@ -148,14 +174,17 @@ pub fn answer_impl(
 
 /// The one decision point for an agent's request (D-28): may the agent in
 /// `session_id` do `action` in `pool_id`? It is a member when its session
-/// is in that pool; an observer may only read without an ask. Every
-/// request is audited. A failure to decide is a deny, never an allow.
+/// is in that pool; an observer may only read without an ask. `hop` is a
+/// delivery's thread hop (D-29: the pool's limit pauses it; its stop-all
+/// denies it). Every request is audited. A failure to decide is a deny,
+/// never an allow.
 #[must_use]
 pub fn allowed(
     state: &Arc<AppState>,
     session_id: &str,
     pool_id: &str,
     action: AgentAction,
+    hop: Option<u32>,
 ) -> Decision {
     let Ok(storage) = lock_storage_arc(state) else {
         return Decision::Deny;
@@ -183,6 +212,7 @@ pub fn allowed(
             member,
             observer,
             action,
+            hop,
         )
         .unwrap_or(Decision::Deny)
 }

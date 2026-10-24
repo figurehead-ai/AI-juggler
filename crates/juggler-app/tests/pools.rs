@@ -431,7 +431,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
         assert!(!actions.contains(&"deliver_to_session".to_owned()));
     }
     let decide = |session: &SessionId, action| {
-        pools::access::allowed(&state, session.as_str(), &team, action)
+        pools::access::allowed(&state, session.as_str(), &team, action, None)
     };
     assert_eq!(decide(&planner, AgentAction::PostMessage), Decision::Allow);
     assert_eq!(
@@ -452,7 +452,8 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
             &state,
             planner.as_str(),
             DEFAULT_POOL_ID,
-            AgentAction::ReadRoster
+            AgentAction::ReadRoster,
+            None
         ),
         Decision::Deny
     );
@@ -517,6 +518,40 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
         Err(AppError::Refused(_))
     ));
 
+    // D-29: delivery pauses at the hop limit (5 until the user changes
+    // it), and the stop-all denies it.
+    pools::access::set_level_impl(&state, &team, "full", &[]).unwrap();
+    let deliver = |hop| {
+        pools::access::allowed(
+            &state,
+            planner.as_str(),
+            &team,
+            AgentAction::DeliverToSession,
+            Some(hop),
+        )
+    };
+    assert_eq!(deliver(4), Decision::Allow);
+    assert_eq!(
+        deliver(5),
+        Decision::Ask {
+            offer_always: false
+        }
+    );
+    let info = pools::access::set_delivery_impl(&state, &team, 8, true).unwrap();
+    let row = info.pools.iter().find(|row| row.id == team).unwrap();
+    assert_eq!(
+        (row.access.hop_limit, row.access.delivery_stopped),
+        (8, true)
+    );
+    assert_eq!(deliver(0), Decision::Deny);
+    pools::access::set_delivery_impl(&state, &team, 8, false).unwrap();
+    assert_eq!(deliver(7), Decision::Allow);
+    assert!(matches!(
+        pools::access::set_delivery_impl(&state, &team, 0, false),
+        Err(AppError::Refused(_))
+    ));
+    pools::access::set_level_impl(&state, &team, "work_together", &[]).unwrap();
+
     // It sticks across a restart; unknown words are refused.
     drop(state);
     let state = app_state(dir.path());
@@ -543,7 +578,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
         .agent_access()
         .audit(100)
         .unwrap();
-    assert_eq!(audited.len(), 11);
+    assert_eq!(audited.len(), 15);
 }
 
 /// The hard lines (D-28): the agent action catalog names no way to change
