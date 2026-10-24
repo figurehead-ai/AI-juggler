@@ -137,13 +137,16 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     expect(first.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("hotkey capture: ⌥Space rebinds through the change flow; Esc cancels", async () => {
+  it("hotkey capture: ⌥Space is refused (ChatGPT's), ⌃⌥Space rebinds through the change flow; Esc cancels", async () => {
     const { view, onHotkeyChange } = shell();
     fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
     const input = view.container.querySelector("input")!;
     expect(input.getAttribute("placeholder")).toContain("Press the new combo");
     fireEvent.keyDown(input, { key: " ", altKey: true });
-    await vi.waitFor(() => expect(onHotkeyChange).toHaveBeenCalledWith("Alt+Space"));
+    expect(view.container.querySelector('[data-testid="goto-hotkey-error"]')?.textContent).toContain("ChatGPT uses ⌥Space");
+    expect(onHotkeyChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: " ", altKey: true, ctrlKey: true });
+    await vi.waitFor(() => expect(onHotkeyChange).toHaveBeenCalledWith("Control+Alt+Space"));
     // Capture again; Escape cancels without rebinding.
     onHotkeyChange.mockClear();
     fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
@@ -155,18 +158,18 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   it("capture failures surface inline, never silently", async () => {
     const { view } = shell({
       onHotkeyChange: vi.fn(async () => {
-        throw new Error("register hotkey: Alt+Space conflicts");
+        throw new Error("register hotkey: Control+Alt+Space conflicts");
       }),
     });
     fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
-    fireEvent.keyDown(view.container.querySelector("input")!, { key: " ", altKey: true });
+    fireEvent.keyDown(view.container.querySelector("input")!, { key: " ", altKey: true, ctrlKey: true });
     await vi.waitFor(() =>
       expect(view.container.querySelector('[data-testid="goto-hotkey-error"]')?.textContent)
         .toContain("conflicts"),
     );
   });
 
-  it("toAccelerator maps the SPEC default (⌥Space) and rejects bare modifiers", () => {
+  it("toAccelerator maps ⌥Space and rejects bare modifiers", () => {
     expect(
       toAccelerator({ key: " ", ctrlKey: false, altKey: true, metaKey: false, shiftKey: false }),
     ).toBe("Alt+Space");

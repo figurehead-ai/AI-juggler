@@ -9,7 +9,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/85-diagnostics");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -39,6 +39,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`diagnostics are shown before they're saved — ${theme}`, gate("85-diagnostics"), async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
+    await settingsPane(page, "Advanced");
     const card = page.getByTestId("settings-diagnostics");
     await card.getByRole("button", { name: "Report a bug" }).click();
     expect(await page.evaluate(() => (window as unknown as { __AIJ_BUG_FORM_OPENED__?: number }).__AIJ_BUG_FORM_OPENED__)).toBe(1);

@@ -44,7 +44,7 @@ export function DoneLine({ done, onUndone }: { done: Done; onUndone: () => void 
           </button>
         )}
       </p>
-      {!undone && done.record && <p className="text-[11px] text-muted">You can also undo it later in Settings › Context packs & secrets.</p>}
+      {!undone && done.record && <p className="text-[11px] text-muted">You can also undo it later in Settings › Switching.</p>}
       {error && (
         <p className="text-danger" role="alert">
           {error}

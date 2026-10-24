@@ -18,6 +18,7 @@ import {
   type AccountStorageInfo,
   type RetentionPreviewInfo,
 } from "../lib/bridge";
+import { CardTitle } from "./CardTitle";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -46,7 +47,7 @@ export function StorageRetentionCard(): JSX.Element {
   useEffect(load, [load]);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-storage">
-      <h3 className="text-sm font-semibold">Storage &amp; retention</h3>
+      <CardTitle>Storage &amp; retention</CardTitle>
       <p className="text-[11px] text-muted">
         What AI Juggler keeps for each Account. Retention only ever removes AI Juggler's own records, and only after you
         review the list. The Provider's transcripts are theirs and stay where they are.

@@ -10,7 +10,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { SettingSwitch as Switch } from "./SettingSwitch";
 import { Status } from "./SettingsSections";
-import { appSettingGet, appSettingSet, errorText } from "../lib/bridge";
+import { errorText } from "../lib/bridge";
 import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc/app";
 import {
   sessionPrefsGet,
@@ -19,6 +19,7 @@ import {
   SESSION_PREFS_RANGE,
   type SessionPrefsInfo,
 } from "../lib/ipc/session-prefs";
+import { CardTitle } from "./CardTitle";
 
 type BooleanPref = "restart_on_crash" | "keep_awake_on_power" | "keep_awake_on_battery" | "reopen_after_crash";
 
@@ -38,42 +39,6 @@ function PrefSwitch({
   onSave: (on: boolean) => void;
 }): JSX.Element {
   return <Switch id={id} checked={prefs[id]} onChange={onSave} {...rest} />;
-}
-
-/** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm.
- * Off until turned on here: macOS asks once per terminal whether AI
- * Juggler may control it, and a click never raises that question. */
-export const TERMINAL_TABS_KEY = "go_to_terminal_tabs";
-
-function TerminalTabsSwitch(): JSX.Element | null {
-  const [on, setOn] = useState<boolean | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  useEffect(() => {
-    void appSettingGet(TERMINAL_TABS_KEY).then(
-      (value) => setOn(value === "1"),
-      () => setOn(false),
-    );
-  }, []);
-  if (on === null) return null;
-  return (
-    <Switch
-      id={TERMINAL_TABS_KEY}
-      label="Go to a session's own tab in Terminal and iTerm"
-      hint="Go to it then selects the session's tab. macOS asks once per terminal whether AI Juggler may control it. Off, the terminal comes forward and you pick the tab."
-      checked={on}
-      note={note}
-      onChange={(next) => {
-        setNote(null);
-        void appSettingSet(TERMINAL_TABS_KEY, next ? "1" : "").then(
-          () => {
-            setOn(next);
-            setNote(next ? "Go to it selects the session's tab." : "Go to it brings the terminal forward only.");
-          },
-          (cause) => setNote(errorText(cause)),
-        );
-      }}
-    />
-  );
 }
 
 /** AJ-E1509 Req.4: open at login, through macOS's own login items (the
@@ -258,7 +223,7 @@ export function SessionsSettingsCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-sessions">
       <div>
-        <h3 className="text-sm font-semibold">Sessions</h3>
+        <CardTitle>Sessions</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           When a quiet session is marked Looks stuck, how its terminal reads, and what keeps work going.
         </p>
@@ -309,7 +274,6 @@ export function SessionsSettingsCard(): JSX.Element {
             </div>
           </details>
           <KeepGoing prefs={prefs} save={save} />
-          <TerminalTabsSwitch />
         </>
       )}
       <Status status={status} error={error} />
