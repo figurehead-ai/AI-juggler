@@ -126,7 +126,7 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2106 Menus and ⌘K with icons and an order | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2106 Menus and ⌘K with icons and an order | Status: IN-PROGRESS (registry, menus and ⌘K actions evidenced; ⌘K's apps wait for AJ-E2101, the ↵ and Space hints for AJ-E2102) | Priority P0 | Effort M | Depends: —
 **Goal**: Menus read in one glance: getting there first, then working on it, then stopping, each with its icon.
 **User story**: As a user, right-clicking a session shows Go to it first, and the same action looks the same everywhere.
 **Requirements**:
