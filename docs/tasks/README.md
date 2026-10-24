@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-27. Do not re-litigate them; supersede only via a
+   decisions D-01..D-37 (D-28..D-34 on release/0.2). Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E20 below).
+4. The epic file for the task you claim (E1-E21 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -43,6 +43,7 @@
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
 | [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1906 |
 | [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2019 |
+| [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2110 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

@@ -247,5 +247,15 @@
 | AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
-Total: 245 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
+| AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
+| AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
+| AJ-E2104 | Places, rows and the View | E21-desktop-first.md | P0 | L | AJ-E2103 |
+| AJ-E2105 | Home: what needs you and your apps | E21-desktop-first.md | P0 | M | AJ-E2104 |
+| AJ-E2106 | Menus and ⌘K with icons and an order | E21-desktop-first.md | P0 | M | — |
+| AJ-E2107 | Needs you from real signals | E21-desktop-first.md | P0 | M | AJ-E2101 |
+| AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
+| AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
+| AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
+Total: 255 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
