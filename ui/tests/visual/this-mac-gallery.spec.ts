@@ -78,10 +78,9 @@ for (const theme of ["dark", "light"] as const) {
     for (const state of STATES) {
       test(`this mac — ${state.name} — ${vp.name} — ${theme}`, gate("72-this-mac"), async ({ page }) => {
         await seed(page, state, theme, vp);
+        // AJ-E2105: This Mac's line is the top bar's; its page holds the rest.
+        await page.getByTestId("machine-status").click();
         await expect(page.getByRole("main")).toContainText(state.expect);
-        const panel = page.getByTestId("home-this-mac");
-        await expect(panel).toBeVisible();
-        await panel.scrollIntoViewIfNeeded();
         await page.screenshot({ path: resolve(OUT, `${state.name}-${vp.name}-${theme}.png`) });
         await axeClean(page, `this mac ${state.name}`);
       });
@@ -90,7 +89,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`heavy session — Needs you, rail, session header — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: heavy, machine: "plenty" }, theme, { width: 1280, height: 800 });
-    const item = page.getByTestId("home-heavy");
+    const item = page.getByTestId("home-need-heavy");
     await expect(item).toContainText("Working your Mac hard — CPU 96% · 3.2 GB");
     // The rail shows one figure, only on the heavy row.
     await expect(page.getByTestId("rail-heavy")).toHaveCount(1);
@@ -105,8 +104,9 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`Clean up leads to Cleanup — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: calm, machine: "plenty", leftovers: [1, 0] }, theme, { width: 1280, height: 800 });
-    await expect(page.getByTestId("this-mac-leftovers")).toContainText("1 process left running after its session closed");
-    await page.getByTestId("this-mac-leftovers").getByRole("button", { name: "Clean up" }).click();
+    // AJ-E2105: left-behind processes are a Needs you item on Home.
+    await expect(page.getByTestId("home-need-leftovers")).toContainText("1 process left running");
+    await page.getByTestId("home-need-leftovers").getByRole("button", { name: /^Clean up/ }).click();
     await expect(page.getByRole("heading", { name: "Cleanup", exact: false }).first()).toBeVisible();
   });
 }

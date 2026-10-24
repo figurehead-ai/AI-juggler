@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, goTo, openFilters, expectRail } from "./fixtures";
+import { allStatuses, goTo, openFilters, expectRail, onlyMac } from "./fixtures";
 
 /**
  * AJ-E704 quality gates — the pairing wizard end to end in the
@@ -219,14 +219,13 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   await goTo(page, "Fleet");
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName(/^Work Max on Mac mini.*waiting user/);
-  await openFilters(page);
-  await page.getByLabel("Filter by machine").selectOption("machine-mini");
+  await onlyMac(page, "machine-mini");
   await page.reload();
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  // The kept filter shows on the Filters button; its value inside.
-  await expect(page.getByRole("button", { name: "Filters (some on)" })).toBeVisible();
+  // AJ-E2104: the kept choice puts a dot on the View; its value inside.
+  await expect(page.getByRole("button", { name: "View, changed from the defaults" })).toBeVisible();
   await openFilters(page);
-  await expect(page.getByLabel("Filter by machine")).toHaveValue("machine-mini");
+  await expect(page.getByLabel("Only this mac")).toHaveValue("machine-mini");
   await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
 
   // The alert names the machine and opens its inspector.

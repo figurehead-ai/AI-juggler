@@ -94,12 +94,12 @@ async function axeClean(page: Page) {
 for (const theme of ["dark", "light"] as const) {
   test(`overload — memory pressure — ${theme}`, gate("74-overload"), async ({ page }) => {
     await seed(page, "tight", [MEMORY], theme);
-    const item = page.getByTestId("home-mac-pressure");
+    const item = page.getByTestId("home-need-mac");
     await expect(item).toContainText("Your Mac is under memory pressure");
     await expect(item).toContainText("ai-juggler is using 3.2 GB");
-    // Home says it once, in Needs you: no banner, a headline that points
-    // there (the 0.0.12 report).
-    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("Your Mac needs a look");
+    // Home says it once, in Needs you: no banner; the headline counts it
+    // (AJ-E2105).
+    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
     await expect(page.getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
     await page.screenshot({ path: resolve(OUT, `memory-pressure-1280x800-${theme}.png`) });

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac } from "./fixtures";
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
@@ -1884,8 +1884,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openFilters(page);
-    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await onlyMac(page, "machine-mini");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });

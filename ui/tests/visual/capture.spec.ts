@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane } from "./fixtures";
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac } from "./fixtures";
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
@@ -147,7 +147,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       // D-25: an account that needs its sign-in is a "Needs you" item on Home.
-      await expect(page.getByTestId("home-signin").first()).toContainText("needs its sign-in");
+      await expect(page.getByTestId("home-need-signin").first()).toContainText("needs its sign-in");
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/ready-home-${vp.name}-${theme}.png`),
       });
@@ -248,20 +248,19 @@ test("rail — needs-me sort default", gate("01-rail-sort"), async ({ page }) =>
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/needs-me-1440x900.png") });
 });
 
-test("rail — quota risk with no data group", async ({ page }) => {
+// AJ-E2104: the View's Group by and Show (the quota sort left with the
+// old Filters; Home's Runway by account reads the room left).
+test("rail — the View open", async ({ page }) => {
   await seedRail(page, {});
   await openFilters(page);
-  // The "no data" group is the quota sort's own grouping (no project groups).
-  await page.selectOption('select[aria-label="Group by"]', "none");
-  await page.selectOption('select[aria-label="Sort by"]', "quota");
-  await expect(page.getByText("Not measured yet").first()).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/quota-risk-1440x900.png") });
+  await expect(page.getByTestId("rail-view")).toBeVisible();
+  await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/view-1440x900.png") });
 });
 
 test("rail — group by project with rollups", async ({ page }) => {
   await seedRail(page, {});
   await openFilters(page);
-  await page.selectOption('select[aria-label="Group by"]', "project");
+  await page.getByTestId("rail-view").getByRole("radio", { name: /^Project/ }).check();
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
 });
@@ -4411,14 +4410,13 @@ for (const theme of THEMES) {
       // Back to the home view (the board + the alert region).
       await page.reload();
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await expect(page.getByTestId("board-machine")).toBeVisible();
+      // AJ-E2104: other Macs fold after this Mac, each to its header.
+      await expect(page.getByTestId("rail-other-mac")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
-      await openFilters(page);
-      await page.getByLabel("Filter by machine").selectOption("machine-mini");
+      await onlyMac(page, "machine-mini");
       await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/one-machine-${vp.name}-${theme}.png`) });
-      await openFilters(page);
-      await page.getByLabel("Filter by machine").selectOption("all");
+      await onlyMac(page, "all");
       await expect(page.getByTestId("remote-alert-exhausted")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/alert-${vp.name}-${theme}.png`) });
     });
@@ -4611,8 +4609,7 @@ for (const theme of THEMES) {
     });
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openFilters(page);
-    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await onlyMac(page, "machine-mini");
     await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
     await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
     await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-board-1280x800-${theme}.png`) });

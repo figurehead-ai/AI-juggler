@@ -10,7 +10,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, railViewAs } from "./fixtures";
 
 type Conversation = { id: string; account_id: string; project_id: string | null; live: boolean; session_id: string | null };
 type Fixture = {
@@ -45,13 +45,14 @@ test("the replica has live sessions started outside AI Juggler to show", () => {
   expect(FIXTURE.projects.length).toBeGreaterThanOrEqual(13);
 });
 
-test("every live outside session: on Home, in the rail and its Running chip, in the palette", async ({ page }) => {
+test("every live outside session: counted on Home, a row in the rail by place, in the palette", async ({ page }) => {
   await seed(page);
-  await expect(page.getByTestId("home-outside")).toHaveCount(LIVE.length);
-  await expect(page.getByText(`${LIVE.length} running`).first()).toBeVisible();
-  const railLive = page.getByTestId("rail-outside").filter({ hasText: "Running" });
-  await expect(railLive).toHaveCount(LIVE.length);
-  await expect(page.getByRole("group", { name: "Show" }).getByRole("button", { name: new RegExp(`^Running ${LIVE.length}`) })).toBeVisible();
+  // AJ-E2105: Home counts what's open (the replica's files predate places
+  // and states: each is open, idle, in its account's place).
+  await expect(page.getByTestId("home-counts")).toContainText(`${LIVE.length} open`);
+  // AJ-E2104: quiet places fold to their headers; shown, each is one row.
+  await railViewAs(page, { group: "place", show: { quiet: true } });
+  await expect(page.getByTestId("place-board").locator("[data-conversation-id]")).toHaveCount(LIVE.length);
   await page.keyboard.press("Meta+k");
   await expect(page.locator('[data-testid^="goto-row-outside::"]')).toHaveCount(LIVE.length);
   await page.keyboard.press("Escape");

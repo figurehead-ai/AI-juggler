@@ -151,7 +151,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("rename-account-save").click();
     await expect(page.getByTestId("accounts-notice")).toHaveText("Renamed to Side projects.");
     await openFilters(page);
-    await page.getByRole("combobox", { name: "Group by" }).selectOption("account");
+    await page.getByTestId("rail-view").getByRole("radio", { name: /^Account/ }).check();
     await expect(page.getByTestId("rail")).toContainText("Side projects");
     await page.getByTestId("rail").screenshot({ path: resolve(OUT, `renamed-rail-${theme}.png`) });
   });

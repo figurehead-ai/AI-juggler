@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/77-menus");
 const T0 = 1_728_800_000_000;
@@ -144,6 +144,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a project row and its page's header — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const header = page.getByTestId("rail-project").first();
     await header.click({ button: "right" });
     const row = await labels(page);

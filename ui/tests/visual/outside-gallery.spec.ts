@@ -10,7 +10,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, openOutsidePage, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/78-outside");
 const FIXTURE = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -46,14 +46,15 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`Home and the rail with sessions started outside AI Juggler — ${theme}`, gate("78-outside"), async ({ page }) => {
     await seed(page, theme);
-    await expect(page.getByTestId("home-outside").first()).toBeVisible();
+    // AJ-E2105: Home's apps; the rail's places.
+    await expect(page.getByTestId("home-app-tile").first()).toBeVisible();
     await shoot(page, "home-rail", theme);
   });
 
   test(`an outside conversation's page — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
-    await page.getByTestId("home-outside").first().click();
+    await openOutsidePage(page);
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await shoot(page, "conversation-page", theme);
   });
@@ -67,6 +68,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a project's page, listing them — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     await page.getByTestId("rail").getByTestId("rail-project").first().click();
     // AJ-E1533: the project's body lists every session, outside ones too.
     await expect(page.getByTestId("page-panel-sessions").locator('[data-testid="page-session-row"][data-outside="true"]').first()).toBeVisible();
