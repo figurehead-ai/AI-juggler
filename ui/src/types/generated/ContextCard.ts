@@ -44,7 +44,7 @@ said: CardField,
 /**
  * When it was last active, epoch ms.
  */
-last_activity_ms: bigint | null, 
+last_activity_ms: number | null, 
 /**
  * The files it changed most recently, newest first (the last two
  * parts of each path).

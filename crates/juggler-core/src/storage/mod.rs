@@ -14,6 +14,7 @@
 
 mod account_audit;
 mod accounts;
+mod agent_access;
 mod profiles;
 mod sessions;
 
@@ -36,6 +37,7 @@ use rusqlite::Connection;
 
 pub use account_audit::{AccountAuditRecord, AccountAuditRepo};
 pub use accounts::AccountsRepo;
+pub use agent_access::{AgentAccessRepo, AgentRule, AuditEntry, MADE_BY_USER};
 pub use cleanup_audit::{
     ACTOR_AUTO_TIER1, ACTOR_AUTO_TIER2, ACTOR_PREFIX_USER, AuditOutcomeInfo, CleanupAuditRecord,
     CleanupAuditRepo, OUTCOME_PENDING,
@@ -47,8 +49,8 @@ pub use footprints::{
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use pools::{
-    Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, Pool, PoolKind,
-    PoolMember, PoolRole, PoolsRepo, default_grant, default_pool_scope, resolve_memberships,
+    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, Pool, PoolKind, PoolMember,
+    PoolRole, PoolsRepo, default_pool_scope, resolve_memberships,
 };
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
@@ -913,6 +915,13 @@ impl Storage {
     #[must_use]
     pub fn pools(&self) -> PoolsRepo<'_> {
         PoolsRepo::new(&self.conn)
+    }
+
+    /// Repository for what agents may do in each pool: levels, rules,
+    /// approvals and the audit (schema v33, D-28).
+    #[must_use]
+    pub fn agent_access(&self) -> AgentAccessRepo<'_> {
+        AgentAccessRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

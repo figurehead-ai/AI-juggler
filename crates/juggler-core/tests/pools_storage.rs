@@ -8,7 +8,8 @@
 //!   delete it.
 //! - Deleting a pool ends its rows (history stays) and frees the name.
 //! - A session row made before a switch stands for the Work item after.
-//! - Grants: the defaults, overrides only, fixed rows never written.
+//! - Access (D-28): the starting level, the user's level, the second
+//!   allow-once offering a rule, revoking, the audit.
 
 #![allow(
     clippy::unwrap_used,
@@ -17,13 +18,14 @@
     clippy::pedantic
 )]
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
+use juggler_core::agent_access::{AccessLevel, AgentAction, Decision};
 use juggler_core::model::{SessionId, WorkItemId};
 use juggler_core::storage::{
-    Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, MemberRef, PoolKind, PoolMember, PoolRole,
-    Storage, default_grant, pre_migration_copies, resolve_memberships,
+    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, MemberRef, PoolKind, PoolMember, PoolRole, Storage,
+    pre_migration_copies, resolve_memberships,
 };
 use rusqlite::{Connection, OpenFlags};
 
@@ -261,67 +263,140 @@ fn member_refs_round_trip_and_unknown_words_are_skipped() {
 }
 
 #[test]
-fn grants_are_the_defaults_until_the_user_changes_them() {
+fn a_pool_starts_at_work_together_and_the_user_sets_its_level() {
     let storage = Storage::open_in_memory().unwrap();
-    let pool = storage.pools().create("Team", None).unwrap();
-    for capability in Capability::ALL {
-        for role in PoolRole::ALL {
-            assert_eq!(
-                storage.pools().allowed(&pool.id, capability, role).unwrap(),
-                default_grant(capability, role),
-                "{capability:?} {role:?}"
-            );
-        }
+    let pool = storage.pools().create("Checkout", None).unwrap();
+    let access = storage.agent_access();
+    for id in [DEFAULT_POOL_ID, pool.id.as_str()] {
+        assert_eq!(
+            access.access(id).unwrap().level,
+            Some(AccessLevel::WorkTogether)
+        );
     }
-    // Observers only look; leads may do it all.
-    assert!(!default_grant(Capability::Message, PoolRole::Observer));
-    assert!(default_grant(Capability::Roster, PoolRole::Observer));
-    assert!(
-        Capability::ALL
-            .into_iter()
-            .all(|cap| default_grant(cap, PoolRole::Lead))
-    );
-
-    storage
-        .pools()
-        .set_grant(&pool.id, Capability::Broadcast, PoolRole::Member, true)
+    let custom: BTreeSet<_> = [AgentAction::ReadRoster, AgentAction::AssignTask].into();
+    access
+        .set_level(&pool.id, AccessLevel::Custom, &custom)
         .unwrap();
-    assert!(
-        storage
-            .pools()
-            .allowed(&pool.id, Capability::Broadcast, PoolRole::Member)
-            .unwrap()
-    );
-    assert!(
-        !storage
-            .pools()
-            .allowed(DEFAULT_POOL_ID, Capability::Broadcast, PoolRole::Member)
-            .unwrap()
-    );
-    assert_eq!(storage.pools().grant_overrides(&pool.id).unwrap().len(), 1);
-    storage
-        .pools()
-        .set_grant(&pool.id, Capability::Broadcast, PoolRole::Member, false)
+    let read = access.access(&pool.id).unwrap();
+    assert_eq!(read.level, Some(AccessLevel::Custom));
+    assert_eq!(read.custom, custom);
+    // A named level keeps no Custom set.
+    access
+        .set_level(&pool.id, AccessLevel::Full, &custom)
         .unwrap();
+    assert!(access.access(&pool.id).unwrap().custom.is_empty());
+    // A deleted pool has no level, and none can be set.
+    storage.pools().delete(&pool.id).unwrap();
+    assert_eq!(access.access(&pool.id).unwrap().level, None);
     assert!(
-        storage
-            .pools()
-            .grant_overrides(&pool.id)
-            .unwrap()
-            .is_empty()
-    );
-
-    assert!(
-        storage
-            .pools()
-            .set_grant(&pool.id, Capability::Roster, PoolRole::Observer, false)
+        access
+            .set_level(&pool.id, AccessLevel::Read, &BTreeSet::new())
             .is_err()
     );
-    assert!(
-        storage
-            .pools()
-            .grant_overrides(&pool.id)
+}
+
+#[test]
+fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
+    let storage = Storage::open_in_memory().unwrap();
+    let pool = storage.pools().create("Checkout", None).unwrap();
+    let access = storage.agent_access();
+    let ask = |offer| Decision::Ask {
+        offer_always: offer,
+    };
+    let decide = || {
+        access
+            .allowed(
+                &pool.id,
+                "session:s-1",
+                true,
+                false,
+                AgentAction::AssignTask,
+            )
             .unwrap()
-            .is_empty()
+    };
+
+    assert_eq!(decide(), ask(false), "above Work together: an ask");
+    access
+        .allow_once(&pool.id, AgentAction::AssignTask)
+        .unwrap();
+    assert_eq!(
+        decide(),
+        ask(true),
+        "the second identical ask offers Always allow"
     );
+    // Another pool's approvals don't count here.
+    assert_eq!(
+        access
+            .allowed(
+                DEFAULT_POOL_ID,
+                "session:s-1",
+                true,
+                false,
+                AgentAction::AssignTask
+            )
+            .unwrap(),
+        ask(false)
+    );
+
+    let rule = access
+        .always_allow(&pool.id, AgentAction::AssignTask)
+        .unwrap();
+    assert_eq!(rule.made_by, "user");
+    assert!(rule.created_at > 0);
+    assert_eq!(access.rules(None).unwrap(), std::slice::from_ref(&rule));
+    assert_eq!(decide(), Decision::Allow);
+    // Making it again changes nothing.
+    access
+        .always_allow(&pool.id, AgentAction::AssignTask)
+        .unwrap();
+    assert_eq!(access.rules(Some(&pool.id)).unwrap().len(), 1);
+
+    access.revoke(rule.id).unwrap();
+    assert!(
+        matches!(decide(), Decision::Ask { .. }),
+        "revoked: the very next call asks"
+    );
+    assert!(access.revoke(rule.id).is_err());
+
+    // Every request is in the audit, newest first.
+    let audit = access.audit(10).unwrap();
+    assert_eq!(audit.len(), 5);
+    assert_eq!(audit[0].decision, "ask");
+    assert_eq!(audit[1].decision, "allow");
+    assert!(
+        audit
+            .iter()
+            .all(|entry| entry.actor == "session:s-1" && entry.action == "assign_task")
+    );
+}
+
+#[test]
+fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
+    let storage = Storage::open_in_memory().unwrap();
+    let access = storage.agent_access();
+    assert_eq!(
+        access
+            .allowed(
+                DEFAULT_POOL_ID,
+                "session:x",
+                false,
+                false,
+                AgentAction::ReadRoster
+            )
+            .unwrap(),
+        Decision::Deny
+    );
+    assert_eq!(
+        access
+            .allowed(
+                "pool-gone",
+                "session:x",
+                true,
+                false,
+                AgentAction::ReadRoster
+            )
+            .unwrap(),
+        Decision::Deny
+    );
+    assert_eq!(access.audit(10).unwrap().len(), 2);
 }

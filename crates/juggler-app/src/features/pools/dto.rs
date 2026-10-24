@@ -25,8 +25,10 @@ pub struct PoolInfo {
     pub kind: String,
     /// The one project it's for, when it is.
     pub project_id: Option<String>,
-    /// What each role may do here, capability by capability.
-    pub grants: Vec<GrantInfo>,
+    /// What agents may do here (D-28): its level and what that allows.
+    pub access: AccessInfo,
+    /// The user's "always allow" rules here.
+    pub rules: Vec<AgentRuleInfo>,
     /// How many separate groups its sessions make under D-33 (one project
     /// and one account each): in the default pool agents will see only
     /// their own group; in a user pool more than one means the user put
@@ -46,22 +48,33 @@ pub struct PoolMemberInfo {
     pub role: String,
 }
 
-/// What one capability allows, per role.
-// One flag per role: the row the grants table shows.
-#[allow(clippy::struct_excessive_bools)]
+/// A pool's access level (D-28), set by the user in the app only.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct GrantInfo {
-    /// The capability (`message`, `broadcast`, …).
-    pub capability: String,
-    /// Every role always has it; it can't be changed.
-    pub fixed: bool,
-    /// Leads may.
-    pub lead: bool,
-    /// Members may.
-    pub member: bool,
-    /// Observers may.
-    pub observer: bool,
+pub struct AccessInfo {
+    /// `read` | `work_together` | `full` | `custom`.
+    pub level: String,
+    /// The actions the level allows without an ask (rules aside), in the
+    /// catalog's order.
+    pub actions: Vec<String>,
+}
+
+/// One "always allow" rule the user made.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct AgentRuleInfo {
+    /// Its id (to take it back).
+    #[ts(type = "number")]
+    pub id: i64,
+    /// The pool it's for.
+    pub pool_id: String,
+    /// The action it allows.
+    pub action: String,
+    /// When it was made, epoch ms.
+    #[ts(type = "number")]
+    pub created_at: i64,
+    /// Who made it (always `user`).
+    pub made_by: String,
 }
 
 /// One thing a card says, or why it can't (D-06: never a guess). Exactly
@@ -120,6 +133,7 @@ pub struct ContextCard {
     /// list has in progress. Shown as said by the agent, never as a fact.
     pub said: CardField,
     /// When it was last active, epoch ms.
+    #[ts(type = "number | null")]
     pub last_activity_ms: Option<i64>,
     /// The files it changed most recently, newest first (the last two
     /// parts of each path).

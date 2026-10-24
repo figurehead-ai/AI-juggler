@@ -1,7 +1,8 @@
 //! Pools (AJ-E1702, schema v33): sessions grouped by the user.
 //!
-//! - The user owns every pool. Pools, members, roles and grants change
-//!   only through the app's own commands — nothing an agent can reach.
+//! - The user owns every pool. Pools, members, roles and access levels
+//!   change only through the app's own commands — nothing an agent can
+//!   reach (D-28).
 //! - The default pool "All sessions" always exists and can't be deleted
 //!   or renamed. A session with no active member row is in it, as a
 //!   member.
@@ -10,11 +11,11 @@
 //!   Work item, so it keeps the pool. One active row per member.
 //! - Deleting a pool marks it deleted and ends its rows (`left_at`); its
 //!   sessions are back in the default pool and its history stays.
-//! - Grants: the defaults are [`default_grant`]; the table holds only
-//!   what the user changed.
+//! - What agents may do in a pool is its access level and the user's
+//!   rules (`agent_access`, D-28).
 //!
 //! Nothing here starts, stops or types into a session: it reads and
-//! writes these three tables only.
+//! writes the pools' own tables only.
 
 use std::collections::HashMap;
 use std::hash::BuildHasher;
@@ -29,8 +30,11 @@ use crate::model::{AccountId, ProjectId, SessionId, Timestamp, WorkItemId};
 /// (one row, made here). Members hang off the Work item (`work:<id>`, else
 /// `session:<id>`) so a switch keeps them; one active row per member (no
 /// row: the default pool, as a member). Deleting a pool marks it and ends
-/// its rows, so its history stays. Grants hold only what the user changed
-/// from the defaults.
+/// its rows, so its history stays.
+///
+/// D-28: each pool's access level (and its Custom set of actions), the
+/// user's "always allow" rules, the "allow once" answers (counted, so the
+/// second offers a rule), and the audit of every agent action.
 pub(super) const MIGRATION: &str = "
 CREATE TABLE pools (
     id         TEXT PRIMARY KEY,
@@ -38,7 +42,9 @@ CREATE TABLE pools (
     kind       TEXT NOT NULL,
     project    TEXT,
     created_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    access_level   TEXT NOT NULL DEFAULT 'work_together',
+    custom_actions TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX idx_pools_one_default ON pools(kind) WHERE kind = 'default';
 INSERT INTO pools (id, name, kind, project, created_at)
@@ -53,13 +59,30 @@ CREATE TABLE pool_members (
 );
 CREATE UNIQUE INDEX idx_pool_members_active ON pool_members(member_ref) WHERE left_at IS NULL;
 CREATE INDEX idx_pool_members_pool ON pool_members(pool_id);
-CREATE TABLE pool_grants (
+CREATE TABLE agent_rules (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
     pool_id    TEXT NOT NULL REFERENCES pools(id),
-    capability TEXT NOT NULL,
-    role       TEXT NOT NULL,
-    allowed    INTEGER NOT NULL,
-    PRIMARY KEY (pool_id, capability, role)
+    action     TEXT NOT NULL,
+    made_by    TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    revoked_at INTEGER
 );
+CREATE UNIQUE INDEX idx_agent_rules_live ON agent_rules(pool_id, action) WHERE revoked_at IS NULL;
+CREATE TABLE agent_approvals (
+    pool_id TEXT NOT NULL REFERENCES pools(id),
+    action  TEXT NOT NULL,
+    at      INTEGER NOT NULL
+);
+CREATE INDEX idx_agent_approvals ON agent_approvals(pool_id, action);
+CREATE TABLE agent_audit (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    at        INTEGER NOT NULL,
+    pool_id   TEXT NOT NULL,
+    actor_ref TEXT NOT NULL,
+    action    TEXT NOT NULL,
+    decision  TEXT NOT NULL
+);
+CREATE INDEX idx_agent_audit_at ON agent_audit(at);
 ";
 
 /// The default pool's id (made by the migration).
@@ -131,104 +154,6 @@ impl PoolRole {
             "observer" => Some(Self::Observer),
             _ => None,
         }
-    }
-}
-
-/// What a role may do in a pool (`pools-messaging-tasks.md` §2.3, the
-/// grants table). The owner — the user — may do all of it, from the UI.
-/// Nothing reads these yet: they apply once agents can reach AI Juggler
-/// (AJ-E1704).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Capability {
-    /// See the roster and the context cards (every role; fixed).
-    Roster,
-    /// Read one's own inbox (every role; fixed).
-    OwnInbox,
-    /// Message one member.
-    Message,
-    /// Message the whole pool.
-    Broadcast,
-    /// Share a document.
-    ShareDoc,
-    /// Create a task.
-    CreateTask,
-    /// Create a story or an epic.
-    CreatePlan,
-    /// Assign work to someone else.
-    Assign,
-    /// Take an unassigned task.
-    Claim,
-    /// Update one's own task.
-    UpdateOwn,
-    /// Close someone else's task.
-    CloseOthers,
-}
-
-impl Capability {
-    /// Every capability, in the order the UI lists them.
-    pub const ALL: [Self; 11] = [
-        Self::Roster,
-        Self::OwnInbox,
-        Self::Message,
-        Self::Broadcast,
-        Self::ShareDoc,
-        Self::CreateTask,
-        Self::CreatePlan,
-        Self::Assign,
-        Self::Claim,
-        Self::UpdateOwn,
-        Self::CloseOthers,
-    ];
-
-    /// The stored word.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Roster => "roster",
-            Self::OwnInbox => "own_inbox",
-            Self::Message => "message",
-            Self::Broadcast => "broadcast",
-            Self::ShareDoc => "share_doc",
-            Self::CreateTask => "create_task",
-            Self::CreatePlan => "create_plan",
-            Self::Assign => "assign",
-            Self::Claim => "claim",
-            Self::UpdateOwn => "update_own",
-            Self::CloseOthers => "close_others",
-        }
-    }
-
-    /// The capability a word names, when it names one.
-    #[must_use]
-    pub fn parse(word: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|cap| cap.as_str() == word)
-    }
-
-    /// Every role always has it; the user can't take it away (a member
-    /// who can't see the pool isn't in it).
-    #[must_use]
-    pub const fn fixed(self) -> bool {
-        matches!(self, Self::Roster | Self::OwnInbox)
-    }
-}
-
-/// The default grants table (§2.3): leads may do everything, members the
-/// everyday work, observers only look.
-#[must_use]
-pub const fn default_grant(capability: Capability, role: PoolRole) -> bool {
-    match role {
-        PoolRole::Lead => true,
-        PoolRole::Member => matches!(
-            capability,
-            Capability::Roster
-                | Capability::OwnInbox
-                | Capability::Message
-                | Capability::ShareDoc
-                | Capability::CreateTask
-                | Capability::Claim
-                | Capability::UpdateOwn
-        ),
-        PoolRole::Observer => matches!(capability, Capability::Roster | Capability::OwnInbox),
     }
 }
 
@@ -369,7 +294,7 @@ pub fn resolve_memberships<S: BuildHasher>(
         .collect()
 }
 
-/// Typed access to `pools`, `pool_members` and `pool_grants`.
+/// Typed access to `pools` and `pool_members`.
 #[derive(Debug)]
 pub struct PoolsRepo<'a> {
     conn: &'a Connection,
@@ -548,93 +473,6 @@ impl PoolsRepo<'_> {
             params![pool_id, member.to_wire(), role.as_str(), now],
         )?;
         tx.commit()?;
-        Ok(())
-    }
-
-    /// The grants the user changed for a pool: `(capability, role) → allowed`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn grant_overrides(
-        &self,
-        pool_id: &str,
-    ) -> Result<HashMap<(Capability, PoolRole), bool>, CoreError> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT capability, role, allowed FROM pool_grants WHERE pool_id = ?1")?;
-        let rows = stmt.query_map(params![pool_id], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, bool>(2)?,
-            ))
-        })?;
-        let mut out = HashMap::new();
-        for row in rows {
-            let (capability, role, allowed) = row?;
-            if let (Some(capability), Some(role)) =
-                (Capability::parse(&capability), PoolRole::parse(&role))
-            {
-                out.insert((capability, role), allowed);
-            }
-        }
-        Ok(out)
-    }
-
-    /// What a role may do in a pool: the user's change, else the default.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn allowed(
-        &self,
-        pool_id: &str,
-        capability: Capability,
-        role: PoolRole,
-    ) -> Result<bool, CoreError> {
-        if capability.fixed() {
-            return Ok(true);
-        }
-        Ok(self
-            .grant_overrides(pool_id)?
-            .get(&(capability, role))
-            .copied()
-            .unwrap_or_else(|| default_grant(capability, role)))
-    }
-
-    /// Sets one grant. Back to the default, the row goes (the table
-    /// holds only changes). Fixed capabilities are never written.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::Validation`] for a fixed capability, or
-    /// [`CoreError::Storage`] on SQLite failures.
-    pub fn set_grant(
-        &self,
-        pool_id: &str,
-        capability: Capability,
-        role: PoolRole,
-        allowed: bool,
-    ) -> Result<(), CoreError> {
-        if capability.fixed() {
-            return Err(CoreError::Validation {
-                subject: "grant",
-                message: format!("every role may always {}", capability.as_str()),
-            });
-        }
-        if allowed == default_grant(capability, role) {
-            self.conn.execute(
-                "DELETE FROM pool_grants WHERE pool_id = ?1 AND capability = ?2 AND role = ?3",
-                params![pool_id, capability.as_str(), role.as_str()],
-            )?;
-        } else {
-            self.conn.execute(
-                "INSERT INTO pool_grants (pool_id, capability, role, allowed) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT (pool_id, capability, role) DO UPDATE SET allowed = excluded.allowed",
-                params![pool_id, capability.as_str(), role.as_str(), allowed],
-            )?;
-        }
         Ok(())
     }
 }

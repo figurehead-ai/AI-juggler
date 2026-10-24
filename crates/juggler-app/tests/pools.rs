@@ -404,85 +404,205 @@ fn scopes_count_projects_and_accounts_d33() {
 }
 
 #[test]
-fn grants_follow_the_plan_table_and_only_change_where_the_user_changes_them() {
+fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
+    use juggler_core::agent_access::{AgentAction, Decision};
+
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
+    account(&state, "work");
+    let planner = session(&state, "s-planner", "work", None, dir.path());
+    let watcher = session(&state, "s-watcher", "work", None, dir.path());
     let info = pools::pool_create_impl(&state, "Team", None).unwrap();
     let team = pool_id(&info, "Team");
-    let grants = |info: &PoolsInfo, pool: &str| -> Vec<(String, bool, bool, bool)> {
-        info.pools
-            .iter()
-            .find(|row| row.id == pool)
-            .unwrap()
-            .grants
-            .iter()
-            .map(|grant| {
-                (
-                    grant.capability.clone(),
-                    grant.lead,
-                    grant.member,
-                    grant.observer,
-                )
-            })
-            .collect()
+    pools::pool_move_impl(&state, planner.as_str(), &team).unwrap();
+    pools::pool_move_impl(&state, watcher.as_str(), &team).unwrap();
+    pools::pool_set_role_impl(&state, watcher.as_str(), "observer").unwrap();
+    let level = |info: &PoolsInfo, pool: &str| {
+        let row = info.pools.iter().find(|row| row.id == pool).unwrap();
+        (row.access.level.clone(), row.access.actions.clone())
     };
-    // pools-messaging-tasks.md §2.3, the grants table (owner = the user).
-    let table: Vec<(String, bool, bool, bool)> = [
-        ("roster", true, true, true),
-        ("own_inbox", true, true, true),
-        ("message", true, true, false),
-        ("broadcast", true, false, false),
-        ("share_doc", true, true, false),
-        ("create_task", true, true, false),
-        ("create_plan", true, false, false),
-        ("assign", true, false, false),
-        ("claim", true, true, false),
-        ("update_own", true, true, false),
-        ("close_others", true, false, false),
-    ]
-    .into_iter()
-    .map(|(cap, lead, member, observer)| (cap.to_owned(), lead, member, observer))
-    .collect();
-    assert_eq!(grants(&info, &team), table);
-    assert_eq!(grants(&info, DEFAULT_POOL_ID), table);
 
-    // "Message one member: lead-only (option)".
-    let info = pools::pool_set_grant_impl(&state, &team, "message", "member", false).unwrap();
-    assert!(!grants(&info, &team)[2].2);
-    assert!(grants(&info, DEFAULT_POOL_ID)[2].2, "another pool changed");
-    // Back to the default: the override row goes.
-    let info = pools::pool_set_grant_impl(&state, &team, "message", "member", true).unwrap();
-    assert_eq!(grants(&info, &team), table);
-    {
-        let storage = state.storage.lock().unwrap();
-        let rows: i64 = storage
-            .raw_conn()
-            .query_row("SELECT COUNT(*) FROM pool_grants", [], |row| row.get(0))
-            .unwrap();
-        assert_eq!(rows, 0);
+    // Every pool starts at Work together, the default pool too.
+    let info = pools::pools_list_impl(&state).unwrap();
+    for pool in [DEFAULT_POOL_ID, team.as_str()] {
+        let (word, actions) = level(&info, pool);
+        assert_eq!(word, "work_together");
+        assert!(actions.contains(&"post_message".to_owned()));
+        assert!(!actions.contains(&"deliver_to_session".to_owned()));
     }
-    // An observer may be let in.
-    let info = pools::pool_set_grant_impl(&state, &team, "claim", "observer", true).unwrap();
-    assert!(grants(&info, &team)[8].3);
-    // It sticks across a restart.
+    let decide = |session: &SessionId, action| {
+        pools::access::allowed(&state, session.as_str(), &team, action)
+    };
+    assert_eq!(decide(&planner, AgentAction::PostMessage), Decision::Allow);
+    assert_eq!(
+        decide(&planner, AgentAction::DeliverToSession),
+        Decision::Ask {
+            offer_always: false
+        }
+    );
+    // An observer reads freely and asks for the rest.
+    assert_eq!(decide(&watcher, AgentAction::ReadCards), Decision::Allow);
+    assert!(matches!(
+        decide(&watcher, AgentAction::PostMessage),
+        Decision::Ask { .. }
+    ));
+    // Another pool's agent is denied here.
+    assert_eq!(
+        pools::access::allowed(
+            &state,
+            planner.as_str(),
+            DEFAULT_POOL_ID,
+            AgentAction::ReadRoster
+        ),
+        Decision::Deny
+    );
+
+    // Full lets messages into sessions; Read takes posting away.
+    pools::access::set_level_impl(&state, &team, "full", &[]).unwrap();
+    assert_eq!(
+        decide(&planner, AgentAction::DeliverToSession),
+        Decision::Allow
+    );
+    let info = pools::access::set_level_impl(&state, &team, "read", &[]).unwrap();
+    assert_eq!(
+        level(&info, &team).1,
+        ["read_roster", "read_cards", "read_tasks"]
+    );
+    assert!(matches!(
+        decide(&planner, AgentAction::PostMessage),
+        Decision::Ask { .. }
+    ));
+    // Custom is the user's own set.
+    let info = pools::access::set_level_impl(
+        &state,
+        &team,
+        "custom",
+        &["read_roster".to_owned(), "assign_task".to_owned()],
+    )
+    .unwrap();
+    assert_eq!(
+        level(&info, &team),
+        (
+            "custom".to_owned(),
+            vec!["read_roster".to_owned(), "assign_task".to_owned()]
+        )
+    );
+    assert_eq!(decide(&planner, AgentAction::AssignTask), Decision::Allow);
+
+    // Allow once twice: the second ask offers Always allow; the rule
+    // allows, and taking it back asks again on the very next call.
+    pools::access::set_level_impl(&state, &team, "work_together", &[]).unwrap();
+    pools::access::answer_impl(&state, &team, "prepare_launch", "once").unwrap();
+    assert_eq!(
+        decide(&planner, AgentAction::PrepareLaunch),
+        Decision::Ask { offer_always: true }
+    );
+    let info = pools::access::answer_impl(&state, &team, "prepare_launch", "always").unwrap();
+    let rule = info.pools.iter().find(|row| row.id == team).unwrap().rules[0].clone();
+    assert_eq!(
+        (rule.action.as_str(), rule.made_by.as_str()),
+        ("prepare_launch", "user")
+    );
+    assert_eq!(
+        decide(&planner, AgentAction::PrepareLaunch),
+        Decision::Allow
+    );
+    pools::access::revoke_impl(&state, rule.id).unwrap();
+    assert!(matches!(
+        decide(&planner, AgentAction::PrepareLaunch),
+        Decision::Ask { .. }
+    ));
+    assert!(matches!(
+        pools::access::revoke_impl(&state, rule.id),
+        Err(AppError::Refused(_))
+    ));
+
+    // It sticks across a restart; unknown words are refused.
     drop(state);
     let state = app_state(dir.path());
     let info = pools::pools_list_impl(&state).unwrap();
-    assert!(grants(&info, &team)[8].3);
+    assert_eq!(level(&info, &team).0, "work_together");
+    for (level, actions) in [
+        ("everything", vec![]),
+        ("custom", vec!["change_pool".to_owned()]),
+    ] {
+        assert!(matches!(
+            pools::access::set_level_impl(&state, &team, level, &actions),
+            Err(AppError::Validation { .. })
+        ));
+    }
+    assert!(matches!(
+        pools::access::answer_impl(&state, &team, "read_roster", "forever"),
+        Err(AppError::Validation { .. })
+    ));
+    // Every request was audited.
+    let audited = state
+        .storage
+        .lock()
+        .unwrap()
+        .agent_access()
+        .audit(100)
+        .unwrap();
+    assert_eq!(audited.len(), 11);
+}
 
-    // The fixed rows can't be changed; unknown words are refused.
-    let words = refused(pools::pool_set_grant_impl(
-        &state, &team, "roster", "observer", false,
-    ));
-    assert!(words.contains("always see the pool"), "{words}");
-    assert!(matches!(
-        pools::pool_set_grant_impl(&state, &team, "drop_tables", "lead", true),
-        Err(AppError::Validation { .. })
-    ));
-    assert!(matches!(
-        pools::pool_set_grant_impl(&state, &team, "assign", "owner", true),
-        Err(AppError::Validation { .. })
-    ));
+/// The hard lines (D-28): the agent action catalog names no way to change
+/// a pool, a level or a rule, start a session, pick an account or read a
+/// credential; and the decision point only reads and audits.
+#[test]
+fn no_level_or_rule_can_reach_a_hard_line() {
+    use juggler_core::agent_access::AgentAction;
+
+    for action in AgentAction::ALL {
+        let word = action.as_str();
+        for line in [
+            "pool",
+            "level",
+            "rule",
+            "grant",
+            "account",
+            "credential",
+            "token",
+            "secret",
+            "start",
+            "spawn",
+            "permission",
+            "approve",
+        ] {
+            assert!(
+                !word.contains(line),
+                "the agent action {word} reaches a hard line ({line})"
+            );
+        }
+    }
+    // prepare_launch stages only: no level includes it.
+    for level in juggler_core::agent_access::AccessLevel::ALL {
+        if level != juggler_core::agent_access::AccessLevel::Custom {
+            assert!(
+                !level
+                    .actions(&Default::default())
+                    .contains(&AgentAction::PrepareLaunch)
+            );
+        }
+    }
+    // The decision point writes nothing but the audit.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source = std::fs::read_to_string(root.join("src/features/pools/access.rs")).unwrap();
+    let decision = &source[source.find("pub fn allowed(").unwrap()..];
+    for call in [
+        "set_level",
+        "always_allow",
+        "revoke(",
+        "allow_once",
+        "place(",
+        "create(",
+        "delete(",
+        "rename(",
+        "Keychain",
+        "credential",
+    ] {
+        assert!(!decision.contains(call), "the decision point calls {call}");
+    }
 }
 
 /// What a running session would show if anything touched it.
@@ -592,11 +712,12 @@ fn pool_operations_never_start_stop_or_type_into_a_session() {
     pools::pool_move_impl(&state, id, &team).unwrap();
     pools::pool_set_role_impl(&state, id, "lead").unwrap();
     pools::pool_set_role_impl(&state, id, "observer").unwrap();
-    pools::pool_set_grant_impl(&state, &team, "broadcast", "member", true).unwrap();
+    pools::access::set_level_impl(&state, &team, "full", &[]).unwrap();
     pools::pool_rename_impl(&state, &team, "Team two").unwrap();
     pools::pools_list_impl(&state).unwrap();
     let _ = pools::pool_delete_impl(&state, DEFAULT_POOL_ID);
-    let _ = pools::pool_set_grant_impl(&state, &team, "roster", "lead", false);
+    let _ = pools::access::set_level_impl(&state, &team, "custom", &["read_roster".to_owned()]);
+    let _ = pools::access::answer_impl(&state, &team, "deliver_to_session", "always");
     pools::pool_move_impl(&state, id, DEFAULT_POOL_ID).unwrap();
     pools::pool_move_impl(&state, id, &team).unwrap();
     pools::pool_delete_impl(&state, &team).unwrap();

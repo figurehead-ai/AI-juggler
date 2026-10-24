@@ -1,5 +1,5 @@
 //! The pools' commands (AJ-E1702, AJ-E1703): two reads, and the user's
-//! changes to pools, members, roles and grants. Only the app's own window
+//! changes to pools, members, roles, access levels and rules. Only the app's own window
 //! calls them; none of them touches a session.
 
 use std::sync::Arc;
@@ -118,21 +118,54 @@ pub async fn pool_set_role(
     .await
 }
 
-/// Sets what a role may do in a pool.
+/// Sets a pool's access level (D-28); `actions` is the Custom set.
 ///
 /// # Errors
 ///
-/// As [`super::pool_set_grant_impl`].
+/// As [`super::access::set_level_impl`].
 #[tauri::command]
-pub async fn pool_set_grant(
+pub async fn pool_set_access(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
-    capability: String,
-    role: String,
-    allowed: bool,
+    level: String,
+    actions: Vec<String>,
 ) -> AppResult<PoolsInfo> {
     crate::ipc::blocking(state.inner(), "the pool", move |state| {
-        super::pool_set_grant_impl(state, &pool_id, &capability, &role, allowed)
+        super::access::set_level_impl(state, &pool_id, &level, &actions)
+    })
+    .await
+}
+
+/// Takes back an "always allow" rule; it stops applying at once.
+///
+/// # Errors
+///
+/// As [`super::access::revoke_impl`].
+#[tauri::command]
+pub async fn agent_rule_revoke(
+    state: tauri::State<'_, Arc<AppState>>,
+    rule_id: i64,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the rule", move |state| {
+        super::access::revoke_impl(state, rule_id)
+    })
+    .await
+}
+
+/// The user's answer to an agent's ask: `once`, `always` or `deny`.
+///
+/// # Errors
+///
+/// As [`super::access::answer_impl`].
+#[tauri::command]
+pub async fn agent_ask_answer(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    action: String,
+    answer: String,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the answer", move |state| {
+        super::access::answer_impl(state, &pool_id, &action, &answer)
     })
     .await
 }

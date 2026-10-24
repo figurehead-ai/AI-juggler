@@ -12,6 +12,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod agent_access;
 pub mod alerts;
 pub mod budget;
 pub mod cost_ledger;

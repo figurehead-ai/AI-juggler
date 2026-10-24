@@ -2,13 +2,15 @@
 //! who leads. AJ-E1703: each pool's context cards ([`cards`]).
 //!
 //! - The user owns every pool: these commands are the only way to change
-//!   pools, members, roles and grants, and only the app's UI calls them.
+//!   pools, members, roles and access levels, and only the app's UI calls
+//!   them (D-28).
 //!   Nothing an agent runs can reach them.
 //! - "All sessions" always exists; it can't be renamed or deleted.
 //! - A pool can be for one project; a session from elsewhere is refused.
 //! - Pool operations only read and write the pool tables. They never
 //!   start, stop or type into a session (`tests/pools.rs` holds that).
 
+pub mod access;
 pub mod cards;
 pub mod commands;
 pub mod dto;
@@ -19,11 +21,14 @@ use std::sync::Arc;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-pub use dto::{CardField, ContextCard, GrantInfo, PoolCards, PoolInfo, PoolMemberInfo, PoolsInfo};
+pub use dto::{
+    AccessInfo, AgentRuleInfo, CardField, ContextCard, PoolCards, PoolInfo, PoolMemberInfo,
+    PoolsInfo,
+};
 use juggler_core::model::{AccountId, ProjectId, SessionId};
 use juggler_core::storage::{
-    Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, PoolKind, PoolRole,
-    Storage, default_pool_scope, resolve_memberships,
+    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, PoolKind, PoolRole, Storage,
+    default_pool_scope, resolve_memberships,
 };
 
 /// The longest pool name accepted (a name, not a note).
@@ -101,24 +106,7 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
     let repo = storage.pools();
     let mut pools = Vec::new();
     for pool in repo.list()? {
-        let overrides = repo.grant_overrides(&pool.id)?;
-        let allowed = |capability: Capability, role: PoolRole| {
-            capability.fixed()
-                || overrides
-                    .get(&(capability, role))
-                    .copied()
-                    .unwrap_or_else(|| juggler_core::storage::default_grant(capability, role))
-        };
-        let grants = Capability::ALL
-            .into_iter()
-            .map(|capability| GrantInfo {
-                capability: capability.as_str().to_owned(),
-                fixed: capability.fixed(),
-                lead: allowed(capability, PoolRole::Lead),
-                member: allowed(capability, PoolRole::Member),
-                observer: allowed(capability, PoolRole::Observer),
-            })
-            .collect();
+        let (access, rules) = access::info(storage, &pool.id)?;
         let groups: BTreeSet<&DefaultScope> = places
             .iter()
             .filter(|(_, (pool_id, _))| *pool_id == pool.id)
@@ -129,7 +117,8 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
             name: pool.name,
             kind: pool.kind.as_str().to_owned(),
             project_id: pool.project.map(|project| project.as_str().to_owned()),
-            grants,
+            access,
+            rules,
             scopes: u32::try_from(groups.len()).unwrap_or(u32::MAX),
         });
     }
@@ -307,40 +296,5 @@ pub fn pool_set_role_impl(
         .map_or_else(|| DEFAULT_POOL_ID.to_owned(), |row| row.pool_id.clone());
     let (member, replaces) = member_of(&storage, &session)?;
     storage.pools().place(&member, &replaces, &pool_id, role)?;
-    pools_info(&storage)
-}
-
-/// Sets what one role may do in a pool.
-///
-/// # Errors
-///
-/// [`AppError::Refused`] for a fixed capability; [`AppError::Validation`]
-/// for an unknown capability or role; [`AppError::Refused`] for a
-/// missing pool.
-pub fn pool_set_grant_impl(
-    state: &Arc<AppState>,
-    pool_id: &str,
-    capability: &str,
-    role: &str,
-    allowed: bool,
-) -> AppResult<PoolsInfo> {
-    let capability = Capability::parse(capability).ok_or_else(|| AppError::Validation {
-        subject: "capability",
-        message: format!("{capability} isn't something a role can do"),
-    })?;
-    let role = PoolRole::parse(role).ok_or_else(|| AppError::Validation {
-        subject: "role",
-        message: format!("{role} isn't a role (lead, member or observer)"),
-    })?;
-    if capability.fixed() {
-        return Err(AppError::Refused(
-            "Every role can always see the pool and read its own messages".to_owned(),
-        ));
-    }
-    let storage = lock_storage_arc(state)?;
-    live_pool(&storage, pool_id)?;
-    storage
-        .pools()
-        .set_grant(pool_id, capability, role, allowed)?;
     pools_info(&storage)
 }
