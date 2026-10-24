@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/84-notifications");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -45,7 +45,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`Settings › Notifications: every kind off until chosen — ${theme}`, gate("84-notifications"), async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Notifications" }).click();
+    await await settingsPane(page, "Notifications");
     const card = page.getByTestId("settings-notifications");
     await expect(card.getByTestId("system-notifications")).toBeVisible();
     for (const label of [

@@ -8,7 +8,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/84-privacy");
 
@@ -84,7 +84,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`Settings links to it — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
-    await page.getByTestId("privacy-open-page").click();
+    await settingsPane(page, "Privacy");
+    await page.getByTestId("settings-privacy-page").click();
     await expect(page.getByTestId("privacy-page")).toBeVisible();
   });
 }
