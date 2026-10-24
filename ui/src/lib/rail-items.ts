@@ -211,9 +211,13 @@ export function needsYou(items: RailItem[]): RailItem[] {
     .sort((a, b) => NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key));
 }
 
-/** Open now: open, interactive, not in Needs you. */
+/** Open now: open, interactive, not in Needs you. A pinned session stays
+ * where the user put it, under its place, once it has ended too (AJ-E1502;
+ * Ended today leaves it out, so it is never in neither). */
 export function openNow(item: RailItem): boolean {
-  return item.live && !item.background && item.need === null && item.state !== "ended";
+  if (item.need !== null) return false;
+  if (item.session?.pinned) return true;
+  return item.live && !item.background && item.state !== "ended";
 }
 
 /** The start of `now`'s day, local time. */

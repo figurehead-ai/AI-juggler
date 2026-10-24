@@ -147,6 +147,21 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     expect(foldGroup(many, true).quiet).toBe(0);
   });
 
+  it("a pinned session keeps its place: under its place once ended, leading it, never folded away (AJ-E1502)", () => {
+    const pin = sessionItem(own("pin", { status: "finished", pinned: true, last_activity_ms: NOW - 9_000_000 }), none, false);
+    expect(openNow(pin)).toBe(true);
+    expect(endedToday(pin, NOW)).toBe(false);
+    // Needs you still comes first: a pinned one that asks is there.
+    expect(openNow(sessionItem(own("ask", { status: "waiting_user", pinned: true }), none, false))).toBe(false);
+    const quiet = [...Array(5)].map((_, n) => sessionItem(own(`q${n}`, { status: "stopped", last_activity_ms: NOW - n }), none, false));
+    const group = groupItems([...quiet, pin], "place")[0]!;
+    expect(isQuiet(group)).toBe(false);
+    const fold = foldGroup(group, false);
+    expect(fold.shown[0]!.key).toBe("s:pin");
+    expect(fold.shown).toHaveLength(4);
+    expect(fold.quiet).toBe(2);
+  });
+
   it("rows hold still under the pointer: known ones keep their places, new ones join at the end", () => {
     const next = ["c", "a", "new", "b"].map((key) => ({ key }));
     expect(frozenOrder(next, ["a", "b", "c"], (item) => item.key).map((item) => item.key)).toEqual(["a", "b", "c", "new"]);

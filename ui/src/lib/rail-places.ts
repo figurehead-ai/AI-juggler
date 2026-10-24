@@ -66,9 +66,15 @@ export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf 
   );
 }
 
-/** Nothing in it is working. */
+/** A session the user pinned (AJ-E1502): it leads its place and never
+ * folds away. */
+function pinned(item: RailItem): boolean {
+  return item.session?.pinned === true;
+}
+
+/** Nothing in it is working, and nothing in it is pinned. */
 export function isQuiet(group: RailGroup): boolean {
-  return group.items.every((item) => item.state !== "working");
+  return group.items.every((item) => item.state !== "working" && !pinned(item));
 }
 
 /** A folded quiet place in words: "Work · 4 idle". */
@@ -80,14 +86,16 @@ export function quietWords(group: RailGroup): string {
   return `${name} · ${parts.join(" · ")}`;
 }
 
-/** What a group shows: its working rows, then the most recent others
- * (all of them when quiet ones are shown), and how many it leaves out. */
+/** What a group shows: its pinned rows, its working rows, then the most
+ * recent others (all of them when quiet ones are shown), and how many it
+ * leaves out. */
 export function foldGroup(group: RailGroup, showQuiet: boolean): { shown: RailItem[]; quiet: number } {
   const recent = (a: RailItem, b: RailItem) => b.lastMs - a.lastMs || a.key.localeCompare(b.key);
-  const working = group.items.filter((item) => item.state === "working").sort(recent);
-  const others = group.items.filter((item) => item.state !== "working").sort(recent);
-  if (showQuiet) return { shown: [...working, ...others], quiet: 0 };
-  return { shown: [...working, ...others.slice(0, RECENT_SHOWN)], quiet: Math.max(0, others.length - RECENT_SHOWN) };
+  const lead = group.items.filter(pinned).sort(recent);
+  const working = group.items.filter((item) => !pinned(item) && item.state === "working").sort(recent);
+  const others = group.items.filter((item) => !pinned(item) && item.state !== "working").sort(recent);
+  if (showQuiet) return { shown: [...lead, ...working, ...others], quiet: 0 };
+  return { shown: [...lead, ...working, ...others.slice(0, RECENT_SHOWN)], quiet: Math.max(0, others.length - RECENT_SHOWN) };
 }
 
 /**

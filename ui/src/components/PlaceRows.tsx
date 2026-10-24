@@ -19,6 +19,7 @@
 import type { JSX, ReactNode } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark, AppIcon, ProfileChip } from "./PlaceMarks";
+import { PinMark } from "./RailProjectRows";
 import { IconUpRight } from "./icons-places";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
@@ -139,18 +140,23 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
   const line = [item.project, whenWords(item, now)].filter(Boolean).join(" · ");
   const also = item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
   const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
+  // AJ-E1502: a pinned row says so, as the Project lens's row does.
+  const pinned = item.session?.pinned === true;
   return (
     <RowShell
       {...props}
-      label={[word, item.title, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ")}
+      label={[word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ")}
       indent
       className="h-[40px] rounded-r-lg border-l-2 py-1 pl-2.5 pr-2"
       style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}
     >
       <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-2">
-        <span className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
+        <span data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
+            {pinned && <PinMark />}
+          </span>
           <span className="truncate text-[10.5px] text-muted">
             {line}
             {also && <span data-testid="row-also"> · {also}</span>}
