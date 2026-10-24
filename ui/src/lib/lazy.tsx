@@ -36,6 +36,9 @@ export function prefetchLazy(): void {
   if (started) return;
   started = true;
   const idle = (next: () => void) => {
+    // A part can finish loading after its window is gone (a test's
+    // environment torn down): then there is nothing left to fetch for.
+    if (typeof window === "undefined") return;
     const w = window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => void };
     if (w.requestIdleCallback) w.requestIdleCallback(next, { timeout: 2000 });
     else setTimeout(next, 50);
