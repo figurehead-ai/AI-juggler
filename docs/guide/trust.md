@@ -55,6 +55,8 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`login_spec_points_at_isolated_dir`](../../crates/juggler-adapters/tests/claude_code_adapter.rs), [`login_spec_runs_the_vendor_flow_in_the_isolated_home`](../../crates/juggler-adapters/tests/codex_adapter.rs), [`no_sign_in_file_is_read`](../../crates/juggler-app/tests/no_bare_tools.rs).</sub>
 - It never moves your work to another account by itself. Every switch starts from a click, on this Mac or on a Mac you paired.
   <sub>Checked by [`nothing_switches_on_its_own`](../../crates/juggler-app/tests/trust.rs), [`only the switch screens start a switch`](../../ui/src/screens/privacy-page.test.tsx).</sub>
+- Pools only group your sessions. Putting a session in a pool, giving it a role or deleting the pool never starts, stops or types into it.
+  <sub>Checked by [`pool_operations_never_start_stop_or_type_into_a_session`](../../crates/juggler-app/tests/pools.rs), [`the_pool_code_has_no_path_to_a_session`](../../crates/juggler-app/tests/pools.rs).</sub>
 - The test bridge the developers use is not in the app you download.
   <sub>Checked by [`the_dev_bridge_is_not_a_default_feature`](../../crates/juggler-app/tests/dev_bridge_feature.rs).</sub>
 
