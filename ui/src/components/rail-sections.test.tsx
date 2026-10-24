@@ -11,6 +11,10 @@ import { alsoParts } from "./RailSections";
 import { ConversationsProvider } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();

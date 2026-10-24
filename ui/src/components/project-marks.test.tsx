@@ -18,6 +18,10 @@ import * as manage from "../lib/ipc/manage";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();

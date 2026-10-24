@@ -6,6 +6,10 @@ import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();

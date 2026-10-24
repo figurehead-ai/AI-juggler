@@ -33,7 +33,7 @@ export const PALETTE_HUES = [265, 145, 325, 205, 295, 115, 235, 175, 355, 55, 85
 export const PALETTE_NAMES = ["Blue", "Green", "Magenta", "Cyan", "Violet", "Olive", "Azure", "Teal", "Pink", "Orange", "Gold", "Red"] as const;
 
 /** A hue's swatch: the lightness whose colour has `SWATCH_Y`. */
-function swatchOf(h: number): Oklch {
+export function swatchOf(h: number): Oklch {
   const at = (l: number): Oklch => ({ l, c: Math.min(SWATCH_C, maxChroma(l, h) * 0.97), h });
   let lo = 0.3;
   let hi = 0.8;
