@@ -23,7 +23,7 @@ use std::hash::BuildHasher;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::error::CoreError;
-use crate::model::{AccountId, ProjectId, SessionId, Timestamp, WorkItemId};
+use crate::model::{ProjectId, SessionId, Timestamp, WorkItemId};
 
 /// v33: the pools tables. A pool has a name, a kind (`default` | `user`)
 /// and an optional project; the default pool "All sessions" always exists
@@ -33,7 +33,8 @@ use crate::model::{AccountId, ProjectId, SessionId, Timestamp, WorkItemId};
 /// its rows, so its history stays.
 ///
 /// D-28/D-29: each pool's access level (and its Custom set of actions),
-/// its delivery hop limit and stop-all flag, the
+/// its delivery hop limit and stop-all flag, whether it spans the user's
+/// paired Macs (D-32, off until the user turns it on), the
 /// user's "always allow" rules, the "allow once" answers (counted, so the
 /// second offers a rule), and the audit of every agent action.
 pub(super) const MIGRATION: &str = "
@@ -47,7 +48,8 @@ CREATE TABLE pools (
     access_level   TEXT NOT NULL DEFAULT 'work_together',
     custom_actions TEXT NOT NULL DEFAULT '',
     hop_limit        INTEGER NOT NULL DEFAULT 5,
-    delivery_stopped INTEGER NOT NULL DEFAULT 0
+    delivery_stopped INTEGER NOT NULL DEFAULT 0,
+    spans_macs       INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX idx_pools_one_default ON pools(kind) WHERE kind = 'default';
 INSERT INTO pools (id, name, kind, project, created_at)
@@ -223,6 +225,8 @@ pub struct Pool {
     pub project: Option<ProjectId>,
     /// When it was made, epoch ms (0 for the default pool).
     pub created_at: i64,
+    /// D-32: the user let it span their paired Macs (off by default).
+    pub spans_macs: bool,
 }
 
 /// One active member row.
@@ -238,29 +242,20 @@ pub struct PoolMember {
     pub joined_at: i64,
 }
 
-/// D-33 (to be ruled): what the default pool covers for one session —
-/// one project and one identity. Agents in "All sessions" will see only
-/// those who share their scope. Until the ruling, an identity is the
-/// account a session runs under (two accounts may be the same person,
-/// but nothing tells AI Juggler that, so it never assumes it).
+/// D-33 (ruled 2026-10-24): what the default pool covers for one session
+/// — its project, whatever the account. Agents in "All sessions" will see
+/// only the sessions of their own project; there are no identity groups.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DefaultScope {
     /// The project, when the session has one.
     pub project: Option<ProjectId>,
-    /// The identity: the account.
-    pub identity: Option<AccountId>,
 }
 
-/// The one place the default pool's scope is decided (D-33); the ruling
-/// changes this function and nothing else.
+/// The one place the default pool's scope is decided (D-33).
 #[must_use]
-pub fn default_pool_scope(
-    project: Option<&ProjectId>,
-    account: Option<&AccountId>,
-) -> DefaultScope {
+pub fn default_pool_scope(project: Option<&ProjectId>) -> DefaultScope {
     DefaultScope {
         project: project.cloned(),
-        identity: account.cloned(),
     }
 }
 
@@ -359,6 +354,7 @@ impl PoolsRepo<'_> {
             kind: PoolKind::User,
             project: project.cloned(),
             created_at: now,
+            spans_macs: false,
         };
         self.conn.execute(
             "INSERT INTO pools (id, name, kind, project, created_at) VALUES (?1, ?2, 'user', ?3, ?4)",
@@ -382,6 +378,24 @@ impl PoolsRepo<'_> {
         let changed = self.conn.execute(
             "UPDATE pools SET name = ?2 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL",
             params![id, name],
+        )?;
+        if changed == 0 {
+            return Err(super::accounts::not_found("pool", id));
+        }
+        Ok(())
+    }
+
+    /// D-32: lets a pool span the user's paired Macs, or not (the user,
+    /// in the app). The link that carries it is later work.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::NotFound`] for a missing or deleted pool;
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn set_spans_macs(&self, id: &str, spans: bool) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE pools SET spans_macs = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+            params![id, spans],
         )?;
         if changed == 0 {
             return Err(super::accounts::not_found("pool", id));
@@ -487,6 +501,7 @@ fn map_pool(row: &Row<'_>) -> rusqlite::Result<Pool> {
         kind: PoolKind::parse(&row.get::<_, String>("kind")?),
         project: row.get::<_, Option<String>>("project")?.map(ProjectId::new),
         created_at: row.get("created_at")?,
+        spans_macs: row.get("spans_macs")?,
     })
 }
 

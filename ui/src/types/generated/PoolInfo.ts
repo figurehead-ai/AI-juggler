@@ -31,9 +31,12 @@ access: AccessInfo,
  */
 rules: Array<AgentRuleInfo>, 
 /**
- * How many separate groups its sessions make under D-33 (one project
- * and one account each): in the default pool agents will see only
- * their own group; in a user pool more than one means the user put
- * work from different projects or accounts together.
+ * D-32: the user let it span their paired Macs (off by default).
+ */
+spans_macs: boolean, 
+/**
+ * How many projects its sessions come from (D-33): in the default
+ * pool agents will see only their own project's; in a user pool more
+ * than one means the user put different projects' work together.
  */
 scopes: number, };

@@ -373,7 +373,7 @@ fn a_pool_for_one_project_refuses_a_session_from_another_in_words() {
 }
 
 #[test]
-fn scopes_count_projects_and_accounts_d33() {
+fn scopes_count_projects_whatever_the_account_d33() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     account(&state, "work");
@@ -384,23 +384,85 @@ fn scopes_count_projects_and_accounts_d33() {
     let blog = project(&state, &blog_root, "blog");
     let w1 = session(&state, "s-w1", "work", Some(&shop), &shop_root);
     session(&state, "s-w2", "work", Some(&shop), &shop_root);
-    let p1 = session(&state, "s-p1", "personal", Some(&shop), &shop_root);
-    session(&state, "s-b1", "work", Some(&blog), &blog_root);
+    session(&state, "s-p1", "personal", Some(&shop), &shop_root);
+    let b1 = session(&state, "s-b1", "work", Some(&blog), &blog_root);
 
-    // All sessions: shop · work, shop · personal, blog · work.
+    // All sessions: shop (work and personal together, D-33) and blog.
     let info = pools::pools_list_impl(&state).unwrap();
-    assert_eq!(info.pools[0].scopes, 3);
+    assert_eq!(info.pools[0].scopes, 2);
 
-    // A user pool with work and personal sessions together: two groups,
-    // which the UI names as a warning.
+    // A user pool with two projects' work: two, which the UI names.
     let info = pools::pool_create_impl(&state, "Mixed", None).unwrap();
     let mixed = pool_id(&info, "Mixed");
     pools::pool_move_impl(&state, w1.as_str(), &mixed).unwrap();
     let info = pools::pools_list_impl(&state).unwrap();
     assert_eq!(info.pools[1].scopes, 1);
-    let info = pools::pool_move_impl(&state, p1.as_str(), &mixed).unwrap();
+    let info = pools::pool_move_impl(&state, b1.as_str(), &mixed).unwrap();
     assert_eq!(info.pools[1].scopes, 2);
-    assert_eq!(info.pools[0].scopes, 2);
+    assert_eq!(info.pools[0].scopes, 1);
+}
+
+/// D-32: a pool spans the user's paired Macs only when the user says so.
+#[test]
+fn a_pool_spans_paired_macs_only_when_the_user_turns_it_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    assert!(
+        info.pools.iter().all(|pool| !pool.spans_macs),
+        "off by default"
+    );
+    let info = pools::pool_set_spans_macs_impl(&state, &team, true).unwrap();
+    assert!(
+        info.pools
+            .iter()
+            .find(|pool| pool.id == team)
+            .unwrap()
+            .spans_macs
+    );
+    assert!(!info.pools[0].spans_macs, "another pool unchanged");
+    drop(state);
+    let state = app_state(dir.path());
+    let info = pools::pools_list_impl(&state).unwrap();
+    assert!(
+        info.pools
+            .iter()
+            .find(|pool| pool.id == team)
+            .unwrap()
+            .spans_macs
+    );
+    pools::pool_delete_impl(&state, &team).unwrap();
+    assert!(matches!(
+        pools::pool_set_spans_macs_impl(&state, &team, false),
+        Err(AppError::Refused(_))
+    ));
+}
+
+/// D-31: what decides pools and agent access never reads quota, so no
+/// pool, level or rule can route work by an account's remaining limit.
+#[test]
+fn pools_and_agent_access_never_read_quota() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(root.join("src/features/pools"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    files.extend([
+        root.join("../juggler-core/src/storage/pools.rs"),
+        root.join("../juggler-core/src/storage/agent_access.rs"),
+        root.join("../juggler-core/src/agent_access.rs"),
+    ]);
+    for file in files {
+        let code = std::fs::read_to_string(&file).unwrap().to_lowercase();
+        for needle in ["quota", "runway", "ranking"] {
+            assert!(
+                !code.contains(needle),
+                "{} mentions {needle}",
+                file.display()
+            );
+        }
+    }
 }
 
 #[test]

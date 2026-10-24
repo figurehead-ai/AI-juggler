@@ -11,8 +11,9 @@
 //!   that ended keeps what was read while it ran, until AI Juggler quits.
 //! - The task it claimed: tasks are E19, so it's unavailable here.
 //!
-//! A card never carries an account: it is what an agent will be shown
-//! (AJ-E1704, D-33). Nothing here starts, stops or types into a session.
+//! Of the account, a card carries only its label, never an email, a plan
+//! or any other detail (D-33): it is what an agent will be shown
+//! (AJ-E1704). Nothing here starts, stops or types into a session.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -155,8 +156,8 @@ fn role_rank(role: &str) -> u8 {
     }
 }
 
-/// One card from a session's row and what its transcript said. Nothing
-/// of the row's account goes in.
+/// One card from a session's row and what its transcript said. Of the
+/// row's account only the label goes in, and not when it is an email.
 fn card_of(
     state: &Arc<AppState>,
     row: &InstanceInfo,
@@ -211,6 +212,9 @@ fn card_of(
         name,
         place,
         tool: crate::features::tools::display_name(&state.registry, &row.provider),
+        account: Some(row.account_label.trim())
+            .filter(|label| !label.is_empty() && !label.contains('@'))
+            .map(str::to_owned),
         state: row.status.clone(),
         role,
         task: CardField::unavailable(NO_TASKS),

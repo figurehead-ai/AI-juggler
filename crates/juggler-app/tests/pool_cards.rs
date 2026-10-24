@@ -6,7 +6,8 @@
 //! - What it doesn't know says "Unavailable" and why: before the tick has
 //!   read a transcript, for a session with none, and for tasks (E19).
 //! - What the agent says is its own words, never a fact AI Juggler made.
-//! - A card never carries an account (it is what agents will be shown).
+//! - A card names its account by label only, never an email or a plan
+//!   (D-33; it is what agents will be shown).
 //! - The tick reads only what was appended; a session that ended keeps
 //!   what was read while it ran.
 
@@ -30,7 +31,8 @@ use juggler_core::model::{
 };
 use juggler_core::storage::DEFAULT_POOL_ID;
 
-const ACCOUNT_LABEL: &str = "Work Max — someone@example.com";
+const ACCOUNT_LABEL: &str = "Work Max";
+const PLAN: &str = "Max 20x plan";
 
 fn app_state(dir: &Path) -> Arc<AppState> {
     Arc::new(AppState::init_with_registry(dir.join("app-data"), AdapterRegistry::new()).unwrap())
@@ -44,7 +46,7 @@ fn account(state: &Arc<AppState>) {
             id: AccountId::new("acc-work"),
             harness: HarnessId::new("fake"),
             label: ACCOUNT_LABEL.into(),
-            plan: None,
+            plan: Some(juggler_core::model::PlanTier::new(PLAN)),
             state_dir: state.accounts_dir().join("acc-work"),
             cleanup_opt_in: false,
             renewal_date: None,
@@ -269,24 +271,35 @@ fn the_tick_reads_the_transcript_and_the_card_says_whose_words_they_are() {
     assert_eq!(card(&result.cards, "s-planner").files.len(), 2);
 }
 
+/// D-33: a card names the account by its label only — never its id, an
+/// email or its plan — and not at all when the label is an email.
 #[test]
-fn a_card_never_carries_an_account() {
+fn a_card_carries_the_account_label_and_never_an_email_or_plan() {
     let dir = tempfile::tempdir().unwrap();
     let (state, pool, _) = checkout(dir.path());
     cards::tick(&state);
     for pool_id in [pool.as_str(), DEFAULT_POOL_ID] {
         let result = cards::cards_impl(&state, pool_id).unwrap();
+        for card in &result.cards {
+            assert_eq!(card.account.as_deref(), Some(ACCOUNT_LABEL));
+        }
         let json = serde_json::to_string(&result).unwrap();
-        for leak in [
-            "acc-work",
-            ACCOUNT_LABEL,
-            "someone@example.com",
-            "account",
-            "rec-work",
-        ] {
+        for leak in ["acc-work", PLAN, "rec-work", "@", "state_dir"] {
             assert!(!json.contains(leak), "a card carries {leak:?}: {json}");
         }
     }
+    // An account labelled with its email address: no account on the card.
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .raw_conn()
+        .execute("UPDATE accounts SET label = 'someone@example.com'", [])
+        .unwrap();
+    let result = cards::cards_impl(&state, &pool).unwrap();
+    assert!(result.cards.iter().all(|card| card.account.is_none()));
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(!json.contains('@'), "{json}");
 }
 
 #[test]

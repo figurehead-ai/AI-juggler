@@ -29,10 +29,11 @@ pub struct PoolInfo {
     pub access: AccessInfo,
     /// The user's "always allow" rules here.
     pub rules: Vec<AgentRuleInfo>,
-    /// How many separate groups its sessions make under D-33 (one project
-    /// and one account each): in the default pool agents will see only
-    /// their own group; in a user pool more than one means the user put
-    /// work from different projects or accounts together.
+    /// D-32: the user let it span their paired Macs (off by default).
+    pub spans_macs: bool,
+    /// How many projects its sessions come from (D-33): in the default
+    /// pool agents will see only their own project's; in a user pool more
+    /// than one means the user put different projects' work together.
     pub scopes: u32,
 }
 
@@ -114,8 +115,8 @@ impl CardField {
 }
 
 /// AJ-E1703: what one member of a pool is working on, built only from
-/// what AI Juggler knows. It never carries an account: the same card is
-/// what an agent will be shown (AJ-E1704).
+/// what AI Juggler knows. Of its account it carries only the label (D-33):
+/// the same card is what an agent will be shown (AJ-E1704).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ContextCard {
@@ -128,6 +129,10 @@ pub struct ContextCard {
     pub place: String,
     /// The tool, by its display name.
     pub tool: String,
+    /// D-33: the account's label (the user's name for it, "Work Max"),
+    /// never an email, a plan or any other account detail; `None` when
+    /// the label is an email address.
+    pub account: Option<String>,
     /// Its state (`running`, `waiting_user`, `stuck`, `ended`, …).
     pub state: String,
     /// Its role in the pool.

@@ -25,7 +25,7 @@ pub use dto::{
     AccessInfo, AgentRuleInfo, CardField, ContextCard, PoolCards, PoolInfo, PoolMemberInfo,
     PoolsInfo,
 };
-use juggler_core::model::{AccountId, ProjectId, SessionId};
+use juggler_core::model::{ProjectId, SessionId};
 use juggler_core::storage::{
     DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, PoolKind, PoolRole, Storage,
     default_pool_scope, resolve_memberships,
@@ -72,23 +72,12 @@ fn live_pool(storage: &Storage, pool_id: &str) -> AppResult<juggler_core::storag
 /// The default pool's scope of every session (D-33, through the one
 /// function that decides it).
 fn scopes_of(storage: &Storage) -> AppResult<HashMap<SessionId, DefaultScope>> {
-    let mut accounts: HashMap<juggler_core::model::ProfileId, Option<AccountId>> = HashMap::new();
-    let mut out = HashMap::new();
-    for record in storage.sessions().list(None)? {
-        let account = accounts
-            .entry(record.profile.clone())
-            .or_insert_with(|| {
-                storage
-                    .profiles()
-                    .get(&record.profile)
-                    .ok()
-                    .map(|recipe| recipe.account)
-            })
-            .clone();
-        let scope = default_pool_scope(record.project.as_ref(), account.as_ref());
-        out.insert(record.id, scope);
-    }
-    Ok(out)
+    Ok(storage
+        .sessions()
+        .list(None)?
+        .into_iter()
+        .map(|record| (record.id, default_pool_scope(record.project.as_ref())))
+        .collect())
 }
 
 /// Builds the whole picture the UI shows.
@@ -119,6 +108,7 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
             project_id: pool.project.map(|project| project.as_str().to_owned()),
             access,
             rules,
+            spans_macs: pool.spans_macs,
             scopes: u32::try_from(groups.len()).unwrap_or(u32::MAX),
         });
     }
@@ -296,5 +286,21 @@ pub fn pool_set_role_impl(
         .map_or_else(|| DEFAULT_POOL_ID.to_owned(), |row| row.pool_id.clone());
     let (member, replaces) = member_of(&storage, &session)?;
     storage.pools().place(&member, &replaces, &pool_id, role)?;
+    pools_info(&storage)
+}
+
+/// D-32: lets a pool span the user's paired Macs, or not.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a missing pool.
+pub fn pool_set_spans_macs_impl(
+    state: &Arc<AppState>,
+    pool_id: &str,
+    spans: bool,
+) -> AppResult<PoolsInfo> {
+    let storage = lock_storage_arc(state)?;
+    live_pool(&storage, pool_id)?;
+    storage.pools().set_spans_macs(pool_id, spans)?;
     pools_info(&storage)
 }

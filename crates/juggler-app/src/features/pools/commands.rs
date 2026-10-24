@@ -154,6 +154,23 @@ pub async fn pool_set_delivery(
     .await
 }
 
+/// D-32: lets a pool span the user's paired Macs, or not.
+///
+/// # Errors
+///
+/// As [`super::pool_set_spans_macs_impl`].
+#[tauri::command]
+pub async fn pool_set_spans_macs(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    spans: bool,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::pool_set_spans_macs_impl(state, &pool_id, spans)
+    })
+    .await
+}
+
 /// Takes back an "always allow" rule; it stops applying at once.
 ///
 /// # Errors

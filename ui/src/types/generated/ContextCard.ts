@@ -3,8 +3,8 @@ import type { CardField } from "./CardField";
 
 /**
  * AJ-E1703: what one member of a pool is working on, built only from
- * what AI Juggler knows. It never carries an account: the same card is
- * what an agent will be shown (AJ-E1704).
+ * what AI Juggler knows. Of its account it carries only the label (D-33):
+ * the same card is what an agent will be shown (AJ-E1704).
  */
 export type ContextCard = { 
 /**
@@ -24,6 +24,12 @@ place: string,
  * The tool, by its display name.
  */
 tool: string, 
+/**
+ * D-33: the account's label (the user's name for it, "Work Max"),
+ * never an email, a plan or any other account detail; `None` when
+ * the label is an email address.
+ */
+account: string | null, 
 /**
  * Its state (`running`, `waiting_user`, `stuck`, `ended`, …).
  */

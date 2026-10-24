@@ -324,6 +324,7 @@ macro_rules! app_commands {
             Write features::pools::commands::pool_set_role,
             Write features::pools::commands::pool_set_access,
             Write features::pools::commands::pool_set_delivery,
+            Write features::pools::commands::pool_set_spans_macs,
             Write features::pools::commands::agent_rule_revoke,
             Write features::pools::commands::agent_ask_answer,
             Read  features::outside_search::commands::outside_search_status,
