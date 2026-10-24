@@ -317,7 +317,7 @@ export default function App() {
   // AJ-E414: the "Go to instance…" palette — summoned by the global
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
-  const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
+  const [goToHotkey, setGoToHotkey] = useState("");
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
