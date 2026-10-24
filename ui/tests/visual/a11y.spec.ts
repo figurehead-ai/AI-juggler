@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+
+// AJ-E2104: these galleries read the project board, every status drawn.
+projectBoardByDefault(test);
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
@@ -58,7 +61,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await expect(page.getByText("Handed over").first()).toBeVisible();
+    await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
 
     // AJ-E405: the badge tooltip carries the structured reason (rule +
     // measured inputs) — asserted in the DOM (native titles are not
@@ -108,7 +111,7 @@ test("rail — no row overflows its width", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await expect(page.getByText("Handed over").first()).toBeVisible();
+  await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
   const overflows = await page.evaluate(() => {
     const bad: string[] = [];
     for (const row of document.querySelectorAll("aside button")) {
@@ -295,7 +298,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+    // AJ-E2109: a profile's page opens from its row.
+    await page.getByTestId("profile-open").first().click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -1501,7 +1505,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
+    // AJ-E2109: a profile's launch settings open from its menu.
+    await page.getByTestId("account-menu").first().click();
+    await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
     await page.getByTestId("recipe-env-toggle").first().click();
     await expect(page.getByLabel("Variable name 1")).toHaveValue("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
     await page.getByTestId("expert-hatch").first().click();
@@ -1621,6 +1627,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("settings-screen")).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-connect").click();
     await expect(page.getByTestId("cloud-linking")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -1735,6 +1742,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
+    // AJ-E2104: other Macs fold after this Mac; unfolded, its rows show.
+    await page.getByTestId("rail-other-mac").first().getByRole("button", { name: /^Unfold/ }).click();
     await expect(page.getByTestId("board-remote-row")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await goTo(page, "Fleet");
@@ -1883,9 +1892,8 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openFilters(page);
-    await page.getByLabel("Filter by machine").selectOption("machine-mini");
-    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    await onlyMac(page, "machine-mini");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was working"); // AJ-E2104 Req.3
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2150,7 +2158,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     // AJ-E1021: the morning triage lives on Home.
-    await expect(page.getByRole("region", { name: /Needs you/ })).toBeVisible();
+    await expect(page.getByTestId("home").getByRole("region", { name: /Needs you/ })).toBeVisible();
     const rows = page.getByTestId("home").locator("[data-home-row]");
     await rows.first().focus();
     await page.keyboard.press("j");
@@ -2179,7 +2187,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "History" }).click();
+    // The top bar's History (the rail's foot has one too, AJ-E2104).
+    await page.locator("header").getByRole("button", { name: "History", exact: true }).click();
     await expect(page.getByTestId("history-search")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // AJ-E1536: Delete is in the row's menu.
@@ -2218,6 +2227,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("backup-restore").click();
     await expect(page.getByTestId("restore-go")).toBeFocused();
@@ -2377,6 +2387,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     await expect(page.getByTestId("recovery-code")).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("recovery-copy")).toBeFocused();
@@ -2414,6 +2425,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-backup-restore").click();
     await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2503,6 +2515,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
+    await settingsPane(page, "Privacy");
     await expect(page.getByTestId("settings-privacy")).toBeVisible();
     await page.getByTestId("privacy-report-view").first().click();
     await expect(page.getByTestId("privacy-report-json")).toBeVisible();
@@ -2626,7 +2639,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Settings");
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    await await settingsPane(page, "Sessions");
     const terminal = page.getByTestId("settings-terminal").locator("summary");
     await terminal.focus();
     await page.keyboard.press("Enter");

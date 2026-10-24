@@ -1,6 +1,7 @@
 /**
  * AJ-E1504 — keys: the `?` sheet lists exactly the registered shortcuts;
- * ⌘1–4 open Home, Accounts, Usage and Fleet; ⌘⇧I folds the inspector and
+ * ⌘1–9 go to the rail's places (AJ-E2104); ⌘0, ⌘⇧A, ⌘⇧U and ⌘⇧F open Home,
+ * Accounts, Usage and Fleet; ⇧V opens the View; ⌘⇧I folds the inspector and
  * remembers it; the inspector's tabs moved to ⌥⌘1–6; and the typing rule
  * holds for every shortcut (no plain key or Ctrl-combo while typing in a
  * field or the terminal; ⌘ ones still work, except those a field owns).
@@ -92,10 +93,12 @@ describe("AJ-E1504 the typing rule", () => {
       density: { key: "d" },
       theme: { key: "L", shiftKey: true },
       undo: { key: "z" },
-      "go-home": { key: "1", code: "Digit1" },
-      "go-accounts": { key: "2", code: "Digit2" },
-      "go-usage": { key: "3", code: "Digit3" },
-      "go-fleet": { key: "4", code: "Digit4" },
+      "go-place": { key: "1", code: "Digit1" },
+      "rail-view": { key: "V", shiftKey: true },
+      "go-home": { key: "0", code: "Digit0" },
+      "go-accounts": { key: "A", shiftKey: true },
+      "go-usage": { key: "U", shiftKey: true },
+      "go-fleet": { key: "F", shiftKey: true },
       settings: { key: "," },
       cleanup: { key: "C", shiftKey: true },
       "cleanup-filter": { key: "f" },
@@ -113,7 +116,7 @@ describe("AJ-E1504 the typing rule", () => {
       "terminal-reset": { key: ")", code: "Digit0", shiftKey: true },
       "terminal-maximize": { key: "Enter", shiftKey: true },
     };
-    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action"]);
+    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "rail-view"]);
     for (const entry of SHORTCUTS) {
       if (!("match" in entry)) continue;
       const id = entry.id as ShortcutId;
@@ -143,13 +146,16 @@ describe("AJ-E1504 the typing rule", () => {
     expect(matches("help", key({ key: "?", shiftKey: true, target: input }))).toBe(false);
   });
 
-  it("⌘1 is Home and ⌥⌘1 is the inspector's first tab, never both", () => {
+  it("⌘1 is the first place and ⌥⌘1 is the inspector's first tab, never both; ⌘0 is Home but the terminal's own", () => {
     const cmd1 = key({ key: "1", code: "Digit1", metaKey: true });
     const optCmd1 = key({ key: "¡", code: "Digit1", metaKey: true, altKey: true });
-    expect(matches("go-home", cmd1)).toBe(true);
+    expect(matches("go-place", cmd1)).toBe(true);
+    expect(matches("go-home", cmd1)).toBe(false);
     expect(matches("inspector-tab", cmd1)).toBe(false);
     expect(matches("inspector-tab", optCmd1)).toBe(true);
-    expect(matches("go-home", optCmd1)).toBe(false);
+    expect(matches("go-place", optCmd1)).toBe(false);
+    expect(matches("go-home", key({ key: "0", code: "Digit0", metaKey: true }))).toBe(true);
+    expect(matches("go-home", key({ key: "0", code: "Digit0", metaKey: true, target: inTerminal }))).toBe(false);
   });
 });
 
@@ -177,17 +183,30 @@ describe("AJ-E1504 keys in the app", () => {
     expect(view.queryByTestId("shortcut-sheet")).toBeNull();
   });
 
-  it("⌘1–4 open Home, Accounts, Usage and Fleet", async () => {
+  it("⌘⇧A, ⌘⇧U and ⌘⇧F open Accounts, Usage and Fleet; ⌘0 Home", async () => {
     const view = await openApp();
     const title = () => view.getByRole("heading", { level: 1 }).textContent;
-    press({ key: "2", code: "Digit2", metaKey: true });
+    press({ key: "A", shiftKey: true, metaKey: true });
     await waitFor(() => expect(title()).toBe("Accounts"));
-    press({ key: "3", code: "Digit3", metaKey: true });
+    press({ key: "U", shiftKey: true, metaKey: true });
     await waitFor(() => expect(title()).toBe("Usage"));
-    press({ key: "4", code: "Digit4", metaKey: true });
+    press({ key: "F", shiftKey: true, metaKey: true });
     await waitFor(() => expect(title()).toBe("Fleet"));
-    press({ key: "1", code: "Digit1", metaKey: true });
+    press({ key: "0", code: "Digit0", metaKey: true });
     await waitFor(() => expect(view.getByTestId("home")).toBeTruthy());
+  });
+
+  it("⌘1 goes to the first place and ⇧V opens the View", async () => {
+    const view = await openApp();
+    const places: number[] = [];
+    const listen = (event: Event) => places.push((event as CustomEvent<{ index: number }>).detail.index);
+    window.addEventListener("aij:go-place", listen);
+    press({ key: "1", code: "Digit1", metaKey: true });
+    press({ key: "3", code: "Digit3", metaKey: true });
+    window.removeEventListener("aij:go-place", listen);
+    expect(places).toEqual([0, 2]);
+    press({ key: "V", shiftKey: true });
+    expect(await view.findByRole("dialog", { name: "View" })).toBeTruthy();
   });
 
   it("⌘⇧I folds the inspector to its header line, keeps the open tab, and remembers it", async () => {
@@ -212,14 +231,14 @@ describe("AJ-E1504 keys in the app", () => {
     expect(localStorage.getItem("aij.inspector.folded.main")).toBe("0");
   });
 
-  it("⌥⌘2 picks the inspector's second tab; ⌘2 leaves for Accounts", async () => {
+  it("⌥⌘2 picks the inspector's second tab; ⌘⇧A leaves for Accounts", async () => {
     const view = await openApp();
     const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;
     fireEvent.click(row);
     await view.findByTestId("right-inspector");
     press({ key: "™", code: "Digit2", metaKey: true, altKey: true });
-    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Usage"));
-    press({ key: "2", code: "Digit2", metaKey: true });
+    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Overview"));
+    press({ key: "A", shiftKey: true, metaKey: true });
     await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Accounts"));
   });
 

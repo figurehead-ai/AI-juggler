@@ -94,7 +94,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Account actions for Personal", exact: true }).click();
+    await page.getByRole("button", { name: "Profile actions for Personal", exact: true }).click();
     await page.getByRole("menuitem", { name: "Copy settings from…" }).click();
     const sheet = page.getByRole("dialog", { name: "Copy settings into Personal" });
     await expect(sheet.getByRole("button", { name: "Copy 3 settings" })).toBeVisible();

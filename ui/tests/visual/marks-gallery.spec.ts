@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/80-marks");
 const FIXTURE = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -60,6 +60,7 @@ test("the replica has the projects to tell apart: 15+, every one with a mark, ic
 for (const theme of ["dark", "light"] as const) {
   test(`the rail: marks, stacks and a folded project — ${theme}`, gate("80-marks"), async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const rail = page.getByTestId("rail");
     await expect(rail.getByTestId("rail-project").first().getByTestId("mark-project")).toBeVisible();
     await expect(rail.getByTestId("account-stack").first()).toBeVisible();
@@ -77,6 +78,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the mark sheet, then an emoji on its colour — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     await page.getByRole("button", { name: /^Project actions for / }).first().click();
     await page.getByRole("menuitem", { name: "Change its mark…" }).click();
     await expect(page.getByTestId("mark-sheet")).toBeVisible();

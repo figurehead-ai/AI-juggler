@@ -14,22 +14,22 @@ import {
   gitWords,
   isActiveStatus,
   providerMark,
-  stateChip,
   tokenSummary,
 } from "./indicator";
 import { quotaTierTag } from "./primitives";
+import { sessionState } from "../lib/rail-items";
 import { subagentsRunning } from "../lib/subagents";
 
 /** Full field text for `aria-label`: every number reachable as text. */
 export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {
   const mark = providerMark(session.provider);
-  const chip = stateChip(session.status);
   const badge = attentionBadge(session);
   const parts: string[] = [
     `${mark.abbrev} provider`,
     session.account_label,
     session.model ?? "default model",
-    badge ? badge.text : chip.label,
+    // AJ-E2104 Req.3: the rail's words for its state.
+    sessionState(session).word,
   ];
   const quota = quotaWords(session);
   if (quota) parts.push(quota);

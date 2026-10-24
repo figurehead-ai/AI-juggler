@@ -8,6 +8,7 @@ import { useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { appPrepareUninstall, type UninstallPrepInfo } from "../lib/ipc/app";
+import { CardTitle } from "./CardTitle";
 
 const OUTCOME: Record<string, string> = {
   restored: "its settings are back as they were",
@@ -32,7 +33,7 @@ export function UninstallCard(): JSX.Element {
   };
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-uninstall">
-      <h3 className="text-sm font-semibold">Before you uninstall</h3>
+      <CardTitle>Before you uninstall</CardTitle>
       <p className="text-[12px] leading-relaxed text-muted">
         Puts back what AI Juggler changed outside its own folder, and lists what's left for you to remove. Nothing is deleted.
       </p>

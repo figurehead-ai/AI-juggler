@@ -48,6 +48,8 @@ export interface ActionHost {
   startBlockedWhy?: (account: AccountInfo) => string | null;
   signIn?: (account: AccountInfo) => void;
   editLaunchSettings?: (account: AccountInfo) => void;
+  /** AJ-E2109: measure its limits (its page has the opt-in). */
+  measureLimits?: (account: AccountInfo) => void;
   renameAccount?: (account: AccountInfo) => void;
   /** AJ-E1508: another account's usual settings, copied into this one. */
   copyAccountSettings?: (account: AccountInfo) => void;
@@ -70,6 +72,8 @@ export interface ActionHost {
   openProjectById?: (id: string) => void;
   // Conversations started outside AI Juggler (AJ-E1529)
   openConversation?: (conversation: ConversationInfo) => void;
+  /** AJ-E2102: its app forward, by the app's own process. */
+  goToConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   continueConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   copyConversationResume?: (conversation: ConversationInfo) => void | Promise<void>;
 }

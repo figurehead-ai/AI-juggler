@@ -14,7 +14,7 @@
  * with a per-screen note in the PR — scripts/check_baseline_notes.py).
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, projectLens, railViewAs, settingsPane } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const THEMES = ["dark", "light"] as const;
@@ -127,8 +127,8 @@ for (const theme of THEMES) {
       test(`rail + home — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expect(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
-        // D-25: the rail's tabs gave way to its quick filters.
-        await expect(page.getByRole("group", { name: "Show" })).toHaveScreenshot(`chrome-rail-filters-${cell}.png`, CHROME);
+        // AJ-E2104: the rail's search and View.
+        if (density !== "minimal") await expect(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
         await expect(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
@@ -176,7 +176,7 @@ for (const theme of THEMES) {
       test(`inspector — account view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Accounts");
-        await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+        await page.getByTestId("profile-open").first().click();
         await expect(page.getByTestId("account-overview")).toBeVisible();
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
@@ -185,6 +185,9 @@ for (const theme of THEMES) {
 
       test(`inspector — project view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
+        // AJ-E2104: projects' headers are the Project lens's (the default
+        // groups Open now by place).
+        await projectLens(page);
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
         // AJ-E1533: a project's page opens on its body, its sessions.
@@ -281,7 +284,7 @@ for (const theme of THEMES) {
       test(`settings sessions — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Settings");
-        await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+        await await settingsPane(page, "Sessions");
         await page.getByTestId("settings-terminal").locator("summary").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
         await page.mouse.move(0, 0);
@@ -302,6 +305,10 @@ for (const theme of THEMES) {
         await page.locator('[data-instance-id="sess-2"]').first().click();
         await page.keyboard.press("Meta+Shift+I");
         await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
+        // The terminal loads on first use (#173): without this the shot
+        // raced it, the empty pane on some runs and the terminal on others.
+        await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
+        await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);
       });
@@ -312,6 +319,10 @@ for (const theme of THEMES) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More
+          await page.waitForLoadState("networkidle");
+          // Screens past Home load on first use (lib/lazy): the shot raced
+          // the screen's code and caught a blank page on most runs.
+          await expect(page.getByRole("main")).toHaveText(/\S/);
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
@@ -335,7 +346,7 @@ for (const theme of THEMES) {
   test(`account menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
     await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
     await page.mouse.move(0, 0);
     await expect(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
@@ -344,7 +355,7 @@ for (const theme of THEMES) {
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);
@@ -353,7 +364,9 @@ for (const theme of THEMES) {
 }
 
 // AJ-E1502: a named, pinned session leads its group, a pinned project's
-// group leads the rail; a project's row menu.
+// group leads the rail; a project's row menu. AJ-E2104: by place (the
+// default), the pinned session stays under its place once ended, first
+// and marked; in the Project lens, the pinned project still leads.
 const PINNED = {
   ...allStatuses,
   sessions: allStatuses.sessions.map((session) =>
@@ -365,13 +378,33 @@ for (const theme of THEMES) {
   const cell = `${theme}-comfortable-1280x800`;
   test(`rail with pins — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
-    await expect(page.locator('[data-instance-id="sess-6"]')).toContainText("the login fix");
+    const rail = page.getByTestId("rail");
+    const pinned = rail.locator('[data-instance-id="sess-6"]');
+    await expect(pinned).toContainText("the login fix");
+    await expect(pinned.getByTestId("pin-mark")).toBeVisible();
+    await expect(pinned).toHaveAccessibleName(/^Ended, the login fix, pinned, /);
+    // Under AI Juggler's place in Open now, its first row — not folded
+    // into "Also: n ended today".
+    const lead = await page.getByTestId("place-board").evaluate((board) => {
+      const lines = [...board.querySelectorAll<HTMLElement>('[data-testid="place-header"], [data-rail-item]')];
+      const header = lines.findIndex((line) => line.dataset.place === "ai-juggler");
+      return header < 0 ? null : (lines[header + 1]?.dataset.instanceId ?? null);
+    });
+    expect(lead, "the pinned session leads its place").toBe("sess-6");
     await page.mouse.move(0, 0);
-    await expect(page.getByTestId("rail")).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
+    await expect(rail).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
+
+    await projectLens(page);
+    await expect(rail.getByTestId("rail-project").first()).toContainText("storefront");
+    await expect(rail.getByTestId("rail-project").first().getByTestId("pin-mark")).toBeVisible();
+    await expect(rail.locator('[data-instance-id="sess-6"]')).toContainText("the login fix");
+    await page.mouse.move(0, 0);
+    await expect(rail).toHaveScreenshot(`rail-pins-project-${cell}.png`, SCREEN);
   });
 
   test(`project menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
+    await projectLens(page); // AJ-E2104: a project's row is the Project lens's
     await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
     await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
     await page.mouse.move(0, 0);
@@ -379,19 +412,67 @@ for (const theme of THEMES) {
   });
 }
 
-// WCAG 1.4.1: a status shown by colour must also say it in words or an
-// accessible name — a colour-only change fails even when its pixel diff
-// is small. The fixture holds an Instance in every status.
+// WCAG 1.4.1: a state shown by colour must also say it in words and in
+// its accessible name — a colour-only change fails even when its pixel
+// diff is small. The fixture holds a session in every status (the ended
+// ones ended today); with ended and quiet ones shown, every session is a
+// row, so every state dot and every Needs you mark the rail draws is
+// checked, in AJ-E2104's words.
+const TODAY = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.map((session, n) =>
+    ["finished", "stopped", "failed", "handed_over"].includes(session.status) ? { ...session, last_activity_ms: T0 - (n + 1) * 60_000 } : session,
+  ),
+};
 test("status is never colour-only", async ({ page }) => {
-  await open(page, "dark", "comfortable", VIEWPORTS[0]);
-  await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
-  // D-25: the rail's own words for each state.
-  const words = ["Starting", "Running", "Waiting for you", "Looks stuck", "Hit its limit", "Done", "Stopped", "Failed", "Handed over"];
-  const missing: string[] = [];
-  for (const word of words) {
-    const asText = await page.getByText(word, { exact: true }).count();
-    const asName = await page.getByRole("button", { name: word }).count();
-    if (asText + asName === 0) missing.push(word);
+  await open(page, "dark", "comfortable", VIEWPORTS[0], TODAY);
+  await railViewAs(page, { group: "place", show: { ended: true, quiet: true } });
+  const rail = page.getByTestId("rail");
+  await expect(rail.getByTestId("place-board")).toBeVisible();
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Open now and Ended today: a dot in the state's colour, its word beside
+  // it in words (E21's vocabulary), the row's name leading with that word.
+  const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
+  const drawn = new Set<string>();
+  const dots = await rail.locator("[data-state-dot]").all();
+  for (const dot of dots) {
+    const row = dot.locator("xpath=ancestor::button[1]");
+    const word = (await row.getByTestId("state-word").innerText()).trim();
+    const id = (await row.getAttribute("data-rail-item")) ?? "a row";
+    expect.soft(word, `${id}: its state in words`).toMatch(vocabulary);
+    await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
+    drawn.add((await dot.getAttribute("data-state-dot"))!);
   }
-  expect(missing, "statuses with no words or accessible name").toEqual([]);
+  // Needs you: why, in amber and in words, and first in the row's name.
+  const needs = await rail.getByTestId("need-word").all();
+  for (const mark of needs) {
+    const row = mark.locator("xpath=ancestor::button[1]");
+    const word = (await mark.innerText()).trim();
+    const id = (await row.getAttribute("data-rail-item")) ?? "a row";
+    expect.soft(word, `${id}: why it needs you, in words`).not.toBe("");
+    await expect.soft(row, `${id}: its name says why`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
+  }
+  // Not vacuous: every session in the fixture is a row, and every row is
+  // one of those checked (a dot or a Needs you mark); the dots include at
+  // least the working and the ended state.
+  for (const session of TODAY.sessions) {
+    await expect.soft(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(1);
+  }
+  expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(dots.length + needs.length);
+  expect(needs.length, "Needs you rows").toBeGreaterThan(0);
+  expect([...drawn].sort(), "states drawn as dots").toEqual(expect.arrayContaining(["ended", "working"]));
+
+  // The Project lens says it the same way (AJ-E2104 Req.3): every state
+  // glyph in its colour has its word beside it and in its row's name.
+  await projectLens(page);
+  const glyphs = await rail.locator("[data-state-glyph]").all();
+  expect(glyphs.length, "the Project lens's rows").toBeGreaterThan(0);
+  for (const glyph of glyphs) {
+    const row = glyph.locator("xpath=ancestor::button[1]");
+    const id = (await row.getAttribute("data-instance-id")) ?? "a row";
+    const word = (await row.locator('[data-testid="rail-state-word"], [data-testid="rail-parked"]').innerText()).trim();
+    expect.soft(word, `${id}: its state in words`).not.toBe("");
+    await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(escape(word)));
+  }
+  await expect(rail, "one vocabulary: no old state words").not.toContainText(/Running|Starting|Waiting for you|Looks stuck|Hit its limit|Handed over/);
 });

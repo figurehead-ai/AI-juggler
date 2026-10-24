@@ -9,7 +9,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses } from "./fixtures";
+import { allStatuses, projectLens } from "./fixtures";
 import { EXAMPLE_PROJECT_SYNC } from "../../src/preview/project-sync";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/82-project-sync");
@@ -43,6 +43,7 @@ async function axeClean(page: Page, what: string) {
 }
 
 async function openProject(page: Page) {
+  await projectLens(page);
   await page.getByTestId("rail").getByTestId("rail-project").first().click();
   await expect(page.getByTestId("project-rules")).toHaveText("1 rules file differs");
 }
@@ -86,6 +87,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the project menu's way in — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const row = page.getByTestId("rail").getByTestId("rail-project").first();
     await row.hover();
     await page.getByRole("button", { name: /^Project actions for / }).first().click();

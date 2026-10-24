@@ -1,20 +1,18 @@
 /**
  * AJ-E1537 — the ⋯ in a page's header: the same menu as the item's rows
- * (the action registry), less "Open" (you're on it).
+ * (the action registry), less "Open its page" (you're on it).
  */
 import type { JSX } from "react";
 import { useItemMenu } from "./ItemMenu";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { showToast } from "./Toast";
-import type { ActionHost, ItemKind, ItemOf } from "../lib/actions";
+import { ON_ITS_PAGE, type ActionHost, type ItemKind, type ItemOf } from "../lib/actions";
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { toolSpec } from "../lib/tools";
 import { useAccountManage } from "../screens/AccountManage";
 
-const HERE: ActionHost = { openSession: undefined, openProject: undefined, openAccount: undefined, openTool: undefined };
-
 function HeaderMenu<K extends ItemKind>({ kind, item, heading, local }: { kind: K; item: ItemOf[K]; heading: string; local: ActionHost }): JSX.Element {
-  const menu = useItemMenu(kind, item, heading, { ...local, ...HERE });
+  const menu = useItemMenu(kind, item, heading, { ...local, ...ON_ITS_PAGE });
   return (
     <span className="contents" {...menu.triggerProps}>
       {menu.button({ label: `Actions for ${heading}`, shown: true, testId: "header-menu" })}

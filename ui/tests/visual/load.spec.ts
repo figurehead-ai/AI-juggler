@@ -39,6 +39,9 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
       w.__AIJ_FIXTURE__ = fixture;
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
+      // AJ-E2104: the 50-row board is the Project lens (every row drawn);
+      // the place lens draws only what is in view.
+      localStorage.setItem("aij.rail.view.v1", JSON.stringify({ group: "project" }));
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
@@ -98,20 +101,20 @@ test("rail renders 50 Instances in under 300 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
   const runs: number[] = [];
-  // D-25: one rail — the repaint measured is Running → All, every
-  // session back on screen.
-  const show = page.getByRole("group", { name: "Show" });
+  // AJ-E2104: the repaint measured is a search that matches nothing,
+  // cleared: every session back on screen.
+  const search = page.getByRole("searchbox", { name: /^Search sessions/ });
   for (let i = 0; i < 5; i++) {
-    await show.getByRole("button", { name: /^Running/ }).click();
+    await search.fill("matches-nothing");
     runs.push(
       await timed(
         page,
-        () => show.getByRole("button", { name: "All", exact: true }).click(),
+        () => search.fill(""),
         () => expect(page.locator(ROWS)).toHaveCount(n),
       ),
     );
   }
-  record("rail: painting all 50 sessions (Running → All)", 300, runs);
+  record("rail: painting all 50 sessions (a search cleared)", 300, runs);
 });
 
 test("inspector paints a selection in under 200 ms", async ({ page }) => {

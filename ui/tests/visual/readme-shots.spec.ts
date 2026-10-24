@@ -8,7 +8,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/assets/readme");
 const FIXTURE = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -66,12 +66,13 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`README: Home and the rail — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(page.getByTestId("home-outside").first()).toBeVisible();
+    await expect(page.getByTestId("home-app-tile").first()).toBeVisible();
     await shoot(page, "home", theme);
   });
 
   test(`README: a project — ${theme}`, async ({ page }) => {
     await open(page, theme);
+    await projectLens(page);
     await page.getByTestId("rail").getByTestId("rail-project").first().click();
     await expect(page.getByTestId("page-header")).toBeVisible();
     await shoot(page, "project", theme);

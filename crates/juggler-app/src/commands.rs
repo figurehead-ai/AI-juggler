@@ -3191,6 +3191,7 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
                 bundle_id: launch.bundle_id.clone(),
                 title: None,
                 cgwindow_id: None,
+                start_time: None,
             }),
             transcript_ref: None,
         })?;
@@ -3247,32 +3248,53 @@ fn desktop_window_identity(
         bundle_id,
         title: None,
         cgwindow_id: None,
+        start_time: None,
     })
 }
 
 /// Runs the AJ-E414 focus tiers for one desktop Instance: activate the
-/// app, match the recorded window identity, clear `AXMinimized`, then
-/// `AXRaise` (see `focus.rs` for the mechanism pin). The outcome says
-/// exactly which tier ran — app activation alone is never reported as
-/// window focus success.
-#[tauri::command]
+/// app by its process, then (window focus on in Settings) match the
+/// recorded window identity, clear `AXMinimized`, and `AXRaise` (see
+/// `focus.rs`). Off the main thread, answering within 1.5 s (AJ-E2102).
+/// The outcome says exactly which tier ran — app activation alone is
+/// never reported as window focus success.
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the Instance is unknown
 /// or not desktop-kind (focus owns windows, terminals own panels).
-pub fn desktop_focus(
+#[tauri::command]
+pub async fn desktop_focus(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<FocusOutcomeInfo> {
-    desktop_focus_with(
-        state.inner(),
-        &session_id,
-        std::sync::Arc::new(focus::OsascriptRunner),
-    )
+    crate::ipc::blocking(state.inner(), "bringing the window forward", move |state| {
+        let state = Arc::clone(state);
+        let exact = crate::os_access::exact_windows_allowed(&state);
+        crate::features::conversations::goto::within(
+            crate::features::conversations::goto::LIMIT,
+            move || {
+                desktop_focus_with(
+                    &state,
+                    &session_id,
+                    std::sync::Arc::new(focus::OsascriptRunner),
+                    exact,
+                )
+            },
+        )
+        .unwrap_or_else(|| {
+            Ok(FocusOutcomeInfo {
+                outcome: "Still bringing it forward…".to_owned(),
+                permission_missing: false,
+                window_title: None,
+            })
+        })
+    })
+    .await
 }
 
-/// The testable core (tests inject a scripted runner).
+/// The testable core (tests inject a scripted runner). `exact_windows`:
+/// the user turned window focus on (tiers b and c may run).
 ///
 /// # Errors
 ///
@@ -3281,6 +3303,7 @@ pub fn desktop_focus_with(
     state: &Arc<AppState>,
     session_id: &str,
     runner: std::sync::Arc<dyn focus::ScriptRunner>,
+    exact_windows: bool,
 ) -> AppResult<FocusOutcomeInfo> {
     let mut record = {
         let storage = lock_storage_arc(state)?;
@@ -3294,18 +3317,25 @@ pub fn desktop_focus_with(
             message: "window focus applies to desktop sessions".into(),
         });
     }
-    if is_terminal(record.status) {
+    let identity = desktop_window_identity(state, &record)?;
+    // A reused pid is not the window's process (AJ-E2101).
+    let reused = identity.start_time.is_some_and(|recorded| {
+        crate::features::conversations::procs::some(&[identity.pid])
+            .get(&identity.pid)
+            .and_then(|process| process.start)
+            .is_none_or(|now| (now - recorded).abs() > 1)
+    });
+    if is_terminal(record.status) || reused {
         return Ok(FocusOutcomeInfo {
             outcome: focus::OUTCOME_NOT_RUNNING.to_string(),
             permission_missing: false,
             window_title: record.window.as_ref().and_then(|w| w.title.clone()),
         });
     }
-    let identity = desktop_window_identity(state, &record)?;
     // The tier engine is platform-independent over the runner seam
     // (CI drives it everywhere); the platform gate lives in the
     // command wrapper above.
-    let attempt = focus::FocusService::new(runner).attempt(&identity);
+    let attempt = focus::FocusService::new(runner).attempt(&identity, exact_windows);
     // Persist the (possibly enriched) identity — first-sight titles and
     // re-discovered PIDs survive the attempt (Req.2).
     if attempt.identity != record.window {
@@ -3630,13 +3660,15 @@ pub fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
 /// Rebinds the global "Go to instance…" hotkey (AJ-E414 Req.4). The
 /// new binding is registered with the OS FIRST; only a successful
 /// registration persists it — and a failed registration restores the
-/// previous one, so the user is never left without a hotkey.
+/// previous one, so the user is never left without the key they had.
+/// An empty binding turns the hotkey off (AJ-E2110: there is no
+/// default; the user picks one in Settings › Desktop apps).
 #[tauri::command]
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message for an empty binding or an
-/// OS registration failure (conflict, unparseable accelerator).
+/// Returns the typed [`AppError`] message for an OS registration
+/// failure (conflict, unparseable accelerator) or a storage failure.
 pub fn go_to_hotkey_set(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
@@ -3644,12 +3676,6 @@ pub fn go_to_hotkey_set(
 ) -> AppResult<()> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     let hotkey = hotkey.trim().to_string();
-    if hotkey.is_empty() {
-        return Err(AppError::Validation {
-            subject: "hotkey",
-            message: "empty binding — the default is restored by setting it explicitly".into(),
-        });
-    }
     let previous = {
         let storage = lock_storage(&state)?;
         storage
@@ -3661,15 +3687,17 @@ pub fn go_to_hotkey_set(
     if let Some(previous) = &previous {
         let _ = shortcuts.unregister(previous.as_str());
     }
-    match shortcuts.register(hotkey.as_str()) {
-        Ok(()) => {
-            let storage = lock_storage(&state)?;
-            storage
-                .app_settings()
-                .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
-                .map_err(AppError::from)?;
-            Ok(())
-        }
+    // Empty: the key is off (and stays unset), nothing registered.
+    let registered = if hotkey.is_empty() {
+        Ok(())
+    } else {
+        shortcuts.register(hotkey.as_str())
+    };
+    match registered {
+        Ok(()) => lock_storage(&state)?
+            .app_settings()
+            .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
+            .map_err(AppError::from),
         Err(error) => {
             // Best-effort restore of the previous binding.
             if let Some(previous) = &previous {
@@ -14327,6 +14355,32 @@ fn probe(id: &str, health: juggler_adapter::environment::ScanHealth, detail: Str
     }
 }
 
+/// Where each found setup is open right now: one process-table read (no
+/// environments, AJ-E2101), each setup's own session files naming its
+/// pids.
+fn mark_in_use(state: &Arc<AppState>, installs: &mut [DiscoveredInfo]) {
+    let Some(home) = dirs::home_dir() else {
+        return;
+    };
+    let mut processes = crate::running_setups::running_processes();
+    let adapters: Vec<juggler_adapter::SharedAdapter> = state
+        .registry
+        .ids()
+        .iter()
+        .filter_map(|id| state.registry.get(id))
+        .collect();
+    let dirs: Vec<std::path::PathBuf> = installs
+        .iter()
+        .map(|install| std::path::PathBuf::from(&install.path))
+        .collect();
+    let pid_dirs = crate::running_setups::pid_dirs_in(&adapters, &dirs, &processes);
+    crate::running_setups::with_folders(&mut processes, &pid_dirs);
+    let open = crate::running_setups::classify(&processes, &home);
+    for install in installs {
+        install.in_use = crate::running_setups::in_use_for(&open, &install.path, &home);
+    }
+}
+
 /// AJ-E302: the full 10-signal scan. Probes run in PARALLEL (thread
 /// per probe group — metadata walks and `--version` subprocesses
 /// never block the UI thread); progress streams as `n of 10` events;
@@ -14423,14 +14477,7 @@ pub fn environment_scan_full_impl(
         }
     }
 
-    // Where each setup is open right now (one process-table read).
-    if let Some(home) = dirs::home_dir() {
-        let open =
-            crate::running_setups::classify(&crate::running_setups::running_processes(), &home);
-        for install in &mut installs {
-            install.in_use = crate::running_setups::in_use_for(&open, &install.path, &home);
-        }
-    }
+    mark_in_use(state, &mut installs);
 
     // S4: the cc-switch health rides its manager hint.
     let cc_health = managers

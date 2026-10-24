@@ -33,7 +33,7 @@ export function MachineStatusLine({ minimal, onOpen }: { minimal: boolean; onOpe
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} className="flex min-w-0 shrink items-center gap-2 rounded-md text-left outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (

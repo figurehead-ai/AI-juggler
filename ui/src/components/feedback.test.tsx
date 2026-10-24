@@ -7,6 +7,10 @@ import { WorkflowRail } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
 import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 /**
  * AJ-E1503 — one feedback system:
@@ -330,7 +334,7 @@ describe("AJ-E1503 snooze with Undo", () => {
       </>,
     );
     fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Snooze 1h" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Snooze for an hour" }));
     expect(screen.getByTestId("toast").textContent).toContain("Snoozed Work Max for 1 h.");
     expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeTruthy();
     await act(async () => {

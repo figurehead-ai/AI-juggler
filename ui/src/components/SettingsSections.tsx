@@ -24,6 +24,7 @@ import {
   type AccountInfo,
   type FleetPeerInfo,
 } from "../lib/bridge";
+import { CardTitle } from "./CardTitle";
 
 export function accountName(account: AccountInfo): string {
   return `${providerDisplayName(account.provider)} · ${account.label}`;
@@ -77,7 +78,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-cleanup">
       <div>
-        <h3 className="text-sm font-semibold">Cleanup</h3>
+        <CardTitle>Cleanup</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           AI Juggler tracks every process it starts. When one is left behind, it tells you; it only tidies up by
           itself for an Account you've turned that on for, and only dev servers and watchers it verified as that
@@ -220,7 +221,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-renewal-card">
       <div>
-        <h3 className="text-sm font-semibold">Accounts &amp; renewal dates</h3>
+        <CardTitle>Accounts &amp; renewal dates</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           When each subscription renews, if you want reminders. AI Juggler never reads your billing and never guesses
           a date: an Account without one simply gets no renewal reminders.
@@ -272,7 +273,7 @@ export function FleetPermissionsCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-fleet">
       <div>
-        <h3 className="text-sm font-semibold">Fleet permissions</h3>
+        <CardTitle>Fleet permissions</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           What each of your paired Macs may do on this one. Only this Mac can change it, and no Mac can ever read
           another's credentials.

@@ -110,6 +110,8 @@ for (const theme of ["dark", "light"] as const) {
     // Every item is reachable — the menu paints above the page (D-25 fix).
     for (const name of ["Usage", "Fleet", "Cleanup"]) {
       await expect(menu.getByRole("button", { name: new RegExp(`^${name}\\b`) })).toBeInViewport({ ratio: 1 });
+      // AJ-E2106: each screen with its icon, decoration only.
+      await expect(menu.getByRole("button", { name: new RegExp(`^${name}\\b`) }).locator('svg[aria-hidden="true"]')).toHaveCount(1);
     }
     await page.screenshot({ path: resolve(OUT, `more-menu-1280x800-${theme}.png`) });
     await axeClean(page, "more menu");
@@ -136,7 +138,7 @@ for (const theme of ["dark", "light"] as const) {
         return hit !== null && node.contains(hit);
       });
       expect(onTop, "the legend is covered by another layer").toBe(true);
-      await expect(legend).toContainText("Waiting for you");
+      await expect(legend).toContainText("Asks you"); // AJ-E2104 Req.3: the rail's words
       await page.screenshot({ path: resolve(OUT, where === "rail" ? `legend-1280x800-${theme}.png` : `legend-home-1280x800-${theme}.png`) });
       await axeClean(page, `legend from ${where}`);
       await page.keyboard.press("Escape");

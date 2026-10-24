@@ -7,7 +7,8 @@
 import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "../components/Avatar";
 import { useState, type JSX, type ReactNode } from "react";
-import { STATE_WORDS, isActiveStatus } from "../components/indicator";
+import { isActiveStatus } from "../components/indicator";
+import { STATE_TONE, conversationItem, sessionState, stateWord, type RailState } from "../lib/rail-items";
 import { ToolMark } from "../components/ToolMark";
 import { ProjectMark } from "../components/ProjectMark";
 import { sessionTitle } from "../components/ManageWork";
@@ -36,7 +37,10 @@ export type Row = {
   when: string;
   title: string;
   detail: string | null;
+  /** Its state in the rail's words (AJ-E2104 Req.3), and their colour. */
   state: string;
+  railState: RailState;
+  tone: string;
   tool: string;
   accountId: string | null;
   accountLabel: string;
@@ -58,7 +62,8 @@ export function useSessionRows(
     (scope.accountId === undefined || accountId === scope.accountId);
   const mine: Row[] = sessions
     .filter((session) => inScope(session.project_id, session.account_id))
-    .map((session) => ({
+    .map((session) => ({ session, said: sessionState(session) }))
+    .map(({ session, said }) => ({
       key: `s/${session.id}`,
       item: { kind: isActiveStatus(session.status) ? ("session" as const) : ("history" as const), session },
       projectId: session.project_id,
@@ -67,7 +72,9 @@ export function useSessionRows(
       when: sessionWhen(session, now),
       title: sessionTitle(session),
       detail: null,
-      state: STATE_WORDS[session.status] ?? session.status,
+      state: said.word,
+      railState: said.state,
+      tone: said.tone,
       tool: session.provider,
       accountId: session.account_id,
       accountLabel: session.account_label,
@@ -76,7 +83,8 @@ export function useSessionRows(
     }));
   const theirs: Row[] = outside(all)
     .filter((conversation) => inScope(conversation.project_id, conversation.account_id))
-    .map((conversation) => ({
+    .map((conversation) => ({ conversation, said: conversationItem(conversation, () => null, null) }))
+    .map(({ conversation, said }) => ({
       key: `c/${conversation.account_id}/${conversation.id}`,
       item: { kind: "conversation" as const, conversation },
       projectId: conversation.project_id,
@@ -86,7 +94,9 @@ export function useSessionRows(
       when: conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now),
       title: conversationTitle(conversation),
       detail: conversation.git_branch,
-      state: conversation.live ? "Running" : "Ended",
+      state: stateWord(said.state, said.probably),
+      railState: said.state,
+      tone: STATE_TONE[said.state].text,
       tool: conversation.tool,
       accountId: conversation.account_id,
       accountLabel: conversation.account_label,
@@ -127,7 +137,7 @@ export function SessionsList({
     <div className="flex flex-col gap-2" data-testid="page-sessions">
       <p className="text-[11px] text-muted" data-testid="page-sessions-count">
         {rows.length === 1 ? "1 session" : `${rows.length} sessions`}
-        {live > 0 && ` · ${live} running`}
+        {live > 0 && ` · ${live} open`}
       </p>
       <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
         {shown.map((row) => (
@@ -175,7 +185,8 @@ function SessionListRow({
       >
         <span
           aria-hidden="true"
-          className={"size-2 shrink-0 rounded-full " + (row.live ? "bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" : "bg-hairline")}
+          data-state-dot={row.railState}
+          className={"size-2 shrink-0 rounded-full " + STATE_TONE[row.railState].dot + (row.railState === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
         />
         <ToolMark tool={row.tool} size={14} className="shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-sm text-ink">
@@ -183,7 +194,7 @@ function SessionListRow({
           {row.detail && <span className="text-faint"> · {row.detail}</span>}
           <span className="text-faint">
             {" "}
-            · {row.state}
+            · <span className={row.tone} data-testid="page-session-state">{row.state}</span>
             {row.outside && " · outside AI Juggler"}
           </span>
         </span>

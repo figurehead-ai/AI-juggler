@@ -3,9 +3,11 @@ import type { SVGProps } from "react";
 /**
  * Inline SVG icon set (lucide-style strokes, 24-grid). No icon dependency:
  * chrome icons only, kept tiny and tree-shakeable by construction.
+ * AJ-E2106: the action icons, drawn the same way, are in `icons-actions`.
  */
 
-function base(props: SVGProps<SVGSVGElement>) {
+/** Every icon's stroke and grid. */
+export function base(props: SVGProps<SVGSVGElement>) {
   return {
     width: 18,
     height: 18,

@@ -21,6 +21,7 @@ import {
   type RestorePlanInfo,
   type RestoreResultInfo,
 } from "../lib/bridge";
+import { CardTitle } from "./CardTitle";
 
 type Phase =
   | { kind: "idle" }
@@ -116,7 +117,7 @@ export function BackupRestoreCard(): JSX.Element {
 
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-backup">
-      <h3 className="text-sm font-semibold">Backup &amp; restore</h3>
+      <CardTitle>Backup &amp; restore</CardTitle>
       <p className="text-[11px] text-muted">
         One file with AI Juggler's records, Launch settings, history and lineage, to keep or to move to a new Mac. It never
         holds your sign-ins or this Mac's identity, and it stays on your disk; nothing is uploaded.

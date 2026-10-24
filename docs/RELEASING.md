@@ -89,9 +89,10 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   coming**, at the same time. Each edition keeps its own list of accounts:
   it can use a setup where it is (ADR-0018) or make its own copy inside its
   own data folder, and the two editions never share a copy. A copy needs its
-  own sign-in, and every edition draws on the same subscription's usage. Both want ⌥Space for Go to instance, and only
-  the one opened first gets it: give Nightly another shortcut (⌘K, then
-  change it there).
+  own sign-in, and every edition draws on the same subscription's usage.
+  The shortcut that opens AI Juggler from anywhere has no default (⌥Space
+  is refused because ChatGPT uses it): give each edition its own in
+  Settings › Desktop apps.
 - **Developers and agents run only AI Juggler Dev**, which can never open an
   installed edition's data.
 - **Promotion is unchanged**: beta and stable point at the AI Juggler build

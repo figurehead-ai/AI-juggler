@@ -6,8 +6,8 @@ decide a provider is down, move each session you need yourself:
 
 1. Open the session.
 2. Choose **Switch account…** (or press ⌘⇧H). The accounts you can go to
-   are listed, ranked. One on another tool says what carries over and what
-   doesn't.
+   are listed, ranked, each with its profiles. One on another tool says
+   what carries over and what doesn't.
 3. Pick one, check what's carried, and confirm with **Switch ▸** (or
    Enter). If something goes wrong, the screen says which step and why, and
    the original session is left as it was.

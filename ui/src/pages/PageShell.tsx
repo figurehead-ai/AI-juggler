@@ -22,6 +22,7 @@ export function PageHeader({
   actions,
   folded = false,
   onToggleFold,
+  layout = "item",
 }: {
   kind: PageKind;
   mark: ReactNode;
@@ -35,7 +36,20 @@ export function PageHeader({
   actions?: ReactNode;
   folded?: boolean;
   onToggleFold?: () => void;
+  /** AJ-E2108: a session's page: a large mark, a larger name, and its
+   * chips on their own line under it. */
+  layout?: "item" | "session";
 }) {
+  const session = layout === "session";
+  const title = (
+    <h2
+      tabIndex={-1}
+      className={"min-w-0 truncate tracking-tight outline-none " + (session ? "text-[24px] font-bold leading-tight" : "text-lg font-semibold")}
+      data-testid="page-name"
+    >
+      {name}
+    </h2>
+  );
   return (
     <header className="flex flex-col gap-1" data-testid="page-header" data-page-kind={kind}>
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[11px] text-muted" data-testid="page-crumbs">
@@ -55,13 +69,24 @@ export function PageHeader({
           {PAGE_LABELS[kind]}
         </span>
       </nav>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-accent-hi">{mark}</span>
-        <h2 tabIndex={-1} className="min-w-0 truncate text-lg font-semibold tracking-tight outline-none" data-testid="page-name">
-          {name}
-        </h2>
-        {chips}
-        <div className="ml-auto flex items-center gap-2">
+      <div className={session ? "flex items-start gap-4 pt-1" : "flex flex-wrap items-center gap-3"}>
+        <span className={session ? "shrink-0" : "text-accent-hi"}>{mark}</span>
+        {session ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {title}
+            {!folded && chips && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="page-chips">
+                {chips}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {title}
+            {chips}
+          </>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {actions}
           {onToggleFold && (
             <button
@@ -169,7 +194,10 @@ export function PageShell({
 
   const strip = tabs.length > 1;
   return (
-    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
+    // WCAG 1.4.10: when the window is too short for the header and a
+    // usable body (200 % zoom, a short window), the page scrolls as a
+    // whole instead of squeezing its body to nothing.
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
@@ -201,7 +229,7 @@ export function PageShell({
           ))}
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-64 flex-1 flex-col">
         {tabs.map((entry) => (
           <section
             key={entry.id}

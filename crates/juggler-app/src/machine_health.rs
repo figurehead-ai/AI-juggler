@@ -374,7 +374,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
         .collect();
     let tools = not_ours(
         dirs::home_dir().map_or_else(Vec::new, |home| {
-            crate::running_setups::tools_from(&briefs, &home)
+            crate::running_setups::tools_from(&briefs, &home, &state.conversations.pid_dirs())
         }),
         &ours,
     );
@@ -1799,7 +1799,7 @@ mod tests {
         let tool = |pid| RunningTool {
             pid,
             place: "terminal",
-            config_dir: std::path::PathBuf::from("/Users/you/.claude"),
+            config_dir: Some(std::path::PathBuf::from("/Users/you/.claude")),
             start_time: None,
         };
         // 42 is a leftover `claude` AI Juggler started (it has a ledger
@@ -1926,7 +1926,11 @@ mod live {
         collector.tick(&supervisor, 0); // a full scan fills the table
         for _ in 0..5 {
             let started = std::time::Instant::now();
-            tools = crate::running_setups::tools_from(&collector.process_briefs(), &home);
+            tools = crate::running_setups::tools_from(
+                &collector.process_briefs(),
+                &home,
+                &std::collections::BTreeMap::new(),
+            );
             costs.push(started.elapsed().as_micros());
         }
         costs.sort_unstable();

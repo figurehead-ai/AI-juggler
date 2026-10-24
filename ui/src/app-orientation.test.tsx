@@ -8,6 +8,10 @@ import { cleanup, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
+import { useProjectLens } from "./components/project-lens.test-kit";
+
+// AJ-E2104: the project heading is the Project lens's.
+useProjectLens();
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
@@ -53,7 +57,7 @@ it("Home lights only on Home; a session's page lights nothing and is titled by i
   expect(view.getByRole("heading", { level: 1 }).textContent).toBe("ai-juggler");
   // Its rail row is the selected one, and its page's mark is the session's.
   expect(row.getAttribute("aria-current")).toBe("true");
-  expect(view.getByTestId("mark-session")).toBeTruthy();
+  expect(view.getByTestId("session-mark")).toBeTruthy();
 });
 
 it("an account's page is under Accounts; the open project's rail heading is selected", async () => {

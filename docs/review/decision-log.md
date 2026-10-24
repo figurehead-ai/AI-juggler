@@ -544,8 +544,66 @@
   Activity Monitor. If the kernel refuses the read, there is no memory
   reading at all (never a sum with another measure under the same name).
 
+### D-35 Profiles are not accounts — SETTLED (2026-10-24)
+
+- Decision: a **profile** is the setup an app runs on: a Claude Code
+  folder (`CLAUDE_CONFIG_DIR`), a Claude app profile (its data folder),
+  a `CODEX_HOME`. An **account** is the subscription a profile is
+  signed in to. One account can have several profiles, and the same
+  login in two profiles is normal. The screens show profiles where
+  sessions run (rows, places, badges) and accounts where limits and
+  money live (runway, the Accounts page). Launch settings sit under a
+  profile. The maintainer, 2026-10-24: "We are clumping accounts with
+  profiles, which is not the same. Profile / app is what each native
+  app runs on, you can have multiple profiles for the same
+  subscription account."
+- Amends: D-02 and D-10 ("profile" meant launch settings and was never
+  a rail noun), ADR-0008 §5, and E3's "same login twice" warning. The
+  stored entity stays one per folder in 0.1.x; accounts are worked out
+  from each profile's sign-in (account and organisation) when read.
+- Rejected: keeping "account" for a folder (the maintainer's
+  complaint).
+- Consequences: AJ-E2109; the terminology lint learns the new meaning.
+  (D-28 to D-34 were ruled for 0.2 and are recorded on release/0.2.)
+
+### D-36 Desktop first: the rail shows what is open, in every app — SETTLED (2026-10-24)
+
+- Decision: AI Juggler's main view is what is really open on the Mac,
+  grouped by **place** (the app and profile a session runs in), with
+  what needs the user first and one click to get there. Sessions other
+  apps run are shown when they are open; ended, inactive, background
+  and other sessions stay one click away through View and the rail's
+  "Also:" line, never shown by default and never removed. The
+  maintainer, 2026-10-24: "the whole point of our app is to show
+  projects, sessions and actual Native Apps themselves and get to them
+  … users … just want to get quick assessment where is what", and
+  "we should have a way to show or filter other sessions … just not
+  enabled by default".
+- Amends: D-25 (the rail as projects with their sessions; the E1402
+  amendment that gave tools AI Juggler didn't start no rail rows), and
+  ADR-0007 decisions 0 and 2 (projects as the anchor): projects become
+  one lens, Place is the default.
+- Consequences: E21; the approved "desktop first" canvas.
+
+### D-37 Knowing what is open without reading secrets — SETTLED (2026-10-24)
+
+- Decision: what is open comes from the apps' own per-session files and
+  each process's parent chain and arguments, never from a process's
+  environment (the Claude app's sessions carry a sign-in token there),
+  key files or token caches. Status words are read; summary text is
+  not. Going to a session activates the app by its process; exact
+  windows and terminal tabs use Accessibility and Automation only when
+  the user turned them on in Settings, and a click never raises a
+  permission prompt. Every result says what really happened.
+- Rejected: reading environments to find a session's profile (the 0.1
+  code did; removed in AJ-E2101); opening by bundle id (it brought the
+  wrong Claude profile forward); scraping the Claude app's chat cache
+  (undocumented, and its terms forbid automated access to chats).
+- Consequences: AJ-E2101, AJ-E2102; guardrail tests; the Privacy page
+  names the new reads.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22 and D-27 on 2026-10-23; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-35..D-37 on 2026-10-24 (D-28..D-34 on release/0.2); all follow the same law.

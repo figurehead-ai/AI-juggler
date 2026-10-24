@@ -192,6 +192,7 @@ read_routes! {
     "providers_list" => value commands::harnesses_list();
     "providers_capabilities" => result commands::providers_capabilities(state);
     "accounts_list" => async_result commands::accounts_list(state);
+    "subscriptions_list" => async_result features::subscriptions::commands::subscriptions_list(state);
     "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => result history::account_storage(state);
     "launch_recipes_list" => async_result commands::profiles_list(state);

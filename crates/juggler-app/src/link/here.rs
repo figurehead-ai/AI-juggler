@@ -212,15 +212,19 @@ pub(super) fn focus_here(
             ));
         }
     }
-    let outcome =
-        crate::commands::desktop_focus_with(state, instance_id, crate::focus::link_runner())
-            .map_err(|error| match error {
-                AppError::Validation { .. } => reject(
-                    "not_desktop",
-                    "That session runs in a terminal — there's no window to focus.".to_owned(),
-                ),
-                other => reject("focus_failed", other.wire().user_message),
-            })?;
+    let outcome = crate::commands::desktop_focus_with(
+        state,
+        instance_id,
+        crate::focus::link_runner(),
+        crate::focus::link_exact_windows(state),
+    )
+    .map_err(|error| match error {
+        AppError::Validation { .. } => reject(
+            "not_desktop",
+            "That session runs in a terminal — there's no window to focus.".to_owned(),
+        ),
+        other => reject("focus_failed", other.wire().user_message),
+    })?;
     if outcome.permission_missing {
         return Ok(format!("Permission needed on {here}"));
     }

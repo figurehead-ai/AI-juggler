@@ -11,7 +11,7 @@ two real Macs. Tell us how it goes in
 
 ## Turn it on
 
-Fleet is under **More › Fleet** (⌘4) until you pair a Mac; then it's in the
+Fleet is under **More › Fleet** (⌘⇧F) until you pair a Mac; then it's in the
 header too.
 
 **Link** is off by default. While it's off, no other Mac can see or reach
@@ -29,8 +29,8 @@ Local Network permission the first time: Fleet needs it to find your Macs.
    Mac shows under **This Mac**, then choose **Fingerprints match**. If
    they don't, cancel: you may not be pairing with your own Mac.
 4. Choose what the other Mac may do on this one:
-   - **View only** (the default): it sees this Mac's accounts, sessions and
-     usage, and can't change anything.
+   - **View only** (the default): it sees this Mac's accounts, profiles,
+     sessions and usage, and can't change anything.
    - **View + control**: it can also start and stop work here, with launch
      settings that already exist on this Mac. It can never read sign-ins.
 
@@ -39,18 +39,19 @@ pairing off after 20 in a day (**Turn pairing back on** brings it back).
 
 ## What a paired Mac sees
 
-Which sessions run where, with their project and account names, states and
-usage totals. Never your sign-ins, files or prompts. A conversation reaches
+Which sessions run where, with their project, profile and account names,
+states and usage totals. Never your sign-ins, files or prompts. A conversation reaches
 another Mac only when you switch one to it.
 
 ## What you can do from here
 
-- **Watch** another Mac's sessions, live, in the list and on Fleet.
+- **Watch** another Mac's sessions, live, in the list (**View** › **Show** ›
+  other Macs) and on Fleet.
 - **Stop** a session there, or bring its window to the front (**Stop on…**,
   **Focus on…** on the session's page).
 - **Clean up** a leftover process there that AI Juggler can show it started.
 - **Start a session there:** in **New session**, choose the Mac under
-  **Runs on**, then the folder and account it offers, and **Start there →**.
+  **Runs on**, then the folder and profile it offers, and **Start there →**.
 - **Carry a conversation to it:** on a session's page, **Continue on another
   machine**. The switch screen says what carries over first.
 - **Usage by machine:** **Last 24 hours, by machine**, on Fleet and on Usage,
@@ -65,9 +66,10 @@ refused.
 ## Who decides
 
 Only the Mac being controlled can change what another may do: **Access…** on
-its row in Fleet, or Settings › **Fleet permissions**. **View + control, ask
-each time** makes each request wait for you to **Allow** it on that Mac; one
-you don't answer within 20 seconds is denied.
+its row in Fleet, or Settings › Your Macs › **Fleet permissions** (that pane
+shows once a Mac is paired). **View + control, ask each time** makes each
+request wait for you to **Allow** it on that Mac; one you don't answer
+within 20 seconds is denied.
 
 ## Unpair, or start again
 

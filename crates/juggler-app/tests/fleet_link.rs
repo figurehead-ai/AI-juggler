@@ -546,7 +546,7 @@ impl juggler_app::focus::ScriptRunner for OneWindow {
         }
         Ok(String::new())
     }
-    fn activate(&self, _bundle_id: &str) -> Result<(), String> {
+    fn activate(&self, _pid: u32) -> Result<(), String> {
         Ok(())
     }
 }
@@ -602,6 +602,7 @@ fn seed_desktop(state: &Arc<AppState>, dir: &Path) {
                 bundle_id: Some("com.example.notes".into()),
                 title: None,
                 cgwindow_id: None,
+                start_time: None,
             }),
         })
         .unwrap();
@@ -616,6 +617,7 @@ fn a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome() {
     seed_desktop(&a, work.path());
     seed_instance(&a, work.path()); // a terminal Instance too
     juggler_app::focus::set_link_runner_for_test(Some(Arc::new(OneWindow)));
+    juggler_app::focus::set_link_exact_windows_for_test(Some(true));
     juggler_app::focus::set_screen_locked_for_test(Some(false));
     link::link_set_enabled_impl(&a, true).unwrap();
     link::link_set_enabled_impl(&b, true).unwrap();
@@ -686,6 +688,7 @@ fn a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome() {
 
     juggler_app::focus::set_screen_locked_for_test(None);
     juggler_app::focus::set_link_runner_for_test(None);
+    juggler_app::focus::set_link_exact_windows_for_test(None);
     link::link_set_enabled_impl(&a, false).unwrap();
     link::link_set_enabled_impl(&b, false).unwrap();
 }

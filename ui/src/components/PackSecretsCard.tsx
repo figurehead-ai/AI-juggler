@@ -11,6 +11,7 @@ import {
   redactionPolicySetOverride,
   type RedactionInfoData,
 } from "../lib/bridge";
+import { CardTitle } from "./CardTitle";
 
 /**
  * AJ-E309 Req.2 / AJ-E208 (D-14): Accounts → Pack secrets. The GLOBAL
@@ -59,7 +60,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
     <>
       <Card className="flex flex-col gap-3 p-5" data-testid="pack-secrets">
         <div>
-          <h3 className="text-sm font-semibold">Pack secrets</h3>
+          <CardTitle>Pack secrets</CardTitle>
           <p className="mt-0.5 text-xs leading-relaxed text-muted">
             Context packs carry your work to another account when you switch. Choose how keys and
             tokens found in them are handled — remembered for every tool unless one has its own.

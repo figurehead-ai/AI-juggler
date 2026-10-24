@@ -126,6 +126,8 @@ trash = { version = "5.2.9", default-features = false }
 # so one can never outlive it (rfd's alert without a window is the
 # system's, and stayed up after the app was gone). Safe calls only, with
 # a MainThreadMarker; already in the tree through rfd and tao.
+# AJ-E2102: `libc` adds NSRunningApplication's lookup by pid (Go to it
+# brings one app instance forward by its process, never by bundle id).
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView"] }

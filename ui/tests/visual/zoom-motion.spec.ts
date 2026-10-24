@@ -73,7 +73,7 @@ async function walk(page: Page, theme: string, label: string) {
   expect(await runningAnimations(page), "animations under reduced motion").toEqual([]);
   await shoot(page, `rail-${label}-${theme}`);
   // Inspector.
-  await page.getByTestId("rail").getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+  await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
   await expect(page.getByRole("tab", { name: "Terminal" })).toBeVisible();
   await noHorizontalScroll(page);
   expect(await runningAnimations(page)).toEqual([]);

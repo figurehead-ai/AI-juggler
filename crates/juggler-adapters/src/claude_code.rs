@@ -494,6 +494,30 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_conversations::session_process(exe, args)
     }
 
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::pid_files(profile_dir)
+    }
+
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::claude_live::read_pid_file(path)
+    }
+
+    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::app_files(instance_dir)
+    }
+
+    fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
+        crate::claude_live::read_app_file(path)
+    }
+
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::claude_asks::pending_ask(tail)
+    }
+
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::claude_live::host_apps()
+    }
+
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])
@@ -1260,7 +1284,11 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
     if let Some(org) = text("organizationName") {
         label = format!("{label} · {org}");
     }
-    IdentityProbe::SignedIn { subject, label }
+    IdentityProbe::SignedIn {
+        subject,
+        label,
+        org: text("organizationUuid"),
+    }
 }
 
 /// ADR-0019: Claude Code, described as data (every screen and command

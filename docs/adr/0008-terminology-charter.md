@@ -61,6 +61,36 @@ identifier. Settled:
   rather than fabricating an id.
 - `pub type InstanceStatus = SessionStatus;` — wire strings unchanged.
 
+## Amendment A-2 (D-35, 2026-10-24): profiles are not accounts
+
+Amends Decision 2 and Decision 5. The maintainer, 2026-10-24: "We are
+clumping accounts with profiles, which is not the same."
+
+- **Profile** = the setup an app runs on: a Claude Code folder
+  (`CLAUDE_CONFIG_DIR`), a Claude app profile (its data folder), a
+  `CODEX_HOME`. Sessions run in a profile.
+- **Account** = the subscription a profile is signed in to. Limits and
+  money live on the account.
+- One account can have several profiles. The same login in two profiles
+  is normal, never a warning (this retires E3's "same login twice"
+  warning).
+- **Launch settings sit under a profile.** Decision 5's "demoted to
+  Launch settings" no longer holds: "profile" is a user-facing noun again,
+  with the meaning above, and never means account. `LaunchRecipe` keeps
+  its name.
+- **Where each word shows:** profiles where sessions run (rail rows,
+  places, badges, New session); accounts where limits and money live
+  (runway, the Accounts page, Usage). A place is an app + profile pair
+  (D-36).
+- **The stored entity stays one per folder in 0.1.x** (today's
+  `Account`, keyed by `state_dir`, is a profile). Accounts are worked out
+  when read, from each profile's signed-in identity (account and
+  organisation), so a personal plan and a team seat on one email stay two
+  accounts. A separate stored account entity waits for 0.2.
+- The terminology lint learns the new meaning: "profile" is allowed where
+  it names the setup an app runs on (D-35 citations, "profile badge",
+  "app + profile"), and still flagged where it stands in for account.
+
 ## Consequences
 
 E1 executes in three phases with schema v5 as the migration anchor.

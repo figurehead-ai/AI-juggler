@@ -12,22 +12,26 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod claude_asks;
 pub mod claude_code;
 pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
 pub mod claude_inventory;
+pub mod claude_live;
 pub mod claude_transcript;
 pub mod codex;
 pub mod codex_conversations;
 pub mod codex_environment;
 pub mod codex_handover;
 pub mod codex_inventory;
+pub mod codex_live;
 pub mod codex_transcript;
 pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;
+pub mod last_turns;
 pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
