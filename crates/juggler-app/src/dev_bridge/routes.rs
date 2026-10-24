@@ -270,7 +270,7 @@ read_routes! {
     "fleet_usage_by_machine" => async_result features::fleet::fleet_usage_by_machine(state);
     // AJ-E1702/E1703: the pools and a pool's cards (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
-    "pool_cards" => async_result features::pools::commands::pool_cards(state; pool_id: String);
+    "pools_cards" => async_result features::pools::commands::pools_cards(state; pool_id: String);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other

@@ -143,7 +143,7 @@ export async function poolCreate(name: string, projectId: string | null): Promis
     store!.pools.push({ id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0 });
     return preview();
   }
-  return invoke<PoolsInfo>("pool_create", { name, projectId });
+  return invoke<PoolsInfo>("pools_create", { name, projectId });
 }
 
 /** Renames a pool ("All sessions" keeps its name). */
@@ -155,7 +155,7 @@ export async function poolRename(poolId: string, name: string): Promise<PoolsInf
     record(`rename:${poolId}:${pool.name}`);
     return preview();
   }
-  return invoke<PoolsInfo>("pool_rename", { poolId, name });
+  return invoke<PoolsInfo>("pools_rename", { poolId, name });
 }
 
 /** Deletes a pool; its sessions go back to "All sessions". */
@@ -170,7 +170,7 @@ export async function poolDelete(poolId: string): Promise<PoolsInfo> {
     }
     return preview();
   }
-  return invoke<PoolsInfo>("pool_delete", { poolId });
+  return invoke<PoolsInfo>("pools_delete", { poolId });
 }
 
 /** Moves a session into a pool, as a member. */
@@ -187,7 +187,7 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
     Object.assign(store!.members.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });
     return preview();
   }
-  return invoke<PoolsInfo>("pool_move", { sessionId, poolId });
+  return invoke<PoolsInfo>("pools_move", { sessionId, poolId });
 }
 
 /** Sets a session's role in its pool. */
@@ -200,7 +200,7 @@ export async function poolSetRole(sessionId: string, role: PoolRole): Promise<Po
     row.role = role;
     return preview();
   }
-  return invoke<PoolsInfo>("pool_set_role", { sessionId, role });
+  return invoke<PoolsInfo>("pools_set_role", { sessionId, role });
 }
 
 /** D-28: sets a pool's access level; `actions` is the Custom set. */
@@ -211,7 +211,7 @@ export async function poolSetAccess(poolId: string, level: string, actions: stri
     pool.access = accessAt(level, actions, pool.access.hop_limit, pool.access.delivery_stopped);
     return preview();
   }
-  return invoke<PoolsInfo>("pool_set_access", { poolId, level, actions });
+  return invoke<PoolsInfo>("pools_set_access", { poolId, level, actions });
 }
 
 /** D-29: sets a pool's hop limit (1 to 20) and its delivery stop-all. */
@@ -223,7 +223,7 @@ export async function poolSetDelivery(poolId: string, hopLimit: number, stopped:
     pool.access = { ...pool.access, hop_limit: hopLimit, delivery_stopped: stopped };
     return preview();
   }
-  return invoke<PoolsInfo>("pool_set_delivery", { poolId, hopLimit, stopped });
+  return invoke<PoolsInfo>("pools_set_delivery", { poolId, hopLimit, stopped });
 }
 
 /** D-32: lets a pool span your paired Macs, or not (off by default). */
@@ -234,7 +234,7 @@ export async function poolSetSpansMacs(poolId: string, spans: boolean): Promise<
     pool.spans_macs = spans;
     return preview();
   }
-  return invoke<PoolsInfo>("pool_set_spans_macs", { poolId, spans });
+  return invoke<PoolsInfo>("pools_set_spans_macs", { poolId, spans });
 }
 
 /** D-28: takes back an "always allow" rule (it stops applying at once). */
@@ -247,7 +247,7 @@ export async function agentRuleRevoke(ruleId: number): Promise<PoolsInfo> {
     pool.rules = pool.rules.filter((rule) => rule.id !== ruleId);
     return preview();
   }
-  return invoke<PoolsInfo>("agent_rule_revoke", { ruleId });
+  return invoke<PoolsInfo>("pools_revoke_rule", { ruleId });
 }
 
 const unavailable = (why: string): CardField => ({ value: null, unavailable: `Unavailable — ${why}` });
@@ -264,7 +264,7 @@ export async function poolCards(poolId: string): Promise<PoolCards> {
       .sort((a, b) => rank(a.role) - rank(b.role) || (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0));
     return { pool_id: poolId, cards };
   }
-  return invoke<PoolCards>("pool_cards", { poolId });
+  return invoke<PoolCards>("pools_cards", { poolId });
 }
 
 function previewCard(session: InstanceInfo, role: string): ContextCard {

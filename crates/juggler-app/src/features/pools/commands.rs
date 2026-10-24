@@ -24,7 +24,7 @@ pub async fn pools_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Poo
 ///
 /// As [`super::cards::cards_impl`].
 #[tauri::command]
-pub async fn pool_cards(
+pub async fn pools_cards(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
 ) -> AppResult<PoolCards> {
@@ -40,7 +40,7 @@ pub async fn pool_cards(
 ///
 /// As [`super::pool_create_impl`].
 #[tauri::command]
-pub async fn pool_create(
+pub async fn pools_create(
     state: tauri::State<'_, Arc<AppState>>,
     name: String,
     project_id: Option<String>,
@@ -57,7 +57,7 @@ pub async fn pool_create(
 ///
 /// As [`super::pool_rename_impl`].
 #[tauri::command]
-pub async fn pool_rename(
+pub async fn pools_rename(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
     name: String,
@@ -74,7 +74,7 @@ pub async fn pool_rename(
 ///
 /// As [`super::pool_delete_impl`].
 #[tauri::command]
-pub async fn pool_delete(
+pub async fn pools_delete(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
 ) -> AppResult<PoolsInfo> {
@@ -90,7 +90,7 @@ pub async fn pool_delete(
 ///
 /// As [`super::pool_move_impl`].
 #[tauri::command]
-pub async fn pool_move(
+pub async fn pools_move(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     pool_id: String,
@@ -107,7 +107,7 @@ pub async fn pool_move(
 ///
 /// As [`super::pool_set_role_impl`].
 #[tauri::command]
-pub async fn pool_set_role(
+pub async fn pools_set_role(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     role: String,
@@ -124,7 +124,7 @@ pub async fn pool_set_role(
 ///
 /// As [`super::access::set_level_impl`].
 #[tauri::command]
-pub async fn pool_set_access(
+pub async fn pools_set_access(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
     level: String,
@@ -142,7 +142,7 @@ pub async fn pool_set_access(
 ///
 /// As [`super::access::set_delivery_impl`].
 #[tauri::command]
-pub async fn pool_set_delivery(
+pub async fn pools_set_delivery(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
     hop_limit: u32,
@@ -160,7 +160,7 @@ pub async fn pool_set_delivery(
 ///
 /// As [`super::pool_set_spans_macs_impl`].
 #[tauri::command]
-pub async fn pool_set_spans_macs(
+pub async fn pools_set_spans_macs(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
     spans: bool,
@@ -177,30 +177,12 @@ pub async fn pool_set_spans_macs(
 ///
 /// As [`super::access::revoke_impl`].
 #[tauri::command]
-pub async fn agent_rule_revoke(
+pub async fn pools_revoke_rule(
     state: tauri::State<'_, Arc<AppState>>,
     rule_id: i64,
 ) -> AppResult<PoolsInfo> {
     crate::ipc::blocking(state.inner(), "the rule", move |state| {
         super::access::revoke_impl(state, rule_id)
-    })
-    .await
-}
-
-/// The user's answer to an agent's ask: `once`, `always` or `deny`.
-///
-/// # Errors
-///
-/// As [`super::access::answer_impl`].
-#[tauri::command]
-pub async fn agent_ask_answer(
-    state: tauri::State<'_, Arc<AppState>>,
-    pool_id: String,
-    action: String,
-    answer: String,
-) -> AppResult<PoolsInfo> {
-    crate::ipc::blocking(state.inner(), "the answer", move |state| {
-        super::access::answer_impl(state, &pool_id, &action, &answer)
     })
     .await
 }
