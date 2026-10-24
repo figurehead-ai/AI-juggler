@@ -122,7 +122,7 @@
 | AJ-E2101 | PASS11 | 2026-10-24 | [manifest](AJ-E2101/manifest.md) |
 | AJ-E2102 | PASS7 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2102/manifest.md) |
 | AJ-E2103 | PASS5 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2103/manifest.md) |
-| AJ-E2104 | PASS13 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2104/manifest.md) |
+| AJ-E2104 | PASS14 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2104/manifest.md) |
 | AJ-E2105 | PASS7 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2105/manifest.md) |
 | AJ-E2106 | PASS6 | 2026-10-24 | [manifest](AJ-E2106/manifest.md) |
 | AJ-E2107 | PASS6 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E2107/manifest.md) |
