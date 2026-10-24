@@ -292,6 +292,43 @@ describe("AJ-E1537 three triggers, one menu", () => {
     );
   });
 
+  it("AJ-E2106: a right-click opens the in-app menu at the pointer, never the system's", async () => {
+    const made = vi.fn();
+    vi.doMock("@tauri-apps/api/menu", () => ({ Menu: { new: made }, MenuItem: { new: made }, PredefinedMenuItem: { new: made }, Submenu: { new: made } }));
+    // As in the app: a live backend is there.
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = { invoke: vi.fn() };
+    try {
+      render(<Row host={fullHost()} />);
+      fireEvent.contextMenu(screen.getByTestId("row"), { button: 2, clientX: 120, clientY: 90 });
+      const menu = topMenu();
+      expect(menu.style.left).toBe("120px");
+      expect(menu.style.top).toBe("90px");
+      // Icons, red stopping and the greyed reasons: the in-app menu's.
+      expect(menu.querySelectorAll("svg[data-icon]").length).toBe(shown().length);
+      expect(screen.getByRole("menuitem", { name: "Stop this session" }).className).toContain("text-danger");
+      await Promise.resolve();
+      expect(made).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+      vi.doUnmock("@tauri-apps/api/menu");
+    }
+  });
+
+  it("stays inside the window, and a keyboard contextmenu opens under the row", () => {
+    render(<Row host={fullHost()} />);
+    const row = screen.getByTestId("row");
+    fireEvent.contextMenu(row, { button: 2, clientX: window.innerWidth + 50, clientY: window.innerHeight + 50 });
+    const menu = topMenu();
+    expect(parseFloat(menu.style.left)).toBeLessThanOrEqual(window.innerWidth - 4);
+    expect(parseFloat(menu.style.top)).toBeLessThanOrEqual(window.innerHeight - 4);
+    fireEvent.keyDown(window, { key: "Escape" });
+    row.getBoundingClientRect = () => ({ left: 30, bottom: 60, top: 40, right: 200, width: 170, height: 20, x: 30, y: 40, toJSON: () => ({}) });
+    // The menu key in a WebView sends a contextmenu with no pointer.
+    fireEvent.contextMenu(row, { button: 0, clientX: 0, clientY: 0 });
+    expect(topMenu().style.left).toBe("38px");
+    expect(topMenu().style.top).toBe("64px");
+  });
+
   it("is a role=menu that takes focus and gives it back on Escape", () => {
     render(<Row host={fullHost()} />);
     const button = screen.getByRole("button", { name: "Session actions for main" });
@@ -377,7 +414,8 @@ describe("AJ-E1537 three triggers, one menu", () => {
   });
 });
 
-describe("AJ-E1537 the native menu", () => {
+// Kept for the app's menu bar (a right-click opens the in-app menu).
+describe("AJ-E1537 the native menu builder", () => {
   it("gets the same items, groups, submenu, keys and reasons as the in-app one", async () => {
     const made: { text?: string; enabled?: boolean; item?: string; accelerator?: string; items?: unknown[] }[] = [];
     vi.doMock("@tauri-apps/api/menu", () => ({

@@ -33,22 +33,24 @@ the new states listed below).
   take it as one more entry when pools land.
 - **Every menu is built from the registry:**
   - `ItemMenu.tsx`: icons, separators between groups, the submenu, and
-    the greyed reason as the line's description;
+    the greyed reason as the line's description. A right-click opens
+    this in-app menu at the pointer (kept inside the window), as do the
+    ⋯ button and Shift+F10 or the menu key (under the row);
   - `RowMenu.tsx`: the arrows move within one level, Home and End, → and
     ← for the submenu, Escape closes the submenu first;
   - `InspectorHeaderMenu.tsx`: shares `ON_ITS_PAGE` with ⌘K;
-  - `native-menu.ts`: the same order, groups and submenu, with the
-    shortcut keys;
+  - `native-menu.ts`, kept for the app's menu bar: the same order,
+    groups and submenu, with the shortcut keys;
   - `MoreMenu.tsx`: each screen's icon.
 
   This covers the rail's rows, the project rows, Accounts' cards,
   History, This Mac, outside conversations and the page headers.
-- **The native menu has no icons and no red.** Tauri's menu items take
-  a bitmap or one of AppKit's few named images, never a template image.
-  A drawn icon would keep one colour on a highlighted line and in dark
-  menus, and a system menu line can't be coloured. It is ordered,
-  grouped and has the submenu. The in-app menu (⋯, Shift+F10) has
-  icons and red.
+- **Why the right-click isn't the system's menu any more.** Tauri's menu
+  items take a bitmap or one of AppKit's few named images, never a
+  template image. A drawn icon would keep one colour on a highlighted
+  line and in dark menus, and a system menu line can't be coloured. The
+  approved design has icons, red stopping and greyed reasons, so every
+  context menu is the in-app one (coordinator's ruling, 2026-10-24).
 - **⌘K** (`GoToPalette.tsx`, extended, with `PaletteActions.tsx`):
   - with a session, project, account or tool selected, its actions come
     first: icon, label, greyed reason, and a shortcut hint (⌘., ⌘⇧H);
@@ -81,13 +83,14 @@ the new states listed below).
 |---|---|---|
 | Req.1 icon, group, rank on every action | vitest `item-menu.test.tsx` › "every action has an icon, a group and a rank": every spec of every type has a known group, a finite rank, a drawn icon; each icon name is drawn once; no two ranks collide in a group; the same label has the same icon across all types | PASS |
 | Req.2 ≤ 3 groups, most used first, stopping last in red, one submenu level | vitest: groups in order for every sample item, ranks ascending, `destructive` exactly the stopping group; the submenu is one level; Stop is last after a separator with `text-danger`; → opens and ← closes the submenu; Playwright `menus-gallery` (session row, submenu) | PASS |
+| Right-click opens the in-app menu | vitest: with a live backend present, a right-click opens the in-app menu at the pointer with its icons and red Stop, and no system menu is built; a click past the window's edge stays inside it; a contextmenu from the keyboard opens under the row. Playwright `menus-gallery`: right-click gives the same lines as ⋯ and Shift+F10, with icons, within 1 px of the pointer | PASS |
 | Req.3 left out vs greyed with the reason | vitest: ended session (no Go to it, no Stop; greyed carry-over and resume), conversation (no Stop), moved project, the greyed line's `aria-describedby` is its reason; table above | PASS |
 | Req.4 ⌘K: the item's actions with shortcuts, then sessions, apps, projects | vitest `palette-actions.test.tsx`: actions first with ⌘. and ⌘⇧H, then sessions, projects on typing; greyed does nothing; Enter runs and closes; nothing selected is as before. Apps: not yet (AJ-E2101 has no places to list) | PARTIAL |
 | a11y: menu roles, focus order, icons hidden, contrast | vitest: role=menu, focus on the first line, arrows/Home/End, focus back on Escape; every icon `aria-hidden`. Contrast (computed from the tokens): greyed text `--color-faint` 5.44 (dark) and 5.56 (light) on the menu, 5.08 and 5.05 on surface-2, 4.68 and 4.97 on ⌘K's active row; red 6.67 and 6.47 | PASS |
 | Performance: menu opens < 50 ms | vite dev server, 10 right-clicks timed from the event to the next painted frame with the menu in it: 16.1 ms the first time, 3.7–6.3 ms after | PASS |
 | Visual: each menu, both themes | `menus-gallery.spec.ts` (session menu, submenu, greyed, ⌘K, project, project header, account, history), `home-gallery` (More), `project-manage-gallery`, `account-manage-gallery`; run on this Mac outside the gate and all passed; the Docker gate is run centrally | PENDING (central run) |
 
-Checks on the branch: `npx vitest run` 114 files and 865 tests pass;
+Checks on the branch: `npx vitest run` 114 files and 867 tests pass;
 `npm run typecheck`, `plain_words_lint.py`, `terminology_lint.sh`,
 `size_budget.py` and `just structure` (layering, IPC audit, size) are OK.
 
@@ -122,6 +125,6 @@ New gallery states, not gated: `77-menus/session-submenu-*`,
 - The ↵ and Space hints beside Go to it and Open its page: those keys
   don't do that on a row yet (Enter opens its page), and AJ-E2102 wires
   them. A hint that isn't true isn't shown.
-- Icons and red in the native right-click menu (see above). Making the
-  right-click open the in-app menu would give both: a call for the
-  maintainer.
+- The right-click in the built app (a real WebView) is checked by the
+  maintainer on the replica; the preview and the specs show the in-app
+  menu at the pointer.

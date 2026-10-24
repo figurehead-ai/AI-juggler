@@ -5,7 +5,8 @@
  * both themes, axe 0 critical/serious on each, and the keyboard way in
  * (Shift+F10 on a focused row, Escape back).
  *
- * AJ-E2106: icons on every line, three groups with stopping last, the
+ * AJ-E2106: a right-click opens the in-app menu at the pointer (not the
+ * system's), icons on every line, three groups with stopping last, the
  * one submenu from the keyboard, a greyed line with its reason, and ⌘K
  * listing the selected session's actions first — both themes each.
  */
@@ -79,8 +80,15 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
     await shoot(page, "session-menu", theme);
     await page.keyboard.press("Escape");
-    await row.click({ button: "right" });
+    // AJ-E2106: the right-click opens the in-app menu at the pointer,
+    // with its icons and red Stop.
+    const box = (await row.boundingBox())!;
+    await row.click({ button: "right", position: { x: 40, y: 10 } });
     expect(await labels(page)).toEqual(fromButton);
+    await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
+    const at = (await page.getByRole("menu").boundingBox())!;
+    expect(Math.abs(at.x - (box.x + 40))).toBeLessThanOrEqual(1);
+    expect(Math.abs(at.y - (box.y + 10))).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
     await row.getByRole("button").first().focus();
     await page.keyboard.press("Shift+F10");

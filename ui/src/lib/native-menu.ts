@@ -1,17 +1,16 @@
 /**
- * AJ-E1537 — the right-click menu as the system's own (Tauri's menu
- * popup), so it looks and behaves like every other Mac menu. The same
- * registry actions as the in-app menu: a disabled item shows its reason
- * as a disabled line under it, and destructive items sit in their own
- * group at the end.
+ * AJ-E1537 — registry actions as a system menu (Tauri's menu API). A
+ * disabled item shows its reason as a disabled line under it, and
+ * destructive items sit in their own group at the end.
  *
  * AJ-E2106 — the same order and groups as the in-app menu (getting
  * there, working on it, stopping), the same one submenu level, and each
- * shortcut as the system shows keys. No icons here: Tauri's menu items
- * take a bitmap or one of AppKit's few named images, not a template
- * image, so a drawn icon would keep one colour on a highlighted line and
- * in dark menus; and a system menu line can't be red. The in-app menu
- * (⋯, Shift+F10) has both.
+ * shortcut as the system shows keys. Kept for the app's menu bar: a
+ * right-click opens the in-app menu (`ItemMenu`), which alone has the
+ * icons, the red stopping group and the greyed reasons. Tauri's menu
+ * items take a bitmap or one of AppKit's few named images, not a
+ * template image, so a drawn icon would keep one colour on a highlighted
+ * line and in dark menus; and a system menu line can't be red.
  */
 import { menuEntries, type ResolvedAction } from "./actions";
 

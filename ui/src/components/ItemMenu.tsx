@@ -1,15 +1,18 @@
 /**
- * AJ-E1537 — one menu, three ways in. A right-click opens the system's
- * own menu in the app (Tauri's menu popup), a row's or a header's ⋯
- * button and Shift+F10 (or the menu key) open the in-app menu, and every
- * one of them lists the same actions from the registry (`lib/actions`),
- * in the same order. Disabled items say why. Destructive ones come last,
- * in their own group.
+ * AJ-E1537 — one menu, three ways in. A right-click, a row's or a
+ * header's ⋯ button, and Shift+F10 (or the menu key) all open the same
+ * in-app menu, listing the same actions from the registry
+ * (`lib/actions`), in the same order. Disabled items say why. Destructive
+ * ones come last, in their own group.
+ *
+ * AJ-E2106 — the right-click opens this menu too, not the system's: only
+ * this one has the icons, the red stopping group and the greyed reasons
+ * (the approved design). It opens at the pointer and stays inside the
+ * window (`RowMenu` measures itself). `lib/native-menu.ts` stays for the
+ * app's menu bar.
  */
 import { Fragment, createContext, useContext, useId, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { menuEntries, resolveActions, type ActionHost, type ActionIconName, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
-import { hasLiveBackend } from "../lib/bridge";
-import { popupNativeMenu } from "../lib/native-menu";
 import { ActionIcon } from "./ActionIcon";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint } from "./RowMenu";
 
@@ -25,12 +28,6 @@ export function ActionHostProvider({ host, children }: { host: ActionHost; child
 
 export function useActionHost(): ActionHost {
   return useContext(HostContext);
-}
-
-/** A right-click opens the native menu when the app runs for real; in the
- * preview, tests and the Dev bridge, the in-app one. */
-function nativeMenus(): boolean {
-  return hasLiveBackend() && !(window as unknown as { __AIJ_IN_APP_MENUS__?: boolean }).__AIJ_IN_APP_MENUS__;
 }
 
 export interface ItemMenu {
@@ -55,10 +52,13 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
   const host = local ? { ...shared, ...local } : shared;
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const actions = resolveActions(kind, item, host);
-  const open = (point: { x: number; y: number }, native: boolean) => {
-    if (actions.length === 0) return;
-    if (native) void popupNativeMenu(heading, actions, point);
-    else setAt(point);
+  const open = (point: { x: number; y: number }) => {
+    if (actions.length > 0) setAt(point);
+  };
+  /** Under the row, for a menu opened from the keyboard. */
+  const below = (element: HTMLElement) => {
+    const box = element.getBoundingClientRect();
+    return { x: box.left + 8, y: box.bottom + 4 };
   };
   const run = (action: ResolvedAction) => () => {
     setAt(null);
@@ -80,14 +80,16 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         if (actions.length === 0) return;
         event.preventDefault();
         event.stopPropagation();
-        open({ x: event.clientX, y: event.clientY }, nativeMenus());
+        // At the pointer; a contextmenu the keyboard sent has no pointer
+        // position, so it opens under the row.
+        const fromKeys = event.button !== 2 && event.clientX === 0 && event.clientY === 0;
+        open(fromKeys ? below(event.currentTarget) : { x: event.clientX, y: event.clientY });
       },
       onKeyDown: (event) => {
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
           event.preventDefault();
           event.stopPropagation();
-          const box = event.currentTarget.getBoundingClientRect();
-          open({ x: box.left + 8, y: box.bottom + 4 }, false);
+          open(below(event.currentTarget));
         }
       },
     },
@@ -99,7 +101,7 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         aria-expanded={at !== null}
         data-testid={testId}
         disabled={actions.length === 0}
-        onClick={(event) => open(menuPoint(event), false)}
+        onClick={(event) => open(menuPoint(event))}
         className={
           "z-10 flex size-6 shrink-0 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 disabled:hidden " +
           (shown
