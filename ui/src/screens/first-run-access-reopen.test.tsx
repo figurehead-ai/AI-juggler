@@ -66,16 +66,23 @@ describe("Screen Recording after System Settings (0.0.12)", () => {
       await view.findByTestId("first-run-access-reopen");
       // The OS now says yes (after a reopen, or a change it reports live).
       w().__AIJ_OS_ACCESS__ = [preview({ status: "allowed", action: "none", note: null })];
-      act(() => {
-        window.dispatchEvent(new Event("focus"));
-      });
-      const allowed = await view.findByRole("status", {}, { timeout: 5000 });
-      expect(allowed.textContent).toContain("Allowed");
+      // The window comes back until the card turns: the rows' listener is
+      // attached after their first paint, which a slow runner can reach
+      // after the button shows (main's CI, 2026-10-23).
+      await waitFor(
+        () => {
+          act(() => {
+            window.dispatchEvent(new Event("focus"));
+          });
+          expect(view.getByRole("status").textContent).toContain("Allowed");
+        },
+        { timeout: 4000, interval: 100 },
+      );
       expect(view.queryByTestId("first-run-access-reopen")).toBeNull();
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, 10_000);
 
   it("Reopen with nothing live relaunches, and first run will come back at this step", async () => {
     const view = renderAccess();

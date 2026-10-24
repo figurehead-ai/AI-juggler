@@ -132,6 +132,13 @@ jobs:
           python3 scripts/apple_retry.py --selftest
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
+      # Coverage builds the workspace again, instrumented, beside the test
+      # build: with both, the runner's disk ran out (#175, 2026-10-23). The
+      # tests have run, so their build goes first.
+      - name: Make room for coverage
+        run: |
+          rm -rf target/debug
+          df -h /
       # Coverage artifact. Best-effort in edge cases (zero-test workspaces);
       # strictness is enforced at gates via the local llvm-cov numbers.
       - name: Coverage (baseline artifact)
