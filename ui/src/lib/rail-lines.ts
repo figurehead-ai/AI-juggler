@@ -10,7 +10,7 @@
  * "Also:" line.
  */
 import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
-import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords, type GroupBy, type RailGroup } from "./rail-places";
+import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords, type AccountOf, type GroupBy, type RailGroup } from "./rail-places";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 
 export type Line =
@@ -63,9 +63,11 @@ export interface LineInputs {
   /** What each list showed before, while the pointer or focus is in the
    * list (re-sorting frozen); `null` when free. */
   frozen: Map<string, string[]> | null;
+  /** The Account lens's subscriptions, by profile. */
+  accountOf?: AccountOf;
 }
 
-export function buildLines({ items, view, query, now, toggled, frozen }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf }: LineInputs): Lines {
   const searching = isSearching(query);
   const shown = items.filter((item) => matches(item, view.only, query));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
@@ -77,7 +79,7 @@ export function buildLines({ items, view, query, now, toggled, frozen }: LineInp
   const inactive = shown.filter((item) => item.inactive && item.need === null).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
   const by: GroupBy = view.group === "account" ? "account" : "place";
-  const groups = groupItems(open, by);
+  const groups = groupItems(open, by, accountOf);
   const lines: Line[] = [];
   let rows = 0;
   if (needs.length > 0) {
@@ -87,7 +89,7 @@ export function buildLines({ items, view, query, now, toggled, frozen }: LineInp
   }
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: open.length });
   groups.forEach((group, index) => {
-    const needsHere = needs.filter((item) => (by === "place" ? item.place.key : (item.accountId ?? item.accountLabel)) === group.key).length;
+    const needsHere = needs.filter((item) => (by === "place" ? item.place.key : (accountOf?.(item.accountId)?.key ?? item.accountId ?? item.accountLabel)) === group.key).length;
     const digit = index < 9 ? index + 1 : null;
     // A quiet place folds to its header, unless the user opened it, quiet
     // ones are shown, or a search is on.

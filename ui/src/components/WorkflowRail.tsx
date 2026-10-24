@@ -421,7 +421,7 @@ export function InstanceBoard({
   const scope = outsideScope(filters, parsed.text);
   // AJ-E2103: the default view reads Needs you, Open now, then "Also:".
   const order = quietView(effectiveGroup, filters, parsed.text) ? railOrder(sorted, snooze, now) : null;
-  const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope);
+  const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // D-25: a project with no sessions still has a place in the rail (one
   // click opens it) — in the plain project view, not while filtering.

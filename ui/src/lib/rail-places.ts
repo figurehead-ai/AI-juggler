@@ -1,7 +1,8 @@
 /**
  * AJ-E2104 — Open now's groups. By place (app + profile, the default), by
- * project, or by account (until accounts group their profiles, AJ-E2109,
- * by profile); pools once they exist (a hook: none on 0.1.x).
+ * project, or by account (the subscription a profile is signed in to,
+ * AJ-E2109; a profile no account lists stands for itself); pools once
+ * they exist (a hook: none on 0.1.x).
  *
  * The order is stable (⌘1–9 go to places, so a place never moves because
  * a row changed): AI Juggler's own place first, then by app and profile.
@@ -27,12 +28,15 @@ export interface RailGroup {
 /** The last rows a place shows besides the working ones. */
 export const RECENT_SHOWN = 3;
 
-function groupOf(item: RailItem, by: GroupBy): { key: string; label: string } {
+/** The account a profile is signed in to: its key and name. */
+export type AccountOf = (profileId: string | null) => { key: string; label: string } | null;
+
+function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf): { key: string; label: string } {
   switch (by) {
     case "project":
       return { key: item.projectId ?? "none", label: item.project ?? "No project" };
     case "account":
-      return { key: item.accountId ?? item.accountLabel, label: item.accountLabel };
+      return accountOf(item.accountId) ?? { key: item.accountId ?? item.accountLabel, label: item.accountLabel };
     case "pool": // Pools don't exist on 0.1.x; the lens waits for them.
     case "place":
       return { key: item.place.key, label: item.place.app };
@@ -41,10 +45,10 @@ function groupOf(item: RailItem, by: GroupBy): { key: string; label: string } {
 
 /** Groups in a stable order: AI Juggler's place first, then by label and
  * the profile under it. */
-export function groupItems(items: RailItem[], by: GroupBy): RailGroup[] {
+export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf = () => null): RailGroup[] {
   const groups = new Map<string, RailGroup>();
   for (const item of items) {
-    const { key, label } = groupOf(item, by);
+    const { key, label } = groupOf(item, by, accountOf);
     let group = groups.get(key);
     if (!group) {
       group = { key, label, place: by === "place" || by === "pool" ? item.place : null, accountId: by === "account" ? item.accountId : null, items: [] };

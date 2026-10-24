@@ -15,8 +15,8 @@ const GROUPS: { id: GroupBy; label: string; note?: string }[] = [
   { id: "project", label: "Project" },
   // Pools come with 0.2; the lens is here so the order stays put.
   { id: "pool", label: "Pool", note: "once you make a pool" },
-  // Until accounts group their profiles (AJ-E2109): one per profile.
-  { id: "account", label: "Account", note: "one per profile for now" },
+  // The subscription its profiles are signed in to (AJ-E2109).
+  { id: "account", label: "Account", note: "its profiles together" },
 ];
 
 const ONLY_LABELS: Record<OnlyKey, string> = { app: "App", profile: "Profile", account: "Account", project: "Project", mac: "Mac" };

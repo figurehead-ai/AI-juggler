@@ -523,7 +523,7 @@ export function HomeScreen({
           )}
         </div>
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-6">
-          <HomeRunway accounts={accounts} runwayOf={(account) => runway.find((r) => r.account.id === account.id) ?? { left: null, words: "Not measured yet", resets: null }} advice={advice.words} />
+          <HomeRunway accounts={accounts} quota={quota} sessions={sessions} advice={advice.words} />
         </div>
       </div>
 

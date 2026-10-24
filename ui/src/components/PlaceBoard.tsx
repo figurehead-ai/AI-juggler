@@ -21,6 +21,7 @@ import { parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-v
 import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useSeen } from "../lib/seen";
+import { accountName, useSubscriptions } from "../lib/subscriptions";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 interface BoardProps {
@@ -111,7 +112,13 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Rows hold still while the pointer or focus is in the list.
   const last = useRef<Map<string, string[]>>(new Map());
   const [frozen, setFrozen] = useState<Map<string, string[]> | null>(null);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen });
+  // The Account lens groups by subscription (AJ-E2109), read only for it.
+  const subscriptions = useSubscriptions(0, view.group === "account");
+  const accountOf = useMemo(() => {
+    const byProfile = new Map((subscriptions ?? []).flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
+    return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
+  }, [subscriptions]);
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf });
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });

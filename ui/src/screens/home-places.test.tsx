@@ -10,6 +10,7 @@ import { HomeScreen } from "./Home";
 import { ConversationsProvider } from "../lib/conversations";
 import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { resetSeen } from "../lib/seen";
+import { loadSubscriptions } from "../lib/subscriptions";
 import { placesConversations, PREVIEW_PLACES } from "../preview/places";
 import { mockMachineHealth, mockThisMac } from "../lib/machine";
 import type { ConversationInfo } from "../lib/ipc/conversations";
@@ -106,6 +107,26 @@ describe("Home, desktop first", () => {
     expect(rows[0]!.textContent).toContain("Profiles: Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
     expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
+  });
+
+  it("Runway by account groups the profiles signed in to one account", async () => {
+    seams().__AIJ_FIXTURE__ = {
+      conversations: [],
+      subscriptions: [
+        { key: "acct-1", tool: "claude-code", state: "signed_in", email: "o@work.com", organisation: null, reason: null, plan: "Max", renewal_date: null, fee_usd: null, differs: [],
+          profiles: ["claude-work", "claude-personal"].map((id) => ({ id, folder: id, plan: "Max", renewal_date: null, fee_usd: null })) },
+      ],
+    };
+    await loadSubscriptions(true); // the list is cached for half a minute
+    const view = render(
+      <ConversationsProvider>
+        <HomeScreen sessions={[]} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} />
+      </ConversationsProvider>,
+    );
+    await waitFor(() => expect(view.getAllByTestId("home-runway-account")).toHaveLength(1));
+    const row = view.getByTestId("home-runway-account");
+    expect(row.textContent).toContain("Profiles: Work Max, Personal");
+    expect(row.textContent).toContain("o@work.com");
   });
 
   it("nothing needs you: says so, with no empty card", async () => {

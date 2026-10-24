@@ -121,6 +121,16 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     expect(again.map((group) => group.key)).toEqual(groups.map((group) => group.key));
   });
 
+  it("by account: profiles on one subscription share a group (AJ-E2109)", () => {
+    const work = talk("w1", { account_id: "p-work", account_label: "Work" });
+    const side = talk("w2", { account_id: "p-side", account_label: "Side" });
+    const other = talk("w3", { account_id: "p-own", account_label: "Own" });
+    const all = itemsOf({ sessions: [], conversations: [work, side, other], projects: [], seen: {} });
+    const sub = { key: "acct-1", label: "Claude Max" };
+    const groups = groupItems(all, "account", (id) => (id === "p-work" || id === "p-side" ? sub : null));
+    expect(groups.map((group) => [group.label, group.items.length])).toEqual([["Claude Max", 2], ["Own", 1]]);
+  });
+
   it("open in two places is one row that says so", () => {
     const both = items().find((item) => item.key === "c:a1/both")!;
     expect(both.alsoIn).toEqual(["Terminal · Work"]);
