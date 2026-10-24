@@ -155,6 +155,9 @@ for (const theme of THEMES) {
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         // AJ-E1533: a session's page opens on its body, the Terminal tab.
         await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
+        // The terminal loads on first use (#173): a slow runner shot its
+        // empty pane (#175).
+        await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
         await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
       });
 
