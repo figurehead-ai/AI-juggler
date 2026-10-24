@@ -12,6 +12,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod activity;
 pub mod claude_code;
 pub mod claude_conversations;
 pub mod claude_environment;
@@ -36,7 +37,9 @@ pub mod sign_in;
 pub mod subtasks;
 pub mod tool_summary;
 pub mod transcript;
+pub mod transcript_tail;
 
+pub use activity::{ActivityLog, ActivityTail};
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
 pub use claude_transcript::{
     MessageRole, ParsedMessage, ParsedTranscript, dedupe_messages, parse_transcript,

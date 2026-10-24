@@ -213,18 +213,39 @@ fn tool_call(
     pending: &mut Vec<String>,
     payload: &serde_json::Value,
 ) {
-    let Some(name) = text(payload, "name") else {
+    let Some((name, input)) = call_of(payload) else {
         return;
-    };
-    // `function_call` carries JSON in a string; a custom call its raw input.
-    let input = match text(payload, "arguments") {
-        Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
-        None => serde_json::json!({ "input": text(payload, "input").unwrap_or_default() }),
     };
     if let Some(tasks) = crate::tool_summary::task_list(&name, &input) {
         parsed.tasks = Some(tasks);
     }
     pending.push(crate::tool_summary::summarize(&name, &input));
+}
+
+/// A tool call item's name and input: `function_call` carries JSON in a
+/// string, a custom call (`apply_patch`) its raw input.
+fn call_of(payload: &serde_json::Value) -> Option<(String, serde_json::Value)> {
+    let name = text(payload, "name")?;
+    let input = match text(payload, "arguments") {
+        Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
+        None => serde_json::json!({ "input": text(payload, "input").unwrap_or_default() }),
+    };
+    Some((name, input))
+}
+
+/// AJ-E1703: one line's tool call, for what the session is working on.
+pub(crate) fn activity_line(log: &mut crate::activity::ActivityLog, value: &serde_json::Value) {
+    let null = serde_json::Value::Null;
+    let payload = value.get("payload").unwrap_or(&null);
+    if text(value, "type").as_deref() == Some("response_item")
+        && matches!(
+            text(payload, "type").as_deref(),
+            Some("function_call" | "custom_tool_call")
+        )
+        && let Some((name, input)) = call_of(payload)
+    {
+        log.call(&name, &input);
+    }
 }
 
 /// Tool calls nothing was said after (the turn ended on them, or the user

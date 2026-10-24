@@ -10,17 +10,11 @@
 //! piece at a time, so a tick only reads what was appended.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read as _, Seek as _, SeekFrom};
-use std::path::Path;
 
 use crate::transcript::{TranscriptFormat, line_format};
 
 /// The most characters of a subagent's task kept as its label.
 const LABEL_CHARS: usize = 80;
-
-/// The most bytes one [`SubtaskTail::read`] takes in, so a first read of
-/// a long transcript is spread over a few ticks.
-const READ_PER_CALL: u64 = 16 * 1024 * 1024;
 
 /// Where a subagent stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,82 +194,14 @@ pub fn subtasks_of(bytes: &[u8]) -> SubtaskLog {
     log
 }
 
-/// Reads a transcript as it grows: each [`SubtaskTail::read`] takes in only
-/// the bytes appended since the last one, and a line still being written
-/// waits for the next read.
-#[derive(Debug, Clone, Default)]
-pub struct SubtaskTail {
-    log: SubtaskLog,
-    offset: u64,
-    partial: Vec<u8>,
-    /// The file read so far (inode), to tell a replaced file.
-    file: Option<u64>,
-}
+/// Reads a transcript as it grows, into a [`SubtaskLog`] (only what was
+/// appended since the last read).
+pub type SubtaskTail = crate::transcript_tail::TranscriptTail<SubtaskLog>;
 
-impl SubtaskTail {
-    /// Reads what was appended to `path` (at most 16 MiB a call). A file
-    /// that was replaced (another file, or a shorter one) is read again
-    /// from the start. Returns whether anything was read.
-    ///
-    /// # Errors
-    ///
-    /// The file can't be opened or read.
-    pub fn read(&mut self, path: &Path) -> std::io::Result<bool> {
-        let mut file = std::fs::File::open(path)?;
-        let metadata = file.metadata()?;
-        let identity = Some(file_identity(&metadata));
-        if metadata.len() < self.offset || (self.file.is_some() && self.file != identity) {
-            *self = Self::default();
-        }
-        self.file = identity;
-        if metadata.len() == self.offset {
-            return Ok(false);
-        }
-        file.seek(SeekFrom::Start(self.offset))?;
-        let mut chunk = Vec::new();
-        file.take(READ_PER_CALL).read_to_end(&mut chunk)?;
-        self.offset += chunk.len() as u64;
-        // Only the new bytes are searched for a line's end.
-        let line_end = chunk.iter().rposition(|b| *b == b'\n');
-        let kept = self.partial.len();
-        self.partial.extend_from_slice(&chunk);
-        if let Some(end) = line_end {
-            let rest = self.partial.split_off(kept + end + 1);
-            let whole = std::mem::replace(&mut self.partial, rest);
-            self.log.feed(&whole);
-        }
-        Ok(!chunk.is_empty())
+impl crate::transcript_tail::TailLog for SubtaskLog {
+    fn feed(&mut self, bytes: &[u8]) {
+        Self::feed(self, bytes);
     }
-
-    /// Reads all of `path`, 16 MiB at a time (memory stays bounded by what
-    /// the log keeps, not by the file's size).
-    ///
-    /// # Errors
-    ///
-    /// As [`SubtaskTail::read`].
-    pub fn read_all(&mut self, path: &Path) -> std::io::Result<()> {
-        while self.read(path)? {}
-        Ok(())
-    }
-
-    /// What has been read so far.
-    #[must_use]
-    pub fn log(&self) -> &SubtaskLog {
-        &self.log
-    }
-}
-
-/// A file's identity (its inode), to tell it from another at the same
-/// path. Elsewhere 0: only a shorter file is told apart there.
-#[cfg(unix)]
-fn file_identity(metadata: &std::fs::Metadata) -> u64 {
-    use std::os::unix::fs::MetadataExt as _;
-    metadata.ino()
-}
-
-#[cfg(not(unix))]
-fn file_identity(_metadata: &std::fs::Metadata) -> u64 {
-    0
 }
 
 /// The first line of a task, cut to [`LABEL_CHARS`].
