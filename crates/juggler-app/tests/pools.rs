@@ -555,24 +555,27 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
     // Allow once twice: the second ask offers Always allow; the rule
     // allows, and taking it back asks again on the very next call.
     pools::access::set_level_impl(&state, &team, "work_together", &[]).unwrap();
-    pools::access::answer_impl(&state, &team, "prepare_launch", "once").unwrap();
-    assert_eq!(
-        decide(&planner, AgentAction::PrepareLaunch),
-        Decision::Ask { offer_always: true }
-    );
-    let info = pools::access::answer_impl(&state, &team, "prepare_launch", "always").unwrap();
-    let rule = info.pools.iter().find(|row| row.id == team).unwrap().rules[0].clone();
-    assert_eq!(
-        (rule.action.as_str(), rule.made_by.as_str()),
-        ("prepare_launch", "user")
-    );
+    // Staging a launch is Work together's (the Needs you card's click is
+    // the gate); giving work to someone else still asks.
     assert_eq!(
         decide(&planner, AgentAction::PrepareLaunch),
         Decision::Allow
     );
+    pools::access::answer_impl(&state, &team, "assign_task", "once").unwrap();
+    assert_eq!(
+        decide(&planner, AgentAction::AssignTask),
+        Decision::Ask { offer_always: true }
+    );
+    let info = pools::access::answer_impl(&state, &team, "assign_task", "always").unwrap();
+    let rule = info.pools.iter().find(|row| row.id == team).unwrap().rules[0].clone();
+    assert_eq!(
+        (rule.action.as_str(), rule.made_by.as_str()),
+        ("assign_task", "user")
+    );
+    assert_eq!(decide(&planner, AgentAction::AssignTask), Decision::Allow);
     pools::access::revoke_impl(&state, rule.id).unwrap();
     assert!(matches!(
-        decide(&planner, AgentAction::PrepareLaunch),
+        decide(&planner, AgentAction::AssignTask),
         Decision::Ask { .. }
     ));
     assert!(matches!(
@@ -640,7 +643,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
         .agent_access()
         .audit(100)
         .unwrap();
-    assert_eq!(audited.len(), 15);
+    assert_eq!(audited.len(), 16);
 }
 
 /// The hard lines (D-28): the agent action catalog names no way to change
@@ -672,15 +675,19 @@ fn no_level_or_rule_can_reach_a_hard_line() {
             );
         }
     }
-    // prepare_launch stages only: no level includes it.
-    for level in juggler_core::agent_access::AccessLevel::ALL {
-        if level != juggler_core::agent_access::AccessLevel::Custom {
-            assert!(
-                !level
-                    .actions(&Default::default())
-                    .contains(&AgentAction::PrepareLaunch)
-            );
-        }
+    // prepare_launch only stages a launch for the user's click: Work
+    // together and Full allow it, Read never does; assigning work to
+    // someone else is in no named level.
+    use juggler_core::agent_access::AccessLevel;
+    let none = Default::default();
+    assert!(
+        !AccessLevel::Read
+            .actions(&none)
+            .contains(&AgentAction::PrepareLaunch)
+    );
+    for level in [AccessLevel::WorkTogether, AccessLevel::Full] {
+        assert!(level.actions(&none).contains(&AgentAction::PrepareLaunch));
+        assert!(!level.actions(&none).contains(&AgentAction::AssignTask));
     }
     // The decision point writes nothing but the audit.
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));

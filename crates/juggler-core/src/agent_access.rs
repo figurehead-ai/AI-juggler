@@ -47,7 +47,9 @@ pub enum AgentAction {
     /// starts that session's turn), within the loop caps.
     DeliverToSession,
     /// Stage a launch for the user to start with a click (an agent never
-    /// starts one, and never picks the account).
+    /// starts one, and never picks the account). It only puts a card in
+    /// Needs you; the user's click there is the gate, so Work together
+    /// allows it without asking first.
     PrepareLaunch,
 }
 
@@ -105,9 +107,10 @@ impl AgentAction {
 pub enum AccessLevel {
     /// See the roster, the cards and the tasks.
     Read,
-    /// Read, plus set its own status, post messages, share documents and
-    /// create, claim and update tasks. Delivering into an idle session
-    /// needs the user's click. The default pool starts here.
+    /// Read, plus set its own status, post messages, share documents,
+    /// create, claim and update tasks, and stage a launch for the user's
+    /// click. Delivering into an idle session needs the user's click.
+    /// Every pool starts here.
     WorkTogether,
     /// Work together, plus deliver messages straight into other members'
     /// sessions, within the loop caps.
@@ -152,6 +155,7 @@ impl AccessLevel {
             A::CreateTask,
             A::ClaimTask,
             A::UpdateTask,
+            A::PrepareLaunch,
         ];
         match self {
             Self::Read => read.into_iter().collect(),
@@ -295,12 +299,14 @@ mod tests {
         assert!(read.is_subset(&work) && work.is_subset(&full));
         assert!(!work.contains(&AgentAction::DeliverToSession));
         assert!(full.contains(&AgentAction::DeliverToSession));
-        for above in [AgentAction::AssignTask, AgentAction::PrepareLaunch] {
-            assert!(
-                !full.contains(&above),
-                "{above:?} always asks unless a rule allows it"
-            );
-        }
+        assert!(
+            !full.contains(&AgentAction::AssignTask),
+            "assigning always asks unless a rule allows it"
+        );
+        // Staging a launch is Work together's: the Needs you card's click
+        // is the gate, so asking first would be two approvals for one.
+        assert!(!read.contains(&AgentAction::PrepareLaunch));
+        assert!(work.contains(&AgentAction::PrepareLaunch));
         let custom: BTreeSet<_> = [AgentAction::ReadRoster, AgentAction::AssignTask].into();
         assert_eq!(AccessLevel::Custom.actions(&custom), custom);
     }
