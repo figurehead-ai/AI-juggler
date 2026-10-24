@@ -205,7 +205,7 @@ impl AgentAccessRepo<'_> {
         Ok(out)
     }
 
-    /// The user's "Always allow <action> in <pool>": a rule, made by the
+    /// The user's "Always allow `<action>` in `<pool>`": a rule, made by the
     /// user. Making one that's already there changes nothing.
     ///
     /// # Errors

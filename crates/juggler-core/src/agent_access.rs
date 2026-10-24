@@ -181,7 +181,7 @@ pub enum Decision {
     /// `offer_always` — the user has allowed this action in this pool
     /// once already, so the ask offers "Always allow".
     Ask {
-        /// Offer "Always allow <action> in <pool>".
+        /// Offer "Always allow `<action>` in `<pool>`".
         offer_always: bool,
     },
     /// Not at all: the agent isn't in the pool, or the pool is gone.
