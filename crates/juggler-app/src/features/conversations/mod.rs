@@ -199,7 +199,7 @@ impl ConversationIndex {
     }
 
     /// AJ-E2108: the file that stands for `account`'s conversation `id`
-    /// (the newest of its files, as [`merged`] keeps), without copying
+    /// (the newest of its files, as `merged` keeps), without copying
     /// the index.
     #[must_use]
     pub fn path_of(&self, account: &str, id: &str) -> Option<PathBuf> {
