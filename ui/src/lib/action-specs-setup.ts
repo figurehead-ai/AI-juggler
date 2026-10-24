@@ -107,6 +107,16 @@ export const ACCOUNT: ActionSpec<"account">[] = [
     applies: (_, h) => has(h.editLaunchSettings),
     run: (a, h) => h.editLaunchSettings!(a),
   },
+  // AJ-E2109: a profile whose sessions run elsewhere can report its limits.
+  {
+    id: "measure-limits",
+    label: "Measure its limits…",
+    icon: "info",
+    group: "work",
+    rank: 35,
+    applies: (_, h) => has(h.measureLimits),
+    run: (a, h) => h.measureLimits!(a),
+  },
   { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 40, applies: (_, h) => has(h.renameAccount), run: (a, h) => h.renameAccount!(a) },
   {
     id: "copy-settings",

@@ -342,7 +342,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Terminal", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Terminal", "Overview", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
@@ -352,7 +352,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Account / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+    await page.getByTestId("profile-open").first().click();
     const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
     await expect(tabs).toHaveText(["Overview", "Sessions"]);
     await tabs.filter({ hasText: "Sessions" }).click();
@@ -449,7 +449,7 @@ test("inspector — Account Overview rings + forecast", gate("08-inspector-aggre
   );
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+  await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
   await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
@@ -476,7 +476,8 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).nth(1).click();
+  // AJ-E2109: a profile not signed in sits last, under Not signed in.
+  await page.locator("[data-profile=\"claude-personal\"]").getByTestId("profile-open").click();
   await expect(page.getByTestId("account-signin-card")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
@@ -594,7 +595,7 @@ async function seedRenewalPage(
 
 async function openAccountOverview(page: import("@playwright/test").Page) {
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+  await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
 
@@ -3964,7 +3965,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await goTo(page, "Accounts");
-      await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
+      // AJ-E2109: a profile's launch settings open from its menu.
+      await page.getByTestId("account-menu").first().click();
+      await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
       await page.getByTestId("recipe-env-toggle").first().click();
       await expect(page.getByTestId("env-overlay-editor")).toBeVisible();
       await shot41(page, `accounts-pack-secrets-${vp.name}-${theme}`);

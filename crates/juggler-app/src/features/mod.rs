@@ -16,6 +16,7 @@ pub mod projects;
 pub mod quota;
 pub mod sessions;
 pub mod staging;
+pub mod subscriptions;
 pub mod subtasks;
 pub mod switch_setup;
 pub mod terminal;

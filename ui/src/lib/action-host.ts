@@ -48,6 +48,8 @@ export interface ActionHost {
   startBlockedWhy?: (account: AccountInfo) => string | null;
   signIn?: (account: AccountInfo) => void;
   editLaunchSettings?: (account: AccountInfo) => void;
+  /** AJ-E2109: measure its limits (its page has the opt-in). */
+  measureLimits?: (account: AccountInfo) => void;
   renameAccount?: (account: AccountInfo) => void;
   /** AJ-E1508: another account's usual settings, copied into this one. */
   copyAccountSettings?: (account: AccountInfo) => void;

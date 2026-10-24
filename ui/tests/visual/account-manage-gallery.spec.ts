@@ -54,7 +54,7 @@ async function axeClean(page: Page, what: string) {
 }
 
 function card(page: Page, label: string) {
-  return page.getByRole("button", { name: `Account actions for ${label}`, exact: true });
+  return page.getByRole("button", { name: `Profile actions for ${label}`, exact: true });
 }
 
 for (const theme of ["dark", "light"] as const) {

@@ -1,23 +1,25 @@
 /**
- * AJ-E1529 — a conversation AI Juggler didn't start: what it is, where,
- * on which account, and the two things it can do with it (D-08: never
- * stop or tidy what isn't its own). "Continue in AI Juggler" resumes it
- * as a session of its own on the same account, on the user's click;
- * "Copy resume command" gives the line to run it in a terminal.
- * AJ-E1533: the same page as every session's — its type, its project
- * as the crumb, its actions in the header.
+ * AJ-E1529, AJ-E2108 — the page of a session another app runs (or one
+ * AI Juggler's index found in the tools' files): where it runs, its last
+ * messages, and Go to it. D-08: AI Juggler never stops or tidies what
+ * isn't its own; "Continue in AI Juggler" resumes it as a session of its
+ * own on the same profile, on the user's click. AJ-E1533: the same page
+ * as every session's, its project as the crumb.
  */
-import { AccountAvatar } from "./Avatar";
-import type { JSX } from "react";
-import { Button, Card, Chip } from "./primitives";
+import { useCallback, type JSX } from "react";
+import { Button, Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { ToolMark } from "./ToolMark";
 import { PageHeader, PageShell, type Crumb } from "../pages/PageShell";
 import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
-import { agoWords } from "../lib/time-words";
+import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
+import { lazyNamed } from "../lib/lazy";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
+import { GoToButton, SessionChips, SessionMark } from "../pages/session/SessionHead";
+import { fromConversation } from "../pages/session/model";
+
+const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 
 function tokenWords(tokens: { input: number; output: number; cache_read: number; cache_write: number } | null): string {
   if (!tokens) return "Not measured";
@@ -42,88 +44,65 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
   const host = useActionHost();
   // On its own page: no "Open".
   const menu = useItemMenu("conversation", conversation, conversationTitle(conversation), { openConversation: undefined });
+  const accounts = useSubscriptions();
   const title = conversationTitle(conversation);
+  const model = fromConversation(conversation);
   const project = projects.find((p) => p.id === conversation.project_id);
   const crumbs: Crumb[] = project
     ? [{ label: project.name, onOpen: () => host.openProjectById?.(project.id), testId: "crumb-project" }]
     : [];
-  const last = conversation.last_activity_ms === null ? null : agoWords(conversation.last_activity_ms, now);
-  const facts: [string, string][] = [
-    ["Folder", conversation.cwd ?? "—"],
-    ["Branch", conversation.git_branch ?? "—"],
-    ["Last activity", last ?? "—"],
-    ["Tokens", tokenWords(conversation.tokens)],
-  ];
+  const goTo = useCallback(() => void host.goToConversation?.(conversation), [host, conversation]);
+  const carryIn = () => void host.continueConversation?.(conversation);
+  const hasUsage = conversation.tokens !== null;
   return (
     <div className="flex h-full flex-col" data-testid="conversation-page" {...menu.triggerProps}>
       <PageShell
         kind="conversation"
-        tabs={pageTabs("conversation")}
+        tabs={pageTabs("conversation", { hasUsage })}
         header={
           <PageHeader
             kind="conversation"
-            mark={<ToolMark tool={conversation.tool} size={18} />}
+            layout="session"
+            mark={<SessionMark model={model} />}
             name={title}
             crumbs={crumbs}
-            chips={
-              <>
-                <Chip tone={conversation.live ? "accent" : "neutral"} dot={conversation.live}>
-                  {conversation.live ? "Running" : "Ended"}
-                </Chip>
-                <span data-testid="outside-chip">
-                  <Chip tone="neutral">outside AI Juggler</Chip>
-                </span>
-              </>
-            }
+            chips={<SessionChips model={model} account={accounts ? accountOfProfile(accounts, model.profileId) : undefined} now={now} />}
             facts={
-              <span className="inline-flex items-center gap-1.5">
-                <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
-                {conversation.account_label}
-                {last !== null && <span>· active {last}</span>}
+              <span>
+                Started <span data-testid="outside-chip">outside AI Juggler</span>: it shows here to read, and AI Juggler never stops or changes it.
               </span>
             }
             actions={
               <>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={conversation.live}
-                  title={conversation.live ? "It's open in another session now" : undefined}
-                  onClick={() => void host.continueConversation?.(conversation)}
-                  data-testid="conversation-continue"
-                >
-                  Continue in AI Juggler
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => void host.copyConversationResume?.(conversation)} data-testid="conversation-copy-resume">
-                  Copy resume command
-                </Button>
+                {conversation.live ? (
+                  host.goToConversation && <GoToButton onGo={goTo} why={null} />
+                ) : (
+                  <>
+                    <Button size="sm" variant="primary" onClick={carryIn} data-testid="conversation-continue">
+                      Continue in AI Juggler
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => void host.copyConversationResume?.(conversation)} data-testid="conversation-copy-resume">
+                      Copy resume command
+                    </Button>
+                  </>
+                )}
                 {menu.button({ label: `Actions for ${title}`, shown: true, testId: "header-menu" })}
               </>
             }
           />
         }
-        render={() => (
-          <Card className="flex flex-col gap-3 p-5">
-            <p className="text-xs text-muted">
-              Started outside AI Juggler, so it shows here to read; AI Juggler doesn't stop or change it.
-              {conversation.live && " It's open in another session now: continue here once it's closed there."}
-            </p>
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[12px]">
-              {facts.map(([label, value]) => (
-                <div key={label} className="contents">
-                  <dt className="text-muted">{label}</dt>
-                  <dd className="min-w-0 truncate text-ink" title={value}>
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        )}
-        footer={() => (
-          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
-            from the tool's own session files
-          </footer>
+        render={(tab, visible) =>
+          tab === "usage" ? (
+            <Card className="flex flex-col gap-1.5 p-4 text-[12px]" data-testid="conversation-usage">
+              <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">Usage</h3>
+              <p className="text-ink">{tokenWords(conversation.tokens)}, each message counted once.</p>
+            </Card>
+          ) : (
+            <SessionOverview model={model} visible={visible} onCarryIn={host.continueConversation ? carryIn : undefined} />
+          )
+        }
+        footer={(tab) => (
+          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">from {tab.source}</footer>
         )}
       />
       {menu.element}

@@ -19,6 +19,7 @@ fn a_signed_in_config_dir_reports_its_account_masked() {
         IdentityProbe::SignedIn {
             subject: "acct-123".into(),
             label: "o…@example.com · Acme".into(),
+            org: None,
         }
     );
 }
@@ -56,5 +57,36 @@ fn credential_content_never_reaches_the_probe_result() {
     assert!(
         !probe.contains("a@b.co"),
         "the full email is never shown: {probe}"
+    );
+}
+
+#[test]
+fn a_personal_plan_and_a_team_seat_on_one_login_name_their_organisations() {
+    // D-35: one email, two subscriptions. The subject (the guard's id)
+    // is the same; the organisation tells the two accounts apart.
+    let probe = |org: &str, name: &str| {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(".claude.json"),
+            format!(
+                r#"{{"oauthAccount":{{"accountUuid":"acct-1","emailAddress":"olivia@example.com","organizationUuid":"{org}","organizationName":"{name}"}}}}"#
+            ),
+        )
+        .unwrap();
+        probe_claude_identity(dir.path())
+    };
+    let seat = |probe: IdentityProbe| match probe {
+        IdentityProbe::SignedIn { subject, org, .. } => Some((subject, org)),
+        _ => None,
+    };
+    let personal = seat(probe("org-personal", "Personal"));
+    let team = seat(probe("org-team", "Acme"));
+    assert_eq!(
+        personal,
+        Some(("acct-1".to_owned(), Some("org-personal".to_owned())))
+    );
+    assert_eq!(
+        team,
+        Some(("acct-1".to_owned(), Some("org-team".to_owned())))
     );
 }

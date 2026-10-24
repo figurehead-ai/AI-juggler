@@ -1280,7 +1280,11 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
     if let Some(org) = text("organizationName") {
         label = format!("{label} · {org}");
     }
-    IdentityProbe::SignedIn { subject, label }
+    IdentityProbe::SignedIn {
+        subject,
+        label,
+        org: text("organizationUuid"),
+    }
 }
 
 /// ADR-0019: Claude Code, described as data (every screen and command

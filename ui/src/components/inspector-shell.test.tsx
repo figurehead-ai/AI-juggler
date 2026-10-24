@@ -129,7 +129,7 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session", tabs: ["Terminal", "Usage", "Processes"] },
+    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session", tabs: ["Terminal", "Overview", "Usage", "Processes"] },
     // A tool's page is its body alone: no tab strip.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
@@ -209,9 +209,9 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   // (⌥ changes what `key` reads; the digit comes from `code`).
   it("Option+Cmd/Ctrl+digit picks a tab; Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
+    fireEvent.keyDown(window, { key: "4", code: "Digit4", metaKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("false");
-    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "¢", code: "Digit4", metaKey: true, altKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement?.id).toBe("page-tab-processes");
   });

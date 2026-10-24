@@ -295,7 +295,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+    // AJ-E2109: a profile's page opens from its row.
+    await page.getByTestId("profile-open").first().click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -1501,7 +1502,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
+    // AJ-E2109: a profile's launch settings open from its menu.
+    await page.getByTestId("account-menu").first().click();
+    await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
     await page.getByTestId("recipe-env-toggle").first().click();
     await expect(page.getByLabel("Variable name 1")).toHaveValue("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
     await page.getByTestId("expert-hatch").first().click();
