@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
 import { conversationsLastMessages, type LastMessagesInfo } from "../../lib/ipc/conversations";
 import { errorText } from "../../lib/bridge";
+import { LAST_MESSAGES_EVENT } from "../../lib/last-messages";
 import { appWords, isDesktopApp, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
@@ -19,7 +20,7 @@ const NONE: Record<string, string> = {
 };
 
 function openSettings(): void {
-  window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }));
+  window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "last-messages" } }));
 }
 
 export function LastMessages({ model, visible, remoteMac }: { model: SessionModel; visible: boolean; remoteMac?: string | null }): JSX.Element {
@@ -28,6 +29,16 @@ export function LastMessages({ model, visible, remoteMac }: { model: SessionMode
   const { profileId, conversationId } = model;
   const key = `${profileId}\u0000${conversationId ?? ""}`;
   const read = useRef<string | null>(null);
+  // Turned on or off in Settings: read again (or say it's off).
+  const [choice, setChoice] = useState(0);
+  useEffect(() => {
+    const changed = () => {
+      read.current = null;
+      setChoice((n) => n + 1);
+    };
+    window.addEventListener(LAST_MESSAGES_EVENT, changed);
+    return () => window.removeEventListener(LAST_MESSAGES_EVENT, changed);
+  }, []);
   // Read once the page is shown, not before; again only for another
   // session (or when a read was cut short by leaving the page).
   useEffect(() => {
@@ -51,7 +62,7 @@ export function LastMessages({ model, visible, remoteMac }: { model: SessionMode
       alive = false;
       if (!answered) read.current = null;
     };
-  }, [visible, remoteMac, key, profileId, conversationId]);
+  }, [visible, remoteMac, key, profileId, conversationId, choice]);
 
   const speaker = speakerName(model.tool);
   const place = model.places[0];
@@ -86,7 +97,7 @@ export function LastMessages({ model, visible, remoteMac }: { model: SessionMode
         <p className="text-[12px] text-muted" data-testid="last-messages-off">
           Last messages are off.{" "}
           <button type="button" onClick={openSettings} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-            Turn them on in Settings
+            Turn them on in Settings › Desktop apps
           </button>
           .
         </p>

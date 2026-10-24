@@ -79,11 +79,17 @@ pub fn last_messages_impl(
     account_id: &str,
     conversation_id: &str,
 ) -> AppResult<LastMessagesInfo> {
-    if !enabled(state) {
-        return Ok(LastMessagesInfo::without("off"));
+    Ok(answer(enabled(state), || {
+        state.conversations.path_of(account_id, conversation_id)
+    }))
+}
+
+/// Off: nothing is looked up or read. On: the transcript `find` names.
+fn answer(on: bool, find: impl FnOnce() -> Option<std::path::PathBuf>) -> LastMessagesInfo {
+    if !on {
+        return LastMessagesInfo::without("off");
     }
-    let path = state.conversations.path_of(account_id, conversation_id);
-    Ok(read(path.as_deref()))
+    read(find().as_deref())
 }
 
 /// The last messages of the transcript at `path` (none: no transcript),
@@ -197,6 +203,20 @@ mod tests {
             read(Some(&dir.path().join("gone.jsonl"))).state,
             "unreadable"
         );
+    }
+
+    #[test]
+    fn off_in_settings_no_transcript_is_looked_up_or_read() {
+        let (_dir, path) = transcript(&[turn("user", "hello")]);
+        let mut looked = false;
+        let info = answer(false, || {
+            looked = true;
+            Some(path.clone())
+        });
+        assert_eq!(info.state, "off");
+        assert!(info.turns.is_empty());
+        assert!(!looked, "off reads nothing");
+        assert_eq!(answer(true, || Some(path.clone())).state, "shown");
     }
 
     #[test]

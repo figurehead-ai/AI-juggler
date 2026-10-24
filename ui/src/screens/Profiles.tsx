@@ -233,7 +233,7 @@ export function ProfilesScreen({
           onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "packs" } }))}
           className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
-          Settings › Context packs &amp; secrets
+          Settings › Switching
         </button>
         .
       </p>
