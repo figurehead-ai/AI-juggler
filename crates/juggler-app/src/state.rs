@@ -59,6 +59,9 @@ pub struct AppState {
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
     /// AJ-E1520: each live session's subagents, read on the same tick.
     pub subtasks: crate::features::subtasks::Subtasks,
+    /// AJ-E1703: what each live session is working on (its context card),
+    /// read on the same tick.
+    pub pool_activity: crate::features::pools::cards::Activity,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -290,6 +293,7 @@ impl AppState {
             orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             subtasks: crate::features::subtasks::Subtasks::default(),
+            pool_activity: crate::features::pools::cards::Activity::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

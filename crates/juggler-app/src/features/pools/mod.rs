@@ -1,5 +1,5 @@
 //! AJ-E1702: pools — the user groups sessions, names the groups, and says
-//! who leads.
+//! who leads. AJ-E1703: each pool's context cards ([`cards`]).
 //!
 //! - The user owns every pool: these commands are the only way to change
 //!   pools, members, roles and grants, and only the app's UI calls them.
@@ -9,6 +9,7 @@
 //! - Pool operations only read and write the pool tables. They never
 //!   start, stop or type into a session (`tests/pools.rs` holds that).
 
+pub mod cards;
 pub mod commands;
 pub mod dto;
 
@@ -18,7 +19,7 @@ use std::sync::Arc;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-pub use dto::{GrantInfo, PoolInfo, PoolMemberInfo, PoolsInfo};
+pub use dto::{CardField, ContextCard, GrantInfo, PoolCards, PoolInfo, PoolMemberInfo, PoolsInfo};
 use juggler_core::model::{AccountId, ProjectId, SessionId};
 use juggler_core::storage::{
     Capability, DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, PoolKind, PoolRole,

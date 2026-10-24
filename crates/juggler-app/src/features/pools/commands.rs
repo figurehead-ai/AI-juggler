@@ -1,10 +1,10 @@
-//! The pools' commands (AJ-E1702): one read, and the user's
+//! The pools' commands (AJ-E1702, AJ-E1703): two reads, and the user's
 //! changes to pools, members, roles and grants. Only the app's own window
 //! calls them; none of them touches a session.
 
 use std::sync::Arc;
 
-use super::PoolsInfo;
+use super::{PoolCards, PoolsInfo};
 use crate::error::AppResult;
 use crate::state::AppState;
 
@@ -16,6 +16,22 @@ use crate::state::AppState;
 #[tauri::command]
 pub async fn pools_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PoolsInfo> {
     crate::ipc::blocking(state.inner(), "the pools", super::pools_list_impl).await
+}
+
+/// One pool's context cards.
+///
+/// # Errors
+///
+/// As [`super::cards::cards_impl`].
+#[tauri::command]
+pub async fn pool_cards(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<PoolCards> {
+    crate::ipc::blocking(state.inner(), "the pool's cards", move |state| {
+        super::cards::cards_impl(state, &pool_id)
+    })
+    .await
 }
 
 /// Makes a pool (optionally for one project).

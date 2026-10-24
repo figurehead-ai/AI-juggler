@@ -42,7 +42,7 @@ impl ActivityLog {
             let format = *self.format.get_or_insert_with(|| line_format(&value));
             match format {
                 TranscriptFormat::ClaudeCode => {
-                    crate::claude_transcript::activity_line(self, &value)
+                    crate::claude_transcript::activity_line(self, &value);
                 }
                 TranscriptFormat::CodexRollout => {
                     crate::codex_transcript::activity_line(self, &value);

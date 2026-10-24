@@ -1,4 +1,4 @@
-//! The pools' wire types (AJ-E1702).
+//! The pools' wire types (AJ-E1702, AJ-E1703).
 
 use serde::Serialize;
 use ts_rs::TS;
@@ -62,4 +62,78 @@ pub struct GrantInfo {
     pub member: bool,
     /// Observers may.
     pub observer: bool,
+}
+
+/// One thing a card says, or why it can't (D-06: never a guess). Exactly
+/// one of the two is set.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct CardField {
+    /// What AI Juggler knows.
+    pub value: Option<String>,
+    /// Why it doesn't, in words ("Unavailable — …").
+    pub unavailable: Option<String>,
+}
+
+impl CardField {
+    /// A known value.
+    #[must_use]
+    pub fn known(value: impl Into<String>) -> Self {
+        Self {
+            value: Some(value.into()),
+            unavailable: None,
+        }
+    }
+
+    /// Unknown, and why.
+    #[must_use]
+    pub fn unavailable(why: &str) -> Self {
+        Self {
+            value: None,
+            unavailable: Some(format!("Unavailable — {why}")),
+        }
+    }
+}
+
+/// AJ-E1703: what one member of a pool is working on, built only from
+/// what AI Juggler knows. It never carries an account: the same card is
+/// what an agent will be shown (AJ-E1704).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ContextCard {
+    /// The session.
+    pub session_id: String,
+    /// Its name: the user's label, else what it's about, else its branch
+    /// or folder.
+    pub name: String,
+    /// Where it works: its project (and branch), else its folder's name.
+    pub place: String,
+    /// The tool, by its display name.
+    pub tool: String,
+    /// Its state (`running`, `waiting_user`, `stuck`, `ended`, …).
+    pub state: String,
+    /// Its role in the pool.
+    pub role: String,
+    /// The task it has claimed (E19).
+    pub task: CardField,
+    /// What it says it's doing, in its own words: the step its own task
+    /// list has in progress. Shown as said by the agent, never as a fact.
+    pub said: CardField,
+    /// When it was last active, epoch ms.
+    pub last_activity_ms: Option<i64>,
+    /// The files it changed most recently, newest first (the last two
+    /// parts of each path).
+    pub files: Vec<String>,
+    /// Why `files` is empty when it's not known to be empty.
+    pub files_unavailable: Option<String>,
+}
+
+/// A pool's cards, its lead first.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolCards {
+    /// The pool.
+    pub pool_id: String,
+    /// One card per member.
+    pub cards: Vec<ContextCard>,
 }

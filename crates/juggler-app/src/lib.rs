@@ -316,6 +316,7 @@ macro_rules! app_commands {
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
             Read  features::pools::commands::pools_list,
+            Read  features::pools::commands::pool_cards,
             Write features::pools::commands::pool_create,
             Write features::pools::commands::pool_rename,
             Write features::pools::commands::pool_delete,
@@ -1023,6 +1024,8 @@ fn spawn_read_model_ticks(
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
             commands::detect_running_models(&processes_app, &processes_state, None);
+            // AJ-E1703: what each live session is working on (its card).
+            features::pools::cards::tick(&processes_state);
             if features::subtasks::tick(&processes_state) {
                 let _ = commands::emit_sessions(&processes_app, &processes_state);
             }
