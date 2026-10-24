@@ -50,7 +50,7 @@ const switchOf = (root: HTMLElement, key: string) =>
 
 describe("Settings — Appearance", () => {
   it("follows ⌘⇧L and writes the choice", async () => {
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusSection="general" />);
     act(() => setTheme("light"));
     await waitFor(() =>
       expect((view.getByTestId("appearance-light") as HTMLInputElement).checked).toBe(true),
@@ -62,7 +62,7 @@ describe("Settings — Appearance", () => {
 
 describe("Settings — Account & Cloud", () => {
   it("signed out explains both paths and never calls the desktop path lesser", async () => {
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     const card = await view.findByTestId("cloud-signed-out");
     expect(card.textContent).toContain("You can do everything in AI Juggler without an account");
     expect(card.textContent).toContain("never leave this Mac");
@@ -72,7 +72,7 @@ describe("Settings — Account & Cloud", () => {
   });
 
   it("a refused pairing code says why", async () => {
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     fireEvent.click(await view.findByTestId("cloud-use-code"));
     fireEvent.change(view.getByTestId("cloud-code"), { target: { value: "BAD" } });
     await act(async () => {
@@ -82,7 +82,7 @@ describe("Settings — Account & Cloud", () => {
   });
 
   it("linking shows the code, and a denial offers Try again", async () => {
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     const connect = await view.findByTestId("cloud-connect");
     await act(async () => {
       fireEvent.click(connect);
@@ -97,7 +97,7 @@ describe("Settings — Account & Cloud", () => {
 
   it("the consent screen defaults backup and discovery on; usage sync off here (it's set in Privacy)", async () => {
     w().__AIJ_FIGUREHEAD__ = { ...LINKED };
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     await view.findByTestId("cloud-consent");
     expect(switchOf(view.container, "cloudBackup").getAttribute("aria-checked")).toBe("true");
     expect(switchOf(view.container, "fleetDiscovery").getAttribute("aria-checked")).toBe("true");
@@ -123,7 +123,7 @@ describe("Settings — Account & Cloud", () => {
       consent_version: 1,
       features: [...LINKED.features, { key: "transcriptVault", access: "upgrade", tier: "paid", on: false }],
     };
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     await view.findByTestId("cloud-connected");
     expect(switchOf(view.container, "transcriptVault").disabled).toBe(true);
     expect(view.getByText("Paid")).toBeTruthy();
@@ -139,7 +139,7 @@ describe("Settings — Account & Cloud", () => {
       features: [],
       notice: "This Mac was unlinked from Figurehead.",
     };
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     const notice = await view.findByTestId("cloud-notice");
     expect(notice.textContent).toContain("unlinked");
     expect(notice.textContent).toContain("Everything on this Mac is unchanged");
@@ -151,7 +151,7 @@ describe("Settings — Account & Cloud", () => {
 
   it("Unlink asks first, focuses Cancel, and says what stays", async () => {
     w().__AIJ_FIGUREHEAD__ = { ...LINKED, consent_version: 1 };
-    const view = render(<SettingsScreen />);
+    const view = render(<SettingsScreen focusCloud />);
     fireEvent.click(await view.findByTestId("cloud-unlink"));
     const sheet = view.getByTestId("cloud-unlink-confirm");
     expect(sheet.textContent).toContain("Everything stored on this Mac stays");
