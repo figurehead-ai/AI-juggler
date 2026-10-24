@@ -538,6 +538,19 @@ session → any managed Provider) unchanged (T4).
 > This Mac) replaces the Overview and Triage screens. The Right
 > Inspector and the global Accounts, Usage and Fleet screens stand.
 
+> **Amended by D-36 (desktop first, 2026-10-24; words per D-35):** the
+> information architecture is desktop first. The default lens is the
+> **place**, an app + profile pair (D-35) such as "Claude app · Work";
+> projects are one lens among Group by Place, Project, Pool and Account.
+> The rail's sections are Needs you, Open now (grouped by place), then one
+> "Also:" line (ended today, inactive, background, History) whose parts
+> turn those views on; a view that is off by default leaves a count, never
+> silence, and nothing is removed. View (⇧V) holds Group by, Show and
+> Only. Go to it activates the session's app + profile by its process
+> (D-37); exact windows and terminal tabs only when turned on in Settings.
+> The go-to hotkey has no default now: the user picks one in Settings ›
+> Desktop apps, and ⌥Space is refused because ChatGPT uses it.
+
 Left rail = the work surface: **Projects / Instances / Sessions** (three
 tabs; the list lives in the rail; collapse to icons; ⌘B; New session at
 its foot — recents + native folder picker + drag-drop, never typed
@@ -565,6 +578,15 @@ expose context-window use`). Five states per surface: populated, empty,
 loading, error, stale/offline.
 
 ### 9.3 Indicator grammar (the rail and board rows)
+
+> **Amended by D-36 (the row grammar; words per D-35):** a session row
+> shows the app icon with its profile badge, the title, a place line
+> (project · app · profile (D-35) · window or tab), and a state dot with
+> its word: Asks you, Working, Idle, Done (review it), and the folded
+> Ended. Every tool and app status maps onto these five, in that order
+> everywhere; an inferred state says "probably". Runway shows on a row
+> only when low; limits and money show per account (D-35). The fuller
+> state list below stays the domain model.
 
 Every Instance row carries, with text+icon redundancy (never colour
 alone — WCAG 1.4.1): Provider, Account, running model, state
