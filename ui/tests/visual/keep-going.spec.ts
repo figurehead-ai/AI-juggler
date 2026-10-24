@@ -63,7 +63,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`a launch setting chooses for itself — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
+    // AJ-E2109: a profile's launch settings open from its menu.
+    await page.getByTestId("account-menu").first().click();
+    await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
     await page.getByTestId("recipe-env-toggle").first().click();
     const choice = page.getByLabel("If a session crashes").first();
     await expect(choice).toHaveValue("settings");
