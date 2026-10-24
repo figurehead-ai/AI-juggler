@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane } from "./fixtures";
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on
@@ -1621,6 +1621,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("settings-screen")).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
+    await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-connect").click();
     await expect(page.getByTestId("cloud-linking")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2218,6 +2219,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("backup-restore").click();
     await expect(page.getByTestId("restore-go")).toBeFocused();
@@ -2377,6 +2379,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     await expect(page.getByTestId("recovery-code")).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("recovery-copy")).toBeFocused();
@@ -2414,6 +2417,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-backup-restore").click();
     await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2503,6 +2507,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
+    await settingsPane(page, "Privacy");
     await expect(page.getByTestId("settings-privacy")).toBeVisible();
     await page.getByTestId("privacy-report-view").first().click();
     await expect(page.getByTestId("privacy-report-json")).toBeVisible();
@@ -2626,7 +2631,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Settings");
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    await await settingsPane(page, "Sessions");
     const terminal = page.getByTestId("settings-terminal").locator("summary");
     await terminal.focus();
     await page.keyboard.press("Enter");

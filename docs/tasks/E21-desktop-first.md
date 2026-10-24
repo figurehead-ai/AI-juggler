@@ -198,7 +198,7 @@
 
 ## Step 4 — Settings, docs and trust (0.1.6)
 
-### AJ-E2110 Settings panes, docs and the Privacy page | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
+### AJ-E2110 Settings panes, docs and the Privacy page | Status: IN-PROGRESS (panes, Desktop apps, docs and claims evidenced; the rail reading Show sessions from waits for AJ-E2104, the Last messages claim's backend tests for AJ-E2108) | Priority P0 | Effort M | Depends: AJ-E2101..AJ-E2109
 **Goal**: Settings is a set of named panes with grouped sections, and the docs and Privacy page say what the new reads are.
 **User story**: As a user, I find any setting by its pane, and the Privacy page tells me what AI Juggler reads to know what's open.
 **Requirements**:

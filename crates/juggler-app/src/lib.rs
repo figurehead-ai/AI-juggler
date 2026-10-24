@@ -98,9 +98,6 @@ pub const EVENT_GO_TO: &str = "app://go-to";
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-/// Default "Go to instance…" hotkey (SPEC §9.2 / deep-review §4.17:
-/// `⌥Space`, rebindable).
-pub const DEFAULT_GO_TO_HOTKEY: &str = "Alt+Space";
 
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
@@ -937,20 +934,24 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
-/// Registers the stored (or default) "Go to instance…" hotkey
-/// (AJ-E414 Req.4). A conflict or a locked-down system key logs and
+/// Registers the "Go to instance…" hotkey the user chose (AJ-E414
+/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to ChatGPT,
+/// so nothing is registered until the user picks a key in Settings ›
+/// Desktop apps. A conflict or a locked-down system key logs and
 /// continues — the palette stays reachable in-app (⌘K).
 fn register_go_to_hotkey(app: &tauri::AppHandle) {
     use tauri::Manager;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let hotkey = app
+    let Some(hotkey) = app
         .state::<std::sync::Arc<state::AppState>>()
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(GO_TO_HOTKEY_KEY).ok())
         .flatten()
-        .unwrap_or_else(|| DEFAULT_GO_TO_HOTKEY.to_string());
+    else {
+        return;
+    };
     if let Err(error) = app.global_shortcut().register(hotkey.as_str()) {
         eprintln!("ai-juggler: hotkey {hotkey} not registered: {error}");
     }

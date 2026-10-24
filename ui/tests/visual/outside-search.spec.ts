@@ -8,7 +8,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/90-outside-search");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -53,6 +53,7 @@ for (const theme of ["dark", "light"] as const) {
     test(`Settings › Privacy, search every session ${enabled ? "on" : "off"} — ${theme}`, async ({ page }) => {
       await open(page, theme, enabled);
       await goTo(page, "Settings");
+      await settingsPane(page, "Privacy");
       const setting = page.getByTestId("privacy-outside-search");
       await expect(page.getByTestId("outside-search-size")).toHaveText(
         enabled

@@ -14,7 +14,7 @@
  * with a per-screen note in the PR — scripts/check_baseline_notes.py).
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, settingsPane } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const THEMES = ["dark", "light"] as const;
@@ -281,7 +281,7 @@ for (const theme of THEMES) {
       test(`settings sessions — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Settings");
-        await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+        await await settingsPane(page, "Sessions");
         await page.getByTestId("settings-terminal").locator("summary").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
         await page.mouse.move(0, 0);

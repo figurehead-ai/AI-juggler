@@ -143,12 +143,12 @@ rollback all work before any user depends on them.
       and `AI-Juggler-Nightly-X.Y.Z-universal.dmg`. Install **both** on
       your Mac; they sit side by side in Applications and share nothing.
       Gatekeeper must open each without warnings. AI Juggler's Settings ›
-      About & updates shows the version and the Stable/Beta picker; AI
+      General › About & updates shows the version and the Stable/Beta picker; AI
       Juggler Nightly's shows "nightly channel" and a **Nightly** badge
       in the sidebar. Use AI Juggler for real work and Nightly to try
-      new builds: each keeps its own copies of your Accounts. In Nightly,
-      press ⌘K and change the Go to instance shortcut, since both apps
-      want ⌥Space.
+      new builds: each keeps its own copies of your Accounts. The
+      shortcut that opens AI Juggler from anywhere has no default; if
+      you set one, give Nightly a different one (Settings › Desktop apps).
 - [ ] Use AI Juggler Nightly for at least 3 days of real work (D-24).
       Report what you find; anything that loses data, uses the wrong
       account, stops the wrong process, crashes at launch or breaks an

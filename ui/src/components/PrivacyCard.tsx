@@ -27,6 +27,7 @@ import {
   type UsageStatsMode,
   type UsageStatsOverview,
 } from "../lib/bridge";
+import { CardTitle } from "./CardTitle";
 
 const CATEGORY_LABEL: Record<string, string> = {
   environment: "Your setup",
@@ -136,9 +137,9 @@ export function PrivacyCard(): JSX.Element {
       data-effective={info.effective}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold" id="privacy-title">
+        <CardTitle id="privacy-title">
           Privacy
-        </h3>
+        </CardTitle>
         {/* AJ-E1518: the full list, each line tested. */}
         <button
           type="button"
