@@ -8,7 +8,8 @@ Nightly notes follow the same rules as every release note
 (scripts/release_notes_check.sh): one plain first sentence, then New /
 Improved / Fixed. Only user-facing commit types count (feat → New,
 perf → Improved, fix → Fixed). Scopes, task IDs, PR numbers and paths
-are stripped; a subject that still names a file is left out.
+are stripped; a subject that still names a file is left out. Notes
+already written for VERSION (on main, by hand: 0.1.0's) are kept.
 """
 from __future__ import annotations
 
@@ -113,6 +114,10 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     version, start, end = args
+    target = ROOT / "docs/releases" / f"{version}.md"
+    if target.exists():
+        print(target.relative_to(ROOT), "(written by hand, kept)")
+        return 0
     log = subprocess.run(
         ["git", "log", "--format=%s", f"{start}..{end}"] if start else ["git", "log", "--format=%s", "-50", end],
         cwd=ROOT, capture_output=True, text=True, check=True,
@@ -120,7 +125,6 @@ def main() -> int:
     date = subprocess.run(
         ["git", "show", "-s", "--format=%cs", end], cwd=ROOT, capture_output=True, text=True, check=True
     ).stdout.strip()
-    target = ROOT / "docs/releases" / f"{version}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(ROOT / "scripts"))
     from downgrade_note import schema_at  # noqa: E402

@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """D-20 release versions: one stream, channels are pointers.
 
-  release_version.py next RUN_NUMBER     print MAJOR.MINOR.RUN_NUMBER
+  release_version.py next < TAGS        print the next MAJOR.MINOR.PATCH,
+                                         from the release tags on stdin
   release_version.py stamp X.Y.Z         write X.Y.Z into the workspace
                                          Cargo.toml, every crate's internal
                                          dependencies and tauri.conf.json
                                          (CI checkout only, never committed)
   release_version.py --selftest
 
-Every nightly build gets the next version: MAJOR.MINOR come from the
-workspace version in Cargo.toml (the maintainer bumps them), PATCH is
-the nightly workflow's run number, so versions only ever grow. A build
-promoted to beta or stable keeps its version: nothing is rebuilt.
+Every nightly build gets the next version, as Semantic Versioning has
+it: MAJOR.MINOR come from the workspace version in Cargo.toml (the
+maintainer bumps them), and PATCH is 0 for the first build of a
+MAJOR.MINOR and one more than the last release tag's after that
+(v0.1.0, v0.1.1, …). A version that isn't above every release tag is
+refused, so versions only ever grow. A build promoted to beta or stable
+keeps its version: nothing is rebuilt.
+
+PATCH was once the nightly's run number, which never resets: the first
+0.1 build came out as 0.1.18 (2026-10-23).
 """
 from __future__ import annotations
 
@@ -41,11 +48,23 @@ def base(root: Path) -> tuple[int, int]:
     return int(match.group(2)), int(match.group(3))
 
 
-def next_version(root: Path, run_number: int) -> str:
-    if run_number < 1:
-        raise SystemExit("the run number must be positive")
+RELEASE_TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
+
+
+def next_version(root: Path, tags: list[str]) -> str:
+    """The next version after `tags` (git tag names; anything but
+    vX.Y.Z, such as a channel's tag, is ignored)."""
     major, minor = base(root)
-    return f"{major}.{minor}.{run_number}"
+    released = [tuple(int(part) for part in match.groups()) for tag in tags if (match := RELEASE_TAG.fullmatch(tag.strip()))]
+    patches = [patch for (x, y, patch) in released if (x, y) == (major, minor)]
+    version = (major, minor, max(patches) + 1 if patches else 0)
+    newest = max(released, default=None)
+    if newest is not None and version <= newest:
+        raise SystemExit(
+            f"{'.'.join(map(str, version))} isn't above v{'.'.join(map(str, newest))}: "
+            "raise the workspace version in Cargo.toml"
+        )
+    return ".".join(map(str, version))
 
 
 def stamp(root: Path, version: str) -> None:
@@ -82,7 +101,16 @@ def selftest() -> int:
             'link = { path = "../link", version = "0.3.1" }\n'
             'serde = { version = "1.0.200", features = ["derive"] }\n'
         )
-        assert next_version(root, 57) == "0.3.57"
+        assert next_version(root, []) == "0.3.0", "the first build of a MAJOR.MINOR is .0"
+        assert next_version(root, ["v0.2.17", "v0.2.9"]) == "0.3.0", "PATCH resets when MINOR goes up"
+        assert next_version(root, ["v0.2.17", "v0.3.0", "v0.3.4\n", "v0.3.2"]) == "0.3.5"
+        assert next_version(root, ["nightly-channel", "beta-channel", "v0.3.9-rc.1", "0.3.7", "v0.3.1"]) == "0.3.2", "only vX.Y.Z counts"
+        for ahead in (["v0.4.0"], ["v1.0.0"], ["v0.3.1", "v0.10.2"]):
+            try:
+                next_version(root, ahead)
+            except SystemExit:
+                continue
+            raise AssertionError(f"went below {ahead!r}")
         stamp(root, "0.3.57")
         assert 'version = "0.3.57"' in (root / CARGO).read_text()
         app = (root / "crates/app/Cargo.toml").read_text()
@@ -105,8 +133,8 @@ def main() -> int:
     args = sys.argv[1:]
     if args == ["--selftest"]:
         return selftest()
-    if len(args) == 2 and args[0] == "next":
-        print(next_version(ROOT, int(args[1])))
+    if args == ["next"]:
+        print(next_version(ROOT, sys.stdin.read().split()))
         return 0
     if len(args) == 2 and args[0] == "stamp":
         stamp(ROOT, args[1])

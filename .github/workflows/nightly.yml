@@ -1,7 +1,8 @@
 # D-20: the nightly channel — built from main every day, no approval.
 # Its feed carries AI Juggler Nightly, installed next to AI Juggler (D-23).
 # Skips a day with no new commits. Every build gets the next version
-# (MAJOR.MINOR from Cargo.toml, PATCH = this workflow's run number), is
+# (MAJOR.MINOR from Cargo.toml; PATCH 0 for a new MAJOR.MINOR, else one
+# past the last release tag: scripts/release_version.py), is
 # published as a pre-release, and becomes the nightly feed. Promotion to
 # beta and stable (promote.yml) reuses the same signed build.
 name: Nightly
@@ -57,21 +58,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           FORCE: ${{ inputs.force || false }}
-          RUN: ${{ github.run_number }}
         run: |
           ref="$(git rev-parse HEAD)"
           previous=""
           work="$RUNNER_TEMP/feed" && mkdir -p "$work"
           if gh release download nightly-channel --repo "$REPO" --pattern latest.json --dir "$work" 2>/dev/null; then
             last="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$work/latest.json")"
-            previous="$(gh release view "v$last" --repo "$REPO" --json targetCommitish --jq .targetCommitish)"
+            # A version taken back (v0.1.18, 2026-10-24) has no release: then
+            # there is no previous build to compare with.
+            previous="$(gh release view "v$last" --repo "$REPO" --json targetCommitish --jq .targetCommitish 2>/dev/null || true)"
           fi
           skip=false
           if [ "$previous" = "$ref" ] && [ "$FORCE" != "true" ]; then
             skip=true
             echo "main hasn't changed since the last nightly ($ref)." >> "$GITHUB_STEP_SUMMARY"
           fi
-          version="$(python3 scripts/release_version.py next "$RUN")"
+          # The checkout above has every tag (fetch-depth: 0).
+          version="$(git tag -l 'v*' | python3 scripts/release_version.py next)"
           {
             echo "skip=$skip"
             echo "version=$version"

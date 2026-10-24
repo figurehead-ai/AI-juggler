@@ -42,10 +42,9 @@ jobs:
           persist-credentials: false
       - name: A version that is never published
         id: plan
-        env:
-          RUN: ${{ github.run_number }}
+        # MAJOR.MINOR.0: the rehearsal's version is never published.
         run: |
-          echo "version=$(python3 scripts/release_version.py next "$RUN")" >> "$GITHUB_OUTPUT"
+          echo "version=$(python3 scripts/release_version.py next < /dev/null)" >> "$GITHUB_OUTPUT"
 
   rehearse:
     needs: plan
