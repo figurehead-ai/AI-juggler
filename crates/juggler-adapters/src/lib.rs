@@ -1,6 +1,6 @@
 //! Concrete harness adapters for AI Juggler.
 //!
-//! One module per harness — `claude_code`, `codex`, `zcode` — plus `fake`, the
+//! One module per harness — `claude_code`, `codex`, `opencode` — plus `fake`, the
 //! scriptable fake harness that drives lifecycle, stuck-detection, and
 //! crash-recovery tests across the whole system. Every adapter implements the
 //! `juggler_adapter::HarnessAdapter` contract and confines itself to its
@@ -28,6 +28,10 @@ pub mod config_edit;
 pub mod fake;
 pub mod inference;
 pub mod inventory_files;
+pub mod opencode;
+pub mod opencode_environment;
+pub mod opencode_inventory;
+pub mod opencode_store;
 pub mod other_managers;
 mod presence;
 pub mod quota_ingest;
@@ -43,6 +47,7 @@ pub use claude_transcript::{
 };
 pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
+pub use opencode::{OPENCODE_ID, OpenCodeAdapter, opencode_spec};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,
     ensure_launch_overlay, install_statusline, overlay_dir, overlay_spool_path, rollout_events,

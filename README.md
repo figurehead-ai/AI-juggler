@@ -131,7 +131,8 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
 | Crash reports, scrubbed on your Mac (off unless you choose) | Kept on your Mac; this version can't send them anywhere yet |
 | Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
-| More tools (OpenCode, ZCode, Kimi and others) | Planned |
+| OpenCode | Beta: built from its source, not yet checked live |
+| More tools (ZCode, Grok and others) | Planned |
 | Windows and Linux | Not before 1.0 |
 
 ## Supported tools
@@ -140,6 +141,7 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | --- | --- |
 | **Claude Code** (the `claude` command) | Sessions, usage, limits, starting sessions, switching (beta) |
 | **Codex** (the `codex` command) | Sessions, usage, limits, starting sessions, switching (beta) |
+| **OpenCode** (the `opencode` command, 1.x and 2.x) | Beta, not yet checked live: sessions, usage (tokens, and its own cost estimate), starting sessions, rules and MCP servers |
 | **Claude app** (desktop) | Its Claude Code sessions are listed; This Mac measures its memory and CPU |
 
 AI Juggler finds each tool through your shell's `PATH`, the way your terminal
@@ -151,7 +153,8 @@ does, even when you open the app from Finder.
 
 - Your tool setups: Claude Code's `~/.claude` (and other Claude folders you
   use) and Codex's `~/.codex`, to list conversations and count usage from
-  their transcripts.
+  their transcripts; OpenCode's `~/.local/share/opencode` database, read
+  without changing it, and its settings in `~/.config/opencode`.
 - Account names and emails from those setups, so you can tell accounts
   apart.
 - The list of running processes, to show live sessions and This Mac.

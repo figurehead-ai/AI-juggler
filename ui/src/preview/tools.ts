@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
- * what the adapters' specs serve (crates/juggler-adapters claude_code.rs
- * and codex.rs `*_spec()`). Preview data only — the app reads
+ * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
+ * codex.rs and opencode.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -66,6 +66,43 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       checked: "2026-10-23",
     },
     home_env: ["CODEX_HOME", "CODEX_SQLITE_HOME", "AI_JUGGLER_CODEX_BIN"],
+    supports: { in_place: true, limits: false },
+  },
+  {
+    id: "opencode",
+    display_name: "OpenCode",
+    short_name: "OpenCode",
+    vendor: "Anomaly",
+    mark: "opencode",
+    vendor_mark: null,
+    install_url: "https://opencode.ai/download",
+    install_command: "npm install -g opencode-ai",
+    sign_in_own: "OpenCode's own sign-in",
+    sign_in_short: "OpenCode's",
+    same_as: "as when you run OpenCode yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
+    setup_groups: [{ id: "opencode", title: "OpenCode", path_contains: null, origin: null, shows_install: true }],
+    default_label: "OpenCode",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "OpenCode's Terms of Service",
+      url: "https://opencode.ai/legal/terms-of-service",
+      accounts:
+        "OpenCode's Terms of Service say not to use several accounts to get around usage limits, access restrictions or billing.",
+      checked: "2026-10-21",
+    },
+    home_env: [
+      "XDG_DATA_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_STATE_HOME",
+      "OPENCODE_CONFIG_DIR",
+      "OPENCODE_DB",
+      "OPENCODE_TEST_HOME",
+      "AI_JUGGLER_OPENCODE_BIN",
+    ],
     supports: { in_place: true, limits: false },
   },
 ];

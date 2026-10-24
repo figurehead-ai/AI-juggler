@@ -92,7 +92,7 @@ pub fn live_ids(conversations: &[Conversation], running: &[RunningSession]) -> H
 /// The sessions running on this Mac now, by every registered tool's own
 /// rule. Two passes: the whole table with executables and arguments,
 /// then the environment and folder of the few that are sessions. Only
-/// the tool's isolation variable is read from an environment.
+/// the tool's pinned isolation variables are read from an environment.
 #[must_use]
 pub fn running_sessions(
     state: &std::sync::Arc<crate::state::AppState>,
@@ -146,36 +146,17 @@ pub fn running_sessions(
             .with_environ(UpdateKind::Always)
             .with_cwd(UpdateKind::Always),
     );
-    let canonical =
-        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     found
         .into_iter()
         .filter_map(|(pid, _, tool, resumes)| {
             let process = system.process(pid)?;
             let (id, adapter) = &adapters[tool];
-            let keys = adapter.isolation_env_keys();
-            let pointed = process.environ().iter().find_map(|entry| {
-                let entry = entry.to_str()?;
-                keys.iter()
-                    .find_map(|key| {
-                        entry
-                            .strip_prefix(key)?
-                            .strip_prefix('=')
-                            .filter(|value| !value.is_empty())
-                    })
-                    .map(std::path::PathBuf::from)
-            });
-            let folder = pointed
-                .or_else(|| adapter.vendor_default_dir())
-                .map(|path| canonical(&path));
-            let account_id = folder.and_then(|folder| {
-                accounts
-                    .iter()
-                    .find(|account| {
-                        account.harness == *id && canonical(&account.state_dir) == folder
-                    })
-                    .map(|account| account.id.to_string())
-            });
+            let environ: Vec<&str> = process
+                .environ()
+                .iter()
+                .filter_map(|entry| entry.to_str())
+                .collect();
+            let account_id = account_of(adapter.as_ref(), id, &environ, accounts);
             Some(RunningSession {
                 tool: id.to_string(),
                 account_id,
@@ -187,6 +168,61 @@ pub fn running_sessions(
             })
         })
         .collect()
+}
+
+/// A path as this Mac resolves it (the path itself when it's gone).
+fn canonical(path: &std::path::Path) -> std::path::PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// The account a session of `tool` runs on: the one whose pinned folders
+/// its environment (`KEY=value` entries) names (AJ-E1602: a tool may pin
+/// several, each its own folder); with none of them set, the tool's own
+/// default folder.
+fn account_of(
+    adapter: &dyn juggler_adapter::HarnessAdapter,
+    tool: &juggler_core::model::HarnessId,
+    environ: &[&str],
+    accounts: &[juggler_core::model::Account],
+) -> Option<String> {
+    let pointed: Vec<(&str, std::path::PathBuf)> = adapter
+        .pinned_env_keys()
+        .iter()
+        .filter_map(|key| {
+            environ.iter().find_map(|entry| {
+                entry
+                    .strip_prefix(key)?
+                    .strip_prefix('=')
+                    .filter(|value| !value.is_empty())
+                    .map(|value| (*key, canonical(std::path::Path::new(value))))
+            })
+        })
+        .collect();
+    let default = if pointed.is_empty() {
+        adapter.vendor_default_dir().map(|path| canonical(&path))
+    } else {
+        None
+    };
+    accounts
+        .iter()
+        .filter(|account| account.harness == *tool)
+        .find(|account| {
+            if let Some(default) = &default {
+                return canonical(&account.state_dir) == *default;
+            }
+            adapter
+                .pinned_env(&account.state_dir)
+                .iter()
+                .any(|(key, value)| {
+                    value.as_deref().is_some_and(|value| {
+                        let value = canonical(std::path::Path::new(value));
+                        pointed
+                            .iter()
+                            .any(|(found, path)| found == key && *path == value)
+                    })
+                })
+        })
+        .map(|account| account.id.to_string())
 }
 
 #[cfg(test)]
@@ -290,5 +326,48 @@ mod tests {
             live,
             HashSet::from([("a".into(), "t".into(), "same".into())])
         );
+    }
+
+    /// AJ-E1602: a tool that pins several folders (OpenCode's XDG roots)
+    /// is matched by any of them; with none set, by its default folder.
+    #[test]
+    fn a_session_belongs_to_the_account_its_pinned_folders_name() {
+        let home = "/nonexistent-aj-e1602/home";
+        let adapter = juggler_adapters::OpenCodeAdapter::with_bin("/bin/echo").with_home(home);
+        let tool = juggler_core::model::HarnessId::new(juggler_adapters::OPENCODE_ID);
+        let account = |id: &str, dir: &str| juggler_core::model::Account {
+            id: juggler_core::model::AccountId::new(id),
+            harness: tool.clone(),
+            label: id.into(),
+            plan: None,
+            state_dir: dir.into(),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: None,
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        };
+        let accounts = [
+            account("a", "/nonexistent-aj-e1602/accounts/a"),
+            account("b", "/nonexistent-aj-e1602/accounts/b"),
+            account("default", &format!("{home}/.local/share/opencode")),
+        ];
+        let of = |environ: &[&str]| account_of(&adapter, &tool, environ, &accounts);
+        assert_eq!(
+            of(&[
+                "PATH=/bin",
+                "XDG_DATA_HOME=/nonexistent-aj-e1602/accounts/b/data"
+            ])
+            .as_deref(),
+            Some("b")
+        );
+        assert_eq!(
+            of(&["XDG_CONFIG_HOME=/nonexistent-aj-e1602/accounts/a/config"]).as_deref(),
+            Some("a")
+        );
+        assert_eq!(of(&["PATH=/bin"]).as_deref(), Some("default"));
+        assert_eq!(of(&["XDG_DATA_HOME=/elsewhere"]), None);
     }
 }

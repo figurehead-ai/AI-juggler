@@ -43,7 +43,7 @@
 **Research basis**: `opencode.md` §subscriptions; `kimi.md` §8.
 **Handover note**: Blocked on D-34 for the key's home.
 
-### AJ-E1602 OpenCode CLI | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1602 OpenCode CLI | Status: DONE-EVIDENCED (live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: OpenCode runs as a first-class tool with separate accounts.
 **User story**: As an OpenCode user with several providers, I run its sessions beside Claude and Codex.
 **Requirements**:

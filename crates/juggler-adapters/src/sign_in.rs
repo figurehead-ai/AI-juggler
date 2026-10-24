@@ -1,9 +1,9 @@
 //! The files a tool keeps its sign-in in (ADR-0003): the one place their
 //! names live. Outside this module they're seen only through what it hands
-//! out, never a path to open: a file's metadata (presence, size), and the
+//! out, never a path to open: a file's metadata (presence, size), the
 //! presence-only shape of Codex's `auth.json` (which fields are filled, its
 //! mode and account id; every token is skipped while parsing and never
-//! stored). The name constants are the crate's own, for the copy rules
+//! stored), and the kinds of OpenCode's sign-ins (`oauth`, `api`). The name constants are the crate's own, for the copy rules
 //! that keep these files back. `juggler-app/tests/no_bare_tools.rs` fails
 //! when the names appear anywhere else, when a function outside the lists
 //! uses the constants, or when this module reads any other way.
@@ -16,15 +16,20 @@ use crate::presence::Present;
 pub(crate) const CLAUDE_CREDENTIALS: &str = ".credentials.json";
 /// Codex's sign-in (its tokens, or an API key).
 pub(crate) const CODEX_AUTH: &str = "auth.json";
+/// OpenCode's sign-ins (AJ-E1602): one entry per provider, in its data
+/// folder (v1; v2 imports it into its database).
+pub(crate) const OPENCODE_AUTH: &str = "auth.json";
+/// OpenCode's MCP servers' sign-ins.
+pub(crate) const OPENCODE_MCP_AUTH: &str = "mcp-auth.json";
 
 /// A provider's sign-in file in a config folder, when it's file-based:
 /// presence and size only, never its contents.
 #[must_use]
 pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
-    let name = if provider == crate::codex::CODEX_ID {
-        CODEX_AUTH
-    } else {
-        CLAUDE_CREDENTIALS
+    let name = match provider {
+        crate::codex::CODEX_ID => CODEX_AUTH,
+        crate::opencode::OPENCODE_ID => OPENCODE_AUTH,
+        _ => CLAUDE_CREDENTIALS,
     };
     std::fs::metadata(dir.join(name)).ok()
 }
@@ -66,6 +71,47 @@ pub(crate) fn codex_account_id(dir: &Path) -> Option<String> {
         .ok()
         .and_then(|shape| shape.tokens?.account_id)
         .filter(|id| !id.is_empty())
+}
+
+/// What OpenCode's `auth.json` says, by shape.
+pub(crate) enum OpenCodeAuth {
+    /// No file.
+    Missing,
+    /// An empty file: a sign-in abandoned mid-write.
+    Empty,
+    /// Each entry's kind (`oauth`, `api`, `wellknown`: a kind, not a
+    /// secret), in the file's order.
+    Kinds(Vec<String>),
+    /// There, but not readable as JSON.
+    Unreadable,
+}
+
+/// OpenCode's `auth.json` in the data folder `dir`, streamed into each
+/// entry's `type`: every other field (tokens, keys) is skipped while
+/// parsing and never stored, logged or returned.
+pub(crate) fn opencode_auth(dir: &Path) -> OpenCodeAuth {
+    /// One entry: its kind only.
+    #[derive(serde::Deserialize)]
+    struct Entry {
+        #[serde(default, rename = "type")]
+        kind: String,
+    }
+    let path = dir.join(OPENCODE_AUTH);
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return OpenCodeAuth::Missing;
+    };
+    if meta.len() == 0 {
+        return OpenCodeAuth::Empty;
+    }
+    let Ok(file) = std::fs::File::open(&path) else {
+        return OpenCodeAuth::Unreadable;
+    };
+    serde_json::from_reader::<_, std::collections::BTreeMap<String, Entry>>(
+        std::io::BufReader::new(file),
+    )
+    .map_or(OpenCodeAuth::Unreadable, |entries| {
+        OpenCodeAuth::Kinds(entries.into_values().map(|entry| entry.kind).collect())
+    })
 }
 
 /// The shape of `auth.json` the probe needs — field names and presence;

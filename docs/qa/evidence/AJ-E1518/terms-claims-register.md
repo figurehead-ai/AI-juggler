@@ -30,6 +30,16 @@ terminal.
 | An account may not be shared or made available to anyone else | openai.com/policies/terms-of-use/ (effective 2026-01-01) · 2026-10-23 | Verified-primary | "You may not share your account credentials or make your account available to anyone else" |
 | Usage limits may not be circumvented | openai.com/policies/terms-of-use/ · 2026-10-23 | Verified-primary | You may not "circumvent any rate limits or restrictions" |
 
+## OpenCode (Anomaly)
+
+Read for the research (`docs/research/opencode.md` §7), on the vendor's own
+site, on 2026-10-21 (Terms of Service effective 2026-08-15).
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| Several accounts may not be used to get around limits or billing | opencode.ai/legal/terms-of-service · 2026-10-21 | Verified-primary | Users may not use "multiple accounts to circumvent usage limits, access restrictions, billing obligations" |
+| No one-account-per-person rule | opencode.ai/legal/terms-of-service · 2026-10-21 | Negative-evidence | Not found by this search (research S-2) |
+
 ## What Add account says
 
 Word for word, from each adapter's `terms` (the test
@@ -39,6 +49,8 @@ Word for word, from each adapter's `terms` (the test
   - The first part is the Consumer Terms' own; the second is from code.claude.com's Legal and compliance page (rows 2 and 3).
 - **Codex**, linking OpenAI's Terms of Use: "OpenAI says one person can have several accounts, and its Terms of Use say not to share one or get around its usage limits."
   - The first part is OpenAI's help centre (row 1); the second is the Terms of Use (rows 2 and 3).
+- **OpenCode**, linking OpenCode's Terms of Service: "OpenCode's Terms of Service say not to use several accounts to get around usage limits, access restrictions or billing."
+  - The OpenCode table's row 1.
 
 ## What AI Juggler does with them
 

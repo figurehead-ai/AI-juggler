@@ -1171,7 +1171,11 @@ export function installWords(install: import("../lib/bridge").ProviderInstallDat
     case "installed":
       return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
     case "unverified":
-      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
+      // A tool no version of which was tried yet (E16's, until their
+      // live check) isn't "newer" than anything.
+      return verified.length > 0
+        ? `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`
+        : `Version ${install.version ?? "unknown"} · not tested with AI Juggler yet`;
     case "not_installed":
       return "Not installed on this Mac";
     default:
