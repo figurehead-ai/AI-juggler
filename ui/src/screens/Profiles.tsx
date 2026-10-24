@@ -1,24 +1,19 @@
 import { RowPlaceholders } from "../components/Placeholder";
-import { AccountAvatar } from "../components/Avatar";
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, Chip, type ChipTone } from "../components/primitives";
-import { renewalLabel, renewalRowVisible } from "../lib/renewal";
+import { Button, Card } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
-import { IconProfiles, IconTerminal } from "../components/icons";
+import { IconProfiles } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
-import { useItemMenu } from "../components/ItemMenu";
-import { activityWords, launchSettingsName, launchTitle } from "../lib/account-words";
-import { liveOutside, useConversations } from "../lib/conversations";
+import { launchTitle } from "../lib/account-words";
+import { useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
-import { ExpertSetup } from "../components/ExpertSetup";
-import { RecipeOptions } from "../components/RecipeOptions";
-import { AccountRunway, newWorkAdvice } from "../components/AccountRunway";
-import { shortPath, useAccountManage } from "./AccountManage";
+import { newWorkAdvice } from "../components/AccountRunway";
+import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
-import { providerMark } from "../components/indicator";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits, noLimitsWords } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits } from "../lib/providers";
+import { loadSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { AccountCard } from "./accounts/AccountCard";
 import {
-  accountUseOriginal,
   accountsList,
   createProfile,
   deleteProfile,
@@ -29,20 +24,22 @@ import {
   type AccountInfo,
   type LaunchRecipeInfo,
   errorText,
-  signedIn,
   quotaDisplayAll,
   type InstanceInfo,
   type QuotaDisplayData,
 } from "../lib/bridge";
 
+export { placementWords } from "./accounts/UseOriginal";
+
 /**
- * Accounts screen (M1-3; component name kept from the M1 "Profiles"
- * era — the UI noun is Accounts, D-10): accounts with isolated state,
- * their runway (D-25) and Launch settings. The pack-secrets policy
- * lives in Settings › Context packs & secrets.
- * Every action maps 1:1 to a typed backend command; in plain-browser
- * preview mode the screen renders mock data and launches are no-ops so
- * the design can be reviewed without a backend.
+ * Accounts screen (M1-3; the file keeps its M1 name). AJ-E2109 (D-35):
+ * an **account** is a subscription you pay for; a **profile** is a setup
+ * an app runs on (a Claude app profile, a Claude Code folder), what AI
+ * Juggler stores per folder. Each account is a card with its runway, and
+ * the profiles signed in to it sit beneath, worked out from each
+ * profile's sign-in when the screen is read. Every action maps 1:1 to a
+ * typed backend command; in plain-browser preview mode the screen renders
+ * mock data and launches are no-ops.
  */
 
 export function ProfilesScreen({
@@ -53,25 +50,27 @@ export function ProfilesScreen({
   onAccountsChanged,
 }: {
   /** AJ-E1501: a rename, removal or new default — the rest of the app
-   * (rail, Usage, New session) reads the accounts again, no restart. */
+   * (rail, Usage, New session) reads the profiles again, no restart. */
   onAccountsChanged?: () => void;
-  /** D-25: Add account opens the find → bring in (or a fresh account, or
-   * a folder) → sign in flow; with more than one tool installed it asks
+  /** D-25: Add an account opens the find → bring in (or a fresh profile,
+   * or a folder) → sign in flow; with more than one tool installed it asks
    * which tool first (AJ-E1023). */
   onAddAccounts: () => void;
   openTerminal: (id: string, title: string) => void;
-  /** D-25: what runs where (activity line, runway fallback). */
+  /** D-25: what runs where (open counts, runway fallback). */
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
 }) {
   const [accounts, setAccounts] = useState<AccountInfo[] | null>(null);
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[] | null>(null);
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1501: what the last change did, in words ("Removed …").
   const [notice, setNotice] = useState<string | null>(null);
   const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  const { all: conversations } = useConversations();
   // ADR-0018: which tools' copies can switch to their original — the
   // backend's static capabilities (no install probe). If the call fails
   // the offer stays; the backend refuses what it can't adopt.
@@ -105,12 +104,10 @@ export function ProfilesScreen({
 
   const refresh = useCallback(async () => {
     try {
-      const [accountRows, profileRows] = await Promise.all([
-        accountsList(),
-        launchRecipesList(),
-      ]);
+      const [accountRows, profileRows, groups] = await Promise.all([accountsList(), launchRecipesList(), loadSubscriptions(true)]);
       setAccounts(accountRows);
       setProfiles(profileRows);
+      setSubscriptions(groups);
     } catch (cause) {
       setError(errorText(cause));
     }
@@ -125,7 +122,7 @@ export function ProfilesScreen({
     await refresh();
     onAccountsChanged?.();
   };
-  // AJ-E1537: every account menu's rename, default and remove.
+  // AJ-E1537: every profile menu's rename, default and remove.
   const accountManage = useAccountManage({ sessions, changed, failed: setError });
 
   const launch = async (recipe: LaunchRecipeInfo) => {
@@ -137,16 +134,13 @@ export function ProfilesScreen({
         return;
       }
       // Interactive sessions stream straight into the terminal dock.
-      openTerminal(
-        result.session_id,
-        launchTitle(recipe),
-      );
+      openTerminal(result.session_id, launchTitle(recipe));
     } catch (cause) {
       setError(errorText(cause));
     }
   };
 
-  if (accounts === null || profiles === null) {
+  if (accounts === null || profiles === null || subscriptions === null) {
     // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
@@ -155,34 +149,44 @@ export function ProfilesScreen({
       </div>
     );
   }
+  // Every profile under its account; one the grouping missed (just added)
+  // stands alone until the next read.
+  const grouped = subscriptions
+    .map((sub) => ({ sub, rows: sub.profiles.map((p) => accounts.find((a) => a.id === p.id)).filter((a): a is AccountInfo => a !== undefined) }))
+    .filter((group) => group.rows.length > 0);
+  const missed = accounts.filter((a) => !subscriptions.some((sub) => sub.profiles.some((p) => p.id === a.id)));
+  for (const a of missed) {
+    grouped.push({
+      sub: { key: `new-${a.id}`, tool: a.provider, state: "unverified", email: null, organisation: null, reason: "just added: its sign-in is read next time", profiles: [{ id: a.id, folder: "", plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }], plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [] },
+      rows: [a],
+    });
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <header className="flex items-end justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold tracking-tight">Accounts</h2>
-          <p className="text-xs text-muted" data-testid="accounts-summary">
-            {(() => {
-              return (
-                newWorkAdvice(accounts, displays, sessions).words ??
-                "Each account is its own sign-in, kept apart from the others."
-              );
-            })()}
+          <p className="max-w-2xl text-xs leading-relaxed text-muted" data-testid="accounts-definition">
+            An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. A{" "}
+            <strong className="font-semibold text-ink">profile</strong> is a setup an app runs on: a Claude app profile or a Claude Code folder.
+            One account can have several profiles.
           </p>
+          {newWorkAdvice(accounts, displays, sessions).words && (
+            <p className="text-xs text-muted" data-testid="accounts-summary">
+              {newWorkAdvice(accounts, displays, sessions).words}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-        <Button variant="primary" size="sm" onClick={onAddAccounts} data-testid="add-account">
-          <IconProfiles width={14} height={14} />
-          Add account
-        </Button>
+          <Button variant="primary" size="sm" onClick={onAddAccounts} data-testid="add-account">
+            <IconProfiles width={14} height={14} />
+            Add an account
+          </Button>
         </div>
       </header>
 
-      {error && (
-        <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger">
-          {error}
-        </Card>
-      )}
+      {error && <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger">{error}</Card>}
       <p role="status" className="text-xs text-muted empty:hidden" data-testid="accounts-notice">
         {notice}
       </p>
@@ -191,28 +195,31 @@ export function ProfilesScreen({
         <EmptyAccounts onAdd={onAddAccounts} />
       ) : (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
-        <div className="flex flex-col gap-4">
-          {accounts.map((account) => (
-            <AccountCard
-              key={account.id}
-              account={account}
-              canUseInPlace={inPlace !== null && supportsInPlace(inPlace, account.provider)}
-              reportsLimits={reportsLimits(limits, account.provider)}
-              profiles={profiles.filter((recipe) => recipe.account_id === account.id)}
-              onLaunch={launch}
-              onDeleteProfile={async (id) => {
-                await deleteProfile(id);
-                void refresh();
-              }}
-              onNewProfile={() => setNewProfileFor(account)}
-              onLogin={() => setLoginFor(account)}
-              onInspect={() => onInspectAccount?.(account.id)}
-              onLoginRechecked={refresh}
-              display={displays.find((d) => d.account === account.id)}
-              sessions={sessions.filter((session) => session.account_id === account.id)}
-            />
-          ))}
-        </div>
+          <div className="flex flex-col gap-4">
+            {grouped.map(({ sub, rows }) => (
+              <AccountCard
+                key={sub.key}
+                subscription={sub}
+                profiles={rows}
+                recipes={profiles}
+                displays={displays}
+                sessions={sessions}
+                conversations={conversations}
+                now={Date.now()}
+                canUseInPlace={(provider) => inPlace !== null && supportsInPlace(inPlace, provider)}
+                reportsLimits={(provider) => reportsLimits(limits, provider)}
+                onLaunch={launch}
+                onDeleteRecipe={async (id) => {
+                  await deleteProfile(id);
+                  void refresh();
+                }}
+                onNewRecipe={setNewProfileFor}
+                onLogin={setLoginFor}
+                onInspect={onInspectAccount}
+                onRechecked={refresh}
+              />
+            ))}
+          </div>
         </ActionHostProvider>
       )}
 
@@ -289,309 +296,6 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-function AccountCard({
-  account,
-  canUseInPlace,
-  now = Date.now(),
-  profiles,
-  onLaunch,
-  onDeleteProfile,
-  onNewProfile,
-  onLogin,
-  onLoginRechecked,
-  onInspect,
-  display,
-  sessions = [],
-  reportsLimits = true,
-}: {
-  account: AccountInfo;
-  /** 0.0.11 walk (Q3): its tool reports usage limits (else no limit rows). */
-  reportsLimits?: boolean;
-  /** D-25: this account's two windows (runway), if measured. */
-  display?: QuotaDisplayData;
-  /** D-25: its sessions (what runs on it; a runway fallback). */
-  sessions?: InstanceInfo[];
-  /** Local clock for the expiry tiers (AJ-E411). */
-  now?: number;
-  profiles: LaunchRecipeInfo[];
-  onLaunch: (recipe: LaunchRecipeInfo) => void;
-  onDeleteProfile: (id: string) => Promise<void>;
-  onNewProfile: () => void;
-  onLogin: () => void;
-  onLoginRechecked: () => Promise<void>;
-  onInspect?: () => void;
-  /** ADR-0018: this tool's setups can be used where they are. */
-  canUseInPlace: boolean;
-}) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [useOriginal, setUseOriginal] = useState(false);
-  const [envFor, setEnvFor] = useState<string | null>(null);
-  const onToggleSettings = () => setSettingsOpen((v) => !v);
-  const { all: conversations } = useConversations();
-  const loggedIn = signedIn(account.login_state);
-  const loginTone: ChipTone = loggedIn ? "success" : "warning";
-  // AJ-E1537: the card's menu, from the action registry.
-  const menu = useItemMenu("account", account, account.label, {
-    openAccount: onInspect ? () => onInspect() : undefined,
-    startSessionOn: () => onLaunch(profiles[0]!),
-    startBlockedWhy: () => (!loggedIn ? "Sign in first" : profiles.length === 0 ? "Add launch settings first" : null),
-    // Signed in already: no Sign in line (the card shows none either).
-    signIn: loggedIn ? undefined : onLogin,
-    editLaunchSettings: () => setSettingsOpen(true),
-  });
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2.5 border-b border-hairline px-5 py-3.5" {...menu.triggerProps}>
-        <HarnessGlyph provider={account.provider} onClick={onInspect} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <AccountAvatar accountId={account.id} label={account.label} size={20} />
-            <button type="button" onClick={onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-sm font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">{account.label}</button>
-            {account.plan && <Chip tone="accent">{account.plan}</Chip>}
-            {account.is_default && (
-              <span title="New sessions start with this account, unless a project picks its own" data-testid="account-default">
-                <Chip tone="neutral">Default</Chip>
-              </span>
-            )}
-          </div>
-          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
-            <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
-              {providerDisplayName(account.provider)}
-              {placementWords(account) && ` · ${placementWords(account)}`}
-            </span>
-            {/* ADR-0018: a copy can switch to the folder it came from. */}
-            {account.import_source_path && !account.in_place && canUseInPlace && (
-              <button
-                type="button"
-                className="shrink-0 text-accent-hi hover:underline"
-                onClick={() => setUseOriginal(true)}
-                data-testid="account-use-original"
-              >
-                Use the original instead
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {renewalRowVisible(renewalLabel(account.renewal_date, now)) && (
-            <Chip tone={renewalLabel(account.renewal_date, now)!.tier === "danger" ? "danger" : "warning"}>
-              {renewalLabel(account.renewal_date, now)!.tier === "danger" ? "⛔" : "⚠"}{" "}
-              {renewalLabel(account.renewal_date, now)!.text}
-            </Chip>
-          )}
-          {loggedIn ? (
-            <span className="text-[11px] text-muted" data-testid="account-activity">
-              {activityWords(sessions, liveOutside(conversations, account.id).length)}
-            </span>
-          ) : (
-            <>
-              <Chip tone={loginTone} dot breathing>
-                Needs sign-in
-              </Chip>
-              <Button size="sm" variant="secondary" onClick={onLogin}>
-                Sign in
-              </Button>
-            </>
-          )}
-          {/* The card's menu: right-click the header, ⋯ or Shift+F10. */}
-          {menu.button({ label: `Account actions for ${account.label}`, shown: true, testId: "account-menu" })}
-        </div>
-      </div>
-      {menu.element}
-
-      {/* D-25: runway lives here and on Home. A tool that doesn't
-          report its limits says so once, instead of empty windows. */}
-      <div className="px-5 py-3.5">
-        {reportsLimits ? (
-          <AccountRunway display={display} sessions={sessions} />
-        ) : (
-          <p className="text-[11.5px] text-muted" data-testid="account-no-limits">
-            {noLimitsWords(account.provider)}.
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-hairline px-5 py-3">
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={profiles.length === 0 || !loggedIn}
-          title={!loggedIn ? "Sign in first" : profiles.length === 0 ? "Add launch settings first (Edit launch settings)" : "Starts a session on this account"}
-          onClick={() => onLaunch(profiles[0])}
-        >
-          <IconTerminal width={13} height={13} />
-          Start a session
-          <span className="sr-only">on {account.label}</span>
-        </Button>
-        <Button size="sm" variant="secondary" onClick={onToggleSettings} aria-expanded={settingsOpen}>
-          Edit launch settings {settingsOpen ? "▾" : "▸"}
-        </Button>
-      </div>
-
-      <div className={settingsOpen ? "divide-y divide-hairline" : "hidden"}>
-        <div className="flex items-center justify-between px-5 py-2">
-          <span className="text-[11px] uppercase tracking-wider text-muted">Launch settings · used when you start on this account</span>
-          <button
-            type="button"
-            className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
-            onClick={onNewProfile}
-          >
-            ＋ New settings set
-          </button>
-        </div>
-        {profiles.length === 0 ? (
-          <div className="px-5 py-4 text-xs text-muted">
-            No launch settings yet — the default applies when you start.
-          </div>
-        ) : (
-          profiles.map((recipe) => (
-            <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-5 py-2.5">
-              <span className="text-sm">{launchSettingsName(recipe.name)}</span>
-              {recipe.model ? (
-                <Chip tone="neutral">{recipe.model}</Chip>
-              ) : (
-                <Chip tone="neutral">default model</Chip>
-              )}
-              {recipe.default_cwd && (
-                <span className="truncate font-mono text-[11px] text-muted">
-                  {recipe.default_cwd}
-                </span>
-              )}
-              <button
-                type="button"
-                aria-expanded={envFor === recipe.id}
-                onClick={() => setEnvFor((current) => (current === recipe.id ? null : recipe.id))}
-                className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
-                data-testid="recipe-env-toggle"
-              >
-                Options {envFor === recipe.id ? "▾" : "▸"}
-              </button>
-              <div className="ml-auto flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  title="Delete launch settings"
-                  onClick={() => void onDeleteProfile(recipe.id)}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
-                </Button>
-                <Button size="sm" variant="primary" onClick={() => onLaunch(recipe)}>
-                  <IconTerminal width={13} height={13} />
-                  Launch
-                </Button>
-              </div>
-              {envFor === recipe.id && (
-                <div className="basis-full pt-1">
-                  <RecipeOptions provider={account.provider} accountId={account.id} recipe={recipe} />
-                </div>
-              )}
-            </div>
-          ))
-        )}
-        <div className="px-5 py-3">
-          <ExpertSetup
-            provider={account.provider}
-            accounts={[{ id: account.id, label: account.label }]}
-            surface="accounts"
-            showMetricsExport
-          />
-        </div>
-      </div>
-      {/* keep recheck reachable for logged-in cards via silent refresh */}
-      <span className="hidden">{void onLoginRechecked}</span>
-      {useOriginal && account.import_source_path && (
-        <UseOriginalModal
-          account={account}
-          source={account.import_source_path}
-          onClose={() => setUseOriginal(false)}
-          onDone={async () => {
-            setUseOriginal(false);
-            await onLoginRechecked();
-          }}
-        />
-      )}
-    </Card>
-  );
-}
-
-/** ADR-0018: confirm switching a copy to its original folder — what
- * changes, and that nothing is deleted. */
-function UseOriginalModal({
-  account,
-  source,
-  onClose,
-  onDone,
-}: {
-  account: AccountInfo;
-  source: string;
-  onClose: () => void;
-  onDone: () => Promise<void>;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const where = shortPath(source);
-  return (
-    <Modal title="Use the original folder?" onClose={onClose}>
-      <div className="flex flex-col gap-4 text-sm" data-testid="use-original">
-        <p className="truncate font-mono text-xs text-ink" title={source}>
-          {where}
-        </p>
-        <p className="leading-relaxed text-muted">
-          {account.label} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
-          AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
-          won't resume from the original.
-        </p>
-        {error && (
-          <p className="text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button onClick={onClose}>Not now</Button>
-          <Button
-            variant="primary"
-            disabled={busy}
-            data-testid="use-original-confirm"
-            onClick={async () => {
-              setBusy(true);
-              setError(null);
-              try {
-                await accountUseOriginal(account.id);
-                await onDone();
-              } catch (cause) {
-                setError(errorText(cause));
-                setBusy(false);
-              }
-            }}
-          >
-            {busy ? "Switching…" : "Use the original"}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function HarnessGlyph({ provider, onClick }: { provider: string; onClick?: () => void }) {
-  // Each tool's mark, the one its sessions carry in the rail (I-01,
-  // AJ-E1526): from the catalog, or the letter mark.
-  const mark = providerMark(provider);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      title={onClick ? `Inspect ${providerDisplayName(provider)}` : providerDisplayName(provider)}
-      className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 enabled:hover:border-accent/40 disabled:cursor-default"
-      data-testid="account-tool-mark"
-      data-provider={provider}
-    >
-      <mark.Icon width={16} height={16} aria-hidden="true" />
-    </button>
-  );
-}
 
 function NewProfileModal({
   account,
@@ -702,12 +406,3 @@ function LoginModal({
   );
 }
 
-/** ADR-0018: where an account lives, in a few words — "uses ~/x where
- * it is" or "a copy of ~/x"; nothing for an account made fresh here. */
-export function placementWords(account: AccountInfo): string | null {
-  if (!account.import_source_path) return null;
-  const where = shortPath(account.import_source_path);
-  return account.in_place ? `uses ${where} where it is` : `a copy of ${where}`;
-}
-
-/** `/Users/<you>/x` → `~/x`, for a line of text. */
