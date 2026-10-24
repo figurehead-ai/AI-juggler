@@ -161,8 +161,9 @@ export const SHORTCUTS = [
     id: "go-to",
     owner: "system",
     area: "From any app",
-    keys: ["⌥Space"],
-    label: "Go to a session (change the key in ⌘K)",
+    // AJ-E2110: no default key (⌥Space is ChatGPT's); the user picks one.
+    keys: ["Your key"],
+    label: "Go to a session (choose the key in Settings › Desktop apps)",
   },
 ] as const satisfies readonly Shortcut[];
 

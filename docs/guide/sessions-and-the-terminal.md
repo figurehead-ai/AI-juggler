@@ -2,10 +2,14 @@
 
 ## Your sessions
 
-The list on the left shows your projects, each with its sessions,
-including ones you started in a terminal or in the Claude app. Those say
-"outside AI Juggler". History holds every session that has ended, and you
-can search it.
+The list on the left shows the sessions open right now, in every app,
+grouped by place: the app and profile each runs in. What needs you is on
+top, and ended or inactive sessions are one click away under the "Also:"
+line. To see your projects with their sessions instead, choose **View** ›
+**Group by** › **Project**. [What's open, and getting to it](whats-open.md)
+explains the list, **Go to it** and **View**.
+
+History holds every session that has ended, and you can search it.
 
 ### Searching what was said
 
@@ -25,8 +29,8 @@ turn on **Search the words of every session** in Settings › Privacy:
 - **Turning it off deletes the index.**
 
 To start one, choose **New session**. Pick the project folder, the tool and
-the account. A project can have its own account (the project's menu: **Set
-its account…**). Otherwise new sessions use your default account.
+the profile. A project can have its own profile (set it from the project's
+menu). Otherwise new sessions use your default profile.
 
 A session you started elsewhere can be picked up with **Continue in AI
 Juggler**. To carry one to another account or tool, see
@@ -51,7 +55,7 @@ is in its tooltip, and the **?** sheet lists them all.
   run.
 - **Copy:** the selection, or what's on screen.
 - **Text size:** A− and A+, or ⌘− and ⌘+, with ⌘0 to go back. The size is
-  saved in Settings › Sessions, so every terminal follows it.
+  saved in Settings › Sessions › **Terminal**, so every terminal follows it.
 - **Jump to the bottom** when you've scrolled up.
 - **Maximize** (⌘↩): the terminal fills the window. ⌘↩ or **Restore** puts
   it back.

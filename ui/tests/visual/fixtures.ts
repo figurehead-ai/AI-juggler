@@ -393,6 +393,11 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
   await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
 }
 
+/** AJ-E2110: opens one of Settings' panes from its sidebar. */
+export async function settingsPane(page: import("@playwright/test").Page, name: string): Promise<void> {
+  await page.getByRole("navigation", { name: "Settings" }).getByRole("button", { name, exact: true }).click();
+}
+
 /**
  * D-25: the rail's sort, group and per-field filters sit behind its
  * Filters button; open it (once) before using them.

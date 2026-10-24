@@ -10,6 +10,7 @@ import { SettingSwitch } from "./SettingSwitch";
 import { NoAccounts, Status, accountName } from "./SettingsSections";
 import { errorText, notificationPrefsGet, notificationPrefsSet, type AccountInfo, type NotificationPrefsInfo } from "../lib/bridge";
 import { notificationsGet, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
+import { CardTitle } from "./CardTitle";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
@@ -91,7 +92,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-notifications">
       <div>
-        <h3 className="text-sm font-semibold">Notifications</h3>
+        <CardTitle>Notifications</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           In AI Juggler, alerts you can act on, such as an Account about to run out or a parked session ready to
           resume, show once each time; everything else waits for an hourly digest. Outside it, macOS shows only what

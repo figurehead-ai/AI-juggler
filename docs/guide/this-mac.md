@@ -38,9 +38,9 @@ button.
 
 Automatic cleanup is off by default: AI Juggler stops nothing by itself.
 To let it tidy left-behind dev servers, turn on **Automatically tidy
-left-behind dev servers** on that account's page. Settings › Cleanup sets
-what new accounts start with, and **Pause automatic cleanup** stops it for
-every account until you resume it.
+left-behind dev servers** for a profile on the Accounts page. Settings ›
+Advanced › Cleanup sets what new profiles start with, and **Pause automatic
+cleanup** stops it for every profile until you resume it.
 
 ## Kept awake
 

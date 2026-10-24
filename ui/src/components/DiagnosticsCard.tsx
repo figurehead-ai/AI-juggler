@@ -15,6 +15,7 @@ import {
   pickDiagnosticsDestination,
   type DiagnosticsPreviewInfo,
 } from "../lib/ipc/app";
+import { CardTitle } from "./CardTitle";
 
 const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
 const bytesOf = (text: string) => new TextEncoder().encode(text).length;
@@ -51,7 +52,7 @@ export function DiagnosticsCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-diagnostics">
       <div>
-        <h3 className="text-sm font-semibold">Report a problem</h3>
+        <CardTitle>Report a problem</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           Tell us what went wrong on GitHub. Diagnostics help: versions, settings and AI Juggler's own logs, scrubbed on
           this Mac. No transcripts, terminal output, credentials, home folder or user name. You see every file before

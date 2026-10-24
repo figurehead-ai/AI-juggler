@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane } from "./fixtures";
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
@@ -4210,6 +4210,7 @@ const openSettings = async (
   theme: string,
   vp: { width: number; height: number },
   seams: Record<string, unknown>,
+  pane = "Advanced",
 ) => {
   await page.addInitScript(
     ({ fixture, t, extra, t0 }) => {
@@ -4227,7 +4228,21 @@ const openSettings = async (
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
   await page.getByRole("button", { name: "Settings" }).first().click();
-  await expect(page.getByTestId("account-cloud")).toBeVisible();
+  await settingsPane(page, pane);
+  await expect(page.getByTestId(pane === "Advanced" ? "account-cloud" : `settings-pane-${PANE_IDS[pane]}`)).toBeVisible();
+};
+
+/** AJ-E2110: each pane's label and id. */
+const PANE_IDS: Record<string, string> = {
+  General: "general",
+  "Desktop apps": "desktop-apps",
+  Accounts: "accounts",
+  Sessions: "sessions",
+  Switching: "switching",
+  Notifications: "notifications",
+  Privacy: "privacy",
+  "Your Macs": "macs",
+  Advanced: "advanced",
 };
 
 const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string) =>
@@ -5166,6 +5181,7 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Settings" }).click();
+      await settingsPane(page, "Advanced");
       await page.getByTestId("settings-storage").scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(GALLERY, `56-history/retention-${vp.name}-${theme}.png`) });
       await page.getByTestId("storage-review").first().click();
@@ -5229,6 +5245,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
       await page.getByRole("button", { name: "Settings" }).click();
+      await settingsPane(page, "Advanced");
       await page.getByTestId("settings-backup").scrollIntoViewIfNeeded();
       if (state === "progress" || state === "done") {
         await page.getByTestId("backup-export").click();
@@ -5623,7 +5640,7 @@ for (const theme of THEMES) {
   for (const vp of STATS_VP) {
     for (const state of PRIVACY_STATES) {
       test(`62 privacy — ${state.name} — ${vp.name} — ${theme}`, gate("62-privacy"), async ({ page }) => {
-        await openSettings(page, theme, vp, state.seams);
+        await openSettings(page, theme, vp, state.seams, "Privacy");
         await expect(page.getByTestId("privacy-state")).toBeVisible();
         await page.getByTestId("settings-privacy").evaluate((card) => card.scrollIntoView({ block: "start" }));
         await page.mouse.move(0, 0);
@@ -5635,7 +5652,7 @@ for (const theme of THEMES) {
       await openSettings(page, theme, vp, {
         __AIJ_USAGE_STATS__: SHARE,
         __AIJ_USAGE_STATS_REPORTS__: { "pending/2026-W41": REPORT_JSON },
-      });
+      }, "Privacy");
       await page.getByTestId("privacy-report-view").first().click();
       await expect(page.getByTestId("privacy-report-json")).toContainText('"week": "2026-W41"');
       await page.getByTestId("privacy-report-json").evaluate((viewer) => viewer.scrollIntoView({ block: "end" }));
@@ -5707,7 +5724,7 @@ for (const theme of THEMES) {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_USAGE_STATS__: SHARE,
       __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
-    });
+    }, "Privacy");
     await page.getByTestId("privacy-crash-reports").evaluate((row) => row.scrollIntoView({ block: "center" }));
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `64-crash/setting-1280x800-${theme}.png`) });
@@ -5760,21 +5777,14 @@ const SETTINGS_PEER = {
   protocol: null,
   connection_detail: null,
 };
-const SETTINGS_SECTIONS: Array<[string, string]> = [
-  ["sessions", "Sessions"],
-  ["packs", "Context packs & secrets"],
-  ["cleanup", "Cleanup"],
-  ["renewal", "Accounts & renewal dates"],
-  ["notifications", "Notifications"],
-  ["fleet", "Fleet permissions"],
-];
+// AJ-E2110: every pane, in both themes (the 65 gallery: one shot per pane).
+const SETTINGS_SECTIONS: Array<[string, string]> = Object.entries(PANE_IDS).map(([label, id]) => [id, label]);
 
 for (const theme of THEMES) {
   for (const [name, title] of SETTINGS_SECTIONS) {
     test(`65 settings sections — ${name} — ${theme}`, gate("65-settings-sections"), async ({ page }) => {
-      await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] });
-      await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: title }).click();
-      await expect(page.locator(`#settings-${name}-title`)).toBeFocused();
+      await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] }, title);
+      await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("button", { name: title, exact: true })).toHaveAttribute("aria-current", "page");
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/${name}-1280x800-${theme}.png`) });
     });
@@ -5898,8 +5908,7 @@ for (const theme of THEMES) {
   test(`65 settings sections — sessions, terminal open — ${theme}`, async ({ page }) => {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_SESSION_PREFS__: { stuck_after_minutes: 10, terminal_font_size: 12.5, terminal_scrollback_lines: 5000 },
-    });
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    }, "Sessions");
     await page.getByTestId("settings-terminal").locator("summary").click();
     await expect(page.getByLabel("Scrollback")).toBeVisible();
     await expect(page.getByTestId("pref-stuck_after_minutes-reset")).toHaveText("Reset to 5");

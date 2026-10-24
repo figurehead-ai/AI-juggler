@@ -3660,13 +3660,15 @@ pub fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
 /// Rebinds the global "Go to instance…" hotkey (AJ-E414 Req.4). The
 /// new binding is registered with the OS FIRST; only a successful
 /// registration persists it — and a failed registration restores the
-/// previous one, so the user is never left without a hotkey.
+/// previous one, so the user is never left without the key they had.
+/// An empty binding turns the hotkey off (AJ-E2110: there is no
+/// default; the user picks one in Settings › Desktop apps).
 #[tauri::command]
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message for an empty binding or an
-/// OS registration failure (conflict, unparseable accelerator).
+/// Returns the typed [`AppError`] message for an OS registration
+/// failure (conflict, unparseable accelerator) or a storage failure.
 pub fn go_to_hotkey_set(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
@@ -3674,12 +3676,6 @@ pub fn go_to_hotkey_set(
 ) -> AppResult<()> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     let hotkey = hotkey.trim().to_string();
-    if hotkey.is_empty() {
-        return Err(AppError::Validation {
-            subject: "hotkey",
-            message: "empty binding — the default is restored by setting it explicitly".into(),
-        });
-    }
     let previous = {
         let storage = lock_storage(&state)?;
         storage
@@ -3691,15 +3687,17 @@ pub fn go_to_hotkey_set(
     if let Some(previous) = &previous {
         let _ = shortcuts.unregister(previous.as_str());
     }
-    match shortcuts.register(hotkey.as_str()) {
-        Ok(()) => {
-            let storage = lock_storage(&state)?;
-            storage
-                .app_settings()
-                .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
-                .map_err(AppError::from)?;
-            Ok(())
-        }
+    // Empty: the key is off (and stays unset), nothing registered.
+    let registered = if hotkey.is_empty() {
+        Ok(())
+    } else {
+        shortcuts.register(hotkey.as_str())
+    };
+    match registered {
+        Ok(()) => lock_storage(&state)?
+            .app_settings()
+            .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
+            .map_err(AppError::from),
         Err(error) => {
             // Best-effort restore of the previous binding.
             if let Some(previous) = &previous {

@@ -1146,8 +1146,7 @@ const appSettingSeams = () =>
 export async function appSettingGet(key: string): Promise<string | null> {
   if (!hasBackend) {
     const stored = appSettingSeams().__AIJ_APP_SETTINGS__?.[key];
-    if (stored !== undefined) return stored === "" ? null : stored;
-    return key === "go_to_hotkey" ? "Alt+Space" : null;
+    return stored === undefined || stored === "" ? null : stored;
   }
   return invoke<string | null>("app_setting_get", { key });
 }
@@ -1275,9 +1274,12 @@ export async function cleanupDefaultSet(on: boolean): Promise<boolean> {
 }
 
 /** Rebinds the global "Go to instance…" hotkey (registers with the OS
- * first; a failure restores the previous binding). */
+ * first; a failure restores the previous binding). Empty turns it off:
+ * there is no default (AJ-E2110), the user picks one. */
 export async function goToHotkeySet(hotkey: string): Promise<void> {
   if (!hasBackend) {
+    const seams = appSettingSeams();
+    seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), go_to_hotkey: hotkey.trim() };
     return;
   }
   await invoke("go_to_hotkey_set", { hotkey });

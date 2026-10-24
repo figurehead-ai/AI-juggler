@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "./primitives";
 import type { InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
+import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
 import { ActionIcon } from "./ActionIcon";
 import { useActionHost } from "./ItemMenu";
 import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
@@ -23,29 +24,9 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 
 const isLive = (status: string) => status === "running" || status === "starting";
 
-/** Builds a Tauri accelerator string ("Alt+Space") from a KeyboardEvent;
- * null while only modifiers are held (the capture waits for a real key). */
-export function toAccelerator(event: {
-  key: string;
-  ctrlKey: boolean;
-  altKey: boolean;
-  metaKey: boolean;
-  shiftKey: boolean;
-}): string | null {
-  if (["Control", "Alt", "AltGraph", "Shift", "Meta", "Dead", "CapsLock"].includes(event.key)) {
-    return null;
-  }
-  if (event.key === "Escape") {
-    return null;
-  }
-  const parts: string[] = [];
-  if (event.ctrlKey) parts.push("Control");
-  if (event.altKey) parts.push("Alt");
-  if (event.metaKey) parts.push("Super");
-  if (event.shiftKey) parts.push("Shift");
-  parts.push(event.key === " " ? "Space" : event.key.length === 1 ? event.key.toUpperCase() : event.key);
-  return parts.join("+");
-}
+/** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey,
+ * shared with Settings › Desktop apps). */
+export { toAccelerator };
 
 export function GoToPalette({
   open,
@@ -192,6 +173,11 @@ export function GoToPalette({
         return;
       }
       const combo = toAccelerator(event.nativeEvent);
+      const refusal = combo === null ? null : hotkeyRefusal(combo);
+      if (refusal !== null) {
+        setCaptureError(refusal);
+        return;
+      }
       if (combo !== null) {
         setCaptureError(null);
         onHotkeyChange(combo)
@@ -333,7 +319,7 @@ export function GoToPalette({
             data-testid="goto-change-hotkey"
             onClick={() => setCapturing(true)}
           >
-            {capturing ? "press a combo…" : `${hotkey} — change…`}
+            {capturing ? "press a combo…" : hotkey ? `${hotkeyWords(hotkey)} — change…` : "Choose a key to open from anywhere…"}
           </Button>
           {captureError !== null && (
             <span className="text-danger" data-testid="goto-hotkey-error">

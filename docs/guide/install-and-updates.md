@@ -28,7 +28,7 @@ or Codex installed.
 
 A fresh install follows the channel it was downloaded from: Stable from a
 Stable release, Beta from a Beta release. To change between them: Settings ›
-About & updates. A steadier channel never moves you back to an older
+General › About & updates. A steadier channel never moves you back to an older
 version; you get the next one when it reaches that channel.
 
 ## Updates
@@ -40,7 +40,7 @@ against AI Juggler's signature before it's installed.
 
 ## Going back to an earlier version
 
-Settings › About & updates › **Go back to an earlier version**.
+Settings › General › About & updates › **Go back to an earlier version**.
 
 - If the earlier version can open your data as it is now, install its `.dmg`
   from [Releases](https://github.com/figurehead-ai/AI-juggler/releases)
