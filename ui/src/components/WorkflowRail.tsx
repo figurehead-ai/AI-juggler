@@ -49,6 +49,7 @@ import { Button } from "./primitives";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
+import { AlsoLine, NeedsYouSection, OpenNowLabel, needsYouRows } from "./RailSections";
 import { FilterChip, Select } from "./RailControls";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
@@ -454,11 +455,14 @@ export function InstanceBoard({
     filters.project === null &&
     query.trim() === "";
   const idleProjects = quiet && onSelectProject ? projects.filter((p) => !groups.some((group) => group.id === p.id)) : [];
+  // AJ-E2103: Needs you, then Open now, then "Also:" (the default view).
+  const needsRows = quiet && sort === "needs" ? needsYouRows(sorted, snooze, now) : null;
+  const shownRows = (rows: InstanceInfo[]) => (needsRows ? rows.filter((row) => !needsRows.includes(row)) : rows);
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
   // fully rendered. Every row is reachable by scroll in both modes.
-  const flatRows = groups.length === 1 ? (groups[0]?.rows ?? []) : null;
+  const flatRows = groups.length === 1 ? shownRows(groups[0]?.rows ?? []) : null;
   let windowed: { start: number; end: number } | null = null;
   if (flatRows && flatRows.length > VIRTUALISE_AT) {
     const rowH = ROW_HEIGHT[effectiveDensity];
@@ -673,6 +677,9 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
+        {showLocal && needsRows && (
+          <NeedsYouSection rows={needsRows} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={(row) => <BoardRow key={row.id} row={row} showProject selected={row.id === selectedId} onSelect={onSelect} density={effectiveDensity} freshness={freshness} now={now} snooze={snooze} />} />
+        )}
         {!showLocal ? null : loading && sessions.length === 0 ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
@@ -721,7 +728,7 @@ export function InstanceBoard({
             </p>
           </div>
         ) : (
-          groups.map((entry) => (
+          [needsRows && groups.length > 0 && <OpenNowLabel key="open-now" />, ...groups.map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
               {entry.label !== "" && (
                 <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
@@ -763,7 +770,7 @@ export function InstanceBoard({
                 <span aria-hidden="true" data-testid="rail-folded-stripe" className="ml-7 mr-2.5 h-[3px] rounded-full opacity-70" style={{ background: swatchColor(markOf(entry.id)!.swatch) }} />
               )}
               <div id={safeId("rail-group", entry.id)} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
-              {entry.rows.map((row) => (
+              {shownRows(entry.rows).map((row) => (
                 <BoardRow
                   key={row.id}
                   row={row}
@@ -779,8 +786,9 @@ export function InstanceBoard({
               <OutsideRows projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
               </div>
             </div>
-          ))
+          ))]
         )}
+        {showLocal && needsRows && <AlsoLine selectedId={selectedId} density={effectiveDensity} now={now} />}
         {idleProjects.length > 0 && (
           /* Projects with no session here yet (from the setups' history):
              the same rows as sessions, a folder mark instead of a state,

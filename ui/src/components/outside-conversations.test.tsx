@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX, ReactNode } from "react";
 import { ActionHostProvider } from "./ItemMenu";
 import { ConversationPage } from "./ConversationPage";
-import { ConversationRow, railSlice, RECENT_SHOWN, withOutsideGroups } from "./OutsideConversations";
+import { ConversationRow, railSlice, RECENT_SHOWN, stateWord, withOutsideGroups } from "./OutsideConversations";
 import { GoToPalette } from "./GoToPalette";
 import { ConversationsProvider } from "../lib/conversations";
 import { activityWords } from "../lib/account-words";
@@ -39,8 +39,18 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
     tokens: null,
     live: false,
     session_id: null,
+    places: [],
+    pid: null,
+    state: null,
+    viewed_ms: null,
+    background: false,
+    inactive: false,
     ...overrides,
   };
+}
+
+function place(label: string, pid: number): ConversationInfo["places"][number] {
+  return { app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, label };
 }
 
 function withFixture(conversations: ConversationInfo[], children: ReactNode, host: ActionHost = {}): JSX.Element {
@@ -53,17 +63,23 @@ function withFixture(conversations: ConversationInfo[], children: ReactNode, hos
 }
 
 describe("AJ-E1529 the rail's share of outside conversations", () => {
-  it("shows every live one, then the newest few, and counts the rest", () => {
+  it("AJ-E2103: shows the open ones only; the Ended filter the newest few, and counts the rest", () => {
     const all = [
       conversation("live-1", { live: true }),
       conversation("live-2", { live: true }),
+      conversation("asks", { live: true, state: "asks_you" }), // leads the rail instead
+      conversation("headless", { live: true, background: true }), // behind "Also:"
       ...Array.from({ length: 6 }, (_, n) => conversation(`old-${n}`)),
       conversation("mine", { session_id: "sess-1" }), // AI Juggler's own: shown as its session
       conversation("elsewhere", { project_id: "p2" }),
     ];
     const { shown, more } = railSlice(all, "p1");
-    expect(shown.map((c) => c.id)).toEqual(["live-1", "live-2", ...Array.from({ length: RECENT_SHOWN }, (_, n) => `old-${n}`)]);
-    expect(more).toBe(6 - RECENT_SHOWN);
+    expect(shown.map((c) => c.id)).toEqual(["live-1", "live-2"]);
+    expect(more).toBe(0);
+    const ended = railSlice(all, "p1", "ended");
+    expect(ended.shown.map((c) => c.id)).toEqual(Array.from({ length: RECENT_SHOWN }, (_, n) => `old-${n}`));
+    expect(ended.more).toBe(6 - RECENT_SHOWN);
+    expect(railSlice(all, "p1", "live").shown.map((c) => c.id)).toEqual(["live-1", "live-2", "asks", "headless"]);
   });
 
   it("a project where only an outside session runs gets its group", () => {
@@ -87,6 +103,46 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
+  });
+
+  it("AJ-E2102: an open one's click goes to it; an ended one's opens its page", () => {
+    const goTo = vi.fn();
+    const open = vi.fn();
+    const live = conversation("c", { live: true, state: "working", places: [place("Claude · Work", 1), place("Terminal", 2)] });
+    render(withFixture([], <ConversationRow conversation={live} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
+    const row = screen.getByTestId("rail-outside");
+    expect(row.textContent).toContain("Working");
+    // AJ-E2103: open in two places is one row that says so.
+    expect(screen.getByTestId("outside-places").textContent).toContain("open in 2 places");
+    expect(row.textContent).toContain("open in Claude · Work and Terminal");
+    fireEvent.click(row);
+    expect(goTo).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
+    expect(open).not.toHaveBeenCalled();
+    cleanup();
+    render(withFixture([], <ConversationRow conversation={conversation("e")} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
+    fireEvent.click(screen.getByTestId("rail-outside"));
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "e" }));
+    expect(goTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("states read in E21's words", () => {
+    const word = (overrides: Partial<ConversationInfo>) => stateWord(conversation("s", overrides));
+    expect(word({ live: true, state: "asks_you" })).toBe("Asks you");
+    expect(word({ live: true, state: "done_review" })).toBe("Done, review it");
+    expect(word({ live: true, state: "idle" })).toBe("Idle");
+    expect(word({ live: true })).toBe("Running");
+    expect(word({ inactive: true })).toBe("Inactive");
+    expect(word({})).toBe("Ended");
+  });
+
+  it("AJ-E2102: Go to it leads an open one's menu", () => {
+    const host: ActionHost = { goToConversation: vi.fn(), openConversation: vi.fn() };
+    render(withFixture([], <ConversationRow conversation={conversation("c", { live: true })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
+    fireEvent.click(screen.getByRole("button", { name: /^Conversation actions for / }));
+    const names = screen.getAllByRole("menuitem").map((item) => item.querySelector("[data-label]")?.textContent);
+    expect(names.slice(0, 2)).toEqual(["Go to it", "Open"]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Go to it" }));
+    expect(host.goToConversation).toHaveBeenCalledTimes(1);
   });
 
   it("its menu is read-only: open, continue (not while live elsewhere), copy the resume line, its project", () => {

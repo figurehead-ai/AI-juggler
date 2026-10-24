@@ -132,7 +132,9 @@ export function GoToPalette({
 
   const choose = (entry: PaletteRow) => {
     if (entry.where === "outside") {
-      host.openConversation?.(entry.conversation);
+      // AJ-E2102: the palette goes to it; its page when that can't be done.
+      if (host.goToConversation) void host.goToConversation(entry.conversation);
+      else host.openConversation?.(entry.conversation);
     } else if (entry.where === "local") {
       if (entry.desktop) onFocusWindow(entry.row);
       else onOpenSession(entry.row.id);

@@ -7,9 +7,11 @@
 import { invoke, listen } from "./transport";
 import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
+import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
+import type { PlaceInfo } from "../../types/generated/PlaceInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 
-export type { ConversationInfo };
+export type { ConversationInfo, GoToOutcomeInfo, PlaceInfo };
 
 const NOW = Date.now();
 
@@ -19,7 +21,19 @@ const NOW = Date.now();
 function previewConversations(): ConversationInfo[] {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { conversations?: ConversationInfo[] } }).__AIJ_FIXTURE__;
   if (fixture) return fixture.conversations ?? [];
-  const base = { tool: PREVIEW_TOOLS[0]!.id, git_branch: "main", started_ms: NOW - 3_600_000, tokens: null, session_id: null };
+  const base = {
+    tool: PREVIEW_TOOLS[0]!.id,
+    git_branch: "main",
+    started_ms: NOW - 3_600_000,
+    tokens: null,
+    session_id: null,
+    places: [] as PlaceInfo[],
+    pid: null,
+    state: null,
+    viewed_ms: null,
+    background: false,
+    inactive: false,
+  };
   return [
     {
       ...base,
@@ -31,6 +45,10 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
+      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, label: "Claude · Work" }],
+      pid: 4242,
+      state: "working",
+      viewed_ms: NOW - 120_000,
     },
     {
       ...base,
@@ -65,6 +83,18 @@ export async function conversationsContinue(accountId: string, conversationId: s
     return { session_id: `sess-${conversationId}`, pid: 0 };
   }
   return invoke<LaunchResult>("conversations_continue", { accountId, conversationId });
+}
+
+/** AJ-E2102: Go to it, for any session open now: its app forward by the
+ * app's own process, then what the app allows; says what it reached. */
+export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = previewConversations().find((row) => row.id === conversationId)?.places[0];
+    return place
+      ? { outcome: `Brought ${place.label} forward; pick the session in its sidebar`, reached: "app" }
+      : { outcome: "It isn't open now", reached: "none" };
+  }
+  return invoke<GoToOutcomeInfo>("conversations_go_to", { accountId, conversationId, pid });
 }
 
 /** Called when the backend's list changed (no payload: read it again). */

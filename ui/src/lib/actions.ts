@@ -307,6 +307,8 @@ const THIS_MAC: ActionSpec<"this-mac">[] = [
 // D-08: one AI Juggler didn't start is read-only; it can be carried in
 // ("Continue in AI Juggler"), never stopped or tidied from here.
 const CONVERSATION: ActionSpec<"conversation">[] = [
+  // AJ-E2102: getting there first, while it's open somewhere.
+  { id: "go-to", label: "Go to it", group: "main", applies: (c, h) => has(h.goToConversation) && c.live, run: (c, h) => h.goToConversation!(c) },
   { id: "open", label: "Open", group: "main", applies: (_, h) => has(h.openConversation), run: (c, h) => h.openConversation!(c) },
   {
     id: "continue",
