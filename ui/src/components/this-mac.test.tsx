@@ -197,7 +197,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   const accounts = [{ id: "work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in" }] as AccountInfo[];
   const projects: ProjectInfo[] = [];
 
-  it("lists a heavy session once, with one action, and takes it out of Running", () => {
+  it("lists a heavy session once, with one action", () => {
     const open = vi.fn();
     const sessions = [mk("heavy-one"), mk("calm-one")];
     render(
@@ -212,15 +212,13 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         thisMac={info("plenty", [tree({ session_id: "heavy-one", place: null, heavy_note: "3.2 GB", rss_bytes: 3.2e9, helpers: 5 })])}
       />,
     );
-    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toContain("1 session needs you");
-    const item = screen.getByTestId("home-heavy");
+    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
+    const item = screen.getByTestId("home-need-heavy");
     expect((item)!.textContent).toContain("Working your Mac hard — 3.2 GB");
     expect((item)!.textContent).toContain("heavy-one · Work Max · 5 helpers");
     fireEvent.click(within(item).getByRole("button", { name: /Take a look/ }));
     expect(open).toHaveBeenCalledWith("heavy-one");
-    const running = screen.getByTestId("home-running");
-    expect((running)!.textContent).toContain("calm-one");
-    expect((running)!.textContent).not.toContain("heavy-one");
+    expect(screen.getAllByTestId("home-need-heavy")).toHaveLength(1);
   });
 
   it("raises a Mac under pressure and leads to This Mac", () => {
@@ -238,13 +236,13 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         onOpenThisMac={openPage}
       />,
     );
-    // Said once, in Needs you; the headline only points there (0.0.12).
-    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("Your Mac needs a look");
-    const item = screen.getByTestId("home-mac-pressure");
+    // Said once, in Needs you; the headline counts it (AJ-E2105).
+    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
+    const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under pressure");
     expect(item.textContent).toContain("macOS reports critical memory pressure; swap is growing — 620 MB a minute");
     // AJ-E1528: it opens the This Mac page.
-    fireEvent.click(within(item).getByRole("button", { name: "See what's using it" }));
+    fireEvent.click(within(item).getByRole("button", { name: /^See what's using it/ }));
     expect(openPage).toHaveBeenCalledOnce();
   });
 
@@ -262,7 +260,8 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
       />,
     );
     expect(screen.queryByTestId("home-needs")).toBeNull();
-    expect(screen.getByTestId("home-this-mac").getAttribute("data-level")).toBe("tight");
+    // AJ-E2105: This Mac's line is the top bar's; Home doesn't repeat it.
+    expect(screen.queryByTestId("home-this-mac")).toBeNull();
   });
 });
 
@@ -316,8 +315,8 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
         thisMac={mac}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your Mac needs a look");
-    const item = screen.getByTestId("home-mac-pressure");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
+    const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under memory pressure");
     expect(screen.getAllByText("Your Mac is under memory pressure")).toHaveLength(1);
     expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.2 GB");

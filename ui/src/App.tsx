@@ -684,7 +684,6 @@ export default function App() {
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
@@ -731,6 +730,7 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
+            <span className="mr-2 flex min-w-0 text-muted">{/* AJ-E2105: This Mac's line, in the top bar */}<MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} /></span>
             <MainNav
               primary={PRIMARY_NAV}
               more={MORE_NAV}
