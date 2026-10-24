@@ -163,7 +163,7 @@ it("AI Juggler's own ended today wait behind the Also line, older ones in Histor
     ],
     [],
   );
-  const ids = () => [...view.getByTestId("instance-board").querySelectorAll<HTMLElement>("[data-instance-id]")].map((el) => el.dataset.instanceId);
+  const ids = () => [...view.getByTestId("instance-board").querySelectorAll("[data-instance-id]")].map((el) => el.getAttribute("data-instance-id"));
   await view.findByTestId("rail-also");
   expect(ids()).toEqual(["pinned-done", "busy"]);
   // Only what is open: a project with nothing open leaves Open now.
