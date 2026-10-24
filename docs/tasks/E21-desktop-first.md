@@ -90,7 +90,7 @@
 
 ## Step 2 — the new rail, Home and menus (0.1.4)
 
-### AJ-E2104 Places, rows and the View | Status: TODO | Priority P0 | Effort L | Depends: AJ-E2103
+### AJ-E2104 Places, rows and the View | Status: IN-PROGRESS (places, rows, folds, the View, keys and the gallery on this Mac evidenced; the container gallery run, real app icons and a look on the real setup are open) | Priority P0 | Effort L | Depends: AJ-E2103
 **Goal**: The rail groups open sessions by place (app + profile), each row says what, where and its state, and every other view is one click away.
 **User story**: As the maintainer, I read the rail in five seconds even with 40 sessions.
 **Requirements**:
@@ -109,7 +109,7 @@
 **Research basis**: AltTab, Raycast, Vibe Kanban, Linear display options.
 **Handover note**: ⌘1–9 go to places (stable), never to rows that re-sort.
 
-### AJ-E2105 Home: what needs you and your apps | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2104
+### AJ-E2105 Home: what needs you and your apps | Status: IN-PROGRESS (heading, Your apps, Needs you's kinds and Runway by account evidenced; the container gallery run, the load gate and the last-message bubble are open) | Priority P0 | Effort M | Depends: AJ-E2104
 **Goal**: Home says what needs you, shows each running app and profile, and the runway per account.
 **User story**: As a user, I open AI Juggler and see "2 things need you", the apps I have open, and how much room each account has.
 **Requirements**:
@@ -143,7 +143,7 @@
 **Research basis**: Apple HIG Menus and Context menus (2026).
 **Handover note**: —
 
-### AJ-E2107 Needs you from real signals | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2107 Needs you from real signals | Status: IN-PROGRESS (recorded words, "waiting", terminal tails, probably, the seen mark and the count evidenced; a look on the real setup and a Codex tail reader are open) | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: "Asks you" and "Done, review it" come from what the apps record, not from idle time.
 **User story**: As a user, the one session waiting for my answer is on top, and a session idle for 20 hours is not.
 **Requirements**:
