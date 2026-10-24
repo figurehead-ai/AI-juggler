@@ -194,7 +194,10 @@ export function PageShell({
 
   const strip = tabs.length > 1;
   return (
-    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
+    // WCAG 1.4.10: when the window is too short for the header and a
+    // usable body (200 % zoom, a short window), the page scrolls as a
+    // whole instead of squeezing its body to nothing.
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
@@ -226,7 +229,7 @@ export function PageShell({
           ))}
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-64 flex-1 flex-col">
         {tabs.map((entry) => (
           <section
             key={entry.id}

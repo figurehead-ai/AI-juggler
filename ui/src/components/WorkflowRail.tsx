@@ -960,6 +960,7 @@ export function MinimalInstanceColumn({
           <button
             key={s.id}
             type="button"
+            data-instance-id={s.id}
             onClick={() => onSelect(s.id)}
             aria-describedby={`${railId}-${s.id}`}
             title={ariaSummary(s)}
