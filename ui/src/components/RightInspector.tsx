@@ -17,6 +17,7 @@ import { lazyNamed } from "../lib/lazy";
 
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
+const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";
@@ -304,6 +305,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "terminal":
         case "window":
           return <InstanceOverview {...props} />;
+        case "overview": // AJ-E2108: where it runs and its last messages.
+          return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
         case "usage":
           // AJ-E1533: Quality joins Usage — one place for what it used
           // and how it went.
@@ -344,7 +347,6 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
       return null;
   }
 }
-
 
 /// The Processes-tab data/action seam (AJ-E410): production resolves the
 /// real bridge lazily; tests inject a deterministic source. (Extracted
@@ -1029,9 +1031,6 @@ function InstanceOverview(props: PanelProps) {
   // Session (conversation) — content lands with AJ-E407; the shell is honest.
   return <HonestEmpty tab="overview" />;
 }
-
-
-
 
 /** Copyable field row (§5.1: project + cwd copyable). */
 function CopyField({ testId, label, value, mono, onOpen }: { testId: string; label: string; value: string; mono?: boolean; onOpen?: () => void }) {

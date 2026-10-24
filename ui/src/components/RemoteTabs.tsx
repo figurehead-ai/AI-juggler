@@ -165,11 +165,7 @@ function InstanceOverview({
 }): JSX.Element {
   const source = `from ${machine.label} · measured ${ago(instance.measured_at_ms, now)}`;
   const model =
-    instance.model === null
-      ? null
-      : instance.model_source === "launch"
-        ? `${instance.model} (launch setting — not verified live)`
-        : instance.model;
+    instance.model === null ? null : instance.model_source === "launch" ? `${instance.model} (launch setting — not verified live)` : instance.model;
   return (
     <Card className="p-4" data-testid="remote-overview">
       <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
@@ -190,6 +186,8 @@ function InstanceOverview({
           source={`${machine.label}'s clock`}
         />
       </dl>
+      {/* AJ-E2108: a session's messages stay on its own Mac. */}
+      <p className="mt-3 text-[12px] text-muted" data-testid="last-messages-remote">Last messages: open on {machine.label} to read.</p>
     </Card>
   );
 }
