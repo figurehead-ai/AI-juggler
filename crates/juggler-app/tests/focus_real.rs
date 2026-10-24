@@ -105,6 +105,7 @@ fn real_two_window_focus_record() {
         bundle_id: Some(BUNDLE.to_string()),
         title: Some(title.to_string()),
         cgwindow_id: None,
+        start_time: None,
     };
 
     let runner: Arc<dyn ScriptRunner> = Arc::new(OsascriptRunner);
@@ -114,7 +115,7 @@ fn real_two_window_focus_record() {
     for attempt in 1..=10 {
         let target = if attempt % 2 == 1 { title_a } else { title_b };
         let started = std::time::Instant::now();
-        let result = focus::focus(runner.clone(), &identity_for(target));
+        let result = focus::focus(runner.clone(), &identity_for(target), true);
         let elapsed = started.elapsed();
         println!(
             "[record] attempt {attempt:2} target={target:18} outcome={} perm_missing={} in {elapsed:?}",

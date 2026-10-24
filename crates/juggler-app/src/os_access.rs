@@ -241,6 +241,39 @@ fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
         .map(|raw| raw == "1")
 }
 
+/// AJ-E2102: whether Go to it may reach exact windows: the user turned on
+/// window focus in Settings (Accessibility granted, and System Events
+/// allowed through AI Juggler's own ask). Never prompts: a click never
+/// raises a permission dialog.
+#[must_use]
+pub fn exact_windows_allowed(state: &Arc<AppState>) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        stored_automation(state) == Some(true) && platform::accessibility_trusted()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = state;
+        false
+    }
+}
+
+/// AJ-E2102: the setting that lets Go to it select a terminal's tab
+/// (`AppleScript` to that terminal, which macOS asks about once per
+/// terminal). Off until the user turns it on in Settings.
+pub const TERMINAL_TABS_KEY: &str = "go_to_terminal_tabs";
+
+/// Whether the user turned terminal tabs on.
+#[must_use]
+pub fn terminal_tabs_allowed(state: &Arc<AppState>) -> bool {
+    state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.app_settings().get(TERMINAL_TABS_KEY).ok().flatten())
+        .is_some_and(|raw| raw == "1")
+}
+
 /// Core: what this OS needs, as it stands. Never prompts.
 #[must_use]
 pub fn os_access_list_impl(state: &Arc<AppState>) -> Vec<OsAccessInfo> {

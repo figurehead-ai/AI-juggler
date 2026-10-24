@@ -52,7 +52,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`an outside conversation's page — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await page.getByTestId("rail-outside").filter({ hasText: "Running" }).first().click();
+    // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
+    await page.getByTestId("home-outside").first().click();
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await shoot(page, "conversation-page", theme);
   });

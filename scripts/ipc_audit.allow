@@ -50,7 +50,6 @@ sync crash_answer
 sync crash_info
 sync crash_set
 sync dashboard_stats
-sync desktop_focus
 sync desktop_launch
 sync environment_scan
 sync environment_scan_full

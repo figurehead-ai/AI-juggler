@@ -72,6 +72,12 @@ function outsideOne(id: string, over: Partial<ConversationInfo> = {}): Conversat
     tokens: null,
     live: false,
     session_id: null,
+    places: [],
+    pid: null,
+    state: null,
+    viewed_ms: null,
+    background: false,
+    inactive: false,
     ...over,
   };
 }

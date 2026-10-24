@@ -144,6 +144,8 @@ export const HISTORY: ActionSpec<"history">[] = [
 // D-08: one AI Juggler didn't start is read-only; it can be carried in
 // ("Continue in AI Juggler"), never stopped or tidied from here.
 export const CONVERSATION: ActionSpec<"conversation">[] = [
+  // AJ-E2102: getting there first, while it's open somewhere.
+  { id: "go-to", label: "Go to it", icon: "go-to", group: "go", rank: 10, applies: (c, h) => has(h.goToConversation) && c.live, run: (c, h) => h.goToConversation!(c) },
   { id: "open", label: "Open its page", icon: "page", group: "go", rank: 20, applies: (_, h) => has(h.openConversation), run: (c, h) => h.openConversation!(c) },
   {
     id: "reveal-project",

@@ -123,6 +123,7 @@ fn real_capture_record() {
         bundle_id: Some("com.apple.TextEdit".into()),
         title: Some("aij-e415-probe".into()),
         cgwindow_id: None,
+        start_time: None,
     };
     let started = Instant::now();
     let attempt = source.capture(&identity);

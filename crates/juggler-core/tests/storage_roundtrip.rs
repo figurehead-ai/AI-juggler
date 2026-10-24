@@ -922,6 +922,7 @@ fn session_window_identity_roundtrip_and_degrade() {
         bundle_id: Some("com.apple.TextEdit".into()),
         title: Some("aij-e414-a.txt".into()),
         cgwindow_id: None,
+        start_time: None,
     });
     storage.sessions().update(&session).unwrap();
     assert_eq!(
@@ -931,8 +932,38 @@ fn session_window_identity_roundtrip_and_degrade() {
             bundle_id: Some("com.apple.TextEdit".into()),
             title: Some("aij-e414-a.txt".into()),
             cgwindow_id: None,
+            start_time: None,
         })
     );
+
+    // AJ-E2101: the start time round-trips, and a blob written before
+    // 0.1.3 (no start time) still reads, with none.
+    session.window = Some(WindowIdentity {
+        pid: 29340,
+        bundle_id: None,
+        title: None,
+        cgwindow_id: None,
+        start_time: Some(1_792_829_554),
+    });
+    storage.sessions().update(&session).unwrap();
+    assert_eq!(
+        storage
+            .sessions()
+            .get(&session.id)
+            .unwrap()
+            .window
+            .and_then(|window| window.start_time),
+        Some(1_792_829_554)
+    );
+    storage
+        .raw_conn()
+        .execute(
+            r#"UPDATE instances SET window_identity_json = '{"pid":7,"bundle_id":null,"title":null,"cgwindow_id":null}' WHERE id = 'sess-window'"#,
+            [],
+        )
+        .unwrap();
+    let old = storage.sessions().get(&session.id).unwrap().window.unwrap();
+    assert_eq!((old.pid, old.start_time), (7, None));
 
     // Malformed blob: degrade to None, row still loads.
     storage

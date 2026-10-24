@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::dto::ConversationInfo;
+use super::dto::{ConversationInfo, GoToOutcomeInfo, PlaceInfo};
 use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -20,12 +20,21 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     // The first ask after a start reads the files itself, unless the
     // background pass already is.
     super::read_if_cold(state)?;
-    let (labels, projects, sessions, homes) = {
+    let (labels, folders, projects, sessions, homes) = {
         let storage = lock_storage_arc(state)?;
         let homes = storage.projects().worktree_homes()?;
-        let labels: HashMap<String, String> = storage
-            .accounts()
-            .list()?
+        let accounts = storage.accounts().list()?;
+        let folders: HashMap<std::path::PathBuf, String> = accounts
+            .iter()
+            .map(|account| {
+                (
+                    std::fs::canonicalize(&account.state_dir)
+                        .unwrap_or_else(|_| account.state_dir.clone()),
+                    account.label.clone(),
+                )
+            })
+            .collect();
+        let labels: HashMap<String, String> = accounts
             .into_iter()
             .map(|account| (account.id.to_string(), account.label))
             .collect();
@@ -46,7 +55,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 ))
             })
             .collect();
-        (labels, projects, sessions, homes)
+        (labels, folders, projects, sessions, homes)
     };
     Ok(state
         .conversations
@@ -58,8 +67,14 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 .folder
                 .as_deref()
                 .map(|folder| juggler_core::storage::project_root_with(folder, &homes));
-            ConversationInfo {
-                live: state.conversations.is_live(
+            let mut info = ConversationInfo {
+                live: false,
+                places: Vec::new(),
+                pid: None,
+                state: None,
+                viewed_ms: None,
+                background: false,
+                inactive: state.conversations.is_inactive(
                     &conversation.account_id,
                     &conversation.tool,
                     &summary.id,
@@ -82,9 +97,75 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
                 tokens: crate::commands::tokens_info(summary.tokens),
+            };
+            if let Some(entry) = state.conversations.live_entry(
+                &conversation.account_id,
+                &conversation.tool,
+                &summary.id,
+            ) {
+                with_live(&mut info, &entry, &folders);
             }
+            info
         })
         .collect())
+}
+
+/// AJ-E2101: what the live view says of an open conversation: where it's
+/// open, its state, when it was last viewed, and the app's own title (what
+/// its sidebar shows).
+fn with_live(
+    info: &mut ConversationInfo,
+    entry: &super::scan::LiveEntry,
+    folders: &HashMap<std::path::PathBuf, String>,
+) {
+    info.live = true;
+    info.inactive = false;
+    info.places = entry
+        .places
+        .iter()
+        .map(|place| place_info(place, folders))
+        .collect();
+    info.pid = info.places.first().map(|place| place.pid);
+    info.state = entry.state.map(|state| state.word().to_owned());
+    info.viewed_ms = entry.viewed_ms;
+    info.background = entry.background;
+    if let Some(title) = &entry.app_title {
+        info.title = Some(title.clone());
+    }
+}
+
+/// One place in words: the app, then its instance or the profile.
+fn place_info(
+    place: &super::scan::Place,
+    folders: &HashMap<std::path::PathBuf, String>,
+) -> PlaceInfo {
+    let profile = place.profile.as_ref().map(|dir| {
+        folders.get(dir).cloned().unwrap_or_else(|| {
+            dir.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        })
+    });
+    let app = place
+        .host
+        .as_ref()
+        .map(|host| host.name.clone())
+        .unwrap_or_default();
+    let instance = place.host.as_ref().and_then(|host| host.instance.clone());
+    let label = [Some(app.clone()), instance.clone()]
+        .into_iter()
+        .flatten()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    PlaceInfo {
+        app_id: place.host.as_ref().and_then(|host| host.app_id.clone()),
+        app,
+        profile,
+        instance,
+        pid: place.pid,
+        label,
+    }
 }
 
 /// Every account's conversations (AJ-E1529): the rail, a project's page,
@@ -136,4 +217,31 @@ pub async fn conversations_continue(
     .await?;
     crate::commands::emit_sessions(&app, state.inner())?;
     Ok(result)
+}
+
+/// AJ-E2102: Go to it, for any session open now (AI Juggler's or not):
+/// brings its app forward by the app's own process, then what the app
+/// allows, within 1.5 s, off the main thread. Never raises a permission
+/// prompt. `pid` picks one place when it's open in several.
+///
+/// # Errors
+///
+/// As [`super::goto::go_to_impl`].
+#[tauri::command]
+pub async fn conversations_go_to(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    conversation_id: String,
+    pid: Option<u32>,
+) -> AppResult<GoToOutcomeInfo> {
+    crate::ipc::blocking(state.inner(), "going to the session", move |state| {
+        super::goto::go_to_impl(
+            state,
+            &account_id,
+            &conversation_id,
+            pid,
+            Arc::new(super::goto::MacDesktop),
+        )
+    })
+    .await
 }

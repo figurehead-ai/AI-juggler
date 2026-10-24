@@ -49,6 +49,7 @@ import { Button } from "./primitives";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
+import { AlsoLine, NeedsYouSection, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { FilterChip, Select } from "./RailControls";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
@@ -441,24 +442,22 @@ export function InstanceBoard({
       : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
   // AJ-E1529: sessions started outside AI Juggler show under their project.
   const scope = effectiveGroup === "project" ? outsideScope(filters, query) : "none";
-  const groups = withOutsideGroups(sessionGroups, conversations, projects, scope);
+  // AJ-E2103: the default view reads Needs you, Open now, then "Also:".
+  const order = quietView(effectiveGroup, filters, query) && sort === "needs" ? railOrder(sorted, snooze, now) : null;
+  const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope);
+  const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // AJ-E1529: the Running chip counts sessions started outside AI Juggler.
   const counts = { ...chipCounts(sessions), running: chipCounts(sessions).running + liveOutside(conversations).length };
   // D-25: a project with no sessions still has a place in the rail (one
   // click opens it) — in the plain project view, not while filtering.
-  const quiet =
-    effectiveGroup === "project" &&
-    filters.chips.length === 0 &&
-    filters.provider === null &&
-    filters.account === null &&
-    filters.project === null &&
-    query.trim() === "";
+  const quiet = quietView(effectiveGroup, filters, query);
   const idleProjects = quiet && onSelectProject ? projects.filter((p) => !groups.some((group) => group.id === p.id)) : [];
 
+  const boardRow = (row: InstanceInfo) => <BoardRow key={row.id} row={row} showProject selected={row.id === selectedId} onSelect={onSelect} density={effectiveDensity} freshness={freshness} now={now} snooze={snooze} />;
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
   // 200-row scale is ungrouped monitoring; grouped triage views stay
   // fully rendered. Every row is reachable by scroll in both modes.
-  const flatRows = groups.length === 1 ? (groups[0]?.rows ?? []) : null;
+  const flatRows = groups.length === 1 ? shownRows(groups[0]?.rows ?? []) : null;
   let windowed: { start: number; end: number } | null = null;
   if (flatRows && flatRows.length > VIRTUALISE_AT) {
     const rowH = ROW_HEIGHT[effectiveDensity];
@@ -673,6 +672,7 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
+        {showLocal && order && <NeedsYouSection rows={order.needs} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
         {!showLocal ? null : loading && sessions.length === 0 ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
@@ -721,7 +721,7 @@ export function InstanceBoard({
             </p>
           </div>
         ) : (
-          groups.map((entry) => (
+          [order && groups.length > 0 && <OpenNowLabel key="open-now" />, ...groups.map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
               {entry.label !== "" && (
                 <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
@@ -763,7 +763,7 @@ export function InstanceBoard({
                 <span aria-hidden="true" data-testid="rail-folded-stripe" className="ml-7 mr-2.5 h-[3px] rounded-full opacity-70" style={{ background: swatchColor(markOf(entry.id)!.swatch) }} />
               )}
               <div id={safeId("rail-group", entry.id)} className="flex flex-col gap-0.5" hidden={folded.has(entry.id)}>
-              {entry.rows.map((row) => (
+              {shownRows(entry.rows).map((row) => (
                 <BoardRow
                   key={row.id}
                   row={row}
@@ -779,8 +779,9 @@ export function InstanceBoard({
               <OutsideRows projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
               </div>
             </div>
-          ))
+          ))]
         )}
+        {showLocal && order && <AlsoLine ended={order.endedToday} renderRow={boardRow} selectedId={selectedId} density={effectiveDensity} now={now} />}
         {idleProjects.length > 0 && (
           /* Projects with no session here yet (from the setups' history):
              the same rows as sessions, a folder mark instead of a state,
@@ -1057,6 +1058,11 @@ export function RailRow({
 
 
 /** Whether anything behind Filters narrows or reorders the list. */
+/** D-25: the plain project view — no filter, no search. */
+function quietView(group: GroupBy | "quota-data", filters: ChipFilters, query: string): boolean {
+  return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
+}
+
 function narrowed(filters: ChipFilters, sort: SortMode, group: GroupBy, machine: string): boolean {
   return (
     machine !== "all" ||

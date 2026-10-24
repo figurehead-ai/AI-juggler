@@ -114,6 +114,9 @@ describe("AJ-E404 Needs-me sort (default)", () => {
   it("renders the exact severity order on the 8-row fixture (snoozed sinks, never disappears)", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 60 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
+    // AJ-E2103: the ended one waits behind the rail's "Also:" line.
+    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
+    fireEvent.click(container.querySelector('[data-testid="rail-also-ended"]')!);
     expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6", "s8"]);
   });
 
@@ -199,9 +202,11 @@ describe("AJ-E404 Quota risk sort", () => {
 
 describe("AJ-E404 group-by rollups", () => {
   it("group-by Project renders headers with running/needs/lowest-quota rollups; needs order inside groups", () => {
+    // AJ-E2103: a project shows under Open now while something of it is
+    // open (s7 here); its header sums up all its sessions.
     const rows = [
       ...FIXTURE.slice(0, 3).map((row) => ({ ...row, project_id: "proj-1" })),
-      ...FIXTURE.slice(3).map((row) => ({ ...row, project_id: "proj-2" })),
+      ...FIXTURE.slice(3).map((row) => ({ ...row, project_id: row.id === "s7" ? "proj-1" : "proj-2" })),
     ];
     const { container } = renderBoard(rows);
     setSelect(container, "Group by", "project");
@@ -227,7 +232,8 @@ describe("AJ-E404 search", () => {
     expect(container.textContent).toContain("No sessions match");
     expect(container.textContent).toContain("Clear filters");
     fireEvent.keyDown(input, { key: "Escape" });
-    expect(renderedIds(container).length).toBe(FIXTURE.length);
+    // AJ-E2103: back in the default view, the ended one is behind "Also:".
+    expect(renderedIds(container).length).toBe(FIXTURE.length - 1);
     expect(document.activeElement).toBe(input);
   });
 });
@@ -268,7 +274,7 @@ describe("AJ-E404 snooze/mute", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 12 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
     expect(container.textContent).toContain("snoozed 12m");
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6", "s8"]);
+    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
   });
 
   it("muted rows sink too; unsnoozed count feeds the badge only", () => {

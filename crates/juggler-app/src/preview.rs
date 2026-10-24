@@ -532,6 +532,7 @@ mod tests {
             bundle_id: Some("dev.aijuggler.fake-desktop".into()),
             title: Some("notes-a".into()),
             cgwindow_id: None,
+            start_time: None,
         }
     }
 
@@ -724,6 +725,7 @@ mod tests {
             bundle_id: None,
             title: Some("same".into()),
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(
             match_window(&rows, &colliding),
@@ -735,6 +737,7 @@ mod tests {
             bundle_id: None,
             title: Some("renamed".into()),
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(match_window(&rows, &stale), Err(CaptureError::WindowGone));
 
@@ -743,6 +746,7 @@ mod tests {
             bundle_id: None,
             title: None,
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(
             match_window(&rows, &other_app),
@@ -754,6 +758,7 @@ mod tests {
             bundle_id: None,
             title: Some("other".into()),
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(match_window(&rows, &ok).map(|r| r.window_id), Ok(3));
 
@@ -762,6 +767,7 @@ mod tests {
             bundle_id: None,
             title: None,
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(
             match_window(&rows, &first_sight).map(|r| r.window_id),
@@ -781,6 +787,7 @@ mod tests {
             bundle_id: None,
             title: Some("m".into()),
             cgwindow_id: None,
+            start_time: None,
         };
         assert_eq!(
             match_window(&minimised, &identity),
