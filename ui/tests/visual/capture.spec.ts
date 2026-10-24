@@ -730,7 +730,7 @@ test("desktop — exited app state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /Done/ })
+    .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
@@ -743,7 +743,7 @@ test("desktop — crashed app state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /failed|crashed/i })
+    .filter({ hasText: /Stopped with an error/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("app crashed");
@@ -979,7 +979,7 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /Done/ })
+    .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
   await expect(page.getByTestId("desktop-preview")).toHaveCount(0);
@@ -2405,7 +2405,7 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     const openDialog = async (page: import("@playwright/test").Page) => {
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2593,7 +2593,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2834,7 +2834,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -3091,7 +3091,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      // Its terminal loads on first use (#173): the capture waits for it.
+      await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
       await openSwitch(page);
       await expect(page.getByTestId("switch-target-rows")).toBeVisible();
       await page.screenshot({
@@ -3322,7 +3324,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         .locator("button[data-row]:not(:disabled)")
@@ -4705,8 +4707,10 @@ const openCross = async (
   await page.setViewportSize(CROSS_VP);
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+  await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
   await expect(page.getByTestId("handover-section")).toBeVisible();
+  // Its terminal loads on first use (#173): the capture waits for it.
+  await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
   await openSwitch(page);
 };
 

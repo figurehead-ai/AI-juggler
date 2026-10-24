@@ -115,7 +115,7 @@ for (const theme of ["dark", "light"] as const) {
     test(`overload — the banner above a session, ${width} — ${theme}`, async ({ page }) => {
       await seed(page, "tight", [MEMORY], theme);
       await page.setViewportSize({ width, height: 800 });
-      await openSession(page, /Fake Desk app Running/);
+      await openSession(page, /Fake Desk app Working/);
       await expect(page.getByTestId("machine-alert")).toContainText("Your Mac is under memory pressure — macOS reports memory pressure");
       await bannerAbove(page);
       await page.screenshot({ path: resolve(OUT, `banner-above-session-${width}x800-${theme}.png`) });
@@ -125,7 +125,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`overload — busy processor, the Claude app — ${theme}`, async ({ page }) => {
     await seed(page, "tight", [CPU], theme);
-    await openSession(page, /Fake Desk app Running/);
+    await openSession(page, /Fake Desk app Working/);
     await expect(page.getByTestId("machine-alert")).toContainText("The Claude app is using CPU 140%");
     await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
     // Told once: dismissing clears it, and nothing else is offered.

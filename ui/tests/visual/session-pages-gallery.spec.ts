@@ -171,7 +171,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`AI Juggler's own session on its Overview — ${theme}`, async ({ page }) => {
     await seed(page, PAGE_FIXTURE, theme);
-    await page.getByTestId("rail").getByRole("button", { name: /^feat\/read-model Running/ }).first().click();
+    await page.getByTestId("rail").getByRole("button", { name: /^Working, feat\/read-model/ }).first().click();
     await page.getByTestId("page-tab-overview").click();
     await expect(page.getByTestId("session-overview")).toBeVisible();
     await expect(page.getByTestId("last-turn").first()).toBeVisible();
