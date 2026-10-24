@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+
+// AJ-E2104: these galleries read the project board, every status drawn.
+projectBoardByDefault(test);
 
 /**
  * AJ-E402 quality gate: axe-core reports 0 critical/serious violations on

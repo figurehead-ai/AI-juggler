@@ -10,7 +10,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, railViewAs } from "./fixtures";
+import { goTo, projectLens, railViewAs } from "./fixtures";
 
 type Conversation = { id: string; account_id: string; project_id: string | null; live: boolean; session_id: string | null };
 type Fixture = {
@@ -68,7 +68,8 @@ test("each account's card counts its live outside sessions", async ({ page }) =>
     const label = page.getByTestId("account-label").filter({ hasText: new RegExp(`^${account.label}$`) });
     const card = page.locator(".rounded-card", { has: label }).getByTestId("account-activity");
     if ((await card.count()) === 0) continue; // a card not signed in shows its sign-in instead
-    await expect(card.first()).toHaveText(live > 0 ? new RegExp(`^${live} running`) : /Nothing running/);
+    // AJ-E2109's words: what is open in each profile.
+    await expect(card.first()).toHaveText(live > 0 ? new RegExp(`^${live} open now`) : /Nothing open/);
   }
 });
 
@@ -76,6 +77,7 @@ test("a project's page lists its conversations started outside AI Juggler", asyn
   await seed(page);
   const project = FIXTURE.projects.find((p) => FIXTURE.conversations.some((c) => c.project_id === p.id && c.session_id === null))!;
   const count = FIXTURE.conversations.filter((c) => c.project_id === project.id && c.session_id === null).length;
+  await projectLens(page);
   await page.getByTestId("rail").getByRole("button", { name: new RegExp(`^${project.name}`) }).first().click();
   // AJ-E1533: the project's body (its Sessions) lists them beside its own.
   const body = page.getByTestId("page-panel-sessions");

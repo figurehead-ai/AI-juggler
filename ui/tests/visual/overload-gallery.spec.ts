@@ -8,7 +8,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, openRailList } from "./fixtures";
+import { allStatuses, openRailList, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/74-overload");
 const T0 = 1_728_800_000_000;
@@ -73,6 +73,9 @@ async function seed(page: Page, machine: string, alerts: unknown[], theme: "dark
 /** Opens a session from the rail: the screens the banner is for. */
 async function openSession(page: Page, title: RegExp) {
   await openRailList(page);
+  // AJ-E2104: the rows named by state first are the place lens's; these
+  // read the project board's.
+  await projectLens(page);
   await page.getByTestId("instance-board").getByRole("button", { name: title }).first().click();
 }
 
@@ -133,6 +136,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`this mac — advice from history — ${theme}`, async ({ page }) => {
     await seed(page, "plenty", [], theme);
+    // AJ-E2105: This Mac's page (its line in the top bar), not Home.
+    await page.getByTestId("machine-status").click();
     const advice = page.getByTestId("this-mac-recommendations");
     await expect(advice).toContainText("comfortably runs about 5 sessions at once");
     await advice.scrollIntoViewIfNeeded();

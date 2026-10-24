@@ -416,6 +416,22 @@ export async function railViewAs(page: import("@playwright/test").Page, view: Re
   await expect(page.getByTestId("rail")).toBeVisible();
 }
 
+/**
+ * AJ-E2104: galleries written for the project board (every session
+ * status drawn, by project) keep reading it: the Project lens with ended
+ * ones shown, unless the spec keeps its own View. The default, by place,
+ * is places-gallery's. Call once at a spec file's top.
+ */
+export function projectBoardByDefault(spec: { beforeEach: (fn: (args: { page: import("@playwright/test").Page }) => Promise<void>) => void }): void {
+  spec.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      if (localStorage.getItem("aij.rail.view.v1") === null) {
+        localStorage.setItem("aij.rail.view.v1", JSON.stringify({ group: "project", show: { ended: true } }));
+      }
+    });
+  });
+}
+
 /** AJ-E2104: the Project lens (projects' groups and their headers). */
 export async function projectLens(page: import("@playwright/test").Page): Promise<void> {
   await railViewAs(page, { group: "project" });

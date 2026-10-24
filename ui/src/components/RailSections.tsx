@@ -5,13 +5,14 @@
  * turning its view on. Nothing hidden is silent: a view that is off
  * leaves its count on that line.
  */
-import { Fragment, useState, type JSX, type ReactNode } from "react";
+import { Fragment, type JSX, type ReactNode } from "react";
 import { ConversationRow, asksYou, railSlice, type OutsideScope } from "./OutsideConversations";
 import { useActionHost } from "./ItemMenu";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../lib/bridge";
 import { isSnoozed, type RowGroup, type SnoozeState } from "../lib/railview";
+import { showInRail, useRailView } from "../lib/rail-view";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -126,16 +127,12 @@ export function NeedsYouSection({ rows, renderRow, ...props }: RowProps & { rows
  * are AI Juggler's own sessions that ended today. */
 export function AlsoLine({ ended, renderRow, ...props }: RowProps & { ended: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode }): JSX.Element {
   const { all } = useConversations();
-  const [shown, setShown] = useState<ReadonlySet<AlsoView>>(new Set());
+  // AJ-E2104: the parts are the View's Show (one choice for every lens).
+  const view = useRailView();
+  const shown: ReadonlySet<AlsoView> = new Set(VIEWS.filter((part) => view.show[part]));
   const parts = alsoParts(all, props.now);
-  const count = (view: AlsoView) => parts[view].length + (view === "ended" ? ended.length : 0);
-  const toggle = (view: AlsoView) =>
-    setShown((current) => {
-      const next = new Set(current);
-      if (next.has(view)) next.delete(view);
-      else next.add(view);
-      return next;
-    });
+  const count = (part: AlsoView) => parts[part].length + (part === "ended" ? ended.length : 0);
+  const toggle = (part: AlsoView) => showInRail(part, !view.show[part]);
   const link = "rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="rail-also">

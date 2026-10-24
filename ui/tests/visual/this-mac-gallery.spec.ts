@@ -38,7 +38,7 @@ const STATES: State[] = [
   { name: "plenty", fixture: calm, machine: "plenty", expect: "Plenty of room" },
   { name: "nothing-running", fixture: nothing, machine: "plenty", observed: [], expect: "Nothing running — your Mac has room" },
   { name: "tight-heavy-leftovers", fixture: heavy, machine: "tight", leftovers: [2, 1], expect: "Getting tight" },
-  { name: "pressure", fixture: calm, machine: "pressure", expect: "Your Mac is under pressure" },
+  { name: "pressure", fixture: calm, machine: "pressure", expect: "Under pressure" },
 ];
 const VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },

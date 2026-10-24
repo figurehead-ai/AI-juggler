@@ -15,7 +15,10 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac } from "./fixtures";
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+
+// AJ-E2104: these galleries read the project board, every status drawn.
+projectBoardByDefault(test);
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
