@@ -544,8 +544,118 @@
   Activity Monitor. If the kernel refuses the read, there is no memory
   reading at all (never a sum with another measure under the same name).
 
+### D-28 What agents may do: access levels per pool, rules you can revoke — SETTLED (2026-10-24)
+
+- Decision: an agent calling AI Juggler's tools from inside its own
+  session (a status, a message, a shared doc, a task row) is recorded as
+  the agent's action, not one the app executes. What it may do is set by
+  its pool's **access level**, which only the user sets, in the app:
+  **Read** (the roster, cards and tasks); **Work together** (also its
+  status, messages, shared docs, and creating, claiming and updating
+  tasks); **Full** (also delivering into other members' sessions, D-29);
+  **Custom** (per action). A project's default pool starts at **Work
+  together**. An action above the level becomes an **ask** in Needs you
+  (grouped, never a pop-up): Allow once, Always allow in this pool, or
+  Deny. On the **second** identical approval (same action, same pool),
+  the ask offers to remember it as a rule. Every level and rule is on
+  one page (Settings › Agent access, and each pool's page), revocable at
+  any time, effective on the next call; every agent action is logged.
+  The maintainer, 2026-10-24: "what we don't want to do, is get into a
+  mess where user is constantly being waited on to approve things … if
+  it sees user constantly being asked to approve certain types it can
+  offer an option to create a rule for it … all of these could be
+  revoked by user in our system at any time".
+- Hard lines no level or rule lifts: agents never change pools, levels
+  or rules; agents never start a session or choose an account (D-31);
+  agents never get credentials; AI Juggler never answers a tool's own
+  permission prompts.
+- Rejected: every agent write approved one by one (the approval spam
+  this ruling exists to avoid); reads only (messaging and tasks would
+  wait).
+- Consequences: one decision point, `allowed(pool, action)`, answers
+  Allow, Ask or Deny for every agent action (AJ-E1702); the bridge
+  (AJ-E1704), messaging (E18) and tasks (E19) only call it.
+
+### D-29 Delivering into a session without a click — SETTLED (2026-10-24)
+
+- Decision: AI Juggler may deliver a message into an idle session, so it
+  starts a turn without the user, only where the user allowed it: a pool
+  at **Full**, or a rule. Every delivery lands only between turns (never
+  mid-turn, over the user's typing, or at a tool's permission prompt);
+  is labelled with its sender and that it can't approve anything or
+  change settings; shows in the session as started by that message and
+  goes in the audit log; uses the vendor's own route where one exists
+  (Claude Code's messages between sessions), else is typed as the next
+  prompt, through the same checks. Caps apply on every level: a **hop
+  limit of 5** by default (one agent waking another is a hop; a person's
+  prompt, click or reply resets the count; at the limit the chain pauses
+  and asks), changeable per pool; a rate limit; duplicates dropped; a
+  stop-all switch per pool.
+- Rejected: never waking (agents couldn't hand work over while the user
+  is away); waking in every pool (one runaway pool could spend every
+  account).
+- Consequences: an amendment to SPEC §1 and ADR-0003's "sessions act
+  only when you act": the user's level or rule is the permission.
+
+### D-30 Adding AI Juggler's tools to sessions, pre-allowed — SETTLED (2026-10-24)
+
+- Decision: AI Juggler adds its agent tools to the sessions it starts,
+  through each tool's launch options (`--mcp-config` with a per-session
+  file in AI Juggler's own folder, never `--strict-mcp-config`; Codex's
+  `-c mcp_servers.*`), never by editing the user's config. It asks once,
+  the first time pools are used ("Let agents in your projects see each
+  other and work together?"); after that it's on, and can be switched
+  off per project or account. AI Juggler's own tools are **pre-allowed**
+  at launch (`--allowedTools` for them; Codex's approval setting for
+  them), so no session prompts for them: the pool level (D-28) is the
+  real check. Every other tool's prompts stay as the vendor shows them.
+- Rejected: off until enabled per project; on with no question;
+  pre-allowing read-only tools only or nothing (each new session would
+  greet the user with AI Juggler's prompts).
+- Consequences: sessions started outside AI Juggler are pool members but
+  can't call the tools until continued in AI Juggler.
+
+### D-31 Agents never start sessions; nothing picks an account by usage — SETTLED (2026-10-24)
+
+- Decision: an agent may **prepare** a launch (project, task, a draft
+  prompt), shown in Needs you; the user picks the account and starts it.
+  Nothing ranks or chooses accounts by remaining usage, for agents or
+  tasks; task assignment never reads quota.
+- Rejected: launches by rule on a fixed account (more cost running
+  unwatched; may be revisited after pools are in use); agents choosing
+  any account (rotating accounts to get past usage limits is what the
+  vendors' terms most clearly forbid; ADR-0003).
+- Consequences: a guardrail test keeps pools, assignment and the bridge
+  free of quota types.
+
+### D-32 Pools across your Macs, opt-in per pool, in 0.2 — SETTLED (2026-10-24)
+
+- Decision: a pool may include sessions on the user's paired Macs,
+  switched on per pool and off by default. Then its message, shared-doc
+  and task content travels between those Macs over juggler-link,
+  directly and encrypted, with no server. The pool's page says so when
+  it's switched on.
+- Rejected: later (the maintainer chose to build it in 0.2); never.
+- Consequences: the Privacy page's Fleet line ("It never gets your
+  sign-ins, files or prompts") and its link contract tests are rewritten
+  to say exactly when pool content travels, and only for pools switched
+  on. The two-Mac Fleet check (AJ-E710, the maintainer's) becomes part of
+  0.2's verification.
+
+### D-33 The default pool holds a project's sessions; agents see account labels — SETTLED (2026-10-24)
+
+- Decision: a project's default pool holds all its sessions, on any
+  account. Agents' context cards may show a member's **account label**
+  (the name the user gave it), never an email, plan or other account
+  detail.
+- Rejected: separate default pools per identity (Work and Personal)
+  within a project; one pool across all projects; full account details
+  on cards.
+- Consequences: a user who keeps Work and Personal apart does it with
+  their own pools or by project. A test keeps emails and plans off cards.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22 and D-27 on 2026-10-23; all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-28..D-33 on 2026-10-24; all follow the same law.

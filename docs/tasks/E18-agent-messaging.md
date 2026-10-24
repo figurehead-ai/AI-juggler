@@ -8,16 +8,17 @@
 > `docs/research/pools-messaging-tasks.md`.
 >
 > Built on E17's pools and bridge. Agents pull their messages. An idle
-> session gets a message only when the user clicks Deliver (D-29, to be
-> ruled).
+> session gets a message when the user clicks Deliver, or by itself in a
+> pool at Full or under a rule the user made (D-29).
 >
 > **Law for every task here:**
 > - **Provenance on everything.** Every delivered message says who sent it
 >   and that it can't approve anything or change settings.
-> - **No path from a message to typing into a session without the user's
->   click** (a guardrail test proves it).
-> - **Loops are bounded.** Hop caps, rate limits, dropped duplicates and a
->   pause switch per pool.
+> - **No delivery without the user's permission:** a click, a pool at Full,
+>   or a rule (D-28, D-29). Deliveries land only between turns, never at a
+>   tool's permission prompt (guardrail tests prove both).
+> - **Loops are bounded.** A hop limit (5 by default, per pool), rate
+>   limits, dropped duplicates and a stop-all switch per pool.
 > - **Docs are redacted.** Shared docs go through the D-14 pipeline before
 >   they're stored.
 
@@ -52,16 +53,16 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E1803 Click to deliver, and the turn note | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1801
-**Goal**: A message reaches an idle agent when the user says so, and a busy Claude agent hears about unread messages.
+### AJ-E1803 Delivery (a click, or allowed by the pool), and the turn note | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1801
+**Goal**: A message reaches an idle agent when the user says so or the pool allows it (D-29), and a busy Claude agent hears about unread messages.
 **User story**: As the user, I click Deliver on a message to an idle builder, and it becomes that builder's next prompt.
 **Requirements**:
-1. Deliver sends the message as the session's next prompt, only on the user's click, with the provenance tag. For an ended session, it prepares a resume with that message.
+1. Deliver sends the message as the session's next prompt, with the provenance tag: on the user's click, or by itself when `allowed(pool, deliver_to_session)` says Allow (a pool at Full, or a rule). It lands only between turns, never mid-turn, over the user's typing or at a tool's permission prompt; the session shows it was started by that message. For an ended session, it prepares a resume with that message.
 2. Claude Code gets a short facts-only note ("2 unread from Planner") at turn boundaries, through the per-launch `--settings` hook. Codex gets none in v1.
-3. If D-29 is ruled differently later, waking without a click becomes an opt-in per pool, behind the same caps.
+3. Caps on every level (D-29): the pool's hop limit (5 by default; a person's prompt, click or reply resets it; at the limit the chain pauses and asks in Needs you), a rate limit, dropped duplicates, and the pool's stop-all switch. Claude Code's own messages between sessions are used where available, else typing the next prompt, through the same checks.
 **UI/UX reasoning**: One button where the message shows.
 **Performance budget**: n/a.
-**Quality gates**: the no-click-no-delivery guardrail.
+**Quality gates**: guardrails: no delivery without a click, Full or a rule; none mid-turn or at a permission prompt; the hop limit pauses the chain.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1803/manifest.md`.
 **Visual testing**: the Deliver button and the delivered state.
 **Files to touch**: `crates/juggler-supervisor/`, the adapters' launch settings.

@@ -11,22 +11,28 @@
 > build on both.
 >
 > **Law for every task here:**
-> - **The user owns every pool.** Pools, roles and permissions change only
->   in the app, never through the bridge.
-> - **Agent-initiated only (D-28, to be ruled).** Agents call AI Juggler's
->   tools from inside their own session. AI Juggler never types into a
->   session for them.
+> - **The user owns every pool.** Pools, access levels and rules change
+>   only in the app, never through the bridge.
+> - **Access levels and rules (D-28).** Agents call AI Juggler's tools from
+>   inside their own session; each pool's level (Read, Work together, Full,
+>   Custom) and the user's revocable rules decide what they may do, and
+>   anything above that is asked in Needs you. One decision point,
+>   `allowed(pool, action)`, answers every call. Delivering into a session
+>   needs Full or a rule (D-29).
 > - **Per-launch files in AI Juggler's own folder (ADR-0018).** The bridge
 >   is added through launch flags and overlay files, never written into the
 >   user's setup.
-> - **No quota routing (D-31).** Nothing in a pool chooses an account by
->   remaining quota.
-> - **Work and personal stay apart (D-33).** The default pool covers one
->   project and one identity.
+> - **No quota routing, no launches by agents (D-31).** Nothing in a pool
+>   chooses an account by remaining quota; agents may only prepare a launch.
+> - **A project's sessions, account labels only (D-33).** The default pool
+>   holds every session in a project, on any account; agents see account
+>   labels, never emails or plans.
+> - **Across Macs only when switched on (D-32).** A pool may include the
+>   user's paired Macs, opt-in per pool.
 
 ### AJ-E1701 The spike, ADR-0020 and the policy rulings | Status: TODO | Priority P0 | Effort S | Depends: —
 **Goal**: The bridge's approach is proven on real tools, and the policy is written before code relies on it.
-**User story**: As the maintainer, I rule on D-28 to D-33, and I see the bridge load in Claude Code and Codex without prompts.
+**User story**: As the maintainer, I rule on D-28 to D-33 (ruled 2026-10-24), and I see the bridge load in Claude Code and Codex without prompts.
 **Requirements**:
 1. ADR-0020 "Agent bridge", plus D-28–D-33 in the decision log, as the maintainer rules them (the plan doc has the recommendations).
 2. A spike on spare accounts:
@@ -52,7 +58,7 @@
    - members hang off the Work item, so membership survives switches;
    - roles are lead, member and observer, with the user as the implicit owner;
    - the permission table is in the plan doc, with UI edits only.
-2. The default pool "All sessions" always exists, can't be deleted, and covers one project and one identity (D-33).
+2. The default pool "All sessions" always exists, can't be deleted, starts at Work together (D-28), and holds every session in its project, on any account (D-33).
 3. UI: create, rename and delete pools (except the default); move sessions between pools; set roles; a pool filter on Home and the rail. All reuse the existing rows, headers and folds.
 4. A guardrail test: pool operations never spawn, stop or type into a session.
 **UI/UX reasoning**: D-25: pools read like the rail's project groups, with the same fold and mark.
@@ -86,7 +92,7 @@
 1. A `juggler-agent` program in the signed bundle, a new crate. It works as an MCP stdio server with `--mcp`, and as a plain command line otherwise, so tools without MCP can call it from their shell.
 2. It talks to the core over a per-edition Unix socket (0600) and holds no state.
 3. Identity: a random token per session epoch, passed in the environment and never in argv, and rotated on every switch or resume.
-4. Injection (D-30 decides the default):
+4. Injection (D-30: on for sessions AI Juggler starts after one question, off per project or account; AI Juggler's own tools pre-allowed):
    - Claude Code gets `--mcp-config` with a per-session file in AI Juggler's overlay folder, never `--strict-mcp-config`;
    - Codex gets `-c mcp_servers.juggler.*` with `default_tools_approval_mode="writes"`.
 5. Tools: `whoami`, `pool_roster`, `set_status`, plus a cards resource.
@@ -99,3 +105,20 @@
 **Files to touch**: `crates/juggler-agentbridge/` (new), the adapters' launch specs, `crates/juggler-app/src/`.
 **Research basis**: `pools-messaging-tasks.md` §2.3 (components, how each tool gets it).
 **Handover note**: The bundle must sign and notarize the new binary; check the release workflow.
+
+### AJ-E1705 Pools across your Macs | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1702, AJ-E1801, AJ-E710
+**Goal**: A pool can include sessions on the user's paired Macs, when the user switches it on for that pool (D-32).
+**User story**: As the user, I switch on "Include my other Macs" for my *Backend* pool, and the agent on my MacBook sees and messages the one on my Mac mini.
+**Requirements**:
+1. Per pool, off by default; switching it on says, in one line, that message, shared-doc and task content will travel to the user's other Macs.
+2. Pool membership, statuses, messages, shared docs and tasks travel over juggler-link (mTLS, paired Macs only, no server), and only for pools switched on; switching off stops it at once.
+3. Every check runs on the Mac that owns the session: `allowed(pool, action)`, the hop limit and the caps hold across Macs; a peer never decides for another Mac's sessions.
+4. The Privacy page's Fleet line and the link contract tests (`crates/juggler-link/tests/proto_contract.rs`) are rewritten to say exactly when pool content travels; a test proves nothing travels for a pool switched off.
+**UI/UX reasoning**: One switch on the pool's page; members on other Macs show their Mac's name.
+**Performance budget**: a message reaches a peer in < 1 s on the local network.
+**Quality gates**: the link tests above; the network allowlist test; the trust tests.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1705/manifest.md`, including the two-Mac check (AJ-E710, the maintainer's).
+**Visual testing**: the switch and its note; a member on another Mac.
+**Files to touch**: `crates/juggler-link/`, the pools module, `docs/guide/trust.md`, `crates/juggler-app/tests/trust.rs`.
+**Research basis**: `pools-messaging-tasks.md` §2 (P6 fleet pools).
+**Handover note**: Ruled into 0.2 by the maintainer, 2026-10-24.

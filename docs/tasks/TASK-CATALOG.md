@@ -216,9 +216,10 @@
 | AJ-E1702 | Pools, the default pool, roles and permissions | E17-agent-pools.md | P0 | M | — |
 | AJ-E1703 | Context cards | E17-agent-pools.md | P1 | S | AJ-E1702 |
 | AJ-E1704 | The agent bridge, read-only | E17-agent-pools.md | P0 | M | AJ-E1701, AJ-E1702 |
+| AJ-E1705 | Pools across your Macs | E17-agent-pools.md | P1 | M | AJ-E1702, AJ-E1801, AJ-E710 |
 | AJ-E1801 | Messages and threads | E18-agent-messaging.md | P0 | M | AJ-E1704 |
 | AJ-E1802 | Your Inbox and compose | E18-agent-messaging.md | P0 | M | AJ-E1801 |
-| AJ-E1803 | Click to deliver, and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
+| AJ-E1803 | Delivery (a click, or allowed by the pool), and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
 | AJ-E1804 | Shared docs | E18-agent-messaging.md | P1 | S | AJ-E1801 |
 | AJ-E1805 | The messaging guardrail suite | E18-agent-messaging.md | P0 | S | AJ-E1801..AJ-E1804 |
 | AJ-E1901 | Task storage and rules | E19-agent-tasks.md | P0 | M | AJ-E1702 |
@@ -247,5 +248,5 @@
 | AJ-E2017 | Features as modules: split commands.rs and AppState | E20-engineering-and-security.md | P1 | L | AJ-E2011 |
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
-Total: 245 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 246 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
