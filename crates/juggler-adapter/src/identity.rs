@@ -15,6 +15,12 @@ pub enum IdentityProbe {
         subject: String,
         /// A recognisable, masked label (`o…@example.com · Acme`).
         label: String,
+        /// D-35: the organisation this sign-in is a seat in, when the
+        /// tool records one (compared, never shown). One login can be a
+        /// personal plan and a team seat: the same `subject`, two
+        /// organisations, two accounts. The wrong-account guard compares
+        /// `subject` alone.
+        org: Option<String>,
     },
     /// No sign-in is recorded in this state dir yet.
     SignedOut,

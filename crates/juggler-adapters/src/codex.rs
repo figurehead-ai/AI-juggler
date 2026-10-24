@@ -380,6 +380,9 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
             IdentityProbe::SignedIn {
                 label: format!("ChatGPT account …{tail}"),
                 subject,
+                // The account id is the workspace's already: a Team
+                // workspace and a personal plan never share one.
+                org: None,
             }
         }
         // Signed in through the Keychain, or a file without the id.
