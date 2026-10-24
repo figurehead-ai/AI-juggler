@@ -129,7 +129,8 @@ for (const viewport of VIEWPORTS) {
 
     test(`a session started outside AI Juggler — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      await page.getByTestId("rail-outside").filter({ hasText: "Running" }).first().click();
+      // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
+      await page.getByTestId("home-outside").first().click();
       await expect(page.getByTestId("conversation-page")).toBeVisible();
       await shoot(page, "outside-session", theme, viewport);
     });

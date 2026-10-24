@@ -31,7 +31,7 @@
 
 ## Step 1 — what is open, and getting there (0.1.3)
 
-### AJ-E2101 Live sessions from the apps' own files | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E2101 Live sessions from the apps' own files | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
 **Goal**: AI Juggler knows which sessions are really open, in which app and profile, without reading any process's environment.
 **User story**: As the maintainer with six Claude app profiles, the Codex app and a terminal open, I see exactly the sessions that are running, under the app and profile each runs in.
 **Requirements**:
@@ -53,7 +53,7 @@
 **Research basis**: the desktop-first technical research (2026-10-24).
 **Handover note**: The Claude app's files are undocumented; parse tolerantly.
 
-### AJ-E2102 Go to it | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2101
+### AJ-E2102 Go to it | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2101
 **Goal**: One click or Enter brings the session's app, profile and, where possible, its window or tab to the front, and says what it did.
 **User story**: As a user, I press Enter on a session and land in the right Claude app profile, or I'm told to pick it in that app's sidebar.
 **Requirements**:
@@ -72,7 +72,7 @@
 **Research basis**: as above.
 **Handover note**: macOS lets an app pass activation on only while active, which holds after a click in AI Juggler.
 
-### AJ-E2103 Open first: the rail's order | Status: TODO | Priority P0 | Effort S | Depends: AJ-E2101
+### AJ-E2103 Open first: the rail's order | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E2101
 **Goal**: The rail lists what needs you, then what is open, with ended sessions folded.
 **User story**: As a user, the top of the rail matches what's on my desktop.
 **Requirements**:
