@@ -168,11 +168,20 @@ fn pubkey(key: &SigningKey) -> String {
 /// The release signature of `data`, signed for `version`, as the feed
 /// carries it (base64 of the minisign `.sig` file).
 fn sign(key: &SigningKey, data: &[u8], version: &str) -> String {
+    sign_trusted(
+        key,
+        data,
+        &format!("timestamp:1792483200\tfile:pkg.tar.gz\tversion:{version}"),
+    )
+}
+
+/// The same, with any trusted comment: `tauri signer sign` without
+/// `--app-version` writes none with a version (0.1.0's packages).
+fn sign_trusted(key: &SigningKey, data: &[u8], trusted: &str) -> String {
     let signature = key.sign(data).to_bytes();
     let mut bin = b"Ed".to_vec();
     bin.extend_from_slice(&KEY_ID);
     bin.extend_from_slice(&signature);
-    let trusted = format!("timestamp:1792483200\tfile:pkg.tar.gz\tversion:{version}");
     let mut global = signature.to_vec();
     global.extend_from_slice(trusted.as_bytes());
     let global = key.sign(&global).to_bytes();
@@ -330,7 +339,7 @@ fn a_package_that_fails_its_signature_never_installs() {
     }));
     let new_version = package(&new_app);
 
-    let cases: [(&str, Vec<u8>, String, &str, &str); 4] = [
+    let cases: [(&str, Vec<u8>, String, &str, &str); 5] = [
         (
             "changed after signing",
             {
@@ -356,6 +365,19 @@ fn a_package_that_fails_its_signature_never_installs() {
             sign(&release_key, &new_version, "0.0.1"),
             "wrong_version",
             "signed for a different version",
+        ),
+        (
+            // 0.1.0's packages: 0.0.12 refused them (2026-10-24), which is
+            // why the release check now requires the version.
+            "signed without its version",
+            new_version.clone(),
+            sign_trusted(
+                &release_key,
+                &new_version,
+                "timestamp:1792483200\tfile:pkg.tar.gz",
+            ),
+            "signature",
+            "didn't pass the signature check",
         ),
         (
             "not a signature at all",
