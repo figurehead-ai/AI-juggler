@@ -2,7 +2,7 @@
 """AJ-E2001: checks a Tauri updater signature against the public key the
 app has baked in, before anything is published.
 
-    updater_sig_check.py ARCHIVE SIGFILE PUBKEY [--openssl PATH]
+    updater_sig_check.py ARCHIVE SIGFILE PUBKEY --version X.Y.Z [--openssl PATH]
     updater_sig_check.py --selftest [--openssl PATH]
 
 PUBKEY is the value of AIJ_UPDATER_PUBKEY (public). Tauri's keys and
@@ -16,7 +16,11 @@ signatures are minisign's, base64-encoded once more:
   `Ed` the file itself; the global signature covers the signature and the
   trusted comment.
 
-It passes only when the key ids match and both signatures verify. Hashing
+It passes only when the key ids match, both signatures verify, and the
+trusted comment binds the archive to its version (`version:X.Y.Z`, what
+`tauri signer sign --app-version` writes): the app's updater requires it
+(`requireSignedVersion`) and refuses a package without it. 0.0.17 and
+0.1.0 were signed without it, and 0.0.12 refused 0.1.0 (2026-10-24). Hashing
 is the standard library's; Ed25519 is OpenSSL 3's (`pkeyutl -rawin`), which
 GitHub's macOS runners carry. No third-party Python package, no build code.
 """
@@ -86,7 +90,15 @@ def ed25519_verify(openssl: str, public: bytes, message: bytes, signature: bytes
         return result.returncode == 0
 
 
-def check(archive: bytes, sig_blob: str, pubkey_blob: str, openssl: str) -> None:
+def signed_version(trusted: bytes):
+    """The `version:` field of a trusted comment, or None."""
+    for field in trusted.decode(errors="replace").split("\t"):
+        if field.startswith("version:"):
+            return field[len("version:"):]
+    return None
+
+
+def check(archive: bytes, sig_blob: str, pubkey_blob: str, openssl: str, version: str) -> None:
     key_id, public = parse_pubkey(pubkey_blob)
     algorithm, sig_key_id, signature, trusted, global_sig = parse_signature(sig_blob)
     if sig_key_id != key_id:
@@ -99,6 +111,11 @@ def check(archive: bytes, sig_blob: str, pubkey_blob: str, openssl: str) -> None
         raise SigError("the signature doesn't match the archive")
     if not ed25519_verify(openssl, public, signature + trusted, global_sig):
         raise SigError("the trusted comment's signature doesn't verify")
+    signed = signed_version(trusted)
+    if signed is None:
+        raise SigError("the signature doesn't carry the version (sign with --app-version); the app would refuse it")
+    if signed != version:
+        raise SigError(f"signed for version {signed}, this is {version}")
 
 
 def find_openssl(given):
@@ -140,7 +157,7 @@ def _selftest(openssl: str) -> None:
         ).decode()
         archive = b"an updater archive"
 
-        def signature_for(data: bytes, kid: bytes = key_id, trusted: bytes = b"timestamp:1\tfile:x") -> str:
+        def signature_for(data: bytes, kid: bytes = key_id, trusted: bytes = b"timestamp:1\tfile:x\tversion:1.2.3") -> str:
             sig = sign(hashlib.blake2b(data, digest_size=64).digest())
             global_sig = sign(sig + trusted)
             text = ("untrusted comment: signature from tauri secret key\n"
@@ -150,18 +167,22 @@ def _selftest(openssl: str) -> None:
             return base64.b64encode(text.encode()).decode()
 
         good = signature_for(archive)
-        check(archive, good, pubkey, openssl)
+        check(archive, good, pubkey, openssl, "1.2.3")
         print("ok   a good signature passes")
         cases = (
-            ("another file", lambda: check(b"tampered", good, pubkey, openssl)),
-            ("another key id", lambda: check(archive, signature_for(archive, kid=b"\x09" * 8), pubkey, openssl)),
+            ("another file", lambda: check(b"tampered", good, pubkey, openssl, "1.2.3")),
+            ("another key id", lambda: check(archive, signature_for(archive, kid=b"\x09" * 8), pubkey, openssl, "1.2.3")),
             ("a tampered trusted comment", lambda: check(
                 archive,
                 base64.b64encode(base64.b64decode(good).replace(b"timestamp:1", b"timestamp:2")).decode(),
                 pubkey,
                 openssl,
+                "1.2.3",
             )),
-            ("not a signature", lambda: check(archive, "bm90IGEgc2lnbmF0dXJl", pubkey, openssl)),
+            ("not a signature", lambda: check(archive, "bm90IGEgc2lnbmF0dXJl", pubkey, openssl, "1.2.3")),
+            ("no signed version (0.1.0's)", lambda: check(
+                archive, signature_for(archive, trusted=b"timestamp:1\tfile:x"), pubkey, openssl, "1.2.3")),
+            ("another signed version", lambda: check(archive, good, pubkey, openssl, "1.2.4")),
         )
         for name, run in cases:
             try:
@@ -179,6 +200,7 @@ def main() -> int:
     parser.add_argument("sigfile", nargs="?")
     parser.add_argument("pubkey", nargs="?")
     parser.add_argument("--openssl")
+    parser.add_argument("--version", help="the version the archive must be signed for")
     parser.add_argument("--selftest", action="store_true")
     args = parser.parse_args()
     try:
@@ -186,13 +208,13 @@ def main() -> int:
         if args.selftest:
             _selftest(openssl)
             return 0
-        if not (args.archive and args.sigfile and args.pubkey):
-            parser.error("ARCHIVE, SIGFILE and PUBKEY are required")
+        if not (args.archive and args.sigfile and args.pubkey and args.version):
+            parser.error("ARCHIVE, SIGFILE, PUBKEY and --version are required")
         with open(args.archive, "rb") as handle:
             archive = handle.read()
         with open(args.sigfile) as handle:
             sig_blob = handle.read()
-        check(archive, sig_blob, args.pubkey, openssl)
+        check(archive, sig_blob, args.pubkey, openssl, args.version)
     except SigError as error:
         print(f"::error::Updater signature: {error}", file=sys.stderr)
         return 1

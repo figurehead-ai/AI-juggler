@@ -55,8 +55,11 @@ Before anything is published, the sign job checks:
 - the app's signature, hardened runtime and lack of entitlements;
 - Gatekeeper, for the app and the disk image;
 - both stapled tickets;
-- the updater signature, against the public key baked into the app
-  (`scripts/updater_sig_check.py`).
+- the updater signature, against the public key baked into the app, and
+  that it's signed for its own version (`version:` in the trusted comment,
+  from `signer sign --app-version`), which the app's updater requires
+  (`scripts/updater_sig_check.py`). 0.1.0 was published without it, and
+  0.0.x couldn't update to it.
 
 **A dry run** (`release-rehearsal.yml`) builds both editions for real and
 rehearses the sign job with an ad-hoc signature and a throwaway updater
