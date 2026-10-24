@@ -217,6 +217,14 @@
           ]
         },
         {
+          "id": "pools-never-act",
+          "text": "Pools only group your sessions. Putting a session in a pool, giving it a role or deleting the pool never starts, stops or types into it.",
+          "tests": [
+            "crates/juggler-app/tests/pools.rs::pool_operations_never_start_stop_or_type_into_a_session",
+            "crates/juggler-app/tests/pools.rs::the_pool_code_has_no_path_to_a_session"
+          ]
+        },
+        {
           "id": "no-test-bridge",
           "text": "The test bridge the developers use is not in the app you download.",
           "tests": [

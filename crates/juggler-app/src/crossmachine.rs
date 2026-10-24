@@ -703,10 +703,7 @@ fn stage_edge(
     })?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
-    let work = match graph.works_for_project(&project)?.into_iter().next_back() {
-        Some(existing) => existing.id,
-        None => graph.create_work(&project, "Work")?.id,
-    };
+    let work = graph.work_for_switch(&project, &source.id, "Work")?.id;
     let suffix = crate::commands::unique_suffix();
     let ids = PushIds {
         work,

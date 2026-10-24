@@ -39,14 +39,15 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 /// The last released version that reads each database schema (kept with
 /// `docs/RELEASING.md` § Database changes). A schema not listed is named
 /// by number.
-// 31: AJ-E1502 (session and project names, pins, forgotten projects);
-// "0.1.x" until 0.1 is cut, when the release fills in its number.
+// 0.1.0 shipped schema 32 (31, AJ-E1502, and 32, AJ-E1519, came in
+// together, so no release stays on 31). 33 (pools, AJ-E1702) is added by
+// the release that ships it.
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (27, "0.0.7"),
     (28, "0.0.8"),
     (29, "0.0.9"),
     (30, "0.0.13"),
-    (31, "0.1.x"),
+    (32, "0.1.0"),
 ];
 
 /// The released version that reads `schema`, when it is known.

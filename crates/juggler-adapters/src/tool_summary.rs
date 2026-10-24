@@ -94,6 +94,22 @@ pub fn summarize(name: &str, input: &serde_json::Value) -> String {
     }
 }
 
+/// AJ-E1703: the files a tool call changed (written, edited or patched),
+/// last two path parts each as [`summarize`] names them; none for a call
+/// that changes no file (reading one isn't changing it).
+#[must_use]
+pub fn edited_files(name: &str, input: &serde_json::Value) -> Vec<String> {
+    let field = |key: &str| input.get(key).and_then(serde_json::Value::as_str);
+    match name {
+        "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => field("file_path")
+            .or_else(|| field("notebook_path"))
+            .map(|path| vec![tail_of_path(path)])
+            .unwrap_or_default(),
+        "apply_patch" => patched_files(field("input").or_else(|| field("patch")).unwrap_or("")),
+        _ => Vec::new(),
+    }
+}
+
 /// The task list a tool call set, when it set one: Claude Code's
 /// `TodoWrite` (`todos: [{content, status}]`) or Codex's `update_plan`
 /// (`plan: [{step, status}]`).

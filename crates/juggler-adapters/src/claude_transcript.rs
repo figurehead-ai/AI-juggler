@@ -236,6 +236,17 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
 }
 
 /// The `tool_use` parts of a message's content: (tool name, its input).
+/// AJ-E1703: one line's tool calls, for what the session is working on
+/// (the assistant's `tool_use` parts).
+pub(crate) fn activity_line(log: &mut crate::activity::ActivityLog, value: &serde_json::Value) {
+    if value.get("type").and_then(serde_json::Value::as_str) != Some("assistant") {
+        return;
+    }
+    for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
+        log.call(name, input);
+    }
+}
+
 fn tool_uses(content: Option<&serde_json::Value>) -> Vec<(&str, &serde_json::Value)> {
     let Some(serde_json::Value::Array(parts)) = content else {
         return Vec::new();

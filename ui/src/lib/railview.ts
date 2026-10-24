@@ -8,10 +8,12 @@
  */
 
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "./bridge";
+import type { PoolsInfo } from "./ipc/pools";
+import { poolIdOf } from "./pools";
 import { renewalLabel, renewalTieBreak } from "./renewal";
 
 export type SortMode = "needs" | "quota" | "project" | "provider" | "account" | "age" | "name";
-export type GroupBy = "none" | "project" | "account" | "provider";
+export type GroupBy = "none" | "project" | "account" | "provider" | "pool";
 export type ChipId = "needs" | "running" | "ended";
 
 /** Menu labels — the quota sort is honest about its input (AJ-E409 pending). */
@@ -30,6 +32,8 @@ export const GROUP_LABELS: { id: GroupBy; label: string }[] = [
   { id: "project", label: "Project" },
   { id: "account", label: "Account" },
   { id: "provider", label: "Tool" },
+  // AJ-E1702: offered once you've made a pool.
+  { id: "pool", label: "Pool" },
 ];
 
 export type ChipFilters = { chips: ChipId[]; provider: string | null; account: string | null; project: string | null; machine: string | null };
@@ -239,10 +243,11 @@ export type RowGroup = { id: string; label: string; rollup: string; rows: Instan
  * Group sorted rows (Needs-me order applies INSIDE groups, Req.5) with
  * rollup copy `N running - M needs you - lowest quota X%`.
  */
-export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: ProjectInfo[]): RowGroup[] {
+export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: ProjectInfo[], pools: PoolsInfo | null = null): RowGroup[] {
   if (by === "none") {
     return [{ id: "__all", label: "", rollup: "", rows: sorted }];
   }
+  if (by === "pool") return groupByPool(sorted, pools);
   const projectName = projectNames(projects);
   const buckets = new Map<string, InstanceInfo[]>();
   const labels = new Map<string, string>();
@@ -274,6 +279,24 @@ export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: Pro
     rollup: rollupOf(rows),
     rows,
   }));
+}
+
+/**
+ * AJ-E1702: sessions under their pool, like project groups — the order
+ * the rows bring (Needs you first), then your pools with nobody in them
+ * yet, so each still has a place to open.
+ */
+function groupByPool(sorted: InstanceInfo[], pools: PoolsInfo | null): RowGroup[] {
+  const buckets = new Map<string, InstanceInfo[]>();
+  for (const row of sorted) {
+    const id = poolIdOf(pools, row);
+    buckets.set(id, [...(buckets.get(id) ?? []), row]);
+  }
+  for (const pool of pools?.pools ?? []) {
+    if (pool.kind === "user" && !buckets.has(pool.id)) buckets.set(pool.id, []);
+  }
+  const names = new Map((pools?.pools ?? []).map((pool) => [pool.id, pool.name]));
+  return [...buckets.entries()].map(([id, rows]) => ({ id: `pool:${id}`, label: names.get(id) ?? id, rollup: rollupOf(rows), rows }));
 }
 
 export function rollupOf(rows: InstanceInfo[]): string {

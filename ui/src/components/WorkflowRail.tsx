@@ -27,7 +27,6 @@ import { shortHeavy, useHeavyNote } from "../lib/machine";
 import type { Density } from "../lib/density";
 import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
-  GROUP_LABELS,
   NO_CHIP_FILTERS,
   SORT_LABELS,
   isSnoozed,
@@ -50,6 +49,7 @@ import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { FilterChip, Select } from "./RailControls";
+import { NewPoolLink, RailPoolHeader, useRailPools } from "./RailPools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
@@ -351,7 +351,9 @@ export function InstanceBoard({
 }) {
   const [sort, setSort] = useState<SortMode>("needs");
   // D-25: one rail — sessions grouped under their project by default.
-  const [group, setGroup] = useState<GroupBy>("project");
+  const [chosenGroup, setGroup] = useState<GroupBy>("project");
+  const railPools = useRailPools(chosenGroup, setGroup); // AJ-E1702: pools group and filter it too
+  const group = railPools.group;
   // D-25: the quick filters show; the rest wait behind Filters.
   const [moreFilters, setMoreFilters] = useState(false);
   const [filters, setFilters] = useState<ChipFilters>(NO_CHIP_FILTERS);
@@ -429,7 +431,7 @@ export function InstanceBoard({
   }, []);
 
   const effectiveDensity = density === "minimal" ? "compact" : density;
-  const filtered = filterSessions(sessions, filters, query, projects);
+  const filtered = railPools.filter(filterSessions(sessions, filters, query, projects));
   const sorted = sortSessions(filtered, sort, snooze, now, projects, accounts);
   // Quota-risk groups the unknowns under `no data` (Req.2); other sorts
   // group only when the user picked a Group-by.
@@ -438,7 +440,7 @@ export function InstanceBoard({
   const sessionGroups =
     effectiveGroup === "quota-data"
       ? quotaDataGroups(sorted)
-      : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects);
+      : groupSessions(sorted, effectiveGroup === "none" ? "none" : effectiveGroup, projects, railPools.pools);
   // AJ-E1529: sessions started outside AI Juggler show under their project.
   const scope = effectiveGroup === "project" ? outsideScope(filters, query) : "none";
   const groups = withOutsideGroups(sessionGroups, conversations, projects, scope);
@@ -452,7 +454,7 @@ export function InstanceBoard({
     filters.provider === null &&
     filters.account === null &&
     filters.project === null &&
-    query.trim() === "";
+    query.trim() === "" && !railPools.narrowed;
   const idleProjects = quiet && onSelectProject ? projects.filter((p) => !groups.some((group) => group.id === p.id)) : [];
 
   // Windowing (Req.7): only the flat, ungrouped list virtualises — the
@@ -566,18 +568,18 @@ export function InstanceBoard({
           <button
             type="button"
             aria-expanded={moreFilters}
-            aria-label={narrowed(filters, sort, group, machineChoice) ? "Filters (some on)" : "Filters"}
+            aria-label={(narrowed(filters, sort, group, machineChoice) || railPools.narrowed) ? "Filters (some on)" : "Filters"}
             title="Filters"
             onClick={() => setMoreFilters((open) => !open)}
             className={
               "relative ml-auto flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (moreFilters || narrowed(filters, sort, group, machineChoice) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
+              (moreFilters || (narrowed(filters, sort, group, machineChoice) || railPools.narrowed) ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
             }
           >
             <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <path d="M4 6h16M7 12h10M10 18h4" />
             </svg>
-            {narrowed(filters, sort, group, machineChoice) && (
+            {(narrowed(filters, sort, group, machineChoice) || railPools.narrowed) && (
               <span aria-hidden="true" className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-accent" />
             )}
           </button>
@@ -588,12 +590,13 @@ export function InstanceBoard({
             <FilterChip active={filters.chips.includes("ended")} onClick={() => toggleChip(setFilters, "ended")} count={counts.ended}>
               Ended
             </FilterChip>
-            {narrowed(filters, sort, group, machineChoice) && (
+            {(narrowed(filters, sort, group, machineChoice) || railPools.narrowed) && (
               <button
                 type="button"
                 data-testid="rail-filters-reset"
                 onClick={() => {
                   setFilters(NO_CHIP_FILTERS);
+                  railPools.reset();
                   setSort("needs");
                   setGroup("project");
                   if (machineChoice !== "all") chooseMachine("all");
@@ -605,7 +608,7 @@ export function InstanceBoard({
             )}
           </div>
           <Select ariaLabel="Sort by" value={sort} onChange={(value) => setSort(value as SortMode)} options={SORT_LABELS.map((entry) => ({ value: entry.id, label: `Sort: ${entry.label}` }))} />
-          <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={GROUP_LABELS.map((entry) => ({ value: entry.id, label: `Group: ${entry.label}` }))} />
+          <Select ariaLabel="Group by" value={group} onChange={(value) => setGroup(value as GroupBy)} options={railPools.groupOptions} />
           <Select
             ariaLabel="Filter by tool"
             value={filters.provider ?? ""}
@@ -636,6 +639,7 @@ export function InstanceBoard({
             onChange={(value) => setFilters((current) => ({ ...current, project: value || null }))}
             options={[{ value: "", label: "Project: all" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]}
           />
+          {railPools.picker}
         </div>
         )}
       </div>
@@ -731,7 +735,9 @@ export function InstanceBoard({
                     controls={safeId("rail-group", entry.id)}
                     onToggle={() => toggleFold(entry.id)}
                   />
-                  {effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
+                  {effectiveGroup === "pool" ? (
+                    <RailPoolHeader id={entry.id} label={entry.label} rollup={entry.rollup} count={entry.rows.length} selected={entry.id === `pool:${selectedId}`}>{folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}</RailPoolHeader>
+                  ) : effectiveGroup === "project" && onSelectProject && projects.some((p) => p.id === entry.id) ? (
                     <RailProjectHeader
                       project={projects.find((p) => p.id === entry.id)!}
                       rows={entry.rows}
@@ -781,6 +787,7 @@ export function InstanceBoard({
             </div>
           ))
         )}
+        {effectiveGroup === "pool" && <NewPoolLink />}
         {idleProjects.length > 0 && (
           /* Projects with no session here yet (from the setups' history):
              the same rows as sessions, a folder mark instead of a state,

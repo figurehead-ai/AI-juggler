@@ -316,19 +316,23 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v32, AJ-E1519) is undone by
-    // hand and runs again on open.
+    // One version behind: the last migration (v33, AJ-E1702 pools) is
+    // undone by hand and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 32,
-        "a new migration landed: undo it here instead (this test's undo is v32's)"
+        version, 33,
+        "a new migration landed: undo it here instead (this test's undo is v33's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE worktree_homes;").unwrap();
+        conn.execute_batch(
+            "DROP TRIGGER pools_default_for_new_project; DROP TABLE agent_audit; DROP TABLE agent_approvals; DROP TABLE agent_rules; \
+             DROP TABLE pool_members; DROP TABLE pools;",
+        )
+        .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

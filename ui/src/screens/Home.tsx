@@ -42,6 +42,7 @@ import { HomeOutsideRows } from "../components/OutsideConversations";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { minutes } from "../lib/time-words";
 import { showToast } from "../components/Toast";
+import { useHomePool } from "../components/HomePoolFilter";
 import {
   accountLoginState,
   dashboardStats,
@@ -101,18 +102,11 @@ const NEED_GLYPH: Record<Need, { glyph: string; tone: string; tint: string }> = 
   failed: { glyph: "✕", tone: "text-danger", tint: "bg-danger-soft" },
 };
 
-/** A session's place: project name (or folder) and branch. */
-export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
-  const project = projects.find((p) => p.id === session.project_id);
-  const cwd = session.cwd ?? "";
-  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  const title = project?.name ?? folder;
-  const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
-  return { title, detail };
-}
+import { placeOf } from "../lib/project-words";
+export { placeOf };
 
 export function HomeScreen({
-  sessions,
+  sessions: allSessions,
   accounts,
   projects,
   now,
@@ -156,6 +150,7 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
+  const { sessions, picker: poolPicker } = useHomePool(allSessions); // AJ-E1702: one pool, when picked
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
@@ -434,9 +429,9 @@ export function HomeScreen({
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
-          {/* AJ-E403 Req.6: the legend's Home surface (the "All clear"
-              explainer), the same panel as the rail footer's "?". */}
+          {/* AJ-E403 Req.6: the legend's Home surface ("All clear"), the same panel as the rail footer's "?". */}
           <LegendPopover className="shrink-0" placement="below" />
+          {poolPicker}
         </div>
         {subline && <p className="text-sm text-muted">{subline}</p>}
       </header>
@@ -456,7 +451,7 @@ export function HomeScreen({
       <MorningSummary onOpenSession={onOpenSession} />
       <SmootherCard variant="reminder" />
 
-      {sessions.length === 0 && conversations.length === 0 && (
+      {allSessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-lg font-semibold">Start your first session</h2>
           <p className="max-w-xl text-sm leading-relaxed text-muted">

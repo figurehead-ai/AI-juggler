@@ -315,6 +315,17 @@ macro_rules! app_commands {
             Write features::budgets::commands::budgets_save,
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
+            Read  features::pools::commands::pools_list,
+            Read  features::pools::commands::pools_cards,
+            Write features::pools::commands::pools_create,
+            Write features::pools::commands::pools_rename,
+            Write features::pools::commands::pools_delete,
+            Write features::pools::commands::pools_move,
+            Write features::pools::commands::pools_set_role,
+            Write features::pools::commands::pools_set_access,
+            Write features::pools::commands::pools_set_delivery,
+            Write features::pools::commands::pools_set_spans_macs,
+            Write features::pools::commands::pools_revoke_rule,
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
@@ -1018,6 +1029,8 @@ fn spawn_read_model_ticks(
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
             commands::detect_running_models(&processes_app, &processes_state, None);
+            // AJ-E1703: what each live session is working on (its card).
+            features::pools::cards::tick(&processes_state);
             if features::subtasks::tick(&processes_state) {
                 let _ = commands::emit_sessions(&processes_app, &processes_state);
             }

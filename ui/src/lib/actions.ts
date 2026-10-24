@@ -94,6 +94,7 @@ const SESSION: ActionSpec<"session">[] = [
     applies: (_, h) => has(h.pinSession),
     run: (row, h) => h.pinSession!(row),
   },
+  { id: "pool", label: "Move to pool…", group: "main", applies: (_, h) => has(h.moveSessionToPool), run: (row, h) => h.moveSessionToPool!(row) },
   {
     id: "copy-resume",
     label: "Copy resume command",

@@ -112,6 +112,8 @@
 | AJ-E1603 | PASS10 UNPROVEN2 | 2026-10-24 | [manifest](AJ-E1603/manifest.md) |
 | AJ-E1604 | PASS10 UNPROVEN2 | 2026-10-24 | [manifest](AJ-E1604/manifest.md) |
 | AJ-E1611 | PASS6 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E1611/manifest.md) |
+| AJ-E1702 | PASS13 | 2026-10-24 | [manifest](AJ-E1702/manifest.md) |
+| AJ-E1703 | PASS7 | 2026-10-24 | [manifest](AJ-E1703/manifest.md) |
 | AJ-E201 | PASS8 | 2026-10-16 | [manifest](AJ-E201/manifest.md) |
 | AJ-E2011 | PASS4 | 2026-10-21 | [manifest](AJ-E2011/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |
