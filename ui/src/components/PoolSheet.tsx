@@ -2,7 +2,7 @@ import { useState, type JSX } from "react";
 
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { poolCreate, poolMove, type PoolsInfo } from "../lib/ipc/pools";
-import { hasUserPools, openPoolSheet, poolById, poolIdOf, setPools, type PoolSheetTarget } from "../lib/pools";
+import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolById, poolIdOf, setPools, type PoolSheetTarget } from "../lib/pools";
 import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal, Select } from "./form";
 import { PoolEditor } from "./PoolEditor";
@@ -158,8 +158,11 @@ function MovePool({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const where = placeOf(session, projects);
-  const here = poolIdOf(pools, session.id);
-  const choices = pools.pools.filter((pool) => pool.project_id === null || pool.project_id === session.project_id);
+  const here = poolIdOf(pools, session);
+  // Your pools it can join, and its own project's default pool (D-33).
+  const choices = pools.pools.filter((pool) =>
+    pool.kind === "user" ? pool.project_id === null || pool.project_id === session.project_id : pool.id === defaultPoolIdOf(session.project_id),
+  );
   const move = async (poolId: string) => {
     setBusy(true);
     setError(null);

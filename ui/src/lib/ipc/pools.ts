@@ -24,7 +24,16 @@ import type { CardField } from "../../types/generated/CardField";
 export type { PoolsInfo, PoolInfo, PoolMemberInfo, AccessInfo, AgentRuleInfo, PoolCards, ContextCard, CardField };
 export type PoolRole = "lead" | "member" | "observer";
 
-export const DEFAULT_POOL_ID = "pool-default";
+/** D-33: the default pool of sessions with no project. */
+export const NO_PROJECT_POOL_ID = "pool-default:none";
+
+/** D-33: a project's own default pool (the backend's `default_pool_id`). */
+export function defaultPoolIdOf(projectId: string | null | undefined): string {
+  return projectId ? `pool-default:${projectId}` : NO_PROJECT_POOL_ID;
+}
+
+/** A default pool's name: its project's (as it is now), and what it is. */
+const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"} · all sessions`;
 
 /** D-28: the agent actions, in the catalog's order, and what each
  * named level allows (the backend's `AccessLevel::actions`). */
@@ -43,7 +52,8 @@ export const AGENT_ACTIONS = [
   "prepare_launch",
 ] as const;
 const READ = AGENT_ACTIONS.slice(0, 3);
-const WORK = AGENT_ACTIONS.slice(0, 9);
+// Staging a launch is Work together's: the Needs you card's click is the gate.
+const WORK = [...AGENT_ACTIONS.slice(0, 9), "prepare_launch"];
 const LEVEL_ACTIONS: Record<string, readonly string[]> = { read: READ, work_together: WORK, full: [...WORK, "deliver_to_session"] };
 
 // D-29: delivering into a session is Full's or a rule's, never Custom's.
@@ -68,15 +78,27 @@ const record = (call: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(call);
 let store: PoolsInfo | null = null;
 let counter = 0;
 
-/** The preview's pools: every preview session has a place (the default
- * pool unless seeded otherwise), as the backend answers. */
+const defaultPool = (projectId: string | null, name: string | null): PoolInfo => ({
+  id: defaultPoolIdOf(projectId),
+  name: defaultPoolName(name),
+  kind: "default",
+  project_id: projectId,
+  access: accessAt("work_together"),
+  rules: [],
+  spans_macs: false,
+  scopes: 1,
+});
+
+/** The preview's pools, as the backend answers: yours first, then each
+ * project's default pool by name, "No project" last; every preview
+ * session has a place (its project's default pool unless seeded
+ * otherwise). */
 function preview(): PoolsInfo {
   if (store === null) {
     const seeded = seams().__AIJ_POOLS__;
     const pools: PoolInfo[] = [
-      { id: DEFAULT_POOL_ID, name: "All sessions", kind: "default", project_id: null, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 1 },
       ...(seeded?.pools ?? [])
-        .filter((pool) => pool.id !== DEFAULT_POOL_ID)
+        .filter((pool) => !pool.id?.startsWith("pool-default:"))
         .map((pool, index) => ({
           id: pool.id ?? `pool-seeded-${index}`,
           name: pool.name ?? `Pool ${index + 1}`,
@@ -87,13 +109,15 @@ function preview(): PoolsInfo {
           spans_macs: pool.spans_macs ?? false,
           scopes: 1,
         })),
+      ...[...MOCK_PROJECTS].sort((a, b) => a.name.localeCompare(b.name)).map((project) => defaultPool(project.id, project.name)),
+      defaultPool(null, null),
     ];
     store = { pools, members: [...(seeded?.members ?? [])] };
   }
   const state = store;
   for (const session of MOCK_SESSIONS) {
     if (!state.members.some((row) => row.session_id === session.id)) {
-      state.members.push({ session_id: session.id, pool_id: DEFAULT_POOL_ID, role: "member" });
+      state.members.push({ session_id: session.id, pool_id: defaultPoolIdOf(session.project_id), role: "member" });
     }
   }
   // D-33: a pool's scopes are its projects, whatever the account.
@@ -140,17 +164,18 @@ export async function poolCreate(name: string, projectId: string | null): Promis
     const clean = checkedName(name, null);
     record(`create:${clean}`);
     counter += 1;
-    store!.pools.push({ id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0 });
+    const mine = store!.pools.filter((pool) => pool.kind === "user").length;
+    store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0 });
     return preview();
   }
   return invoke<PoolsInfo>("pools_create", { name, projectId });
 }
 
-/** Renames a pool ("All sessions" keeps its name). */
+/** Renames a pool (a project's default pool keeps its project's name). */
 export async function poolRename(poolId: string, name: string): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (pool.kind === "default") throw refused("«All sessions» keeps its name");
+    if (pool.kind === "default") throw refused(`«${pool.name}» keeps its name: rename its project instead`);
     pool.name = checkedName(name, poolId);
     record(`rename:${poolId}:${pool.name}`);
     return preview();
@@ -158,15 +183,16 @@ export async function poolRename(poolId: string, name: string): Promise<PoolsInf
   return invoke<PoolsInfo>("pools_rename", { poolId, name });
 }
 
-/** Deletes a pool; its sessions go back to "All sessions". */
+/** Deletes a pool; its sessions go back to their projects' default pools. */
 export async function poolDelete(poolId: string): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (pool.kind === "default") throw refused("«All sessions» can't be deleted — it holds every session that isn't in another pool");
+    if (pool.kind === "default") throw refused(`«${pool.name}» can't be deleted — it holds every session of its project that isn't in another pool`);
     record(`delete:${poolId}`);
     store!.pools = store!.pools.filter((row) => row.id !== poolId);
     for (const row of store!.members) {
-      if (row.pool_id === poolId) Object.assign(row, { pool_id: DEFAULT_POOL_ID, role: "member" });
+      const session = MOCK_SESSIONS.find((entry) => entry.id === row.session_id);
+      if (row.pool_id === poolId) Object.assign(row, { pool_id: defaultPoolIdOf(session?.project_id), role: "member" });
     }
     return preview();
   }
@@ -182,6 +208,9 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
     if (pool.project_id !== null && session.project_id !== pool.project_id) {
       const project = MOCK_PROJECTS.find((row) => row.id === pool.project_id);
       throw refused(`«${pool.name}» is for ${project?.name ?? "one project"} only — this session works somewhere else`);
+    }
+    if (pool.id === NO_PROJECT_POOL_ID && session.project_id) {
+      throw refused("«No project · all sessions» is for sessions with no project — this one has one");
     }
     record(`move:${sessionId}:${poolId}`);
     Object.assign(store!.members.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });

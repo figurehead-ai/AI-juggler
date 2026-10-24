@@ -7,9 +7,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { onSessionsUpdated, type InstanceInfo } from "./bridge";
-import { DEFAULT_POOL_ID, poolsList, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolsList, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
 
-export { DEFAULT_POOL_ID };
+export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
 
 export const ROLES: { id: PoolRole; label: string }[] = [
@@ -24,7 +24,8 @@ export const LEVELS: { id: string; label: string; words: string }[] = [
   {
     id: "work_together",
     label: "Work together",
-    words: "Read, and post messages, share documents and work on tasks. A message for a session that's waiting goes in when you click.",
+    words:
+      "Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click.",
   },
   { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, up to the hop limit." },
   { id: "custom", label: "Custom", words: "You pick each action." },
@@ -54,9 +55,10 @@ export function roleLabel(role: string): string {
   return ROLES.find((entry) => entry.id === role)?.label ?? "Member";
 }
 
-/** The pool a session is in (the default pool when the list is behind). */
-export function poolIdOf(pools: PoolsInfo | null, sessionId: string): string {
-  return pools?.members.find((row) => row.session_id === sessionId)?.pool_id ?? DEFAULT_POOL_ID;
+/** The pool a session is in (its project's default pool when the list is
+ * behind). */
+export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string {
+  return pools?.members.find((row) => row.session_id === session.id)?.pool_id ?? defaultPoolIdOf(session.project_id);
 }
 
 export function roleOf(pools: PoolsInfo | null, sessionId: string): PoolRole {
@@ -75,18 +77,18 @@ export function poolById(pools: PoolsInfo | null, id: string): PoolInfo | undefi
 
 /** The sessions in a pool, in the order given. */
 export function sessionsIn(pools: PoolsInfo | null, poolId: string, sessions: InstanceInfo[]): InstanceInfo[] {
-  return sessions.filter((session) => poolIdOf(pools, session.id) === poolId);
+  return sessions.filter((session) => poolIdOf(pools, session) === poolId);
 }
 
 /** Only the sessions in one pool (`null`: every pool). */
 export function filterByPool(rows: InstanceInfo[], pool: string | null, pools: PoolsInfo | null): InstanceInfo[] {
-  return pool === null ? rows : rows.filter((row) => poolIdOf(pools, row.id) === pool);
+  return pool === null ? rows : rows.filter((row) => poolIdOf(pools, row) === pool);
 }
 
-/** One line on what the pool covers (D-33), or null when there's nothing to say. */
+/** One line on what a pool of yours covers, when it mixes projects (D-33:
+ * a project's default pool is that project alone), or null. */
 export function scopeWords(pool: PoolInfo): string | null {
-  if (pool.kind === "default") return "Agents here will see only the sessions of their own project.";
-  if (pool.scopes > 1) return "This pool mixes projects: agents in it would see each other's work.";
+  if (pool.kind === "user" && pool.scopes > 1) return "This pool mixes projects: agents in it would see each other's work.";
   return null;
 }
 

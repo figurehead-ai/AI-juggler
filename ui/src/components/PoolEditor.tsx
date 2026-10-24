@@ -2,7 +2,7 @@ import { useState, type JSX } from "react";
 
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { poolDelete, poolMove, poolRename, poolSetRole, type PoolInfo, type PoolsInfo } from "../lib/ipc/pools";
-import { DEFAULT_POOL_ID, ROLES, levelLabel, roleOf, scopeWords, sessionsIn, setPools, type PoolRole } from "../lib/pools";
+import { ROLES, defaultPoolIdOf, levelLabel, roleOf, scopeWords, sessionsIn, setPools, type PoolRole } from "../lib/pools";
 import { PoolAccessPanel } from "./PoolAccess";
 import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal } from "./form";
@@ -11,7 +11,7 @@ import { Button } from "./primitives";
 /**
  * One pool (AJ-E1702): rename it, set roles, add and take out sessions,
  * say what agents may do (D-28), or delete it. The minimum shows; what
- * agents may do waits behind a disclosure. "All sessions" can't be renamed or
+ * agents may do waits behind a disclosure. A project's default pool can't be renamed or
  * deleted.
  */
 export function PoolEditor({
@@ -53,7 +53,7 @@ export function PoolEditor({
   };
 
   const count = `${members.length} ${members.length === 1 ? "session" : "sessions"}`;
-  const subtitle = isDefault ? "Every session that isn't in another pool." : [count, forProject ? `for ${forProject.name}` : null].filter(Boolean).join(" · ");
+  const subtitle = isDefault ? "Every session of its project that isn't in another pool." : [count, forProject ? `for ${forProject.name}` : null].filter(Boolean).join(" · ");
 
   return (
     <Modal title={pool.name} subtitle={subtitle} onClose={onClose} testId="pool-editor">
@@ -83,7 +83,7 @@ export function PoolEditor({
           <p className="text-[11px] uppercase tracking-[0.14em] text-faint">Sessions</p>
           {members.length === 0 ? (
             <p className="text-xs text-muted" data-testid="pool-empty">
-              {isDefault ? "Every session is in another pool." : "No sessions yet. Add one below, or from a session's menu."}
+              {isDefault ? "Every session of its project is in another pool." : "No sessions yet. Add one below, or from a session's menu."}
             </p>
           ) : (
             <ul className="flex flex-col gap-1" data-testid="pool-members">
@@ -114,9 +114,9 @@ export function PoolEditor({
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => void run(() => poolMove(session.id, DEFAULT_POOL_ID))}
+                        onClick={() => void run(() => poolMove(session.id, defaultPoolIdOf(session.project_id)))}
                         aria-label={`Take out ${named}`}
-                        title="Back to All sessions"
+                        title="Back to its project's pool"
                         className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                         data-testid="pool-member-out"
                       >
@@ -176,12 +176,12 @@ export function PoolEditor({
 
         <div className="flex items-center justify-between gap-2">
           {isDefault ? (
-            <span className="text-[11px] text-faint">All sessions is always here.</span>
+            <span className="text-[11px] text-faint">It's always here: every session of its project that isn't in another pool.</span>
           ) : confirmDelete ? (
             <span className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted" data-testid="pool-delete-confirm">
               <span>
                 {members.length > 0
-                  ? `Its ${members.length === 1 ? "session goes" : `${members.length} sessions go`} back to All sessions; nothing else changes.`
+                  ? `Its ${members.length === 1 ? "session goes" : `${members.length} sessions go`} back to their projects' pools; nothing else changes.`
                   : "Nothing else changes."}
               </span>
               <Button size="sm" variant="danger" disabled={busy} onClick={() => void run(() => poolDelete(pool.id), true)} data-testid="pool-delete-yes">

@@ -159,7 +159,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Settings");
     await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Agent access" }).click();
     const card = page.getByTestId("settings-agent-access");
-    await expect(card.getByTestId("agent-access-pool")).toHaveCount(3);
+    await expect(card.getByTestId("agent-access-pool")).toHaveCount(5);
     await card.getByTestId("agent-access-pool").nth(1).locator("> summary").click();
     await card.scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);

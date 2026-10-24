@@ -7,7 +7,7 @@
  *   opens its page.
  * - A session's menu: "Move to pool…" opens the move sheet.
  * - The sheets: make a pool (the session goes in), move a session, rename
- *   (a taken name refused in words), "All sessions" can't be renamed or
+ *   (a taken name refused in words), a project's default pool can't be renamed or
  *   deleted, deleting says what happens first.
  * - Agent access: the level picker, Custom's actions (never delivery),
  *   the hop limit and stop-all, rules taken back; Settings lists every
@@ -20,7 +20,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
 import { actionSpecs } from "../lib/actions";
-import { DEFAULT_POOL_ID, poolsList, resetPreviewPools, type ContextCard, type PoolsInfo } from "../lib/ipc/pools";
+import { defaultPoolIdOf, poolsList, resetPreviewPools, type ContextCard, type PoolsInfo } from "../lib/ipc/pools";
 import { openPoolSheet, refreshPools, resetPools, setPools } from "../lib/pools";
 import { groupSessions } from "../lib/railview";
 import { useHomePool } from "./HomePoolFilter";
@@ -103,7 +103,8 @@ describe("pools in the rail", () => {
     const headers = getAllByTestId("rail-pool").map((header) => header.textContent ?? "");
     expect(headers.some((text) => text.startsWith("Checkout redesign"))).toBe(true);
     expect(headers.some((text) => text.startsWith("Docs") && text.endsWith("0"))).toBe(true);
-    expect(headers.some((text) => text.startsWith("All sessions"))).toBe(true);
+    // D-33: each project's own default pool holds the rest.
+    expect(headers.some((text) => text.startsWith("payments-api · all sessions"))).toBe(true);
     fireEvent.click(getAllByTestId("rail-pool").find((header) => header.textContent?.startsWith("Checkout"))!);
     expect(opened).toEqual(["pool-checkout"]);
     expect(getByText("New pool")).toBeTruthy();
@@ -124,7 +125,7 @@ describe("pools in the rail", () => {
     seedCheckout();
     const info = await poolsList();
     const groups = groupSessions([third, first, second], "pool", MOCK_PROJECTS, info);
-    expect(groups.map((group) => group.label)).toEqual(["All sessions", "Checkout redesign", "Docs"]);
+    expect(groups.map((group) => group.label)).toEqual(["payments-api · all sessions", "Checkout redesign", "Docs"]);
     expect(groups[1]!.rows.map((row) => row.id)).toEqual([first.id, second.id]);
     expect(groups[2]!.rows).toEqual([]);
   });
@@ -167,6 +168,14 @@ describe("the pool sheets", () => {
     await waitFor(() => expect(calls()).toEqual([`move:${first.id}:pool-docs`]));
   });
 
+  it("offers a session its own project's default pool, never another's", async () => {
+    seedCheckout();
+    const pools = await loaded();
+    const { getAllByTestId } = render(<PoolSheet target={{ mode: "move", sessionId: third.id }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
+    const names = getAllByTestId("pool-move-choice").map((choice) => choice.textContent);
+    expect(names).toEqual(["Checkout redesign", "Docs", "payments-api · all sessionsIt's here"]);
+  });
+
   it("moving a session with no pool of yours yet makes one", async () => {
     const pools = await loaded();
     const { getByTestId, queryByTestId } = render(<PoolSheet target={{ mode: "move", sessionId: first.id }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
@@ -174,12 +183,12 @@ describe("the pool sheets", () => {
     expect(getByTestId("pool-create-session").textContent).toContain("goes in it");
   });
 
-  it("All sessions keeps its name and can't be deleted", async () => {
+  it("a project's default pool keeps its name and can't be deleted", async () => {
     const pools = await poolsList();
-    const { queryByTestId, getByText } = render(<PoolSheet target={{ mode: "pool", poolId: DEFAULT_POOL_ID }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
+    const { queryByTestId, getByText } = render(<PoolSheet target={{ mode: "pool", poolId: defaultPoolIdOf(first.project_id) }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
     expect(queryByTestId("pool-name")).toBeNull();
     expect(queryByTestId("pool-delete")).toBeNull();
-    expect(getByText("All sessions is always here.")).toBeTruthy();
+    expect(getByText("It's always here: every session of its project that isn't in another pool.")).toBeTruthy();
   });
 
   it("says what deleting does before it does it", async () => {
@@ -187,7 +196,7 @@ describe("the pool sheets", () => {
     const pools = await poolsList();
     const { getByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
     fireEvent.click(getByTestId("pool-delete"));
-    expect(getByTestId("pool-delete-confirm").textContent).toContain("Its 2 sessions go back to All sessions; nothing else changes.");
+    expect(getByTestId("pool-delete-confirm").textContent).toContain("Its 2 sessions go back to their projects' pools; nothing else changes.");
     expect(calls()).toEqual([]);
     fireEvent.click(getByTestId("pool-delete-yes"));
     await waitFor(() => expect(calls()).toEqual(["delete:pool-checkout"]));
@@ -206,7 +215,7 @@ describe("agent access", () => {
     const { getByTestId, rerender, queryByText } = render(<PoolAccessPanel pool={pool} />);
     expect((within(getByTestId("pool-level-work_together")).getByRole("radio") as HTMLInputElement).checked).toBe(true);
     fireEvent.click(within(getByTestId("pool-level-custom")).getByRole("radio"));
-    await waitFor(() => expect(calls()[0]).toMatch(/^access:pool-default:custom:/));
+    await waitFor(() => expect(calls()[0]).toMatch(/^access:pool-default:proj-ai-juggler:custom:/));
     rerender(<PoolAccessPanel pool={(await poolsList()).pools[0]!} />);
     expect(getByTestId("pool-custom")).toBeTruthy();
     expect(queryByText("Put a message straight into another session")).toBeNull();
@@ -216,7 +225,7 @@ describe("agent access", () => {
     seams().__AIJ_POOLS__ = {
       pools: [{ id: "pool-team", name: "Team", rules: [{ id: 7, pool_id: "pool-team", action: "assign_task", created_at: Date.now(), made_by: "user" }] }],
     };
-    const pool = (await loaded()).pools[1]!;
+    const pool = (await loaded()).pools[0]!;
     const { getByTestId } = render(<PoolAccessPanel pool={pool} />);
     fireEvent.change(getByTestId("pool-hop-limit"), { target: { value: "3" } });
     await waitFor(() => expect(calls()).toContain("delivery:pool-team:3:false"));
@@ -231,9 +240,11 @@ describe("agent access", () => {
     await loaded();
     const rows = await findAllByTestId("agent-access-pool");
     expect(rows.map((row) => row.querySelector("summary")?.textContent)).toEqual([
-      "›All sessionsWork together",
       "›Checkout redesignWork together",
       "›DocsWork together",
+      "›ai-juggler · all sessionsWork together",
+      "›payments-api · all sessionsWork together",
+      "›No project · all sessionsWork together",
     ]);
   });
 });

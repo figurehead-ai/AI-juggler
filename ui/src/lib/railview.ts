@@ -289,14 +289,14 @@ export function groupSessions(sorted: InstanceInfo[], by: GroupBy, projects: Pro
 function groupByPool(sorted: InstanceInfo[], pools: PoolsInfo | null): RowGroup[] {
   const buckets = new Map<string, InstanceInfo[]>();
   for (const row of sorted) {
-    const id = poolIdOf(pools, row.id);
+    const id = poolIdOf(pools, row);
     buckets.set(id, [...(buckets.get(id) ?? []), row]);
   }
   for (const pool of pools?.pools ?? []) {
     if (pool.kind === "user" && !buckets.has(pool.id)) buckets.set(pool.id, []);
   }
   const names = new Map((pools?.pools ?? []).map((pool) => [pool.id, pool.name]));
-  return [...buckets.entries()].map(([id, rows]) => ({ id: `pool:${id}`, label: names.get(id) ?? "All sessions", rollup: rollupOf(rows), rows }));
+  return [...buckets.entries()].map(([id, rows]) => ({ id: `pool:${id}`, label: names.get(id) ?? id, rollup: rollupOf(rows), rows }));
 }
 
 export function rollupOf(rows: InstanceInfo[]): string {
