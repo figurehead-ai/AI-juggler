@@ -5,7 +5,7 @@
 //!   pools, members, roles and access levels, and only the app's UI calls
 //!   them (D-28).
 //!   Nothing an agent runs can reach them.
-//! - D-33: each project has its own default pool, "<project> · all
+//! - D-33: each project has its own default pool, "`<project>` · all
 //!   sessions", holding every session of that project on any account;
 //!   sessions with no project are in "No project · all sessions". A
 //!   default pool always exists and can't be renamed or deleted, so its
