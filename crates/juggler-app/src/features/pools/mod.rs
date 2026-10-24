@@ -5,7 +5,11 @@
 //!   pools, members, roles and access levels, and only the app's UI calls
 //!   them (D-28).
 //!   Nothing an agent runs can reach them.
-//! - "All sessions" always exists; it can't be renamed or deleted.
+//! - D-33: each project has its own default pool, "<project> · all
+//!   sessions", holding every session of that project on any account;
+//!   sessions with no project are in "No project · all sessions". A
+//!   default pool always exists and can't be renamed or deleted, so its
+//!   level, rules and hop limit are set per project.
 //! - A pool can be for one project; a session from elsewhere is refused.
 //! - Pool operations only read and write the pool tables. They never
 //!   start, stop or type into a session (`tests/pools.rs` holds that).
@@ -27,8 +31,8 @@ pub use dto::{
 };
 use juggler_core::model::{ProjectId, SessionId};
 use juggler_core::storage::{
-    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, PoolKind, PoolRole, Storage,
-    default_pool_scope, resolve_memberships,
+    MemberRef, Pool, PoolKind, PoolRole, Storage, default_pool_id, default_pool_name,
+    resolve_memberships,
 };
 
 /// The longest pool name accepted (a name, not a note).
@@ -47,15 +51,17 @@ fn checked_name(storage: &Storage, name: &str, except: Option<&str>) -> AppResul
         )));
     }
     let lower = name.to_lowercase();
+    let projects = project_names(storage)?;
     if let Some(other) = storage
         .pools()
         .list()?
         .into_iter()
-        .find(|pool| Some(pool.id.as_str()) != except && pool.name.to_lowercase() == lower)
+        .map(|pool| (pool.id.clone(), shown_name(&pool, &projects)))
+        .find(|(id, shown)| Some(id.as_str()) != except && shown.to_lowercase() == lower)
     {
         return Err(AppError::Refused(format!(
             "There's already a pool called «{}» — pick another name",
-            other.name
+            other.1
         )));
     }
     Ok(name.to_owned())
@@ -69,56 +75,84 @@ fn live_pool(storage: &Storage, pool_id: &str) -> AppResult<juggler_core::storag
         .map_err(|_| AppError::Refused("That pool isn't there any more".to_owned()))
 }
 
-/// The default pool's scope of every session (D-33, through the one
-/// function that decides it).
-fn scopes_of(storage: &Storage) -> AppResult<HashMap<SessionId, DefaultScope>> {
+/// Each project's name as it is now, by id.
+fn project_names(storage: &Storage) -> AppResult<HashMap<String, String>> {
     Ok(storage
-        .sessions()
-        .list(None)?
+        .projects()
+        .list()?
         .into_iter()
-        .map(|record| (record.id, default_pool_scope(record.project.as_ref())))
+        .map(|project| (project.id.as_str().to_owned(), project.name))
         .collect())
 }
 
-/// Builds the whole picture the UI shows.
+/// A pool's name on screen: the user's for theirs; for a default pool,
+/// its project's name now (a renamed project renames it) and what it is.
+fn shown_name(pool: &Pool, projects: &HashMap<String, String>) -> String {
+    match pool.kind {
+        PoolKind::User => pool.name.clone(),
+        PoolKind::Default => default_pool_name(pool.project.as_ref().map(|project| {
+            projects
+                .get(project.as_str())
+                .map_or(pool.name.as_str(), String::as_str)
+        })),
+    }
+}
+
+/// Builds the whole picture the UI shows: the user's pools (oldest
+/// first), then each project's default pool (by name, "No project"
+/// last), and every session's place.
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] on storage failures.
 pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
-    let scopes = scopes_of(storage)?;
-    let mut sessions: Vec<SessionId> = scopes.keys().cloned().collect();
-    sessions.sort();
+    let sessions: Vec<(SessionId, Option<ProjectId>)> = storage
+        .sessions()
+        .list(None)?
+        .into_iter()
+        .map(|record| (record.id, record.project))
+        .collect();
+    let project_of: HashMap<&SessionId, Option<&ProjectId>> = sessions
+        .iter()
+        .map(|(session, project)| (session, project.as_ref()))
+        .collect();
     let works = storage.switch_graph().works_by_session()?;
     let members = storage.pools().members()?;
     let places = resolve_memberships(&sessions, &members, &works);
-    let repo = storage.pools();
+    let projects = project_names(storage)?;
+    let mut listed = storage.pools().list()?;
+    listed.sort_by_key(|pool| match pool.kind {
+        PoolKind::User => (0, pool.created_at, String::new()),
+        PoolKind::Default if pool.project.is_none() => (2, 0, String::new()),
+        PoolKind::Default => (1, 0, shown_name(pool, &projects).to_lowercase()),
+    });
     let mut pools = Vec::new();
-    for pool in repo.list()? {
+    for pool in listed {
         let (access, rules) = access::info(storage, &pool.id)?;
-        let groups: BTreeSet<&DefaultScope> = places
+        // How many projects its sessions come from (D-33).
+        let projects_in: BTreeSet<Option<&ProjectId>> = places
             .iter()
             .filter(|(_, (pool_id, _))| *pool_id == pool.id)
-            .filter_map(|(session, _)| scopes.get(session))
+            .filter_map(|(session, _)| project_of.get(session).copied())
             .collect();
         pools.push(PoolInfo {
+            name: shown_name(&pool, &projects),
             id: pool.id,
-            name: pool.name,
             kind: pool.kind.as_str().to_owned(),
             project_id: pool.project.map(|project| project.as_str().to_owned()),
             access,
             rules,
             spans_macs: pool.spans_macs,
-            scopes: u32::try_from(groups.len()).unwrap_or(u32::MAX),
+            scopes: u32::try_from(projects_in.len()).unwrap_or(u32::MAX),
         });
     }
-    let members = sessions
+    let mut members: Vec<PoolMemberInfo> = sessions
         .iter()
-        .map(|session| {
+        .map(|(session, project)| {
             let (pool_id, role) = places
                 .get(session)
                 .cloned()
-                .unwrap_or_else(|| (DEFAULT_POOL_ID.to_owned(), PoolRole::Member));
+                .unwrap_or_else(|| (default_pool_id(project.as_ref()), PoolRole::Member));
             PoolMemberInfo {
                 session_id: session.as_str().to_owned(),
                 pool_id,
@@ -126,6 +160,7 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
             }
         })
         .collect();
+    members.sort_by(|a, b| a.session_id.cmp(&b.session_id));
     Ok(PoolsInfo { pools, members })
 }
 
@@ -167,7 +202,8 @@ pub fn pool_create_impl(
     pools_info(&storage)
 }
 
-/// Renames a pool ("All sessions" keeps its name).
+/// Renames a pool (a project's default pool keeps its name: the
+/// project's).
 ///
 /// # Errors
 ///
@@ -178,7 +214,8 @@ pub fn pool_rename_impl(state: &Arc<AppState>, pool_id: &str, name: &str) -> App
     let pool = live_pool(&storage, pool_id)?;
     if pool.kind == PoolKind::Default {
         return Err(AppError::Refused(format!(
-            "«{DEFAULT_POOL_NAME}» keeps its name"
+            "«{}» keeps its name: rename its project instead",
+            shown_name(&pool, &project_names(&storage)?)
         )));
     }
     let name = checked_name(&storage, name, Some(pool_id))?;
@@ -186,8 +223,8 @@ pub fn pool_rename_impl(state: &Arc<AppState>, pool_id: &str, name: &str) -> App
     pools_info(&storage)
 }
 
-/// Deletes a pool; its sessions go back to "All sessions". Nothing else
-/// changes: the sessions keep running as they were.
+/// Deletes a pool; its sessions go back to their projects' default
+/// pools. Nothing else changes: the sessions keep running as they were.
 ///
 /// # Errors
 ///
@@ -197,7 +234,8 @@ pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<Pools
     let pool = live_pool(&storage, pool_id)?;
     if pool.kind == PoolKind::Default {
         return Err(AppError::Refused(format!(
-            "«{DEFAULT_POOL_NAME}» can't be deleted — it holds every session that isn't in another pool"
+            "«{}» can't be deleted — it holds every session of its project that isn't in another pool",
+            shown_name(&pool, &project_names(&storage)?)
         )));
     }
     storage.pools().delete(pool_id)?;
@@ -219,8 +257,9 @@ fn member_of(storage: &Storage, session: &SessionId) -> AppResult<(MemberRef, Ve
     Ok((member, replaces))
 }
 
-/// Moves a session into a pool, as a member. A pool for one project
-/// takes only that project's sessions.
+/// Moves a session into a pool, as a member. A pool for one project (a
+/// project's default pool too) takes only that project's sessions; the
+/// no-project default pool only sessions with no project.
 ///
 /// # Errors
 ///
@@ -247,8 +286,14 @@ pub fn pool_move_impl(
             .map_or_else(|_| "one project".to_owned(), |row| row.name);
         return Err(AppError::Refused(format!(
             "«{}» is for {name} only — this session works somewhere else",
-            pool.name
+            shown_name(&pool, &project_names(&storage)?)
         )));
+    }
+    if pool.kind == PoolKind::Default && pool.project.is_none() && record.project.is_some() {
+        return Err(AppError::Refused(
+            "«No project · all sessions» is for sessions with no project — this one has one"
+                .to_owned(),
+        ));
     }
     let (member, replaces) = member_of(&storage, &session)?;
     storage
@@ -281,9 +326,10 @@ pub fn pool_set_role_impl(
     let info = pools_info(&storage)?;
     let pool_id = info
         .members
-        .iter()
+        .into_iter()
         .find(|row| row.session_id == session_id)
-        .map_or_else(|| DEFAULT_POOL_ID.to_owned(), |row| row.pool_id.clone());
+        .map(|row| row.pool_id)
+        .ok_or_else(|| AppError::Refused("That session isn't there any more".to_owned()))?;
     let (member, replaces) = member_of(&storage, &session)?;
     storage.pools().place(&member, &replaces, &pool_id, role)?;
     pools_info(&storage)

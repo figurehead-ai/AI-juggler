@@ -68,7 +68,7 @@ pub async fn pools_rename(
     .await
 }
 
-/// Deletes a pool; its sessions go back to "All sessions".
+/// Deletes a pool; its sessions go back to their default pools.
 ///
 /// # Errors
 ///

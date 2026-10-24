@@ -294,7 +294,7 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "DROP TABLE agent_audit;
+                "DROP TRIGGER pools_default_for_new_project; DROP TABLE agent_audit;
                  DROP TABLE agent_approvals;
                  DROP TABLE agent_rules;
                  DROP TABLE pool_members;

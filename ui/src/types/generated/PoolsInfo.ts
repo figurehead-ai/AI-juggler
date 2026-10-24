@@ -7,7 +7,8 @@ import type { PoolMemberInfo } from "./PoolMemberInfo";
  */
 export type PoolsInfo = { 
 /**
- * The pools: "All sessions" first, then the user's, oldest first.
+ * The pools: the user's, oldest first, then each project's default
+ * pool by name, "No project" last.
  */
 pools: Array<PoolInfo>, 
 /**

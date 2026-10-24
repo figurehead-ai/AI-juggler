@@ -329,7 +329,7 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     {
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch(
-            "DROP TABLE agent_audit; DROP TABLE agent_approvals; DROP TABLE agent_rules; \
+            "DROP TRIGGER pools_default_for_new_project; DROP TABLE agent_audit; DROP TABLE agent_approvals; DROP TABLE agent_rules; \
              DROP TABLE pool_members; DROP TABLE pools;",
         )
         .unwrap();

@@ -1,11 +1,11 @@
-//! AJ-E1702 storage: the pools migration, the default pool, members,
-//! roles and grants.
+//! AJ-E1702 storage: the pools migration, the default pools, members,
+//! roles and access.
 //!
-//! - Upgrading keeps a copy of the database as it was (the previous
-//!   version opens it), adds the pool tables with "All sessions" in
-//!   them, and leaves every existing row as it was.
-//! - There is one default pool, ever; the repository won't rename or
-//!   delete it.
+//! - Upgrading from 0.1.0 keeps a copy of the database as it was (that
+//!   version opens it), gives each project its default pool (and the
+//!   sessions with no project theirs), and leaves every row as it was.
+//! - Each project has one default pool (D-33), made on its first
+//!   appearance; the repository won't rename or delete a default pool.
 //! - Deleting a pool ends its rows (history stays) and frees the name.
 //! - A session row made before a switch stands for the Work item after.
 //! - Access (D-28): the starting level, the user's level, the second
@@ -22,9 +22,9 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use juggler_core::agent_access::{AccessLevel, AgentAction, Decision};
-use juggler_core::model::{SessionId, WorkItemId};
+use juggler_core::model::{ProjectId, SessionId, WorkItemId};
 use juggler_core::storage::{
-    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, MemberRef, PoolKind, PoolMember, PoolRole, Storage,
+    MemberRef, NO_PROJECT_POOL_ID, PoolKind, PoolMember, PoolRole, Storage, default_pool_id,
     pre_migration_copies, resolve_memberships,
 };
 use rusqlite::{Connection, OpenFlags};
@@ -50,10 +50,18 @@ fn database_before_pools(path: &Path) {
              VALUES ('work', 'claude-code', 'Work Max', NULL, '/tmp/work', 111);
          INSERT INTO launch_recipes (id, account_id, settings_json, default_cwd, created_at, name)
              VALUES ('rec-work', 'work', '{}', NULL, 111, 'Main');
+         INSERT INTO projects (id, root, name, created_at) VALUES ('p-shop', '/tmp/shop', 'shop', 1);
+         INSERT INTO projects (id, root, name, created_at) VALUES ('p-blog', '/tmp/blog', 'blog', 2);
          INSERT INTO instances (id, conversation_id, launch_recipe_id, machine, cwd, status,
-                                started_at, last_activity, usage_json, kind)
+                                started_at, last_activity, usage_json, kind, project)
              VALUES ('s-1', NULL, 'rec-work', 'this-mac', '/tmp/shop', 'running', 222, 333,
-                     '{}', 'terminal');",
+                     '{}', 'terminal', 'p-shop'),
+                    ('s-2', NULL, 'rec-work', 'this-mac', '/tmp/shop', 'running', 222, 333,
+                     '{}', 'terminal', 'p-shop'),
+                    ('s-3', NULL, 'rec-work', 'this-mac', '/tmp/blog', 'running', 222, 333,
+                     '{}', 'terminal', 'p-blog'),
+                    ('s-4', NULL, 'rec-work', 'this-mac', '/tmp/loose', 'running', 222, 333,
+                     '{}', 'terminal', NULL);",
     )
     .unwrap();
 }
@@ -69,7 +77,7 @@ fn tables(path: &Path) -> Vec<String> {
 }
 
 #[test]
-fn upgrading_from_0_1_keeps_a_copy_adds_all_sessions_and_leaves_every_row() {
+fn upgrading_from_0_1_keeps_a_copy_gives_each_project_its_default_pool_and_leaves_every_row() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     database_before_pools(&db);
@@ -94,13 +102,45 @@ fn upgrading_from_0_1_keeps_a_copy_adds_all_sessions_and_leaves_every_row() {
         .unwrap();
     assert_eq!(version, SCHEMA_0_1);
 
-    // The upgraded database: the default pool, and the old rows.
+    // The upgraded database (D-33): each project its own default pool,
+    // one for sessions with no project, and the old rows.
     let pools = storage.pools().list().unwrap();
-    assert_eq!(pools.len(), 1);
-    assert_eq!(pools[0].id, DEFAULT_POOL_ID);
-    assert_eq!(pools[0].name, DEFAULT_POOL_NAME);
-    assert_eq!(pools[0].kind, PoolKind::Default);
+    let ids: BTreeSet<&str> = pools.iter().map(|pool| pool.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        BTreeSet::from([
+            "pool-default:p-shop",
+            "pool-default:p-blog",
+            NO_PROJECT_POOL_ID
+        ])
+    );
+    assert!(pools.iter().all(|pool| pool.kind == PoolKind::Default));
+    let shop = pools
+        .iter()
+        .find(|pool| pool.id == "pool-default:p-shop")
+        .unwrap();
+    assert_eq!(shop.project, Some(ProjectId::new("p-shop")));
     assert!(storage.pools().members().unwrap().is_empty());
+    // Membership: every session is in its own project's default pool.
+    let sessions: Vec<(SessionId, Option<ProjectId>)> = storage
+        .raw_conn()
+        .prepare("SELECT id, project FROM instances ORDER BY id")
+        .unwrap()
+        .query_map([], |row| {
+            Ok((
+                SessionId::new(row.get::<_, String>(0)?),
+                row.get::<_, Option<String>>(1)?.map(ProjectId::new),
+            ))
+        })
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    let places = resolve_memberships(&sessions, &[], &HashMap::new());
+    let place = |id: &str| places[&SessionId::new(id)].0.clone();
+    assert_eq!(place("s-1"), "pool-default:p-shop");
+    assert_eq!(place("s-2"), "pool-default:p-shop");
+    assert_eq!(place("s-3"), "pool-default:p-blog");
+    assert_eq!(place("s-4"), NO_PROJECT_POOL_ID);
     let cwd: String = storage
         .raw_conn()
         .query_row("SELECT cwd FROM instances WHERE id = 's-1'", [], |row| {
@@ -114,20 +154,43 @@ fn upgrading_from_0_1_keeps_a_copy_adds_all_sessions_and_leaves_every_row() {
     drop(storage);
     let storage = Storage::open(&db).unwrap();
     assert!(!storage.migrated_on_open());
-    assert_eq!(storage.pools().list().unwrap().len(), 1);
+    assert_eq!(storage.pools().list().unwrap().len(), 3);
 }
 
 #[test]
-fn there_is_one_default_pool_and_the_repository_wont_rename_or_delete_it() {
+fn each_project_gets_one_default_pool_the_repository_wont_rename_or_delete() {
+    let dir = tempfile::tempdir().unwrap();
     let storage = Storage::open_in_memory().unwrap();
+    // A project's first appearance makes its default pool.
+    let root = dir.path().join("shop");
+    std::fs::create_dir_all(&root).unwrap();
+    let shop = storage.projects().touch(&root, Some("shop")).unwrap();
+    let id = default_pool_id(Some(&shop.id));
+    let pool = storage.pools().get(&id).unwrap();
+    assert_eq!(
+        (pool.kind, pool.project.clone()),
+        (PoolKind::Default, Some(shop.id.clone()))
+    );
+    // Seen again: still one.
+    storage.projects().touch(&root, Some("shop")).unwrap();
+    let defaults = storage
+        .pools()
+        .list()
+        .unwrap()
+        .into_iter()
+        .filter(|pool| pool.kind == PoolKind::Default)
+        .count();
+    assert_eq!(defaults, 2, "shop's and the no-project one");
+    // A second default pool for one project can't be stored.
     let second = storage.raw_conn().execute(
-        "INSERT INTO pools (id, name, kind, project, created_at) VALUES ('p2', 'Two', 'default', NULL, 1)",
-        [],
+        "INSERT INTO pools (id, name, kind, project, created_at) VALUES ('p2', 'Two', 'default', ?1, 1)",
+        [shop.id.as_str()],
     );
     assert!(second.is_err(), "a second default pool was stored");
-    assert!(storage.pools().rename(DEFAULT_POOL_ID, "Mine").is_err());
-    assert!(storage.pools().delete(DEFAULT_POOL_ID).is_err());
-    assert_eq!(storage.pools().list().unwrap()[0].name, DEFAULT_POOL_NAME);
+    for default in [id.as_str(), NO_PROJECT_POOL_ID] {
+        assert!(storage.pools().rename(default, "Mine").is_err());
+        assert!(storage.pools().delete(default).is_err());
+    }
 }
 
 #[test]
@@ -212,11 +275,14 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
     )];
 
     // Before the switch: only a.
-    let places = resolve_memberships(&[a.clone(), loner.clone()], &rows, &HashMap::new());
+    let with = |ids: &[&SessionId]| -> Vec<(SessionId, Option<ProjectId>)> {
+        ids.iter().map(|id| ((*id).clone(), None)).collect()
+    };
+    let places = resolve_memberships(&with(&[&a, &loner]), &rows, &HashMap::new());
     assert_eq!(places[&a], ("pool-x".to_owned(), PoolRole::Lead));
     assert_eq!(
         places[&loner],
-        (DEFAULT_POOL_ID.to_owned(), PoolRole::Member)
+        (NO_PROJECT_POOL_ID.to_owned(), PoolRole::Member)
     );
 
     // a switched to b: both are in the Work item, so both are in the pool.
@@ -226,9 +292,9 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
         (loner.clone(), WorkItemId::new("work-2")),
     ]
     .into();
-    let places = resolve_memberships(&[a.clone(), b.clone(), loner.clone()], &rows, &works);
+    let places = resolve_memberships(&with(&[&a, &b, &loner]), &rows, &works);
     assert_eq!(places[&b], ("pool-x".to_owned(), PoolRole::Lead));
-    assert_eq!(places[&loner].0, DEFAULT_POOL_ID);
+    assert_eq!(places[&loner].0, NO_PROJECT_POOL_ID);
 
     // Two rows for one Work item: the newest wins.
     let rows = [
@@ -240,7 +306,7 @@ fn a_session_row_from_before_a_switch_stands_for_the_work_item_after() {
             2,
         ),
     ];
-    let places = resolve_memberships(&[a.clone(), b.clone()], &rows, &works);
+    let places = resolve_memberships(&with(&[&a, &b]), &rows, &works);
     assert_eq!(places[&a], ("pool-y".to_owned(), PoolRole::Observer));
     assert_eq!(places[&b], ("pool-y".to_owned(), PoolRole::Observer));
 }
@@ -255,7 +321,7 @@ fn member_refs_round_trip_and_unknown_words_are_skipped() {
     storage
         .raw_conn()
         .execute(
-            "INSERT INTO pool_members (pool_id, member_ref, role, joined_at) VALUES ('pool-default', 'agent:x', 'lead', 1)",
+            "INSERT INTO pool_members (pool_id, member_ref, role, joined_at) VALUES ('pool-default:none', 'agent:x', 'lead', 1)",
             [],
         )
         .unwrap();
@@ -267,7 +333,7 @@ fn a_pool_starts_at_work_together_and_the_user_sets_its_level() {
     let storage = Storage::open_in_memory().unwrap();
     let pool = storage.pools().create("Checkout", None).unwrap();
     let access = storage.agent_access();
-    for id in [DEFAULT_POOL_ID, pool.id.as_str()] {
+    for id in [NO_PROJECT_POOL_ID, pool.id.as_str()] {
         assert_eq!(
             access.access(id).unwrap().level,
             Some(AccessLevel::WorkTogether)
@@ -329,7 +395,7 @@ fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
     assert_eq!(
         access
             .allowed(
-                DEFAULT_POOL_ID,
+                NO_PROJECT_POOL_ID,
                 "session:s-1",
                 true,
                 false,
@@ -376,15 +442,15 @@ fn the_second_allow_once_offers_a_rule_and_a_revoked_rule_stops_at_once() {
 fn a_pool_keeps_its_hop_limit_and_delivery_stop_d29() {
     let storage = Storage::open_in_memory().unwrap();
     let access = storage.agent_access();
-    let start = access.access(DEFAULT_POOL_ID).unwrap();
+    let start = access.access(NO_PROJECT_POOL_ID).unwrap();
     assert_eq!((start.hop_limit, start.delivery_stopped), (5, false));
-    access.set_delivery(DEFAULT_POOL_ID, 3, true).unwrap();
-    let after = access.access(DEFAULT_POOL_ID).unwrap();
+    access.set_delivery(NO_PROJECT_POOL_ID, 3, true).unwrap();
+    let after = access.access(NO_PROJECT_POOL_ID).unwrap();
     assert_eq!((after.hop_limit, after.delivery_stopped), (3, true));
     assert_eq!(
         access
             .allowed(
-                DEFAULT_POOL_ID,
+                NO_PROJECT_POOL_ID,
                 "session:s",
                 true,
                 false,
@@ -396,7 +462,11 @@ fn a_pool_keeps_its_hop_limit_and_delivery_stop_d29() {
         "stopped: no delivery, whatever the level"
     );
     for wrong in [0, 21] {
-        assert!(access.set_delivery(DEFAULT_POOL_ID, wrong, false).is_err());
+        assert!(
+            access
+                .set_delivery(NO_PROJECT_POOL_ID, wrong, false)
+                .is_err()
+        );
     }
     assert!(access.set_delivery("pool-gone", 5, false).is_err());
 }
@@ -408,7 +478,7 @@ fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
     assert_eq!(
         access
             .allowed(
-                DEFAULT_POOL_ID,
+                NO_PROJECT_POOL_ID,
                 "session:x",
                 false,
                 false,

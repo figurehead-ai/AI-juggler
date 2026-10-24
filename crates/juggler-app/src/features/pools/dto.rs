@@ -7,7 +7,8 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PoolsInfo {
-    /// The pools: "All sessions" first, then the user's, oldest first.
+    /// The pools: the user's, oldest first, then each project's default
+    /// pool by name, "No project" last.
     pub pools: Vec<PoolInfo>,
     /// Each session's pool and role.
     pub members: Vec<PoolMemberInfo>,
@@ -31,9 +32,9 @@ pub struct PoolInfo {
     pub rules: Vec<AgentRuleInfo>,
     /// D-32: the user let it span their paired Macs (off by default).
     pub spans_macs: bool,
-    /// How many projects its sessions come from (D-33): in the default
-    /// pool agents will see only their own project's; in a user pool more
-    /// than one means the user put different projects' work together.
+    /// How many projects its sessions come from: a project's default pool
+    /// holds one (D-33); in a user pool more than one means the user put
+    /// different projects' work together.
     pub scopes: u32,
 }
 

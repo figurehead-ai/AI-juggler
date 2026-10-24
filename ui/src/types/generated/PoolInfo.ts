@@ -35,8 +35,8 @@ rules: Array<AgentRuleInfo>,
  */
 spans_macs: boolean, 
 /**
- * How many projects its sessions come from (D-33): in the default
- * pool agents will see only their own project's; in a user pool more
- * than one means the user put different projects' work together.
+ * How many projects its sessions come from: a project's default pool
+ * holds one (D-33); in a user pool more than one means the user put
+ * different projects' work together.
  */
 scopes: number, };

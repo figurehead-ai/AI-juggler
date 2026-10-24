@@ -49,8 +49,8 @@ pub use footprints::{
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use pools::{
-    DEFAULT_POOL_ID, DEFAULT_POOL_NAME, DefaultScope, MemberRef, Pool, PoolKind, PoolMember,
-    PoolRole, PoolsRepo, default_pool_scope, resolve_memberships,
+    MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
+    default_pool_id, default_pool_name, resolve_memberships,
 };
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,

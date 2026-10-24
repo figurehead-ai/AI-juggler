@@ -3,14 +3,16 @@
 //! - The user owns every pool. Pools, members, roles and access levels
 //!   change only through the app's own commands — nothing an agent can
 //!   reach (D-28).
-//! - The default pool "All sessions" always exists and can't be deleted
-//!   or renamed. A session with no active member row is in it, as a
-//!   member.
+//! - D-33: every project has its own default pool, holding all its
+//!   sessions on any account, and sessions with no project have one too.
+//!   A default pool always exists and can't be deleted or renamed. A
+//!   session with no active member row is in its project's, as a member.
 //! - A member hangs off the Work item its session belongs to
 //!   (`work:<id>`), else the session (`session:<id>`); a switch keeps the
 //!   Work item, so it keeps the pool. One active row per member.
 //! - Deleting a pool marks it deleted and ends its rows (`left_at`); its
-//!   sessions are back in the default pool and its history stays.
+//!   sessions are back in their projects' default pools and its history
+//!   stays.
 //! - What agents may do in a pool is its access level and the user's
 //!   rules (`agent_access`, D-28).
 //!
@@ -26,11 +28,14 @@ use crate::error::CoreError;
 use crate::model::{ProjectId, SessionId, Timestamp, WorkItemId};
 
 /// v33: the pools tables. A pool has a name, a kind (`default` | `user`)
-/// and an optional project; the default pool "All sessions" always exists
-/// (one row, made here). Members hang off the Work item (`work:<id>`, else
-/// `session:<id>`) so a switch keeps them; one active row per member (no
-/// row: the default pool, as a member). Deleting a pool marks it and ends
-/// its rows, so its history stays.
+/// and an optional project. D-33: every project has its own default pool
+/// (`pool-default:<project>`, one per project, made here for the projects
+/// there are and by a trigger for each new one), and sessions with no
+/// project have theirs (`pool-default:none`). Members hang off the Work
+/// item (`work:<id>`, else `session:<id>`) so a switch keeps them; one
+/// active row per member (no row: its project's default pool, as a
+/// member). Deleting a pool marks it and ends its rows, so its history
+/// stays.
 ///
 /// D-28/D-29: each pool's access level (and its Custom set of actions),
 /// its delivery hop limit and stop-all flag, whether it spans the user's
@@ -51,9 +56,17 @@ CREATE TABLE pools (
     delivery_stopped INTEGER NOT NULL DEFAULT 0,
     spans_macs       INTEGER NOT NULL DEFAULT 0
 );
-CREATE UNIQUE INDEX idx_pools_one_default ON pools(kind) WHERE kind = 'default';
+CREATE UNIQUE INDEX idx_pools_one_default ON pools(COALESCE(project, '')) WHERE kind = 'default';
 INSERT INTO pools (id, name, kind, project, created_at)
-    VALUES ('pool-default', 'All sessions', 'default', NULL, 0);
+    VALUES ('pool-default:none', 'No project', 'default', NULL, 0);
+INSERT INTO pools (id, name, kind, project, created_at)
+    SELECT 'pool-default:' || id, name, 'default', id, 0 FROM projects;
+CREATE TRIGGER pools_default_for_new_project AFTER INSERT ON projects
+BEGIN
+    INSERT OR IGNORE INTO pools (id, name, kind, project, created_at)
+        VALUES ('pool-default:' || NEW.id, NEW.name, 'default', NEW.id,
+                CAST(strftime('%s', 'now') AS INTEGER) * 1000);
+END;
 CREATE TABLE pool_members (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     pool_id    TEXT NOT NULL REFERENCES pools(id),
@@ -90,16 +103,32 @@ CREATE TABLE agent_audit (
 CREATE INDEX idx_agent_audit_at ON agent_audit(at);
 ";
 
-/// The default pool's id (made by the migration).
-pub const DEFAULT_POOL_ID: &str = "pool-default";
+/// The default pool of the sessions that have no project.
+pub const NO_PROJECT_POOL_ID: &str = "pool-default:none";
 
-/// The default pool's name.
-pub const DEFAULT_POOL_NAME: &str = "All sessions";
+/// D-33: the default pool a session with `project` is in when no row
+/// says otherwise — its project's, else the no-project one. Each exists
+/// from the project's first appearance (the v33 trigger).
+#[must_use]
+pub fn default_pool_id(project: Option<&ProjectId>) -> String {
+    project.map_or_else(
+        || NO_PROJECT_POOL_ID.to_owned(),
+        |project| format!("pool-default:{}", project.as_str()),
+    )
+}
+
+/// A default pool's name on screen: the project's name (as it is now)
+/// and what the pool is, or "No project".
+#[must_use]
+pub fn default_pool_name(project_name: Option<&str>) -> String {
+    format!("{} · all sessions", project_name.unwrap_or("No project"))
+}
 
 /// A pool's kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PoolKind {
-    /// "All sessions": always there, never deleted.
+    /// A project's own default pool (or the no-project one): always
+    /// there, never renamed or deleted.
     Default,
     /// Made by the user.
     User,
@@ -215,7 +244,7 @@ impl MemberRef {
 /// One pool.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pool {
-    /// Stable id (`pool-…`; the default is [`DEFAULT_POOL_ID`]).
+    /// Stable id (`pool-…`; a default pool's is [`default_pool_id`]).
     pub id: String,
     /// What the user called it.
     pub name: String,
@@ -242,30 +271,13 @@ pub struct PoolMember {
     pub joined_at: i64,
 }
 
-/// D-33 (ruled 2026-10-24): what the default pool covers for one session
-/// — its project, whatever the account. Agents in "All sessions" will see
-/// only the sessions of their own project; there are no identity groups.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct DefaultScope {
-    /// The project, when the session has one.
-    pub project: Option<ProjectId>,
-}
-
-/// The one place the default pool's scope is decided (D-33).
-#[must_use]
-pub fn default_pool_scope(project: Option<&ProjectId>) -> DefaultScope {
-    DefaultScope {
-        project: project.cloned(),
-    }
-}
-
-/// Which pool each session is in, and its role. `works` maps a session to
-/// its Work item; a session no row matches is in the default pool, as a
-/// member. When two rows stand for the same Work item (a session added on
+/// Which pool each session (with its project) is in, and its role.
+/// `works` maps a session to its Work item; a session no row matches is
+/// in its project's default pool, as a member. When two rows stand for the same Work item (a session added on
 /// its own, then switched), the newest wins.
 #[must_use]
 pub fn resolve_memberships<S: BuildHasher>(
-    sessions: &[SessionId],
+    sessions: &[(SessionId, Option<ProjectId>)],
     members: &[PoolMember],
     works: &HashMap<SessionId, WorkItemId, S>,
 ) -> HashMap<SessionId, (String, PoolRole)> {
@@ -281,10 +293,10 @@ pub fn resolve_memberships<S: BuildHasher>(
     }
     sessions
         .iter()
-        .map(|session| {
+        .map(|(session, project)| {
             let anchor = MemberRef::of_session(session, works.get(session));
             let place = by_anchor.get(&anchor).map_or_else(
-                || (DEFAULT_POOL_ID.to_owned(), PoolRole::Member),
+                || (default_pool_id(project.as_ref()), PoolRole::Member),
                 |member| (member.pool_id.clone(), member.role),
             );
             (session.clone(), place)
@@ -305,8 +317,8 @@ impl PoolsRepo<'_> {
         PoolsRepo { conn }
     }
 
-    /// The pools that aren't deleted: the default first, then the user's
-    /// oldest first.
+    /// The pools that aren't deleted: the user's oldest first, then the
+    /// default pools.
     ///
     /// # Errors
     ///
@@ -314,7 +326,7 @@ impl PoolsRepo<'_> {
     pub fn list(&self) -> Result<Vec<Pool>, CoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT * FROM pools WHERE deleted_at IS NULL
-              ORDER BY kind = 'default' DESC, created_at, id",
+              ORDER BY kind = 'default', created_at, id",
         )?;
         let rows = stmt.query_map([], map_pool)?;
         let mut out = Vec::new();

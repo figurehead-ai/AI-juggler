@@ -29,7 +29,7 @@ use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
     ProfileId, ProjectId, SessionId, SessionStatus, Timestamp, TranscriptRef,
 };
-use juggler_core::storage::DEFAULT_POOL_ID;
+use juggler_core::storage::NO_PROJECT_POOL_ID;
 
 const ACCOUNT_LABEL: &str = "Work Max";
 const PLAN: &str = "Max 20x plan";
@@ -161,7 +161,7 @@ fn checkout(dir: &Path) -> (Arc<AppState>, String, std::path::PathBuf) {
         SessionStatus::Running,
     );
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
-    let pool = info.pools[1].id.clone();
+    let pool = info.pools[0].id.clone();
     pools::pool_move_impl(&state, planner.as_str(), &pool).unwrap();
     pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
     pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
@@ -278,7 +278,15 @@ fn a_card_carries_the_account_label_and_never_an_email_or_plan() {
     let dir = tempfile::tempdir().unwrap();
     let (state, pool, _) = checkout(dir.path());
     cards::tick(&state);
-    for pool_id in [pool.as_str(), DEFAULT_POOL_ID] {
+    // shop's default pool: the project's own (D-33).
+    let shop_pool = pools::pools_list_impl(&state)
+        .unwrap()
+        .pools
+        .into_iter()
+        .find(|row| row.kind == "default" && row.project_id.is_some())
+        .unwrap()
+        .id;
+    for pool_id in [pool.as_str(), shop_pool.as_str()] {
         let result = cards::cards_impl(&state, pool_id).unwrap();
         for card in &result.cards {
             assert_eq!(card.account.as_deref(), Some(ACCOUNT_LABEL));
@@ -312,7 +320,7 @@ fn a_missing_pool_is_refused_in_words() {
     }
     // The default pool always has cards to give (none yet).
     assert!(
-        cards::cards_impl(&state, DEFAULT_POOL_ID)
+        cards::cards_impl(&state, NO_PROJECT_POOL_ID)
             .unwrap()
             .cards
             .is_empty()

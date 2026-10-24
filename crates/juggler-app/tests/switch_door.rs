@@ -412,7 +412,7 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
     let loner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-l");
 
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
-    let checkout = info.pools[1].id.clone();
+    let checkout = info.pools[0].id.clone();
     pools::pool_move_impl(&state, &planner, &checkout).unwrap();
     pools::pool_set_role_impl(&state, &planner, "lead").unwrap();
 
@@ -437,18 +437,16 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         (checkout.clone(), "lead".to_owned())
     );
     assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
-    assert_eq!(
-        place(&loner_next.session_id).0,
-        juggler_core::storage::DEFAULT_POOL_ID
-    );
-    assert_eq!(place(&loner).0, juggler_core::storage::DEFAULT_POOL_ID);
-
     let storage = state.storage.lock().unwrap();
     let project = storage
         .projects()
         .by_root(&std::fs::canonicalize(&cwd).unwrap())
         .unwrap()
         .unwrap();
+    // The loner stays in its project's default pool (D-33).
+    let own = juggler_core::storage::default_pool_id(Some(&project.id));
+    assert_eq!(place(&loner_next.session_id).0, own);
+    assert_eq!(place(&loner).0, own);
     assert_eq!(
         storage
             .switch_graph()
