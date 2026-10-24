@@ -32,7 +32,7 @@ export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
  * ago", never "in front" (D-37: the app's own record, said as such). */
 export function whereWords(model: SessionModel, now: number): string {
   if (!model.live) {
-    return model.state.since !== null ? `Ended · last active ${agoWords(model.state.since, now)}` : "Ended";
+    return model.state.since !== null ? `Last active ${agoWords(model.state.since, now)}` : "Not open now";
   }
   const place = model.places[0];
   const app = appWords(place, model.tool);

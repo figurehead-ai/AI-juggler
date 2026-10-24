@@ -155,7 +155,7 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
           <button type="button" className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
             ＋ New settings set
           </button>
-          <button type="button" className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} aria-label="Close launch settings">
+          <button type="button" className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} title="Close launch settings">
             Done
           </button>
         </span>

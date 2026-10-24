@@ -85,7 +85,8 @@ export function ContinueOn({
     };
   }, [own, model.sessionId]);
   const targets: Target[] = useMemo(() => {
-    if (own) return (rows ?? []).map((row) => ({ profileId: row.account_id, label: row.account_label, recipeId: row.recipe_id, blocked: row.filtered_reason }));
+    // Its own profile is where it is already: never a target.
+    if (own) return (rows ?? []).filter((row) => row.account_id !== model.profileId).map((row) => ({ profileId: row.account_id, label: row.account_label, recipeId: row.recipe_id, blocked: row.filtered_reason }));
     // Another app's session: every signed-in profile of its tool, to read.
     return accounts
       .filter((account) => account.tool === model.tool && account.state === "signed_in")

@@ -50,8 +50,8 @@ export function fromConversation(c: ConversationInfo): SessionModel {
       asks: c.live && c.state === "asks_you",
       since: c.last_activity_ms,
     },
-    places: c.places,
-    viewedMs: c.viewed_ms,
+    places: c.places ?? [],
+    viewedMs: c.viewed_ms ?? null,
     cwd: c.cwd,
     model: null,
   };

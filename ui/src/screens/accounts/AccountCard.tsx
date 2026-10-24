@@ -25,7 +25,7 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
   const apps = new Set<string>();
   for (const s of own) apps.add(s.kind === "desktop" ? `${toolSpec(s.provider).desktop_app ?? providerDisplayName(s.provider)} app` : "AI Juggler");
   for (const c of elsewhere) {
-    for (const place of c.places) {
+    for (const place of c.places ?? []) {
       if (place.app) apps.add(toolSpec(c.tool).desktop_app === place.app ? `${place.app} app` : place.app);
     }
   }
