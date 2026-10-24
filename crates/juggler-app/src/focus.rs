@@ -403,6 +403,7 @@ mod tests {
             bundle_id: Some("dev.aijuggler.fake-desktop".into()),
             title: Some("notes-b".into()),
             cgwindow_id: None,
+            start_time: None,
         }
     }
 

@@ -105,6 +105,7 @@ fn real_two_window_focus_record() {
         bundle_id: Some(BUNDLE.to_string()),
         title: Some(title.to_string()),
         cgwindow_id: None,
+        start_time: None,
     };
 
     let runner: Arc<dyn ScriptRunner> = Arc::new(OsascriptRunner);

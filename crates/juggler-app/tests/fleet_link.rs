@@ -602,6 +602,7 @@ fn seed_desktop(state: &Arc<AppState>, dir: &Path) {
                 bundle_id: Some("com.example.notes".into()),
                 title: None,
                 cgwindow_id: None,
+                start_time: None,
             }),
         })
         .unwrap();

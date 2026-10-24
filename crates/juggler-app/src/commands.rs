@@ -3191,6 +3191,7 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
                 bundle_id: launch.bundle_id.clone(),
                 title: None,
                 cgwindow_id: None,
+                start_time: None,
             }),
             transcript_ref: None,
         })?;
@@ -3247,6 +3248,7 @@ fn desktop_window_identity(
         bundle_id,
         title: None,
         cgwindow_id: None,
+        start_time: None,
     })
 }
 
