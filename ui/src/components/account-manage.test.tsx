@@ -59,7 +59,7 @@ beforeEach(() => {
 
 const mount = (sessions: InstanceInfo[] = [], onAccountsChanged = vi.fn()) => {
   const view = render(
-    <ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} sessions={sessions} onAccountsChanged={onAccountsChanged} />,
+    <ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} sessions={sessions} onAccountsChanged={onAccountsChanged} />,
   );
   return { ...view, onAccountsChanged };
 };
@@ -80,7 +80,7 @@ describe("AJ-E1501 the account card's menu", () => {
     const menu = await openMenu(view, 1);
     // AJ-E1537: the registry's account menu; a disabled item says why.
     const items = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.querySelector("[data-label]")?.textContent);
-    expect(items).toEqual(["Open its page", "Start a session", "Edit launch settings", "Rename…", "Copy settings from…", "Make the default", "Remove…"]);
+    expect(items).toEqual(["Open its page", "Start a session", "Edit launch settings", "Measure its limits…", "Rename…", "Copy settings from…", "Make the default", "Remove…"]);
     const start = menu.querySelector("[data-testid='action-start']") as HTMLButtonElement;
     expect(start.disabled).toBe(true);
     expect(start.title).toBe("Add launch settings first");

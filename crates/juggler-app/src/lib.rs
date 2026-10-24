@@ -98,7 +98,6 @@ pub const EVENT_GO_TO: &str = "app://go-to";
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
 pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
