@@ -138,7 +138,7 @@ for (const theme of ["dark", "light"] as const) {
         return hit !== null && node.contains(hit);
       });
       expect(onTop, "the legend is covered by another layer").toBe(true);
-      await expect(legend).toContainText("Waiting for you");
+      await expect(legend).toContainText("Asks you"); // AJ-E2104 Req.3: the rail's words
       await page.screenshot({ path: resolve(OUT, where === "rail" ? `legend-1280x800-${theme}.png` : `legend-home-1280x800-${theme}.png`) });
       await axeClean(page, `legend from ${where}`);
       await page.keyboard.press("Escape");

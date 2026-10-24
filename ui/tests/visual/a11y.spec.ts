@@ -61,7 +61,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await expect(page.getByText("Handed over").first()).toBeVisible();
+    await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
 
     // AJ-E405: the badge tooltip carries the structured reason (rule +
     // measured inputs) — asserted in the DOM (native titles are not
@@ -111,7 +111,7 @@ test("rail — no row overflows its width", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await expect(page.getByText("Handed over").first()).toBeVisible();
+  await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
   const overflows = await page.evaluate(() => {
     const bad: string[] = [];
     for (const row of document.querySelectorAll("aside button")) {
@@ -1893,7 +1893,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await onlyMac(page, "machine-mini");
-    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was working"); // AJ-E2104 Req.3
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }

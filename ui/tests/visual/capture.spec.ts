@@ -79,7 +79,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first()).toBeVisible();
       } else {
         await expectRail(page); // D-25: the list, or its icon column when narrow
-        await expect(page.getByText("Handed over").first()).toBeVisible();
+        await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
       }
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/all-statuses-${vp.name}-${theme}.png`),
@@ -189,7 +189,7 @@ for (const density of DENSITIES) {
       if (density === "minimal") {
         await expect(page.getByTitle(/Work Max/).first()).toBeVisible();
       } else {
-        await expect(page.getByText("Handed over").first()).toBeVisible();
+        await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
       }
       await page.screenshot({
         path: resolve(GALLERY, `01-rail-density/${density}-${vp.name}.png`),
@@ -247,7 +247,7 @@ test("rail — stale row renders stale - Nm", async ({ page }) => {
 // AJ-E404 captures: the sorted/filtered rail states (1440x900).
 test("rail — needs-me sort default", gate("01-rail-sort"), async ({ page }) => {
   await seedRail(page, {});
-  await expect(page.getByText("Handed over").first()).toBeVisible();
+  await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/needs-me-1440x900.png") });
 });
 
@@ -690,7 +690,7 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("Running");
@@ -717,7 +717,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
@@ -756,7 +756,7 @@ test("desktop — single-account warning state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   const warning = page.getByTestId("desktop-isolation");
   await expect(warning).toBeVisible();
@@ -811,7 +811,7 @@ test("focus — panel outcome after focus (Focused window, dark)", gate("14-focu
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await page.getByTestId("desktop-focus").click();
   await expect(page.getByTestId("desktop-focus-outcome")).toContainText("Focused window");
@@ -830,7 +830,7 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await page.getByTestId("desktop-focus").click();
   const explainer = page.getByTestId("desktop-a11y-explainer");
@@ -919,7 +919,7 @@ async function openRunningDesktopPanel(page: import("@playwright/test").Page) {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
 }
 
@@ -1775,7 +1775,7 @@ for (const theme of THEMES) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page
       .getByRole("button", { name: /Work Max/ })
-      .filter({ hasText: /running/i })
+      .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
       .first()
       .click();
     await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ picked up after restart");
@@ -4618,7 +4618,7 @@ for (const theme of THEMES) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await onlyMac(page, "machine-mini");
     await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
-    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was working"); // AJ-E2104 Req.3
     await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-board-1280x800-${theme}.png`) });
   });
 }

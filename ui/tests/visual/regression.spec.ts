@@ -320,6 +320,10 @@ for (const theme of THEMES) {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More
           await page.waitForLoadState("networkidle");
+          // Screens past Home load on first use (lib/lazy): the shot raced
+          // the screen's code and caught a blank page on most runs.
+          await expect(page.getByRole("main")).toHaveText(/\S/);
+          await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
         });
@@ -457,4 +461,18 @@ test("status is never colour-only", async ({ page }) => {
   expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(dots.length + needs.length);
   expect(needs.length, "Needs you rows").toBeGreaterThan(0);
   expect([...drawn].sort(), "states drawn as dots").toEqual(expect.arrayContaining(["ended", "working"]));
+
+  // The Project lens says it the same way (AJ-E2104 Req.3): every state
+  // glyph in its colour has its word beside it and in its row's name.
+  await projectLens(page);
+  const glyphs = await rail.locator("[data-state-glyph]").all();
+  expect(glyphs.length, "the Project lens's rows").toBeGreaterThan(0);
+  for (const glyph of glyphs) {
+    const row = glyph.locator("xpath=ancestor::button[1]");
+    const id = (await row.getAttribute("data-instance-id")) ?? "a row";
+    const word = (await row.locator('[data-testid="rail-state-word"], [data-testid="rail-parked"]').innerText()).trim();
+    expect.soft(word, `${id}: its state in words`).not.toBe("");
+    await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(escape(word)));
+  }
+  await expect(rail, "one vocabulary: no old state words").not.toContainText(/Running|Starting|Waiting for you|Looks stuck|Hit its limit|Handed over/);
 });
