@@ -84,8 +84,10 @@ jsx_checks() { # $1=file
   local jsx=$1
   check "$jsx" '>[^<>{}]*\bharness(es)?[^<>{}]*<' 'vendor|claude' "user-facing harness in JSX"
   # "Claude (desktop) profiles" names the profile folders themselves (a
-  # profile manager's ClaudeCodeProfiles), not accounts.
-  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop|Claude profiles' "profile-as-account in JSX"
+  # profile manager's ClaudeCodeProfiles), not accounts. D-35 (AJ-E2109):
+  # Accounts defines the word on screen, "a profile is a setup an app runs
+  # on" (several profiles to an account): that's the new meaning, allowed.
+  check "$jsx" '>[^<>{}]*\b[Pp]rofiles?\b[^<>{}]*<' 'launch|settings|Launch|recipe|desktop|Claude profiles|a setup an app runs on|several profiles|profiles share this account' "profile-as-account in JSX"
   # D-25: on screen it is a "session" (the code keeps Instance).
   check "$jsx" '>[^<>{}]*\b[Ii]nstances?\b[^<>{}]*<' 'NONE^' "Instance on screen in JSX (say session)"
   check "$jsx" '(aria-label|title|placeholder|label|alt)=("|\{`)[^"`$]*\b[Ii]nstances?\b' 'NONE^' "Instance in a visible attribute (say session)"

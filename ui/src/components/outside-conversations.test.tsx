@@ -171,10 +171,16 @@ describe("AJ-E1529 a conversation's page", () => {
     expect(host.copyConversationResume).toHaveBeenCalledTimes(1);
   });
 
-  it("while it's live elsewhere, Continue waits and says why", async () => {
-    render(withFixture([conversation("c", { live: true })], <ConversationPage accountId="a1" id="c" now={NOW} />));
-    await waitFor(() => expect((screen.getByTestId("conversation-continue") as HTMLButtonElement).disabled).toBe(true));
-    expect(screen.getByTestId("conversation-page").textContent).toContain("open in another session now");
+  it("AJ-E2108: while it's open in its app, Go to it leads and Continue waits, saying why", async () => {
+    const host: ActionHost = { goToConversation: vi.fn(), continueConversation: vi.fn() };
+    render(withFixture([conversation("c", { live: true })], <ConversationPage accountId="a1" id="c" now={NOW} />, host));
+    await waitFor(() => expect(screen.getByTestId("session-go-to")).toBeTruthy());
+    expect(screen.queryByTestId("conversation-continue")).toBeNull();
+    fireEvent.click(screen.getByTestId("session-go-to"));
+    expect(host.goToConversation).toHaveBeenCalledTimes(1);
+    const carry = (await screen.findByTestId("continue-carry-in")) as HTMLButtonElement;
+    expect(carry.disabled).toBe(true);
+    expect(screen.getByTestId("continue-on").textContent).toContain("It's open in its app now");
   });
 
   it("a conversation that went away says so", async () => {

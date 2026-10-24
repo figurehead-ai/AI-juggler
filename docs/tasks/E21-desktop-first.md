@@ -162,7 +162,7 @@
 
 ## Step 3 — the session page and accounts (0.1.5)
 
-### AJ-E2108 The session page: where it runs and its last messages | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2102
+### AJ-E2108 The session page: where it runs and its last messages | Status: IN-PROGRESS (page, read, redaction and claim evidenced; the container gallery run, a real-setup walk and a direct move from another app's session are open) | Priority P0 | Effort M | Depends: AJ-E2102
 **Goal**: A session's page says where it runs, shows its last messages, and offers Go to it and Continue on another account.
 **User story**: As a user, I read the question a session is asking before I jump to it.
 **Requirements**:
@@ -179,7 +179,7 @@
 **Research basis**: as above.
 **Handover note**: —
 
-### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2109 Accounts are subscriptions; profiles sit under them | Status: IN-PROGRESS (grouping, page and menu evidenced; the container gallery run and a look on the real setup are open) | Priority P0 | Effort M | Depends: —
 **Goal**: The Accounts page shows each subscription once, with the profiles that use it.
 **User story**: As the maintainer with two subscriptions shared across six profiles, I see two accounts, each with its profiles.
 **Requirements**:

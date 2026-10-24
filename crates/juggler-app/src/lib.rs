@@ -98,7 +98,6 @@ pub const EVENT_GO_TO: &str = "app://go-to";
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
 pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
@@ -415,11 +414,14 @@ macro_rules! app_commands {
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_resume_command,
+            // AJ-E2108: reads message text: never over the bridge.
+            Write features::conversations::commands::conversations_last_messages,
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
+            Read  features::subscriptions::commands::subscriptions_list,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::app::login_item::app_login_item_get,

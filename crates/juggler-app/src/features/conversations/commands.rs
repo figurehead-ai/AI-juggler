@@ -274,3 +274,22 @@ pub async fn conversations_bring_forward(
     })
     .await
 }
+
+/// AJ-E2108: a session's last 2–3 messages, read from the end of its
+/// transcript when its page opens, with keys and tokens taken out; kept
+/// nowhere. Nothing is read when the setting is off.
+///
+/// # Errors
+///
+/// As [`super::last_messages::last_messages_impl`].
+#[tauri::command]
+pub async fn conversations_last_messages(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    conversation_id: String,
+) -> AppResult<super::last_messages::LastMessagesInfo> {
+    crate::ipc::blocking(state.inner(), "the last messages", move |state| {
+        super::last_messages::last_messages_impl(state, &account_id, &conversation_id)
+    })
+    .await
+}

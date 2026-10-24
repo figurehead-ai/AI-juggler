@@ -176,7 +176,7 @@ for (const theme of THEMES) {
       test(`inspector — account view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Accounts");
-        await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+        await page.getByTestId("profile-open").first().click();
         await expect(page.getByTestId("account-overview")).toBeVisible();
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
@@ -335,7 +335,7 @@ for (const theme of THEMES) {
   test(`account menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
     await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
     await page.mouse.move(0, 0);
     await expect(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
@@ -344,7 +344,7 @@ for (const theme of THEMES) {
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Account actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);

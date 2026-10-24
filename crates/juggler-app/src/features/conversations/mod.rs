@@ -11,6 +11,7 @@ pub mod asks;
 pub mod commands;
 pub mod dto;
 pub mod goto;
+pub mod last_messages;
 pub mod live;
 pub mod places;
 pub mod procs;
@@ -195,6 +196,20 @@ impl ConversationIndex {
                 .then_with(|| a.path.cmp(&b.path))
         });
         Ok(out)
+    }
+
+    /// AJ-E2108: the file that stands for `account`'s conversation `id`
+    /// (the newest of its files, as [`merged`] keeps), without copying
+    /// the index.
+    #[must_use]
+    pub fn path_of(&self, account: &str, id: &str) -> Option<PathBuf> {
+        let files = self.files.lock().ok()?;
+        files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+            .filter(|c| c.account_id == account && c.summary.id == id)
+            .max_by(|a, b| (a.summary.last_ms, &a.path).cmp(&(b.summary.last_ms, &b.path)))
+            .map(|c| c.path.clone())
     }
 
     /// Whether a running session is on `account`'s `(tool, id)`.

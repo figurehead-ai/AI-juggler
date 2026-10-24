@@ -17,8 +17,8 @@ ui/src/App.tsx 1215
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 425
-ui/src/components/RemoteTabs.tsx 496
-ui/src/components/RightInspector.tsx 1831
+ui/src/components/RemoteTabs.tsx 494
+ui/src/components/RightInspector.tsx 1829
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
@@ -33,4 +33,4 @@ ui/src/screens/Home.tsx 596
 ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 518
 ui/src/screens/PairingWizard.tsx 816
-ui/src/screens/Profiles.tsx 713
+ui/src/screens/Profiles.tsx 408

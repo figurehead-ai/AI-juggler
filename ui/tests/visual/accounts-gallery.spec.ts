@@ -222,8 +222,9 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, fixture, theme);
     await goTo(page, "Accounts");
     const lines = page.getByTestId("account-placement");
-    await expect(lines.first()).toContainText("Codex · a copy of ~/.codex-work");
-    await expect(lines.nth(1)).toContainText("Codex · uses ~/.codex where it is");
+    // AJ-E2109: where the profile lives, under its name.
+    await expect(lines.first()).toContainText("a copy of ~/.codex-work");
+    await expect(lines.nth(1)).toContainText("uses ~/.codex where it is");
     await page.getByTestId("account-use-original").click();
     const dialog = page.getByTestId("use-original");
     await expect(dialog).toContainText("as when you run Codex yourself");

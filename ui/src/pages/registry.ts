@@ -41,7 +41,7 @@ export type PageTab = {
 
 const TAB: Record<PageTabId, PageTab> = {
   terminal: { id: "terminal", label: "Terminal", source: "this Mac's process monitor" },
-  window: { id: "window", label: "Window", source: "this Mac's process monitor" },
+  window: { id: "window", label: "Window preview", source: "this Mac's process monitor" },
   sessions: { id: "sessions", label: "Sessions", source: "the tools' own session files" },
   overview: { id: "overview", label: "Overview", source: "this Mac's process monitor" },
   usage: { id: "usage", label: "Usage", source: "usage tracking" },
@@ -69,7 +69,9 @@ const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
   account: "the account's settings and usage tracking",
   tool: "the tool's install and its accounts",
-  conversation: "the tool's own session files",
+  // AJ-E2108: where it runs, and its last messages from its transcript's end.
+  session: "the apps' own session files and the end of its transcript",
+  conversation: "the apps' own session files and the end of its transcript",
 };
 
 /** The page's tabs, its body first. */
@@ -82,14 +84,16 @@ export function pageTabs(kind: PageKind, facts: TabFacts = {}): PageTab[] {
 function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
   const when = (shown: boolean | undefined, tab: PageTabId) => (shown ? [TAB[tab]] : []);
   switch (kind) {
+    // AJ-E2108: its body (terminal or window) first, as ever, then Overview.
     case "session":
-      return [TAB[facts.desktop ? "window" : "terminal"], TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+      return [TAB[facts.desktop ? "window" : "terminal"], TAB.overview, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     case "project":
       return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
-    case "tool":
     case "conversation":
+      return [TAB.overview, ...when(facts.hasUsage, "usage")];
+    case "tool":
       return [TAB.overview];
     case "machine":
       return [TAB.overview, TAB.processes, TAB.actions];

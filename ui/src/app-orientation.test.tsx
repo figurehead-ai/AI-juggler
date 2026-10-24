@@ -57,7 +57,7 @@ it("Home lights only on Home; a session's page lights nothing and is titled by i
   expect(view.getByRole("heading", { level: 1 }).textContent).toBe("ai-juggler");
   // Its rail row is the selected one, and its page's mark is the session's.
   expect(row.getAttribute("aria-current")).toBe("true");
-  expect(view.getByTestId("mark-session")).toBeTruthy();
+  expect(view.getByTestId("session-mark")).toBeTruthy();
 });
 
 it("an account's page is under Accounts; the open project's rail heading is selected", async () => {

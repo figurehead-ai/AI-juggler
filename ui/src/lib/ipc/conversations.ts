@@ -9,10 +9,12 @@ import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { PlaceInfo } from "../../types/generated/PlaceInfo";
+import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
+import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { placesConversations } from "../../preview/places";
 
-export type { ConversationInfo, GoToOutcomeInfo, PlaceInfo };
+export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo };
 
 const NOW = Date.now();
 
@@ -131,4 +133,32 @@ export function onConversationsChanged(handler: () => void): () => void {
     disposed = true;
     stop?.();
   };
+}
+
+/** The preview's last messages: the fixture's per conversation id, else a
+ * short exchange ending in a question (a key in it shows redacted). */
+function previewLastMessages(conversationId: string): LastMessagesInfo {
+  const w = window as unknown as { __AIJ_FIXTURE__?: { last_messages?: Record<string, LastMessagesInfo> }; __AIJ_APP_SETTINGS__?: Record<string, string> };
+  // Off in Settings: nothing is read.
+  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return { state: "off", turns: [], redacted: 0 };
+  const fixture = w.__AIJ_FIXTURE__;
+  const seeded = fixture?.last_messages?.[conversationId];
+  if (seeded) return seeded;
+  if (fixture?.last_messages) return { state: "none", turns: [], redacted: 0 };
+  return {
+    state: "shown",
+    redacted: 1,
+    turns: [
+      { speaker: "assistant", text: "Seven panes are in, and every setting has a home. Two rows had no footer, so I wrote one for each." },
+      { speaker: "you", text: "Good. Keep the old shortcuts working; the test key is •••" },
+      { speaker: "assistant", text: "Should the Privacy pane stay last, or go after Notifications as in the design?" },
+    ],
+  };
+}
+
+/** AJ-E2108: a session's last 2–3 messages, read from the end of its
+ * transcript now (when its page opens), redacted; kept nowhere. */
+export async function conversationsLastMessages(accountId: string, conversationId: string): Promise<LastMessagesInfo> {
+  if (!hasLiveBackend()) return previewLastMessages(conversationId);
+  return invoke<LastMessagesInfo>("conversations_last_messages", { accountId, conversationId });
 }
