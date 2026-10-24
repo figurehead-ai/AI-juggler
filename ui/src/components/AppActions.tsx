@@ -12,6 +12,7 @@ import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "..
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
 import { conversationsContinue, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
 import { useConversations } from "../lib/conversations";
+import { openPoolSheet } from "../lib/pools";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -28,6 +29,7 @@ export function AppActions({
   selectProject,
   selectAccount,
   selectTool,
+  selectPool,
   openAccounts,
   stopSession,
   newSessionIn,
@@ -39,6 +41,8 @@ export function AppActions({
   selectProject: (id: string) => void;
   selectAccount: (id: string) => void;
   selectTool: (id: string) => void;
+  /** AJ-E1703: a pool's page. */
+  selectPool: (id: string) => void;
   openAccounts: () => void;
   stopSession: (row: InstanceInfo) => void;
   newSessionIn: (project: ProjectInfo) => void;
@@ -79,6 +83,9 @@ export function AppActions({
         }
       },
       revealSessionProject: (row) => row.project_id && selectProject(row.project_id),
+      // AJ-E1702/E1703: pools.
+      moveSessionToPool: (row) => openPoolSheet({ mode: "move", sessionId: row.id }),
+      openPool: selectPool,
       stopSession,
       newSessionIn,
       setProjectAccount: (project) => selectProject(project.id),
@@ -87,6 +94,6 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openAccounts, stopSession, newSessionIn, refresh]);
+  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, selectPool, openAccounts, stopSession, newSessionIn, refresh]);
   return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
 }

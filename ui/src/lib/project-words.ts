@@ -4,7 +4,7 @@
  * page's history line.
  */
 import { agoWords } from "./time-words";
-import type { ProjectInfo } from "./bridge";
+import type { InstanceInfo, ProjectInfo } from "./bridge";
 
 /** When a project was last worked in: here or, before that, elsewhere. */
 export function lastWorked(project: ProjectInfo): number {
@@ -29,4 +29,14 @@ export function projectStats(project: ProjectInfo, now: number): string[] {
  * absolute path on screen: P24). */
 export function homeRelative(path: string): string {
   return path.replace(/^\/Users\/[^/]+/, "~");
+}
+
+/** A session's place: project name (or folder) and branch. */
+export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title: string; detail: string } {
+  const project = projects.find((p) => p.id === session.project_id);
+  const cwd = session.cwd ?? "";
+  const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
+  const title = project?.name ?? folder;
+  const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
+  return { title, detail };
 }

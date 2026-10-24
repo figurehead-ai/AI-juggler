@@ -19,6 +19,10 @@ export interface ActionHost {
   pinSession?: (row: InstanceInfo) => void | Promise<void>;
   copyResumeCommand?: (row: InstanceInfo) => void | Promise<void>;
   revealSessionProject?: (row: InstanceInfo) => void;
+  /** AJ-E1702: its pool (the pool sheet's "Move to pool"). */
+  moveSessionToPool?: (row: InstanceInfo) => void;
+  /** AJ-E1703: a pool's page, by its id. */
+  openPool?: (poolId: string) => void;
   stopSession?: (row: InstanceInfo) => void;
   /** The rail's attention controls (snooze, mute). */
   snoozeSession?: (row: InstanceInfo, ms: number | null) => void;

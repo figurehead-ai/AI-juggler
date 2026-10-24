@@ -12,7 +12,7 @@ import { prefetchLazy } from "./lib/lazy";
 import {
   ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, PrivacyScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
-  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow,
+  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage,
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -72,30 +72,12 @@ import { ProfilesScreen } from "./screens/Profiles";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import {
-  accountsList,
-  providersDiscover,
-  type SwitchBackSuggestionData,
-  launchRecipesList,
-  onSessionsUpdated,
-  onTerminalExit,
-  projectsBackfill,
-  projectsList,
-  instancesList,
-  sessionHandover,
-  switchBackSuggestions,
-  onFolderDropped,
-  launchSession,
-  desktopFocus,
-  goToHotkeySet,
-  type LaunchRecipeInfo,
-  fetchAppInfo,
-  onAppReady,
-  type AccountInfo,
-  type AppInfo,
-  type ProjectInfo,
-  type InstanceInfo,
+  accountsList, providersDiscover, launchRecipesList, onSessionsUpdated, onTerminalExit, projectsBackfill, projectsList,
+  instancesList, sessionHandover, switchBackSuggestions, onFolderDropped, launchSession, desktopFocus, goToHotkeySet,
+  fetchAppInfo, onAppReady,
+  type SwitchBackSuggestionData, type LaunchRecipeInfo, type AccountInfo, type AppInfo, type ProjectInfo, type InstanceInfo,
 } from "./lib/bridge";
-
+import { PoolSheetHost } from "./components/PoolSheetHost";
 
 /**
  * App shell (ADR-0007, design iteration 5): a workflow navigator rail
@@ -112,6 +94,7 @@ type Selection =
   | { kind: "account"; id: string }
   | { kind: "provider"; id: string }
   | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
+  | { kind: "pool"; id: string } // AJ-E1703: a pool's page
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
@@ -601,7 +584,7 @@ export default function App() {
             : selection.kind === "none"
               ? "Home"
               : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
-                (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session");
+                (selection.kind === "pool" ? "Pool" : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
@@ -612,6 +595,7 @@ export default function App() {
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
       selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+      selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")}
       stopSession={stopSession}
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
@@ -929,6 +913,8 @@ export default function App() {
                 </div>
               ) : selection.kind === "conversation" ? (
                 <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
+              ) : selection.kind === "pool" ? (
+                <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
               ) : (
               <div className="min-h-0 flex-1">
               <RightInspector
@@ -1161,6 +1147,7 @@ export default function App() {
       <ToastHost />
       {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
+      <PoolSheetHost sessions={railSessions} projects={projects} />
       {newSession && (
         <NewSessionModal
           projects={shownProjects}

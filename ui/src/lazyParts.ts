@@ -24,3 +24,4 @@ export const SettingsScreen = lazyNamed(() => import("./screens/Settings"), "Set
 export const SessionPanel = lazyNamed(() => import("./screens/WorkPanels"), "SessionPanel", true);
 export const SwitchFlow = lazyNamed(() => import("./components/SwitchFlow"), "SwitchFlow");
 export const SwitchBackFlow = lazyNamed(() => import("./components/SwitchBackFlow"), "SwitchBackFlow");
+export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");

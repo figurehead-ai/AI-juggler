@@ -7,7 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 
-export type PageKind = "session" | "conversation" | "project" | "account" | "tool" | "machine" | "remote-session";
+export type PageKind = "session" | "conversation" | "project" | "account" | "tool" | "machine" | "remote-session" | "pool";
 
 /** The type, in words, on every page's header. A conversation started
  * outside AI Juggler is a session too (it says "outside AI Juggler"). */
@@ -19,6 +19,7 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   tool: "Tool",
   machine: "Machine",
   "remote-session": "Session",
+  pool: "Pool",
 };
 
 export type PageTabId =
@@ -30,7 +31,9 @@ export type PageTabId =
   | "quality"
   | "processes"
   | "history"
-  | "actions";
+  | "actions"
+  | "members"
+  | "access";
 
 export type PageTab = {
   id: PageTabId;
@@ -49,6 +52,8 @@ const TAB: Record<PageTabId, PageTab> = {
   processes: { id: "processes", label: "Processes", source: "this Mac's process monitor" },
   history: { id: "history", label: "History", source: "the session's transcript" },
   actions: { id: "actions", label: "Actions", source: "the paired Mac" },
+  members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
+  access: { id: "access", label: "Agent access", source: "your choices for this pool" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -95,6 +100,8 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
       return [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
+    case "pool":
+      return [TAB.members, TAB.access];
   }
 }
 

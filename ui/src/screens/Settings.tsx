@@ -33,6 +33,8 @@ import {
 import { AppearanceCard } from "../components/AppearanceCard";
 import { UninstallCard } from "../components/UninstallCard";
 import { EditorCard } from "../components/EditorCard";
+import { AgentAccessCard } from "../components/PoolAccess";
+import { CONSENT_DEFAULT_ON, FEATURE_COPY } from "../lib/cloud-copy";
 
 /**
  * Settings (AJ-E1203; wireframe 26) — the policies the user owns, in
@@ -40,7 +42,8 @@ import { EditorCard } from "../components/EditorCard";
  * kept in sync with ⌘⇧L; About & updates; Privacy), **Account & Cloud**
  * (the single home for the optional Figurehead account, D-18,
  * ADR-0014), Context packs & secrets (D-14), Cleanup (D-08), Accounts &
- * renewal dates (D-12), Notifications, Fleet permissions, and Data.
+ * renewal dates (D-12), Notifications, Fleet permissions, Agent access
+ * (D-28) and Data.
  * Every section stays on the page, so search finds any setting; the
  * list jumps to one and shows where you are.
  *
@@ -57,6 +60,7 @@ const SECTIONS = [
   { id: "renewal", title: "Accounts & renewal dates" },
   { id: "notifications", title: "Notifications" },
   { id: "fleet", title: "Fleet permissions" },
+  { id: "agents", title: "Agent access" },
   { id: "data", title: "Data: backup & retention" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -184,6 +188,9 @@ export function SettingsScreen({
         <SettingsSection id="fleet">
           <FleetPermissionsCard />
         </SettingsSection>
+        <SettingsSection id="agents">
+          <AgentAccessCard />
+        </SettingsSection>
         <SettingsSection id="data">
           <StorageRetentionCard />
           <BackupRestoreCard />
@@ -193,46 +200,6 @@ export function SettingsScreen({
     </div>
   );
 }
-
-/** What each cloud feature does and sends (plain words, D-18 §4.5). */
-const FEATURE_COPY: Record<string, { title: string; does: string; sends: string; note?: string; locked?: string }> = {
-  cloudBackup: {
-    title: "Cloud backup",
-    does: "Back up AI Juggler's settings, Launch settings and history, and restore them on another Mac.",
-    sends: "An encrypted backup file. Figurehead can't read it.",
-  },
-  fleetDiscovery: {
-    title: "Find my Macs",
-    does: "Lists your other linked Macs in Fleet so they can pair without a code — you still confirm each one.",
-    sends: "This Mac's name, platform, app version and public key.",
-    note: "Arrives in an upcoming beta build — your choice is kept until then.",
-  },
-  usageSync: {
-    title: "Sync usage stats to my dashboard",
-    does: "Shows your weekly usage statistics on figurehead.ai.",
-    sends: "The weekly usage-statistics report, linked to your account.",
-    locked: "Turn on in Settings › Privacy, while sharing usage stats",
-  },
-  alerts: {
-    title: "Alerts when you're away",
-    does: "Sends AI Juggler's alerts to you when you're away from this Mac.",
-    sends: "The alert's text and time.",
-  },
-  configSync: {
-    title: "Sync config across Macs",
-    does: "Keeps your rules and settings the same on your Macs — you review each change.",
-    sends: "Encrypted config files. Figurehead can't read them.",
-  },
-  transcriptVault: {
-    title: "Transcript vault",
-    does: "Keeps an encrypted archive of your transcripts you can search on any of your Macs.",
-    sends: "Encrypted transcripts. Figurehead can't read them.",
-  },
-};
-
-/** The consent screen's defaults (D-18 §4.3): the services you connect
- * for are on; usage sync is opt-in; everything else starts off. */
-const CONSENT_DEFAULT_ON = new Set(["cloudBackup", "fleetDiscovery"]);
 
 function AccountCloudCard(): JSX.Element {
   const [status, setStatus] = useState<FigureheadStatusInfo | null>(null);
