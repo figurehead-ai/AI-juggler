@@ -16,7 +16,7 @@ import {
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
-import { GoToPalette } from "./components/GoToPalette";
+import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
 import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
 import { IconJuggler, IconTerminal } from "./components/icons";
@@ -1056,10 +1056,10 @@ export default function App() {
         }}
         onOpenRemote={inspectRemote}
         hotkey={goToHotkey}
-        onHotkeyChange={async (combo) => {
-          await goToHotkeySet(combo);
-          setGoToHotkey(combo);
-        }}
+        onHotkeyChange={async (combo) => (await goToHotkeySet(combo), setGoToHotkey(combo))}
+        selected={paletteSelection(selectedSession, selectedProject, selectedAccount, selectedProvider?.id ?? null)}
+        projects={projects}
+        onChanged={() => void refresh()}
       />
 
       {firstRun && (
