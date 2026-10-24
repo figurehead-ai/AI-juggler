@@ -95,7 +95,7 @@ export function RowMenu({
   }, []);
   // Where it fits: measured once it's drawn, so a long menu opened low
   // in the window moves up instead of running off it.
-  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 244)), top: Math.max(4, at.y) });
+  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
@@ -112,7 +112,7 @@ export function RowMenu({
       role="menu"
       aria-label={ariaLabel}
       style={style}
-      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-60 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-64 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
     >
       <span className="truncate px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">{heading}</span>
       {children}

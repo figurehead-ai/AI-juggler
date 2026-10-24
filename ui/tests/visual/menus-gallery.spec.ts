@@ -4,6 +4,10 @@
  * page's header, an account card, a history entry, This Mac's lines) in
  * both themes, axe 0 critical/serious on each, and the keyboard way in
  * (Shift+F10 on a focused row, Escape back).
+ *
+ * AJ-E2106: icons on every line, three groups with stopping last, the
+ * one submenu from the keyboard, a greyed line with its reason, and ⌘K
+ * listing the selected session's actions first — both themes each.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
@@ -67,9 +71,12 @@ for (const theme of ["dark", "light"] as const) {
     await row.hover();
     await row.getByRole("button", { name: /^Session actions for / }).click();
     const fromButton = await labels(page);
-    expect(fromButton[0]).toBe("Open");
-    // Stop, when the session is live, is last and alone.
-    if (fromButton.includes("Stop")) expect(fromButton.at(-1)).toBe("Stop");
+    // AJ-E2106: getting there first, each line with its icon.
+    expect(fromButton.slice(0, 3)).toEqual(["Go to it", "Open its page", "Show its project"]);
+    expect(fromButton).toContain("Continue on another account…");
+    // Stop, the session being live, is last and alone, in red.
+    expect(fromButton.at(-1)).toBe("Stop this session");
+    await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
     await shoot(page, "session-menu", theme);
     await page.keyboard.press("Escape");
     await row.click({ button: "right" });
@@ -78,9 +85,53 @@ for (const theme of ["dark", "light"] as const) {
     await row.getByRole("button").first().focus();
     await page.keyboard.press("Shift+F10");
     expect(await labels(page)).toEqual(fromButton);
-    await expect(page.getByRole("menuitem", { name: "Open", exact: true })).toBeFocused();
+    await expect(page.getByRole("menuitem", { name: "Go to it", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toHaveCount(0);
+  });
+
+  // AJ-E2106: one level of submenus — → opens it, ← closes it.
+  test(`a session's submenu, from the keyboard — ${theme}`, async ({ page }) => {
+    await seed(page, theme);
+    const row = page.locator(".group", { has: page.locator('[data-instance-id="sess-2"]') }).first();
+    await row.getByRole("button").first().focus();
+    await page.keyboard.press("Shift+F10");
+    const trigger = page.getByRole("menuitem", { name: "Snooze or mute" });
+    await trigger.focus();
+    await page.keyboard.press("ArrowRight");
+    const sub = page.getByRole("menu", { name: "Snooze or mute" });
+    await expect(sub).toBeVisible();
+    await expect(sub.getByRole("menuitem").first()).toBeFocused();
+    await shoot(page, "session-submenu", theme);
+    await page.keyboard.press("ArrowLeft");
+    await expect(sub).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
+  // Not possible right now: greyed, with the reason under it (4.5:1).
+  test(`a session starting: greyed with the reason — ${theme}`, async ({ page }) => {
+    await seed(page, theme);
+    const row = page.locator(".group", { has: page.locator('[data-instance-id="sess-1"]') }).first();
+    await row.hover();
+    await row.getByRole("button", { name: /^Session actions for / }).click();
+    const copy = page.getByRole("menuitem", { name: "Copy the resume command" });
+    await expect(copy).toBeDisabled();
+    await expect(page.getByRole("menu").getByText("It has no conversation to resume yet")).toBeVisible();
+    await shoot(page, "session-menu-greyed", theme);
+  });
+
+  // ⌘K on the selected session: its actions with their keys, then the rest.
+  test(`⌘K with a session selected — ${theme}`, async ({ page }) => {
+    await seed(page, theme);
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    await page.keyboard.press("Meta+k");
+    const palette = page.getByTestId("goto-palette");
+    await expect(palette).toBeVisible();
+    await page.getByRole("combobox").focus();
+    await expect(palette.getByRole("option").first()).toContainText("Go to it");
+    await expect(palette.getByTestId("goto-row-action::stop")).toContainText("⌘.");
+    await expect(palette.getByTestId("goto-row-action::continue")).toContainText("⌘⇧H");
+    await shoot(page, "palette-actions", theme);
   });
 
   test(`a project row and its page's header — ${theme}`, async ({ page }) => {
@@ -88,14 +139,14 @@ for (const theme of ["dark", "light"] as const) {
     const header = page.getByTestId("rail-project").first();
     await header.click({ button: "right" });
     const row = await labels(page);
-    expect(row[0]).toBe("Open");
+    expect(row[0]).toBe("Open its page");
     expect(row.at(-1)).toBe("Forget…");
     await shoot(page, "project-menu", theme);
     await page.keyboard.press("Escape");
     await header.click();
     await page.getByTestId("header-menu").click();
-    // On the page: the same menu, less Open.
-    expect(await labels(page)).toEqual(row.filter((label) => label !== "Open"));
+    // On the page: the same menu, less Open its page.
+    expect(await labels(page)).toEqual(row.filter((label) => label !== "Open its page"));
     await shoot(page, "project-header-menu", theme);
   });
 
@@ -113,7 +164,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "History");
     await page.getByTestId("page-session-item").first().click({ button: "right" });
     const items = await labels(page);
-    expect(items[0]).toBe("Open");
+    expect(items[0]).toBe("Open its page");
     expect(items.at(-1)).toBe("Delete…");
     await shoot(page, "history-menu", theme);
   });
