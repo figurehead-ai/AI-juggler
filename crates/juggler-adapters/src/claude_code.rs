@@ -1191,12 +1191,39 @@ fn namespaced_service(state_dir: &Path) -> String {
 /// **without** extracting any secret (`-w` deliberately absent).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
-    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+    // Each answer is a `security` process: the account list asks once per
+    // account, and the UI reads that list on every session event. With
+    // eight live sessions that ran dozens of processes a minute and kept
+    // the window busy (0.1.1, the maintainer's spinning wheel). An entry
+    // that exists stays known for 30 s; a missing one only 3 s, so a fresh
+    // sign-in still shows almost at once.
+    static SEEN: OnceLock<Mutex<HashMap<String, (Instant, bool)>>> = OnceLock::new();
+    let seen = SEEN.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(cache) = seen.lock()
+        && let Some((at, exists)) = cache.get(service)
+    {
+        let fresh_for = if *exists {
+            Duration::from_secs(30)
+        } else {
+            Duration::from_secs(3)
+        };
+        if at.elapsed() < fresh_for {
+            return *exists;
+        }
+    }
+    let exists = std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .is_ok_and(|status| status.success())
+        .is_ok_and(|status| status.success());
+    if let Ok(mut cache) = seen.lock() {
+        cache.insert(service.to_owned(), (Instant::now(), exists));
+    }
+    exists
 }
 
 /// AJ-E1001: Claude Code's sign-in metadata for a config dir (see

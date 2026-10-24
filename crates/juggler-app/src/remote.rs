@@ -922,8 +922,10 @@ pub async fn fleet_remote_focus_impl(
 ///
 /// Returns the typed [`AppError`] when the registry can't load.
 #[tauri::command]
-pub fn fleet_remote(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<RemoteMachineInfo>> {
-    fleet_remote_impl(state.inner())
+pub async fn fleet_remote(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<RemoteMachineInfo>> {
+    crate::ipc::blocking(state.inner(), "read the other Macs", fleet_remote_impl).await
 }
 
 /// Core (AJ-E707): asks `machine_id` to clean one process it owns. That

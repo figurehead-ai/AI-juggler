@@ -5,7 +5,7 @@ import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
-import { useLiveDeltas } from "./lib/live-deltas";
+import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
@@ -357,7 +357,7 @@ export default function App() {
     };
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useMemo(() => singleFlight(async () => {
     try {
       const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] =
         await Promise.all([
@@ -390,7 +390,7 @@ export default function App() {
     } finally {
       setLoaded(true);
     }
-  }, [baselineFreshness]);
+  }), [baselineFreshness]);
 
   // Golden path day one: surface the user's REAL project history from
   // imported transcripts (idempotent backend scan). AJ-E1529: the backend

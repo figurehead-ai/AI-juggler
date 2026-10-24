@@ -1051,22 +1051,29 @@ pub fn quota_display(
 
 /// AJ-E610: the two-clock display for EVERY account (the rail chip /
 /// `NewSession` row source; one query, no per-row round trips).
+///
+/// # Errors
+///
+/// [`AppError::Io`] only when the background task fails; a storage that
+/// can't be read gives an empty list, as before.
 #[tauri::command]
-#[must_use]
-pub fn quota_display_all(
+pub async fn quota_display_all(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-) -> Vec<QuotaDisplayInfo> {
-    let Ok(storage) = state.storage.lock() else {
-        return Vec::new();
-    };
-    let now = juggler_core::model::Timestamp::now().millis();
-    storage
-        .accounts()
-        .list()
-        .unwrap_or_default()
-        .iter()
-        .map(|account| quota_display_inner(&storage, account, now))
-        .collect()
+) -> AppResult<Vec<QuotaDisplayInfo>> {
+    crate::ipc::blocking(state.inner(), "show the usage", |state| {
+        let Ok(storage) = state.storage.lock() else {
+            return Ok(Vec::new());
+        };
+        let now = juggler_core::model::Timestamp::now().millis();
+        Ok(storage
+            .accounts()
+            .list()
+            .unwrap_or_default()
+            .iter()
+            .map(|account| quota_display_inner(&storage, account, now))
+            .collect())
+    })
+    .await
 }
 
 /// AJ-E607 Req.5: every ingest source's observable health — the typed
@@ -1479,8 +1486,8 @@ pub fn harnesses_list() -> Vec<ProviderInfo> {
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<AccountInfo>> {
-    accounts_info(state.inner())
+pub async fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<AccountInfo>> {
+    crate::ipc::blocking(state.inner(), "list the accounts", accounts_info).await
 }
 
 /// The accounts in use, each marked whether it is the default
@@ -1490,12 +1497,17 @@ pub fn accounts_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Ac
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
-    let storage = lock_storage_arc(state)?;
-    let default = storage
-        .app_settings()
-        .get(crate::manage::DEFAULT_ACCOUNT_KEY)?;
+    // The rows under the lock; each account's sign-in check (a Keychain
+    // lookup) after it, so no other command waits on those.
+    let (default, accounts) = {
+        let storage = lock_storage_arc(state)?;
+        let default = storage
+            .app_settings()
+            .get(crate::manage::DEFAULT_ACCOUNT_KEY)?;
+        (default, storage.accounts().list()?)
+    };
     let mut out = Vec::new();
-    for account in storage.accounts().list()? {
+    for account in accounts {
         let mut info = account_info_of(&state.registry, &account);
         info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
         out.push(info);
@@ -3678,17 +3690,20 @@ pub fn go_to_hotkey_set(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<InstanceInfo>> {
-    // Collector lock first and alone: the resource tick shares it, and no
-    // code path ever holds the storage and collector locks together.
-    let live = live_stats_of(state.inner());
-    let labels = desktop_isolation_labels(&state.registry);
-    let adopted = state.supervisor.alive_adopted_sessions();
-    let storage = lock_storage(&state)?;
-    let rows = session_infos(&storage, &live, &labels, &adopted)?;
-    drop(storage);
-    let rows = crate::features::subtasks::counted(state.inner(), rows);
-    crate::features::conversations::titled(state.inner(), rows)
+pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<InstanceInfo>> {
+    crate::ipc::blocking(state.inner(), "list the sessions", |state| {
+        // Collector lock first and alone: the resource tick shares it, and
+        // no code path ever holds the storage and collector locks together.
+        let live = live_stats_of(state);
+        let labels = desktop_isolation_labels(&state.registry);
+        let adopted = state.supervisor.alive_adopted_sessions();
+        let storage = lock_storage_arc(state)?;
+        let rows = session_infos(&storage, &live, &labels, &adopted)?;
+        drop(storage);
+        let rows = crate::features::subtasks::counted(state, rows);
+        crate::features::conversations::titled(state, rows)
+    })
+    .await
 }
 
 /// The read model with the LAST sampled live stats (no extra collector
@@ -7222,8 +7237,8 @@ fn record_edge_succeeded(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn projects_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<ProjectInfo>> {
-    projects_list_impl(state.inner())
+pub async fn projects_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<ProjectInfo>> {
+    crate::ipc::blocking(state.inner(), "list the projects", projects_list_impl).await
 }
 
 /// Core implementation shared with integration tests.
@@ -11317,10 +11332,10 @@ pub mod legacy_aliases {
     /// # Errors
     ///
     /// Returns the parent command's typed error on failure.
-    pub fn sessions_list_alias(
+    pub async fn sessions_list_alias(
         state: tauri::State<'_, Arc<AppState>>,
     ) -> AppResult<Vec<InstanceInfo>> {
-        sessions_list(state)
+        sessions_list(state).await
     }
 
     // Silence unused-import when only aliases reference these.
@@ -12579,10 +12594,15 @@ pub struct SwitchBackSuggestionInfo {
 ///
 /// Returns the typed [`AppError`] when storage reads fail.
 #[tauri::command]
-pub fn switch_back_suggestions(
+pub async fn switch_back_suggestions(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<SwitchBackSuggestionInfo>> {
-    switch_back_suggestions_impl(state.inner())
+    crate::ipc::blocking(
+        state.inner(),
+        "suggest switching back",
+        switch_back_suggestions_impl,
+    )
+    .await
 }
 
 /// Core implementation shared with integration tests.

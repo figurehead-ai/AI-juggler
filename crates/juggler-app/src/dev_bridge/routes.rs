@@ -191,18 +191,18 @@ read_routes! {
     "app_info" => value commands::app_info();
     "providers_list" => value commands::harnesses_list();
     "providers_capabilities" => result commands::providers_capabilities(state);
-    "accounts_list" => result commands::accounts_list(state);
+    "accounts_list" => async_result commands::accounts_list(state);
     "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => result history::account_storage(state);
     "launch_recipes_list" => async_result commands::profiles_list(state);
-    "instances_list" => result commands::sessions_list(state);
+    "instances_list" => async_result commands::sessions_list(state);
     "instance_quality" => result commands::instance_quality(state; session_id: String);
     "instance_processes" => result commands::instance_processes(state; session_id: String);
     "instance_replay" => result history::instance_replay(state; session_id: String);
     "transcript_search" => result history::transcript_search(state; query: String);
-    "projects_list" => result commands::projects_list(state);
+    "projects_list" => async_result commands::projects_list(state);
     "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);
-    "switch_back_suggestions" => result commands::switch_back_suggestions(state);
+    "switch_back_suggestions" => async_result commands::switch_back_suggestions(state);
     // The switch screen (AJ-E1543): its targets, its check and its
     // set-up list, all reads. The check's secret previews are masked
     // before they leave ([`masked`]).
@@ -213,7 +213,7 @@ read_routes! {
     "overnight_summary" => result overnight::overnight_summary(state; since_ms: Option<i64>);
     "dashboard_stats" => result commands::dashboard_stats(state);
     "quota_display" => result commands::quota_display(state; account: String);
-    "quota_display_all" => value commands::quota_display_all(state);
+    "quota_display_all" => async_result commands::quota_display_all(state);
     "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
     "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
     "cost_rollups" => value commands::cost_rollups(state; account: Option<String>);

@@ -59,8 +59,9 @@ export function resetWords(window: WindowDisplay | null | undefined): string | n
   return `resets ${resetClock(window.resets_at_ms)}`;
 }
 
-/** 12,345 → "12k", 1,234,567 → "1.2M" (tokens used in the window). */
+/** 12,345 → "12k", 1,234,567 → "1.2M", 10,329,000,000 → "10.3B" (tokens used in the window). */
 export function tokenWords(tokens: number): string {
+  if (tokens >= 1_000_000_000) return `${(tokens / 1_000_000_000).toFixed(tokens >= 100_000_000_000 ? 0 : 1)}B`;
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens >= 10_000_000 ? 0 : 1)}M`;
   if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
   return String(tokens);
