@@ -1295,6 +1295,11 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "@anthropic-ai/claude-code".to_owned(),
+        }),
+        update_command: Some("claude update".to_owned()),
     }
 }
 

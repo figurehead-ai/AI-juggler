@@ -200,6 +200,9 @@ tokens or API keys, and never opens the tools' Keychain items.
 **Sends:**
 
 - An update check to GitHub at launch.
+- Once a day, a question to npm's public registry for the newest version of
+  each tool you have an account on (turn it off on any tool's page). It
+  never updates a tool.
 - Nothing else unless you turn it on: usage statistics (off by default, see
   [docs/usage-stats.md](./docs/usage-stats.md)), Fleet (your own Macs talk
   directly to each other on your network, with no relay), and the optional

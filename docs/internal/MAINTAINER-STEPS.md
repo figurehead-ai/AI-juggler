@@ -434,3 +434,16 @@ balance.
 
 Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
 and hand them to the agent, as for OpenCode.
+
+#### New tool versions (AJ-E1611; 5 min, on an installed build)
+
+- [ ] About 10 minutes after AI Juggler starts, each tool's page (More ›
+      Tools) says nothing, or "<tool> <version> is out" with its update
+      command. Note one tool's line, and compare the version with
+      `npm view <package> version` in a terminal (`@anthropic-ai/claude-code`,
+      `@openai/codex`, `opencode-ai`, `@moonshot-ai/kimi-code`): the check
+      asks `https://registry.npmjs.org/<package>/latest`, with a scoped
+      name's `/` written `%2F` (not yet seen live).
+- [ ] Untick "Look for new versions of your tools once a day", restart AI
+      Juggler, and after 15 minutes check with Little Snitch or `nettop`
+      that it made no request to registry.npmjs.org.

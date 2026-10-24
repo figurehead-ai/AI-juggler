@@ -608,5 +608,10 @@ pub fn kimi_code_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-21".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "@moonshot-ai/kimi-code".to_owned(),
+        }),
+        update_command: Some("kimi upgrade".to_owned()),
     }
 }

@@ -96,11 +96,25 @@ const QUOTA = NEW_TOOLS.map((tool, n) => ({
   unavailable_reason: `${tool.name} doesn't report its limits to AI Juggler yet`,
 }));
 
+/** AJ-E1611: the daily check found a newer OpenCode, not tested yet;
+ * Kimi Code is current. */
+const TOOL_UPDATES = {
+  opencode: {
+    tool: "opencode", installed: "1.19.3", latest: "1.19.4", newer: true, verified: false,
+    checked_ms: NOW_MS - 3_600_000, update_command: "opencode upgrade", checks_on: true, has_feed: true,
+  },
+  "kimi-code": {
+    tool: "kimi-code", installed: "2.3.0", latest: "2.3.0", newer: false, verified: false,
+    checked_ms: NOW_MS - 3_600_000, update_command: "kimi upgrade", checks_on: true, has_feed: true,
+  },
+};
+
 async function seed(page: Page, theme: string, fixture: unknown, scan: unknown) {
   await page.clock.setFixedTime(NOW_MS);
   await page.addInitScript(
-    ({ fixture: f, scan: s, installs, capabilities, quota, t }) => {
+    ({ fixture: f, scan: s, installs, capabilities, quota, updates, t }) => {
       const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_TOOL_UPDATES__ = updates;
       w.__AIJ_FIXTURE__ = f;
       w.__AIJ_PROVIDER_INSTALLS__ = installs;
       w.__AIJ_PROVIDER_CAPABILITIES__ = capabilities;
@@ -114,7 +128,7 @@ async function seed(page: Page, theme: string, fixture: unknown, scan: unknown) 
         sessionStorage.setItem("aij.ready.skipped", "1");
       }
     },
-    { fixture, scan, installs: INSTALLS, capabilities: CAPABILITIES, quota: QUOTA, t: theme },
+    { fixture, scan, installs: INSTALLS, capabilities: CAPABILITIES, quota: QUOTA, updates: TOOL_UPDATES, t: theme },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -158,6 +172,11 @@ for (const theme of THEMES) {
       await page.getByTestId("more-tool").filter({ hasText: tool.name }).click();
       await expect(page.getByTestId("page-type")).toHaveText("Tool");
       await expect(page.getByRole("heading", { level: 1, name: tool.name })).toBeVisible();
+      // AJ-E1611: a newer version is a calm line, with the command to run.
+      await expect(page.getByTestId("provider-update-check")).toBeVisible();
+      if (tool.id === "opencode") {
+        await expect(page.getByTestId("provider-update-available")).toContainText("OpenCode 1.19.4 is out; not tested with AI Juggler yet.");
+      }
       await shoot(page, `${tool.id}-tool-page`, theme);
     });
   }

@@ -241,6 +241,7 @@ read_routes! {
     "link_status" => value link::link_status(state);
     // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
+    "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);

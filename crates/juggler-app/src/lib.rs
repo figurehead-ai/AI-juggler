@@ -405,6 +405,8 @@ macro_rules! app_commands {
             Read  settings_policy::session_prefs_get,
             Write settings_policy::session_prefs_set,
             Read  features::tools::commands::tools_catalog,
+            Read  features::tool_updates::commands::tool_updates_status,
+            Write features::tool_updates::commands::tool_updates_set_check,
             Write lifecycle::instance_unmark_reviewed,
             Read  manage::editor_choices,
             Write manage::editor_set,
@@ -1054,6 +1056,8 @@ fn spawn_read_model_ticks(
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());
+    // AJ-E1611: new tool versions, once a day, well after start.
+    features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

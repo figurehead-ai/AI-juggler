@@ -10,6 +10,7 @@ import { AccountOverview, AccountSessions } from "../pages/AccountPage";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
+import { ToolUpdateLine } from "./ToolUpdateLine";
 import { identityWords } from "../lib/identity";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
@@ -36,7 +37,8 @@ import { quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, ty
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
-import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
+import { providerDisplayName } from "../lib/providers";
+import { installWords } from "../lib/install-words";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
@@ -1164,25 +1166,8 @@ export function useToolInstall(
   return result && result.providerId === providerId ? result.install : null;
 }
 
-/** The installed version and verified range, in words. */
-export function installWords(install: import("../lib/bridge").ProviderInstallData): string {
-  const verified = install.verified_against ?? [];
-  switch (install.status) {
-    case "installed":
-      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
-    case "unverified":
-      // A tool no version of which was tried yet (E16's, until their
-      // live check) isn't "newer" than anything.
-      return verified.length > 0
-        ? `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`
-        : `Version ${install.version ?? "unknown"} · not tested with AI Juggler yet`;
-    case "not_installed":
-      return "Not installed on this Mac";
-    default:
-      if (versionUnchecked(install)) return FOUND_UNCHECKED;
-      return "Couldn't check what's installed";
-  }
-}
+// The installed version in words (its own file: the size budget).
+export { installWords };
 
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
@@ -1229,6 +1214,8 @@ function ProviderOverview(props: PanelProps) {
             {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
           </p>
         )}
+        {/* AJ-E1611: a newer version, and how to update it yourself. */}
+        <ToolUpdateLine tool={provider.id} name={providerDisplayName(provider.id)} />
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
         <p className="text-[11px] uppercase tracking-wider text-muted">Runway, least left first</p>

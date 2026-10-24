@@ -202,7 +202,7 @@
 **Research basis**: all the research files above, desktop sections.
 **Handover note**: Grok Bot runs in the cloud and is out of scope.
 
-### AJ-E1611 Tool update checks | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1611 Tool update checks | Status: DONE-EVIDENCED (the first live request is on the maintainer's checklist) | Priority P1 | Effort S | Depends: —
 **Goal**: The user knows when a tool has a new version, and whether AI Juggler has verified it.
 **User story**: As a user, I see "Claude Code 2.x is available; not yet verified with AI Juggler".
 **Requirements**:

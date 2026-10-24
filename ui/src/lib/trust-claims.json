@@ -133,6 +133,15 @@
           ]
         },
         {
+          "id": "tool-updates",
+          "text": "Once a day, if that's on, it asks npm's public registry for the newest version of each tool you have an account on, and shows it on that tool's page. It never updates a tool for you.",
+          "tests": [
+            "crates/juggler-app/tests/tool_updates.rs::one_request_per_tool_a_day_only_for_tools_in_use_and_none_when_off",
+            "crates/juggler-app/src/features/tool_updates/mod.rs::no_update_is_ever_run",
+            "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
+          ]
+        },
+        {
           "id": "stats",
           "text": "Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.",
           "tests": [

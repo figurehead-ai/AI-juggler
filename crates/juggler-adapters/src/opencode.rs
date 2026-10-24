@@ -846,6 +846,11 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-21".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "opencode-ai".to_owned(),
+        }),
+        update_command: Some("opencode upgrade".to_owned()),
     }
 }
 

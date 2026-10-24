@@ -38,6 +38,8 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
   <sub>Checked by [`ai_juggler_never_points_a_tool_at_another_address`](../../crates/juggler-app/tests/trust.rs).</sub>
 - It checks GitHub for updates when it starts, if that's on, or when you choose Check now.
   <sub>Checked by [`check_off_means_zero_connections_and_on_reaches_the_feed`](../../crates/juggler-app/tests/updates_plugin.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>
+- Once a day, if that's on, it asks npm's public registry for the newest version of each tool you have an account on, and shows it on that tool's page. It never updates a tool for you.
+  <sub>Checked by [`one_request_per_tool_a_day_only_for_tools_in_use_and_none_when_off`](../../crates/juggler-app/tests/tool_updates.rs), [`no_update_is_ever_run`](../../crates/juggler-app/src/features/tool_updates/mod.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>
 - Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.
   <sub>Checked by [`without_a_choice_nothing_is_created_and_nothing_is_sent`](../../crates/juggler-app/tests/stats_guardrails.rs), [`nothing_the_user_owns_reaches_the_stats_store_or_a_report`](../../crates/juggler-app/tests/stats_guardrails.rs), [`off_creates_no_folder_and_records_nothing`](../../crates/juggler-stats/src/tests.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>
 - Crash reports are kept on your Mac, with names and paths taken out. This version has nowhere to send them.
