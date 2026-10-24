@@ -77,8 +77,8 @@ for (const theme of ["dark", "light"] as const) {
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
     const menu = page.getByRole("menu");
-    // AJ-E1537: the registry's session menu opens on Open.
-    await expect(menu.getByRole("menuitem").first()).toHaveText("Open");
+    // AJ-E2106: getting there first (Go to it only while it runs).
+    await expect(menu.getByRole("menuitem").first()).toHaveText(/^(Go to it|Open its page)$/);
     await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `session-menu-1280x800-${theme}.png`) });
     await axeClean(page, "session menu");
@@ -99,7 +99,7 @@ for (const theme of ["dark", "light"] as const) {
     const menu = page.getByRole("menu", { name: "Actions for old-prototype" });
     // AJ-E1537: the registry's project menu; Forget last, on its own.
     const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
-    expect(names).toEqual(expect.arrayContaining(["Open", "New session here", "Open in Finder", "Copy path", "Rename…", "Pin to top"]));
+    expect(names).toEqual(expect.arrayContaining(["Open its page", "New session here", "Open in Finder", "Copy path", "Rename…", "Pin to top"]));
     expect(names.at(-1)).toBe("Forget…");
     await page.screenshot({ path: resolve(OUT, `project-menu-1280x800-${theme}.png`) });
     await axeClean(page, "project menu");
@@ -119,7 +119,7 @@ for (const theme of ["dark", "light"] as const) {
     const menu = page.getByRole("menu", { name: "Actions for ai-juggler" });
     await expect(menu.getByRole("menuitem", { name: "Open in Zed" })).toBeVisible();
     await expect(menu.getByRole("menuitem", { name: "Show in Finder" })).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem", { name: "Open its page", exact: true })).toHaveCount(0);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `project-actions-1280x800-${theme}.png`) });
     await axeClean(page, "project actions");

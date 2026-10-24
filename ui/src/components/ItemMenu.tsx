@@ -1,16 +1,20 @@
 /**
- * AJ-E1537 — one menu, three ways in. A right-click opens the system's
- * own menu in the app (Tauri's menu popup), a row's or a header's ⋯
- * button and Shift+F10 (or the menu key) open the in-app menu, and every
- * one of them lists the same actions from the registry (`lib/actions`),
- * in the same order. Disabled items say why. Destructive ones come last,
- * in their own group.
+ * AJ-E1537 — one menu, three ways in. A right-click, a row's or a
+ * header's ⋯ button, and Shift+F10 (or the menu key) all open the same
+ * in-app menu, listing the same actions from the registry
+ * (`lib/actions`), in the same order. Disabled items say why. Destructive
+ * ones come last, in their own group.
+ *
+ * AJ-E2106 — the right-click opens this menu too, not the system's: only
+ * this one has the icons, the red stopping group and the greyed reasons
+ * (the approved design). It opens at the pointer and stays inside the
+ * window (`RowMenu` measures itself). `lib/native-menu.ts` stays for the
+ * app's menu bar.
  */
-import { createContext, useContext, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import { resolveActions, type ActionHost, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
-import { hasLiveBackend } from "../lib/bridge";
-import { popupNativeMenu } from "../lib/native-menu";
-import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
+import { Fragment, createContext, useContext, useId, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { menuEntries, resolveActions, type ActionHost, type ActionIconName, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
+import { ActionIcon } from "./ActionIcon";
+import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint } from "./RowMenu";
 
 const HostContext = createContext<ActionHost>({});
 
@@ -24,12 +28,6 @@ export function ActionHostProvider({ host, children }: { host: ActionHost; child
 
 export function useActionHost(): ActionHost {
   return useContext(HostContext);
-}
-
-/** A right-click opens the native menu when the app runs for real; in the
- * preview, tests and the Dev bridge, the in-app one. */
-function nativeMenus(): boolean {
-  return hasLiveBackend() && !(window as unknown as { __AIJ_IN_APP_MENUS__?: boolean }).__AIJ_IN_APP_MENUS__;
 }
 
 export interface ItemMenu {
@@ -54,10 +52,13 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
   const host = local ? { ...shared, ...local } : shared;
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const actions = resolveActions(kind, item, host);
-  const open = (point: { x: number; y: number }, native: boolean) => {
-    if (actions.length === 0) return;
-    if (native) void popupNativeMenu(heading, actions, point);
-    else setAt(point);
+  const open = (point: { x: number; y: number }) => {
+    if (actions.length > 0) setAt(point);
+  };
+  /** Under the row, for a menu opened from the keyboard. */
+  const below = (element: HTMLElement) => {
+    const box = element.getBoundingClientRect();
+    return { x: box.left + 8, y: box.bottom + 4 };
   };
   const run = (action: ResolvedAction) => () => {
     setAt(null);
@@ -67,9 +68,7 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
   if (at) {
     element = (
       <RowMenu heading={heading} ariaLabel={`Actions for ${heading}`} at={at} onClose={() => setAt(null)}>
-        {actions.map((action, index) => (
-          <ItemMenuLine key={action.id} action={action} after={actions[index - 1]} onRun={run(action)} />
-        ))}
+        <ItemMenuLines actions={actions} run={run} />
       </RowMenu>
     );
   }
@@ -81,14 +80,16 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         if (actions.length === 0) return;
         event.preventDefault();
         event.stopPropagation();
-        open({ x: event.clientX, y: event.clientY }, nativeMenus());
+        // At the pointer; a contextmenu the keyboard sent has no pointer
+        // position, so it opens under the row.
+        const fromKeys = event.button !== 2 && event.clientX === 0 && event.clientY === 0;
+        open(fromKeys ? below(event.currentTarget) : { x: event.clientX, y: event.clientY });
       },
       onKeyDown: (event) => {
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
           event.preventDefault();
           event.stopPropagation();
-          const box = event.currentTarget.getBoundingClientRect();
-          open({ x: box.left + 8, y: box.bottom + 4 }, false);
+          open(below(event.currentTarget));
         }
       },
     },
@@ -100,7 +101,7 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         aria-expanded={at !== null}
         data-testid={testId}
         disabled={actions.length === 0}
-        onClick={(event) => open(menuPoint(event), false)}
+        onClick={(event) => open(menuPoint(event))}
         className={
           "z-10 flex size-6 shrink-0 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 disabled:hidden " +
           (shown
@@ -115,27 +116,72 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
   };
 }
 
-function ItemMenuLine({ action, after, onRun }: { action: ResolvedAction; after?: ResolvedAction; onRun: () => void }): JSX.Element {
+/** AJ-E2106: an icon, the label, the keys; a submenu's line ends in ›. */
+function Line({ icon, label, keys, more }: { icon: ActionIconName; label: string; keys?: string; more?: boolean }): JSX.Element {
+  return (
+    <span className="flex items-center gap-2">
+      <ActionIcon name={icon} />
+      <span data-label className="min-w-0 flex-1 truncate">
+        {label}
+      </span>
+      {keys && (
+        <span aria-hidden="true" className="shrink-0 font-mono text-[10px] text-faint">
+          {keys}
+        </span>
+      )}
+      {more && (
+        <span aria-hidden="true" className="shrink-0 text-faint">
+          ›
+        </span>
+      )}
+    </span>
+  );
+}
+
+function ItemMenuLine({ action, onRun }: { action: ResolvedAction; onRun: () => void }): JSX.Element {
+  const why = useId();
   return (
     <>
-      {after && after.group !== action.group && <MenuSeparator />}
-      {/* Its name is its label: the keys are decoration, and the reason
-          sits under it (and in its tooltip), outside the item. */}
-      <MenuItem testId={`action-${action.id}`} onClick={onRun} disabled={!!action.reason} title={action.reason} danger={action.destructive}>
-        <span className="flex items-baseline justify-between gap-3">
-          <span data-label>{action.label}</span>
-          {action.shortcut && (
-            <span aria-hidden="true" className="font-mono text-[10px] text-faint">
-              {action.shortcut}
-            </span>
-          )}
-        </span>
+      {/* Its name is its label: the icon and keys are decoration, and the
+          reason sits under it (its description, and its tooltip). */}
+      <MenuItem
+        testId={`action-${action.id}`}
+        onClick={onRun}
+        disabled={!!action.reason}
+        title={action.reason}
+        describedBy={action.reason ? why : undefined}
+        danger={action.destructive}
+      >
+        <Line icon={action.icon} label={action.label} keys={action.shortcut} />
       </MenuItem>
       {action.reason && (
-        <span aria-hidden="true" className="-mt-0.5 block px-2 pb-1 text-[10px] leading-snug text-faint">
+        <span id={why} aria-hidden="true" className="-mt-0.5 block pb-1 pl-[30px] pr-2 text-[10px] leading-snug text-faint">
           {action.reason}
         </span>
       )}
+    </>
+  );
+}
+
+/** The menu's lines: groups split by a line, a submenu's actions in it. */
+export function ItemMenuLines({ actions, run }: { actions: ResolvedAction[]; run: (action: ResolvedAction) => () => void }): JSX.Element {
+  const entries = menuEntries(actions);
+  return (
+    <>
+      {entries.map((entry, index) => (
+        <Fragment key={entry.kind === "action" ? entry.action.id : `submenu-${entry.id}`}>
+          {index > 0 && entries[index - 1]!.group !== entry.group && <MenuSeparator />}
+          {entry.kind === "action" ? (
+            <ItemMenuLine action={entry.action} onRun={run(entry.action)} />
+          ) : (
+            <MenuSubmenu label={entry.label} testId={`submenu-${entry.id}`} line={<Line icon={entry.icon} label={entry.label} more />}>
+              {entry.actions.map((action) => (
+                <ItemMenuLine key={action.id} action={action} onRun={run(action)} />
+              ))}
+            </MenuSubmenu>
+          )}
+        </Fragment>
+      ))}
     </>
   );
 }

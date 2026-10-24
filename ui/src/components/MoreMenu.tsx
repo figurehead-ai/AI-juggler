@@ -3,11 +3,32 @@
  * and (AJ-E1533) the user's tools, each opening its page. Closes on a
  * click elsewhere or Escape, like any menu.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX, type SVGProps } from "react";
+import { IconFleet, IconShield, IconUsage } from "./icons";
+import { IconBroom, IconComputer } from "./icons-actions";
 import { ToolMark } from "./ToolMark";
 import { useTools } from "../lib/tools";
 
 export type MoreItem<Id extends string> = { id: Id; label: string; hint: string };
+
+/** AJ-E2106: each screen's icon, as each tool has its mark below. */
+const SCREEN_ICONS: Record<string, (props: SVGProps<SVGSVGElement>) => JSX.Element> = {
+  usage: IconUsage,
+  thismac: IconComputer,
+  fleet: IconFleet,
+  cleanup: IconBroom,
+  privacy: IconShield,
+};
+
+function ScreenIcon({ id }: { id: string }): JSX.Element {
+  const Icon = SCREEN_ICONS[id];
+  // A screen without one keeps the column, so the labels still line up.
+  return Icon ? (
+    <Icon width={14} height={14} aria-hidden="true" focusable="false" className="mt-px shrink-0 text-muted" />
+  ) : (
+    <span aria-hidden="true" className="size-3.5 shrink-0" />
+  );
+}
 
 export function MoreMenu<Id extends string>({
   items,
@@ -71,10 +92,13 @@ export function MoreMenu<Id extends string>({
               type="button"
               aria-current={current === item.id ? "page" : undefined}
               onClick={pick(() => onPick(item.id))}
-              className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
+              className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
             >
-              <span className="text-xs font-medium text-ink">{item.label}</span>
-              <span className="text-[11px] text-muted">{item.hint}</span>
+              <ScreenIcon id={item.id} />
+              <span className="flex flex-col items-start gap-0.5">
+                <span className="text-xs font-medium text-ink">{item.label}</span>
+                <span className="text-[11px] text-muted">{item.hint}</span>
+              </span>
             </button>
           ))}
           {tools.length > 0 && (
@@ -86,7 +110,7 @@ export function MoreMenu<Id extends string>({
                   type="button"
                   data-testid="more-tool"
                   onClick={pick(() => onOpenTool(tool.id))}
-                  className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
                 >
                   <ToolMark tool={tool.id} size={14} className="text-muted" />
                   {tool.display_name}
