@@ -1,6 +1,6 @@
 //! The `HarnessAdapter` contract (spec §4, ADR-0002).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::capabilities::Capabilities;
@@ -243,6 +243,54 @@ pub trait HarnessAdapter: Send + Sync {
     ) -> Option<crate::conversation::SessionProcess> {
         let _ = (exe, args);
         None
+    }
+
+    /// AJ-E2101 (D-37): the sessions open now in the profile at
+    /// `profile_dir`, from the tool's own per-session files (never a
+    /// process's environment). Each names its pid and start time when the
+    /// tool records them; the app checks both against the process table.
+    /// Read-only and tolerant. Default: none.
+    #[must_use]
+    fn live_sessions(&self, profile_dir: &Path) -> Vec<crate::live::LiveSession> {
+        let _ = profile_dir;
+        Vec::new()
+    }
+
+    /// AJ-E2101: the sessions this tool's desktop app keeps in the
+    /// instance whose data folder is `instance_dir` (its sidebar), read
+    /// field by field: titles, archived, when last in front, and the last
+    /// turn's status word, never summary text. Default: none.
+    #[must_use]
+    fn app_sessions(&self, instance_dir: &Path) -> Vec<crate::live::AppSession> {
+        let _ = instance_dir;
+        Vec::new()
+    }
+
+    /// AJ-E2101: the sessions a running process of this tool holds open,
+    /// from the files it has open (`open_files`, as the OS lists them) that
+    /// lie in the profile at `profile_dir`. For a tool whose app serves its
+    /// sessions from one process (the Codex app's server). Default: none.
+    #[must_use]
+    fn held_sessions(&self, profile_dir: &Path, open_files: &[PathBuf]) -> Vec<String> {
+        let _ = (profile_dir, open_files);
+        Vec::new()
+    }
+
+    /// AJ-E2101: whether a running process (its executable and arguments)
+    /// serves this tool's sessions and holds their files open, so its open
+    /// files say which are loaded (the Codex app's server). Default: never.
+    #[must_use]
+    fn is_session_server(&self, exe: Option<&Path>, args: &[String]) -> bool {
+        let _ = (exe, args);
+        false
+    }
+
+    /// AJ-E2102 (ADR-0019): the tool's own apps, as data: how each is
+    /// recognised in a parent chain, its instances, and its links.
+    /// Default: none.
+    #[must_use]
+    fn host_apps(&self) -> Vec<crate::live::HostApp> {
+        Vec::new()
     }
 
     /// Creates a watcher over the account's transcript root.

@@ -494,6 +494,18 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_conversations::session_process(exe, args)
     }
 
+    fn live_sessions(&self, profile_dir: &Path) -> Vec<juggler_adapter::live::LiveSession> {
+        crate::claude_live::live_sessions(profile_dir)
+    }
+
+    fn app_sessions(&self, instance_dir: &Path) -> Vec<juggler_adapter::live::AppSession> {
+        crate::claude_live::app_sessions(instance_dir)
+    }
+
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::claude_live::host_apps()
+    }
+
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])

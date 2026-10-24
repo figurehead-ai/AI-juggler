@@ -37,8 +37,8 @@ juggler-app = [
 # quota_ingest.rs, scan_signals.rs). Each tool's modules in
 # crates/juggler-adapters/src, by family:
 [adapters.families]
-claude = ["claude_code", "claude_environment", "claude_handover", "claude_transcript"]
-codex = ["codex", "codex_environment", "codex_handover", "codex_transcript"]
+claude = ["claude_code", "claude_environment", "claude_handover", "claude_live", "claude_transcript"]
+codex = ["codex", "codex_environment", "codex_handover", "codex_live", "codex_transcript"]
 fake = ["fake"]
 fake_desktop = ["fake_desktop"]
 

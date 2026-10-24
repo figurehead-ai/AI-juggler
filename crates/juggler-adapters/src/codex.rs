@@ -792,6 +792,18 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_conversations::session_process(exe, args)
     }
 
+    fn held_sessions(&self, profile_dir: &Path, open_files: &[PathBuf]) -> Vec<String> {
+        crate::codex_live::held_sessions(profile_dir, open_files)
+    }
+
+    fn is_session_server(&self, exe: Option<&Path>, args: &[String]) -> bool {
+        crate::codex_live::is_session_server(exe, args)
+    }
+
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::codex_live::host_apps()
+    }
+
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         refuse_option_like(conversation_id).ok()?;
         Some(vec!["resume".into(), conversation_id.to_owned()])
