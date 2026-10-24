@@ -52,6 +52,19 @@ Code Community Guidelines show no date).
 | A Kimi Code plan is for interactive use only | www.kimi.com/code/docs/en/kimi-code/community-guidelines.html · 2026-10-21 | Verified-primary | "Kimi Code subscriptions are for interactive use only"; "Don't use Kimi Code for non-interactive automation" |
 | Several devices and tools on one account are normal use | www.kimi.com/code/docs/en/kimi-code/community-guidelines.html · 2026-10-21 | Verified-primary | Switching between devices or coding tools "is a completely normal usage pattern" |
 
+## Grok Build (xAI)
+
+Read for the research (`docs/research/grok.md` §5, §7) on 2026-10-21: the
+Terms of Service (last updated 2026-10-12) from the Wayback Machine's copy
+of the vendor's page (x.ai refuses automated reading, 403), and the X
+Subscription docs on docs.x.ai.
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| An account may not be shared or made available to anyone else | x.ai/legal/terms-of-service (snapshot 20261021055255) · 2026-10-21 | Verified-primary | "You may not share your account credentials or make your account available to anyone else" |
+| One weekly usage pool is shared by Grok's products and Grok in Cursor on the X Subscription | docs.x.ai/grok/faq, docs.x.ai/x-subscription/usage-limits · 2026-10-21 | Verified-primary | "one shared weekly usage pool" across Chat, Imagine, Voice and Build, and Grok models in Cursor |
+| No one-account-per-person rule | x.ai/legal/terms-of-service · 2026-10-21 | Negative-evidence | Not found by this search (research NE-7) |
+
 ## What Add account says
 
 Word for word, from each adapter's `terms` (the test
@@ -65,6 +78,8 @@ Word for word, from each adapter's `terms` (the test
   - The OpenCode table's row 1.
 - **Kimi Code**, linking Kimi's Terms of Service: "Kimi's Terms of Service let it freeze accounts registered or used improperly as several, and its Kimi Code guidelines say plans are for interactive use only."
   - The Kimi Code table's rows 1 and 2.
+- **Grok Build**, linking xAI's Terms of Service: "xAI's Terms of Service say not to share an account, and its usage pool is shared with Cursor and Grok on the X Subscription."
+  - The Grok Build table's rows 1 and 2.
 
 ## What AI Juggler does with them
 

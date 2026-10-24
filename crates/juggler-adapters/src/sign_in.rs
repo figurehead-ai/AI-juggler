@@ -3,8 +3,9 @@
 //! out, never a path to open: a file's metadata (presence, size), the
 //! presence-only shape of Codex's `auth.json` (which fields are filled, its
 //! mode and account id; every token is skipped while parsing and never
-//! stored), the kinds of OpenCode's sign-ins (`oauth`, `api`), and which
-//! of Kimi Code's sign-in files are there. The name constants are the crate's own, for the copy rules
+//! stored), the kinds of OpenCode's sign-ins (`oauth`, `api`), Grok
+//! Build's modes (`web_login`, `api_key`), and which of Kimi Code's
+//! sign-in files are there. The name constants are the crate's own, for the copy rules
 //! that keep these files back. `juggler-app/tests/no_bare_tools.rs` fails
 //! when the names appear anywhere else, when a function outside the lists
 //! uses the constants, or when this module reads any other way.
@@ -22,6 +23,11 @@ pub(crate) const CODEX_AUTH: &str = "auth.json";
 pub(crate) const OPENCODE_AUTH: &str = "auth.json";
 /// OpenCode's MCP servers' sign-ins.
 pub(crate) const OPENCODE_MCP_AUTH: &str = "mcp-auth.json";
+/// Grok Build's sign-ins (AJ-E1604): one entry per scope, each with its
+/// mode, in its home.
+pub(crate) const GROK_AUTH: &str = "auth.json";
+/// Grok Build's MCP servers' sign-ins.
+pub(crate) const GROK_MCP_AUTH: &str = "mcp_credentials.json";
 /// Kimi Code's sign-ins folder (AJ-E1603): one file per sign-in, owner
 /// only, and its MCP servers' sign-ins under `mcp/`.
 pub(crate) const KIMI_CREDENTIALS: &str = "credentials";
@@ -35,6 +41,7 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
     let name = match provider {
         crate::codex::CODEX_ID => CODEX_AUTH,
         crate::opencode::OPENCODE_ID => OPENCODE_AUTH,
+        crate::grok_build::GROK_BUILD_ID => GROK_AUTH,
         crate::kimi_code::KIMI_CODE_ID => {
             return std::fs::metadata(dir.join(KIMI_CREDENTIALS).join(KIMI_MEMBERSHIP)).ok();
         }
@@ -120,6 +127,47 @@ pub(crate) fn opencode_auth(dir: &Path) -> OpenCodeAuth {
     )
     .map_or(OpenCodeAuth::Unreadable, |entries| {
         OpenCodeAuth::Kinds(entries.into_values().map(|entry| entry.kind).collect())
+    })
+}
+
+/// What Grok Build's `auth.json` says, by shape.
+pub(crate) enum GrokAuth {
+    /// No file.
+    Missing,
+    /// An empty file: a sign-in abandoned mid-write.
+    Empty,
+    /// Each entry's mode (`web_login`, `oidc`, `external`, `api_key`: a
+    /// kind, not a secret).
+    Modes(Vec<String>),
+    /// There, but not readable as JSON.
+    Unreadable,
+}
+
+/// Grok Build's `auth.json` in the home `dir`, streamed into each entry's
+/// `auth_mode`: every other field (keys, tokens, email) is skipped while
+/// parsing and never stored, logged or returned.
+pub(crate) fn grok_auth(dir: &Path) -> GrokAuth {
+    /// One entry: its mode only.
+    #[derive(serde::Deserialize)]
+    struct Entry {
+        #[serde(default)]
+        auth_mode: String,
+    }
+    let path = dir.join(GROK_AUTH);
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return GrokAuth::Missing;
+    };
+    if meta.len() == 0 {
+        return GrokAuth::Empty;
+    }
+    let Ok(file) = std::fs::File::open(&path) else {
+        return GrokAuth::Unreadable;
+    };
+    serde_json::from_reader::<_, std::collections::BTreeMap<String, Entry>>(
+        std::io::BufReader::new(file),
+    )
+    .map_or(GrokAuth::Unreadable, |entries| {
+        GrokAuth::Modes(entries.into_values().map(|entry| entry.auth_mode).collect())
     })
 }
 

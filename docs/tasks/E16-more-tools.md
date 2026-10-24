@@ -78,7 +78,7 @@
 **Research basis**: `kimi.md`.
 **Handover note**: The device quota per home is unknown; the live check finds out.
 
-### AJ-E1604 Grok Build CLI | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1521
+### AJ-E1604 Grok Build CLI | Status: IN-PROGRESS (Req.1–3 evidenced; Req.4's token reading awaits the live check of signals.json; live check pending, AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E1521
 **Goal**: Grok Build runs with separate accounts and never touches the user's Claude setup.
 **User story**: As an X Subscription user, I run Grok sessions beside the rest.
 **Requirements**:

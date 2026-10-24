@@ -25,4 +25,5 @@ export const MARKS: Record<string, MarkEntry> = {
   // Not yet checked against its owner's guidelines (brand-marks.md).
   opencode: { owner: "Anomaly", allowed: false },
   kimi: { owner: "Moonshot AI", allowed: false },
+  grok: { owner: "xAI", allowed: false },
 };

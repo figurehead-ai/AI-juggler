@@ -483,6 +483,12 @@ pub(crate) fn codex_block(name: &str, server: &McpServer) -> String {
 }
 
 fn mcp_item(name: &str, entry: &toml::Table) -> Item {
+    toml_mcp_item(CODEX_ID, name, entry)
+}
+
+/// A server in the `[mcp_servers.<name>]` TOML form Codex uses, and the
+/// tools that adopted it (AJ-E1604: Grok Build), as `tool`'s item.
+pub(crate) fn toml_mcp_item(tool: &str, name: &str, entry: &toml::Table) -> Item {
     let text = |key: &str| {
         entry
             .get(key)
@@ -540,7 +546,7 @@ fn mcp_item(name: &str, entry: &toml::Table) -> Item {
     };
     let oauth = text("auth").as_deref() == Some("oauth") || entry.get("oauth").is_some();
     Item {
-        tool: CODEX_ID.to_owned(),
+        tool: tool.to_owned(),
         kind: ItemKind::McpServer,
         name: name.to_owned(),
         scope: Scope::User,

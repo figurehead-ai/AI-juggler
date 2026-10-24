@@ -179,6 +179,7 @@ const SIGN_IN_FILES: &[&str] = &[
     "\"auth.json\"",
     "\"mcp-auth.json\"",
     "\"kimi-code.json\"",
+    "\"mcp_credentials.json\"",
 ];
 
 /// The module that owns them, and its name constants.
@@ -189,12 +190,19 @@ const SIGN_IN_CONSTANTS: &[&str] = &[
     "OPENCODE_AUTH",
     "OPENCODE_MCP_AUTH",
     "KIMI_CREDENTIALS",
+    "GROK_AUTH",
+    "GROK_MCP_AUTH",
     "KIMI_MEMBERSHIP",
 ];
 
 /// Its reads: each streams `auth.json` into a presence-only shape (for
 /// OpenCode, each entry's kind).
-const SIGN_IN_READS: &[&str] = &["codex_auth", "codex_account_id", "opencode_auth"];
+const SIGN_IN_READS: &[&str] = &[
+    "codex_auth",
+    "codex_account_id",
+    "opencode_auth",
+    "grok_auth",
+];
 
 /// Claude's `settings.json` can hold an API key (`apiKey`, `primaryApiKey`,
 /// `env.ANTHROPIC_API_KEY`): read only here, each for a reason.

@@ -105,15 +105,16 @@ fn every_registered_tool_lists_its_versions_on_npm_and_says_how_to_update() {
     assert!(ids.len() >= 4);
     for id in ids {
         let spec = registry.get(&id).unwrap().spec();
-        let Some(ReleaseFeed::Npm { package }) = spec.release_feed.clone() else {
-            panic!("{id} names no list of its versions");
-        };
-        let url = tool_updates::feed_url(spec.release_feed.as_ref().unwrap());
-        assert!(
-            url.starts_with("https://registry.npmjs.org/") && url.ends_with("/latest"),
-            "{url}"
-        );
-        assert!(!package.is_empty());
+        // A tool with no public package list (Grok Build updates itself)
+        // is never asked about; every other one is on npm.
+        if let Some(ReleaseFeed::Npm { package }) = spec.release_feed.clone() {
+            let url = tool_updates::feed_url(spec.release_feed.as_ref().unwrap());
+            assert!(
+                url.starts_with("https://registry.npmjs.org/") && url.ends_with("/latest"),
+                "{url}"
+            );
+            assert!(!package.is_empty());
+        }
         let command = spec.update_command.expect("an update command");
         assert!(!command.is_empty(), "{id}");
     }

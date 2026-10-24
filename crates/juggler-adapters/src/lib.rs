@@ -26,6 +26,10 @@ pub mod codex_inventory;
 pub mod codex_transcript;
 pub mod config_edit;
 pub mod fake;
+pub mod grok_build;
+pub mod grok_environment;
+pub mod grok_inventory;
+pub mod grok_sessions;
 pub mod inference;
 pub mod inventory_files;
 pub mod kimi_code;
@@ -52,6 +56,7 @@ pub use claude_transcript::{
 };
 pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
+pub use grok_build::{GROK_BUILD_ID, GrokBuildAdapter, grok_build_spec};
 pub use kimi_code::{KIMI_CODE_ID, KimiCodeAdapter, kimi_code_spec};
 pub use opencode::{OPENCODE_ID, OpenCodeAdapter, opencode_spec};
 pub use quota_ingest::{

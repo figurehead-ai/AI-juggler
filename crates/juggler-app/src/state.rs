@@ -408,6 +408,11 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     // AJ-E1603: Kimi Code (2.x). No handover support, and it takes no
     // first message, so nothing is switched to or from it.
     registry.register(std::sync::Arc::new(juggler_adapters::KimiCodeAdapter::new()));
+    // AJ-E1604: Grok Build. No handover support, and it takes no first
+    // message, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(
+        juggler_adapters::GrokBuildAdapter::new(),
+    ));
     registry
 }
 

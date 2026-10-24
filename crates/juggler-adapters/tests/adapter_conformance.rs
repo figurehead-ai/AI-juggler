@@ -10,6 +10,7 @@
 )]
 
 mod conformance;
+mod grok_fixture;
 mod kimi_fixture;
 mod opencode_fixture;
 
@@ -18,7 +19,8 @@ use std::path::{Path, PathBuf};
 use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapters::{
-    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, KimiCodeAdapter, OpenCodeAdapter,
+    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, KimiCodeAdapter,
+    OpenCodeAdapter,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
@@ -478,7 +480,48 @@ impl Subject for Kimi {
     }
 }
 
+// Grok Build (AJ-E1604): no usage reader yet (`signals.json`'s fields
+// aren't documented), so it must claim none.
+
+struct Grok;
+
+impl Subject for Grok {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        Box::new(
+            GrokBuildAdapter::with_bin(sandbox.stub("grok", "grok 1.0.45"))
+                .with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("0199aa00-0000-7000-8000-00000000000{n}");
+        grok_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let source = sandbox.home.join(".grok");
+        grok_fixture::settings(&source, canary);
+        grok_fixture::sign_in(&source, canary);
+        grok_fixture::add_session(&source, "ses-old", &sandbox.project, "old");
+        Some(source)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json", "mcp_credentials.json"]
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(grok_build, Grok);
 conformance!(kimi_code, Kimi);
 conformance!(opencode_v1, OpenCode(Line::V1));
 conformance!(opencode_v2, OpenCode(Line::V2));

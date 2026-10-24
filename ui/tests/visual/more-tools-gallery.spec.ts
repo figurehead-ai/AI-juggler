@@ -23,6 +23,7 @@ const now = () => Math.floor(NOW_MS / 1000);
 const NEW_TOOLS = [
   { id: "opencode", name: "OpenCode", version: "1.19.3", binary: "/opt/homebrew/bin/opencode", folder: "/Users/you/.local/share/opencode" },
   { id: "kimi-code", name: "Kimi Code", version: "2.3.0", binary: "/Users/you/.kimi-code/bin/kimi", folder: "/Users/you/.kimi-code" },
+  { id: "grok-build", name: "Grok Build", version: "1.0.45", binary: "/Users/you/.grok/bin/grok", folder: "/Users/you/.grok" },
 ] as const;
 
 const INSTALLS = [
@@ -173,7 +174,8 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("page-type")).toHaveText("Tool");
       await expect(page.getByRole("heading", { level: 1, name: tool.name })).toBeVisible();
       // AJ-E1611: a newer version is a calm line, with the command to run.
-      await expect(page.getByTestId("provider-update-check")).toBeVisible();
+      // (Grok Build updates itself: no list of versions is asked.)
+      await expect(page.getByTestId("provider-update-check")).toHaveCount(tool.id in TOOL_UPDATES ? 1 : 0);
       if (tool.id === "opencode") {
         await expect(page.getByTestId("provider-update-available")).toContainText("OpenCode 1.19.4 is out; not tested with AI Juggler yet.");
       }

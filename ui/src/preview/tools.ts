@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
  * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
- * codex.rs, opencode.rs and kimi_code.rs `*_spec()`). Preview data only — the app reads
+ * codex.rs, opencode.rs, kimi_code.rs and grok_build.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -132,6 +132,48 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       checked: "2026-10-21",
     },
     home_env: ["KIMI_CODE_HOME", "AI_JUGGLER_KIMI_BIN"],
+    supports: { in_place: true, limits: false },
+  },
+  {
+    id: "grok-build",
+    display_name: "Grok Build",
+    short_name: "Grok",
+    vendor: "xAI",
+    mark: "grok",
+    vendor_mark: null,
+    install_url: "https://docs.x.ai/build/overview",
+    install_command: "curl -fsSL https://x.ai/cli/install.sh | bash",
+    sign_in_own: "Grok's own sign-in",
+    sign_in_short: "Grok's",
+    same_as: "as when you run Grok yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
+    setup_groups: [{ id: "grok-build", title: "Grok Build", path_contains: null, origin: null, shows_install: true }],
+    default_label: "Grok",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "xAI's Terms of Service",
+      url: "https://x.ai/legal/terms-of-service",
+      accounts: "xAI's Terms of Service say not to share an account, and its usage pool is shared with Cursor and Grok on the X Subscription.",
+      checked: "2026-10-21",
+    },
+    home_env: [
+      "GROK_HOME",
+      "GROK_AUTH_PATH",
+      "AI_JUGGLER_GROK_BIN",
+      "GROK_CLAUDE_AGENTS_ENABLED",
+      "GROK_CLAUDE_HOOKS_ENABLED",
+      "GROK_CLAUDE_MCPS_ENABLED",
+      "GROK_CLAUDE_RULES_ENABLED",
+      "GROK_CLAUDE_SKILLS_ENABLED",
+      "GROK_CURSOR_AGENTS_ENABLED",
+      "GROK_CURSOR_HOOKS_ENABLED",
+      "GROK_CURSOR_MCPS_ENABLED",
+      "GROK_CURSOR_RULES_ENABLED",
+      "GROK_CURSOR_SKILLS_ENABLED",
+    ],
     supports: { in_place: true, limits: false },
   },
 ];

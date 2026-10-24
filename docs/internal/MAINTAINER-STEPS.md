@@ -435,6 +435,39 @@ balance.
 Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
 and hand them to the agent, as for OpenCode.
 
+#### Grok Build (AJ-E1604; about 30 min)
+
+Built from the 1.0.45 docs and source. Install it the vendor's way
+(`curl -fsSL https://x.ai/cli/install.sh | bash`), on a spare X
+Subscription account (or an xAI API key with a small balance).
+
+- [ ] **Found.** Add account lists Grok Build with its version. Note
+      `grok --version`'s exact output. If you also have the unofficial
+      `grok-cli` (`npm i -g grok-dev`), it isn't taken for Grok Build.
+- [ ] **Two separate sign-ins.** Two fresh accounts, A and B: sign A in
+      from AI Juggler (`grok login`), leave B signed out. A shows signed
+      in, B doesn't, and your own `~/.grok` sign-in is unchanged.
+- [ ] **Your Claude setup stays out.** With a Claude `PreToolUse` hook
+      that writes a file, run a Grok session on A that edits a file: the
+      hook doesn't fire. `grok inspect` in that session lists no rules,
+      MCP servers or skills from `~/.claude` or `~/.cursor`.
+- [ ] **A session starts and resumes.** Start one on A in the throwaway
+      project, send a message, stop it, resume it from AI Juggler
+      (`grok --resume <id>`): the same conversation. Note the fields of
+      its `summary.json` and `signals.json` (names only), and whether a
+      sub-agent's session names its parent there.
+- [ ] **Its sessions are listed.** A session started by hand shows in the
+      rail's outside sessions, with its folder and title, marked running.
+- [ ] **A model in Launch settings** reaches the session (`--model`).
+- [ ] **Usage.** Its limits say "Grok Build doesn't report its limits to
+      AI Juggler yet". Note what `/usage` shows, and the exact message
+      when the weekly pool runs out (a 402 is expected).
+- [ ] **A copy keeps no sign-in.** Bring `~/.grok` in as a copy: signed
+      out, settings, rules and sessions there; the original still works.
+
+Save the output to `docs/research/evidence/grok-build/<version>/` and
+hand it to the agent.
+
 #### New tool versions (AJ-E1611; 5 min, on an installed build)
 
 - [ ] About 10 minutes after AI Juggler starts, each tool's page (More ›

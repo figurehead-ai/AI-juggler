@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ALLOW = ROOT / "scripts" / "tool_literals.allow"
 # The registered tools' ids, plus the ones E16 adds: a literal of any of
 # them in shared code is a per-tool branch.
-TOOL_IDS = ("claude-code", "codex", "zcode", "gemini-cli", "gemini", "opencode", "kimi-code", "grok")
+TOOL_IDS = ("claude-code", "codex", "zcode", "gemini-cli", "gemini", "opencode", "kimi-code", "grok-build")
 LITERAL = re.compile(r"""(["'`])(%s)\1""" % "|".join(re.escape(tool) for tool in TOOL_IDS))
 SCAN = (("crates", ".rs"), ("ui/src", ".ts"), ("ui/src", ".tsx"))
 EXEMPT_PARTS = (

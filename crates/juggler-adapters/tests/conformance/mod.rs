@@ -539,6 +539,13 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
                     "{name}: an override brought back {key} in a {mode:?} launch"
                 );
             }
+            for (key, value) in adapter.launch_fixed_env() {
+                assert_eq!(
+                    spec.env.get(*key).map(String::as_str),
+                    Some(*value),
+                    "{name}: an override changed the fixed {key} in a {mode:?} launch"
+                );
+            }
             assert_eq!(
                 spec.env.get(PASSTHROUGH.0).map(String::as_str),
                 Some(PASSTHROUGH.1),

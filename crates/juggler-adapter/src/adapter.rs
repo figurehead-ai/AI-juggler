@@ -429,6 +429,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// AJ-E1604: variables every launch sets to a fixed value, whatever
+    /// Launch settings say (a guardrail: Grok Build reads the user's
+    /// Claude and Cursor setups unless told not to). The copyable shell
+    /// line sets them too, and each is one of
+    /// [`HarnessAdapter::isolation_env_keys`] so no override reaches it.
+    /// Default: none.
+    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+
     /// The value of the pinned isolation keys for `state_dir`, or `None`
     /// when the folder runs with that key unset (ADR-0018: the vendor's
     /// own default folder). Default: the path.
@@ -529,6 +539,9 @@ pub fn shell_snippet(
             Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
             None => unset.push(key.to_owned()),
         }
+    }
+    for (key, value) in adapter.launch_fixed_env() {
+        parts.push(format!("{key}={}", shell_quote(value)));
     }
     unset.extend(
         adapter
