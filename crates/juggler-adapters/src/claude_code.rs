@@ -510,6 +510,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_live::read_app_file(path)
     }
 
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::claude_asks::pending_ask(tail)
+    }
+
     fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
         crate::claude_live::host_apps()
     }

@@ -19,6 +19,9 @@ pub enum LiveStatus {
     Busy,
     /// Waiting for the user.
     Idle,
+    /// AJ-E2107: waiting on the user's answer (a permission, a question),
+    /// as the tool records it.
+    Waiting,
     /// The file didn't say (or said something new).
     #[default]
     Unknown,
@@ -47,6 +50,17 @@ impl TurnOutcome {
             _ => None,
         }
     }
+}
+
+/// AJ-E2107: what a transcript's tail says a session waits on, when its
+/// last tool call has no result yet. Worked out from the tail, so the UI
+/// says "probably".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ask {
+    /// A question to the user is open (the tool's own question tool).
+    Question,
+    /// A tool call waits for its result: a permission, or a long run.
+    Pending,
 }
 
 /// One open session, as its tool's own per-session file says.
