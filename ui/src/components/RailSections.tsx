@@ -6,17 +6,42 @@
  * leaves its count on that line.
  */
 import { Fragment, useState, type JSX, type ReactNode } from "react";
-import { ConversationRow, asksYou } from "./OutsideConversations";
+import { ConversationRow, asksYou, railSlice, type OutsideScope } from "./OutsideConversations";
 import { useActionHost } from "./ItemMenu";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../lib/bridge";
-import { isSnoozed, type SnoozeState } from "../lib/railview";
+import { isSnoozed, type RowGroup, type SnoozeState } from "../lib/railview";
 
-/** AI Juggler's own sessions that need you now (a snoozed one waits in
- * its project, as before). */
-export function needsYouRows(sorted: InstanceInfo[], snooze: SnoozeState, now: number): InstanceInfo[] {
-  return sorted.filter((row) => row.needs_attention !== null && !isSnoozed(row, snooze, now));
+const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
+
+/** The default view's order for AI Juggler's own sessions: what needs
+ * you (a snoozed one waits in its project, as before), what is open (the
+ * rest, under their projects), and what ended today (behind "Also:"; an
+ * older one is in History). A pinned session stays where the user put it. */
+export interface RailOrder {
+  needs: InstanceInfo[];
+  endedToday: InstanceInfo[];
+  /** The rows of a project's group that show under Open now. */
+  shown: (rows: InstanceInfo[]) => InstanceInfo[];
+}
+
+export function railOrder(sorted: InstanceInfo[], snooze: SnoozeState, now: number): RailOrder {
+  const needs = sorted.filter((row) => row.needs_attention !== null && !isSnoozed(row, snooze, now));
+  const folded = (row: InstanceInfo) => ENDED.has(row.status) && !row.pinned && !needs.includes(row);
+  const since = startOfDay(now);
+  return {
+    needs,
+    endedToday: sorted.filter((row) => folded(row) && (row.last_activity_ms ?? row.started_at_ms ?? 0) >= since),
+    shown: (rows) => rows.filter((row) => !needs.includes(row) && !folded(row)),
+  };
+}
+
+/** Open now's groups: a project shows while something of it is open
+ * (its header still sums up all its sessions). */
+export function openGroups(order: RailOrder | null, groups: RowGroup[], all: ConversationInfo[], scope: OutsideScope): RowGroup[] {
+  if (!order) return groups;
+  return groups.filter((group) => order.shown(group.rows).length > 0 || railSlice(all, group.id, scope).shown.length > 0);
 }
 
 export type AlsoView = "ended" | "inactive" | "background";
@@ -96,11 +121,13 @@ export function NeedsYouSection({ rows, renderRow, ...props }: RowProps & { rows
   );
 }
 
-/** The "Also:" line, and the views it turns on. */
-export function AlsoLine(props: RowProps): JSX.Element {
+/** The "Also:" line, and the views it turns on; `ended` and `renderRow`
+ * are AI Juggler's own sessions that ended today. */
+export function AlsoLine({ ended, renderRow, ...props }: RowProps & { ended: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode }): JSX.Element {
   const { all } = useConversations();
   const [shown, setShown] = useState<ReadonlySet<AlsoView>>(new Set());
   const parts = alsoParts(all, props.now);
+  const count = (view: AlsoView) => parts[view].length + (view === "ended" ? ended.length : 0);
   const toggle = (view: AlsoView) =>
     setShown((current) => {
       const next = new Set(current);
@@ -113,10 +140,10 @@ export function AlsoLine(props: RowProps): JSX.Element {
     <div className="mt-1 flex flex-col gap-0.5" data-testid="rail-also">
       <p className="flex flex-wrap items-center gap-x-1 px-3 py-1 text-[11px] text-muted">
         <span>Also:</span>
-        {VIEWS.filter((view) => parts[view].length > 0).map((view) => (
+        {VIEWS.filter((view) => count(view) > 0).map((view) => (
           <Fragment key={view}>
             <button type="button" aria-pressed={shown.has(view)} data-testid={`rail-also-${view}`} onClick={() => toggle(view)} className={link + (shown.has(view) ? " text-accent-hi" : "")}>
-              {parts[view].length} {WORDS[view]}
+              {count(view)} {WORDS[view]}
             </button>
             <span aria-hidden="true">·</span>
           </Fragment>
@@ -125,9 +152,10 @@ export function AlsoLine(props: RowProps): JSX.Element {
           History ›
         </button>
       </p>
-      {VIEWS.filter((view) => shown.has(view) && parts[view].length > 0).map((view) => (
+      {VIEWS.filter((view) => shown.has(view) && count(view) > 0).map((view) => (
         <section key={view} aria-label={TITLES[view]} data-testid={`rail-also-view-${view}`} className="flex flex-col gap-0.5">
           <SectionLabel>{TITLES[view]}</SectionLabel>
+          {view === "ended" && ended.map(renderRow)}
           <Rows rows={parts[view]} {...props} />
         </section>
       ))}

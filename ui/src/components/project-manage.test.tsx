@@ -128,7 +128,8 @@ describe("AJ-E1502 the session row's menu", () => {
   it("renames (blank goes back to the title) and pins", async () => {
     const rename = vi.spyOn(manage, "sessionRename").mockResolvedValue();
     const pin = vi.spyOn(manage, "sessionSetPinned").mockResolvedValue();
-    const { getByRole, getByTestId, onChanged } = board([mk("a")], [project("proj-1", "alpha")]);
+    // Open (AJ-E2103: an ended one waits behind the rail's "Also:" line).
+    const { getByRole, getByTestId, onChanged } = board([mk("a", { status: "running" })], [project("proj-1", "alpha")]);
 
     fireEvent.click(getByRole("button", { name: "Session actions for branch-a" }));
     const menu = getByRole("menu", { name: "Actions for branch-a" });

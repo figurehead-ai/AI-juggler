@@ -151,3 +151,25 @@ it("counts only what AI Juggler didn't start, ended today by the local day", () 
   expect(parts.background.map((c) => c.id)).toEqual(["headless"]);
   expect(screen.queryByTestId("rail-also")).toBeNull();
 });
+
+it("AI Juggler's own ended today wait behind the Also line, older ones in History; a pinned one stays", async () => {
+  const view = board(
+    [
+      mk("busy"),
+      mk("done-today", { status: "finished", last_activity_ms: NOW - 3_600_000 }),
+      mk("done-before", { status: "finished", last_activity_ms: NOW - 2 * 86_400_000 }),
+      mk("pinned-done", { status: "stopped", pinned: true, last_activity_ms: NOW - 2 * 86_400_000 }),
+      mk("api-done", { status: "finished", project_id: "proj-2", last_activity_ms: NOW - 3 * 86_400_000 }),
+    ],
+    [],
+  );
+  const ids = () => [...view.getByTestId("instance-board").querySelectorAll<HTMLElement>("[data-instance-id]")].map((el) => el.dataset.instanceId);
+  await view.findByTestId("rail-also");
+  expect(ids()).toEqual(["pinned-done", "busy"]);
+  // Only what is open: a project with nothing open leaves Open now.
+  expect(view.queryByRole("button", { name: "Fold api" })).toBeNull();
+  expect(view.getByTestId("rail-also-ended").textContent).toBe("1 ended today");
+  fireEvent.click(view.getByTestId("rail-also-ended"));
+  expect(view.getByTestId("rail-also-view-ended").querySelector("[data-instance-id='done-today']")).toBeTruthy();
+  expect(ids()).not.toContain("done-before");
+});
