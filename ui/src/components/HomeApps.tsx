@@ -5,7 +5,7 @@
  * launched). At most six, then "+n".
  */
 import { useState, type JSX } from "react";
-import { AppIcon } from "./PlaceMarks";
+import { PlaceMark } from "./PlaceMarks";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
 import { conversationsBringForward } from "../lib/ipc/conversations";
@@ -48,7 +48,7 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-xl border border-hairline bg-surface p-3" data-testid="home-app-tile" data-place={place.key}>
       <div className="flex min-w-0 items-start gap-2.5">
-        <AppIcon place={place} size={34} />
+        <PlaceMark place={place} size={34} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13px] font-semibold text-ink">{place.app}</span>
           <span className="truncate text-[11px] text-muted">

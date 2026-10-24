@@ -18,7 +18,7 @@
  */
 import type { JSX, ReactNode } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { PlaceIcon, AppIcon, ProfileChip } from "./PlaceMarks";
+import { PlaceMark, AppIcon, ProfileChip } from "./PlaceMarks";
 import { IconUpRight } from "./icons-places";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
@@ -109,7 +109,7 @@ export function NeedRow(props: RowProps): JSX.Element {
   return (
     <RowShell {...props} label={`${word}, ${item.title}, ${where}`} className="h-[44px] rounded-lg py-1.5 pl-2 pr-2">
       <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-2.5">
-        <PlaceIcon place={item.place} size={22} />
+        <PlaceMark place={item.place} profile={item.accountLabel} size={22} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
           <span className="truncate text-[10.5px] text-muted">{where}</span>

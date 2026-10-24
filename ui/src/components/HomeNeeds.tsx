@@ -10,7 +10,7 @@ import type { JSX, ReactNode } from "react";
 import { Button } from "./primitives";
 import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
-import { PlaceIcon } from "./PlaceMarks";
+import { PlaceMark } from "./PlaceMarks";
 import { primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
@@ -25,7 +25,7 @@ export interface NeedHandlers {
 }
 
 function Mark({ need, size }: { need: HomeNeed; size: number }): JSX.Element {
-  if (need.item) return <PlaceIcon place={need.item.place} size={size} />;
+  if (need.item) return <PlaceMark place={need.item.place} profile={need.item.accountLabel} size={size} />;
   const glyph = need.kind === "signin" ? "→" : need.severe ? "■" : "▲";
   return (
     <span aria-hidden="true" style={{ width: size, height: size }} className={"flex shrink-0 items-center justify-center rounded-lg text-xs font-bold " + (need.kind === "signin" ? "bg-accent-soft text-accent-hi" : need.severe ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")}>

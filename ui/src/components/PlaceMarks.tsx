@@ -1,15 +1,24 @@
 /**
- * AJ-E2104 — a place's marks: the app's icon (by its kind, from the host
- * registry's data: a desktop app's monogram, a terminal, an editor,
- * AI Juggler's own), the profile's badge on its corner, and the profile
- * chip a place header shows. Decorative: the row or header names both in
- * words.
+ * AJ-E2104 — a place's marks, one set everywhere a session or a place
+ * shows: the app's icon (by its kind, from the host registry's data: a
+ * desktop app's monogram, a terminal, an editor, AI Juggler's own), the
+ * profile's badge on its corner (`PlaceMark`: the rail's rows, Home's
+ * Needs you, the session page's header), and the profile chip a place
+ * header shows. Decorative: the row or header names both in words.
  */
 import type { JSX } from "react";
 import { IconJuggler, IconTerminal } from "./icons";
 import { IconCode } from "./icons-places";
 import { profileColor, profileMonogram } from "../lib/profile-marks";
-import type { RailPlace } from "../lib/rail-items";
+import { OWN_APP, OWN_PLACE, type RailPlace } from "../lib/rail-items";
+import type { PlaceInfo } from "../lib/ipc/conversations";
+
+/** A place to mark from where a session runs: its first place, else
+ * AI Juggler's own (a session AI Juggler runs), else an app not named. */
+export function markPlace(place: PlaceInfo | undefined, own: boolean): RailPlace {
+  if (place) return { key: `${place.app}|${place.instance ?? place.profile ?? ""}`, app: place.app || "An app", kind: place.kind ?? null, profile: place.profile ?? place.instance, appPid: place.app_pid ?? null };
+  return own ? { key: OWN_PLACE, app: OWN_APP, kind: "own", profile: null, appPid: null } : { key: "", app: "An app", kind: null, profile: null, appPid: null };
+}
 
 /** The app's two letters ("Cl", "Ch"): enough to tell two apps apart. */
 function appLetters(app: string): string {
@@ -55,14 +64,17 @@ export function ProfileBadge({ name, size = 12 }: { name: string; size?: number 
   );
 }
 
-/** The app's icon with the profile's badge on its corner. */
-export function PlaceIcon({ place, size = 22 }: { place: RailPlace; size?: number }): JSX.Element {
+/** The app's icon with the profile's badge on its corner; `profile`
+ * when the place doesn't name one (AI Juggler's own sessions: the
+ * profile each runs on). */
+export function PlaceMark({ place, profile, size = 22 }: { place: RailPlace; profile?: string | null; size?: number }): JSX.Element {
+  const name = place.profile ?? profile ?? null;
   return (
-    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }} data-testid="place-mark">
       <AppIcon place={place} size={size} />
-      {place.profile && (
-        <span className="absolute -bottom-1 -right-1">
-          <ProfileBadge name={place.profile} size={Math.round(size * 0.55)} />
+      {name && (
+        <span className="absolute -bottom-1 -right-1" data-testid="place-mark-profile">
+          <ProfileBadge name={name} size={Math.round(size * 0.55)} />
         </span>
       )}
     </span>
