@@ -18,8 +18,10 @@ be overridden only with a written reason (Promote's `override` input),
 which is kept in the channel tag.
 
 There is **one version stream**. A build is made once, by the nightly
-workflow, with the next version (`MAJOR.MINOR` from `Cargo.toml`, the patch
-is the nightly run number). Promotion points a channel's feed at that same
+workflow, with the next version as Semantic Versioning has it: `MAJOR.MINOR`
+from `Cargo.toml` (raised by hand), and a patch that starts at 0 for each new
+`MAJOR.MINOR` and goes up by one per build (0.1.0, 0.1.1, …), counted from the
+release tags by `scripts/release_version.py`. Promotion points a channel's feed at that same
 signed build, so nothing is rebuilt and versions only go up. Three
 workflows do the mechanical work:
 

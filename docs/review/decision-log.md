@@ -302,8 +302,12 @@
   already-built, signed build forward; nothing is rebuilt between
   channels. The approval steps are GitHub environment approvals, so
   they are recorded. One version stream: a nightly build gets the next
-  version (`MAJOR.MINOR` from `Cargo.toml`, the patch is the nightly run
-  number) and keeps it on every channel. Promotion to **stable** also
+  version (`MAJOR.MINOR` from `Cargo.toml`; the patch starts at 0 for a
+  new `MAJOR.MINOR` and goes up by one per build, as Semantic Versioning
+  has it) and keeps it on every channel. *Amended 2026-10-24:* the patch
+  was the nightly's run number, which never resets, so the first 0.1
+  build came out as 0.1.18; it now counts from the release tags
+  (`scripts/release_version.py`). Promotion to **stable** also
   needs the version to have been on beta and the beta gate (AJ-E807) to
   be signed: the gate's criteria are the exit from beta. Installs follow
   Beta until the first stable release. Supersedes the single beta
