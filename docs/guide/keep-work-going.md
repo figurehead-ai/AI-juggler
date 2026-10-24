@@ -15,7 +15,7 @@ when AI Juggler knows which one it was (otherwise it starts fresh).
   Restarting can't fix those.
 - Each restart is noted in the session's history.
 
-A launch setting can choose for itself: open the account's **Edit launch
+A launch setting can choose for itself: open the profile's **Edit launch
 settings**, and set **If a session crashes** to follow Settings, restart
 it, or leave it ended.
 

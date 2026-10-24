@@ -17,14 +17,20 @@ Open the session, then do one of these:
 
 A finished conversation in your history can be continued the same way.
 
+You pick a profile to go to, listed under its account. A profile signed in
+to the same account as the one you're on is marked "no new room": profiles
+on one account share its limits, so moving there doesn't help when you've
+run out.
+
 ## Two kinds of switch
 
 What carries over depends on where you're going. The switch screen says
 which kind it is before you confirm.
 
-- **Same conversation, new account.** Between two accounts of the same
-  tool, for example two Claude Code accounts. The conversation's files are
-  copied to the new account, which resumes the conversation. The task list
+- **Same conversation, new account.** Between two profiles of the same
+  tool, for example two Claude Code folders signed in to different
+  accounts. The conversation's files are copied to the other profile, which
+  resumes the conversation. The task list
   is rebuilt from the conversation.
 - **Full story, fresh start.** Between two tools, for example Claude Code to
   Codex. The other tool starts a new session and reads a handover that AI
@@ -94,11 +100,11 @@ conversation (such as an API key you pasted) are handled:
   them.
 - **Ask each time.**
 
-You can change this in Settings › Context packs & secrets.
+You can change this in Settings › Switching › Context packs & secrets.
 
-### What the other account doesn't have yet
+### What the other profile doesn't have yet
 
-The confirm step lists what your current account has set up and the other
+The confirm step lists what your current profile has set up and the other
 one lacks: MCP servers, skills, commands, subagents, rules and plugins.
 Each line says what will happen:
 
@@ -121,7 +127,7 @@ A secret is never copied:
   unticked, as **Needs you**, until you've set that variable.
 - A server with a secret in its address or arguments can't be set up.
 
-A sign-in never moves: you sign in on the other account with that tool's
+A sign-in never moves: you sign in on the other profile with that tool's
 own sign-in.
 
 ## After the switch
@@ -133,7 +139,8 @@ stops, and you can switch back to it at any time.
   **Undo** for 10 seconds. It stops the new session and resumes the
   original.
 - **Undo a set-up:** each set-up is listed with its own **Undo**. Later, find
-  them in Settings › Context packs & secrets › **Set up by AI Juggler**. An
+  them in Settings › Switching › Context packs & secrets › **Set up by AI
+  Juggler**. An
   undo removes only what AI Juggler added, and only while it's unchanged.
 - **Usage:** the new account counts only what was done there, not the
   history it carried.
@@ -152,13 +159,13 @@ the work passed through: their new turns, the changes and the task list.
 A context pack is a conversation's story saved as a folder, the same thing
 a switch hands over. Save one from a project's **Overview**, under **How
 this work travelled**: choose a step, then **Export pack…**. Secrets are
-handled by your choice in Settings › Context packs & secrets.
+handled by your choice in Settings › Switching › Context packs & secrets.
 
 To pick the work up later, in any tool, choose **New session** › **Start
 from a context pack…** and pick the pack's folder. AI Juggler checks the
 pack, then shows what it is: where it came from, what it continues as,
 what it carries, what it doesn't carry, and what was withheld. Choose the
-account and folder (the pack's own project is picked for you when it's on
+profile and folder (the pack's own project is picked for you when it's on
 this Mac), then **Launch**.
 
 A pack that was edited by hand, holds something that looks like a key,
@@ -167,9 +174,9 @@ one-line reason, and nothing starts.
 
 ## What a switch changes
 
-- **On the account you switch to:** the conversation's files, added beside
-  that account's own and never over them, and the set-ups you ticked.
-- **On the original account:** nothing, apart from stopping its session if
+- **On the profile you switch to:** the conversation's files, added beside
+  that profile's own and never over them, and the set-ups you ticked.
+- **On the original profile:** nothing, apart from stopping its session if
   you chose to.
 - **Your project:** nothing. Its own rules files and `.mcp.json` are shared
   by both sides already.

@@ -4,7 +4,7 @@
 
 - [Install and updates](install-and-updates.md): the apps, the channels,
   updates, and going back to an earlier version.
-- [Your first run](first-run.md): finding your accounts, using them where
+- [Your first run](first-run.md): finding your profiles, using them where
   they are or as copies, signing in, optional permissions.
 - [Coming from another tool](coming-from-other-tools.md): what comes
   across from Claude Squad, Vibe Kanban, Crystal and cc-switch, and what
@@ -12,12 +12,15 @@
 
 **Everyday use**
 
+- [What's open, and getting to it](whats-open.md): what the list on the
+  left shows, places, Go to it, View, Last messages, and Settings › Desktop
+  apps.
 - [Sessions and the terminal](sessions-and-the-terminal.md): your
   sessions, starting one, and the terminal's tools: Find, links, text size,
   Maximize and its own window.
-- [Accounts](accounts.md): adding one, starting it with your usual
-  settings, copying settings later, the default account and launch
-  settings.
+- [Accounts and profiles](accounts.md): accounts are your subscriptions,
+  profiles are the setups your apps run on; adding a profile, starting it
+  with your usual settings, the default profile and launch settings.
 - [Usage and limits](usage-and-limits.md): what the numbers mean, "Not
   measured yet", and measuring Claude limits for sessions started elsewhere.
 - [Continue on another account](switching.md): carrying a conversation to

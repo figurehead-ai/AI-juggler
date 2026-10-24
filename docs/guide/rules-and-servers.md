@@ -43,17 +43,17 @@ Each other file says how it stands:
 
 An apply writes only that one rules file. It refuses a link, and a file
 that changed since you looked at it. It keeps the file as it was, so you
-can undo it: right away in the sheet, or later in Settings › Context packs
-& secrets, where it's listed under the project's name. A file the apply
+can undo it: right away in the sheet, or later in Settings › Switching ›
+Context packs & secrets, where it's listed under the project's name. A file the apply
 created is removed by its undo.
 
 ## MCP servers
 
-Below the rules, the sheet compares the MCP servers of your accounts. Each
-server an account lacks is offered once, as a line such as "github for
+Below the rules, the sheet compares the MCP servers of your profiles. Each
+server a profile lacks is offered once, as a line such as "github for
 Work · from Personal", with a **Copy** button.
 
-- Between accounts of the same tool, the server is copied as it is.
+- Between profiles of the same tool, the server is copied as it is.
 - Between Claude Code and Codex, it's written in the other tool's form.
   Some can't go across, such as a server whose kind Codex doesn't support,
   and the line says why.
@@ -62,10 +62,9 @@ Work · from Personal", with a **Copy** button.
   what stays behind. A server with a secret in its address or arguments
   can't be copied.
 - Each copy has its own **Undo**, in the sheet and later in Settings ›
-  Context packs & secrets.
+  Switching › Context packs & secrets.
 
-When nothing is missing, the sheet says **Every account has the same
-servers.**
+When no profile is missing a server, the sheet says so.
 
 ## What it never does
 
