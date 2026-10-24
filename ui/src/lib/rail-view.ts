@@ -181,8 +181,10 @@ export function paletteMatches(
   projects: ProjectInfo[],
   query: RailQuery,
 ): { sessions: InstanceInfo[]; conversations: ConversationInfo[] } {
+  // AI Juggler's own: the running ones (as ⌘K always listed them).
+  const open = (item: RailItem) => (item.session ? item.session.status === "running" || item.session.status === "starting" : item.live);
   const wanted = (item: RailItem) =>
-    (item.live && (!item.background || query.is.has("background"))) ||
+    (open(item) && (!item.background || query.is.has("background"))) ||
     (query.is.has("ended") && item.state === "ended" && !item.inactive) ||
     (query.is.has("inactive") && item.inactive);
   const items = itemsOf({ sessions, conversations, projects, seen: {} }).filter((item) => wanted(item) && matches(item, {}, query));

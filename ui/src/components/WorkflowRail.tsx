@@ -420,7 +420,9 @@ export function InstanceBoard({
   // AJ-E1529: sessions started outside AI Juggler show under their project.
   const scope = outsideScope(filters, parsed.text);
   // AJ-E2103: the default view reads Needs you, Open now, then "Also:".
-  const order = quietView(effectiveGroup, filters, parsed.text) ? railOrder(sorted, snooze, now) : null;
+  // AJ-E2104: the Project lens with Show › Ended on is the whole board,
+  // every session under its project (its Also line's parts stay its own).
+  const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, snooze, now) : null;
   const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // D-25: a project with no sessions still has a place in the rail (one

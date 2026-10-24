@@ -853,7 +853,8 @@ test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => 
   await expect(palette.locator('[data-testid="goto-row-sess-2"]')).toBeVisible();
   await expect(palette.locator('[data-testid="goto-row-sess-desktop-3"]')).toHaveCount(0);
   await expect(palette.locator('[data-testid="goto-row-sess-6"]')).toHaveCount(0);
-  await expect(palette).toContainText("Alt+Space");
+  // AJ-E2110: no key by default; the footer offers to choose one.
+  await expect(palette).toContainText("Choose a key to open from anywhere");
   await page.screenshot({ path: resolve(GALLERY, "14-focus/palette-1280x800.png") });
 });
 
@@ -5163,7 +5164,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "History" }).click();
+      await page.locator("header").getByRole("button", { name: "History", exact: true }).click();
       await page.getByTestId("history-search").fill("stripe");
       await expect(page.getByTestId("history-snippet")).toContainText("Stripe webhook");
       await page.screenshot({ path: resolve(GALLERY, `56-history/search-${vp.name}-${theme}.png`) });

@@ -937,7 +937,7 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
 }
 
 /// Registers the "Go to instance…" hotkey the user chose (AJ-E414
-/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to ChatGPT,
+/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to `ChatGPT`,
 /// so nothing is registered until the user picks a key in Settings ›
 /// Desktop apps. A conflict or a locked-down system key logs and
 /// continues — the palette stays reachable in-app (⌘K).
