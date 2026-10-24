@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pools** (0.2): group sessions that work together, name the group and
   say who leads. A session's menu has **Move to pool…**; once you've made
   a pool the list can group by pool and Filters and Home can show one
-  pool. **All sessions** is always there. A pool's page shows what each
+  pool. Each project has its own pool too, holding all its sessions on
+  any account, so agent access can differ from project to project. A pool's page shows what each
   member is working on: its state, the step it says it's on (marked as its
   own words), the files it changed most recently, and "Unavailable" with
   the reason where AI Juggler doesn't know. Putting a session in a pool

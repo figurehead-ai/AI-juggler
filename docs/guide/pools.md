@@ -7,12 +7,14 @@ who leads. Nothing else makes or changes a pool.
 Putting a session in a pool, giving it a role or deleting the pool never
 starts, stops or types into it.
 
-## All sessions
+## Each project's own pool
 
-Every session starts in **All sessions**. It is always there and can't be
-renamed or deleted. When agents can see their pool (a later release), an
-agent in All sessions sees only the sessions of its own project, whatever
-the account.
+Every project has its own pool, named after it: **shop · all sessions**,
+say. It holds every session of that project, on any account, that isn't
+in another pool of yours, so you can let agents do more in one project
+than in another. It is always there and can't be renamed (renaming the
+project renames it) or deleted. Sessions with no project are in **No
+project · all sessions**.
 
 ## Make a pool
 
@@ -43,18 +45,19 @@ and Home gets one too. A pool's heading in the list opens its page.
 - **Agent access**: see below.
 - **Edit pool**: rename it, set each session's role (Lead, Member or
   Observer), add or take out sessions, or delete it. Deleting a pool puts
-  its sessions back in All sessions; nothing else changes.
+  its sessions back in their projects' pools; nothing else changes.
 
 ## What agents may do
 
 Agents can't reach pools yet; this is ready for when they can. You set it,
-in the app only, per pool (on the pool's page, and every pool at once in
-**Settings › Agent access**):
+in the app only, per pool, each project's own pool too (on the pool's page,
+and every pool at once in **Settings › Agent access**):
 
 - **Read**: see who's here, what each one is doing, and the tasks.
 - **Work together** (where every pool starts): Read, and post messages,
-  share documents and work on tasks. A message for a session that's waiting
-  goes in when you click.
+  share documents, work on tasks and get a new session ready for you to
+  start (it waits in Needs you for your click). A message for a session
+  that's waiting goes in when you click.
 - **Full**: Work together, and put messages straight into each other's
   sessions, up to the hop limit.
 - **Custom**: you pick each action.

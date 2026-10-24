@@ -31,8 +31,9 @@
 >   is added through launch flags and overlay files, never written into the
 >   user's setup.
 > - **Agents never launch, no quota routing (D-31).** `prepare_launch`
->   only stages a launch for the user's click; the user picks the account;
->   nothing reads quota for it.
+>   only stages a launch for the user's click in Needs you (so Work
+>   together and Full allow it without asking first); the user picks the
+>   account; nothing reads quota for it.
 > - **Pools across Macs (D-32).** Opt-in per pool, off by default.
 > - **A project's default pool holds all its sessions (D-33)**, whatever
 >   the account. Cards may show an account's label, never an email, a plan
@@ -66,7 +67,7 @@
    - members hang off the Work item, so membership survives switches;
    - roles are lead, member and observer, with the user as the implicit owner;
    - permissions are D-28's access levels, rules and audit (see the law above), with UI edits only, behind one decision point (`allowed(pool, action) -> Allow | Ask | Deny`) the bridge and messaging only call; each pool also stores D-29's hop limit and stop-all and D-32's spans-Macs flag.
-2. The default pool "All sessions" always exists, can't be deleted, and covers one project, whatever the account (D-33).
+2. Each project has its own default pool ("<project> · all sessions"), made when the project first appears, always there, not renamable or deletable, holding every session of that project on any account (D-33); sessions with no project are in "No project · all sessions". Levels, rules, hop limits and stop-all are set per default pool like any other.
 3. UI: create, rename and delete pools (except the default); move sessions between pools; set roles; a pool filter on Home and the rail; the level picker on the pool's page and Settings › Agent access. All reuse the existing rows, headers and folds.
 4. A guardrail test: pool operations never spawn, stop or type into a session.
 **UI/UX reasoning**: D-25: pools read like the rail's project groups, with the same fold and mark.
