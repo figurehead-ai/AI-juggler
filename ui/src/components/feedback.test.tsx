@@ -330,7 +330,7 @@ describe("AJ-E1503 snooze with Undo", () => {
       </>,
     );
     fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Snooze 1h" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Snooze for an hour" }));
     expect(screen.getByTestId("toast").textContent).toContain("Snoozed Work Max for 1 h.");
     expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeTruthy();
     await act(async () => {

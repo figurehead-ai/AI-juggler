@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
  * The row menu (D-25: one pattern everywhere): the ⋯ button or a
  * right-click on a rail row, an account card or a project opens the same
  * small menu — a heading, then plain-word actions. It takes focus, moves
- * with the arrow keys, closes on Escape, Tab or a click outside, and
- * gives focus back to what opened it.
+ * with the arrow keys (Home and End too), closes on Escape, Tab or a
+ * click outside, and gives focus back to what opened it. AJ-E2106: one
+ * level of submenus — → opens one, ← or Escape closes it.
  */
 export function RowMenu({
   heading,
@@ -30,7 +31,13 @@ export function RowMenu({
   closeRef.current = onClose;
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    const items = () => [...(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    // The arrows move within one level: the menu, or the open submenu.
+    const levelOf = (element: Element | null): Element | null =>
+      (element && ref.current?.contains(element) ? element.closest('[role="menu"]') : null) ?? ref.current;
+    const items = (level: Element | null = ref.current) =>
+      [...(level?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])].filter(
+        (item) => item.closest('[role="menu"]') === level,
+      );
     items()[0]?.focus();
     const close = (restore: boolean) => {
       closeRef.current();
@@ -40,17 +47,37 @@ export function RowMenu({
       if (ref.current && !ref.current.contains(event.target as Node)) close(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      const active = document.activeElement as HTMLElement | null;
+      const level = levelOf(active);
+      const inSubmenu = level !== null && level !== ref.current;
+      if ((event.key === "Escape" || event.key === "ArrowLeft") && inSubmenu) {
+        // Back to the line that opened it, which closes it.
+        event.preventDefault();
+        const trigger = level.parentElement?.querySelector<HTMLButtonElement>(':scope > [aria-haspopup="menu"]');
+        trigger?.focus();
+        trigger?.click();
+      } else if (event.key === "Escape") {
         event.preventDefault();
         close(true);
       } else if (event.key === "Tab") {
         close(true);
-      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        const list = items();
+      } else if (event.key === "ArrowRight" && active?.getAttribute("aria-haspopup") === "menu") {
+        event.preventDefault();
+        if (active.getAttribute("aria-expanded") !== "true") active.click();
+        else items(active.parentElement?.querySelector('[role="menu"]') ?? null)[0]?.focus();
+      } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        const list = items(level);
         if (list.length === 0) return;
         event.preventDefault();
-        const index = list.indexOf(document.activeElement as HTMLButtonElement);
-        const next = event.key === "ArrowDown" ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+        const index = list.indexOf(active as HTMLButtonElement);
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? list.length - 1
+              : event.key === "ArrowDown"
+                ? (index + 1) % list.length
+                : (index - 1 + list.length) % list.length;
         list[next]?.focus();
       }
     };
@@ -68,7 +95,7 @@ export function RowMenu({
   }, []);
   // Where it fits: measured once it's drawn, so a long menu opened low
   // in the window moves up instead of running off it.
-  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 190)), top: Math.max(4, at.y) });
+  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 244)), top: Math.max(4, at.y) });
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
@@ -85,7 +112,7 @@ export function RowMenu({
       role="menu"
       aria-label={ariaLabel}
       style={style}
-      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-48 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-60 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
     >
       <span className="truncate px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">{heading}</span>
       {children}
@@ -101,13 +128,19 @@ export function MenuItem({
   title,
   danger,
   testId,
+  describedBy,
+  submenu,
   children,
 }: {
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   title?: string;
   danger?: boolean;
   testId?: string;
+  /** The id of the line that says why it's greyed. */
+  describedBy?: string;
+  /** It opens a submenu: whether that is open now. */
+  submenu?: { open: boolean };
   children: ReactNode;
 }) {
   return (
@@ -118,6 +151,9 @@ export function MenuItem({
       disabled={disabled}
       title={title}
       data-testid={testId}
+      aria-describedby={describedBy}
+      aria-haspopup={submenu ? "menu" : undefined}
+      aria-expanded={submenu ? submenu.open : undefined}
       className={
         "rounded-lg px-2 py-1 text-left text-[11.5px] outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent " +
         (danger ? "text-danger" : "text-ink")
@@ -125,6 +161,60 @@ export function MenuItem({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * AJ-E2106 — a submenu (one level, never nested): a line that opens its
+ * own small menu beside it, on hover, a click or →; ← or Escape closes
+ * it. Drawn fixed beside its line, so the menu's scroll never clips it.
+ */
+export function MenuSubmenu({ label, line, testId, children }: { label: string; line: ReactNode; testId?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [fromKeys, setFromKeys] = useState(false);
+  const wrap = useRef<HTMLDivElement | null>(null);
+  const panel = useRef<HTMLDivElement | null>(null);
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const row = wrap.current?.getBoundingClientRect();
+    if (!row) return;
+    const box = panel.current?.getBoundingClientRect();
+    const width = box?.width ?? 208;
+    const height = box?.height ?? 0;
+    const fitsRight = row.right + width - 2 <= window.innerWidth - 4;
+    setPlace({
+      left: fitsRight ? row.right - 2 : Math.max(4, row.left - width + 2),
+      top: Math.max(4, Math.min(row.top - 6, window.innerHeight - height - 4)),
+    });
+  }, [open]);
+  useEffect(() => {
+    if (open && fromKeys && place) panel.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+  }, [open, fromKeys, place]);
+  return (
+    <div ref={wrap} className="relative flex flex-col" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <MenuItem
+        testId={testId}
+        submenu={{ open }}
+        onClick={(event) => {
+          setFromKeys(event.detail === 0);
+          setOpen((was) => !was);
+        }}
+      >
+        {line}
+      </MenuItem>
+      {open && (
+        <div
+          ref={panel}
+          role="menu"
+          aria-label={label}
+          style={place ?? { left: -9999, top: 0 }}
+          className="fixed z-50 flex w-52 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+        >
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 /**
  * AJ-E1529 — sessions started outside AI Juggler: in the rail under their
  * project (live ones always, then the newest few), on a page of their own
- * with "Continue in AI Juggler" and "Copy resume command", counted as
+ * with "Continue in AI Juggler" and "Copy the resume command", counted as
  * running on Accounts, and in the go-to palette. Read-only otherwise (D-08).
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -94,7 +94,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     render(withFixture([], <ConversationRow conversation={conversation("c", { live: true })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
     fireEvent.click(screen.getByRole("button", { name: /^Conversation actions for / }));
     const names = screen.getAllByRole("menuitem").map((item) => item.querySelector("[data-label]")?.textContent);
-    expect(names).toEqual(["Open", "Continue in AI Juggler", "Copy resume command", "Show its project"]);
+    expect(names).toEqual(["Open its page", "Show its project", "Continue in AI Juggler", "Copy the resume command"]);
     const carry = screen.getByRole("menuitem", { name: "Continue in AI Juggler" }) as HTMLButtonElement;
     expect(carry.disabled).toBe(true);
     expect(carry.title).toBe("It's open in another session now");

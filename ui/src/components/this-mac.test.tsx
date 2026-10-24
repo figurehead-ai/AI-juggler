@@ -128,7 +128,7 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect(open).toHaveBeenCalledWith("s1");
     // AJ-E1537: its menu goes to the session; theirs says it isn't ours.
     fireEvent.contextMenu(ours!);
-    expect(screen.getByRole("menuitem", { name: "Go to the session" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Open the session's page" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     fireEvent.contextMenu(theirs!);
     const line = screen.getByRole("menuitem", { name: "Not started by AI Juggler" }) as HTMLButtonElement;
