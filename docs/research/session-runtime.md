@@ -487,3 +487,48 @@ The bridge results (MCP versions, `--mcp-config`, Codex `env_vars` and per-tool 
 - An ephemeral thread leaves no rollout. A driven Codex session must therefore not be `ephemeral` if switching and resume are to work.
 - Approvals arrive as the typed requests §3.2 lists.
 - Not yet tested: `codex --remote` attach, two clients on one thread, and non-ephemeral resume.
+
+---
+
+## Lab 2, 2026-10-25
+
+The second live lab ran on the same accounts, with the same permission, in a new throwaway repo. One or two real tool processes ran at a time, with tiny prompts. There were no sign-ins and no macOS "Allow". Credentials, the Keychain and process environments were not read. Claude Code's folder trust was answered yes for the lab folder only; Codex's trust screen was not.
+
+Versions: codex-cli 0.163.0, and Claude Code 2.1.302 and then 2.1.310 (the first terminal start updated it by itself).
+
+**AI Juggler Dev itself didn't run:** free disk (21–23 GB) was below the 25 GB floor for a build, and no desktop control was available. So the tools were driven by hand, in the shapes `codex_appserver`, `claude_stream` and `claude_hooks` send (2414a4bd). Everything below is **VP (lab)** for the tools' behaviour; what AI Juggler's window shows is still unverified.
+
+The full record, the three bugs and the folder snapshots are in `docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md`.
+
+### Codex
+
+| Finding | Detail |
+|---|---|
+| Two clients on one thread | Two WebSocket clients on one `--listen unix://` server both `thread/resume`d the thread. Both got every event of a turn the first one started. The approval went to **both**, with the same request id. One answer resolved it for both (`serverRequest/resolved` to each), and the command ran once. This answers §8's "two clients on one Codex thread": it works, and approvals reach every subscriber |
+| Non-ephemeral resume | `thread/start {ephemeral: false}` writes a rollout. A fresh server's `thread/resume` returns the same id and every turn. Codex then sends `deprecationNotice`: full-history hydration is deprecated, and `excludeTurns: true` with `thread/turns/list` / `thread/items/list` is the way forward. AI Juggler's codec should move to that before a Codex drops the turns |
+| The TUI after a hand-over | `codex resume <thread> -C <cwd> --no-daemon` opens the same conversation, and back in app-server the thread has the TUI's turn. In a folder Codex hasn't trusted, the TUI first asks "Trust this folder? … Your trust decision will be saved" (a write to the user's `config.toml`), then shows its update prompt. A driven `thread/start` never asks |
+| Approval choices | For `ls` (untrusted, read-only), `availableDecisions` was `accept`, `acceptWithExecpolicyAmendment`, `cancel`. `command` is the shell wrapper (`/bin/zsh -lc ls`); the command itself is in `commandActions[].command` |
+| Questions | "Use your question tool" came back as text: with `experimentalApi: false`, 0.163.0 sends no `item/tool/requestUserInput` |
+
+### Claude Code
+
+| Finding | Detail |
+|---|---|
+| `--settings` hooks merge with the project's | The project's and the overlay's `UserPromptSubmit` both ran ("running UserPromptSubmit hooks… 0/2"). So did every other overlay hook, and the overlay's status line. `/hooks` lists only the project's hook, so it isn't evidence of the merge. The lab profile has no `settings.json` of its own, so the user-level merge stays unobserved |
+| Two `--settings` | Only the **last** one applies (2.1.310). AI Juggler must never pass two (bug 1 in the lab record) |
+| PermissionRequest timing | Claude Code drew its dialog 53 ms **before** the `PermissionRequest` hook started. A 3 s hook ran alongside it, and `Notification` came about 6 s later. A slow `juggler-agent hook` can't delay the user's dialog |
+| SessionStart on a first start | Not run when the folder was trusted after launch. It ran on the next start in that folder |
+| Permission modes | This account's terminal starts in **auto** mode, where `ls` and `echo` run without asking. `-p` starts in `default`. A write (`echo lab > lab.txt`) asked in both |
+| stream-json `initialize` | The response carries `account {email, organization, subscriptionType, apiProvider}` beside `commands`, `models`, `current_permission_mode` and more. The codec reads only the subtype, and D-33's rule holds |
+| `can_use_tool` | Bash: `tool_name`, `display_name`, `input`, `description`, `permission_suggestions` (an `addRules` rule and an `addDirectories` grant), `blocked_path`, `tool_use_id`. AskUserQuestion: `input.questions[]` and `requires_user_interaction`. Both of the codec's answers were taken |
+| `set_model` | The response is `{model}`; the next `init` names the new model, and the terminal later shows it as `/model …` |
+| `rate_limit_event` | Five-hour only, once per turn. `utilization` is a fraction (0.01 when `/usage` said 1%). `overageStatus: rejected`, `isUsingOverage: false` |
+| No terminal → terminal → no terminal | One transcript, one `sessionId`. The entry points run sdk-cli, then cli, then sdk-cli, never interleaved, and each side sees the other's turns |
+| A profile's first terminal start | A profile used only through the Claude app gets onboarding: the theme picker (which creates the profile's `settings.json` with `theme`), the security notes, then folder trust, whose default is "No, exit". The start also cloned the official plugin marketplace and updated Claude Code for the whole Mac (`~/.local/bin/claude` → 2.1.310) |
+
+**What this changes for the build:**
+- Approvals on a shared Codex thread reach every client.
+- AI Juggler should resume with `excludeTurns`.
+- The Codex hand-over in a new folder meets Codex's trust screen.
+- Claude's per-launch hooks must be the only `--settings`.
+- The question and approval shapes the codecs assumed hold live. The labels need two fixes: the Codex command summary, and Claude's "add directory" grant.

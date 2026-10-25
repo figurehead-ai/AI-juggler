@@ -14,7 +14,10 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2303, Codex through app-server, by
 | Req.4–5 the mapping; the tool's own options only | `cargo test -p juggler-adapters --test codex_app_server` (`recorded_messages_make_the_right_events_and_answers`, `answers_are_codexs_shapes_and_only_to_open_asks`) | fixtures → events; answers only to open asks | pass | PASS | f659cf83 | 2026-10-25 | agent |
 | Default for Codex sessions in the app | `cargo test -p juggler-app --test runtime` (`codex_runs_through_its_own_app_server_by_default`) | driven, exact state | pass | PASS | 4749d6fc | 2026-10-25 | agent |
 | No bypass or inherited key in the launch | `cargo test -p juggler-adapters --test codex_app_server` (`the_driven_launch_never_carries_a_bypass_or_an_inherited_key`) | none | pass | PASS | 1c593149 | 2026-10-25 | agent |
-| Live: a real approval and question; limits before the first turn ends | docs/qa/runtime-lab.md (the coordinator's live lab) | live | approval shown in the lab; the rest not run | UNPROVEN | — | 2026-10-25 | agent |
+| Live: a real approval; limits before the first turn | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), "Codex" (by hand in the codec's shapes) | live | `account/rateLimits/read` before any turn: weekly only (`windowDurationMins` 10080) with its reset, no 5-hour; `requestApproval` with `availableDecisions` [accept, acceptWithExecpolicyAmendment, cancel]; `accept` carried the turn on | PASS | 2414a4bd | 2026-10-25 | agent |
+| Live: a question | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), "Codex" | `item/tool/requestUserInput` or text | plain text on 0.163.0 with `experimentalApi: false` (no requestUserInput) | PASS | 2414a4bd | 2026-10-25 | agent |
+| Live: the approval's summary names the command | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), bug 2 | "ls" | Codex sends `command: "/bin/zsh -lc ls"` (the real command is in `commandActions`); `command_ask` would show the wrapper | FAIL | 2414a4bd | 2026-10-25 | agent |
+| Live: in the app (the session page, Needs you, the audit) | docs/qa/runtime-lab.md step 1 | seen in the app | BLOCKED: AI Juggler Dev not built (disk < 25 GB), no desktop control | UNPROVEN | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 
