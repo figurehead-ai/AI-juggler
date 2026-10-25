@@ -218,6 +218,7 @@ read_routes! {
     "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
     "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
     "cost_rollups" => async_result commands::cost_rollups(state; account: Option<String>);
+    "cost_rows_page" => async_result commands::cost_rows_page(state; account: Option<String>, page: crate::paging::PageRequest);
     "pricing_catalog_info" => async_result commands::pricing_catalog_info(state);
     "usage_source_health" => async_result commands::usage_source_health(state);
     "reset_queue_list" => async_result commands::reset_queue_list(state);
@@ -243,8 +244,12 @@ read_routes! {
     // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
+    "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
+    "sessions_page" => async_result features::sessions::commands::sessions_page(state; query: features::sessions::rows::SessionsQuery, page: crate::paging::PageRequest);
+    "sessions_counts" => async_result features::sessions::commands::sessions_counts(state; query: features::sessions::rows::SessionsQuery);
+    "sessions_get" => async_result features::sessions::commands::sessions_get(state; ids: Vec<String>);
     "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
     "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);
     "editor_choices" => async_result manage::editor_choices(state);
