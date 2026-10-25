@@ -3987,7 +3987,7 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             };
         for record in storage.sessions().list(None)? {
             // AJ-E2302: a driven session's state is its tool's, never a guess.
-            if !is_active(record.status) || state.runtime.is_driven(&record.id) {
+            if !is_active(record.status) || state.runtime.is_exact(&record.id) {
                 engine.forget(&record.id);
                 continue;
             }

@@ -47,6 +47,10 @@ bitflags::bitflags! {
         /// tools as an MCP server, pre-allowed
         /// (`HarnessAdapter::agent_bridge` says how).
         const AGENT_BRIDGE = 1 << 13;
+        /// AJ-E2306 (D-40): its terminal sessions report their exact state
+        /// through the tool's own hooks, from a per-launch file in AI
+        /// Juggler's folder (`HarnessAdapter::state_reports` says how).
+        const STATE_REPORTS = 1 << 14;
     }
 }
 

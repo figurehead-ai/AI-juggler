@@ -20,6 +20,7 @@ pub mod claude_conversations;
 mod claude_endpoint;
 pub mod claude_environment;
 pub mod claude_handover;
+pub mod claude_hooks;
 pub mod claude_inventory;
 pub mod claude_live;
 pub mod claude_transcript;

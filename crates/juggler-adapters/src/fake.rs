@@ -67,6 +67,30 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::FORK
             | Capabilities::AGENT_BRIDGE
             | Capabilities::PROTOCOL_SERVER
+            | Capabilities::STATE_REPORTS
+    }
+
+    /// AJ-E2306: like a tool that runs hooks named in a file on its command
+    /// line (`fake-harness run --hooks-config FILE`).
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        let file = launch.dir.join("fake-hooks.json");
+        let mut out = args.to_vec();
+        out.extend([
+            "--hooks-config".to_owned(),
+            file.to_string_lossy().into_owned(),
+        ]);
+        Some(juggler_adapter::reports::ReportsInjection {
+            args: out,
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-hooks.json".to_owned(),
+                contents: serde_json::json!({"command": launch.program.to_string_lossy()})
+                    .to_string(),
+            }],
+        })
     }
 
     /// AJ-E2302: `fake-harness drive` (`fake_driven.rs`).

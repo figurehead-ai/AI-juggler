@@ -46,6 +46,12 @@
 //!    tool states for its options (Claude Code: `--output-format
 //!    stream-json` with `-p` needs `--verbose`), so none is refused at
 //!    start.
+//! 10. **State reports, honestly** (AJ-E2306) — `STATE_REPORTS` is
+//!     declared exactly when the adapter adds them. What it adds keeps the
+//!     launch's own arguments in order (it may only fold away an AI
+//!     Juggler overlay file it replaces), writes files only by plain name
+//!     into the launch's folder, names the report program in every command
+//!     it adds, copies no value from the environment, and adds no wildcard.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -1124,6 +1130,98 @@ pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 10. State reports, honestly
+
+pub fn adds_state_reports_honestly(subject: &dyn Subject) {
+    use juggler_adapter::reports::ReportsLaunch;
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_REPORT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let overlays = sandbox.accounts.parent().unwrap().join("overlays");
+    let launch_dir = overlays.join("runtime/kit-session");
+    let launch = ReportsLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        dir: launch_dir.clone(),
+        overlays: overlays.clone(),
+    };
+    let declares = adapter.capabilities().contains(Capabilities::STATE_REPORTS);
+    let home = dir.to_string_lossy().into_owned();
+    for mode in all_modes("kit-session-1") {
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        let injection = adapter.state_reports(&launch, &spec.args);
+        assert_eq!(
+            injection.is_some(),
+            declares,
+            "{name}: STATE_REPORTS is declared {declares} but the injection is {injection:?}"
+        );
+        let Some(injection) = injection else { continue };
+        let ours = |arg: &str| Path::new(arg).starts_with(&overlays);
+        let mut rest = injection.args.iter();
+        assert!(
+            spec.args
+                .iter()
+                .filter(|arg| !ours(arg))
+                .all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            injection.args
+        );
+        // What it adds: the arguments the launch didn't have, and its files.
+        let added: Vec<&String> = injection
+            .args
+            .iter()
+            .filter(|arg| !spec.args.contains(arg))
+            .collect();
+        let all = format!(
+            "{added:?}\n{}",
+            injection
+                .files
+                .iter()
+                .map(|f| f.contents.as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        assert!(
+            !all.contains(KEY_CANARY),
+            "{name}: a value from the environment was copied"
+        );
+        assert!(
+            !all.contains(&home),
+            "{name}: it points into the account's folder"
+        );
+        assert!(!all.contains('*'), "{name}: a wildcard: {all}");
+        assert!(
+            all.contains(&*launch.program.to_string_lossy()),
+            "{name}: no command runs the report program"
+        );
+        for file in &injection.files {
+            assert!(
+                !file.name.is_empty()
+                    && !file.name.contains(['/', '\\'])
+                    && !file.name.starts_with('.'),
+                "{name}: a file outside the launch's folder: {:?}",
+                file.name
+            );
+        }
+        for arg in &injection.args {
+            if ours(arg) {
+                assert!(
+                    Path::new(arg).starts_with(&launch_dir),
+                    "{name}: names an overlay file it didn't write: {arg}"
+                );
+            }
+        }
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -1174,6 +1272,11 @@ macro_rules! conformance {
             #[test]
             fn keeps_the_tools_own_option_rules() {
                 conformance::keeps_the_tools_own_option_rules(&$subject);
+            }
+
+            #[test]
+            fn adds_state_reports_honestly() {
+                conformance::adds_state_reports_honestly(&$subject);
             }
         }
     };

@@ -654,6 +654,23 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// AJ-E2306 (D-40): how this tool's terminal launch (arguments `args`)
+    /// reports its exact state through the tool's own hooks: the whole new
+    /// argument list and the files for `launch.dir`, AI Juggler's own
+    /// folder. Never an edit to the user's setup, never a hook that decides
+    /// anything for the user. `None` (the default): the tool has no hooks
+    /// AI Juggler uses. An adapter that returns `Some` declares
+    /// [`crate::Capabilities::STATE_REPORTS`] (the conformance kit holds both).
+    #[must_use]
+    fn state_reports(
+        &self,
+        launch: &crate::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<crate::reports::ReportsInjection> {
+        let _ = (launch, args);
+        None
+    }
+
     /// AJ-E2302 (D-40, ADR-0022): the tool's own protocol, for sessions
     /// AI Juggler drives instead of running its terminal UI. `None` (the
     /// default): the terminal is this tool's only runtime. An adapter that

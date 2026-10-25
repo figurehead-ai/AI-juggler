@@ -24,6 +24,11 @@ fn main() -> ExitCode {
             println!("{USAGE}");
             ExitCode::SUCCESS
         }
+        Ok(Command::Hook(event)) => {
+            // Silent and always 0: a hook never decides for the tool.
+            juggler_agentbridge::hook::run(&event, std::io::stdin().lock());
+            ExitCode::SUCCESS
+        }
         Ok(Command::Version) => {
             println!("juggler-agent {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS

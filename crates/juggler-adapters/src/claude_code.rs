@@ -134,6 +134,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::USAGE_QUOTA_FEED
             | Capabilities::FORK
             | Capabilities::AGENT_BRIDGE
+            // AJ-E2306: its terminal sessions report through its own hooks.
+            | Capabilities::STATE_REPORTS
+    }
+
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        Some(crate::claude_hooks::injection(launch, args))
     }
 
     fn agent_bridge(

@@ -280,6 +280,8 @@ pub fn start(
         start.project.as_deref(),
         start.account.id.as_str(),
     );
+    // AJ-E2306: the tool's own hooks report its exact state.
+    super::reports::prepare(state, adapter, &mut terminal, &session);
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &session,

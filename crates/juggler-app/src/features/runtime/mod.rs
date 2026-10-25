@@ -19,6 +19,7 @@ pub mod commands;
 pub mod driver;
 pub mod dto;
 pub mod launch;
+pub mod reports;
 pub mod settings;
 
 use std::collections::HashMap;
@@ -42,6 +43,8 @@ pub struct Runtimes {
     drivers: Mutex<HashMap<String, Arc<Driver>>>,
     /// Why a session runs in the terminal although driven was chosen.
     fallbacks: Mutex<HashMap<String, String>>,
+    /// What terminal sessions' hooks said last (AJ-E2306).
+    observed: Mutex<HashMap<String, reports::Observed>>,
     notifier: Mutex<Option<Notifier>>,
 }
 
@@ -80,10 +83,43 @@ impl Runtimes {
         self.drivers.lock().ok()?.get(session).cloned()
     }
 
-    /// Whether `session` is driven (its state is the tool's, never a guess).
+    /// Whether `session` is driven.
     #[must_use]
     pub fn is_driven(&self, session: &SessionId) -> bool {
         self.driver(session.as_str()).is_some()
+    }
+
+    /// Whether `session`'s state is its tool's own word, never a guess: it
+    /// is driven, or its hooks report.
+    #[must_use]
+    pub fn is_exact(&self, session: &SessionId) -> bool {
+        self.is_driven(session)
+            || self
+                .observed
+                .lock()
+                .is_ok_and(|observed| observed.contains_key(session.as_str()))
+    }
+
+    /// Takes in a hook's report for a terminal session: its exact state,
+    /// the stored state, and its conversation's link.
+    pub fn observe(
+        &self,
+        state: &Arc<AppState>,
+        session: &SessionId,
+        hook: &juggler_agentbridge::wire::HookReport,
+    ) {
+        let now = {
+            let Ok(mut observed) = self.observed.lock() else {
+                return;
+            };
+            let next = reports::next(session, observed.get(session.as_str()), hook);
+            observed.insert(session.to_string(), next.clone());
+            next
+        };
+        if let Some(native_id) = &hook.tool_session {
+            driver::link(state, session, native_id, hook.transcript.as_deref());
+        }
+        driver::store_ask(state, session, now.ask.as_ref(), now.state == "ended");
     }
 
     /// Every driver, for the asks across sessions.
@@ -113,6 +149,9 @@ impl Runtimes {
         if let Ok(mut fallbacks) = self.fallbacks.lock() {
             fallbacks.remove(session);
         }
+        if let Ok(mut observed) = self.observed.lock() {
+            observed.remove(session);
+        }
     }
 
     /// The runtime of `session`, as the UI shows it; `None` for a session
@@ -122,10 +161,29 @@ impl Runtimes {
         if let Some(driver) = self.driver(session) {
             return Some(driver.info());
         }
-        let why = self.fallbacks.lock().ok()?.get(session).cloned()?;
+        let why = self
+            .fallbacks
+            .lock()
+            .ok()
+            .and_then(|f| f.get(session).cloned());
+        let seen = self
+            .observed
+            .lock()
+            .ok()
+            .and_then(|o| o.get(session).cloned());
+        if why.is_none() && seen.is_none() {
+            return None;
+        }
         Some(RuntimeInfo {
             kind: "terminal".into(),
-            fell_back: Some(why),
+            fell_back: why,
+            state: seen.as_ref().map(|s| s.state.to_owned()),
+            asks: seen
+                .as_ref()
+                .and_then(|s| s.ask.clone())
+                .into_iter()
+                .collect(),
+            error: seen.and_then(|s| s.error),
             ..RuntimeInfo::default()
         })
     }

@@ -29,6 +29,7 @@ pub mod jsonc;
 pub mod launch;
 pub mod live;
 pub mod registry;
+pub mod reports;
 pub mod runtime;
 pub mod spec;
 pub mod system_tools;

@@ -532,11 +532,23 @@ fn execute(driven: &mut dyn DrivenSession, command: Command) -> Option<Command> 
 /// Keeps the stored session exact: Asks you while an ask is open, else
 /// running; the notifier tells the UI.
 fn store(state: &Arc<AppState>, session: &SessionId, snapshot: &Snapshot) {
-    if snapshot.ended {
+    store_ask(state, session, snapshot.asks.first(), snapshot.ended);
+}
+
+/// The stored state for an exact runtime state: Asks you (with what it
+/// asks) while `ask` is open, else running; shared by the drivers and the
+/// hooks' reports.
+pub(super) fn store_ask(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    ask: Option<&AskInfo>,
+    ended: bool,
+) {
+    if ended {
         state.runtime.notify(session.as_str(), true);
         return;
     }
-    let asks = snapshot.asks.first();
+    let asks = ask;
     if let Ok(storage) = state.storage.lock()
         && let Ok(mut record) = storage.sessions().get(session)
         && matches!(
@@ -577,7 +589,12 @@ fn store(state: &Arc<AppState>, session: &SessionId, snapshot: &Snapshot) {
 /// its id, and its file when that lies in the account's own folder (never
 /// a path elsewhere). `false` until the record exists (it is written just
 /// after the start).
-fn link(state: &Arc<AppState>, session: &SessionId, native_id: &str, path: Option<&str>) -> bool {
+pub(super) fn link(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    native_id: &str,
+    path: Option<&str>,
+) -> bool {
     use juggler_core::model::{ConversationId, TranscriptRef};
     let Ok(storage) = state.storage.lock() else {
         return false;

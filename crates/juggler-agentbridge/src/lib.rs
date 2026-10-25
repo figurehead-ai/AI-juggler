@@ -29,5 +29,6 @@
 
 pub mod cli;
 pub mod client;
+pub mod hook;
 pub mod mcp;
 pub mod wire;

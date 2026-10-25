@@ -40,6 +40,7 @@ pub const USAGE: &str = "juggler-agent: AI Juggler's pool tools for the agent in
   juggler-agent cards           the pool's context cards
   juggler-agent status <text>   set this session's one-line status (empty clears it)
   juggler-agent --mcp           serve the same as an MCP server on stdin and stdout
+  juggler-agent hook <event>    (run by the tool's own hooks) report this session's state
 
 Works in sessions AI Juggler started with its agent tools on. What the pool
 lets agents do is set by the user, in AI Juggler.";
@@ -55,6 +56,9 @@ pub enum Command {
     Version,
     /// One call.
     Call(Call, Option<String>),
+    /// AJ-E2306: a tool's hook reporting its session's state
+    /// (`hook <event>`, the tool's JSON on stdin).
+    Hook(String),
 }
 
 /// Reads the arguments (without the program's name).
@@ -68,6 +72,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         ["--mcp"] => Ok(Command::Mcp),
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
+        ["hook", event] => Ok(Command::Hook((*event).to_owned())),
         ["whoami"] => Ok(Command::Call(Call::Whoami, None)),
         ["roster" | "pool_roster"] => Ok(Command::Call(Call::PoolRoster, None)),
         ["cards"] => Ok(Command::Call(Call::Cards, None)),

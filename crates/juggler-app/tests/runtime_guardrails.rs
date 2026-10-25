@@ -83,8 +83,13 @@ fn only_the_users_click_reaches_an_answer() {
 fn agents_and_pools_never_reach_the_runtime() {
     for (rel, text) in shipped() {
         if rel.starts_with("features/agent_bridge/") || rel.starts_with("features/pools/") {
+            // A tool hook's report may set its own session's state
+            // (`runtime::reports::handle`); nothing else of the runtime.
+            let other = text
+                .replace("crate::features::runtime::reports::handle(", "")
+                .contains("features::runtime");
             assert!(
-                !text.contains("features::runtime") && !text.contains("state.runtime"),
+                !other && !text.contains("state.runtime"),
                 "{rel} reaches the runtime"
             );
         }

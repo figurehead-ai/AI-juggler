@@ -53,6 +53,16 @@ const fn asks(call: Call) -> &'static str {
     }
 }
 
+/// One line on the socket: a tool hook's report (AJ-E2306: its own shape
+/// and its own key, never an agent's call) or an agent's call.
+#[must_use]
+pub fn handle_line(state: &Arc<AppState>, line: &str) -> Response {
+    if let Ok(report) = serde_json::from_str::<wire::Report>(line.trim()) {
+        return crate::features::runtime::reports::handle(state, &report);
+    }
+    handle(state, line)
+}
+
 /// Answers one request line.
 #[must_use]
 pub fn handle(state: &Arc<AppState>, line: &str) -> Response {
