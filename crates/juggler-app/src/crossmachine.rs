@@ -1323,10 +1323,12 @@ pub(crate) fn launch_here(
     let assertion = crate::identity::assert_identity(state, account)?;
     let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &session,
         &spec,
-        &crate::commands::ledger_ctx(state, account, Some(project.id.to_string())),
+        account,
+        Some(project.id.to_string()),
     )?;
     let machine = crate::commands::local_machine_id(state);
     let storage = crate::commands::lock_storage_arc(state)?;

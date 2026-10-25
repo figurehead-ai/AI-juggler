@@ -535,6 +535,62 @@ fn something_that_looks_like_a_secret_stops_the_export() {
     assert!(!archive.exists(), "nothing was written");
 }
 
+/// AJ-E1601 (D-34): an account through another service keeps its key in
+/// the Keychain only (an in-memory store here): no backup ever holds it.
+#[test]
+fn a_service_accounts_key_never_reaches_a_backup() {
+    use juggler_app::features::service_accounts::commands::{
+        ServiceAccountRequest, ServiceProfileRequest, service_account_add_impl,
+    };
+    let work = tempfile::tempdir().unwrap();
+    let mac_a = work.path().join("mac-a");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        work.path().join("no-claude"),
+    )));
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::with_bin(
+        work.path().join("no-codex"),
+    )));
+    let a = Arc::new(AppState::init_with_registry(mac_a.clone(), registry).unwrap());
+    a.service_keys
+        .install(Arc::new(juggler_account::MemoryStore::default()));
+    let key = "fixture-service-key-for-a-backup-0123";
+    let made = service_account_add_impl(
+        &a,
+        &ServiceAccountRequest {
+            service: "kimi".into(),
+            plan: Some("Pro".into()),
+            key: key.into(),
+            profiles: vec![
+                ServiceProfileRequest {
+                    tool: "claude-code".into(),
+                    label: "Kimi".into(),
+                    model: "k3-256k".into(),
+                },
+                ServiceProfileRequest {
+                    tool: "codex".into(),
+                    label: "Kimi Codex".into(),
+                    model: "k3-256k".into(),
+                },
+            ],
+        },
+    )
+    .unwrap();
+    assert_eq!(made.len(), 2);
+    let archive = work.path().join("service.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+    let contents = entries(&archive);
+    assert!(!contents.is_empty());
+    for (name, body) in &contents {
+        assert!(
+            !body
+                .windows(key.len())
+                .any(|window| window == key.as_bytes()),
+            "{name} holds the key"
+        );
+    }
+}
+
 #[test]
 fn export_throughput_keeps_a_gigabyte_inside_a_minute() {
     let work = tempfile::tempdir().unwrap();

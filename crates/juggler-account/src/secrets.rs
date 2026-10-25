@@ -31,6 +31,12 @@ pub trait SecretStore: Send + Sync {
     fn set(&self, account: &str, secret: &str) -> Result<(), SecretError>;
     /// Deletes the secret for `account` (absent is fine).
     fn delete(&self, account: &str);
+    /// Whether a secret for `account` is there. A store that can tell
+    /// without reading the secret does (the Keychain reads only the item's
+    /// attributes); the default reads it and drops it.
+    fn has(&self, account: &str) -> bool {
+        self.get(account).is_some()
+    }
 }
 
 /// The macOS Keychain (generic password items) under one service. Each
@@ -39,13 +45,22 @@ pub trait SecretStore: Send + Sync {
 #[derive(Debug, Clone, Copy)]
 pub struct KeychainStore {
     service: &'static str,
+    /// What a failed save couldn't do, in words.
+    what: &'static str,
 }
 
 impl KeychainStore {
     /// The store for `service` (the edition's bundle identifier).
     #[must_use]
     pub const fn for_service(service: &'static str) -> Self {
-        Self { service }
+        Self::for_item(service, "save the device token")
+    }
+
+    /// The store for `service`, whose failed save says it couldn't `what`
+    /// (`save the key`).
+    #[must_use]
+    pub const fn for_item(service: &'static str, what: &'static str) -> Self {
+        Self { service, what }
     }
 
     /// The Keychain service this store reads and writes.
@@ -76,11 +91,23 @@ impl SecretStore for KeychainStore {
             account,
             secret.as_bytes(),
         )
-        .map_err(|_| SecretError::Store("save the device token"))
+        .map_err(|_| SecretError::Store(self.what))
     }
 
     fn delete(&self, account: &str) {
         let _ = security_framework::passwords::delete_generic_password(self.service, account);
+    }
+
+    fn has(&self, account: &str) -> bool {
+        // The item's attributes only: the secret itself is never read here.
+        security_framework::item::ItemSearchOptions::new()
+            .class(security_framework::item::ItemClass::generic_password())
+            .service(self.service)
+            .account(account)
+            .load_attributes(true)
+            .limit(1_i64)
+            .search()
+            .is_ok_and(|found| !found.is_empty())
     }
 }
 

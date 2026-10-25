@@ -202,10 +202,13 @@ fn cannot_sign_in(state: &Arc<AppState>, session: &SessionId) -> bool {
 }
 
 /// Why `session`'s account may only be started by the user (its tool's
-/// terms), when it may.
+/// terms, or, through another service, that service's), when it may.
 fn interactive_only(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
-    account_of(state, session)
-        .and_then(|(account, adapter)| adapter.interactive_only(&account.state_dir))
+    account_of(state, session).and_then(|(account, adapter)| {
+        adapter
+            .interactive_only(&account.state_dir)
+            .or_else(|| crate::features::service_accounts::interactive_only(state, &account))
+    })
 }
 
 /// After `session` ended (its status already stored): starts it again on

@@ -40,7 +40,7 @@ pub const DEFAULT_ACCOUNT_KEY: &str = "accounts.default";
 const ACTOR_USER: &str = "user";
 
 /// The longest label accepted (a label is a name, not a note).
-const LABEL_MAX: usize = 64;
+pub(crate) const LABEL_MAX: usize = 64;
 
 /// What Remove does with a copy's folder (an account used where it is
 /// always keeps its folder).
@@ -356,6 +356,9 @@ pub fn account_remove_impl(
         .record(&account.id, "remove", Some(&detail), ACTOR_USER)?;
     drop(storage);
     crate::usage_pipeline::forget_account_offsets(state, account.id.as_str());
+    // AJ-E1601 (D-34): through another service, its link goes, and with
+    // the account's last profile, the key in the Keychain.
+    crate::features::service_accounts::profile_removed(state, account.id.as_str())?;
     Ok(AccountRemovedInfo {
         id: account.id.to_string(),
         label: account.label,

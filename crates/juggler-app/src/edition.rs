@@ -104,6 +104,21 @@ impl Edition {
         })
     }
 
+    /// AJ-E1601 (D-34): the Keychain items holding the keys of accounts
+    /// added through another service, one per account. AI Juggler makes
+    /// them, so reading its own never asks.
+    #[must_use]
+    pub fn service_keys(self) -> KeychainStore {
+        KeychainStore::for_item(
+            match self {
+                Self::Main => "ai.figurehead.juggler.service-keys",
+                Self::Nightly => "ai.figurehead.juggler.nightly.service-keys",
+                Self::Dev => "ai.figurehead.juggler.dev.service-keys",
+            },
+            "save the key",
+        )
+    }
+
     /// The Fleet port this edition listens on first (any free port when
     /// it's taken).
     #[must_use]
@@ -190,9 +205,12 @@ mod tests {
                 assert_ne!(a.data_dir_name(), b.data_dir_name());
                 assert_ne!(a.keychain().service(), b.keychain().service());
                 assert_ne!(a.vault_keychain().service(), b.vault_keychain().service());
+                assert_ne!(a.service_keys().service(), b.service_keys().service());
                 assert_ne!(a.preferred_link_port(), b.preferred_link_port());
             }
             assert_ne!(a.keychain().service(), a.vault_keychain().service());
+            assert_ne!(a.keychain().service(), a.service_keys().service());
+            assert_ne!(a.vault_keychain().service(), a.service_keys().service());
         }
     }
 

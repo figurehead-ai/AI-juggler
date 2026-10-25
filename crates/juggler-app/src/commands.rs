@@ -340,6 +340,9 @@ pub fn ranking_rows_inner(
 struct SwitchRankContext {
     /// The switching-away Provider id.
     source_provider: String,
+    /// Its side of the pair (AJ-E1601: the tool, or the tool through
+    /// another service).
+    source_side: String,
     /// The SOURCE account's TTE minutes (None = unknown).
     source_tte_min: Option<f64>,
     /// Accounts that are returnable originals (open excursions).
@@ -527,25 +530,31 @@ fn rank_candidates_for(
         // live cell — D-04) rides the 0.15 slot, a replay pair pays
         // its priced switch cost into costFit, and returnable
         // originals carry the source's TTE for the return bonus.
+        // AJ-E1601: a profile through another service is its own side of
+        // a pair, and is ready when its key is in the Keychain.
+        let side = crate::features::service_accounts::switch_side_in(&storage, account);
         let (fidelity, switch_cost) = match switch {
             Some(context) => (
                 Some(juggler_handover::validation::advertised_ceiling_number(
-                    &context.source_provider,
-                    account.harness.as_str(),
-                    dogfood.get(&dogfood_key(
-                        context.source_provider.as_str(),
-                        account.harness.as_str(),
-                    )),
+                    &context.source_side,
+                    &side,
+                    dogfood.get(&dogfood_key(&context.source_side, &side)),
                 )),
                 replay_cost_for(context, account, &catalog, now),
             ),
             None => (None, 0.0), // launch-neutral, documented (§Q6)
         };
         let projected_usd = projected_usd.map(|usd| usd + switch_cost);
+        let ready = crate::features::service_accounts::ready_in(state, &storage, account);
         candidates.push(juggler_core::ranking::Candidate {
             account: account.id.as_str().to_owned(),
-            logged_out: login_state_of(&state.registry, account)
-                == juggler_adapters::LoginState::LoggedOut,
+            logged_out: ready.map_or_else(
+                || {
+                    login_state_of(&state.registry, account)
+                        == juggler_adapters::LoginState::LoggedOut
+                },
+                |ready| !ready,
+            ),
             wrong_provider: false, // request-restriction surface rides E210's pair gating
             exhausted_no_reset,
             headroom_pct,
@@ -1152,6 +1161,11 @@ pub struct AccountInfo {
     /// names its own (set by the accounts list; `null` elsewhere).
     #[ts(optional = nullable)]
     pub is_default: Option<bool>,
+    /// AJ-E1601: the service it runs through (`OpenCode Go`), for a
+    /// profile added through another service; its sign-in state then says
+    /// whether its key is in the Keychain.
+    #[ts(optional = nullable)]
+    pub service: Option<String>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1512,6 +1526,7 @@ pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
         info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
         out.push(info);
     }
+    crate::features::service_accounts::mark_profiles(state, &mut out);
     Ok(out)
 }
 
@@ -3030,10 +3045,12 @@ pub fn launch_profile(
             .id
             .to_string()
     };
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &session_id,
         &spec,
-        &ledger_ctx(state, &account, Some(project_id.clone())),
+        &account,
+        Some(project_id.clone()),
     )?;
     {
         // The machine identity locks storage itself — resolve it
@@ -4457,6 +4474,7 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         imported_at: account.imported_at,
         in_place: account.in_place,
         is_default: None,
+        service: None,
     }
 }
 
@@ -5396,10 +5414,12 @@ pub(crate) fn preflight_with(
     // AJ-E808: the door shows the same validation verdict as the rows, and
     // the fidelity engine caps an unproven pair from the same cell (QA P23:
     // it used to treat every pair as unproven).
+    // AJ-E1601: a profile through another service is its own side, never
+    // a proven switch.
     let validated = pair_validated_now(
         state,
-        account_a.harness.as_str(),
-        account_b.harness.as_str(),
+        &crate::features::service_accounts::switch_side(state, &account_a)?,
+        &crate::features::service_accounts::switch_side(state, &account_b)?,
     )?;
     dispositions.flags.validated = validated;
 
@@ -6846,14 +6866,12 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &new_session,
         &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            source.project.as_ref().map(ToString::to_string),
-        ),
+        &account_a,
+        source.project.as_ref().map(ToString::to_string),
     )?;
 
     record_compensating_edge(state, context, &new_session, &profile_a.id, &source)?;
@@ -7029,18 +7047,14 @@ fn make_launch_hook<'a>(
                 },
             )
             .map_err(|error| error.to_string())?;
-        let spawned = state
-            .supervisor
-            .spawn(
-                new_session,
-                &spec,
-                &ledger_ctx(
-                    state,
-                    account_b,
-                    source.project.as_ref().map(ToString::to_string),
-                ),
-            )
-            .map_err(|error| error.to_string())?;
+        let spawned = crate::features::sessions::spawn::spawn_account_session(
+            state,
+            new_session,
+            &spec,
+            account_b,
+            source.project.as_ref().map(ToString::to_string),
+        )
+        .map_err(|error| error.to_string())?;
         Ok(spawned.pid)
     }
 }
@@ -12441,14 +12455,12 @@ fn resume_original_with_delta(
     let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &new_session,
         &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            original_session.project.as_ref().map(ToString::to_string),
-        ),
+        &account_a,
+        original_session.project.as_ref().map(ToString::to_string),
     )?;
 
     record_switch_back_edge(
@@ -13105,6 +13117,7 @@ fn switch_rank_context_of(
     });
     Ok(SwitchRankContext {
         source_provider: source_account.harness.to_string(),
+        source_side: crate::features::service_accounts::switch_side_in(&storage, source_account),
         source_tte_min,
         returnable_accounts: returnable,
         source_replay_tokens,
@@ -13167,14 +13180,13 @@ pub fn switch_targets_impl(
             ));
             // AJ-E210: the badge and validated state come from the
             // validation matrix merged with any recorded live cells
-            // (a passing cell validates only real-CI rows — D-04).
-            let cell = dogfood.get(&dogfood_key(
-                context.source_provider.as_str(),
-                account.harness.as_str(),
-            ));
+            // (a passing cell validates only real-CI rows — D-04). A
+            // profile through another service is its own side (AJ-E1601).
+            let side = crate::features::service_accounts::switch_side_in(&storage, &account);
+            let cell = dogfood.get(&dogfood_key(context.source_side.as_str(), &side));
             let matrix_row = juggler_handover::validation::pair_cell(
-                context.source_provider.as_str(),
-                account.harness.as_str(),
+                context.source_side.as_str(),
+                &side,
             )
             .map(|row| match cell {
                 Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
@@ -13540,14 +13552,12 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &new_session,
         &spec,
-        &ledger_ctx(
-            state,
-            &account,
-            session_row.project.as_ref().map(ToString::to_string),
-        ),
+        &account,
+        session_row.project.as_ref().map(ToString::to_string),
     )?;
     {
         let machine = local_machine_id(state);
@@ -13778,11 +13788,22 @@ fn dogfood_cells_of(
 /// One Settings → Beta matrix row (the same data the badges derive
 /// from — one source, no drift).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+// A flat table row for one panel: independent facts about one pair, not
+// a state machine.
+#[allow(clippy::struct_excessive_bools)]
 pub struct ValidationCellInfo {
-    /// Source provider id.
+    /// Source side (a provider id, or one through another service).
     pub from: String,
-    /// Target provider id.
+    /// Target side.
     pub to: String,
+    /// The source's tool.
+    pub from_tool: String,
+    /// The target's tool.
+    pub to_tool: String,
+    /// AJ-E1601: the source runs its tool through another service.
+    pub from_service: bool,
+    /// AJ-E1601: the target runs its tool through another service.
+    pub to_service: bool,
     /// The switch mechanism at the ceiling (transplant/replay/pack-only).
     pub mechanism: String,
     /// The researched ceiling (E203), wire name.
@@ -13862,6 +13883,10 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
             ValidationCellInfo {
                 from: row.from.clone(),
                 to: row.to.clone(),
+                from_tool: juggler_handover::validation::side_tool(&row.from).to_owned(),
+                to_tool: juggler_handover::validation::side_tool(&row.to).to_owned(),
+                from_service: juggler_handover::validation::is_through_service(&row.from),
+                to_service: juggler_handover::validation::is_through_service(&row.to),
                 mechanism: match row.mechanism {
                     juggler_handover::validation::PairMechanism::Transplant => "transplant",
                     juggler_handover::validation::PairMechanism::Replay => "replay",

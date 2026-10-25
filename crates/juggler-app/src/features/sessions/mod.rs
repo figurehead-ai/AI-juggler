@@ -4,6 +4,7 @@
 pub mod commands;
 pub mod dto;
 pub mod restart;
+pub mod spawn;
 
 use std::sync::Arc;
 

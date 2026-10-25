@@ -60,4 +60,10 @@ in_place: boolean,
  * AJ-E1501: new sessions start with this account unless a project
  * names its own (set by the accounts list; `null` elsewhere).
  */
-is_default?: boolean | null, };
+is_default?: boolean | null, 
+/**
+ * AJ-E1601: the service it runs through (`OpenCode Go`), for a
+ * profile added through another service; its sign-in state then says
+ * whether its key is in the Keychain.
+ */
+service?: string | null, };
