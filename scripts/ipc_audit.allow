@@ -1,10 +1,12 @@
 # AJ-E2011 (ENGINEERING-GUIDE A3, T1, I3, I4): today's commands that break an
 # IPC rule, by rule. This list only shrinks: fix a command and drop its line.
-# Format: <rule> <command>   (rules: uncalled, sync, main-thread, long, name)
+# Format: <rule> <command>   (rules: uncalled, sync, main-thread, unbounded, long, name)
 # sync and main-thread are empty (0.1.5 review: a sync command runs on the
 # main thread, and a page that asked for one froze the window): every
 # command is async. A command that must run on the main thread is marked
 # `// ipc: main-thread (why)` and listed here as `main-thread <command>  # why`.
+# unbounded (2026-10-25): a command whose list can grow pages it (paging.rs);
+# each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
 uncalled harnesses_list_alias
@@ -19,3 +21,123 @@ uncalled scan_cancel
 uncalled sessions_list_alias
 uncalled usage_source_health
 uncalled validation_dogfood_record
+unbounded account_audit  # TO PAGE: an account's audit log
+unbounded account_set_default  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded account_settings_apply  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded account_settings_check  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded account_storage  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded accounts_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded backup_export  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded backup_verify  # bounded: one backup's checks
+unbounded budgets_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded cleanup_alerts  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded cleanup_inventory  # TO PAGE: every leftover process
+unbounded cleanup_pause_set  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded cleanup_resume_after_crash  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded cleanup_tier2_decide  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded cloud_backup_list  # TO PAGE: every cloud backup
+unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded conversations_last_messages  # bounded: the last 2-3 messages
+unbounded conversations_list  # TO PAGE: every conversation; the rail's working set (open + recent) next
+unbounded cost_rollups  # TO PAGE: its rows; the table reads cost_rows_page (the charts agent's Usage), totals stay
+unbounded crash_answer  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded crash_info  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded crash_set  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded editor_choices  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded environment_scan  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded environment_scan_full  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded expert_setup_info  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_claim  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_dismiss_notice  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_link_cancel  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_link_poll  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_link_start  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_refresh  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_rename  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_save_choices  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_status  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded figurehead_unlink  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded fleet_account_macs  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_discovered  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_divergences  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_launch_options  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_peers  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_prompts  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_remote  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_set_permission  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_switch_back_plan  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded fleet_usage_by_machine  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded going_back_options  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded harnesses_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded identity_check  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded instance_delete_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded instance_processes  # TO PAGE: one session's process tree
+unbounded instance_quality  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded instance_replay  # bounded: the transcript is cut at its size limit (truncated)
+unbounded instances_list  # TO PAGE: every session; the rail's working set (open + recent) next, History/Sessions already page
+unbounded isolation_check  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded isolation_offer  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded kill_execute  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded kill_liveness  # bounded: the pids it was asked about
+unbounded kill_verify  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded launch_recipe_env_get  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded launch_recipe_env_set  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded launch_recipes_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded machine_advice  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded machine_alerts_take  # bounded: drains the alert queue (capped)
+unbounded machine_health  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded orphan_stop_all  # bounded: one session's leftovers
+unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded os_access_request  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded overnight_summary  # TO PAGE: what happened while away (grows with sessions)
+unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded parked_list  # bounded: the parked sessions (one per waiting session)
+unbounded parked_offers  # bounded: one per parked session
+unbounded port_inventory  # TO PAGE: every listening port
+unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded profiles_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded project_sync_diff  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded project_sync_rules  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded project_sync_servers  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded projects_list  # TO PAGE: every project (the rail; hundreds at most today)
+unbounded providers_capabilities  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded providers_discover  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded providers_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded quota_display_all  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded ranking_rows  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded reset_queue_list  # bounded: one per queued resume
+unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
+unbounded sessions_list_alias  # TO PAGE: legacy alias of instances_list
+unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded subscriptions_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded subtasks_list  # TO PAGE: a session's subtasks
+unbounded switch_back_plan  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_graph_overview  # TO PAGE: a project's switch history
+unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_setup_list  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded terminal_windows  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded this_mac  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded tools_catalog  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded transcript_search  # bounded: at most 100 hits per index; History searches through sessions_page
+unbounded update_check  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded update_install  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded update_set_channel  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded update_set_check_on_launch  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded update_status  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded usage_source_health  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded usage_stats_overview  # bounded: this week's metrics (a fixed schema)
+unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)
+unbounded validation_matrix  # bounded: a fixed set (settings, checks, choices or tools)

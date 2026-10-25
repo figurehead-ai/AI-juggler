@@ -16,6 +16,11 @@ code), then checks:
   the spinning wheel). The only way past is `// ipc: main-thread (why)`
   just above it, with its reason, and a `main-thread` line in the
   allowlist (today: none);
+- a command's list is bounded (0.1.5 review: Usage and History read
+  hundreds of rows at once): one that returns a list that can grow
+  (a `Vec`/map, itself or in the struct it returns) takes a
+  `PageRequest` and answers a `Page` (`paging.rs`), or is listed under
+  `unbounded` with why its list stays small;
 - a command body is at most 40 lines (A3: thin commands);
 - a command in `features/<feature>/` is named `<feature>_<verb>`, and every
   command has a verb after its feature (I4).
@@ -35,7 +40,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ALLOW = ROOT / "scripts" / "ipc_audit.allow"
 MAX_BODY = 40
-RULES = ("uncalled", "sync", "main-thread", "long", "name")
+RULES = ("uncalled", "sync", "main-thread", "unbounded", "long", "name")
+LIST = re.compile(r"\b(?:Vec|BTreeMap|HashMap|BTreeSet|HashSet)\s*<")
+STRUCT = re.compile(r"pub struct (\w+)(?:<[^>{]*>)?\s*\{")
+PAGED = re.compile(r"^(?:AppResult\s*<\s*)?(?:crate::paging::)?Page\s*<")
 MARKER = re.compile(r"ipc: main-thread\s*\(([^)]+)\)")
 COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\])\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
@@ -94,8 +102,51 @@ def definitions(src: Path) -> dict[str, dict]:
                 "marker": bool(marks),
                 "reason": next((m.group(1).strip() for line in marks if (m := MARKER.search(line))), ""),
                 "lines": body_lines(text, match.end()),
+                "returns": return_type(text, match.end()),
             }
     return found
+
+
+def return_type(text: str, fn_at: int) -> str:
+    """What the fn after `fn_at` returns (`()` when nothing)."""
+    open_at = text.index("(", fn_at)
+    depth = 0
+    for index in range(open_at, len(text)):
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                head = text[index + 1: text.index("{", index)]
+                return head.split("->", 1)[1].strip() if "->" in head else "()"
+    return "()"
+
+
+def struct_bodies(crates: Path) -> dict[str, str]:
+    """Every `pub struct`'s fields, by name, across the workspace."""
+    out: dict[str, str] = {}
+    for path in sorted(crates.rglob("*.rs")):
+        if "/tests/" in path.as_posix() or "/target/" in path.as_posix():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for match in STRUCT.finditer(text):
+            end = text.find("\n}", match.end())
+            out.setdefault(match.group(1), text[match.end(): end if end >= 0 else match.end()])
+    return out
+
+
+def grows(kind: str, structs: dict[str, str], depth: int = 2) -> bool:
+    """Does `kind` (a return type, or a struct's fields) hold a list that
+    can grow, other than a `Page`'s?"""
+    kind = re.sub(r"//[^\n]*", "", kind).strip()
+    if PAGED.search(kind):
+        return False
+    if LIST.search(kind):
+        return True
+    if depth == 0:
+        return False
+    names = set(re.findall(r"\b([A-Z]\w+)\b", kind)) - {"AppResult", "Option", "String", "Result"}
+    return any(grows(structs[name], structs, depth - 1) for name in names if name in structs)
 
 
 def ui_invokes(ui: Path) -> set[str]:
@@ -115,6 +166,7 @@ def findings(root: Path) -> tuple[list[str], dict[str, set[str]]]:
     defs = definitions(src)
     commands = registered(lib, {info["fn"]: name for name, info in defs.items()})
     called = ui_invokes(root / "ui" / "src")
+    structs = struct_bodies(root / "crates")
     hard = [f"the UI invokes `{name}`, which isn't a registered command" for name in sorted(called - commands)]
     rules: dict[str, set[str]] = {rule: set() for rule in RULES}
     for name in sorted(commands):
@@ -129,6 +181,8 @@ def findings(root: Path) -> tuple[list[str], dict[str, set[str]]]:
             rules["main-thread"].add(name)
             if not info["reason"]:
                 hard.append(f"`{name}` is marked `// ipc: main-thread` without its reason — `// ipc: main-thread (why)`")
+        if grows(info["returns"], structs):
+            rules["unbounded"].add(name)
         if info["lines"] > MAX_BODY:
             rules["long"].add(name)
         feature = re.match(r"features/([a-z0-9_]+)/", info["file"])
@@ -141,6 +195,7 @@ WORDS = {
     "uncalled": "is registered but nothing in the UI calls it (I3) — call it, remove it, or list it with a date",
     "sync": "is a sync command, so Tauri runs it on the main thread — make it `async` with its work in `crate::ipc::blocking` (T1)",
     "main-thread": "runs on the main thread — make it `async`; only a command that must run there may stay, marked `// ipc: main-thread (why)` and listed with its reason",
+    "unbounded": "returns a list that can grow — take a `PageRequest` and answer a `Page` (paging.rs), or list it under `unbounded` with why it stays small",
     "long": f"has a body over {MAX_BODY} lines — move the logic into the feature's service (A3)",
     "name": "isn't named <feature>_<verb> (I4)",
 }
@@ -214,6 +269,26 @@ def selftest() -> int:
         allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\n")
         if not any("tools_catalgo" in problem for problem in check(root, allow)):
             print("ipc-audit selftest FAILED: a typo'd invoke must fail")
+            bad += 1
+        # A list that can grow: a Vec, or a struct holding one, is unbounded;
+        # a Page is not.
+        (root / "ui" / "src" / "b.ts").unlink()
+        (src / "features" / "tools" / "lists.rs").write_text(
+            "pub struct ToolsReport {\n    pub rows: Vec<u8>,\n}\n"
+            "#[tauri::command]\npub async fn tools_rows() -> AppResult<Vec<u8>> {\n    Ok(vec![])\n}\n"
+            "#[tauri::command]\npub async fn tools_report() -> AppResult<ToolsReport> {\n    todo!()\n}\n"
+            "#[tauri::command]\npub async fn tools_page(page: PageRequest) -> AppResult<Page<u8>> {\n    todo!()\n}\n"
+        )
+        (src / "lib.rs").write_text("tauri::generate_handler![features::tools::commands::tools_catalog, commands::old_thing, commands::app_pure, features::tools::lists::tools_rows, features::tools::lists::tools_report, features::tools::lists::tools_page]")
+        (root / "ui" / "src" / "c.ts").write_text('invoke("tools_rows"); invoke("tools_report"); invoke<Page<number>>("tools_page");\n')
+        allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\n")
+        flagged = {problem.split("`")[1] for problem in check(root, allow) if "can grow" in problem}
+        if flagged != {"tools_rows", "tools_report"}:
+            print(f"ipc-audit selftest FAILED: unbounded lists are {flagged}, wanted tools_rows and tools_report")
+            bad += 1
+        allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\nunbounded tools_rows\nunbounded tools_report\n")
+        if check(root, allow):
+            print(f"ipc-audit selftest FAILED: listed lists must pass: {check(root, allow)}")
             bad += 1
         # The registry form reads the same commands.
         lib = "macro_rules! app_commands {\n    Read  features::tools::commands::tools_catalog,\n    Write commands::old_thing,\n    Read  commands::app_pure,\n}"
