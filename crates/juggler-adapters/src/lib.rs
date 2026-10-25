@@ -14,6 +14,7 @@
 
 pub mod activity;
 pub mod claude_asks;
+pub mod claude_bridge;
 pub mod claude_code;
 pub mod claude_conversations;
 mod claude_endpoint;
@@ -23,6 +24,7 @@ pub mod claude_inventory;
 pub mod claude_live;
 pub mod claude_transcript;
 pub mod codex;
+pub mod codex_bridge;
 pub mod codex_conversations;
 mod codex_endpoint;
 pub mod codex_environment;

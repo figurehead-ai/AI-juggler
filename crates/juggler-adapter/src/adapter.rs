@@ -634,6 +634,25 @@ pub trait HarnessAdapter: Send + Sync {
             "this tool can't run through another service".into(),
         ))
     }
+    /// AJ-E1704 (D-30): how this tool takes AI Juggler's agent tools for
+    /// one launch whose arguments are `args`: options to insert and the
+    /// files they name (written by the app into `bridge.dir`, AI
+    /// Juggler's own folder), with only AI Juggler's tools pre-allowed.
+    /// Never a secret (the key is in the environment; only its name is
+    /// here) and never an edit to the user's setup. `None` (the default):
+    /// the tool can't add an MCP server through its launch options; its
+    /// sessions still get the command line through their environment.
+    /// An adapter that returns `Some` declares
+    /// [`crate::Capabilities::AGENT_BRIDGE`] (the conformance kit holds both).
+    #[must_use]
+    fn agent_bridge(
+        &self,
+        bridge: &crate::agent_bridge::BridgeLaunch,
+        args: &[String],
+    ) -> Option<crate::agent_bridge::BridgeInjection> {
+        let _ = (bridge, args);
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

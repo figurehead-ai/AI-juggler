@@ -10,6 +10,9 @@ dist-ssr/
 .pnpm-store/
 
 # --- Tauri ---
+# AJ-E1704: the agent bridge as Tauri's externalBin, built by the release
+# workflow (never committed).
+/crates/juggler-app/binaries/
 /src-tauri/target/
 /src-tauri/gen/schemas/
 

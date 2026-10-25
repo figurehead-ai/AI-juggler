@@ -56,6 +56,7 @@
 **Files to touch**: `docs/adr/0020-agent-bridge.md`, `docs/review/decision-log.md`.
 **Research basis**: `pools-messaging-tasks.md` §2–3.
 **Handover note**: The live part of the spike needs spare accounts, which is the maintainer's step.
+*2026-10-25:* ADR-0020 is written with AJ-E1704 (Req.1's ADR; D-28 to D-33 were already in the log). Req.2 stays open: MAINTAINER-STEPS §17.
 
 ### AJ-E1702 Pools, the default pool, roles and permissions | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: —
 **Goal**: Sessions belong to pools that the user creates and controls.
@@ -94,7 +95,7 @@
 **Research basis**: `pools-messaging-tasks.md` §2.3 (context cards).
 **Handover note**: —
 
-### AJ-E1704 The agent bridge, read-only | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1701, AJ-E1702
+### AJ-E1704 The agent bridge, read-only | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; the spike's live points unverified) | Priority P0 | Effort M | Depends: AJ-E1701, AJ-E1702
 **Goal**: Agents in any tool can ask AI Juggler who they are and who's in their pool.
 **User story**: As an agent in a Codex session, I call `pool_roster` and see my teammates in Claude Code.
 **Requirements**:
@@ -114,6 +115,7 @@
 **Files to touch**: `crates/juggler-agentbridge/` (new), the adapters' launch specs, `crates/juggler-app/src/`.
 **Research basis**: `pools-messaging-tasks.md` §2.3 (components, how each tool gets it).
 **Handover note**: The bundle must sign and notarize the new binary; check the release workflow.
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1704/manifest.md`, ADR-0020): the binary ships as Tauri's `externalBin` and `sign_macos.sh` signs it before the app. Codex gets `enabled_tools` and a per-tool `approval_mode="approve"` for the three tools rather than `default_tools_approval_mode="writes"` (D-30 pre-allows AI Juggler's own tools, `set_status` included). An ask is a refusal until E18's pending asks exist. Unverified until the maintainer's spike (MAINTAINER-STEPS §17): `--mcp-config` without an approval prompt; Codex's `env_vars` passing the key and the per-tool approval.
 
 ### AJ-E1705 Pools across your Macs | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1702, AJ-E1801, AJ-E710
 **Goal**: A pool can include sessions on the user's paired Macs, when the user switches it on for that pool (D-32).

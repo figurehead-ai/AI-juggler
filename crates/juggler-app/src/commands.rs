@@ -3045,6 +3045,16 @@ pub fn launch_profile(
             .id
             .to_string()
     };
+    let mut spec = spec;
+    let project = Some(project_id.as_str());
+    crate::features::agent_bridge::prepare(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &session_id,
+        project,
+        account.id.as_str(),
+    );
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &session_id,
@@ -6857,7 +6867,7 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
         .get(&account_a.harness)
         .ok_or_else(|| AppError::UnknownHarness(account_a.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(
+    let mut spec = adapter.launch_spec(
         &account_a,
         &profile_a,
         &source.cwd,
@@ -6866,6 +6876,18 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             delta_prompt: None,
         },
     )?;
+    let project = source
+        .project
+        .as_ref()
+        .map(juggler_core::model::ProjectId::as_str);
+    crate::features::agent_bridge::prepare(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &new_session,
+        project,
+        account_a.id.as_str(),
+    );
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &new_session,
@@ -7036,7 +7058,7 @@ fn make_launch_hook<'a>(
     new_session: &'a SessionId,
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
-        let spec = adapter
+        let mut spec = adapter
             .launch_spec(
                 account_b,
                 profile_b,
@@ -7047,6 +7069,19 @@ fn make_launch_hook<'a>(
                 },
             )
             .map_err(|error| error.to_string())?;
+        // AJ-E1704: the switch's target is a new epoch, with a new key.
+        let project = source
+            .project
+            .as_ref()
+            .map(juggler_core::model::ProjectId::as_str);
+        crate::features::agent_bridge::prepare(
+            state,
+            adapter.as_ref(),
+            &mut spec,
+            new_session,
+            project,
+            account_b.id.as_str(),
+        );
         let spawned = crate::features::sessions::spawn::spawn_account_session(
             state,
             new_session,
@@ -8811,7 +8846,13 @@ pub fn guess_role(exe: &str, cmdline: &str) -> &'static str {
     let line = cmdline.to_ascii_lowercase();
     let hay = format!("{exe_name} {line}");
     let contains_any = |needles: &[&str]| needles.iter().any(|n| hay.contains(n));
-    if contains_any(&["mcp-server", "mcp_server", "/mcp ", "mcp.json"]) {
+    // AJ-E1704: AI Juggler's own agent bridge is an MCP server owned by
+    // its session (so never cleaned up or offered alone for a kill).
+    let bridge = juggler_agentbridge::wire::PROGRAM;
+    if exe_name == bridge
+        || line.contains(&format!("/{bridge} --mcp"))
+        || contains_any(&["mcp-server", "mcp_server", "/mcp ", "mcp.json"])
+    {
         "McpServer"
     } else if contains_any(&[
         "postgres",
@@ -12454,7 +12495,19 @@ fn resume_original_with_delta(
     // AJ-E1001: the original Account must still be who it was.
     let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
+    let mut spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
+    let project = original_session
+        .project
+        .as_ref()
+        .map(juggler_core::model::ProjectId::as_str);
+    crate::features::agent_bridge::prepare(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &new_session,
+        project,
+        account_a.id.as_str(),
+    );
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &new_session,
@@ -13543,7 +13596,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
-    let spec = adapter.launch_spec(
+    let mut spec = adapter.launch_spec(
         &account,
         &profile,
         &session_row.cwd,
@@ -13552,6 +13605,18 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             delta_prompt: None,
         },
     )?;
+    let project = session_row
+        .project
+        .as_ref()
+        .map(juggler_core::model::ProjectId::as_str);
+    crate::features::agent_bridge::prepare(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &new_session,
+        project,
+        account.id.as_str(),
+    );
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &new_session,

@@ -41,6 +41,10 @@ bitflags::bitflags! {
         /// store keeps no record of who holds them (a resumed copy can't
         /// repeat them under another session).
         const USAGE_KEYS_PER_SESSION = 1 << 12;
+        /// AJ-E1704 (D-30): its launch options can add AI Juggler's agent
+        /// tools as an MCP server, pre-allowed
+        /// (`HarnessAdapter::agent_bridge` says how).
+        const AGENT_BRIDGE = 1 << 13;
     }
 }
 

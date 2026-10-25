@@ -62,6 +62,9 @@ pub struct AppState {
     /// AJ-E1703: what each live session is working on (its context card),
     /// read on the same tick.
     pub pool_activity: crate::features::pools::cards::Activity,
+    /// AJ-E1704: the agent bridge — the sessions' keys (as hashes), the
+    /// agents' status lines, and its socket once served.
+    pub agent_bridge: crate::features::agent_bridge::Bridge,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -297,6 +300,7 @@ impl AppState {
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             subtasks: crate::features::subtasks::Subtasks::default(),
             pool_activity: crate::features::pools::cards::Activity::default(),
+            agent_bridge: crate::features::agent_bridge::Bridge::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

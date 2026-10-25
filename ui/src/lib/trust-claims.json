@@ -149,6 +149,24 @@
           "tests": [
             "crates/juggler-app/tests/outside_capture.rs::preparing_to_uninstall_puts_status_lines_back_and_lists_whats_left"
           ]
+        },
+        {
+          "id": "agent-tools",
+          "text": "Once you say yes, sessions it starts get its agent tools, added to that launch only and never written into your setup: who they are, who's in their pool, what each says it's doing, and their own status line. You can switch them off for a project or a profile.",
+          "tests": [
+            "crates/juggler-agentbridge/tests/bridge.rs::nothing_is_added_before_the_question_is_answered",
+            "crates/juggler-agentbridge/tests/bridge.rs::the_key_is_in_the_environment_only_and_nothing_lands_in_the_account_folder",
+            "crates/juggler-adapters/tests/conformance/mod.rs::adds_the_agent_bridge_honestly"
+          ]
+        },
+        {
+          "id": "agent-tools-sees",
+          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool and their cards; at Work together and Full, also its own status line. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
+          "tests": [
+            "crates/juggler-agentbridge/tests/bridge.rs::each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited",
+            "crates/juggler-agentbridge/tests/bridge.rs::agents_see_account_labels_never_emails_or_plans",
+            "crates/juggler-agentbridge/tests/bridge.rs::the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys"
+          ]
         }
       ]
     },

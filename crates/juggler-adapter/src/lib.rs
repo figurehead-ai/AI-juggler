@@ -14,6 +14,7 @@
 )]
 
 pub mod adapter;
+pub mod agent_bridge;
 pub mod capabilities;
 pub mod conversation;
 pub mod discovery;
@@ -38,6 +39,7 @@ pub mod watcher;
 pub use juggler_core::model;
 
 pub use adapter::{HarnessAdapter, LimitsCapture, SharedAdapter};
+pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 pub use environment::{

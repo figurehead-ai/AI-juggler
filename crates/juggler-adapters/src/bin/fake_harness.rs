@@ -10,7 +10,7 @@
 //!               [--delay-ms MS] [--stall-secs S] [--burn-cpus SECS]
 //!               [--exit CODE] [--prompt TEXT] [--wait-prompt TEXT]
 //!               [--quota-exit] [--spawn-child PROG --child-args "A B"]
-//!               [--child-ignore-term]
+//!               [--child-ignore-term] [--mcp-config FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
 //! ```
@@ -27,7 +27,9 @@
 //! `--spawn-child` starts a detached child (stdio null, so it never holds
 //! the harness's output pipes) that OUTLIVES the harness — the orphan
 //! fixture (AJ-E410); `--child-ignore-term` makes it ignore SIGTERM
-//! (the stop-ladder escalation fixture, unix only). `write` is the
+//! (the stop-ladder escalation fixture, unix only). `--mcp-config` makes
+//! it an MCP client of the servers in FILE (AJ-E1704, `support/mcp_client.rs`):
+//! it logs each reply to `.fake-mcp.jsonl` in its working folder. `write` is the
 //! replica's live session (AJ-E1531, `support/replica_write.rs`).
 
 use std::env;
@@ -40,6 +42,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[path = "support/replica_write.rs"]
 mod replica_write;
+
+#[path = "support/mcp_client.rs"]
+mod mcp_client;
 
 const VERSION: &str = "0.1.0";
 
@@ -104,6 +109,8 @@ struct RunOptions {
     child_args: String,
     /// Make the child ignore SIGTERM (stop-ladder escalation fixture).
     child_ignore_term: bool,
+    /// The MCP servers to call, as a tool's `--mcp-config` file names them.
+    mcp_config: Option<PathBuf>,
 }
 
 /// A session's first line: `resumed`, or `session_meta` with the
@@ -141,6 +148,7 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
         spawn_child: None,
         child_args: String::new(),
         child_ignore_term: false,
+        mcp_config: None,
     };
     let mut i = 0;
     while i < args.len() {
@@ -206,6 +214,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
             }
             "--child-args" => {
                 opts.child_args = value()?;
+                true
+            }
+            "--mcp-config" => {
+                opts.mcp_config = Some(PathBuf::from(value()?));
                 true
             }
             other => return Err(format!("unknown option {other}")),
@@ -314,6 +326,14 @@ fn run(args: &[String]) -> ExitCode {
         .is_err()
     {
         return ExitCode::from(2);
+    }
+    if let Some(config) = &opts.mcp_config {
+        let log = env::current_dir()
+            .unwrap_or_default()
+            .join(".fake-mcp.jsonl");
+        if let Err(message) = mcp_client::run(config, &log) {
+            eprintln!("fake-harness: mcp: {message}");
+        }
     }
 
     for turn in 1..=opts.turns {

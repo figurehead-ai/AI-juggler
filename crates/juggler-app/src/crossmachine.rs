@@ -1321,8 +1321,18 @@ pub(crate) fn launch_here(
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // AJ-E1001: the receiving Account must be who it was here too.
     let assertion = crate::identity::assert_identity(state, account)?;
-    let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
+    let mut spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
+    let project_id = Some(project.id.as_str());
+    let bridge = crate::features::agent_bridge::prepare;
+    bridge(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &session,
+        project_id,
+        account.id.as_str(),
+    );
     let spawned = crate::features::sessions::spawn::spawn_account_session(
         state,
         &session,

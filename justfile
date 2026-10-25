@@ -161,8 +161,13 @@ doc:
 # and single-instance lock: it runs next to an installed AI Juggler or AI
 # Juggler Nightly and never touches their data.
 # Run the app as AI Juggler Dev (UI hot-reload + Rust rebuild on change).
-dev: dev-icon
+dev: dev-icon agent-bridge
     cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
+
+# AJ-E1704: the agent bridge beside the dev build's executable (where the
+# app looks for it; a release bundle carries it in Contents/MacOS).
+agent-bridge:
+    cargo build -q -p juggler-agentbridge --bin juggler-agent
 
 # AJ-E1531: the replica, a throwaway HOME shaped like a heavy real user's
 # Mac, for every walk and journey. It refuses a HOME that isn't a replica.
@@ -219,7 +224,7 @@ replica-walk: dev-icon
 # AI Juggler Dev with the read-only test bridge: the real UI in a browser
 # against this build's backend and data, for QA without Accessibility
 # (docs/qa/DEV-BRIDGE.md). Then `just dev-bridge-url` for the page.
-dev-bridge: dev-icon
+dev-bridge: dev-icon agent-bridge
     AIJ_DEV_BRIDGE=1 cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json --features dev-bridge
 
 # The page for the running bridge (reads its 0600 token file).

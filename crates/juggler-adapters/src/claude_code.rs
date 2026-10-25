@@ -133,6 +133,15 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::USAGE_TOKENS
             | Capabilities::USAGE_QUOTA_FEED
             | Capabilities::FORK
+            | Capabilities::AGENT_BRIDGE
+    }
+
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::claude_bridge::injection(bridge, args))
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
