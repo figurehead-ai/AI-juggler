@@ -5,7 +5,8 @@
  * pointer, the View is read guarded, and search and ⌘K take its words.
  */
 import { describe, expect, it } from "vitest";
-import { conversationItem, endedToday, itemsOf, needsYou, openNow, sessionItem, stateWord, OWN_PLACE } from "./rail-items";
+import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, openNow, sessionItem, stateWord, OWN_PLACE } from "./rail-items";
+import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
 import { parseSeen } from "./seen";
@@ -221,5 +222,24 @@ describe("profile badges (AJ-E2104 Req.2)", () => {
   it("profiles sharing a first word get letters that tell them apart", () => {
     assignProfiles(["b-work", "b-personal"]);
     expect(profileMonogram("b-work")).not.toBe(profileMonogram("b-personal"));
+  });
+});
+
+describe("the maintainer's review of 0.1.4: the way out, and folding in place", () => {
+  it("Go to it names the app and profile; AI Juggler's own terminal session has none (its page is where it runs)", () => {
+    expect(goToWhere(conversationItem(talk("c"), none, null))).toBe("Claude · Work");
+    expect(goToWhere(conversationItem(talk("bare", { places: [] }), none, null))).toBe("An app · Work Max");
+    const row = { id: "s", status: "running", needs_attention: null, account_id: "a1", account_label: "Work Max", project_id: null, kind: "terminal", started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
+    expect(goToWhere(sessionItem(row, none, false))).toBeNull();
+    expect(goToWhere(sessionItem({ ...row, kind: "desktop" }, none, false))).toBe("its app · Work Max");
+  });
+
+  it("a folded section keeps its head and drops its lines, up to the Also line", () => {
+    const items = [conversationItem(talk("asks", { state: "asks_you" }), none, null), conversationItem(talk("busy", { state: "working" }), none, null)];
+    const { lines } = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null });
+    const kinds = (folded: ("needs" | "open")[]) => foldSections(lines, new Set(folded)).map((line) => line.kind);
+    expect(kinds([])).toEqual(["section", "need", "section", "header", "row", "also"]);
+    expect(kinds(["needs"])).toEqual(["section", "section", "header", "row", "also"]);
+    expect(kinds(["open"])).toEqual(["section", "need", "section", "also"]);
   });
 });

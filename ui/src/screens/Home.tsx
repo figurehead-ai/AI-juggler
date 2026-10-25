@@ -8,7 +8,7 @@
  * 2. **Your apps**: one tile per running app and profile (a place): its
  *    sessions, a needs-you badge, its account's runway, Open.
  * 3. **Needs you** holds every kind of item, each with its own primary:
- *    a session asking (Go to it), a limit reached (Continue elsewhere, or
+ *    a session asking (its page; ↗ to its app), a limit reached (Continue elsewhere, or
  *    Wait), a sign-in, a Mac working hard, processes left behind.
  * 4. **Runway by account**: each account's room left and its profiles,
  *    or the way to measure it. Unmeasured says so, never a guess.

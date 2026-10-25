@@ -435,9 +435,12 @@ test("status is never colour-only", async ({ page }) => {
   const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
   const drawn = new Set<string>();
   const dots = await rail.locator("[data-state-dot]").all();
+  // A row is its button (its name) under the line it draws (the dot and
+  // the words), in one [data-rail-row].
   for (const dot of dots) {
-    const row = dot.locator("xpath=ancestor::button[1]");
-    const word = (await row.getByTestId("state-word").innerText()).trim();
+    const line = dot.locator("xpath=ancestor::*[@data-rail-row][1]");
+    const row = line.locator("[data-rail-item]");
+    const word = (await line.getByTestId("state-word").innerText()).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     expect.soft(word, `${id}: its state in words`).toMatch(vocabulary);
     await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
@@ -446,7 +449,7 @@ test("status is never colour-only", async ({ page }) => {
   // Needs you: why, in amber and in words, and first in the row's name.
   const needs = await rail.getByTestId("need-word").all();
   for (const mark of needs) {
-    const row = mark.locator("xpath=ancestor::button[1]");
+    const row = mark.locator("xpath=ancestor::*[@data-rail-row][1]").locator("[data-rail-item]");
     const word = (await mark.innerText()).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     expect.soft(word, `${id}: why it needs you, in words`).not.toBe("");

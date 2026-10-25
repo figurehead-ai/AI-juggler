@@ -70,6 +70,10 @@ export interface ActionHost {
   // This Mac
   openSessionById?: (id: string) => void;
   openProjectById?: (id: string) => void;
+  /** A profile's page (a place's header in the list). */
+  openAccountById?: (id: string) => void;
+  /** Home (AI Juggler's own place in the list). */
+  openHome?: () => void;
   // Conversations started outside AI Juggler (AJ-E1529)
   openConversation?: (conversation: ConversationInfo) => void;
   /** AJ-E2102: its app forward, by the app's own process. */

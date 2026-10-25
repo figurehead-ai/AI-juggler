@@ -105,7 +105,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
   });
 
-  it("AJ-E2102: an open one's click goes to it; an ended one's opens its page", () => {
+  it("a click or ↩ opens its page, never its app; ↗ and ⌘↩ go to it, never the page (the maintainer's review of 0.1.4)", () => {
     const goTo = vi.fn();
     const open = vi.fn();
     const live = conversation("c", { live: true, state: "working", places: [place("Claude · Work", 1), place("Terminal", 2)] });
@@ -116,13 +116,38 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(screen.getByTestId("outside-places").textContent).toContain("open in 2 places");
     expect(row.textContent).toContain("open in Claude · Work and Terminal");
     fireEvent.click(row);
-    expect(goTo).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
-    expect(open).not.toHaveBeenCalled();
-    cleanup();
-    render(withFixture([], <ConversationRow conversation={conversation("e")} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
-    fireEvent.click(screen.getByTestId("rail-outside"));
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "e" }));
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
+    expect(goTo).not.toHaveBeenCalled();
+    // ↗: named for where it goes, a 24 px target, never the row's click.
+    const arrow = screen.getByRole("button", { name: "Go to it in Claude · Work Max" });
+    expect(arrow.className).toContain("size-6");
+    fireEvent.click(arrow);
     expect(goTo).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledTimes(1);
+    // ⌘↩ on the focused row goes to it; ↩ is the button's own click (its page).
+    fireEvent.keyDown(row, { key: "Enter", metaKey: true });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    cleanup();
+    // An ended one has nowhere to go: no ↗, and ⌘↩ does nothing.
+    render(withFixture([], <ConversationRow conversation={conversation("e")} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
+    expect(screen.queryByRole("button", { name: /^Go to it/ })).toBeNull();
+    fireEvent.keyDown(screen.getByTestId("rail-outside"), { key: "Enter", metaKey: true });
+    fireEvent.click(screen.getByTestId("rail-outside"));
+    expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "e" }));
+    expect(goTo).toHaveBeenCalledTimes(2);
+  });
+
+  it("its ↗ always shows while it asks you, and on hover or focus otherwise", () => {
+    const host: ActionHost = { goToConversation: vi.fn(), openConversation: vi.fn() };
+    render(withFixture([], <ConversationRow conversation={conversation("a", { live: true, state: "asks_you" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
+    expect(screen.getByTestId("row-go-to").className).not.toContain("opacity-0");
+    cleanup();
+    render(withFixture([], <ConversationRow conversation={conversation("w", { live: true, state: "working" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
+    expect(screen.getByTestId("row-go-to").className).toMatch(/opacity-0 .*group-hover:opacity-100/);
+    expect(screen.getByTestId("row-go-to").className).toContain("group-focus-within:opacity-100");
   });
 
   it("states read in E21's words, the rail's own (AJ-E2104 Req.3)", () => {

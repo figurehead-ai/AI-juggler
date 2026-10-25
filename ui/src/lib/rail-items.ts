@@ -216,6 +216,16 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
   };
 }
 
+/** Where Go to it takes it, in words ("Claude · Work"), when that is
+ * another app; `null` for a session whose own place is AI Juggler (its
+ * terminal is its page here: the row already goes there). */
+export function goToWhere(item: Pick<RailItem, "place" | "accountLabel" | "session">): string | null {
+  const desktop = item.session?.kind === "desktop";
+  if (item.place.key === OWN_PLACE && !desktop) return null;
+  const app = desktop ? "its app" : item.place.app;
+  return [app, item.place.profile ?? item.accountLabel].filter(Boolean).join(" · ");
+}
+
 export interface ItemInputs {
   sessions: InstanceInfo[];
   conversations: ConversationInfo[];

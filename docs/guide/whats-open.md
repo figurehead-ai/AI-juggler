@@ -19,8 +19,12 @@ The list has three parts:
   header has **Open**, which brings that app forward. A place where nothing
   is happening folds into one line, such as "Work · 4 idle".
 - **One line under them,** such as "Also: 3 ended today · 2 inactive · 1
-  background · History ›". Each part shows those sessions. Nothing is
-  removed; they're just not shown until you ask.
+  background · History ›". Each part shows those sessions, and the list
+  scrolls to them. Nothing is removed; they're just not shown until you
+  ask.
+
+Click **Needs you** or **Open now** to fold that part, and again to open
+it.
 
 ## What a row says
 
@@ -35,12 +39,34 @@ Each session shows:
 When a state is worked out rather than read from the app, it says
 "probably".
 
+## Everything opens here
+
+Everything in the list opens in AI Juggler, so you can check on a session
+without leaving it:
+
+| Click | Opens |
+| --- | --- |
+| A session, or Enter on it | Its page: its state, its last messages, and where it runs. |
+| The project's name on a session | The project's page. |
+| A place's name, such as **Claude · Work** | That profile's page: its account, and the sessions open on it. |
+| **AI Juggler** (the place of its own sessions) | Home. |
+| A project's name, when the list is grouped by project | The project's page. |
+| **Also: 2 inactive** (or ended today) | Those sessions, under the line. |
+| **History ›** | History. |
+
+The menu on a right-click or ⋯ repeats these. You never need it.
+
 ## Go to it
 
-Choose **Go to it**, or press Enter on a selected session. AI Juggler
-brings that session's app and profile to the front, and then says what it
-did, for example "Brought Claude · Work forward; pick the session in its
-sidebar".
+To answer a session in its own app, use its **↗** (**Go to it**), or press
+⌘Enter on it. Sessions that need you always show it; other sessions show it
+when you point at them or select them. AI Juggler brings that session's app
+and profile to the front, and then says what it did, for example "Brought
+Claude · Work forward; pick the session in its sidebar". A place's **Open**
+brings its app forward too.
+
+Sessions AI Juggler runs itself have no ↗: their page is where they run.
+Ended sessions have none either.
 
 It brings the exact window or terminal tab forward only if you turned that
 on in Settings › Desktop apps. Going to a session never asks for a macOS
