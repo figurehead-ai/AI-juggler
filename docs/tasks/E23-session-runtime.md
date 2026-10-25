@@ -56,7 +56,7 @@
 **Goal**: The five things only a real run can show are proven before driven sessions become anyone's default.
 **User story**: As the maintainer (or the agent I allow to), I run the lab checklist with one or two of my real tools in a throwaway lab project, and the evidence turns from "unverified" to measured.
 **Requirements**:
-1. Codex: an owned `codex app-server --listen unix://…` per session; an approval and a `requestUserInput` answered over the protocol; `account/rateLimits/read` and `…/updated`; `codex --remote unix://… resume <thread>` with two clients on one thread, and who is asked when both are connected.
+1. Codex: an owned `codex app-server` per session over stdio; an approval and a `requestUserInput` answered over the protocol; `account/rateLimits/read` and `…/updated`; Open in terminal handing the thread to `codex resume` at a turn boundary, and back. (Done in part by the lab of 2026-10-25: stdio speaks newline JSON, `unix://` speaks WebSocket from a symlink under `/private/tmp`, the weekly window alone came as `primary`, `ls` asked for approval and a decline resolved it. Still open: two clients on one thread, non-ephemeral resume.)
 2. Claude: a per-launch `--settings` file's hooks and status line **merge** with the user's own (both run); `PermissionRequest` timing in the TUI (does the dialog show while the hook runs?).
 3. Claude headless: a stream-json session with `--permission-prompt-tool stdio`, one approval, one AskUserQuestion answer and a `rate_limit_event`.
 4. A mode switch at a turn boundary (headless → terminal → headless) keeps one transcript.
@@ -95,14 +95,14 @@
 **Goal**: Each Codex session AI Juggler starts is driven through the user's own `codex app-server`: exact state, approvals and questions in AI Juggler, and live limits with resets.
 **User story**: As a Codex user, I see "Asks you: run `npm test`?" in Needs you, click Allow once, and the session carries on; the 5-hour and weekly limits show with their reset times before the first turn ends.
 **Requirements**:
-1. A Rust JSON-RPC client (newline-delimited, no `jsonrpc` field), one per session, on a unix socket in AI Juggler's data folder (`runtime/`, `0700`; the socket `0600`), served by `codex app-server --listen unix://<socket>` with the profile's `CODEX_HOME` and `CODEX_SQLITE_HOME`. The server is a child in the spawn ledger, stopped with its session.
+1. A Rust JSON-RPC client (newline-delimited, no `jsonrpc` field), one per session, on the stdin and stdout of `codex app-server --listen stdio://` with the profile's `CODEX_HOME` and `CODEX_SQLITE_HOME`. The server is a child in the spawn ledger, ends when its input closes, and is stopped with its session. *(Amended 2026-10-25 by the lab: first a unix socket in AI Juggler's folder; Codex's `unix://` speaks WebSocket from a socket under `/private/tmp`, ADR-0022 decision 3.)* Threads are never ephemeral; limit windows are placed by `windowDurationMins`, never by primary/secondary; an approval offers only the decisions Codex lists (`availableDecisions`, when it sends them).
 2. `initialize` with `clientInfo { name: "ai_juggler", title: "AI Juggler", version }`; refuse a server whose `codexHome` isn't the profile's. Stable methods only (no `experimentalApi`).
 3. The protocol schema is generated offline with a scratch `CODEX_HOME` (`codex app-server generate-json-schema`), the supported range pinned (from 0.163.0, the verified version), and the surface AI Juggler uses checked against the installed binary's schema at discovery. Fixtures are recorded; a fake app-server binary serves the tests.
 4. Mapping: `thread/start`, `thread/resume`, `turn/start`, `turn/steer`, `turn/interrupt`, `thread/compact/start`, `model/list`; `item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, `item/tool/requestUserInput`, `serverRequest/resolved`; `account/rateLimits/read` and `account/rateLimits/updated`; `thread/tokenUsage/updated`; `turn/started`, `turn/completed`, `thread/status/changed`, `item/*` deltas, `error`.
 5. Approvals offer the tool's own options only: Allow once (`accept`), Allow for this session (`acceptForSession`), the proposed command rule (`acceptWithExecpolicyAmendment`) when Codex proposes one, Deny (`decline`), Deny and stop (`cancel`).
 **UI/UX reasoning**: The session page and Needs you show the ask; nothing else changes for the user.
-**Performance budget**: the server's socket is ready and `initialize` answered within 5 s, else the session starts in the terminal with the reason.
-**Quality gates**: codec unit tests over the recorded fixtures; an end-to-end test against the fake app-server (start, a turn, an approval answered, a question answered, limits, interrupt, steer, compact, release); the socket's modes; the ledger owns the server and nothing outlives the session.
+**Performance budget**: `initialize` answered within 10 s and the thread within 30 s, else the session starts in the terminal with the reason.
+**Quality gates**: codec unit tests over the recorded fixtures; an end-to-end test against the fake app-server (start, a turn, an approval answered, a question answered, limits, interrupt, steer, compact, release); the ledger owns the server and nothing outlives the session.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2303/manifest.md`.
 **Visual testing**: an ask in Needs you; the session page of a driven Codex session.
 **Files to touch**: `crates/juggler-adapters/src/codex_appserver/`, `src/bin/fake_codex_app_server.rs`, `tests/fixtures/codex-app-server/`; `crates/juggler-supervisor` (a driven spawn); `crates/juggler-app/src/features/runtime/`.
@@ -113,9 +113,9 @@
 **Goal**: The real Codex TUI is one click away, and the PTY stays the fallback.
 **User story**: As a user who likes Codex's TUI, I click Open in terminal and get it on the same live thread; on a profile I set to "Start in terminal", sessions run as today.
 **Requirements**:
-1. "Open in terminal" runs `codex --remote unix://<socket> resume <thread>` in AI Juggler's terminal (an owned child of the session).
+1. "Open in terminal" hands the thread over at a turn boundary: the driver lets go when the turn ends, the server ends, and `codex resume <thread> --no-daemon` runs in AI Juggler's terminal as the session's continuation (the old session is marked handed over). "Run in AI Juggler" does the reverse once the terminal has ended. Never two writers. *(Amended 2026-10-25: first a live `codex --remote` attach, which needs Codex's WebSocket socket; ADR-0022 records the trade-off.)*
 2. "Start in terminal" is a per-session choice at launch and a per-profile setting: the PTY with `--no-daemon`, exactly as before E23.
-3. The terminal is used automatically, with the reason, when the binary is older than the pinned range, its schema lacks a method AI Juggler uses, the socket path doesn't fit, or the server fails to start or answer.
+3. The terminal is used automatically, with the reason, when the binary is older than the pinned range, its schema lacks a method AI Juggler uses, or the server fails to start, answer, or runs on another `codexHome`.
 **UI/UX reasoning**: The choice sits with the profile's launch settings; the session page names the runtime in one line.
 **Performance budget**: n/a.
 **Quality gates**: each fallback reason tested; the attach spec tested.

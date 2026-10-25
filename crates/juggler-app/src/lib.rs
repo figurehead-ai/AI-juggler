@@ -325,6 +325,15 @@ macro_rules! app_commands {
             Read  features::agent_bridge::commands::agent_bridge_get,
             Write features::agent_bridge::commands::agent_bridge_answer,
             Write features::agent_bridge::commands::agent_bridge_set,
+            Read  features::runtime::commands::runtime_get,
+            Read  features::runtime::commands::runtime_asks,
+            Write features::runtime::commands::runtime_answer,
+            Write features::runtime::commands::runtime_send,
+            Write features::runtime::commands::runtime_interrupt,
+            Write features::runtime::commands::runtime_handover,
+            Read  features::runtime::commands::runtime_choices,
+            Write features::runtime::commands::runtime_choose,
+            Write features::runtime::commands::runtime_beta,
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
@@ -715,6 +724,11 @@ pub fn run() {
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E2302: driven sessions tell the window what changed.
+            features::runtime::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
             features::notifications::connect(
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

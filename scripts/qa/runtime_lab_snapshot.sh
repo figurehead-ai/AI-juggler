@@ -26,9 +26,11 @@ take() {
   done
   sort -o "$file" "$file"
   echo "$(wc -l < "$file" | tr -d ' ') files -> $file"
-  # What the lab starts: app-servers on a socket, headless claude, the
-  # bridge (the Codex app's own stdio server is not the lab's).
-  pgrep -fl 'app-server --listen unix://|claude -p --input-format stream-json|juggler-agent' > "$out/$name.processes" || true
+  # What the lab starts: AI Juggler's app-servers, headless claude, the
+  # bridge. The Codex app's own server (inside /Applications) is not the
+  # lab's, though it runs `app-server --listen stdio://` too.
+  { pgrep -fl 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent' || true; } |
+    grep -v '/Applications/' > "$out/$name.processes" || true
   echo "processes -> $out/$name.processes ($(wc -l < "$out/$name.processes" | tr -d ' '))"
 }
 

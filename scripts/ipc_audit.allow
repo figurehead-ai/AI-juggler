@@ -103,7 +103,6 @@ sync kill_verify
 sync launch_port_warning
 sync launch_recipe_env_get
 sync launch_recipe_env_set
-sync launch_session
 sync link_status
 sync login_open_web
 sync notification_prefs_get

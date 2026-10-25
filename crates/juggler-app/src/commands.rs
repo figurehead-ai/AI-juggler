@@ -2973,22 +2973,32 @@ fn civil_from_days(z: i64) -> juggler_core::renewal::CalendarDate {
 }
 
 #[tauri::command]
+/// Starts a session; `runtime` (`terminal` | `driven`) is this session's
+/// own choice (AJ-E2304: "Start in terminal"), else the profile's.
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn launch_session(
+pub async fn launch_session(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     profile_id: String,
     cwd: Option<String>,
+    runtime: Option<String>,
 ) -> AppResult<LaunchResult> {
-    let result = launch_profile(state.inner(), &profile_id, cwd)?;
+    let runtime = runtime
+        .as_deref()
+        .and_then(juggler_adapter::Runtime::from_word);
+    let result = crate::ipc::blocking(state.inner(), "the launch", move |state| {
+        launch_profile_as(state, &profile_id, cwd, runtime)
+    })
+    .await?;
     emit_sessions(&app, state.inner())?;
     Ok(result)
 }
 
-/// Core implementation shared with integration tests.
+/// Core implementation shared with integration tests (the runtime the
+/// profile or the tool picks).
 ///
 /// # Errors
 ///
@@ -2997,6 +3007,20 @@ pub fn launch_profile(
     state: &Arc<AppState>,
     profile_id: &str,
     cwd: Option<String>,
+) -> AppResult<LaunchResult> {
+    launch_profile_as(state, profile_id, cwd, None)
+}
+
+/// [`launch_profile`] with this session's own runtime choice.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn launch_profile_as(
+    state: &Arc<AppState>,
+    profile_id: &str,
+    cwd: Option<String>,
+    runtime: Option<juggler_adapter::Runtime>,
 ) -> AppResult<LaunchResult> {
     use juggler_adapter::LaunchMode;
 
@@ -3045,23 +3069,18 @@ pub fn launch_profile(
             .id
             .to_string()
     };
-    let mut spec = spec;
-    let project = Some(project_id.as_str());
-    crate::features::agent_bridge::prepare(
-        state,
-        adapter.as_ref(),
-        &mut spec,
-        &session_id,
-        project,
-        account.id.as_str(),
-    );
-    let spawned = crate::features::sessions::spawn::spawn_account_session(
-        state,
-        &session_id,
-        &spec,
-        &account,
-        Some(project_id.clone()),
-    )?;
+    // AJ-E2302: driven when its plan says so, else the terminal (the bridge
+    // and the account's key go into whichever launch runs).
+    let start = crate::features::runtime::launch::Start {
+        account: &account,
+        profile: &profile,
+        project: Some(project_id.clone()),
+        resume: None,
+        requested: runtime,
+    };
+    let started =
+        crate::features::runtime::launch::start(state, adapter.as_ref(), session_id, &start, spec)?;
+    let (session_id, spawned, spec) = (started.session, started.spawned, started.spec);
     {
         // The machine identity locks storage itself — resolve it
         // BEFORE the insert-scope lock (non-reentrant mutex).
@@ -3756,6 +3775,7 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
         let rows = session_infos(&storage, &live, &labels, &adopted)?;
         drop(storage);
         let rows = crate::features::subtasks::counted(state, rows);
+        let rows = crate::features::runtime::described(state, rows);
         crate::features::conversations::titled(state, rows)
     })
     .await
@@ -3786,6 +3806,7 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
     let rows = session_infos(&storage, &live, &labels, &adopted)?;
     drop(storage);
     let rows = crate::features::subtasks::counted(state, rows);
+    let rows = crate::features::runtime::described(state, rows);
     crate::features::conversations::titled(state, rows)
 }
 
@@ -3965,7 +3986,8 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 map
             };
         for record in storage.sessions().list(None)? {
-            if !is_active(record.status) {
+            // AJ-E2302: a driven session's state is its tool's, never a guess.
+            if !is_active(record.status) || state.runtime.is_driven(&record.id) {
                 engine.forget(&record.id);
                 continue;
             }
@@ -4366,6 +4388,7 @@ pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
         )?
     };
     let sessions = crate::features::subtasks::counted(state, sessions);
+    let sessions = crate::features::runtime::described(state, sessions);
     let sessions = crate::features::conversations::titled(state, sessions)?;
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, sessions);
     Ok(())
@@ -4830,8 +4853,7 @@ fn session_infos(
                 } else {
                     stats.map(|s| s.child_count)
                 },
-                // AJ-E1520: filled from the live transcript reads by
-                // `features::subtasks::counted`; null until read.
+                // AJ-E1520: `features::subtasks::counted` fills it; null until read.
                 subtask_count: None,
                 git_branch: crate::worktree::branch_of(&record.cwd),
                 // AJ-E1002: changed + untracked from the cached git
@@ -4854,10 +4876,7 @@ fn session_infos(
                 machine_id: record.machine.to_string(),
                 cwd: record.cwd.to_string_lossy().into_owned(),
                 kind: record.kind.as_str().to_string(),
-                project_id: record
-                    .project
-                    .as_ref()
-                    .map(std::string::ToString::to_string),
+                project_id: record.project.as_ref().map(ToString::to_string),
                 conversation_id: record.conversation.as_ref().map(|c| c.as_str().to_string()),
                 isolation_label,
                 identity_state: identities
@@ -4877,6 +4896,7 @@ fn session_infos(
                 label: label_of(&marks, record.id.as_str()),
                 title: None,
                 pinned: pinned_of(&marks, record.id.as_str()),
+                runtime: None,
             }
         })
         .collect())

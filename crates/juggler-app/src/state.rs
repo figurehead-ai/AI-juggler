@@ -65,6 +65,10 @@ pub struct AppState {
     /// AJ-E1704: the agent bridge — the sessions' keys (as hashes), the
     /// agents' status lines, and its socket once served.
     pub agent_bridge: crate::features::agent_bridge::Bridge,
+    /// AJ-E2302 (D-40): the runtimes of the sessions AI Juggler started —
+    /// the drivers of driven sessions, and why a session fell back to the
+    /// terminal. Held in memory only.
+    pub runtime: crate::features::runtime::Runtimes,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -301,6 +305,7 @@ impl AppState {
             subtasks: crate::features::subtasks::Subtasks::default(),
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
+            runtime: crate::features::runtime::Runtimes::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

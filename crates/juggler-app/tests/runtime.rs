@@ -1,0 +1,451 @@
+//! AJ-E2302..E2307 integration: sessions started in their runtime through
+//! the app's own launch path.
+//!
+//! - The fake tool, driven on its profile's choice: exact states stored, an
+//!   approval and a question answered only with what the tool offered,
+//!   every answer in the account's audit, the stop leaving nothing behind.
+//! - Codex through `fake-codex`'s app-server by default: a socket in a
+//!   `0700` folder made `0600`, live limits before the first turn, the
+//!   server a ledger child that goes with its session.
+//! - Fallbacks: "Start in terminal" per session and per profile, a Codex
+//!   too old or a protocol AI Juggler hasn't pinned → the terminal, with
+//!   the reason on the session.
+
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::pedantic
+)]
+#![cfg(unix)]
+
+mod common;
+
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use juggler_adapter::{AdapterRegistry, Runtime};
+use juggler_adapters::{CODEX_ID, CodexAdapter, FAKE_HARNESS_ID, FakeHarnessAdapter};
+use juggler_app::commands;
+use juggler_app::features::runtime::commands as runtime;
+use juggler_app::features::runtime::dto::{AnswerInput, PartReplyInput};
+use juggler_app::state::AppState;
+use juggler_core::model::SessionId;
+
+fn fake_codex_bin() -> PathBuf {
+    let target = std::env::var("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target"));
+    for profile in ["debug", "release"] {
+        let candidate = target.join(profile).join("fake-codex");
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+    unreachable!("fake-codex binary not found under {}", target.display());
+}
+
+/// `fake-codex` behind a script that sets `env`.
+fn codex_with(dir: &Path, env: &str) -> PathBuf {
+    let path = dir.join("codex-wrapper");
+    std::fs::write(
+        &path,
+        format!("#!/bin/sh\n{env} exec {:?} \"$@\"\n", fake_codex_bin()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+fn app_state(dir: &Path, codex: Option<PathBuf>) -> Arc<AppState> {
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(FakeHarnessAdapter::new(
+        common::fake_harness::bin(),
+    )));
+    let codex = codex.unwrap_or_else(fake_codex_bin);
+    registry.register(Arc::new(
+        CodexAdapter::with_bin(codex).with_home(dir.join("home")),
+    ));
+    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+}
+
+fn new_profile(state: &Arc<AppState>, harness: &str, cwd: &Path) -> String {
+    let account = commands::create_account(state, harness, "Lab", None).unwrap();
+    commands::create_profile(
+        state,
+        &account.id,
+        "lab",
+        None,
+        Some(cwd.to_string_lossy().into_owned()),
+    )
+    .unwrap()
+    .id
+}
+
+fn wait_for(what: &str, mut done: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !done() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn status_of(state: &Arc<AppState>, session: &str) -> String {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(session))
+        .unwrap()
+        .status
+        .as_str()
+        .to_owned()
+}
+
+fn row(state: &Arc<AppState>, session: &str) -> juggler_app::features::sessions::dto::InstanceInfo {
+    commands::instances_shared_snapshot(state)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == session)
+        .unwrap()
+}
+
+fn choose(option: &str) -> AnswerInput {
+    AnswerInput {
+        option: Some(option.into()),
+        replies: None,
+    }
+}
+
+fn stop(state: &Arc<AppState>, session: &str) {
+    state
+        .supervisor
+        .stop(&SessionId::new(session), Duration::from_secs(2))
+        .unwrap();
+    wait_for("the session to end", || {
+        state.supervisor.is_finished(&SessionId::new(session))
+    });
+}
+
+#[test]
+fn a_driven_session_is_exact_and_answered_only_by_the_user() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, FAKE_HARNESS_ID, work.path());
+    // The fake's own default is the terminal; the profile chooses driven.
+    runtime::choose_impl(&state, &profile, Some("driven")).unwrap();
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let session = launched.session_id;
+    assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
+    let info = row(&state, &session).runtime.expect("its runtime is shown");
+    assert_eq!(info.kind, "driven");
+    assert_eq!(info.label.as_deref(), Some("the fake tool's protocol"));
+
+    // A turn with an approval: Asks you, exactly, with the tool's options.
+    runtime::send_impl(&state, &session, "ask: rm -rf build").unwrap();
+    wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
+    let asks = runtime::asks_impl(&state, 0, 10);
+    assert_eq!(asks[0].summary, "rm -rf build");
+    assert_eq!(asks[0].session_id, session);
+    let labels: Vec<&str> = asks[0].options.iter().map(|o| o.label.as_str()).collect();
+    assert_eq!(labels, ["Allow once", "Always allow this", "Deny"]);
+    wait_for("Asks you", || status_of(&state, &session) == "waiting_user");
+    let stored = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(session.as_str()))
+        .unwrap();
+    assert_eq!(stored.attention.as_ref().unwrap().rule, "tool_asks");
+    assert_eq!(
+        row(&state, &session).runtime.unwrap().state.as_deref(),
+        Some("asks_you")
+    );
+
+    // Only an offered option is carried; then the turn carries on.
+    assert!(runtime::answer_impl(&state, &session, &asks[0].id, choose("yes-to-all")).is_err());
+    assert!(runtime::answer_impl(&state, &session, "no-such-ask", choose("once")).is_err());
+    runtime::answer_impl(&state, &session, &asks[0].id, choose("once")).unwrap();
+    wait_for("the ask to close", || {
+        runtime::asks_impl(&state, 0, 10).is_empty()
+    });
+    wait_for("Running again", || status_of(&state, &session) == "running");
+    wait_for("the reply", || {
+        runtime::get_impl(&state, &session)
+            .unwrap()
+            .unwrap()
+            .items
+            .iter()
+            .any(|item| item.text == "you chose once")
+    });
+
+    // A question, with a reply.
+    runtime::send_impl(&state, &session, "question: which colour?").unwrap();
+    wait_for("the question", || {
+        !runtime::asks_impl(&state, 0, 10).is_empty()
+    });
+    let question = runtime::asks_impl(&state, 0, 10).remove(0);
+    assert_eq!(question.kind, "question");
+    assert!(
+        runtime::answer_impl(&state, &session, &question.id, choose("once")).is_err(),
+        "a question takes a reply"
+    );
+    let reply = AnswerInput {
+        option: None,
+        replies: Some(vec![PartReplyInput {
+            part: question.parts[0].id.clone(),
+            answers: vec!["Blue".into()],
+        }]),
+    };
+    runtime::answer_impl(&state, &session, &question.id, reply).unwrap();
+    wait_for("the reply", || {
+        runtime::get_impl(&state, &session)
+            .unwrap()
+            .unwrap()
+            .items
+            .iter()
+            .any(|item| item.text == "you said Blue")
+    });
+
+    // Every answer is in the account's audit: the option, never a reply's text.
+    let audit = {
+        let storage = state.storage.lock().unwrap();
+        let record = storage
+            .sessions()
+            .get(&SessionId::new(session.as_str()))
+            .unwrap();
+        let profile = storage.profiles().get(&record.profile).unwrap();
+        storage.account_audit().list_for(&profile.account).unwrap()
+    };
+    let answered: Vec<&str> = audit
+        .iter()
+        .filter(|row| row.action == "answered")
+        .filter_map(|row| row.detail.as_deref())
+        .collect();
+    assert_eq!(answered.len(), 2, "{answered:?}");
+    assert!(answered[0].contains("command") && answered[0].contains("Allow once"));
+    assert!(answered[1].contains("replied") && !answered[1].contains("Blue"));
+    assert!(audit.iter().all(|row| row.actor == "user"));
+
+    // The stop leaves nothing behind.
+    stop(&state, &session);
+    wait_for("the driver to see the end", || {
+        state
+            .runtime
+            .driver(&session)
+            .is_none_or(|driver| driver.ended())
+    });
+    assert!(runtime::asks_impl(&state, 0, 10).is_empty());
+}
+
+#[test]
+fn codex_runs_through_its_own_app_server_by_default() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let session = launched.session_id;
+    let driver = state.runtime.driver(&session).expect("Codex is driven");
+    // One app-server per session over stdio: no socket anywhere (the lab
+    // of 2026-10-25), the server the session's own ledger child.
+    assert!(driver.socket.is_none());
+    assert!(
+        !state.data_dir.join("runtime").exists()
+            || std::fs::read_dir(state.data_dir.join("runtime"))
+                .unwrap()
+                .next()
+                .is_none()
+    );
+    assert!(
+        state
+            .supervisor
+            .is_supervised(&SessionId::new(session.as_str()))
+    );
+
+    // Limits with resets, before any turn.
+    wait_for("the limits", || {
+        !row(&state, &session).runtime.unwrap().limits.is_empty()
+    });
+    let limits = row(&state, &session).runtime.unwrap().limits;
+    assert_eq!(limits[0].window_mins, Some(300));
+    assert!(limits[0].resets_at_ms.is_some());
+
+    // An approval with Codex's own rule.
+    runtime::send_impl(&state, &session, "ask: npm test").unwrap();
+    wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
+    let ask = runtime::asks_impl(&state, 0, 10).remove(0);
+    assert!(
+        ask.options
+            .iter()
+            .any(|o| o.label == "Always allow `npm test`")
+    );
+    runtime::answer_impl(&state, &session, &ask.id, choose("accept")).unwrap();
+    wait_for("the turn's end", || {
+        row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
+    });
+
+    stop(&state, &session);
+}
+
+#[test]
+fn open_in_terminal_hands_the_thread_over_and_back() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    wait_for("the turn's end", || {
+        row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
+    });
+    let thread = state
+        .runtime
+        .driver(&session)
+        .unwrap()
+        .snapshot()
+        .native_id
+        .unwrap();
+    assert!(
+        handover_impl(None, &state, &session, Toward::Driven).is_err(),
+        "it already runs in AI Juggler"
+    );
+
+    // Open in terminal: the driver lets go, its server ends, the terminal
+    // resumes the thread as a new session; the old one is handed over.
+    let to_terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_ne!(to_terminal.session_id, session);
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert!(
+        state
+            .supervisor
+            .is_finished(&SessionId::new(session.as_str())),
+        "one writer"
+    );
+    assert!(
+        state.runtime.driver(&to_terminal.session_id).is_none(),
+        "in the terminal"
+    );
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(to_terminal.session_id.as_str()))
+        .unwrap();
+    assert_eq!(
+        record
+            .conversation
+            .as_ref()
+            .map(ToString::to_string)
+            .as_deref(),
+        Some(thread.as_str())
+    );
+
+    // Run in AI Juggler: only once the terminal has ended.
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(to_terminal.session_id.as_str()))
+    });
+    let back = handover_impl(None, &state, &to_terminal.session_id, Toward::Driven).unwrap();
+    let driver = state
+        .runtime
+        .driver(&back.session_id)
+        .expect("driven again");
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(thread.as_str()),
+        "the same thread"
+    );
+    stop(&state, &back.session_id);
+}
+
+#[test]
+fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
+    let work = tempfile::tempdir().unwrap();
+    // This session's own "Start in terminal".
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let launched =
+        commands::launch_profile_as(&state, &profile, None, Some(Runtime::Terminal)).unwrap();
+    assert!(state.runtime.driver(&launched.session_id).is_none());
+    assert!(
+        row(&state, &launched.session_id).runtime.is_none(),
+        "no fallback note: chosen"
+    );
+    stop(&state, &launched.session_id);
+    // The profile's choice.
+    runtime::choose_impl(&state, &profile, Some("terminal")).unwrap();
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    assert!(state.runtime.driver(&launched.session_id).is_none());
+    stop(&state, &launched.session_id);
+
+    // A Codex older than the pinned range.
+    let old = tempfile::tempdir().unwrap();
+    let state = app_state(
+        old.path(),
+        Some(codex_with(old.path(), "FAKE_CODEX_VERSION=0.150.0")),
+    );
+    let profile = new_profile(&state, CODEX_ID, old.path());
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    assert!(state.runtime.driver(&launched.session_id).is_none());
+    let why = row(&state, &launched.session_id)
+        .runtime
+        .and_then(|r| r.fell_back)
+        .unwrap();
+    assert!(why.contains("older than 0.163.0"), "{why}");
+    stop(&state, &launched.session_id);
+
+    // A server on another home: refused after it started; the terminal
+    // starts under a new id and the refused server is gone.
+    let elsewhere = tempfile::tempdir().unwrap();
+    let state = app_state(
+        elsewhere.path(),
+        Some(codex_with(
+            elsewhere.path(),
+            "FAKE_CODEX_HOME=/somewhere/else",
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, elsewhere.path());
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    assert!(launched.session_id.ends_with("-t"));
+    let why = row(&state, &launched.session_id)
+        .runtime
+        .and_then(|r| r.fell_back)
+        .unwrap();
+    assert!(why.contains("/somewhere/else"), "{why}");
+    let refused = launched.session_id.trim_end_matches("-t").to_owned();
+    wait_for("the refused server to stop", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(refused.as_str()))
+    });
+    stop(&state, &launched.session_id);
+}
+
+#[test]
+fn a_profile_choice_is_kept_and_a_bad_word_refused() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let choices = runtime::choose_impl(&state, &profile, Some("terminal")).unwrap();
+    let row = choices
+        .profiles
+        .iter()
+        .find(|p| p.profile_id == profile)
+        .unwrap();
+    assert_eq!(row.chosen.as_deref(), Some("terminal"));
+    assert_eq!(row.default, "driven");
+    assert_eq!(row.label, "Codex's app-server");
+    assert!(runtime::choose_impl(&state, &profile, Some("pty")).is_err());
+    let cleared = runtime::choose_impl(&state, &profile, None).unwrap();
+    assert!(cleared.profiles.iter().all(|p| p.chosen.is_none()));
+    assert!(!cleared.beta_on);
+    assert!(runtime::beta_impl(&state, true).unwrap().beta_on);
+}

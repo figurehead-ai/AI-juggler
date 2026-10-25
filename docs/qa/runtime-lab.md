@@ -42,46 +42,53 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 
 - [ ] New session → the Codex profile → folder `$LAB` → Start. The session
       page says **Runs through Codex's app-server**.
-- [ ] `ls "$AJ_DATA/runtime"` lists one `.sock`; `stat -f '%Sp %N' "$AJ_DATA/runtime" "$AJ_DATA"/runtime/*.sock`
-      shows `drwx------` and `srw-------`.
-- [ ] `pgrep -fl 'app-server --listen unix://'` shows one `codex app-server`
-      whose socket is that file (and nothing under `app-server-control/`).
-- [ ] Before any turn, the session page shows the 5-hour and weekly limits
-      **with their reset times** (record them).
+- [ ] `pgrep -fl 'codex app-server --listen stdio://' | grep -v /Applications/`
+      shows one server for the session (the Codex app's own server, inside
+      `/Applications`, isn't the lab's). Over stdio there is no socket
+      anywhere, and nothing new under `/private/tmp/codex-daemon-*`.
+- [ ] Before any turn, the session page shows the limits Codex reports,
+      **each with its reset time**, named by length (5 hours, weekly). An
+      account that reports only the weekly window shows "no 5-hour limit
+      reported", never a made-up one (record what came).
 - [ ] Send "Run `ls` in this folder." Needs you shows **Asks you: ls** with
-      Codex's options (Allow once, Allow for this session, …, Deny, Deny
-      and stop). Click **Allow once**: the turn completes and the reply is
-      on the session page.
+      Codex's own options (only the decisions it lists). Click **Allow
+      once**: the turn completes and the reply is on the session page.
+- [ ] Send "Run `ls` and then `pwd`." Two small approvals in a row: Needs
+      you lists them together; answer both from the keyboard (Tab to the
+      ask, `1` for its first option, `Enter` for the focused one).
 - [ ] Send "Ask me which colour I like, with two options, using your
       question tool." Record what came: a question with two choices (answer
       it in AI Juggler; the turn carries on), or plain text (then questions
       arrive as text on this version).
-- [ ] Settings › Activity (the audit) lists the answer: session, kind,
-      the option, the time; never a reply's text.
+- [ ] The answers are in the account's audit, with the session, the kind
+      and the option, never a reply's text:
+      `sqlite3 "$AJ_DATA/juggler.sqlite" "select action, detail, actor from account_audit where action = 'answered' order by at desc limit 5"`
 
-## 2. Codex: the real TUI on the same thread (5 min)
+## 2. Codex: the real TUI on the same thread, by hand-over (5 min)
 
-- [ ] On the session page, **Open in terminal**. A terminal opens with
-      `codex --remote unix://… resume <thread>`: the same conversation,
-      live. (If it doesn't, record the exact error: `--remote` before
-      `resume` is the spike's question.)
-- [ ] In that TUI, send "Run `echo two-clients`." **Who is asked**: the
-      TUI, AI Juggler, or both? If both, answer in the TUI and check AI
-      Juggler's ask disappears (`serverRequest/resolved`); record it.
-- [ ] Close the TUI (Ctrl-C twice). AI Juggler's session carries on.
-- [ ] **Stop** the session in AI Juggler. `pgrep -fl 'app-server --listen unix://'`
-      prints nothing; `ls "$AJ_DATA/runtime"` has no socket left.
-- [ ] Optional, by hand, without AI Juggler (the protocol itself):
+- [ ] On the session page, **Open in terminal**. It waits for the turn's
+      end; then the app-server ends (`pgrep` above prints nothing) and a new
+      session opens in AI Juggler's terminal with `codex resume <thread>
+      --no-daemon`: the same conversation. The old session says "handed
+      over".
+- [ ] Send "hello" in the TUI, then exit it (`/quit`). On that session's
+      page, **Run in AI Juggler**: a new driven session continues the same
+      thread (its last messages include "hello").
+- [ ] **Stop** the session in AI Juggler. `pgrep -fl 'codex app-server'`
+      lists nothing of the lab's (the Codex app's own server, under
+      `/Applications/ChatGPT.app`, is not the lab's).
+- [ ] Optional, the protocol by hand without AI Juggler (stdio, the way AI
+      Juggler speaks it; paste one line at a time, `Ctrl-D` ends it):
       ```sh
-      mkdir -p /tmp/aj-rt && chmod 700 /tmp/aj-rt
-      CODEX_HOME="$CODEX_DIR" codex app-server --listen unix:///tmp/aj-rt/s.sock &
-      nc -U /tmp/aj-rt/s.sock
+      CODEX_HOME="$CODEX_DIR" codex app-server --listen stdio://
       {"id":1,"method":"initialize","params":{"clientInfo":{"name":"ai_juggler","title":"AI Juggler","version":"lab"}}}
       {"method":"initialized"}
       {"id":2,"method":"account/rateLimits/read"}
       ```
-      Record both answers (`codexHome` must be `$CODEX_DIR`), then Ctrl-C
-      `nc`, `kill %1`, `rm -rf /tmp/aj-rt`.
+      Record both answers (`codexHome` must be `$CODEX_DIR`).
+- [ ] Still open from the first lab, if you want to look: two clients on
+      one thread (`--listen unix://` speaks WebSocket; AI Juggler doesn't
+      use it yet, ADR-0022).
 
 ## 3. Claude: hooks and the status line through `--settings` (10 min)
 
@@ -139,19 +146,26 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 
 - [ ] `scripts/qa/runtime_lab_snapshot.sh take after "$CODEX_DIR" "$CLAUDE_DIR" "$AJ_DATA"`
 - [ ] `scripts/qa/runtime_lab_snapshot.sh diff before after > "$AJ_LAB_OUT/diff.txt"`
-      and read it. **Expected** in the tool folders: new conversation files
-      (`$CODEX_DIR/sessions/…/rollout-*.jsonl`, `$CLAUDE_DIR/projects/…/*.jsonl`),
-      their history and log lines, Codex's state database. **Never**:
-      a changed `settings.json`, `config.toml` or sign-in file, or any file
-      of AI Juggler's (`juggler-*`, `launch-settings.json`, a socket) in a
-      tool folder. In `$AJ_DATA`: `overlays/runtime/<session>/settings.json`
-      for the Claude sessions and nothing under `runtime/` after the stops.
+      and read it. **Expected** in the tool folders, each the tool's own
+      write on every start (the lab of 2026-10-25): new conversation files
+      (`$CODEX_DIR/sessions/…/rollout-*.jsonl`, `$CLAUDE_DIR/projects/…/*.jsonl`,
+      `projects/<folder>/memory/`), their history and log lines; Claude
+      Code's `.claude.json` (and its backup), `remote-settings.json`,
+      `policy-limits.json`, `skills/synced/…`, `plugins/synced/…`,
+      `cache/model-catalog/…`, `.last-cleanup`; Codex's `skills/.system/…`,
+      plugin and model caches, its SQLite files, `tmp/arg0-macos`, and a new
+      modification time on `config.toml` at the same size (Codex rewrites
+      it itself). **Never**: a change in the *content size* of the user's
+      `settings.json` or `config.toml`, a sign-in file, or any file of AI
+      Juggler's (`juggler-*`, `launch-settings.json`, a socket) in a tool
+      folder. In `$AJ_DATA`: `overlays/runtime/<session>/settings.json` for
+      the Claude sessions.
 - [ ] The processes section is empty.
 
 ## 6. Clean up (2 min)
 
 - [ ] Stop any session still running in AI Juggler Dev, quit it.
-- [ ] `pgrep -fl 'app-server --listen unix://|claude -p --input-format stream-json|juggler-agent'`
+- [ ] `pgrep -fl 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent' | grep -v /Applications/`
       prints nothing (if it does: `kill <pid>` each, and record it as a bug).
 - [ ] `rm -rf "$LAB" /tmp/aj-lab-hook.log /tmp/aj-rt`
 - [ ] The lab's conversations stay in the tools' history (they are the
