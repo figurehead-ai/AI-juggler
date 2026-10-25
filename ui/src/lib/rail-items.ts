@@ -121,7 +121,10 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
   const need: Need | null =
     attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
   const ended = ENDED.has(row.status);
-  const state: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
+  const exact = row.runtime?.state as RailState | null | undefined;
+  const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,
     session: row,

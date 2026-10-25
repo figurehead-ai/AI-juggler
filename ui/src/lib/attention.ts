@@ -7,6 +7,9 @@ export function attentionWords(rule: string | null | undefined): string {
     case "waiting_prompt":
     case "waiting_user":
       return "waiting for your reply";
+    // AJ-E2306/E2303: the tool itself said it asks (its hooks or protocol).
+    case "tool_asks":
+      return "asks you";
     case "stuck_no_output":
     case "stuck":
       return "no output for a while";

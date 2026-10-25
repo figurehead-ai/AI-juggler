@@ -19,6 +19,7 @@ import { lazyNamed } from "../lib/lazy";
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
+const DrivenPanel = lazyNamed(() => import("../pages/session/DrivenPanel"), "DrivenPanel");
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";
@@ -739,6 +740,8 @@ function InstanceOverview(props: PanelProps) {
               reported, never guessed to a wrong window.
             </p>
           </Card>
+        ) : session.runtime?.kind === "driven" ? (
+          <DrivenPanel session={session} onOpenSession={props.onOpenSession} />
         ) : (
           <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
             <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
