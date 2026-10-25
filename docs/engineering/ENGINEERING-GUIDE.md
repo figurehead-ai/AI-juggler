@@ -176,6 +176,18 @@ with a removal version in its doc comment.** *Why:* names are global [S6]. *Enfo
 **I5 SHOULD: When a second webview appears (menu bar, mini window), restrict app
 commands per window** with `AppManifest::commands` and capabilities [S25].
 
+**I6 MUST: A list that can grow is read a page at a time.** The command takes a
+`PageRequest` and answers a `Page { items, next_cursor, total }` (`paging.rs`:
+50 rows unless asked, never over 200, keyset cursors, so a row added meanwhile never
+shifts or repeats one shown). The UI reads it with `usePagedList` (`lib/paged.ts`:
+remembered by key, shown at once when opened again and read again behind it) and
+draws it with `PagedList` (a skeleton in the first render, only the rows in view).
+The window's own lists hold a working set (what's open, pinned, the recent ones),
+never the whole history. *Why:* 0.1.5 review: Usage and History read hundreds of
+rows at once and stayed blank for seconds. *Enforced:* `ipc_audit.py` fails a
+command whose return type holds a `Vec` or map (itself or in its struct) unless it
+answers a `Page` or is listed under `unbounded` with why it stays small.
+
 ```ts
 // ui/src/lib/ipc/sync.ts — one file per feature, thin and typed (generated later)
 import { invoke } from "@tauri-apps/api/core";
