@@ -159,7 +159,9 @@ describe("AJ-E403 density field presence per mode", () => {
     // `% left` number text does not; the sparkline is replaced by text.
     expect(text).not.toContain("% left");
     expect(container.querySelector("svg polyline")).toBeNull();
-    expect(container.textContent).toContain("WM"); // I-02 disc initials ride in the tooltip? no — title attr; assert via aria
+    // I-02: the account's disc, its name as its tooltip (under 24 px a
+    // disc is its colour alone: letters would be under 12 px).
+    expect(container.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
   });
 
   it("Compact never hides the I-04 state text or the I-10 badge", () => {

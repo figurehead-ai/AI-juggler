@@ -784,7 +784,7 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "history" ? (
             <ScrollingScreen key="history" screen="history" label="History">
-              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              <History sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
             <ScrollingScreen key="usage" screen="usage" label="Usage">
