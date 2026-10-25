@@ -36,8 +36,8 @@ use crate::model::{Account, Profile};
 
 pub use events::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ItemKind,
-    ItemSummary, LimitWindow, LimitsSnapshot, LiveStatusWord, OptionEffect, PartAnswer, Question,
-    QuestionPart, RuntimeEvent, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
+    ItemSummary, LimitWindow, LimitsSnapshot, LiveStatusWord, ModelChoice, OptionEffect,
+    PartAnswer, Question, QuestionPart, RuntimeEvent, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
 };
 
 /// How one session runs. Chosen per launch from what its adapter
@@ -117,8 +117,12 @@ pub struct DrivenSpec {
     pub launch: LaunchSpec,
     /// How to reach it.
     pub transport: Transport,
-    /// The conversation's id when it is known before the tool starts.
+    /// The conversation's id when it is known before the tool starts (or
+    /// the one to resume, for a tool that resumes over its protocol).
     pub native_id: Option<String>,
+    /// The model to start with, for a tool that takes it over its protocol
+    /// rather than as a flag (the profile's launch settings).
+    pub model: Option<String>,
 }
 
 /// A connected transport: what the codec reads and writes.
@@ -289,6 +293,18 @@ pub trait DrivenSession: Send {
     ///
     /// [`AdapterError::Unsupported`] where the tool can't.
     fn set_model(&mut self, model: &str) -> Result<(), AdapterError>;
+
+    /// Asks the tool for the models it offers (they arrive as
+    /// [`RuntimeEvent::Models`]).
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] where the tool can't list them.
+    fn list_models(&mut self) -> Result<(), AdapterError> {
+        Err(AdapterError::Unsupported(
+            "this tool doesn't list its models".into(),
+        ))
+    }
 
     /// Compacts the conversation.
     ///

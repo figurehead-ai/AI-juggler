@@ -24,6 +24,7 @@ pub mod claude_inventory;
 pub mod claude_live;
 pub mod claude_transcript;
 pub mod codex;
+pub mod codex_appserver;
 pub mod codex_bridge;
 pub mod codex_conversations;
 mod codex_endpoint;

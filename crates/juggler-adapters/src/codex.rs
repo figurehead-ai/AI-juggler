@@ -83,6 +83,9 @@ pub struct CodexAdapter {
     /// The user's home for the shell-file scan and for recognising
     /// Codex's default `~/.codex` (tests/fixtures; `None` reads `$HOME`).
     home: Option<PathBuf>,
+    /// AJ-E2303: whether this binary and version can be driven (worked
+    /// out once: it runs the schema generator).
+    driven: crate::codex_appserver::DrivenCache,
 }
 
 impl CodexAdapter {
@@ -98,6 +101,7 @@ impl CodexAdapter {
         Self {
             bin: Some(bin.into()),
             home: None,
+            driven: crate::codex_appserver::DrivenCache::default(),
         }
     }
 
@@ -185,6 +189,11 @@ impl CodexAdapter {
     /// The user's home (`with_home` in tests, else `$HOME`).
     fn user_home(&self) -> Option<PathBuf> {
         self.home.clone().or_else(home_dir)
+    }
+
+    /// The driven-runtime check's cache (`codex_appserver`).
+    pub(crate) fn driven_cache(&self) -> &crate::codex_appserver::DrivenCache {
+        &self.driven
     }
 
     fn require_bin(&self) -> Result<PathBuf, AdapterError> {
@@ -461,6 +470,12 @@ impl HarnessAdapter for CodexAdapter {
             // Its usage keys start with the thread they belong to.
             | Capabilities::USAGE_KEYS_PER_SESSION
             | Capabilities::AGENT_BRIDGE
+            // AJ-E2303 (D-40): driven through its own app-server.
+            | Capabilities::PROTOCOL_SERVER
+    }
+
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 
     fn agent_bridge(

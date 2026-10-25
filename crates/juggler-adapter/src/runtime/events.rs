@@ -247,6 +247,17 @@ pub enum AskAnswer {
     },
 }
 
+/// One model a tool offers.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelChoice {
+    /// What `set_model` takes.
+    pub id: String,
+    /// Its name, as the tool shows it.
+    pub name: String,
+    /// The tool's default.
+    pub default: bool,
+}
+
 /// What a tool's item is (for the conversation view; never stored).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -367,10 +378,16 @@ pub enum RuntimeEvent {
     },
     /// The conversation was compacted.
     Compacted,
-    /// The model changed.
+    /// The model changed (from the next turn, for a tool that takes the
+    /// model per turn).
     ModelChanged {
         /// The new model.
         model: String,
+    },
+    /// The models the tool offers, as it lists them.
+    Models {
+        /// In the tool's order.
+        models: Vec<ModelChoice>,
     },
     /// Something went wrong.
     Error {
