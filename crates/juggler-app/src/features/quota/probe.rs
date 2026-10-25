@@ -183,6 +183,9 @@ pub fn run(spec: &juggler_adapter::LaunchSpec, timeout: Duration) -> &'static st
         match child.try_wait() {
             Ok(Some(status)) => return if status.success() { "ran" } else { "failed" },
             Ok(None) if started.elapsed() < timeout => {
+                // poll: Claude Code's /usage exiting (a child has no exit
+                // event to wait on without a thread per run); bounded by
+                // `timeout` (30 s), off the main thread, at most every 15 min.
                 std::thread::sleep(Duration::from_millis(100));
             }
             _ => {

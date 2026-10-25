@@ -274,7 +274,7 @@ pub fn instance_sign_ins(instance_dir: &Path) -> Vec<SignIn> {
 }
 
 /// The meter samples in an app instance's history that are `sign_in`'s,
-/// newer than `after_ms`, oldest first (at most [`APP_SAMPLES_MAX`] of
+/// newer than `after_ms`, oldest first (at most `APP_SAMPLES_MAX` of
 /// the newest), from the history's bytes and the instance's sign-ins.
 ///
 /// They are `sign_in`'s only when the instance's Code sessions name
