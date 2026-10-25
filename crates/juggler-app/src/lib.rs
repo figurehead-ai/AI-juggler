@@ -44,6 +44,7 @@ pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
 pub mod manage;
