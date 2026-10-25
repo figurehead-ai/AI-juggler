@@ -103,21 +103,29 @@ export type PagedList<T> = {
 export function usePagedList<T>(
   key: string | null,
   fetchPage: FetchPage<T>,
-  options: { pageSize?: number; keyOf?: (row: T) => string } = {},
+  options: {
+    pageSize?: number;
+    keyOf?: (row: T) => string;
+    /** The first page when the rows are already in memory (a list the UI
+     * holds): shown in the first render, then read as usual. */
+    seed?: (pageSize: number) => Page<T> | null;
+  } = {},
 ): PagedList<T> {
   const pageSize = Math.min(Math.max(options.pageSize ?? PAGE_SIZE, 1), MAX_PAGE);
-  const remembered = key === null ? undefined : (memory.get(key) as Entry<T> | undefined);
-  const [state, setState] = useState<{ key: string | null; entry: Entry<T> | null; stale: boolean; loadingMore: boolean; error: unknown }>(() => ({
-    key,
-    entry: remembered ?? null,
-    stale: remembered !== undefined,
-    loadingMore: false,
-    error: null,
-  }));
+  const seeded = (): Entry<T> | undefined => {
+    const page = key === null ? null : (options.seed?.(pageSize) ?? null);
+    return page ? { items: page.items, nextCursor: page.next_cursor, total: page.total, at: 0 } : undefined;
+  };
+  const remembered = (): Entry<T> | undefined => (key === null ? undefined : ((memory.get(key) as Entry<T> | undefined) ?? seeded()));
+  const fresh = () => {
+    const entry = remembered();
+    return { key, entry: entry ?? null, stale: entry !== undefined, loadingMore: false, error: null as unknown };
+  };
+  const [state, setState] = useState<{ key: string | null; entry: Entry<T> | null; stale: boolean; loadingMore: boolean; error: unknown }>(fresh);
   // A new key shows its own remembered rows in this very render.
   let current = state;
   if (state.key !== key) {
-    current = { key, entry: remembered ?? null, stale: remembered !== undefined, loadingMore: false, error: null };
+    current = fresh();
     setState(current);
   }
   const fetchRef = useRef(fetchPage);

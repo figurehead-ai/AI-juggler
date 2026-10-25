@@ -395,11 +395,9 @@ export default function App() {
   // Golden path day one: surface the user's REAL project history from
   // imported transcripts (idempotent backend scan). AJ-E1529: the backend
   // backfills again when the files change (an import, a new folder) and
-  // says so; the lists are read again then.
+  // says so; the lists are read again then (not when only which are open changed).
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
-    // Only a change of the files can change the app's own lists; which
-    // are open (every few seconds with many) is the conversations' alone.
     return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
