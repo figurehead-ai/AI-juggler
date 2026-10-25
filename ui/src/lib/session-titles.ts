@@ -35,7 +35,7 @@ export function firstWords(text: string, max = 8): string | null {
 /** When it started, in a few words: "started 16:19", "started yesterday
  * 16:19", "started Thursday 23 October 16:19". */
 export function startedWords(ms: number, now: number): string {
-  const clock = new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const clock = new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const day = dayWords(ms, now);
   return day === "Today" ? `started ${clock}` : `started ${day === "Yesterday" ? "yesterday" : day} ${clock}`;
 }
