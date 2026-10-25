@@ -38,3 +38,8 @@ path = "src/bin/fake_desktop.rs"
 [[bin]]
 name = "fake-codex"
 path = "src/bin/fake_codex.rs"
+
+# AJ-E2308: a stand-in for Claude Code's headless stream-json (tests only).
+[[bin]]
+name = "fake-claude"
+path = "src/bin/fake_claude.rs"

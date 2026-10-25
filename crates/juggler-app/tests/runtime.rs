@@ -498,6 +498,102 @@ fn switching_away_from_a_driven_session_releases_it_first() {
     }
 }
 
+fn fake_claude_bin() -> PathBuf {
+    fake_codex_bin().with_file_name("fake-claude")
+}
+
+/// AJ-E2308: Claude Code without a terminal is a per-session Beta: only
+/// with its switch on, only in a folder Claude Code trusts, never a
+/// profile's standing choice; answered here, handed back to the terminal.
+#[test]
+fn claude_runs_without_a_terminal_only_as_a_per_session_beta() {
+    use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(fake_claude_bin())));
+    let state =
+        Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
+    let project = work.path().canonicalize().unwrap().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let profile = new_profile(&state, CLAUDE_CODE_ID, &project);
+    let driven = || Some(Runtime::Driven);
+
+    // The switch is off: the terminal, with the reason.
+    let launched = commands::launch_profile_as(&state, &profile, None, driven()).unwrap();
+    assert!(state.runtime.driver(&launched.session_id).is_none());
+    let why = row(&state, &launched.session_id)
+        .runtime
+        .unwrap()
+        .fell_back
+        .unwrap();
+    assert!(why.contains("(Beta) is off"), "{why}");
+    // On, but Claude Code hasn't been trusted in the folder yet.
+    runtime::beta_impl(&state, true).unwrap();
+    let launched = commands::launch_profile_as(&state, &profile, None, driven()).unwrap();
+    let why = row(&state, &launched.session_id)
+        .runtime
+        .unwrap()
+        .fell_back
+        .unwrap();
+    assert!(why.contains("trusted"), "{why}");
+    // Trusted (as Claude Code records it), and picked for this session.
+    let state_dir = {
+        let storage = state.storage.lock().unwrap();
+        let recipe = storage
+            .profiles()
+            .get(&juggler_core::model::ProfileId::new(profile.as_str()))
+            .unwrap();
+        storage.accounts().get(&recipe.account).unwrap().state_dir
+    };
+    std::fs::write(
+        state_dir.join(".claude.json"),
+        serde_json::json!({"projects": {project.to_string_lossy(): {"hasTrustDialogAccepted": true}}}).to_string(),
+    )
+    .unwrap();
+    let session = commands::launch_profile_as(&state, &profile, None, driven())
+        .unwrap()
+        .session_id;
+    let driver = state.runtime.driver(&session).expect("driven, as picked");
+    assert!(driver.beta);
+    assert_eq!(driver.label, "Claude Code without a terminal");
+    // A Beta is never a profile's standing choice.
+    runtime::choose_impl(&state, &profile, Some("driven")).unwrap();
+    let standing = commands::launch_profile(&state, &profile, None).unwrap();
+    assert!(state.runtime.driver(&standing.session_id).is_none());
+
+    // Its approval, with Claude Code's own rule, answered here.
+    runtime::send_impl(&state, &session, "ask: ls -la").unwrap();
+    wait_for("the ask", || {
+        runtime::asks_impl(&state, 0, 10)
+            .iter()
+            .any(|a| a.session_id == session)
+    });
+    let ask = runtime::asks_impl(&state, 0, 10)
+        .into_iter()
+        .find(|a| a.session_id == session)
+        .unwrap();
+    assert!(
+        ask.options
+            .iter()
+            .any(|o| o.id == "rule:0" && o.effect == "allow_rule")
+    );
+    runtime::answer_impl(&state, &session, &ask.id, choose("rule:0")).unwrap();
+    wait_for("the turn's end", || {
+        row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
+    });
+
+    // Open in terminal: one writer at a time, `claude --resume <id>`.
+    let next = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert!(
+        state
+            .supervisor
+            .is_finished(&SessionId::new(session.as_str()))
+    );
+    assert!(state.runtime.driver(&next.session_id).is_none());
+}
+
 #[test]
 fn a_profile_choice_is_kept_and_a_bad_word_refused() {
     let work = tempfile::tempdir().unwrap();

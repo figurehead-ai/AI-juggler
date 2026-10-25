@@ -401,6 +401,13 @@ pub enum RuntimeEvent {
         /// The tool retries on its own.
         will_retry: bool,
     },
+    /// The conversation's file, once the tool has written it (for a tool
+    /// that names it only then). The app links it only when it lies in the
+    /// account's own folder.
+    Transcript {
+        /// Its path.
+        path: String,
+    },
     /// The tool's process or connection is gone.
     Exited,
 }

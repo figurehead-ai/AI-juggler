@@ -292,6 +292,7 @@ impl Snapshot {
             RuntimeEvent::ToolDelta { .. }
             | RuntimeEvent::Usage { .. }
             | RuntimeEvent::Compacted
+            | RuntimeEvent::Transcript { .. }
             | RuntimeEvent::Models { .. } => false,
         }
     }
@@ -680,6 +681,11 @@ fn run(
                 } = &event
                 {
                     unlinked = Some((native_id.clone(), path.clone()));
+                }
+                if let RuntimeEvent::Transcript { path } = &event
+                    && let Some(native_id) = snapshot.lock().ok().and_then(|s| s.native_id.clone())
+                {
+                    unlinked = Some((native_id, Some(path.clone())));
                 }
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)

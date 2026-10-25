@@ -106,6 +106,16 @@ impl Subject for Claude {
     fn flag_rules(&self) -> &'static [(&'static str, &'static str)] {
         &[("stream-json", "--verbose")]
     }
+
+    /// Claude Code keeps the trust answer in `.claude.json`.
+    fn trust(&self, state_dir: &Path, cwd: &Path) {
+        let projects =
+            serde_json::json!({ cwd.to_string_lossy(): {"hasTrustDialogAccepted": true} });
+        write(
+            &state_dir.join(".claude.json"),
+            &serde_json::json!({ "projects": projects }).to_string(),
+        );
+    }
 }
 
 struct ClaudeUsage;

@@ -136,6 +136,12 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::AGENT_BRIDGE
             // AJ-E2306: its terminal sessions report through its own hooks.
             | Capabilities::STATE_REPORTS
+            // AJ-E2308: without a terminal, a per-session Beta.
+            | Capabilities::PROTOCOL_SERVER
+    }
+
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 
     fn state_reports(

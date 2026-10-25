@@ -23,6 +23,7 @@ pub mod claude_handover;
 pub mod claude_hooks;
 pub mod claude_inventory;
 pub mod claude_live;
+pub mod claude_stream;
 pub mod claude_transcript;
 pub mod codex;
 pub mod codex_appserver;

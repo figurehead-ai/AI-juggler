@@ -108,6 +108,13 @@ pub trait Subject {
     fn flag_rules(&self) -> &'static [(&'static str, &'static str)] {
         &[]
     }
+
+    /// Records, as the tool does, that the user trusted `cwd` in the
+    /// account at `state_dir` (a driven runtime may run only there).
+    /// Default: nothing to record.
+    fn trust(&self, state_dir: &Path, cwd: &Path) {
+        let _ = (state_dir, cwd);
+    }
 }
 
 /// How one adapter's usage is read.
@@ -1003,6 +1010,7 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
             "{name}: a Beta runtime is never a tool's default"
         );
     }
+    subject.trust(&dir, &sandbox.project);
     let runtime_dir = sandbox.accounts.parent().unwrap().join("runtime");
     let socket = runtime_dir.join("kit.sock");
     let terminal = adapter
@@ -1090,6 +1098,7 @@ pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
     let recipe = profile(&account, BTreeMap::new());
+    subject.trust(&dir, &sandbox.project);
     let mut launches: Vec<(String, Vec<String>)> = Vec::new();
     for mode in all_modes("kit-session-1") {
         if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
