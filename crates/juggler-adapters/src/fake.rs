@@ -66,6 +66,12 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::FORK
             | Capabilities::AGENT_BRIDGE
+            | Capabilities::PROTOCOL_SERVER
+    }
+
+    /// AJ-E2302: `fake-harness drive` (`fake_driven.rs`).
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 
     /// AJ-E1704: like a tool that reads MCP servers from a file named on

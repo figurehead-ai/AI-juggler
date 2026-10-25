@@ -20,7 +20,9 @@ bitflags::bitflags! {
         const USAGE_TOKENS = 1 << 4;
         /// A vendor quota feed exists (e.g. Claude statusline rate limits).
         const USAGE_QUOTA_FEED = 1 << 5;
-        /// Exposes a structured protocol server (e.g. Codex app-server).
+        /// AJ-E2302 (ADR-0022): its sessions can be driven through the
+        /// tool's own protocol (Codex's app-server, Claude Code's
+        /// stream-json): `HarnessAdapter::driven` says how.
         const PROTOCOL_SERVER = 1 << 6;
         /// Sessions can be forked natively.
         const FORK = 1 << 7;

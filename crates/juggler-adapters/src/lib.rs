@@ -34,6 +34,7 @@ pub mod codex_live;
 pub mod codex_transcript;
 pub mod config_edit;
 pub mod fake;
+pub mod fake_driven;
 pub mod grok_build;
 pub mod grok_environment;
 pub mod grok_inventory;

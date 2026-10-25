@@ -32,6 +32,15 @@
 //!    from the environment, writes files only by plain name into AI
 //!    Juggler's launch folder (never the account's), points at the bridge
 //!    program, and allows no tool by wildcard.
+//! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
+//!    is declared exactly when the adapter offers a driven runtime. No
+//!    launch of either runtime passes a flag that bypasses the tool's
+//!    permission prompts or sign-in (`--bare`, …). A driven launch runs the
+//!    terminal's own binary, piped, with the same pinned isolation and
+//!    removed credentials after hostile overrides; serves a socket only at
+//!    the path AI Juggler gave it; refuses option-like ids; and its
+//!    terminal view keeps the same rules. A Beta runtime is never a
+//!    tool's default.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -912,6 +921,145 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 8. Both runtimes, honestly
+
+pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
+    use juggler_adapter::runtime::{
+        DrivenLaunch, Maturity, Runtime, TerminalView, Transport, ViewOf, has_forbidden_arg,
+    };
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let recipe = profile(&account, hostile_overrides(adapter.as_ref()));
+    let pins = expected_pins(adapter.as_ref(), &dir);
+    let keeps_rules = |what: &str, spec: &juggler_adapter::LaunchSpec| {
+        assert!(
+            !has_forbidden_arg(&spec.args),
+            "{name}: {what} bypasses the tool's prompts or sign-in: {:?}",
+            spec.args
+        );
+        for (key, value) in &pins {
+            assert_eq!(
+                spec.env.get(*key),
+                Some(value),
+                "{name}: an override moved {key} in {what}"
+            );
+        }
+        for key in adapter.launch_unset_keys() {
+            assert_eq!(
+                spec.env.get(*key).map(String::as_str),
+                Some(ENV_UNSET),
+                "{name}: an override brought back {key} in {what}"
+            );
+        }
+        let all = format!("{:?}", spec.args);
+        assert!(
+            !all.contains(LEAKED),
+            "{name}: {what} carries a removed credential"
+        );
+    };
+    for mode in all_modes("kit-session-1") {
+        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+            keeps_rules(&format!("the terminal's {mode:?} launch"), &spec);
+        }
+    }
+    let declares = adapter
+        .capabilities()
+        .contains(Capabilities::PROTOCOL_SERVER);
+    let driven = adapter.driven();
+    assert_eq!(
+        driven.is_some(),
+        declares,
+        "{name}: PROTOCOL_SERVER is declared {declares} but driven() is {}",
+        driven.is_some()
+    );
+    let Some(driven) = driven else { return };
+    if driven.default_runtime() == Runtime::Driven {
+        assert_eq!(
+            driven.maturity(),
+            Maturity::Stable,
+            "{name}: a Beta runtime is never a tool's default"
+        );
+    }
+    let runtime_dir = sandbox.accounts.parent().unwrap().join("runtime");
+    let socket = runtime_dir.join("kit.sock");
+    let terminal = adapter
+        .launch_spec(
+            &account,
+            &recipe,
+            &sandbox.project,
+            &LaunchMode::Interactive,
+        )
+        .unwrap();
+    for resume in [None, Some("kit-session-1".to_owned())] {
+        let launch = DrivenLaunch {
+            socket: socket.clone(),
+            resume: resume.clone(),
+            fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        };
+        let spec = driven
+            .driven_spec(&account, &recipe, &sandbox.project, &launch)
+            .unwrap_or_else(|error| panic!("{name}: no driven launch ({resume:?}): {error}"));
+        let what = format!("the driven launch ({resume:?})");
+        keeps_rules(&what, &spec.launch);
+        assert_eq!(
+            spec.launch.program, terminal.program,
+            "{name}: {what} runs another binary than the terminal (never a bundled copy)"
+        );
+        assert!(!spec.launch.needs_pty, "{name}: {what} asks for a PTY");
+        if let Transport::Socket(path) = &spec.transport {
+            assert_eq!(path, &socket, "{name}: {what} serves a socket elsewhere");
+        }
+        for arg in &spec.launch.args {
+            if arg.contains(&*runtime_dir.to_string_lossy()) {
+                assert!(
+                    arg.contains(&*socket.to_string_lossy()),
+                    "{name}: {what} names another path in the runtime folder: {arg}"
+                );
+            }
+        }
+        if let Some(id) = &resume {
+            assert!(
+                spec.launch.args.iter().any(|arg| arg.contains(id.as_str()))
+                    || spec.native_id.as_deref() == Some(id.as_str()),
+                "{name}: {what} doesn't continue {id}"
+            );
+        }
+    }
+    for id in ["", "-", "--last", "--session=other"] {
+        let launch = DrivenLaunch {
+            socket: socket.clone(),
+            resume: Some(id.into()),
+            fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        };
+        assert!(
+            matches!(
+                driven.driven_spec(&account, &recipe, &sandbox.project, &launch),
+                Err(AdapterError::InvalidLaunch(_))
+            ),
+            "{name}: a driven launch resumed the option-like id {id:?}"
+        );
+    }
+    let view = driven
+        .terminal_view(
+            &account,
+            &recipe,
+            &sandbox.project,
+            &ViewOf {
+                native_id: "kit-session-1".into(),
+                socket: Some(socket.clone()),
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name}: no terminal view: {error}"));
+    let (TerminalView::Attach(spec) | TerminalView::AfterRelease(spec)) = &view;
+    keeps_rules("the terminal view", spec);
+    assert!(spec.needs_pty, "{name}: the terminal view has no terminal");
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -952,6 +1100,11 @@ macro_rules! conformance {
             #[test]
             fn adds_the_agent_bridge_honestly() {
                 conformance::adds_the_agent_bridge_honestly(&$subject);
+            }
+
+            #[test]
+            fn runs_both_runtimes_honestly() {
+                conformance::runs_both_runtimes_honestly(&$subject);
             }
         }
     };

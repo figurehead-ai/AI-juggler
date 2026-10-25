@@ -653,6 +653,16 @@ pub trait HarnessAdapter: Send + Sync {
         let _ = (bridge, args);
         None
     }
+
+    /// AJ-E2302 (D-40, ADR-0022): the tool's own protocol, for sessions
+    /// AI Juggler drives instead of running its terminal UI. `None` (the
+    /// default): the terminal is this tool's only runtime. An adapter that
+    /// returns `Some` declares [`crate::Capabilities::PROTOCOL_SERVER`]
+    /// (the conformance kit holds both).
+    #[must_use]
+    fn driven(&self) -> Option<&dyn crate::runtime::DrivenRuntime> {
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

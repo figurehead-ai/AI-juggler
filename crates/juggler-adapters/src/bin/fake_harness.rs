@@ -13,7 +13,11 @@
 //!               [--child-ignore-term] [--mcp-config FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
+//! fake-harness drive --dir DIR [--session-id ID | --resume ID]
 //! ```
+//!
+//! `drive` is the fake tool's own protocol on stdin and stdout, for the
+//! driven runtime (AJ-E2302, `support/drive.rs`).
 //!
 //! `FAKE_HARNESS_DELAY_MS` in the environment is the default `--delay-ms`
 //! (launch settings can carry it where the arguments are the adapter's:
@@ -46,6 +50,9 @@ mod replica_write;
 #[path = "support/mcp_client.rs"]
 mod mcp_client;
 
+#[path = "support/drive.rs"]
+mod drive;
+
 const VERSION: &str = "0.1.0";
 
 fn main() -> ExitCode {
@@ -70,6 +77,15 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("run") => run(&args[1..]),
+        Some("drive") => {
+            match drive::run(&args[1..], &|id, resumed| header_line(id, resumed, "")) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(message) => {
+                    eprintln!("fake-harness drive: {message}");
+                    ExitCode::from(2)
+                }
+            }
+        }
         Some("write") => match replica_write::run(&args[1..]) {
             Ok(()) => ExitCode::SUCCESS,
             Err(message) => {
