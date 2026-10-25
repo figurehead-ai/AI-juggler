@@ -12,20 +12,18 @@ import { ProjectMark } from "./ProjectMark";
 import { SectionTitle } from "./SectionTitle";
 import { placeOf } from "../screens/Home";
 import { minutes } from "../lib/time-words";
-import { startedWords, useAskedWords } from "../lib/session-titles";
+import { askedKey, startedWords, untitledName, useAskedWords } from "../lib/session-titles";
+import { tellingBranch } from "../lib/project-words";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
-
-/** Branches that name no piece of work (lib/project-words). */
-const PLAIN = /^(main|master|trunk|develop|development|dev|head|default)$/i;
 
 /** Each row's title and where line, no two the same. */
 export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], asked: ReadonlyMap<string, string | null>, now: number): { session: InstanceInfo; title: string; where: string }[] {
   const rows = recent.map((session) => {
     const place = placeOf(session, projects);
-    const words = session.conversation_id ? asked.get(`${session.account_id ?? ""}\u0000${session.conversation_id}`) : null;
-    const branch = session.git_branch && !PLAIN.test(session.git_branch) ? session.git_branch : null;
+    const words = session.conversation_id ? asked.get(askedKey(session.account_id ?? "", session.conversation_id)) : null;
+    const branch = tellingBranch(session.git_branch);
     const named = session.label ?? session.title ?? words ?? null;
-    const title = named ?? `${branch ?? place.title} · ${startedWords(session.started_at_ms, now)}`;
+    const title = named ?? untitledName(branch, place.title, session.started_at_ms, now);
     // The where line skips what the title already says.
     const where = [named === null && !branch ? null : place.title, named === null && branch ? null : session.git_branch, session.account_label].filter(Boolean).join(" · ");
     return { session, title, where };

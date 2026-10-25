@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { conversationsLastMessages } from "./ipc/conversations";
 import { dayWords } from "./time-words";
+import { tellingBranch } from "./project-words";
 
 /** The first few words of what was asked: its first line, cut before a
  * redaction mark, its first clause past a short opener ("Good.", "OK,
@@ -40,6 +41,20 @@ export function startedWords(ms: number, now: number): string {
   return day === "Today" ? `started ${clock}` : `started ${day === "Yesterday" ? "yesterday" : day} ${clock}`;
 }
 
+/** An untitled session's name when nothing it was asked is known: its
+ * telling branch, else its place (a list with a project column leaves
+ * it out), then when it started: "payments-api · started 3:56 PM",
+ * "Session started yesterday 3:56 PM". */
+export function untitledName(branch: string | null | undefined, place: string | null, startedMs: number, now: number): string {
+  const lead = tellingBranch(branch) ?? place;
+  return lead ? `${lead} · ${startedWords(startedMs, now)}` : `Session ${startedWords(startedMs, now)}`;
+}
+
+/** The key what was asked is kept under. */
+export function askedKey(profileId: string, conversationId: string): string {
+  return `${profileId}\u0000${conversationId}`;
+}
+
 const asked = new Map<string, string | null>();
 const reading = new Map<string, Promise<string | null>>();
 
@@ -50,7 +65,7 @@ export function forgetAskedForTests(): void {
 }
 
 function read(profileId: string, conversationId: string): Promise<string | null> {
-  const key = `${profileId}\u0000${conversationId}`;
+  const key = askedKey(profileId, conversationId);
   const pending =
     reading.get(key) ??
     conversationsLastMessages(profileId, conversationId, { max: 12 }).then(
@@ -73,10 +88,10 @@ function read(profileId: string, conversationId: string): Promise<string | null>
 /** What each untitled conversation was last asked, by
  * `profile\0conversation`: read in idle time after the first paint. */
 export function useAskedWords(rows: { profileId: string; conversationId: string }[]): ReadonlyMap<string, string | null> {
-  const wanted = rows.map((row) => `${row.profileId}\u0000${row.conversationId}`).join("\n");
+  const wanted = rows.map((row) => askedKey(row.profileId, row.conversationId)).join("\n");
   const [, setTick] = useState(0);
   useEffect(() => {
-    const todo = rows.filter((row) => !asked.has(`${row.profileId}\u0000${row.conversationId}`));
+    const todo = rows.filter((row) => !asked.has(askedKey(row.profileId, row.conversationId)));
     if (todo.length === 0) return;
     let alive = true;
     const w = window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number };
