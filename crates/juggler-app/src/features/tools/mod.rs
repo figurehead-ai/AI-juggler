@@ -72,6 +72,11 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
                 .capabilities()
                 .contains(Capabilities::USAGE_QUOTA_FEED),
         },
+        runtime: adapter.driven().map(|driven| dto::ToolRuntimeInfo {
+            label: driven.label().to_owned(),
+            beta: driven.maturity() == juggler_adapter::runtime::Maturity::Beta,
+            terms_note: driven.terms_note().map(str::to_owned),
+        }),
     }
 }
 

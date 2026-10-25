@@ -97,6 +97,7 @@ export function PrivacyScreen(): JSX.Element {
                   <OutLink to={{ kind: "terms", id: tool.id }}>{tool.terms!.name} ↗</OutLink>{" "}
                   · checked {checkedWords(tool.terms!.checked)}
                 </span>
+                {tool.runtime?.terms_note && <span className="text-xs text-muted" data-testid="privacy-runtime-note">{tool.runtime.terms_note}</span>}
               </span>
             </li>
           ))}

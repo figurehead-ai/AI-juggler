@@ -33,3 +33,13 @@ path = "src/bin/fake_harness.rs"
 [[bin]]
 name = "fake-desktop"
 path = "src/bin/fake_desktop.rs"
+
+# AJ-E2303: a stand-in for Codex's app-server (tests only).
+[[bin]]
+name = "fake-codex"
+path = "src/bin/fake_codex.rs"
+
+# AJ-E2308: a stand-in for Claude Code's headless stream-json (tests only).
+[[bin]]
+name = "fake-claude"
+path = "src/bin/fake_claude.rs"

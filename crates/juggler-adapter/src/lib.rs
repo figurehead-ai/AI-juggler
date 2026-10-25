@@ -29,6 +29,8 @@ pub mod jsonc;
 pub mod launch;
 pub mod live;
 pub mod registry;
+pub mod reports;
+pub mod runtime;
 pub mod spec;
 pub mod system_tools;
 pub mod user_path;
@@ -49,5 +51,9 @@ pub use error::AdapterError;
 pub use identity::IdentityProbe;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
+pub use runtime::{
+    DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Release, ReleaseOutcome,
+    Runtime, RuntimeEvent, TerminalView, Transport,
+};
 pub use spec::{ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
 pub use watcher::{SessionEvent, SessionWatcher};

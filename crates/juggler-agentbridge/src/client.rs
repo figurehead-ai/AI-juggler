@@ -115,7 +115,7 @@ pub fn call(
     };
     let line =
         serde_json::to_string(&request).map_err(|error| CallError::Garbled(error.to_string()))?;
-    let answer = exchange(&target.socket, &line)?;
+    let answer = exchange(&target.socket, &line, CALL_WAIT)?;
     let response: Response = serde_json::from_str(answer.trim_end())
         .map_err(|error| CallError::Garbled(error.to_string()))?;
     match (response.result, response.refused) {
@@ -128,8 +128,18 @@ pub fn call(
     }
 }
 
+/// Sends one line to the app and reads its answer, waiting at most `wait`
+/// for each (a tool's hook must never hold its tool up for long).
+///
+/// # Errors
+///
+/// As [`call`].
+pub fn send_line(socket: &Path, line: &str, wait: Duration) -> Result<String, CallError> {
+    exchange(socket, line, wait)
+}
+
 #[cfg(unix)]
-fn exchange(socket: &Path, line: &str) -> Result<String, CallError> {
+fn exchange(socket: &Path, line: &str, wait: Duration) -> Result<String, CallError> {
     use std::os::unix::net::UnixStream;
     if !trusted_socket(socket) {
         return Err(CallError::Unreachable(format!(
@@ -139,12 +149,8 @@ fn exchange(socket: &Path, line: &str) -> Result<String, CallError> {
     }
     let unreachable = |error: std::io::Error| CallError::Unreachable(error.to_string());
     let mut stream = UnixStream::connect(socket).map_err(unreachable)?;
-    stream
-        .set_read_timeout(Some(CALL_WAIT))
-        .map_err(unreachable)?;
-    stream
-        .set_write_timeout(Some(CALL_WAIT))
-        .map_err(unreachable)?;
+    stream.set_read_timeout(Some(wait)).map_err(unreachable)?;
+    stream.set_write_timeout(Some(wait)).map_err(unreachable)?;
     stream.write_all(line.as_bytes()).map_err(unreachable)?;
     stream.write_all(b"\n").map_err(unreachable)?;
     stream
@@ -162,7 +168,7 @@ fn exchange(socket: &Path, line: &str) -> Result<String, CallError> {
 }
 
 #[cfg(not(unix))]
-fn exchange(_socket: &Path, _line: &str) -> Result<String, CallError> {
+fn exchange(_socket: &Path, _line: &str, _wait: Duration) -> Result<String, CallError> {
     Err(CallError::Unreachable(
         "the agent tools need macOS".to_owned(),
     ))

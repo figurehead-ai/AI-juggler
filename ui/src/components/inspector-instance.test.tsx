@@ -240,4 +240,20 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     window.removeEventListener("keydown", onKey);
     expect(container.querySelector("#page-tab-terminal")!.getAttribute("aria-selected")).toBe("true");
   });
+
+  it("a session that couldn't run through its runtime says why above its terminal (AJ-E2302)", () => {
+    const runtime = {
+      kind: "terminal", label: null, beta: false, state: null, asks: [], can_steer: false,
+      fell_back: "Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives", error: null, limits: [],
+    };
+    const { container } = shell(mk({ provider: "codex", runtime }));
+    open(container, "terminal");
+    expect(container.querySelector('[data-testid="runtime-fell-back"]')?.textContent).toBe(
+      "In its terminal: Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives.",
+    );
+    cleanup();
+    const plain = shell(mk());
+    open(plain.container, "terminal");
+    expect(plain.container.querySelector('[data-testid="runtime-fell-back"]')).toBeNull();
+  });
 });

@@ -2,6 +2,7 @@
 import type { AttentionInfo } from "./AttentionInfo";
 import type { NeedsAttention } from "./NeedsAttention";
 import type { QuotaSnapshotInfo } from "./QuotaSnapshotInfo";
+import type { RuntimeInfo } from "./RuntimeInfo";
 import type { TokenCountsInfo } from "./TokenCountsInfo";
 
 /**
@@ -203,4 +204,9 @@ title?: string,
 /**
  * AJ-E1502: pinned to the top of its group in the rail.
  */
-pinned?: boolean, };
+pinned?: boolean, 
+/**
+ * AJ-E2302 (D-40): how it runs and its exact state, when its runtime
+ * says more than its process does (`features::runtime::described`).
+ */
+runtime?: RuntimeInfo, };

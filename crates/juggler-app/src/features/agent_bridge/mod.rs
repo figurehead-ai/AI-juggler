@@ -65,7 +65,15 @@ pub struct Said {
 struct Epoch {
     session: String,
     minted_at: i64,
+    /// What the key may do: empty for the agent tools, [`REPORTS`] for a
+    /// tool's hooks reporting its session's state (AJ-E2306). A key of one
+    /// never works for the other.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    scope: String,
 }
+
+/// The scope of a report key (AJ-E2306).
+pub const REPORTS: &str = "reports";
 
 /// The bridge's state in the app: the keys' hashes, the agents' status
 /// lines, the call counts, and the socket once it's served.
@@ -148,13 +156,24 @@ impl Bridge {
         }
     }
 
-    /// The session a key stands for, if it is current.
+    /// The session an agent tools' key stands for, if it is current.
     #[must_use]
     pub fn session_of(&self, data_dir: &Path, token: &str) -> Option<SessionId> {
+        self.session_of_scope(data_dir, token, "")
+    }
+
+    /// The session a report key stands for, if it is current (AJ-E2306).
+    #[must_use]
+    pub fn session_of_reports(&self, data_dir: &Path, token: &str) -> Option<SessionId> {
+        self.session_of_scope(data_dir, token, REPORTS)
+    }
+
+    fn session_of_scope(&self, data_dir: &Path, token: &str, scope: &str) -> Option<SessionId> {
         let mut epochs = self.epochs.lock().ok()?;
         let epochs = epochs.get_or_insert_with(|| load_epochs(data_dir));
         epochs
             .get(&key_hash(token))
+            .filter(|epoch| epoch.scope == scope)
             .map(|epoch| SessionId::new(epoch.session.as_str()))
     }
 
@@ -167,6 +186,27 @@ impl Bridge {
         session: &SessionId,
         ended: &dyn Fn(&str) -> bool,
     ) -> Option<String> {
+        self.mint_scoped(data_dir, session, ended, "")
+    }
+
+    /// A new report key for `session` (AJ-E2306): as [`Self::mint`], for
+    /// the report scope only.
+    pub(crate) fn mint_reports(
+        &self,
+        data_dir: &Path,
+        session: &SessionId,
+        ended: &dyn Fn(&str) -> bool,
+    ) -> Option<String> {
+        self.mint_scoped(data_dir, session, ended, REPORTS)
+    }
+
+    fn mint_scoped(
+        &self,
+        data_dir: &Path,
+        session: &SessionId,
+        ended: &dyn Fn(&str) -> bool,
+        scope: &str,
+    ) -> Option<String> {
         let mut bytes = [0_u8; 32];
         getrandom::fill(&mut bytes).ok()?;
         let token = hex(&bytes);
@@ -174,7 +214,7 @@ impl Bridge {
         let mut epochs = self.epochs.lock().ok()?;
         let epochs = epochs.get_or_insert_with(|| load_epochs(data_dir));
         epochs.retain(|_, epoch| {
-            epoch.session != session.as_str()
+            !(epoch.session == session.as_str() && epoch.scope == scope)
                 && (now - epoch.minted_at < YOUNG_MS || !ended(&epoch.session))
         });
         epochs.insert(
@@ -182,6 +222,7 @@ impl Bridge {
             Epoch {
                 session: session.as_str().to_owned(),
                 minted_at: now,
+                scope: scope.to_owned(),
             },
         );
         save_epochs(data_dir, epochs).ok()?;
@@ -227,7 +268,11 @@ pub fn own_dir(dir: &Path) -> std::io::Result<()> {
 }
 
 /// Writes `contents` to `path`, readable by this user only.
-fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
+///
+/// # Errors
+///
+/// The write's error.
+pub(crate) fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let partial = path.with_extension("partial");
@@ -393,8 +438,50 @@ fn prune_overlays(state: &Arc<AppState>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{key_hash, socket_path};
+    use super::{Bridge, key_hash, socket_path};
+    use juggler_core::model::SessionId;
     use std::path::Path;
+
+    #[test]
+    fn a_report_key_and_a_tools_key_never_stand_in_for_each_other() {
+        let dir = tempfile::tempdir().unwrap();
+        let bridge = Bridge::default();
+        let session = SessionId::new("sess-1");
+        let never = |_: &str| false;
+        let tools = bridge.mint(dir.path(), &session, &never).unwrap();
+        let reports = bridge.mint_reports(dir.path(), &session, &never).unwrap();
+        assert_ne!(tools, reports);
+        assert_eq!(bridge.session_of(dir.path(), &tools), Some(session.clone()));
+        assert_eq!(
+            bridge.session_of(dir.path(), &reports),
+            None,
+            "reports only"
+        );
+        assert_eq!(
+            bridge.session_of_reports(dir.path(), &reports),
+            Some(session.clone())
+        );
+        assert_eq!(
+            bridge.session_of_reports(dir.path(), &tools),
+            None,
+            "tools only"
+        );
+        // A new key of one scope leaves the other's working.
+        let tools_again = bridge.mint(dir.path(), &session, &never).unwrap();
+        assert_eq!(
+            bridge.session_of(dir.path(), &tools),
+            None,
+            "the old one stops"
+        );
+        assert_eq!(
+            bridge.session_of(dir.path(), &tools_again),
+            Some(session.clone())
+        );
+        assert_eq!(
+            bridge.session_of_reports(dir.path(), &reports),
+            Some(session)
+        );
+    }
 
     #[test]
     fn the_socket_is_per_data_folder_and_fits() {

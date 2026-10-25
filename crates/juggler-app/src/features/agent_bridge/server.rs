@@ -127,7 +127,7 @@ async fn answer(mut stream: tokio::net::UnixStream, me: u32, state: Arc<AppState
     let response = match read {
         Ok(Ok(true)) => {
             let line = String::from_utf8_lossy(&request).into_owned();
-            tauri::async_runtime::spawn_blocking(move || super::calls::handle(&state, &line))
+            tauri::async_runtime::spawn_blocking(move || super::calls::handle_line(&state, &line))
                 .await
                 .unwrap_or_else(|_| {
                     wire::Response::refused(wire::Refusal::Bad, "AI Juggler couldn't answer that")

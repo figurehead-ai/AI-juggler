@@ -564,3 +564,38 @@ sign in to nothing new.
 
 If a prompt appears, say which: the fix is in the adapter's
 `claude_bridge.rs` or `codex_bridge.rs` only.
+
+## Part 9 — A runtime per tool (E23, D-40)
+
+### 18. The runtime lab (AJ-E2301; about 45 min)
+
+**Why:** E23 drives Codex through its app-server and adds Claude Code's
+own hooks to terminal sessions, built to the vendors' documents and
+tested on fakes. Five things only a real run can show, and the E23
+manifests mark them **unverified** until the lab has run:
+
+1. Codex: an owned app-server per session, an approval and a question
+   answered over the protocol, its limits with resets, and `codex --remote
+   … resume <thread>` with two clients on one thread (who is asked?).
+2. Claude: hooks and the status line from AI Juggler's `--settings` file
+   merging with the account's and the project's own (both run).
+3. Claude: does the TUI's permission dialog show while the
+   `PermissionRequest` hook runs?
+4. Claude headless (Beta): an approval, a question and a limit event over
+   stream-json.
+5. A hand-over at a turn boundary (headless → terminal → headless) keeps
+   one transcript.
+
+**What to do:** run `docs/qa/runtime-lab.md` as written, with AI Juggler
+Dev in a throwaway lab project. It has the exact commands, a before/after
+snapshot of the tool folders (metadata only, never contents) and the
+cleanup. Since 2026-10-25 you allow it to run on one or two of your real
+tools' accounts, by you or by the agent you ask to; nothing in an
+account's own folder is edited, and nothing is signed in to.
+
+- [ ] Run `docs/qa/runtime-lab.md` steps 0–7.
+- [ ] Tick AJ-E2301 in `docs/tasks/E23-session-runtime.md` with the
+      manifest's link.
+
+If something differs, say which line: the fix is in the adapter's
+`codex_appserver/`, `claude_hooks.rs` or `claude_stream/` only.

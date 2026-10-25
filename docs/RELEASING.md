@@ -230,7 +230,22 @@ fails on one of them, re-run its failed jobs from the run page.
    `FH_SITE=<website clone> scripts/stats_schema_diff.sh` at that commit. It
    must report identical, because the server rejects anything its copy
    doesn't list.
-3. **Notes for users.** Write `docs/releases/X.Y.Z.md` on `main` (they
+3. **Tool runtimes (D-40, ADR-0022).** Two checks, each a line in the
+   release PR:
+   - **Codex's protocol.** Generate the installed Codex's app-server
+     schema offline and record its surface (the commands are at the top
+     of `scripts/codex_app_server_surface.py`). A new Codex version gets
+     its own `surface-<version>.json` fixture; the adapter's tests then
+     say whether every method AI Juggler uses is still there. A version
+     that lost one starts in the terminal by itself, with the reason.
+   - **Anthropic's terms for "Run without a terminal" (Beta).** Re-read
+     the pages ADR-0022 decision 4 names (Claude Code's legal and
+     compliance page, the Agent SDK overview, the headless page and the
+     Help Center article on `claude -p` and subscription limits) and
+     confirm they still allow a user's own installed `claude -p` on their
+     own subscription. If they no longer do, the Beta is switched off in
+     that release (its gate fails), and the notes say so.
+4. **Notes for users.** Write `docs/releases/X.Y.Z.md` on `main` (they
    replace the generated nightly notes). The website shows this text as is,
    and `scripts/release_notes_check.sh X.Y.Z` enforces the rules:
    - The first line is one plain sentence on what the release is about.
@@ -242,14 +257,14 @@ fails on one of them, re-run its failed jobs from the run page.
      features as beta, and never call switching lossless.
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
-4. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
+5. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
    open `blocker`), runs the accessibility gate on the exact commit
    (`just a11y-gate`, AJ-E804; pull requests that change the interface
    already ran it in CI), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
-5. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
+6. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.
 
 **Promoting a version to stable** works the same way, with channel

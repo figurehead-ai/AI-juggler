@@ -942,6 +942,8 @@ function askIsolation(offer: IsolationOfferInfo): Promise<IsolationDecision> {
 export async function launchSession(
   profileId: string,
   cwd: string | null,
+  /** AJ-E2304: this session's own runtime ("Start in terminal"), else the profile's. */
+  runtime?: "terminal" | "driven",
 ): Promise<{ session_id: string; pid: number } | null> {
   let recipe = profileId;
   for (;;) {
@@ -974,6 +976,7 @@ export async function launchSession(
   return invoke<{ session_id: string; pid: number }>("launch_session", {
     profileId: recipe,
     cwd: directory,
+    runtime: runtime ?? null,
   });
 }
 

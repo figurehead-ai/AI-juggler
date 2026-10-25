@@ -18,6 +18,27 @@ pub const SOCKET_ENV: &str = "JUGGLER_AGENT_SOCKET";
 /// Where this program is, for a tool without MCP to call from its shell.
 pub const PROGRAM_ENV: &str = "JUGGLER_AGENT";
 
+/// AJ-E2306: the session's report key, for its tool's hooks only (it can
+/// report the session's state and nothing else; never the agent tools'
+/// key). In the environment of the session AI Juggler starts.
+pub const REPORT_TOKEN_ENV: &str = "JUGGLER_REPORT_TOKEN";
+
+/// The hook events `juggler-agent hook` reports (Claude Code's names).
+pub const HOOK_EVENTS: [&str; 9] = [
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PermissionRequest",
+    "PostToolUse",
+    "Notification",
+    "Stop",
+    "StopFailure",
+    "SessionEnd",
+];
+
+/// The longest summary a report carries.
+pub const SUMMARY_MAX: usize = 300;
+
 /// The MCP server's name in a tool's settings (`mcp__juggler__whoami`).
 pub const SERVER_NAME: &str = "juggler";
 
@@ -80,6 +101,46 @@ pub struct Request {
     /// `set_status`'s line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+}
+
+/// AJ-E2306: what a tool's hook reports about its own session, from the
+/// fields the tool hands its hooks (never anything else).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HookReport {
+    /// One of [`HOOK_EVENTS`].
+    pub event: String,
+    /// The tool's own id for its session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_session: Option<String>,
+    /// Its transcript's path, as the tool gave it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transcript: Option<String>,
+    /// The tool it uses or asks for (`Bash`, `AskUserQuestion`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool: Option<String>,
+    /// What it asks, in one bounded line (a command, a file, a question).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// A notification's type word (`permission_prompt`, `idle_prompt`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    /// Why it stopped or ended, as a word (`rate_limit`, `prompt_input_exit`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// One hook report, bridge to app (a shape of its own: never an agent's
+/// call, and its key is the report key).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Report {
+    /// [`VERSION`].
+    pub v: u32,
+    /// The session's report key, from the hook's own environment.
+    pub token: String,
+    /// What happened.
+    pub hook: HookReport,
 }
 
 /// Why a call was refused.

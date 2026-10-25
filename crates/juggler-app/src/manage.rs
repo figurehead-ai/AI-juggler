@@ -37,7 +37,7 @@ use crate::state::AppState;
 pub const DEFAULT_ACCOUNT_KEY: &str = "accounts.default";
 
 /// Who made a change made in the app (the audit rows' actor).
-const ACTOR_USER: &str = "user";
+pub(crate) const ACTOR_USER: &str = "user";
 
 /// The longest label accepted (a label is a name, not a note).
 pub(crate) const LABEL_MAX: usize = 64;

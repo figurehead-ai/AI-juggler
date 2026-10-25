@@ -542,8 +542,10 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
     let deadline = Instant::now() + Duration::from_secs(20);
     let lines = loop {
         let text = std::fs::read_to_string(&log).unwrap_or_default();
-        if text.lines().count() >= 7 || Instant::now() > deadline {
-            break text;
+        // Only finished lines: the fake may be writing the last one.
+        let done = text.rfind('\n').map_or("", |end| &text[..=end]).to_owned();
+        if done.lines().count() >= 7 || Instant::now() > deadline {
+            break done;
         }
         std::thread::sleep(Duration::from_millis(50));
     };

@@ -134,6 +134,22 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::USAGE_QUOTA_FEED
             | Capabilities::FORK
             | Capabilities::AGENT_BRIDGE
+            // AJ-E2306: its terminal sessions report through its own hooks.
+            | Capabilities::STATE_REPORTS
+            // AJ-E2308: without a terminal, a per-session Beta.
+            | Capabilities::PROTOCOL_SERVER
+    }
+
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
+    }
+
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        Some(crate::claude_hooks::injection(launch, args))
     }
 
     fn agent_bridge(
@@ -599,12 +615,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 }
                 (args, true)
             }
+            // With `-p`, stream-json needs `--verbose`: without it Claude
+            // Code 2.1.302 refuses to start ("--output-format=stream-json
+            // requires --verbose"; the lab of 2026-10-25).
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),
                     prompt.clone(),
                     "--output-format".into(),
                     "stream-json".into(),
+                    "--verbose".into(),
                 ],
                 false,
             ),

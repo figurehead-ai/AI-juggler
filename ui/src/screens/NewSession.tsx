@@ -15,6 +15,7 @@ import { sessionTitle } from "../components/ManageWork";
 import { useTwinToggle } from "../lib/use-twin-toggle";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { MachinePicker, RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
+import { useRuntimePick } from "../components/RuntimePick";
 
 /**
  * New session — zero typing: recent projects (real history), a native
@@ -51,15 +52,13 @@ export function NewSessionModal({
   const [dragging, setDragging] = useState(false);
   const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
   const where = useWhere(); // AJ-E1515: or on a paired Mac
-  // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
-  // the recommended "Main" rides preselected; ⌘↩ launches it.
-  const customise = useTwinToggle();
+  const runtimePick = useRuntimePick(); // AJ-E2304: this session's runtime
+  const customise = useTwinToggle(); // AJ-E306 flow (e): under Customise ▸; "Main" preselected, ⌘↩ launches it
   const customiseOpen = customise.open;
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  // AJ-E306 a11y: the sheet traps focus and returns it on close (Esc
-  // cancels cleanly — the overlay already handles it).
+  // AJ-E306 a11y: the sheet traps focus and returns it on close (Esc cancels: the overlay).
   useEffect(() => {
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
@@ -205,7 +204,7 @@ export function NewSessionModal({
     setBusy(true);
     setError(null);
     try {
-      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory);
+      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");
         setBusy(false);
@@ -262,6 +261,7 @@ export function NewSessionModal({
           }}
         >
           <MachinePicker where={where} />
+          {runtimePick.element}
           <PackPicker pack={pack} />
           {/* Step 1 — where */}
           <p className="text-[11px] uppercase tracking-wider text-muted">

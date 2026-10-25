@@ -1,6 +1,6 @@
 # ADR-0022: How AI Juggler runs the sessions it starts — a runtime per tool
 
-- Status: Accepted (D-40, 2026-10-25)
+- Status: Accepted (D-40, 2026-10-25; decision 4's first gate amended by the maintainer the same day: no written approval is sought, the published terms are rechecked each release)
 - Date: 2026-10-25
 - Deciders: the maintainer (D-40); research agent (draft)
 - Relates to: ADR-0002 (adapters), ADR-0003 (automation policy), ADR-0010 (spawn ledger), ADR-0018 (per-launch files in AI Juggler's folder), ADR-0019 (tools as data), ADR-0020 (agent bridge, on release/0.2), D-28 to D-33, D-37, D-39
@@ -46,16 +46,18 @@ The maintainer wants users to "handle as much as they can within our tool with a
    - The user's choice is remembered per profile and can be changed per session. The adapter declares `Capabilities::PROTOCOL_SERVER`, which already exists unused, and implements a `DrivenRuntime` that yields neutral `RuntimeEvent`s (research §6.1).
    - Core, the supervisor and the UI never branch on a tool id (ADR-0019).
 2. **No vendor SDK is bundled.** AI Juggler speaks each protocol from Rust to the user's own installed, unmodified binary. It adds no Node, Python or second copy of any tool. `unsafe_code = "forbid"` holds.
-3. **Codex: driven through app-server by default, with the TUI attachable.**
-   - Each session AI Juggler starts gets its own `codex app-server --listen unix://<AI Juggler data>/runtime/codex/<session>.sock`, run with the profile's `CODEX_HOME`. It is a child in the spawn ledger.
-   - It uses `clientInfo.name = "ai_juggler"` and stable methods only. AI Juggler checks that the server's `codexHome` is the profile's.
-   - **Open in terminal** attaches the real TUI with `codex --remote unix://…`.
+3. **Codex: driven through app-server by default, with the TUI one click away.**
+   - Each session AI Juggler starts gets its own `codex app-server --listen stdio://`, run with the profile's `CODEX_HOME` and `CODEX_SQLITE_HOME`, speaking newline-delimited JSON-RPC on its stdin and stdout. It is a child in the spawn ledger and ends when its input closes. *(Amended 2026-10-25 by the lab, below: first written as a unix socket in AI Juggler's data folder.)*
+   - It uses `clientInfo.name = "ai_juggler"` and stable methods only. AI Juggler checks that the server's `codexHome` is the profile's. Threads are never ephemeral (an ephemeral thread writes no rollout, so it couldn't be switched or resumed).
+   - **Open in terminal** hands the thread to the real TUI at a turn boundary: the driver lets go when the turn ends, the server ends, and `codex resume <thread> --no-daemon` runs in AI Juggler's terminal as the session's continuation. **Run in AI Juggler** does the reverse once the terminal has ended. There is never more than one writer, as for Claude.
    - The PTY (`--no-daemon`) stays as "Start in terminal", and is used automatically for a Codex version whose generated schema doesn't match the pinned one.
+   - Limit windows are told apart by `windowDurationMins` (`300` the 5-hour, `10080` the weekly), never by `primary`/`secondary`; a window Codex doesn't report is shown as not reported.
+   - **Transport, the trade-off (the lab of 2026-10-25, `docs/research/session-runtime.md` "Lab, 2026-10-25").** `--listen unix://PATH` speaks WebSocket, not newline JSON, and makes `PATH` a symlink to a socket under `/private/tmp/codex-daemon-<uid>/` (left behind when a connection that never upgraded is open at SIGTERM). A server listens on one transport, so a live `codex --remote` attach needs that socket. Chosen: **stdio**, with Open in terminal as a hand-over. It needs no socket outside AI Juggler's folder, no WebSocket client and no clean-up of Codex's own `/private/tmp` files, and the ledger owns everything. Given up for now: the TUI attached live beside AI Juggler (two clients on one thread). Revisited when a listener inside AI Juggler's own `0700` folder is proven (a WebSocket client is about 200 lines, with no new dependency), and the two-client behaviour is known.
 4. **Claude: the terminal stays the default, made observable through Claude Code's own extension points. Driven is a labelled per-session choice.**
    - Terminal sessions get a per-launch `--settings` overlay in AI Juggler's folder, never the user's files. It holds hooks that report state through `juggler-agent` and a status line wrapper that records `rate_limits` and still runs the user's own status line.
    - Driven sessions run `claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio` with the profile's `CLAUDE_CONFIG_DIR`. They never use `--bare`, `bypassPermissions` or a spoofed entrypoint, and they run only in folders Claude Code already trusts.
    - **Open in terminal** and **Run in AI Juggler** hand the conversation between modes at a turn boundary with `--resume <id>`. There is never more than one writer.
-   - Driven becomes Claude's default only by a later decision, after four gates: Anthropic's written answer to an approval request; `-p` keeping subscription sign-in once `--bare` is its default; a month of lab use with no billing reclassification; and the conversation view passing the D-25 walk.
+   - Driven becomes Claude's default only by a later decision, after four gates: Anthropic's published terms, rechecked each release, still allow it (the Beta runs the user's own installed `claude -p`, which Anthropic's Help Center of 2026-10-07 lists as drawing on subscription limits, never the Agent SDK, and AI Juggler never handles a sign-in); `-p` keeping subscription sign-in once `--bare` is its default; a month of lab use with no billing reclassification; and the conversation view passing the D-25 walk.
 5. **Answers are always the user's.**
    - AI Juggler carries the user's own answer to a tool's question or permission prompt, from Needs you, the session page or a notification action. It never answers one by itself: no timer, rule, agent or default does.
    - "Don't ask again" is the **tool's own rule**, chosen from the options the tool offers (Claude's `updatedPermissions` suggestions; Codex's `acceptForSession` or execpolicy amendment), so it is visible and revocable in the tool too.

@@ -13,7 +13,11 @@
 //!               [--child-ignore-term] [--mcp-config FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
+//! fake-harness drive --dir DIR [--session-id ID | --resume ID]
 //! ```
+//!
+//! `drive` is the fake tool's own protocol on stdin and stdout, for the
+//! driven runtime (AJ-E2302, `support/drive.rs`).
 //!
 //! `FAKE_HARNESS_DELAY_MS` in the environment is the default `--delay-ms`
 //! (launch settings can carry it where the arguments are the adapter's:
@@ -46,6 +50,12 @@ mod replica_write;
 #[path = "support/mcp_client.rs"]
 mod mcp_client;
 
+#[path = "support/drive.rs"]
+mod drive;
+
+#[path = "support/hooks.rs"]
+mod hooks;
+
 const VERSION: &str = "0.1.0";
 
 fn main() -> ExitCode {
@@ -70,6 +80,15 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("run") => run(&args[1..]),
+        Some("drive") => {
+            match drive::run(&args[1..], &|id, resumed| header_line(id, resumed, "")) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(message) => {
+                    eprintln!("fake-harness drive: {message}");
+                    ExitCode::from(2)
+                }
+            }
+        }
         Some("write") => match replica_write::run(&args[1..]) {
             Ok(()) => ExitCode::SUCCESS,
             Err(message) => {
@@ -111,6 +130,8 @@ struct RunOptions {
     child_ignore_term: bool,
     /// The MCP servers to call, as a tool's `--mcp-config` file names them.
     mcp_config: Option<PathBuf>,
+    /// The hook command to run at its events (AJ-E2306, `support/hooks.rs`).
+    hooks_config: Option<PathBuf>,
 }
 
 /// A session's first line: `resumed`, or `session_meta` with the
@@ -129,6 +150,8 @@ fn header_line(session_id: &str, is_resume: bool, prompt: &str) -> String {
     )
 }
 
+// A fixture's one flat option list: splitting it would only scatter it.
+#[allow(clippy::too_many_lines)]
 fn parse_options(args: &[String]) -> Result<RunOptions, String> {
     let mut opts = RunOptions {
         dir: PathBuf::from("."),
@@ -143,12 +166,17 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
         burn_cpus_secs: 0,
         exit_code: 0,
         prompt: String::new(),
-        wait_prompt: None,
+        // AJ-E2306: launch settings can carry it where the arguments are
+        // the adapter's (the hook reports' end-to-end test).
+        wait_prompt: env::var("FAKE_HARNESS_WAIT_PROMPT")
+            .ok()
+            .filter(|p| !p.is_empty()),
         quota_exit: false,
         spawn_child: None,
         child_args: String::new(),
         child_ignore_term: false,
         mcp_config: None,
+        hooks_config: None,
     };
     let mut i = 0;
     while i < args.len() {
@@ -216,6 +244,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
                 opts.child_args = value()?;
                 true
             }
+            "--hooks-config" => {
+                opts.hooks_config = Some(PathBuf::from(value()?));
+                true
+            }
             "--mcp-config" => {
                 opts.mcp_config = Some(PathBuf::from(value()?));
                 true
@@ -263,6 +295,8 @@ fn spawn_child_command(
     command
 }
 
+// The fixture's script, in the order a session runs.
+#[allow(clippy::too_many_lines)]
 fn run(args: &[String]) -> ExitCode {
     let opts = match parse_options(args) {
         Ok(opts) => opts,
@@ -327,6 +361,15 @@ fn run(args: &[String]) -> ExitCode {
     {
         return ExitCode::from(2);
     }
+    let hook = |event: &str, extra: serde_json::Value| {
+        let mut input = serde_json::json!({"session_id": session_id,
+            "transcript_path": transcript, "hook_event_name": event});
+        if let (Some(input), Some(extra)) = (input.as_object_mut(), extra.as_object()) {
+            input.extend(extra.clone());
+        }
+        hooks::fire(opts.hooks_config.as_deref(), event, &input);
+    };
+    hook("SessionStart", serde_json::json!({"source": "startup"}));
     if let Some(config) = &opts.mcp_config {
         let log = env::current_dir()
             .unwrap_or_default()
@@ -341,6 +384,7 @@ fn run(args: &[String]) -> ExitCode {
             thread::sleep(Duration::from_millis(opts.delay_ms));
         }
         println!("turn {}/{}", turn, opts.turns);
+        hook("UserPromptSubmit", serde_json::json!({"prompt": "turn"}));
         let user = format!(r#"{{"type":"user","turn":{turn},"text":"turn {turn}"}}"#);
         let assistant = format!(
             r#"{{"type":"assistant","turn":{turn},"usage":{{"input_tokens":100,"output_tokens":50}}}}"#
@@ -348,6 +392,7 @@ fn run(args: &[String]) -> ExitCode {
         if out.line(&user).is_err() || out.line(&assistant).is_err() {
             return ExitCode::from(2);
         }
+        hook("Stop", serde_json::json!({"stop_hook_active": false}));
     }
 
     if opts.stall_secs > 0 {
@@ -357,6 +402,10 @@ fn run(args: &[String]) -> ExitCode {
         // The wait-permission fixture: an ALIVE, unanswered prompt. The
         // harness blocks (no stdin contract — supervised runs are
         // headless); the test's stop ladder reaps it.
+        hook(
+            "PermissionRequest",
+            serde_json::json!({"tool_name": "Bash", "tool_input": {"command": prompt}}),
+        );
         println!("Do you want to {prompt}? (y/n)");
         thread::sleep(Duration::from_secs(600));
     }
@@ -380,6 +429,7 @@ fn run(args: &[String]) -> ExitCode {
     if out.line(&ended).is_err() {
         return ExitCode::from(2);
     }
+    hook("SessionEnd", serde_json::json!({"reason": "other"}));
 
     ExitCode::from(opts.exit_code)
 }

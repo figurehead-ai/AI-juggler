@@ -53,6 +53,12 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(own("l", { status: "quota_blocked", needs_attention: "quota_blocked" }), none, false).need).toBe("limit");
     expect(sessionItem(own("f", { status: "failed" }), none, false)).toMatchObject({ state: "ended", need: "failed" });
     expect(sessionItem(own("x", { status: "finished" }), none, false).state).toBe("ended");
+    // AJ-E2302/E2306: a runtime that says (its protocol or its hooks) is
+    // the state, exactly: idle while running, not "working".
+    const exact = (state: string) => own("r", { runtime: { kind: "driven", label: null, beta: false, state, asks: [], can_steer: false, fell_back: null, error: null, limits: [] } });
+    expect(sessionItem(exact("idle"), none, false)).toMatchObject({ state: "idle", probably: false });
+    expect(sessionItem(exact("working"), none, false).state).toBe("working");
+    expect(sessionItem(exact("nonsense"), none, false).state).toBe("working");
   });
 
   it("anything worked out says probably", () => {
