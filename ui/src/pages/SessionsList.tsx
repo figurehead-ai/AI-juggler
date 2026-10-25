@@ -365,7 +365,6 @@ function SessionRowBody({
           />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* An untitled one beside its project's column needs no folder. */}
           <span className="truncate text-body font-medium text-ink">{project && row.title.startsWith("Untitled session · ") ? "Untitled session" : row.title}</span>
           <span className="truncate text-meta text-muted">
             <span className={row.tone} data-testid="page-session-state">{row.state}</span>
