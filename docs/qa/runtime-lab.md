@@ -19,6 +19,14 @@ maintainer's longer note is `docs/internal/MAINTAINER-STEPS.md` §18.
   contents).
 - Stop everything you start, and check nothing is left (step 7).
 
+**Learned in lab 2 (2026-10-25, `docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md`)**
+- **Codex's trust screen.** `codex resume` in a folder Codex hasn't trusted asks "Trust this folder?", and the answer is saved to the user's `config.toml`. Quit rather than trust, or start with `-c 'projects={"<lab>"={trust_level="untrusted"}}'`, which saves nothing and offers "Open restricted". Skip Codex's update prompt with Esc.
+- **Claude's onboarding.** A profile that has never run Claude Code in a terminal shows a theme picker and security notes first; the theme choice creates its `settings.json`. On the trust dialog the default is **"No, exit"**: move to "Yes" before Enter.
+- **Claude's self-update.** The first terminal start can update Claude Code for the whole Mac. Set `DISABLE_AUTOUPDATER=1` for the lab's terminal runs.
+- **A dialog needs a write.** In auto mode (some accounts' default), and for read-only commands, Claude asks nothing. Use `echo lab > lab.txt` to bring up a dialog.
+- **`/hooks` doesn't list `--settings` hooks.** Check the "running … hooks 0/2" line and the hook logs instead.
+- **Process listings.** Print `pid` and `comm` only; `pgrep -fl` can show other processes' environment text.
+
 **Fill in first**
 
 ```sh
@@ -106,7 +114,7 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
   - [ ] `cat /tmp/aj-lab-hook.log` shows `lab-hook` (**the project's hook
         still runs**), and the session went Working → Idle in AI Juggler
         with no "probably" (**AI Juggler's hooks run too**).
-  - [ ] `/hooks` in the session lists both; the status line shows what the
+  - [ ] `/hooks` in the session lists the project's hook (not the `--settings` ones: lab 2); the status line shows what the
         account's own status line shows.
   - [ ] The session page shows the account's limits with resets, from the
         status line (Pro or Max).

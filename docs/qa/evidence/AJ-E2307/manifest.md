@@ -14,6 +14,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2307, Answers from Needs you and t
 | Req.4 audited: session, kind, option, when (never a reply's text) | `cargo test -p juggler-app --test runtime` (`a_driven_session_is_exact_and_answered_only_by_the_user`) | one `answered` row | pass | PASS | e4b7e9af | 2026-10-25 | agent |
 | Batch view and keyboard (lab: approvals are frequent) | `cd ui && npx vitest run src/components/ask-card.test.tsx` ("lists every open ask of the driven sessions together", "answers from the keyboard") | all asks; 2 picks the second | pass | PASS | e4b7e9af | 2026-10-25 | agent |
 | Visual: approval, question, free reply; both themes | the gallery run | looked at | not run (no capture this branch) | UNPROVEN | — | 2026-10-25 | agent |
+| Live: one approval and one question answered from AI Juggler | docs/qa/runtime-lab.md steps 1 and 4 in the app | answered by a click | BLOCKED: AI Juggler Dev not built (disk < 25 GB), no desktop control. The answer shapes themselves worked live ([lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md)) | UNPROVEN | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 
