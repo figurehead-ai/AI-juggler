@@ -54,24 +54,17 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
           <span className="truncate text-body font-semibold text-ink">{place.app}</span>
           {/* The profile's badge beside its name, never on the icon
               (D-38); the count moves under it rather than being cut. */}
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 text-meta text-muted">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-meta text-muted">
             {place.profile && (
-              <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
+              <span className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-ink">
                 <ProfileBadge name={place.profile} />
                 <span className="truncate">{place.profile}</span>
               </span>
             )}
-            {place.profile ? " · " : ""}
+            {place.profile ? <span>·</span> : null}
             <span className="whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
           </span>
         </div>
-        {/* What the amber count is, in words (the review of 0.1.4). */}
-        {needs > 0 && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
-            <IconAlert width={11} height={11} aria-hidden="true" />
-            {needs} {needs === 1 ? "needs" : "need"} you
-          </span>
-        )}
       </div>
       {runway && (
         <div className="flex flex-col gap-1">
@@ -83,15 +76,27 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
           )}
         </div>
       )}
-      {place.appPid !== null && (
-        <button
-          type="button"
-          onClick={() => bringForward(group)}
-          className="mt-auto self-start rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          Open {place.app}
-          <span className="sr-only"> · {place.profile}</span>
-        </button>
+      {/* Open on the left; what the amber count is, in words, on the
+          right (the review of 0.1.4), never squeezing the app's name. */}
+      {(place.appPid !== null || needs > 0) && (
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          {place.appPid !== null && (
+            <button
+              type="button"
+              onClick={() => bringForward(group)}
+              className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
+            >
+              Open {place.app}
+              <span className="sr-only"> · {place.profile}</span>
+            </button>
+          )}
+          {needs > 0 && (
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
+              <IconAlert width={11} height={11} aria-hidden="true" />
+              {needs} {needs === 1 ? "needs" : "need"} you
+            </span>
+          )}
+        </div>
       )}
     </li>
   );

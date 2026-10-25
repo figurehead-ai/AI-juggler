@@ -313,7 +313,7 @@ export function GoToPalette({
           ))}
         </ul>
         <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-label text-muted">
-          <span>↑↓ move · ↩ open its page · ⌘↩ go to its app · Esc close</span>
+          <span className="min-w-0 flex-1">↩ open its page · ⌘↩ go to its app</span>
           <Button
             size="sm"
             variant="ghost"
