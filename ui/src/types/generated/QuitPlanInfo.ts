@@ -17,4 +17,9 @@ end_on_quit: number,
  * Of those, the ones that keep running (desktop sessions, sessions
  * re-adopted after a crash).
  */
-keep_running: number, };
+keep_running: number, 
+/**
+ * Of those, the ones AI Juggler runs without a terminal: they end with
+ * it and come back when it opens again (AJ-E2310).
+ */
+come_back: number, };

@@ -331,6 +331,8 @@ macro_rules! app_commands {
             Write features::runtime::commands::runtime_send,
             Write features::runtime::commands::runtime_interrupt,
             Write features::runtime::commands::runtime_handover,
+            Write features::runtime::pickup::runtime_resume,
+            Write features::runtime::pickup::runtime_end,
             Read  features::runtime::commands::runtime_choices,
             Write features::runtime::commands::runtime_choose,
             Write features::runtime::commands::runtime_beta,
@@ -617,6 +619,8 @@ pub fn run() {
             .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
         features::app::crash::follow_setting(&app_state, reopen);
         features::app::crash::resume_after_crash(&app_state);
+        // AJ-E2310: the driven sessions AI Juggler stopped come back.
+        features::runtime::pickup::after_restart(&app_state);
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);

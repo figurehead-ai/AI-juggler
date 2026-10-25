@@ -26,6 +26,9 @@ pub struct RuntimeInfo {
     pub error: Option<String>,
     /// The account's limits as this session's tool last reported them.
     pub limits: Vec<LimitWindowInfo>,
+    /// AJ-E2310: AI Juggler stopped during its turn, in words; Resume
+    /// continues the conversation (nothing runs until then).
+    pub cut_off: Option<String>,
 }
 
 /// One limit window, as the tool reported it.

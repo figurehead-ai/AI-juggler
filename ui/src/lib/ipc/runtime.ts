@@ -88,6 +88,25 @@ export async function runtimeHandover(sessionId: string, toward: "terminal" | "d
   return invoke<HandoverInfo>("runtime_handover", { sessionId, toward });
 }
 
+/** AJ-E2310: the user's Resume on a session whose turn was cut off when
+ * AI Juggler stopped: its conversation is resumed, and nothing is sent. */
+export async function runtimeResume(sessionId: string): Promise<HandoverInfo> {
+  if (!hasLiveBackend()) {
+    record(`resume:${sessionId}`);
+    return { session_id: sessionId };
+  }
+  return invoke<HandoverInfo>("runtime_resume", { sessionId });
+}
+
+/** AJ-E2310: the user's End on a session whose turn was cut off. */
+export async function runtimeEnd(sessionId: string): Promise<void> {
+  if (!hasLiveBackend()) {
+    record(`end:${sessionId}`);
+    return;
+  }
+  return invoke<void>("runtime_end", { sessionId });
+}
+
 /** The profiles' runtime choices and the Beta switch. */
 export async function runtimeChoices(): Promise<RuntimeChoicesInfo> {
   if (!hasLiveBackend()) return { beta_on: false, profiles: [] };

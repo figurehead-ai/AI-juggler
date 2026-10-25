@@ -263,9 +263,10 @@
 | AJ-E2303 | Codex through app-server, by default | E23-session-runtime.md | P0 | L | AJ-E2302 |
 | AJ-E2304 | Open in terminal, and Start in terminal | E23-session-runtime.md | P0 | S | AJ-E2303 |
 | AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
+| AJ-E2310 | Driven sessions come back after AI Juggler restarts | E23-session-runtime.md | P0 | M | AJ-E2303, AJ-E2308 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
 | AJ-E2309 | Docs, Privacy and terms lines, evidence | E23-session-runtime.md | P0 | S | AJ-E2303, AJ-E2306, AJ-E2308 |
-Total: 265 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 266 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -355,6 +355,7 @@ impl Driver {
             asks: snapshot.asks.clone(),
             can_steer: self.can_steer && snapshot.turn_running && !snapshot.ended,
             fell_back: None,
+            cut_off: None,
             error: snapshot.error.clone(),
             limits: snapshot
                 .limits
@@ -644,6 +645,21 @@ fn run(
 ) {
     // The conversation to link, once the session's record exists.
     let mut unlinked: Option<(String, Option<String>)> = None;
+    // AJ-E2310: the mark that brings the session back after a restart.
+    let mark = |state: &Arc<AppState>| {
+        let now = snapshot.lock().ok().and_then(|snap| {
+            super::pickup::mark_of(snap.native_id.as_deref(), snap.turn_running, snap.ended)
+        });
+        super::pickup::follow(state, session, now);
+    };
+    let unmark = || {
+        if let Some(state) = state.upgrade() {
+            super::pickup::follow(&state, session, None);
+        }
+    };
+    if let Some(state) = state.upgrade() {
+        mark(&state);
+    }
     loop {
         if let Some((native_id, path)) = &unlinked
             && let Some(state) = state.upgrade()
@@ -663,6 +679,7 @@ fn run(
                             }
                         }
                         let _ = reply.send(outcome);
+                        unmark();
                         if let Some(state) = state.upgrade() {
                             state.runtime.notify(session.as_str(), true);
                         }
@@ -670,7 +687,10 @@ fn run(
                     }
                 }
                 Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => return,
+                Err(TryRecvError::Disconnected) => {
+                    unmark();
+                    return;
+                }
             }
         }
         let Some(state) = state.upgrade() else { return };
@@ -690,6 +710,15 @@ fn run(
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });
+                if matches!(
+                    event,
+                    RuntimeEvent::Started { .. }
+                        | RuntimeEvent::TurnStarted { .. }
+                        | RuntimeEvent::TurnEnded { .. }
+                        | RuntimeEvent::Exited
+                ) {
+                    mark(&state);
+                }
                 if stored {
                     let snap = snapshot.lock().map(|s| s.clone()).unwrap_or_default();
                     store(&state, session, &snap);
@@ -705,6 +734,7 @@ fn run(
                 if let Ok(mut snap) = snapshot.lock() {
                     snap.apply(session, &RuntimeEvent::Exited);
                 }
+                mark(&state);
                 state.runtime.notify(session.as_str(), true);
                 return;
             }

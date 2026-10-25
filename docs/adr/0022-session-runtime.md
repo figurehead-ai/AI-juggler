@@ -101,6 +101,7 @@ The maintainer wants users to "handle as much as they can within our tool with a
 
 **Harder**
 - **Protocol codecs to keep current.** One per tool, pinned per version, with recorded fixtures in the conformance kit and a capability check at discovery. An unknown version falls back to the terminal, never a guess.
+- **A driven session ends with AI Juggler** (its process is AI Juggler's child on its pipes, where a terminal session's host can be re-adopted). So it must come back by itself (the 0.1 "always on" rule, AJ-E2310, amended 2026-10-25): AI Juggler keeps one mark per running driven session (the tool's conversation id and whether a turn runs, never message text). At the next start, a session that was between turns is resumed under the same id in the same runtime with nothing sent (coming back as it was, ADR-0003 point 5). A session stopped mid-turn says its turn was cut off and waits for the user's Resume.
 - **A conversation view to build.** A driven session has no terminal to look at; until the view is good, "Open in terminal" is the full view.
 - **A spike before code, on spare accounts (the maintainer's step, like AJ-E1701):**
   - Codex `--remote` with two clients on one thread;

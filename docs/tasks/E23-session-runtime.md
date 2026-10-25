@@ -141,6 +141,26 @@
 **Research basis**: ADR-0022 Consequences (exact turn boundaries for switching).
 **Handover note**: The live A→B→Codex→A run is in the switching lab (AJ-E1539) once the spike passes.
 
+### AJ-E2310 Driven sessions come back after AI Juggler restarts | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2303, AJ-E2308
+**Goal**: A session AI Juggler drives survives AI Juggler quitting, restarting or crashing, as the 0.1 "always on" rule asks: the next start resumes it in the same runtime, or says honestly that its turn was cut off and offers Resume.
+**User story**: As a user whose AI Juggler crashed or updated while a Codex session sat between turns, I reopen AI Juggler and the same session is there, driven, on the same thread. If it was in the middle of a turn, its page says the turn was cut off and Resume continues the conversation.
+**Requirements**:
+1. While a driven session runs, AI Juggler keeps one small mark per session in its own store (`runtime.live`): the tool's conversation id and whether a turn is running. It holds no message text. The mark goes when the session ends, is stopped, is released for a switch or is handed over.
+2. At the next start, each marked session that was still live on this Mac is kept out of the "ended with AI Juggler" pass (and out of the restart-after-crash pass). Instead:
+   - **Between turns:** it is resumed at once, under the same session id, in the same runtime: a fresh `codex app-server` with `thread/resume` for Codex, and `claude -p … --resume <id>` in stream-json for Claude (Beta). No turn is sent. This is coming back as it was (ADR-0003 point 5), not a restart: no account action and no new work.
+   - **Mid-turn:** nothing starts by itself. The session says "Its turn was cut off when AI Juggler stopped", needs you, and offers **Resume**. Resume resumes the same conversation and sends nothing.
+   - A resume that can't drive (the tool gone, too old, the Beta now off) starts its terminal on the same conversation with the reason, as any launch does. One that can't start at all ends with the reason.
+3. Quitting says it: the quit sheet counts driven sessions as ones that come back when AI Juggler opens again.
+4. Tests on fakes kill the app core itself (a child process holding the app's state, killed with `SIGKILL`) mid-turn and between turns, then start a new app core on the same data: between turns the session is driven again on the same thread; mid-turn it is cut off, nothing runs until Resume, and Resume continues the same thread. A session stopped before the kill never comes back.
+**UI/UX reasoning**: The session keeps its row and page; a cut-off turn is one line and one primary button (D-25).
+**Performance budget**: resumes run off the start-up path (a thread); the window never waits on them.
+**Quality gates**: the kill tests; the unit tests of the mark; vitest for the cut-off line and the quit words; typecheck.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2310/manifest.md`.
+**Visual testing**: a cut-off session's page.
+**Files to touch**: `crates/juggler-app/src/features/runtime/pickup.rs`, `driver.rs`, `commands.rs`, `state.rs`, `quit.rs`; `ui/src/pages/session/DrivenPanel.tsx`, `components/QuitSheet.tsx`.
+**Research basis**: the maintainer's "always on" rule (0.1); ADR-0003 point 5; ADR-0022 Consequences.
+**Handover note**: The live check is in the runtime lab (`docs/qa/runtime-lab.md` step 5): quit and kill AI Juggler Dev between turns and mid-turn on a lab session.
+
 ## Step 3 — Claude: exact state in the terminal
 
 ### AJ-E2306 Claude terminal sessions with hooks and the status line | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2302
@@ -211,7 +231,7 @@
 2. ADR-0003 cites the current Anthropic wording (research §2.1) and ADR-0022 decision 5.
 3. Privacy and terms page lines naming the runtime, each tied to tests that exist.
 4. `docs/guide/` sections: runtimes, answering from AI Juggler, the Beta and its gates.
-5. Evidence manifests for AJ-E2302–E2308.
+5. Evidence manifests for AJ-E2302–E2308 (and AJ-E2310's own).
 **UI/UX reasoning**: Plain words.
 **Performance budget**: n/a.
 **Quality gates**: the trust-claims test; the plain-words and terminology lints; the docs link check.

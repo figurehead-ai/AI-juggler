@@ -190,7 +190,7 @@ pub struct HandoverInfo {
 }
 
 /// The session, its launch settings and its account.
-fn owner(
+pub(super) fn owner(
     state: &Arc<AppState>,
     session: &str,
 ) -> AppResult<(
@@ -216,7 +216,6 @@ fn continue_as(
     native_id: &str,
     runtime: Runtime,
 ) -> AppResult<HandoverInfo> {
-    use juggler_core::model::{ConversationId, SessionStatus, Timestamp};
     let adapter = state
         .registry
         .get(&account.harness)
@@ -239,6 +238,23 @@ fn continue_as(
         requested: Some(runtime),
     };
     let started = super::launch::start(state, adapter.as_ref(), session, &start, terminal)?;
+    record_continuation(state, from, profile, account, native_id, &started.session)?;
+    Ok(HandoverInfo {
+        session_id: started.session.to_string(),
+    })
+}
+
+/// `started` holds `from`'s conversation now: `from` is marked handed
+/// over and `started` recorded beside it.
+pub(super) fn record_continuation(
+    state: &Arc<AppState>,
+    from: &juggler_core::model::SessionRecord,
+    profile: &juggler_core::model::Profile,
+    account: &juggler_core::model::Account,
+    native_id: &str,
+    started: &SessionId,
+) -> AppResult<()> {
+    use juggler_core::model::{ConversationId, SessionStatus, Timestamp};
     let machine = crate::commands::local_machine_id(state);
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     if let Ok(mut old) = storage.sessions().get(&from.id) {
@@ -250,7 +266,7 @@ fn continue_as(
     storage
         .sessions()
         .insert(&juggler_core::model::SessionRecord {
-            id: started.session.clone(),
+            id: started.clone(),
             conversation: Some(ConversationId::new(native_id)),
             profile: profile.id.clone(),
             machine,
@@ -267,9 +283,7 @@ fn continue_as(
             transcript_ref: from.transcript_ref.clone(),
         })?;
     crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
-    Ok(HandoverInfo {
-        session_id: started.session.to_string(),
-    })
+    Ok(())
 }
 
 /// Hands a session's conversation over at a turn boundary (D-40, one

@@ -88,6 +88,15 @@ session that can't run through its app-server, for example with a Codex
 version AI Juggler doesn't know yet, starts in a terminal instead, and its
 page says why.
 
+**When AI Juggler quits or crashes**, a session it runs through the tool's
+app-server ends with it, and comes back when AI Juggler opens again: the
+same session, on the same conversation, with nothing sent for you. The
+quit sheet says so. If the session was in the middle of a turn, its page
+says "Its turn was cut off when AI Juggler stopped" and waits for you:
+**Resume** continues the conversation and sends nothing, and **End it**
+ends it. AI Juggler keeps only which conversation each session is on, so
+it can find it again, never what was said.
+
 To choose per profile, go to Settings › Sessions › **How sessions run**: a
 profile can always start in a terminal. **New session** has **How it runs**
 for just that session.

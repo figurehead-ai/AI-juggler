@@ -25,6 +25,9 @@ export function attentionWords(rule: string | null | undefined): string {
       return "crashed 3 times in 10 minutes, so it wasn't restarted";
     case "app_quit_unexpectedly":
       return "ended when AI Juggler quit unexpectedly";
+    // AJ-E2310: a driven session AI Juggler stopped during its turn.
+    case "turn_cut_off":
+      return "its turn was cut off when AI Juggler stopped";
     default:
       return "needs attention";
   }

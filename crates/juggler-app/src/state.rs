@@ -169,6 +169,14 @@ fn reconcile_after_restart(
         }
         let mut reconciled = record;
         reconciled.last_activity = Some(juggler_core::model::Timestamp::now());
+        // AJ-E2310: a driven session comes back (or says its turn was cut
+        // off) once the app is up: `features::runtime::pickup`.
+        if crate::features::runtime::pickup::is_marked(storage, &reconciled.id) {
+            reconciled.status = SessionStatus::Starting;
+            reconciled.attention = None;
+            let _ = storage.sessions().update(&reconciled);
+            continue;
+        }
         if crashed {
             reconciled.status = SessionStatus::Failed;
             reconciled.attention = Some(juggler_core::model::AttentionReason {

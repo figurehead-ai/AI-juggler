@@ -17,7 +17,7 @@ maintainer's longer note is `docs/internal/MAINTAINER-STEPS.md` §18.
 - Snapshot the tool folders before and after (metadata only:
   `scripts/qa/runtime_lab_snapshot.sh` lists names, sizes and times, never
   contents).
-- Stop everything you start, and check nothing is left (step 6).
+- Stop everything you start, and check nothing is left (step 7).
 
 **Fill in first**
 
@@ -142,7 +142,37 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 - [ ] The account's usage page (claude.ai) shows no "extra usage" or
       "third-party apps" note for these runs (record it, with the date).
 
-## 5. Snapshot after and compare (5 min)
+## 5. Coming back after AI Juggler quits or crashes (AJ-E2310, 10 min)
+
+Codex first (the default); then, if there is time, the same with a Claude
+session without a terminal (the Beta switch on, as in step 4).
+
+- [ ] **Between turns, a quit.** New Codex session → `$LAB` → send
+      "hello", wait for Idle. Note its thread: on the session page, or
+      `sqlite3 "$AJ_DATA/juggler.sqlite" "select value from app_settings where key = 'runtime.live'"`
+      (the session id, the thread id and `"in_turn":false`; no message
+      text). Quit AI Juggler Dev with **Quit anyway**: the sheet says the
+      session **comes back when AI Juggler opens again**. `pgrep -fl 'codex app-server --listen stdio://' | grep -v /Applications/`
+      prints nothing.
+- [ ] `just dev` again. The same session (same row, same id) is driven
+      again within a few seconds; `pgrep` above shows one new server; send
+      "what did I say first?" and the reply knows "hello" (the same thread).
+- [ ] **Between turns, a crash.** `pkill -9 -f 'target/debug/juggler-app'`
+      (AI Juggler Dev only: check with `pgrep -fl juggler-app` first that
+      nothing else matches). Its server ends within a few seconds (`pgrep`
+      above). `just dev`: the session comes back as above.
+- [ ] **Mid-turn, a crash.** Send "Run `ls` in this folder." and, while
+      **Asks you** shows, `pkill -9 -f 'target/debug/juggler-app'`. `just
+      dev`: the session says **Its turn was cut off when AI Juggler
+      stopped**, is in Needs you, and nothing runs (`pgrep` above prints
+      nothing). Click **Resume**: it is driven again on the same thread,
+      nothing is sent by itself; send "hello again" and it answers.
+- [ ] **Stopped first never comes back.** Stop the session, quit, `just
+      dev`: it stays ended, and `runtime.live` no longer lists it.
+- [ ] Record what Codex says about the cut-off turn after Resume (its
+      thread may show the turn as interrupted).
+
+## 6. Snapshot after and compare (5 min)
 
 - [ ] `scripts/qa/runtime_lab_snapshot.sh take after "$CODEX_DIR" "$CLAUDE_DIR" "$AJ_DATA"`
 - [ ] `scripts/qa/runtime_lab_snapshot.sh diff before after > "$AJ_LAB_OUT/diff.txt"`
@@ -162,7 +192,7 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
       the Claude sessions.
 - [ ] The processes section is empty.
 
-## 6. Clean up (2 min)
+## 7. Clean up (2 min)
 
 - [ ] Stop any session still running in AI Juggler Dev, quit it.
 - [ ] `pgrep -fl 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent' | grep -v /Applications/`
@@ -172,7 +202,7 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
       account's own); archive the Codex thread in `codex resume` if wanted.
 - [ ] Keep `$AJ_LAB_OUT` until the evidence is written, then `rm -rf "$AJ_LAB_OUT"`.
 
-## 7. Write the evidence
+## 8. Write the evidence
 
 - [ ] `docs/qa/evidence/AJ-E2301/manifest.md`: each checkbox above with
       what was seen, the versions (`codex --version`, `claude --version`),

@@ -5,6 +5,9 @@
  * tool's transcript is the record), a message box, Interrupt, and Open in
  * terminal (a hand-over at the turn's end: one writer at a time).
  *
+ * AJ-E2310: a session whose turn was cut off when AI Juggler stopped says
+ * so, with Resume (its conversation resumed, nothing sent) and End.
+ *
  * Until the 0.1.5 design system's conversation view lands, this reuses
  * the session page's own pieces (cards, chips, buttons).
  */
@@ -12,7 +15,7 @@ import { useState, type JSX } from "react";
 import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
 import { errorText, type InstanceInfo } from "../../lib/bridge";
-import { runtimeHandover, runtimeInterrupt, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
+import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -27,6 +30,7 @@ const STATE_WORDS: Record<string, string> = {
   working: "Working",
   idle: "Idle",
   asks_you: "Asks you",
+  cut_off: "Cut off",
   ended: "Ended",
 };
 
@@ -47,8 +51,10 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       },
     );
   };
-  const state = runtime?.state ?? null;
-  const ended = state === "ended";
+  const cutOff = runtime?.cut_off ?? null;
+  const state = cutOff ? "cut_off" : runtime?.state ?? null;
+  // Ended, or cut off: nothing to send to until Resume.
+  const ended = state === "ended" || cutOff !== null;
   return (
     <Card className="flex min-h-[280px] flex-1 flex-col gap-3 p-4" data-testid="driven-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -84,6 +90,17 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           )}
         </div>
       </div>
+      {cutOff && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-2 p-3" data-testid="runtime-cut-off">
+          <p className="min-w-0 flex-1 text-[12px] text-ink">{cutOff}. Resume continues the conversation and sends nothing.</p>
+          <Button size="sm" variant="primary" disabled={busy !== null} data-testid="runtime-resume" onClick={() => act("resume", () => runtimeResume(session.id).then((next) => onOpenSession?.(next.session_id)))}>
+            {busy === "resume" ? "Resuming…" : "Resume"}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={busy !== null} data-testid="runtime-end" onClick={() => act("end", () => runtimeEnd(session.id))}>
+            End it
+          </Button>
+        </div>
+      )}
       {runtime?.limits && runtime.limits.length > 0 && (
         <p className="text-[11px] text-muted" data-testid="runtime-limits">
           {runtime.limits

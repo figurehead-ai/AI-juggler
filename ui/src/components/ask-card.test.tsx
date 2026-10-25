@@ -78,6 +78,7 @@ const view = (asks: AskInfo[]): RuntimeViewInfo => ({
     fell_back: null,
     error: null,
     limits: [{ id: "seven_day", window_mins: 10080, used_pct: 41, resets_at_ms: 1_761_897_600_000 }],
+    cut_off: null,
   },
   items: [{ kind: "user_message", text: "Run the tests", at_ms: 1 }],
   streaming: null,
@@ -165,5 +166,23 @@ describe("a driven session's page", () => {
     await act(async () => fireEvent.click(getByTestId("open-in-terminal")));
     expect(calls()).toEqual(["handover:sess-1:terminal"]);
     expect(opened).toBe("sess-1");
+  });
+
+  // AJ-E2310: AI Juggler stopped during its turn.
+  it("whose turn was cut off says so, sends nothing, and offers Resume and End", async () => {
+    const runtime = { ...view([]).runtime, state: null, limits: [], cut_off: "Its turn was cut off when AI Juggler stopped" };
+    const session = { id: "sess-1", runtime } as unknown as InstanceInfo;
+    let opened: string | null = null;
+    const { getByTestId, queryByTestId, queryByRole } = render(<DrivenPanel session={session} onOpenSession={(id) => (opened = id)} />);
+    expect(getByTestId("runtime-cut-off").textContent).toContain("Its turn was cut off when AI Juggler stopped");
+    expect(queryByTestId("open-in-terminal")).toBeNull();
+    expect(queryByRole("textbox")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(calls()).toEqual([]);
+    await act(async () => fireEvent.click(getByTestId("runtime-resume")));
+    expect(calls()).toEqual(["resume:sess-1"]);
+    expect(opened).toBe("sess-1");
+    await act(async () => fireEvent.click(getByTestId("runtime-end")));
+    expect(calls()).toEqual(["resume:sess-1", "end:sess-1"]);
   });
 });
