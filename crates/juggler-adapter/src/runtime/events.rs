@@ -313,6 +313,9 @@ pub enum RuntimeEvent {
         native_id: String,
         /// The model, when the tool says.
         model: Option<String>,
+        /// The conversation's file, when the tool names it (the app links
+        /// it only when it lies in the account's own folder).
+        path: Option<String>,
     },
     /// Its state changed (live.rs's vocabulary: busy, idle, waiting).
     State {

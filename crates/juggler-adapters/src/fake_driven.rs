@@ -221,6 +221,7 @@ impl FakeDrivenSession {
                     RuntimeEvent::Started {
                         native_id: id,
                         model: Some(word(message, "model")),
+                        path: None,
                     },
                     state(LiveStatusWord::Idle),
                 ]

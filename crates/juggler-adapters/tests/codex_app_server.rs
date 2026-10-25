@@ -185,7 +185,7 @@ fn recorded_messages_make_the_right_events_and_answers() {
         Some("/kit/codex-home")
     );
     assert!(
-        matches!(&events[0], RuntimeEvent::Started { native_id, model }
+        matches!(&events[0], RuntimeEvent::Started { native_id, model, .. }
         if native_id == "0199aa00-0000-7000-8000-000000000001" && model.as_deref() == Some("gpt-5.5-codex"))
     );
     let limits = events

@@ -71,7 +71,10 @@ impl Conn {
         self.send(&json!({"id": id, "error": {"code": -32600, "message": message}}));
     }
 
+    /// Appends a rollout line, stamped as Codex stamps them.
     fn record(&self, line: &Value) {
+        let mut line = line.clone();
+        line["timestamp"] = json!("2026-10-25T10:00:01.000Z");
         if let Some(path) = &self.rollout
             && let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(path)
         {
@@ -83,7 +86,8 @@ impl Conn {
         json!({"id": self.thread, "cwd": cwd, "cliVersion": "0.163.0", "createdAt": 1,
             "updatedAt": 1, "ephemeral": false, "modelProvider": "openai", "preview": "",
             "projectId": null, "sessionId": self.thread, "source": "appServer",
-            "status": {"type": "idle"}, "turns": []})
+            "status": {"type": "idle"}, "turns": [],
+            "path": self.rollout.as_ref().map(|p| p.to_string_lossy().into_owned())})
     }
 
     fn rollout_of(id: &str) -> PathBuf {
@@ -107,7 +111,8 @@ impl Conn {
             let thread = format!("0199aa00-0000-7000-8000-{:012x}", self.count);
             let path = Self::rollout_of(&thread);
             let _ = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")));
-            let meta = json!({"type": "session_meta", "payload": {"id": thread, "cwd": cwd}});
+            let meta = json!({"timestamp": "2026-10-25T10:00:00.000Z", "type": "session_meta",
+                "payload": {"id": thread, "cwd": cwd, "cli_version": "0.163.0"}});
             let _ = std::fs::write(&path, format!("{meta}\n"));
             self.thread = Some(thread);
             self.rollout = Some(path);
@@ -148,7 +153,8 @@ impl Conn {
                 "item": {"type": "agentMessage", "id": "msg-1", "text": said}});
             self.notify("item/completed", &item);
             self.record(
-                &json!({"type": "response_item", "payload": {"type": "message", "text": said}}),
+                &json!({"type": "response_item", "payload": {"type": "message", "role": "assistant",
+                    "content": [{"type": "output_text", "text": said}]}}),
             );
         }
         let usage = json!({"inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 50,
@@ -191,7 +197,11 @@ impl Conn {
             "turn": {"id": turn, "status": "inProgress", "items": []}}),
         );
         self.status("active", &[]);
-        self.record(&json!({"type": "response_item", "payload": {"type": "message", "role": "user", "text": prompt}}));
+        // As a rollout records it (`response_item` messages with content).
+        self.record(
+            &json!({"type": "response_item", "payload": {"type": "message", "role": "user",
+            "content": [{"type": "input_text", "text": prompt}]}}),
+        );
         let ids = json!({"threadId": thread, "turnId": turn, "itemId": "item-1", "startedAtMs": 1});
         let request = |method: &str, extra: Value| {
             let mut params = ids.clone();

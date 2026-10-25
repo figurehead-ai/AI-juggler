@@ -6096,6 +6096,14 @@ fn freeze_source(
     if !state.supervisor.is_supervised(id) || state.supervisor.is_finished(id) {
         return Ok(());
     }
+    // AJ-E2305: a driven session's turn boundary is its tool's own word.
+    let finish = matches!(
+        freeze,
+        juggler_handover::pipeline::FreezeChoice::FinishTurnThenSwitch
+    );
+    if crate::features::runtime::release_for_switch(state, id, finish, TURN_LIMIT)? {
+        return Ok(());
+    }
     if matches!(
         freeze,
         juggler_handover::pipeline::FreezeChoice::FinishTurnThenSwitch

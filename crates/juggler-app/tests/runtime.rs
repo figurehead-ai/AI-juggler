@@ -266,6 +266,19 @@ fn codex_runs_through_its_own_app_server_by_default() {
             .is_supervised(&SessionId::new(session.as_str()))
     );
 
+    // Linked to its thread's rollout, in the account's own folder.
+    wait_for("the link", || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(session.as_str()))
+            .unwrap()
+            .transcript_ref
+            .is_some_and(|t| t.path.is_file() && t.native_id.is_some())
+    });
+
     // Limits with resets, before any turn.
     wait_for("the limits", || {
         !row(&state, &session).runtime.unwrap().limits.is_empty()
@@ -427,6 +440,62 @@ fn the_terminal_runs_when_chosen_or_when_codex_cant_be_driven() {
             .is_finished(&SessionId::new(refused.as_str()))
     });
     stop(&state, &launched.session_id);
+}
+
+/// AJ-E2305: a driven Codex session switched to Claude, then a driven one
+/// with an approval open switched with Stop now: the driver lets go at the
+/// tool's own turn boundary (or interrupts), its server ends, and the
+/// switch carries the conversation as it does for a terminal session.
+#[test]
+fn switching_away_from_a_driven_session_releases_it_first() {
+    use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+    let work = tempfile::tempdir().unwrap();
+    let claude_stub = work.path().join("claude-stub");
+    std::fs::write(
+        &claude_stub,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CLAUDE_CONFIG_DIR/last-args.tmp\"\nmv \"$CLAUDE_CONFIG_DIR/last-args.tmp\" \"$CLAUDE_CONFIG_DIR/last-args\"\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&claude_stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut registry = AdapterRegistry::new();
+    let codex =
+        Arc::new(CodexAdapter::with_bin(fake_codex_bin()).with_home(work.path().join("home")));
+    let claude = Arc::new(ClaudeCodeAdapter::with_bin(&claude_stub));
+    registry.register(codex.clone());
+    registry.register_handover(codex);
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    let state =
+        Arc::new(AppState::init_with_registry(work.path().join("app-data"), registry).unwrap());
+    let project = work.path().join("storefront");
+    std::fs::create_dir_all(&project).unwrap();
+    let source_profile = new_profile(&state, CODEX_ID, &project);
+    let target_profile = new_profile(&state, CLAUDE_CODE_ID, &project);
+
+    for (freeze, prompt) in [("finish-turn", "hello"), ("stop-now", "ask: rm -rf build")] {
+        let session = commands::launch_profile(&state, &source_profile, None)
+            .unwrap()
+            .session_id;
+        assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
+        runtime::send_impl(&state, &session, prompt).unwrap();
+        if freeze == "finish-turn" {
+            wait_for("the turn's end", || {
+                row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
+            });
+        } else {
+            wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
+        }
+        commands::switch_execute_impl(&state, &session, &target_profile, freeze, Some("keep"), &[])
+            .unwrap_or_else(|error| panic!("{freeze}: {error}"));
+        assert!(state.runtime.driver(&session).is_none(), "{freeze}: let go");
+        assert!(
+            state
+                .supervisor
+                .is_finished(&SessionId::new(session.as_str())),
+            "{freeze}: its server ended before the target started"
+        );
+        assert!(runtime::asks_impl(&state, 0, 10).is_empty());
+    }
 }
 
 #[test]

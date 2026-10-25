@@ -173,6 +173,50 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
         });
 }
 
+/// AJ-E2305: lets a driven session go before a switch takes its
+/// conversation: when its turn ends ("Finish this turn", at most `limit`)
+/// or now ("Stop now", an interrupt), then its process ends. `false` for a
+/// session that isn't driven (the switch freezes it as before).
+///
+/// # Errors
+///
+/// [`crate::error::AppError::Refused`] when the turn didn't end in time.
+pub fn release_for_switch(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    finish_turn: bool,
+    limit: std::time::Duration,
+) -> crate::error::AppResult<bool> {
+    use std::time::{Duration, Instant};
+    let Some(driver) = state.runtime.driver(session.as_str()) else {
+        return Ok(false);
+    };
+    let how = if finish_turn {
+        juggler_adapter::runtime::Release::AfterTurn(limit)
+    } else {
+        juggler_adapter::runtime::Release::Now
+    };
+    let outcome = driver
+        .release(how)
+        .map_err(crate::error::AppError::Refused)?;
+    if finish_turn && !outcome.at_boundary {
+        return Err(crate::error::AppError::Refused(
+            "The session is still working: choose Stop now, or try again once its turn is done"
+                .to_owned(),
+        ));
+    }
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !state.supervisor.is_finished(session) && Instant::now() < deadline {
+        // poll: the tool exits within 5 s of its input closing.
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    if !state.supervisor.is_finished(session) {
+        let _ = state.supervisor.stop(session, Duration::from_secs(2));
+    }
+    state.runtime.forget(session.as_str());
+    Ok(true)
+}
+
 /// Each row with its runtime (the session read model's last step).
 #[must_use]
 pub fn described(

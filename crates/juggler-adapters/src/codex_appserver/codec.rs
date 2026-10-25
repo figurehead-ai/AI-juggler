@@ -458,6 +458,9 @@ impl Codec {
                     RuntimeEvent::Started {
                         native_id: thread,
                         model: text(&value, "/model"),
+                        // `thread.path` ([UNSTABLE] in the schema): only a
+                        // hint, checked by the app before it is used.
+                        path: text(&value, "/thread/path"),
                     },
                     state(LiveStatusWord::Idle),
                 ]

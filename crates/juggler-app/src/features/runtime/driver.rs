@@ -220,7 +220,9 @@ impl Snapshot {
     /// Takes in one event; true when the stored state should change.
     fn apply(&mut self, session: &SessionId, event: &RuntimeEvent) -> bool {
         match event {
-            RuntimeEvent::Started { native_id, model } => {
+            RuntimeEvent::Started {
+                native_id, model, ..
+            } => {
                 self.native_id = Some(native_id.clone());
                 self.model.clone_from(model);
                 false
@@ -571,6 +573,50 @@ fn store(state: &Arc<AppState>, session: &SessionId, snapshot: &Snapshot) {
     state.runtime.notify(session.as_str(), true);
 }
 
+/// Links the session's record to its conversation once the tool names it:
+/// its id, and its file when that lies in the account's own folder (never
+/// a path elsewhere). `false` until the record exists (it is written just
+/// after the start).
+fn link(state: &Arc<AppState>, session: &SessionId, native_id: &str, path: Option<&str>) -> bool {
+    use juggler_core::model::{ConversationId, TranscriptRef};
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
+    let Ok(mut record) = storage.sessions().get(session) else {
+        return false;
+    };
+    let Some(home) = storage
+        .profiles()
+        .get(&record.profile)
+        .ok()
+        .and_then(|profile| storage.accounts().get(&profile.account).ok())
+        .and_then(|account| account.state_dir.canonicalize().ok())
+    else {
+        return true;
+    };
+    let mut changed = false;
+    if record.conversation.is_none() {
+        record.conversation = Some(ConversationId::new(native_id));
+        changed = true;
+    }
+    if record.transcript_ref.is_none()
+        && let Some(file) = path
+            .map(PathBuf::from)
+            .and_then(|file| file.canonicalize().ok())
+            .filter(|file| file.starts_with(&home) && file.is_file())
+    {
+        record.transcript_ref = Some(TranscriptRef {
+            path: file,
+            native_id: Some(native_id.to_owned()),
+        });
+        changed = true;
+    }
+    if changed {
+        let _ = storage.sessions().update(&record);
+    }
+    true
+}
+
 fn run(
     state: &std::sync::Weak<AppState>,
     session: &SessionId,
@@ -578,7 +624,15 @@ fn run(
     commands: &Receiver<Command>,
     snapshot: &Arc<Mutex<Snapshot>>,
 ) {
+    // The conversation to link, once the session's record exists.
+    let mut unlinked: Option<(String, Option<String>)> = None;
     loop {
+        if let Some((native_id, path)) = &unlinked
+            && let Some(state) = state.upgrade()
+            && link(&state, session, native_id, path.as_deref())
+        {
+            unlinked = None;
+        }
         // The user's commands first, so an answer never waits on events.
         loop {
             match commands.try_recv() {
@@ -604,6 +658,12 @@ fn run(
         let Some(state) = state.upgrade() else { return };
         match driven.next_event(POLL) {
             Ok(Some(event)) => {
+                if let RuntimeEvent::Started {
+                    native_id, path, ..
+                } = &event
+                {
+                    unlinked = Some((native_id.clone(), path.clone()));
+                }
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });
