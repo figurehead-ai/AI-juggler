@@ -106,10 +106,12 @@ it("Home's Runway and the Accounts cards", async () => {
   expect(card.textContent).toContain("12k tokens used");
   expect(card.textContent).not.toContain("resets");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
-  // 0.1.5: the gauges say "not measured" in words, never a filled ring.
+  // 0.1.5: "not measured" in words, never a filled ring, and said once
+  // for both windows (one gauge), not once per window.
   const gauges = [...card.querySelectorAll<HTMLElement>("[data-testid='window-gauge']")];
-  expect(gauges.length).toBe(2);
-  expect(gauges.every((gauge) => gauge.dataset.state === "unmeasured")).toBe(true);
+  expect(gauges.length).toBe(1);
+  expect(gauges[0]!.dataset.state).toBe("unmeasured");
+  expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
   expect(card.querySelectorAll("circle[stroke-dasharray]").length).toBe(0);
 });
 

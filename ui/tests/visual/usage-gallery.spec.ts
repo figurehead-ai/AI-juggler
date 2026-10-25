@@ -114,7 +114,8 @@ for (const viewport of VIEWPORTS) {
       await seed(page, theme, viewport);
       await openProfile(page);
       await settled(page, "account-usage-dashboard");
-      await expect(page.getByTestId("account-limits").getByTestId("window-gauge")).toHaveCount(2);
+      // A gauge per window once read; one for both while neither is.
+      await expect(page.getByTestId("account-limits").getByTestId("window-gauge").first()).toBeVisible();
       await shoot(page, "profile", theme, viewport);
     });
 
