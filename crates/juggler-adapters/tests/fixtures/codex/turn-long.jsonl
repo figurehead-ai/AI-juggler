@@ -1,0 +1,6 @@
+{"timestamp":"2026-10-25T09:10:00.000Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c40","output":"ok"}}
+{"timestamp":"2026-10-25T09:10:00.100Z","type":"event_msg","payload":{"type":"item_completed","thread_id":"019a1b2c-0000-7000-8000-00000000f00d","turn_id":"t2","item":{"type":"CommandExecution","id":"i40"}}}
+{"timestamp":"2026-10-25T09:10:01.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Tests pass; now the linter."}]}}
+{"timestamp":"2026-10-25T09:10:01.100Z","type":"event_msg","payload":{"type":"item_completed","thread_id":"019a1b2c-0000-7000-8000-00000000f00d","turn_id":"t2","item":{"type":"AgentMessage","id":"i41"}}}
+{"timestamp":"2026-10-25T09:10:02.000Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"c41","name":"exec","input":"cargo clippy"}}
+{"timestamp":"2026-10-25T09:10:02.500Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":null}}
