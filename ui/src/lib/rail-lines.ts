@@ -125,6 +125,26 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   };
 }
 
+/** The lines with Needs you or Open now folded: a folded section keeps
+ * its head (with its count) and drops its rows and places. */
+export function foldSections(lines: Line[], folded: ReadonlySet<"needs" | "open">): Line[] {
+  if (folded.size === 0) return lines;
+  let hiding = false;
+  return lines.filter((line) => {
+    if (line.kind === "section") {
+      hiding = folded.has(line.id);
+      return true;
+    }
+    if (line.kind === "also") hiding = false;
+    return !hiding;
+  });
+}
+
+/** Where a line starts, from the top of the list. */
+export function offsetOf(lines: Line[], index: number): number {
+  return lines.slice(0, index).reduce((sum, line) => sum + LINE_HEIGHT[line.kind], 0);
+}
+
 /** What each list shows now, to freeze it. */
 export function shownOrder(lines: Line[]): Map<string, string[]> {
   const out = new Map<string, string[]>();

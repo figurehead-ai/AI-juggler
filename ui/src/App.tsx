@@ -612,7 +612,7 @@ export default function App() {
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
       selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
-      openAccounts={() => setGlobal("accounts")}
+      openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
       refresh={() => void refresh()}

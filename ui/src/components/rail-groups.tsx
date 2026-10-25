@@ -96,7 +96,8 @@ export function FoldButton({
 }: {
   open: boolean;
   label: string;
-  controls: string;
+  /** The folded part's id, when it is one element. */
+  controls?: string;
   onToggle: () => void;
 }): JSX.Element {
   return (
