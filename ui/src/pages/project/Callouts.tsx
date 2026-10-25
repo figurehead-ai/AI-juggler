@@ -155,6 +155,7 @@ export function OpenSessions({ projectId, rows, onAll, onOpenSession, className 
         empty={`Nothing is open here now. ${rows.length > 0 ? `The last one ran ${rows[0]!.when}.` : "Start a session from the project's header."}`}
         onOpenSession={onOpenSession}
         onTotal={setOpen}
+        counted
       />
     </Section>
   );
