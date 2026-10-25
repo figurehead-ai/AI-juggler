@@ -9,6 +9,7 @@
  * divergence that waits for you). Suggest-only: every move is a click.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "./primitives";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -182,28 +183,35 @@ export function HandoverSection({
           {handoverTeaser(targets)}
         </p>
       )}
-      {crossTarget && (
-        <CrossMachineSwitchFlow
-          sessionId={session.id}
-          target={crossTarget}
-          onClose={() => {
-            setCrossTarget(null);
-            setCrossTick((tick) => tick + 1);
-          }}
-        />
-      )}
-      {backOpen && backPlan && (
-        <CrossMachineSwitchBack
-          sessionId={session.id}
-          plan={backPlan}
-          divergence={divergence ? { turns_since: divergence.turns_since, last_activity_ms: divergence.last_activity_ms, summary: divergence.summary } : null}
-          onClose={() => {
-            setBackOpen(false);
-            setCrossTick((tick) => tick + 1);
-          }}
-          onResolved={() => setCrossTick((tick) => tick + 1)}
-        />
-      )}
+      {/* Out to the body: the page's column is a size container, which
+          would hold a fixed sheet inside it. */}
+      {crossTarget &&
+        createPortal(
+          <CrossMachineSwitchFlow
+            sessionId={session.id}
+            target={crossTarget}
+            onClose={() => {
+              setCrossTarget(null);
+              setCrossTick((tick) => tick + 1);
+            }}
+          />,
+          document.body,
+        )}
+      {backOpen &&
+        backPlan &&
+        createPortal(
+          <CrossMachineSwitchBack
+            sessionId={session.id}
+            plan={backPlan}
+            divergence={divergence ? { turns_since: divergence.turns_since, last_activity_ms: divergence.last_activity_ms, summary: divergence.summary } : null}
+            onClose={() => {
+              setBackOpen(false);
+              setCrossTick((tick) => tick + 1);
+            }}
+            onResolved={() => setCrossTick((tick) => tick + 1)}
+          />,
+          document.body,
+        )}
     </Card>
   );
 }

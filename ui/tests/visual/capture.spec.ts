@@ -338,13 +338,13 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/empty-${vp.name}.png`) });
   });
 
-  // AJ-E1533: a session's page opens on its body, the Terminal tab.
+  // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
   test(`inspector — Session / Terminal — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Terminal", "Overview", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Overview", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
