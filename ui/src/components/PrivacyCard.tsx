@@ -140,15 +140,8 @@ export function PrivacyCard(): JSX.Element {
         <CardTitle id="privacy-title">
           Privacy
         </CardTitle>
-        {/* AJ-E1518: the full list, each line tested. */}
-        <button
-          type="button"
-          className="text-label text-accent underline-offset-2 hover:underline"
-          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "privacy" } }))}
-          data-testid="privacy-open-page"
-        >
-          What AI Juggler reads, changes and sends ›
-        </button>
+        {/* AJ-E1518: the full list, each line tested, follows this card
+            in Settings › Privacy (one place since 0.1.5). */}
       </div>
       <p className="text-label text-ink" data-testid="privacy-state" aria-live="polite">
         {stateLine(overview)}

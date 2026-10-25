@@ -10,7 +10,7 @@ import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, PrivacyScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow,
 } from "./lazyParts";
@@ -18,7 +18,7 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
+import { GLOBAL_NAV, IN_SETTINGS, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -244,6 +244,22 @@ export default function App() {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
+  // One place for Privacy (the review of 0.1.4): its screen is Settings'
+  // pane, whichever way it's asked for (More, a link, an event).
+  useEffect(() => {
+    const pane = global ? IN_SETTINGS[global] : undefined;
+    if (!pane) return;
+    setSettingsFocusCloud(false);
+    setSettingsSection(pane);
+    setGlobal("settings");
+  }, [global]);
+  // The tool page folds into Settings › Accounts (its install and
+  // accounts) — the review found it added nothing Accounts didn't show.
+  const openToolInSettings = () => {
+    setSettingsFocusCloud(false);
+    setSettingsSection("tools");
+    setGlobal("settings");
+  };
   // AJ-E1010: the update notice's Review lands on Settings.
   useEffect(() => {
     const open = (event: Event) => {
@@ -304,7 +320,7 @@ export default function App() {
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
   // The tool chip leaves the header when its view opens: focus follows.
-  const [inspectorFocus, setInspectorFocus] = useState(0);
+  const [inspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E207: the suggested returns (reset-trigger cards) + the
   // switch-back review modal. Null = closed; suggest-only.
@@ -611,7 +627,7 @@ export default function App() {
       selectSession={selectSession}
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
-      selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+      selectTool={() => openToolInSettings()}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
@@ -714,11 +730,7 @@ export default function App() {
             {contextProvider && contextProviderId && selection.kind !== "provider" && (
               <button
                 type="button"
-                onClick={() => {
-                  setGlobal(null);
-                  setSelection({ kind: "provider", id: contextProviderId });
-                  setInspectorFocus((n) => n + 1);
-                }}
+                onClick={() => openToolInSettings()}
                 aria-label={`About ${contextProvider}`}
                 title={`About ${contextProvider}`}
                 className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
@@ -738,7 +750,6 @@ export default function App() {
               page={selection.kind}
               pairedCount={pairedCount}
               cleanupCount={cleanupCount}
-              toolIds={[...new Set(accounts.map((account) => account.provider))]}
               onPick={(id) => {
                 if (PRIMARY_NAV.some((item) => item.id === id)) {
                   setSettingsFocusCloud(false);
@@ -749,7 +760,6 @@ export default function App() {
                   setSelection({ kind: "none" });
                 } else setGlobal(id);
               }}
-              onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
             />
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
@@ -810,9 +820,8 @@ export default function App() {
               />
             </ScrollingScreen>
           ) : global === "privacy" ? (
-            <ScrollingScreen key="privacy" screen="privacy" label="Privacy">
-              <PrivacyScreen />
-            </ScrollingScreen>
+            // Settings › Privacy, a frame from now (the redirect above).
+            null
           ) : global === "settings" ? (
             <ScrollingScreen key="settings" screen="settings" label="Settings">
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />

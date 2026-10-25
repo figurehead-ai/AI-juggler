@@ -11,6 +11,8 @@ import { useActionHost } from "./ItemMenu";
 import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
 export { paletteSelection } from "./PaletteActions";
 import { conversationTitle, useConversations } from "../lib/conversations";
+import { sessionTitle } from "./ManageWork";
+import { providerDisplayName } from "../lib/providers";
 import { paletteMatches, parseQuery } from "../lib/rail-view";
 import type { ResolvedAction } from "../lib/actions";
 import type { ConversationInfo } from "../lib/ipc/conversations";
@@ -109,15 +111,17 @@ export function GoToPalette({
     );
     // Desktop first (they own windows — the hotkey's reason to exist),
     // this Mac before paired machines.
-    return [
-      ...doing,
+    // A project named by what's typed comes first: typing its name and
+    // pressing Enter opens it (the review of 0.1.4).
+    const named = places.length > 0 && projects.some((p) => p.name.toLowerCase().startsWith(needle));
+    const sessionsFound = [
       ...local.filter((r) => r.desktop),
       ...remote.filter((r) => r.desktop),
       ...local.filter((r) => !r.desktop),
       ...elsewhere,
       ...remote.filter((r) => !r.desktop),
-      ...places,
     ];
+    return named ? [...doing, ...places, ...sessionsFound] : [...doing, ...sessionsFound, ...places];
   }, [sessions, remoteMachines, needle, conversations, actions, projects]);
 
   useEffect(() => {
@@ -139,7 +143,10 @@ export function GoToPalette({
     return <>{panel.element}</>;
   }
 
-  const choose = (entry: PaletteRow) => {
+  /** ↩ (or a click) opens its page here; ⌘↩ goes to the app it runs in
+   * (the review of 0.1.4: Enter on a project brought a Claude window
+   * forward). A project and AI Juggler's own terminal have only a page. */
+  const choose = (entry: PaletteRow, toApp = false) => {
     if (entry.where === "action") {
       // Greyed: it says why, and stays.
       if (entry.action.reason) return;
@@ -150,13 +157,12 @@ export function GoToPalette({
     if (entry.where === "project") {
       host.openProjectById?.(entry.project.id);
     } else if (entry.where === "outside") {
-      // AJ-E2102: the palette goes to it; its page when that can't be done.
-      if (host.goToConversation) void host.goToConversation(entry.conversation);
+      if (toApp && host.goToConversation) void host.goToConversation(entry.conversation);
       else host.openConversation?.(entry.conversation);
     } else if (entry.where === "local") {
-      if (entry.desktop) onFocusWindow(entry.row);
+      if (toApp && entry.desktop) onFocusWindow(entry.row);
       else onOpenSession(entry.row.id);
-    } else if (entry.desktop && canFocusRemote(entry.machine)) {
+    } else if (toApp && entry.desktop && canFocusRemote(entry.machine)) {
       onFocusRemote?.(entry.machine.machine_id, entry.row.id);
     } else {
       onOpenRemote?.(entry.machine.machine_id, entry.row.id);
@@ -199,7 +205,7 @@ export function GoToPalette({
     } else if (event.key === "Enter") {
       event.preventDefault();
       const row = rows[active];
-      if (row) choose(row);
+      if (row) choose(row, event.metaKey || event.ctrlKey);
     }
   };
 
@@ -259,7 +265,7 @@ export function GoToPalette({
               aria-selected={index === active}
               aria-disabled={entry.where === "action" && entry.action.reason ? true : undefined}
               data-testid={`goto-row-${entry.where === "remote" ? `remote-${entry.row.id}` : entry.id}`}
-              onClick={() => choose(entry)}
+              onClick={(event) => choose(entry, event.metaKey || event.ctrlKey)}
               onMouseEnter={() => setActive(index)}
               className={
                 "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-meta transition-colors " +
@@ -285,12 +291,12 @@ export function GoToPalette({
                 {entry.where === "outside" ? (
                   <>
                     <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.conversation.account_label} · outside AI Juggler</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.conversation.account_label} · in {paletteApp(entry).name}</span>
                   </>
                 ) : (
                   <>
-                    <span className="min-w-0 shrink truncate">{entry.row.account_label}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.row.provider}</span>
+                    <span className="min-w-0 shrink truncate">{entry.where === "local" ? sessionTitle(entry.row) : entry.row.account_label}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.where === "local" ? `${entry.row.account_label} · ${providerDisplayName(entry.row.provider)}` : providerDisplayName(entry.row.provider)}</span>
                   </>
                 )}
                 {entry.where === "remote" && (
@@ -299,17 +305,7 @@ export function GoToPalette({
                     {entry.machine.freshness === "live" ? "● live" : entry.machine.freshness === "stale" ? "◐ stale" : "○ offline"}
                   </span>
                 )}
-                <span className="ml-auto shrink-0 text-muted">
-                  {entry.where === "outside"
-                    ? "open"
-                    : entry.where === "local"
-                    ? entry.desktop
-                      ? "focus window"
-                      : "open panel"
-                    : entry.desktop && canFocusRemote(entry.machine)
-                      ? `Focus on ${entry.machine.label}`
-                      : "inspect"}
-                </span>
+                <span className="ml-auto shrink-0 text-muted">{entry.where === "remote" ? "inspect" : "open"}</span>
                 </>
                 )}
             </li>
@@ -317,7 +313,7 @@ export function GoToPalette({
           ))}
         </ul>
         <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-label text-muted">
-          <span>↑↓ navigate · Enter go · Esc close</span>
+          <span>↑↓ move · ↩ open its page · ⌘↩ go to its app · Esc close</span>
           <Button
             size="sm"
             variant="ghost"

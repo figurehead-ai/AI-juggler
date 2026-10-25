@@ -40,7 +40,7 @@ import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
-import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
+import { installWords, providerDisplayName } from "../lib/providers";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
@@ -1123,21 +1123,7 @@ export function useToolInstall(
   return result && result.providerId === providerId ? result.install : null;
 }
 
-/** The installed version and verified range, in words. */
-export function installWords(install: import("../lib/bridge").ProviderInstallData): string {
-  const verified = install.verified_against ?? [];
-  switch (install.status) {
-    case "installed":
-      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
-    case "unverified":
-      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
-    case "not_installed":
-      return "Not installed on this Mac";
-    default:
-      if (versionUnchecked(install)) return FOUND_UNCHECKED;
-      return "Couldn't check what's installed";
-  }
-}
+export { installWords } from "../lib/providers";
 
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;

@@ -2,12 +2,13 @@
  * The header's main navigation (D-25): Home, Accounts, History, Settings;
  * Fleet once a Mac is paired; the cleanup pill when there's something to
  * tidy; More. AJ-E1534: what's lit comes from the page shown — an
- * account's page is under Accounts, a tool's under More (Tools).
+ * account's page is under Accounts. (0.1.5: Usage joins the header; a
+ * tool's details are in Settings › Accounts.)
  */
 import type { JSX } from "react";
 import { MoreMenu, type MoreItem } from "./MoreMenu";
 
-const NAV_BUTTON = "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 ";
+const NAV_BUTTON = "rounded-md px-2 py-1.5 text-meta font-medium transition-colors xl:px-2.5 ";
 const lit = (current: boolean) => (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink");
 
 export function MainNav<Id extends string>({
@@ -17,9 +18,7 @@ export function MainNav<Id extends string>({
   page,
   pairedCount,
   cleanupCount,
-  toolIds,
   onPick,
-  onOpenTool,
 }: {
   primary: Array<{ id: Id | "home"; label: string }>;
   more: MoreItem<Id>[];
@@ -29,9 +28,7 @@ export function MainNav<Id extends string>({
   page: string;
   pairedCount: number;
   cleanupCount: number;
-  toolIds: string[];
   onPick: (id: Id | "home") => void;
-  onOpenTool: (id: string) => void;
 }): JSX.Element {
   return (
     <nav aria-label="Main" className="flex flex-wrap items-center gap-0.5 xl:gap-1">
@@ -55,13 +52,13 @@ export function MainNav<Id extends string>({
         <button
           type="button"
           onClick={() => onPick("cleanup" as Id)}
-          className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-label font-medium text-ink"
+          className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-meta font-medium text-ink"
           data-testid="nav-cleanup-pill"
         >
           {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
         </button>
       )}
-      <MoreMenu items={more} current={global} inTools={global === null && page === "provider"} onPick={onPick} toolIds={toolIds} onOpenTool={onOpenTool} />
+      <MoreMenu items={more} current={global} inTools={global === null && page === "provider"} onPick={onPick} />
     </nav>
   );
 }

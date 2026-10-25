@@ -81,3 +81,19 @@ export function versionUnchecked(row: InstallRow): boolean {
 
 /** The words for a found tool whose version couldn't be read. */
 export const FOUND_UNCHECKED = "Found; couldn't check its version";
+
+/** The installed version and verified range, in words. */
+export function installWords(install: import("./bridge").ProviderInstallData): string {
+  const verified = install.verified_against ?? [];
+  switch (install.status) {
+    case "installed":
+      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
+    case "unverified":
+      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
+    case "not_installed":
+      return "Not installed on this Mac";
+    default:
+      if (versionUnchecked(install)) return FOUND_UNCHECKED;
+      return "Couldn't check what's installed";
+  }
+}

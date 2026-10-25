@@ -6,8 +6,6 @@
 import { useEffect, useRef, useState, type JSX, type SVGProps } from "react";
 import { IconFleet, IconShield, IconUsage } from "./icons";
 import { IconBroom, IconComputer } from "./icons-actions";
-import { ToolMark } from "./ToolMark";
-import { useTools } from "../lib/tools";
 
 export type MoreItem<Id extends string> = { id: Id; label: string; hint: string };
 
@@ -35,8 +33,6 @@ export function MoreMenu<Id extends string>({
   current,
   inTools = false,
   onPick,
-  toolIds,
-  onOpenTool,
 }: {
   items: MoreItem<Id>[];
   /** The screen shown now, when it's one of these. */
@@ -44,13 +40,9 @@ export function MoreMenu<Id extends string>({
   /** A tool's page is shown (its section is here). */
   inTools?: boolean;
   onPick: (id: Id) => void;
-  /** The tools the user has accounts on. */
-  toolIds: string[];
-  onOpenTool: (id: string) => void;
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const tools = useTools().filter((tool) => toolIds.includes(tool.id));
   useEffect(() => {
     if (!open) return;
     const onDown = (event: MouseEvent) => {
@@ -78,7 +70,7 @@ export function MoreMenu<Id extends string>({
         aria-controls="nav-more"
         onClick={() => setOpen((was) => !was)}
         className={
-          "rounded-md px-2 py-1.5 text-xs font-medium transition-colors xl:px-2.5 " +
+          "rounded-md px-2 py-1.5 text-meta font-medium transition-colors xl:px-2.5 " +
           (inTools || items.some((item) => item.id === current) ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink")
         }
       >
@@ -96,28 +88,11 @@ export function MoreMenu<Id extends string>({
             >
               <ScreenIcon id={item.id} />
               <span className="flex flex-col items-start gap-0.5">
-                <span className="text-xs font-medium text-ink">{item.label}</span>
-                <span className="text-label text-muted">{item.hint}</span>
+                <span className="text-body font-medium text-ink">{item.label}</span>
+                <span className="text-meta text-muted">{item.hint}</span>
               </span>
             </button>
           ))}
-          {tools.length > 0 && (
-            <>
-              <p className="mt-1 border-t border-hairline px-3 pb-1 pt-2 text-label font-semibold text-muted">Tools</p>
-              {tools.map((tool) => (
-                <button
-                  key={tool.id}
-                  type="button"
-                  data-testid="more-tool"
-                  onClick={pick(() => onOpenTool(tool.id))}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
-                >
-                  <ToolMark tool={tool.id} size={14} className="text-muted" />
-                  {tool.display_name}
-                </button>
-              ))}
-            </>
-          )}
         </div>
       )}
     </div>

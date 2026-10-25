@@ -168,7 +168,8 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
-        await expect(page.getByTestId("provider-install")).toBeVisible();
+        // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
+        await expect(page.getByTestId("settings-tool").first()).toBeVisible();
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
       });

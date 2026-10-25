@@ -3927,20 +3927,14 @@ for (const theme of THEMES) {
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
-      await expect(page.getByRole("heading", { level: 1, name: "Claude Code" })).toBeVisible();
+      // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
+      const tool = page.getByTestId("settings-tool").filter({ hasText: "Claude Code" });
+      await expect(tool).toBeVisible();
       await expect(chip).toHaveCount(0); // the view doesn't link to itself
-      await expect(page.getByTestId("provider-install")).toHaveText(/^Version \S+/);
+      await expect(tool).toContainText(/Version \S+/);
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      // AJ-E1533: a tool's page is its body alone (no tabs); its actions
-      // are the header's Add account… and its ⋯ menu.
-      const inspector = page.getByTestId("right-inspector");
-      await expect(inspector.getByRole("tablist")).toHaveCount(0);
-      const text = (await page.getByTestId("provider-overview").innerText()) ?? "";
+      const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
-      await expect(page.getByTestId("header-add-account")).toBeVisible();
-      await page.getByTestId("header-menu").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await page.screenshot({ path: resolve(GALLERY, `72-tool-view/header-menu-${vp.name}-${theme}.png`), fullPage: true });
     });
   }
 }
