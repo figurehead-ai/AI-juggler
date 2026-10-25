@@ -431,6 +431,30 @@ fn record_reads(state: &Arc<AppState>, sources: &[(String, PathBuf)]) {
     }
 }
 
+/// A backup that leaves the Mac stops on anything that looks like a
+/// secret; the one before an update stays here and isn't checked.
+fn secret_check(sources: &[(String, PathBuf)], purpose: Purpose) -> AppResult<()> {
+    if purpose == Purpose::StaysOnThisMac {
+        return Ok(());
+    }
+    let mut findings = Vec::new();
+    for (name, path) in sources {
+        for found in scan(path)? {
+            findings.push(format!("{name}: {found}"));
+        }
+    }
+    if findings.is_empty() {
+        return Ok(());
+    }
+    Err(validation(
+        "backup",
+        format!(
+            "stopped — something that looks like a secret is in {}; nothing was written",
+            findings.join("; ")
+        ),
+    ))
+}
+
 fn export_from(
     state: &Arc<AppState>,
     dest: &Path,
@@ -445,23 +469,7 @@ fn export_from(
 
     let sources = sources(&state.data_dir, &snapshot);
     record_reads(state, &sources);
-    let mut findings = Vec::new();
-    if purpose == Purpose::LeavesTheMac {
-        for (name, path) in &sources {
-            for found in scan(path)? {
-                findings.push(format!("{name}: {found}"));
-            }
-        }
-    }
-    if !findings.is_empty() {
-        return Err(validation(
-            "backup",
-            format!(
-                "stopped — something that looks like a secret is in {}; nothing was written",
-                findings.join("; ")
-            ),
-        ));
-    }
+    secret_check(&sources, purpose)?;
 
     let total: u64 = sources
         .iter()
