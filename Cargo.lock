@@ -2777,6 +2777,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-agentbridge"
+version = "0.2.0"
+dependencies = [
+ "juggler-adapter",
+ "juggler-adapters",
+ "juggler-app",
+ "juggler-core",
+ "juggler-supervisor",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "juggler-app"
 version = "0.2.0"
 dependencies = [
@@ -2795,6 +2809,7 @@ dependencies = [
  "juggler-account",
  "juggler-adapter",
  "juggler-adapters",
+ "juggler-agentbridge",
  "juggler-core",
  "juggler-handover",
  "juggler-link",
