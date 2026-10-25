@@ -65,7 +65,9 @@ export function SessionRowBody({
   const Box = as;
   return (
     <Box
-      className={"group relative " + (as === "li" ? "border-t border-hairline/60 first:border-t-0" : "")}
+      // A size container: a narrow list (a project Overview's card) gives
+      // its title the room and says the account in the line under it.
+      className={"group relative @container " + (as === "li" ? "border-t border-hairline/60 first:border-t-0" : "")}
       data-testid="page-session-item"
       data-key={row.key}
       {...menu.triggerProps}
@@ -92,18 +94,20 @@ export function SessionRowBody({
             <span className={row.tone} data-testid="page-session-state">{row.state}</span>
             {row.detail && row.detail !== row.title && !title.startsWith(`${row.detail} · `) && <> · {row.detail}</>}
             {row.outside && ` · in ${appOfRow(row).name}`}
+            <span className="@[34rem]:hidden" aria-hidden="true"> · {row.accountLabel}</span>
           </span>
+          {/* Said once for a screen reader, whichever way the account shows. */}
+          <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
         </span>
         {project && (
-          <span className="hidden w-44 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted md:flex" data-testid="page-session-project">
+          <span className="hidden w-44 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[44rem]:flex" data-testid="page-session-project">
             <ProjectMark projectId={project.id} size={16} />
             <span className="truncate">{project.name ?? "a moved project"}</span>
           </span>
         )}
-        <span className="flex w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted">
+        <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
           <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
           <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
-          <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
         </span>
         {badge}
         <span className="w-24 shrink-0 whitespace-nowrap text-right text-meta tabular-nums text-muted">{row.when}</span>
