@@ -568,7 +568,10 @@
 - Hard lines no level or rule lifts: agents never change pools, levels
   or rules; agents never start a session or choose an account (D-31);
   agents never get credentials; AI Juggler never answers a tool's own
-  permission prompts.
+  permission prompts by itself (amended by D-40, 2026-10-25: the user's
+  own click in AI Juggler is carried to the tool, and "don't ask again"
+  is the tool's own rule, picked from the options the tool offers, so
+  it is visible and revocable in the tool too).
 - Rejected: every agent write approved one by one (the approval spam
   this ruling exists to avoid); reads only (messaging and tasks would
   wait).
@@ -743,8 +746,57 @@
 - Consequences: AJ-E2101, AJ-E2102; guardrail tests; the Privacy page
   names the new reads.
 
+### D-40 How AI Juggler runs the sessions it starts: a runtime per tool — SETTLED (2026-10-25)
+
+- Decision: option A of the research (`docs/research/session-runtime.md`,
+  ADR-0022). The maintainer, 2026-10-25: "Yes to D-40 option A: Codex
+  through app-server by default, Claude terminal + hooks by default with
+  headless as a Beta choice, no bundled SDK. Also yes to amending D-28 to
+  'never by itself'."
+  - Codex: each session AI Juggler starts is driven through the user's own
+    `codex app-server` (one per session, a socket in AI Juggler's data
+    folder, owned in the spawn ledger). Approvals and questions are
+    answered in AI Juggler; state and the 5-hour and weekly limits come
+    from the protocol; "Open in terminal" attaches the real TUI with
+    `codex --remote`. The PTY with `--no-daemon` stays the fallback. The
+    protocol version is pinned and its schema regenerated each release.
+  - Claude: the real terminal stays the default, with exact state and
+    limits from Claude Code's own hooks and status line through a
+    per-launch `--settings` file in AI Juggler's folder. "Run without a
+    terminal: answer from AI Juggler" is a per-session Beta choice:
+    AI Juggler speaks Claude Code's stream-json protocol from Rust to the
+    user's own `claude`, and hands back to the terminal at a turn boundary
+    with `--resume`. It becomes the default only after four gates
+    (ADR-0022 decision 4): Anthropic's written approval; `-p` keeping
+    subscription sign-in once `--bare` is its default; a month of lab use
+    with no billing change; the conversation view passing a hand walk.
+  - No vendor SDK is bundled. AI Juggler speaks each tool's protocol to
+    the user's own installed binary. The terminal stays a first-class
+    runtime for every tool, and the only one for tools without a protocol.
+- Quoted terms (research §2): Anthropic does not "prevent an end user from
+  signing in to the unmodified Claude Code binary with their own Claude
+  subscription", and does not allow "third party developers to offer
+  claude.ai login or rate limits for their products, including agents
+  built on the Claude Agent SDK" unless approved. OpenAI lets "a local or
+  open-source application" use Codex app-server with ChatGPT sign-in;
+  never for commercial or hosted services.
+- Amends: D-28's hard line (above), now "never answers by itself".
+- Rejected: bundling the Agent SDK or the Codex SDK (policy, about
+  450–700 MB, a second Claude Code copy, and the Codex TS SDK can't answer
+  approvals); terminal only (turns down the protocol Codex's own TUI
+  uses); headless by default for both now (loses Claude's TUI before the
+  policy questions settle).
+- Open: whether to ask Anthropic for written approval of the Claude
+  headless mode (the maintainer's call).
+- Consequences: ADR-0022 Accepted; a runtime trait in `juggler-adapter`
+  (Terminal or Driven, per launch), the conformance kit testing both
+  runtimes; a live spike on spare accounts first (the maintainer's step,
+  as AJ-E1701); `docs/research/codex.md` §9 gets an addendum (app-server's
+  rate limits are documented); the Privacy and terms pages name the
+  runtime.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-28..D-37 on 2026-10-24. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-40 on 2026-10-25 (D-38 and D-39 on main). All follow the same law.
