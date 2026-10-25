@@ -4291,11 +4291,14 @@ pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     Ok(())
 }
 
-/// The working set's ended sessions: the newest this many of the last
-/// [`RECENT_ENDED_MS`] (the rail shows today's; History pages the rest).
+/// The working set's ended sessions: every one of the last day (the
+/// rail's "ended today" counts), and the newest this many of the last
+/// [`RECENT_ENDED_MS`]; History pages the rest.
 pub const RECENT_ENDED: usize = 200;
 /// How far back the working set's ended sessions go.
-pub const RECENT_ENDED_MS: i64 = 7 * 24 * 3_600_000;
+pub const RECENT_ENDED_MS: i64 = 7 * DAY_MS;
+/// One day: everything active within it is in the working set.
+pub const DAY_MS: i64 = 24 * 3_600_000;
 
 /// The sessions the app's lists hold: every open or pinned one and the
 /// recent ended ones ([`RECENT_ENDED`]), never the whole history.
@@ -4304,9 +4307,11 @@ pub const RECENT_ENDED_MS: i64 = 7 * 24 * 3_600_000;
 ///
 /// Storage errors.
 pub fn working_records(storage: &Storage) -> AppResult<Vec<SessionRecord>> {
-    Ok(storage
-        .sessions()
-        .working_set(now_millis() - RECENT_ENDED_MS, RECENT_ENDED)?)
+    Ok(storage.sessions().working_set(
+        now_millis() - DAY_MS,
+        now_millis() - RECENT_ENDED_MS,
+        RECENT_ENDED,
+    )?)
 }
 
 /// One batched sample of live process stats for every supervised session
@@ -13157,16 +13162,54 @@ fn switch_rank_context_of(
             }
         }
     }
-    let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
-        juggler_adapters::transcript_tokens(&reference.path)
-            .map(|tokens| tokens.input.saturating_add(tokens.output))
-    });
+    // What the usage pipeline already counted for it; the transcript is
+    // read (once per size and time) only when it counted nothing (0.1.5
+    // review: a session's page read its whole transcript twice on open).
+    let counted = source
+        .usage
+        .tokens
+        .input
+        .saturating_add(source.usage.tokens.output);
+    let source_replay_tokens = if counted > 0 {
+        Some(counted)
+    } else {
+        source
+            .transcript_ref
+            .as_ref()
+            .and_then(|reference| transcript_tokens_once(&reference.path))
+    };
     Ok(SwitchRankContext {
         source_provider: source_account.harness.to_string(),
         source_tte_min,
         returnable_accounts: returnable,
         source_replay_tokens,
     })
+}
+
+/// A transcript's input + output tokens, read again only when its size or
+/// time changed (the last few kept).
+fn transcript_tokens_once(path: &std::path::Path) -> Option<u64> {
+    type Seen =
+        std::collections::HashMap<PathBuf, (u64, Option<std::time::SystemTime>, Option<u64>)>;
+    static SEEN: std::sync::LazyLock<std::sync::Mutex<Seen>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(Seen::new()));
+    let meta = std::fs::metadata(path).ok()?;
+    let stamp = (meta.len(), meta.modified().ok());
+    if let Ok(seen) = SEEN.lock()
+        && let Some((len, modified, tokens)) = seen.get(path)
+        && (*len, *modified) == stamp
+    {
+        return *tokens;
+    }
+    let tokens = juggler_adapters::transcript_tokens(path)
+        .map(|tokens| tokens.input.saturating_add(tokens.output));
+    if let Ok(mut seen) = SEEN.lock() {
+        if seen.len() >= 64 {
+            seen.clear();
+        }
+        seen.insert(path.to_path_buf(), (stamp.0, stamp.1, tokens));
+    }
+    tokens
 }
 
 /// AJ-E209: the ranked + badged destinations for one source session

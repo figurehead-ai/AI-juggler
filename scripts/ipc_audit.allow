@@ -42,8 +42,9 @@ unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or t
 unbounded cleanup_tier2_decide  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cloud_backup_list  # TO PAGE: every cloud backup
 unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded conversations_get  # bounded: one conversation (its places: one per process it is open in)
 unbounded conversations_last_messages  # bounded: the last 2-3 messages
-unbounded conversations_list  # TO PAGE: every conversation; the rail's working set (open + recent) next
+unbounded conversations_list  # bounded: the working set (open, in a sidebar, the newest 200 of the week); History and the Sessions tabs page the rest
 unbounded cost_rollups  # TO PAGE: its rows; the table reads cost_rows_page (the charts agent's Usage), totals stay
 unbounded crash_answer  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded crash_info  # bounded: a fixed set (settings, checks, choices or tools)

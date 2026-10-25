@@ -351,8 +351,10 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
-    /// The working set, newest first: every session that hasn't ended or
-    /// is pinned, and the `recent` newest that ended since `since_ms`. What
+    /// The working set, newest first: every session that hasn't ended, is
+    /// pinned or was active since `all_since_ms` (the last day: the rail's
+    /// "ended today" counts stay true), and the `recent` newest that ended
+    /// since `since_ms`. What
     /// the rail and the app's lists hold (0.1.5 review: they read the
     /// whole history); History and the Sessions tabs page the rest.
     ///
@@ -361,12 +363,14 @@ impl SessionsRepo<'_> {
     /// Same as [`SessionsRepo::get`].
     pub fn working_set(
         &self,
+        all_since_ms: i64,
         since_ms: i64,
         recent: usize,
     ) -> Result<Vec<InstanceRecord>, CoreError> {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT * FROM instances
               WHERE status NOT IN {ENDED} OR pinned_at IS NOT NULL
+                 OR COALESCE(last_activity, started_at) >= ?3
                  OR id IN (SELECT id FROM instances
                             WHERE status IN {ENDED}
                               AND COALESCE(last_activity, started_at) >= ?1
@@ -375,9 +379,27 @@ impl SessionsRepo<'_> {
               ORDER BY started_at DESC, id"
         ))?;
         let rows = stmt.query_map(
-            params![since_ms, i64::try_from(recent).unwrap_or(i64::MAX)],
+            params![
+                since_ms,
+                i64::try_from(recent).unwrap_or(i64::MAX),
+                all_since_ms
+            ],
             map_session,
         )?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// Each session's conversation, `(conversation, session)`: one cheap
+    /// read for the conversations list (never the sessions' whole rows).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn conversation_links(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT conversation_id, id FROM instances WHERE conversation_id IS NOT NULL",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 

@@ -82,6 +82,13 @@ export async function conversationsList(): Promise<ConversationInfo[]> {
   return invoke<ConversationInfo[]>("conversations_list");
 }
 
+/** One conversation by its account and id: one past the working set the
+ * list holds (an old one opened from History). `null` when it's gone. */
+export async function conversationsGet(accountId: string, conversationId: string): Promise<ConversationInfo | null> {
+  if (!hasLiveBackend()) return previewConversations().find((c) => c.account_id === accountId && c.id === conversationId) ?? null;
+  return invoke<ConversationInfo | null>("conversations_get", { accountId, conversationId });
+}
+
 /** The copyable line that resumes a conversation in a terminal. */
 export async function conversationsResumeCommand(accountId: string, conversationId: string): Promise<string> {
   if (!hasLiveBackend()) return `cd ~/work && tool --resume ${conversationId}`;

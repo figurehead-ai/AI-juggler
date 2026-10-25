@@ -394,8 +394,12 @@ fn every_page_opens_without_holding_the_main_thread() {
     )
     .1
     .unwrap();
-    assert_eq!(
-        listed.iter().filter(|c| c.session_id.is_none()).count(),
-        OUTSIDE
-    );
+    // The window holds the working set; the sessions list pages them all.
+    assert!(listed.len() <= features::conversations::commands::RECENT);
+    let all = features::sessions::rows::sessions_counts_impl(
+        state,
+        &features::sessions::rows::SessionsQuery::default(),
+    )
+    .unwrap();
+    assert_eq!(all.all, (OUTSIDE + SESSIONS) as u64);
 }

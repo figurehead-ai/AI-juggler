@@ -48,6 +48,7 @@ vi.mock("../lib/ipc/sessions", async (importOriginal) => ({
     return { items, next_cursor: start + items.length < rows.length ? String(start + items.length) : null, total: rows.length };
   },
   sessionsCounts: async () => ({ all: 520, open: 0, ended: 500, archived: 20 }),
+  sessionsGet: async (ids: string[]) => rows.filter((row) => ids.includes(row.session!.id)).map((row) => row.session!),
 }));
 
 const { History } = await import("./History");
@@ -102,5 +103,29 @@ describe("History, a page at a time", () => {
     expect(container.querySelector("[data-testid='page-sessions-list-skeleton']")).toBeNull();
     expect(items(container).length).toBeGreaterThan(0);
     await waitFor(() => expect(asked.length).toBeGreaterThan(before));
+  });
+});
+
+describe("a session past the working set, opened from History", () => {
+  it("is read by its id and its page has it", async () => {
+    const { ActionHostProvider } = await import("../components/ItemMenu");
+    const { useWithSelected } = await import("../lib/session-lookup");
+    const { useState } = await import("react");
+    // The app's list holds only its working set: none of History's rows.
+    function AppLike() {
+      const [selected, setSelected] = useState<string | null>(null);
+      const sessions = useWithSelected([], selected);
+      const page = sessions.find((s) => s.id === selected);
+      return (
+        <ActionHostProvider host={{ openSessionById: (id) => setSelected(id) }}>
+          <History sessions={[]} projects={[]} onChanged={() => {}} />
+          <p data-testid="page-of">{page ? page.title : selected ? "loading" : "none"}</p>
+        </ActionHostProvider>
+      );
+    }
+    const { container, getByTestId } = render(<AppLike />);
+    await waitFor(() => expect(items(container).length).toBeGreaterThan(0));
+    fireEvent.click(container.querySelector<HTMLButtonElement>("[data-key='s/s3'] [data-testid='page-session-row']")!);
+    await waitFor(() => expect(getByTestId("page-of").textContent).toBe("Session 3"));
   });
 });

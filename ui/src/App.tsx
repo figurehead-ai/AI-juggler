@@ -605,7 +605,7 @@ export default function App() {
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
-    <ConversationsProvider>
+    <ConversationsProvider want={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}>
     <AppActions
       selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
       selectSession={selectSession}

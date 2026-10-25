@@ -37,8 +37,17 @@ use juggler_core::quota::{UsageEvent, UsageSource};
 
 const SESSIONS: usize = 10_000;
 const DAY: i64 = 86_400_000;
-/// 2026-10-01, UTC.
-const START: i64 = 1_790_812_800_000;
+/// The fixture's first day: 60 days ago, at UTC midnight (every session
+/// ends in the past, about 42 days of them).
+fn start() -> i64 {
+    let now = Timestamp::now().millis();
+    (now - 60 * DAY).div_euclid(DAY) * DAY
+}
+
+/// The fixture's second day in words (UTC).
+fn second_day() -> String {
+    juggler_core::cost_ledger::day_of(start() + DAY)
+}
 
 struct Fixture {
     _dir: tempfile::TempDir,
@@ -125,7 +134,7 @@ fn fixture() -> Fixture {
             } else {
                 SessionStatus::Finished
             };
-            let at = START + i64::try_from(n).unwrap() * 3_600_000 / 10;
+            let at = start() + i64::try_from(n).unwrap() * 3_600_000 / 10;
             storage
                 .sessions()
                 .insert(&record(n, &projects[n % 20], at, status))
@@ -141,7 +150,7 @@ fn fixture() -> Fixture {
             .map(|n: usize| UsageEvent {
                 account: format!("acc-{}", n % 5),
                 session: Some(format!("s-{:05}", n % SESSIONS)),
-                ts: START + i64::try_from(n).unwrap() * (DAY / 1000),
+                ts: start() + i64::try_from(n).unwrap() * (DAY / 1000),
                 model: Some(["claude-sonnet-4-5", "claude-opus-4-1", "gpt-5"][n % 3].to_owned()),
                 tokens: TokenCounts {
                     input: 100,
@@ -264,7 +273,7 @@ fn a_session_added_between_two_reads_never_shifts_or_repeats_a_row() {
         let newest = record(
             90_001,
             &fx.projects[0],
-            START + 400 * DAY,
+            start() + 59 * DAY,
             SessionStatus::Finished,
         );
         storage.sessions().insert(&newest).unwrap();
@@ -327,7 +336,7 @@ fn scope_kind_and_search_narrow_the_list_server_side() {
 
     // A date in words (UTC here): the sessions started that day.
     let day = SessionsQuery {
-        text: Some("2026-10-02".to_owned()),
+        text: Some(second_day()),
         utc_offset_min: Some(0),
         ..SessionsQuery::default()
     };
@@ -337,7 +346,7 @@ fn scope_kind_and_search_narrow_the_list_server_side() {
     assert!(took < Duration::from_secs(1), "search took {took:?}");
     assert!(matched.total.unwrap() >= 240, "{:?}", matched.total);
     let words = SessionsQuery {
-        text: Some("echo 2026-10-02".to_owned()),
+        text: Some(format!("echo {}", second_day())),
         utc_offset_min: Some(0),
         ..SessionsQuery::default()
     };
@@ -408,11 +417,25 @@ fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
     });
     let open = rows.iter().filter(|row| row.status == "running").count();
     assert_eq!(open, 100, "every open session is in it");
+    // Every session of the last day is in it (the rail's "ended today"
+    // stays true); of the week before, the newest 200; nothing older.
+    let now = Timestamp::now().millis();
+    let last_day = (0..SESSIONS)
+        .filter(|n| n % 100 != 0)
+        .filter(|n| start() + i64::try_from(*n).unwrap() * 360_000 + 60_000 >= now - DAY)
+        .count();
+    let ended = rows.len() - open;
     assert!(
-        rows.len() <= open + commands::RECENT_ENDED,
-        "{} rows: open, pinned and the newest ended only",
-        rows.len()
+        ended >= last_day,
+        "{ended} ended rows, {last_day} ended in the last day"
     );
+    assert!(
+        ended <= last_day + commands::RECENT_ENDED,
+        "{ended} ended rows"
+    );
+    assert!(rows.iter().all(|row| row.last_activity_ms.unwrap()
+        >= now - commands::RECENT_ENDED_MS
+        || row.status == "running"));
     assert!(took < Duration::from_secs(1), "{took:?}");
     // A session past it is read by its id (an old one opened from History).
     let old = state
