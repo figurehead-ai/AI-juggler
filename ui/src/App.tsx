@@ -5,7 +5,7 @@ import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
-import { useLiveDeltas } from "./lib/live-deltas";
+import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
@@ -16,7 +16,7 @@ import {
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
-import { GoToPalette } from "./components/GoToPalette";
+import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
 import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
 import { IconJuggler, IconTerminal } from "./components/icons";
@@ -300,7 +300,7 @@ export default function App() {
   // AJ-E414: the "Go to instance…" palette — summoned by the global
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
-  const [goToHotkey, setGoToHotkey] = useState("Alt+Space");
+  const [goToHotkey, setGoToHotkey] = useState("");
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
@@ -340,7 +340,7 @@ export default function App() {
     };
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useMemo(() => singleFlight(async () => {
     try {
       const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] =
         await Promise.all([
@@ -373,7 +373,7 @@ export default function App() {
     } finally {
       setLoaded(true);
     }
-  }, [baselineFreshness]);
+  }), [baselineFreshness]);
 
   // Golden path day one: surface the user's REAL project history from
   // imported transcripts (idempotent backend scan). AJ-E1529: the backend
@@ -668,7 +668,6 @@ export default function App() {
           ) : (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} />
                 {/* The rail-footer `?` legend popover (AJ-E403 Req.6,
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
@@ -715,6 +714,7 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
+            <span className="mr-2 flex min-w-0 text-muted">{/* AJ-E2105: This Mac's line, in the top bar */}<MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} /></span>
             <MainNav
               primary={PRIMARY_NAV}
               more={MORE_NAV}
@@ -1042,10 +1042,10 @@ export default function App() {
         }}
         onOpenRemote={inspectRemote}
         hotkey={goToHotkey}
-        onHotkeyChange={async (combo) => {
-          await goToHotkeySet(combo);
-          setGoToHotkey(combo);
-        }}
+        onHotkeyChange={async (combo) => (await goToHotkeySet(combo), setGoToHotkey(combo))}
+        selected={paletteSelection(selectedSession, selectedProject, selectedAccount, selectedProvider?.id ?? null)}
+        projects={projects}
+        onChanged={() => void refresh()}
       />
 
       {firstRun && (

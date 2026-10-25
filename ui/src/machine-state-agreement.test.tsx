@@ -8,10 +8,10 @@
  *
  * One fixture per state, every surface that shows the Mac's state rendered
  * from it: they must agree. The surfaces are the alert banner, Needs you
- * with its headline, This Mac, the footer, the collapsed rail's dot and
- * its "All clear".
+ * with its headline, This Mac's line (the top bar's, AJ-E2105: Home no
+ * longer repeats This Mac), the collapsed rail's dot and its "All clear".
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { RailCalm } from "./components/RailCalm";
@@ -85,10 +85,7 @@ describe("every surface says the same state", () => {
     const words = info.machine.summary.words;
     renderAll(info);
 
-    // This Mac on Home.
-    const panel = screen.getByTestId("home-this-mac");
-    expect(within(panel).getByRole("status").textContent).toContain(words);
-    // The rail footer, and the collapsed rail's dot.
+    // This Mac's line, and the collapsed rail's dot.
     expect(screen.getByTestId("machine-status").textContent).toBe(`This Mac · ${words}`);
     expect(screen.getByTestId("machine-status-dot").getAttribute("title")).toBe(`This Mac · ${words}`);
     expect(screen.getByTestId("machine-status").getAttribute("data-level")).toBe(info.machine.summary.level);
@@ -97,13 +94,13 @@ describe("every surface says the same state", () => {
     // Nobody says "healthy" while it isn't.
     expect(document.body.textContent).not.toContain("healthy");
 
-    const need = screen.queryByTestId("home-mac-pressure");
+    const need = document.querySelector<HTMLElement>('[data-kind="mac"]');
     if (level === "pressure") {
       // The alert and This Mac: one severity, one figure (the group's).
       expect(words).toBe("Under memory pressure");
       expect(need!.textContent).toContain("Your Mac is under memory pressure");
       expect(need!.textContent).toContain("The Claude app is using about 16 GB across 3 windows");
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your Mac needs a look");
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
     } else {
       expect(need).toBeNull();
     }
@@ -112,7 +109,7 @@ describe("every surface says the same state", () => {
   it("before the first sample: no state is claimed anywhere", () => {
     const info = { ...state("plenty"), machine: mockMachineHealth("unsampled", NOW) };
     renderAll(info);
-    expect(screen.queryByTestId("home-this-mac")).toBeNull();
+    expect(document.querySelector('[data-kind="mac"]')).toBeNull();
     expect(screen.getByTestId("machine-status").textContent).toBe("This Mac");
     expect(screen.getByTestId("machine-status").getAttribute("data-level")).toBe("unsampled");
     expect(document.body.textContent).not.toContain("healthy");

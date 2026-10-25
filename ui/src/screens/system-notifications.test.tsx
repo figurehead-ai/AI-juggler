@@ -28,7 +28,7 @@ const LABELS = [
 
 describe("AJ-E1510 — Settings › Notifications", () => {
   it("offers five kinds, all off until chosen", async () => {
-    const { findByTestId } = render(<SettingsScreen />);
+    const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
     const group = await findByTestId("system-notifications");
     for (const label of LABELS) {
       expect((within(group).getByLabelText(label) as HTMLInputElement).checked).toBe(false);
@@ -37,7 +37,7 @@ describe("AJ-E1510 — Settings › Notifications", () => {
   });
 
   it("saves each kind on its own and says what changed", async () => {
-    const { findByTestId, getByTestId } = render(<SettingsScreen />);
+    const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
     const group = await findByTestId("system-notifications");
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("A session finishes"));
@@ -54,7 +54,7 @@ describe("AJ-E1510 — Settings › Notifications", () => {
   });
 
   it("says the quiet hours and the Accounts left out apply to notifications too", async () => {
-    const { findByTestId } = render(<SettingsScreen />);
+    const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
     expect((await findByTestId("quiet-hours")).textContent).toContain("The digest and notifications wait until the quiet hours end");
     expect((await findByTestId("digest-accounts")).textContent).toContain("In the digest and notifications");
   });

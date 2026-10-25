@@ -68,16 +68,17 @@ describe("Screen Recording after System Settings (0.0.12)", () => {
       w().__AIJ_OS_ACCESS__ = [preview({ status: "allowed", action: "none", note: null })];
       // The window comes back until the card turns: the rows' listener is
       // attached after their first paint, which a slow runner can reach
-      // after the button shows (main's CI, 2026-10-23).
-      await waitFor(
-        () => {
-          act(() => {
-            window.dispatchEvent(new Event("focus"));
-          });
-          expect(view.getByRole("status").textContent).toContain("Allowed");
-        },
-        { timeout: 4000, interval: 100 },
-      );
+      // after the button shows (main's CI, 2026-10-23). A plain loop on
+      // the real setTimeout: waitFor polls with setInterval, faked here,
+      // so it would only retry on a DOM change that never comes (#178).
+      const allowed = () => view.queryByRole("status")?.textContent?.includes("Allowed") ?? false;
+      for (let tries = 0; tries < 60 && !allowed(); tries += 1) {
+        act(() => {
+          window.dispatchEvent(new Event("focus"));
+        });
+        await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      }
+      expect(view.getByRole("status").textContent).toContain("Allowed");
       expect(view.queryByTestId("first-run-access-reopen")).toBeNull();
     } finally {
       vi.useRealTimers();

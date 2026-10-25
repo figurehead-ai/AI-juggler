@@ -118,7 +118,7 @@ fn verdict(
     pin: Option<&Pin>,
 ) -> (&'static str, Option<String>, Option<String>) {
     match probe {
-        IdentityProbe::SignedIn { subject, label } => match pin {
+        IdentityProbe::SignedIn { subject, label, .. } => match pin {
             Some(pin) if &pin.subject == subject => ("verified", Some(label.clone()), None),
             Some(_) => ("mismatch", Some(label.clone()), None),
             None => ("first_seen", Some(label.clone()), None),
@@ -219,7 +219,7 @@ pub(crate) fn assert_identity(state: &Arc<AppState>, account: &Account) -> AppRe
                 detected: detected.unwrap_or_default(),
             })
         }
-        ("first_seen", IdentityProbe::SignedIn { subject, label }) => {
+        ("first_seen", IdentityProbe::SignedIn { subject, label, .. }) => {
             pins.insert(
                 account.id.to_string(),
                 Pin {
@@ -311,6 +311,7 @@ mod tests {
         IdentityProbe::SignedIn {
             subject: subject.into(),
             label: format!("{subject}-label"),
+            org: None,
         }
     }
 

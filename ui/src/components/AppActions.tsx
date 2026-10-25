@@ -10,9 +10,10 @@ import { showToast } from "./Toast";
 import type { ActionHost } from "../lib/actions";
 import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
-import { conversationsContinue, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
+import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet } from "../lib/pools";
+import { markSeen } from "../lib/seen";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -70,7 +71,21 @@ export function AppActions({
       continueHistory: carry,
       copyResumeCommand: (row) => copy(sessionsResumeCommand(row.id), "Copied the resume command. Paste it into a terminal."),
       // AJ-E1529: conversations started outside AI Juggler.
-      openConversation: selectConversation,
+      // AJ-E2107: opening or going to it is looking at it (the seen mark).
+      openConversation: (c) => {
+        markSeen(c.account_id, c.id);
+        selectConversation(c);
+      },
+      // AJ-E2102: feedback at once, then what really happened.
+      goToConversation: async (c) => {
+        markSeen(c.account_id, c.id);
+        showToast({ id: "go-to", message: "Going to it…" });
+        try {
+          showToast({ id: "go-to", message: (await conversationsGoTo(c.account_id, c.id)).outcome });
+        } catch (cause) {
+          showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
+        }
+      },
       copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
       continueConversation: async (c) => {
         try {

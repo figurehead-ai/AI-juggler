@@ -2,11 +2,16 @@
 
 AI Juggler shows two kinds of numbers, and it never mixes them up.
 
+Limits and money belong to an **account**, the subscription you pay for.
+Sessions run in a **profile**, the setup an app runs on. Several profiles
+signed in to one account share its limits. See
+[Accounts and profiles](accounts.md).
+
 ## Usage: what you've spent
 
-Tokens and cost per session, per account and per project, counted from the
-tools' own records on your Mac: Claude Code's transcripts and Codex's
-session logs. It doesn't ask any provider for anything.
+Tokens and cost per session, per profile, per account and per project,
+counted from the tools' own records on your Mac: Claude Code's transcripts
+and Codex's session logs. It doesn't ask any provider for anything.
 
 - A conversation that was resumed counts its earlier messages once, under
   the session where they first happened.
@@ -55,20 +60,20 @@ balance. It shows only the limits Codex reports for your plan.
 
 Claude Code reports its limits only to its status line. AI Juggler reads it
 for sessions it starts. For sessions you start elsewhere, there's an option
-per account, off by default:
+per profile, off by default:
 
-1. Open the account's page.
+1. On the Accounts page, open the profile's menu.
 2. Turn on measuring limits for sessions started elsewhere.
 3. Review the change it shows you: one setting, `statusLine`, in that
-   account's `settings.json`. Your own status line keeps working; AI
+   profile's `settings.json`. Your own status line keeps working; AI
    Juggler only reads its limits and passes the rest through.
 4. Confirm.
 
 Turning it off restores the file exactly as it was. If you've edited the
 file since, it removes only AI Juggler's part.
 
-Because a limit belongs to the account, one session started in AI Juggler
-also measures it for every other session on that account.
+Because a limit belongs to the account, one measured session counts for
+every profile signed in to that account.
 
 ## How long a limit will last
 

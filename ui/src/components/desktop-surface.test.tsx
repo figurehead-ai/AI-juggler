@@ -225,9 +225,9 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     expect(crashed.container.textContent).not.toContain("scrollback replayed");
   });
 
-  it("its page's body is the Window (labelled honestly, not 'Terminal'), and opens it", () => {
+  it("its page's body is the Window preview (labelled honestly, not 'Terminal'), and opens it", () => {
     const { container } = shell(mk());
-    expect(container.querySelector("#page-tab-window")?.textContent).toBe("Window");
+    expect(container.querySelector("#page-tab-window")?.textContent).toBe("Window preview");
     expect(container.querySelector("#page-tab-terminal")).toBeNull();
     fireEvent.click(container.querySelector('[data-testid="desktop-focus"]')!);
     expect(focus.calls).toEqual(["sess-desktop-1"]);

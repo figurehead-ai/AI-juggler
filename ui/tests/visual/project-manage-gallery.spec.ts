@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/76-project-manage");
 const T0 = 1_728_800_000_000;
@@ -61,6 +61,7 @@ async function axeClean(page: Page, what: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`the rail with pins and a label — ${theme}`, gate("76-project-manage"), async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const rail = page.getByTestId("rail");
     // The pinned project's group leads; the pinned session leads its group.
     await expect(rail.getByTestId("rail-project").first()).toContainText("storefront");
@@ -73,12 +74,13 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a session's row menu and the rename sheet — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const row = page.locator('[data-instance-id="sess-2"]');
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
     const menu = page.getByRole("menu");
-    // AJ-E1537: the registry's session menu opens on Open.
-    await expect(menu.getByRole("menuitem").first()).toHaveText("Open");
+    // AJ-E2106: getting there first (Go to it only while it runs).
+    await expect(menu.getByRole("menuitem").first()).toHaveText(/^(Go to it|Open its page)$/);
     await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `session-menu-1280x800-${theme}.png`) });
     await axeClean(page, "session menu");
@@ -93,13 +95,14 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a project's row menu, rename and forget — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     const row = page.getByTestId("rail-history-project").filter({ hasText: "old-prototype" });
     await row.hover();
     await page.getByRole("button", { name: "Project actions for old-prototype" }).click();
     const menu = page.getByRole("menu", { name: "Actions for old-prototype" });
     // AJ-E1537: the registry's project menu; Forget last, on its own.
     const names = await menu.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.querySelector("[data-label]")?.textContent));
-    expect(names).toEqual(expect.arrayContaining(["Open", "New session here", "Open in Finder", "Copy path", "Rename…", "Pin to top"]));
+    expect(names).toEqual(expect.arrayContaining(["Open its page", "New session here", "Open in Finder", "Copy path", "Rename…", "Pin to top"]));
     expect(names.at(-1)).toBe("Forget…");
     await page.screenshot({ path: resolve(OUT, `project-menu-1280x800-${theme}.png`) });
     await axeClean(page, "project menu");
@@ -114,12 +117,13 @@ for (const theme of ["dark", "light"] as const) {
   // AJ-E1537: the project page's header ⋯ is the same menu as its row's.
   test(`the project page's menu, an editor chosen — ${theme}`, async ({ page }) => {
     await seed(page, theme, "Zed");
+    await projectLens(page);
     await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
     await page.getByTestId("header-menu").click();
     const menu = page.getByRole("menu", { name: "Actions for ai-juggler" });
     await expect(menu.getByRole("menuitem", { name: "Open in Zed" })).toBeVisible();
     await expect(menu.getByRole("menuitem", { name: "Show in Finder" })).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem", { name: "Open its page", exact: true })).toHaveCount(0);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `project-actions-1280x800-${theme}.png`) });
     await axeClean(page, "project actions");
@@ -127,6 +131,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a moved folder: Relocate… on the banner — ${theme}`, async ({ page }) => {
     await seed(page, theme);
+    await projectLens(page);
     await page.getByTestId("rail-history-project").filter({ hasText: "billing" }).click();
     // AJ-E1533: the missing-folder banner sits on the project's Overview.
     await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();

@@ -98,10 +98,6 @@ pub const EVENT_GO_TO: &str = "app://go-to";
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-/// Default "Go to instance…" hotkey (SPEC §9.2 / deep-review §4.17:
-/// `⌥Space`, rebindable).
-pub const DEFAULT_GO_TO_HOTKEY: &str = "Alt+Space";
-
 /// Name of the live-preview frame event (AJ-E415): payload
 /// `PreviewFrameInfo`.
 pub const EVENT_PREVIEW_FRAME: &str = "preview://frame";
@@ -431,8 +427,14 @@ macro_rules! app_commands {
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_resume_command,
+            // AJ-E2108: reads message text: never over the bridge.
+            Write features::conversations::commands::conversations_last_messages,
+            Write features::conversations::commands::conversations_go_to,
+            // Brings a running app forward (never launches it).
+            Write features::conversations::commands::conversations_bring_forward,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
+            Read  features::subscriptions::commands::subscriptions_list,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::app::login_item::app_login_item_get,
@@ -947,20 +949,24 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
-/// Registers the stored (or default) "Go to instance…" hotkey
-/// (AJ-E414 Req.4). A conflict or a locked-down system key logs and
+/// Registers the "Go to instance…" hotkey the user chose (AJ-E414
+/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to `ChatGPT`,
+/// so nothing is registered until the user picks a key in Settings ›
+/// Desktop apps. A conflict or a locked-down system key logs and
 /// continues — the palette stays reachable in-app (⌘K).
 fn register_go_to_hotkey(app: &tauri::AppHandle) {
     use tauri::Manager;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let hotkey = app
+    let Some(hotkey) = app
         .state::<std::sync::Arc<state::AppState>>()
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(GO_TO_HOTKEY_KEY).ok())
         .flatten()
-        .unwrap_or_else(|| DEFAULT_GO_TO_HOTKEY.to_string());
+    else {
+        return;
+    };
     if let Err(error) = app.global_shortcut().register(hotkey.as_str()) {
         eprintln!("ai-juggler: hotkey {hotkey} not registered: {error}");
     }
@@ -1044,6 +1050,7 @@ fn spawn_read_model_ticks(
             features::staging::tick(&quota_state, commands::now_millis());
         }
     });
+    let live_app = conversations_app.clone();
     // AJ-E1529: every account's conversations and which are live, read
     // from the tools' own files every 15 s (only changed files are read
     // again); the UI hears of it only when something changed.
@@ -1066,6 +1073,25 @@ fn spawn_read_model_ticks(
                 std::thread::sleep(std::time::Duration::from_secs(15));
             }
         });
+    }
+    // AJ-E2101: what is open now, from the tools' own session files and
+    // the process table (never an environment): small files every 2 s,
+    // known pids every 5 s, the whole table at most once a minute. The UI
+    // hears of it only when something changed.
+    {
+        let live_state = index_state.clone();
+        let _ = std::thread::Builder::new()
+            .name("live-sessions".to_owned())
+            .spawn(move || {
+                loop {
+                    use tauri::Emitter;
+                    if let Ok(true) = features::conversations::live_tick(&live_state) {
+                        let _ = live_app.emit(features::conversations::EVENT_CHANGED, ());
+                    }
+                    // poll: the live view's cadence (scan::TICK, 2 s).
+                    std::thread::sleep(features::conversations::scan::TICK);
+                }
+            });
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());

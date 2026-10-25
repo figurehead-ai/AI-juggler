@@ -19,6 +19,7 @@ import {
   SESSION_PREFS_RANGE,
   type SessionPrefsInfo,
 } from "../lib/ipc/session-prefs";
+import { CardTitle } from "./CardTitle";
 
 type BooleanPref = "restart_on_crash" | "keep_awake_on_power" | "keep_awake_on_battery" | "reopen_after_crash";
 
@@ -222,7 +223,7 @@ export function SessionsSettingsCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-sessions">
       <div>
-        <h3 className="text-sm font-semibold">Sessions</h3>
+        <CardTitle>Sessions</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           When a quiet session is marked Looks stuck, how its terminal reads, and what keeps work going.
         </p>

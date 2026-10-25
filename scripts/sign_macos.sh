@@ -160,9 +160,11 @@ staple "$app"
 # root, symlinks kept), from the stapled app, signed with the updater key.
 archive="$out/${PREFIX}-${VERSION}-universal.app.tar.gz"
 ( cd "$(dirname "$app")" && COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf "$archive" "$product.app" )
+# --app-version binds the signature to this version: the app's updater
+# requires it (requireSignedVersion), as `tauri build` used to add it.
 TAURI_SIGNING_PRIVATE_KEY="$updater_key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$updater_password" \
-  cargo-tauri signer sign "$archive" >/dev/null
-python3 "$here/updater_sig_check.py" "$archive" "$archive.sig" "$updater_pubkey"
+  cargo-tauri signer sign --app-version "$VERSION" "$archive" >/dev/null
+python3 "$here/updater_sig_check.py" "$archive" "$archive.sig" "$updater_pubkey" --version "$VERSION"
 
 # --- the disk image: the app, a link to Applications, the volume icon -----
 stage="$work/dmg"

@@ -60,3 +60,34 @@ export function useLiveDeltas(
     };
   }, [setSessions, setFreshness]);
 }
+
+/**
+ * One run at a time: a call while `run` is in flight doesn't start
+ * another, it asks for exactly one more run once this one ends. A burst
+ * of session events (eight live sessions send many) then reads the
+ * lists twice at most, not once per event (0.1.1's spinning wheel).
+ */
+export function singleFlight(run: () => Promise<void>): () => Promise<void> {
+  let running: Promise<void> | null = null;
+  let again = false;
+  const start = (): Promise<void> => {
+    running = (async () => {
+      try {
+        do {
+          again = false;
+          await run();
+        } while (again);
+      } finally {
+        running = null;
+      }
+    })();
+    return running;
+  };
+  return () => {
+    if (running) {
+      again = true;
+      return running;
+    }
+    return start();
+  };
+}

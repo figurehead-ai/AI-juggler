@@ -1,0 +1,18 @@
+AJ-E2101 read-only count on the maintainer's Mac, 2026-10-24, e21-step1 (d10d322d).
+`cargo test -p juggler-app --lib scan::tests::count_on_this_mac -- --ignored --nocapture`
+Counts only: no id, path, title or other value was printed or kept.
+
+session files listed: 6
+open sessions (verified pid + start, or held): 10
+places: 10; by app: {"ChatGPT": 4, "Claude": 6}; app instances: 6
+states: {"done_review": 2, "unknown": 4, "working": 4}; with the app's record: 6; with viewed time: 6
+inactive in a running app's sidebar: 19
+first refresh: 117.894041ms; next refreshes median 1.732ms, max 2.302959ms
+
+Cross-check with the shape probe (field names and booleans only, same hour):
+- 6 `sessions/<pid>.json` files, every pid file's name = its pid, every `procStart` = `ps -o lstart` in UTC;
+- each pid file's `hostSessionId` named exactly one `local_<id>.json`, in the instance (user-data-dir) its process runs under,
+  and that file's `cliSessionId` = the pid file's `sessionId`;
+- 6 Claude app instances running (one `--user-data-dir` each, one default); 7 `claude` processes, 6 with a session file;
+- the Codex app's server held 4 writer locks and 3 rollouts open (4 threads); 5 lock files on disk (one left over, not open).
+The "unknown" states are the 4 Codex threads (Codex records no busy/idle word).

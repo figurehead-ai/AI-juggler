@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, openOutsidePage, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/79-pages");
 const REPLICA = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -72,6 +72,7 @@ async function openSession(page: Page) {
 }
 
 async function openProject(page: Page) {
+  await projectLens(page);
   await page.getByTestId("rail").getByTestId("rail-project").filter({ hasText: PROJECT.name }).first().click();
   await expect(page.getByTestId("page-type")).toHaveText("Project");
 }
@@ -129,7 +130,8 @@ for (const viewport of VIEWPORTS) {
 
     test(`a session started outside AI Juggler — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      await page.getByTestId("rail-outside").filter({ hasText: "Running" }).first().click();
+      // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
+      await openOutsidePage(page);
       await expect(page.getByTestId("conversation-page")).toBeVisible();
       await shoot(page, "outside-session", theme, viewport);
     });

@@ -1,13 +1,19 @@
 /**
- * D-25 — Home: the three questions, every glance.
+ * D-25, AJ-E2105 — Home: what needs you, what is open where, and the room
+ * left, in one glance.
  *
- * 1. **What needs me?** Sessions waiting for a reply, stuck, blocked by
- *    a limit or failed — each in one plain sentence with the one action
- *    that moves it on.
- * 2. **How much runway?** Per Account: one bar (the tighter of the
- *    5-hour and weekly windows, as measured), when it resets, and the
- *    best Account for new work. Unmeasured says so — never a guess.
- * 3. **What's running where?** Quiet, by project and Account.
+ * 1. **The heading** is one sentence about what needs you ("2 things need
+ *    you"), with the other counts under it as links that turn the rail's
+ *    views on (open, inactive, ended today; an app turned off in Settings).
+ * 2. **Your apps**: one tile per running app and profile (a place): its
+ *    sessions, a needs-you badge, its account's runway, Open.
+ * 3. **Needs you** holds every kind of item, each with its own primary:
+ *    a session asking (Go to it), a limit reached (Continue elsewhere, or
+ *    Wait), a sign-in, a Mac working hard, processes left behind.
+ * 4. **Runway by account**: each account's room left and its profiles,
+ *    or the way to measure it. Unmeasured says so, never a guess.
+ *
+ * This Mac's line is the top bar's; the rail lists what is open.
  *
  * Plus "Pick up where you left off". Empty means "start here": no
  * Account → bring them in; no session → start one.
@@ -19,15 +25,10 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
-import { ownSignIn, providerDisplayName } from "../lib/providers";
-import { AccountAvatar } from "../components/Avatar";
 import { ProjectMark } from "../components/ProjectMark";
-import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
-import { ThisMacPanel } from "../components/ThisMacPanel";
-import { ScreenBoundary } from "../components/ScreenBoundary";
 import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
 import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
@@ -38,15 +39,23 @@ import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
 import { SmootherCard } from "../components/SmootherCard";
-import { HomeOutsideRows } from "../components/OutsideConversations";
-import { liveOutside, useConversations } from "../lib/conversations";
 import { minutes } from "../lib/time-words";
+import { ownSignIn } from "../lib/providers";
+import { HomeApps } from "../components/HomeApps";
+import { HomeNeeds } from "../components/HomeNeeds";
+import { HomeRunway } from "../components/HomeRunway";
+import { homeNeeds, needsHeading } from "../lib/home-needs";
+import { endedToday, itemsOf, needsYou, openNow } from "../lib/rail-items";
+import { showInRail } from "../lib/rail-view";
+import { isSnoozed, readSnooze } from "../lib/railview";
+import { useSeen } from "../lib/seen";
+import { useShownConversations } from "../lib/shown-apps";
 import { showToast } from "../components/Toast";
-import { useHomePool } from "../components/HomePoolFilter";
 import {
   accountLoginState,
   dashboardStats,
   errorText,
+  instancePark,
   instanceMarkReviewed, instanceUnmarkReviewed,
   parkedResume,
   quotaDisplayAll,
@@ -54,7 +63,7 @@ import {
   terminalSpawnLogin,
   type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData,
 } from "../lib/bridge";
-import { capHeadline, CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
+import { CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -95,18 +104,12 @@ export function needWords(need: Need, session: InstanceInfo): { what: string; ac
   }
 }
 
-const NEED_GLYPH: Record<Need, { glyph: string; tone: string; tint: string }> = {
-  waiting_user: { glyph: "!", tone: "text-warning", tint: "bg-warning-soft" },
-  stuck: { glyph: "?", tone: "text-warning", tint: "bg-warning-soft" },
-  quota_blocked: { glyph: "◷", tone: "text-danger", tint: "bg-danger-soft" },
-  failed: { glyph: "✕", tone: "text-danger", tint: "bg-danger-soft" },
-};
 
 import { placeOf } from "../lib/project-words";
 export { placeOf };
 
 export function HomeScreen({
-  sessions: allSessions,
+  sessions,
   accounts,
   projects,
   now,
@@ -150,7 +153,6 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
-  const { sessions, picker: poolPicker } = useHomePool(allSessions); // AJ-E1702: one pool, when picked
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
@@ -267,17 +269,15 @@ export function HomeScreen({
     return () => window.removeEventListener("keydown", fromBody);
   });
 
-  const needs = useMemo(
-    () =>
-      sessions
-        // A parked session already has its decision: it waits for the reset.
-        .filter((session) => !session.parked)
-        .map((session) => ({ session, need: needOf(session) }))
-        .filter((row): row is { session: InstanceInfo; need: Need } => row.need !== null)
-        .sort((a, b) => NEEDS.indexOf(a.need) - NEEDS.indexOf(b.need)),
-    [sessions],
-  );
-  const running = sessions.filter((s) => (s.status === "running" || s.status === "starting") && needOf(s) === null && !s.parked);
+  // AJ-E2105: the rail's own list (its Needs you, its places), with the
+  // apps turned off in Settings left out.
+  const { conversations, hidden: hiddenApps } = useShownConversations();
+  const seen = useSeen();
+  const items = useMemo(() => {
+    const snooze = readSnooze();
+    return itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now) });
+  }, [sessions, conversations, projects, seen, now]);
+  const needs = needsYou(items);
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
@@ -287,16 +287,11 @@ export function HomeScreen({
   // E14 (AJ-E1404 Req.3): a session hogging the Mac needs you too — unless
   // it is already listed for another reason — and so does a Mac under
   // pressure. Tools AI Juggler didn't start are shown in This Mac only.
-  const listed = new Set(needs.map((row) => row.session.id));
+  const listed = new Set(needs.flatMap((item) => (item.session ? [item.session.id] : [])));
   const heavy = (thisMac?.heavy ?? []).filter(
     (tree): tree is typeof tree & { session_id: string } =>
       tree.session_id !== null && !listed.has(tree.session_id) && sessions.some((s) => s.id === tree.session_id),
   );
-  const heavyIds = new Set(heavy.map((tree) => tree.session_id));
-  const calmRunning = running.filter((session) => !heavyIds.has(session.id));
-  // AJ-E1529: sessions started outside AI Juggler, running now.
-  const { all: conversations } = useConversations();
-  const elsewhere = liveOutside(conversations);
   // AJ-E1408: the Mac's own overload alerts (sustained pressure, swap
   // thrash, a busy or hot Mac, a disk filling) — or, before any has held
   // long enough, a Mac already under pressure.
@@ -361,8 +356,6 @@ export function HomeScreen({
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
   const advice = newWorkAdvice(accounts, quota, sessions);
-  const best = advice.best;
-  const low = runway.find((r) => r.left !== null && r.left <= 25);
 
   // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
   if (loading && accounts.length === 0 && sessions.length === 0) {
@@ -380,42 +373,34 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const sessionNeeds = needs.length + heavy.length;
-  const out = runway.filter((r) => r.left === 0);
-  const headline =
-    sessionNeeds > 0
-      ? sessionNeeds === 1
-        ? "1 session needs you"
-        : `${sessionNeeds} sessions need you`
-      : macNeed
-        ? // Said once, in Needs you below; the headline only points there.
-          "Your Mac needs a look"
-      : signIns.length > 0
-        ? signIns.length === 1
-          ? `${signIns[0]!.label} needs its sign-in`
-          : `${signIns.length} accounts need their sign-in`
-      : capNeeds.caps.length > 0
-        ? capHeadline(capNeeds.caps)
-      : // QA batch 9: never "All clear" while an account has run out.
-        out.length > 0
-        ? out.length === 1
-          ? `${out[0]!.account.label} has run out`
-          : `${out.length} accounts have run out`
-      : running.length + elsewhere.length > 0
-        ? "All clear — nothing needs you"
-        : sessions.length + elsewhere.length === 0
-          ? "Ready when you are"
-          : "All clear";
-  const subline = [
-    running.length + elsewhere.length > 0 ? `${running.length + elsewhere.length} running` : null,
-    low
-      ? `${low.account.label} has ${low.left}% left${best ? ` — start new work on ${best.account.label}` : ""}`
-      : best
-        ? `Most runway: ${best.account.label}`
-        : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const allNeeds = homeNeeds({
+    items: needs,
+    signIns,
+    signInDetail: (account) => `${ownSignIn(account.provider)}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`,
+    mac: macNeed,
+    heavy: heavy.map((tree) => {
+      const place = placeOf(sessions.find((s) => s.id === tree.session_id)!, projects);
+      const helpers = tree.helpers > 0 ? (tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`) : null;
+      return { sessionId: tree.session_id, title: tree.heavy_note ?? "a lot of memory or CPU", detail: [place.title, place.detail, helpers].filter(Boolean).join(" · ") };
+    }),
+    leftovers: thisMac?.leftover_processes ?? 0,
+  });
+  const headline = needsHeading(allNeeds.length + capNeeds.caps.length, {
+    runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
+    running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
+    anything: sessions.length + conversations.length > 0,
+  });
+  const openCount = items.filter(openNow).length;
+  const counts: { key: string; words: string; run: () => void }[] = [
+    { key: "open", words: `${openCount} open`, run: () => document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-item]")?.focus() },
+    { key: "inactive", words: `${items.filter((item) => item.inactive).length} inactive`, run: () => showInRail("inactive") },
+    { key: "ended", words: `${items.filter((item) => endedToday(item, now)).length} ended today`, run: () => showInRail("ended") },
+    ...hiddenApps.map((part) => ({ key: `hidden-${part.app}`, words: `${part.count} in ${part.app} hidden`, run: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } })) })),
+  ].filter((part) => !part.words.startsWith("0 "));
+  const runwayFor = (accountId: string | null) => {
+    const row = runway.find((r) => r.account.id === accountId);
+    return row ? { left: row.left, words: row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
+  };
 
   return (
     <div
@@ -428,12 +413,22 @@ export function HomeScreen({
       className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{headline}</h1>
-          {/* AJ-E403 Req.6: the legend's Home surface ("All clear"), the same panel as the rail footer's "?". */}
+          <h1 className="text-2xl font-bold tracking-tight" data-testid="home-heading">{headline}</h1>
+          {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
-          {poolPicker}
         </div>
-        {subline && <p className="text-sm text-muted">{subline}</p>}
+        {counts.length > 0 && (
+          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted" data-testid="home-counts">
+            {counts.map((part, index) => (
+              <span key={part.key} className="flex items-center gap-1.5">
+                {index > 0 && <span aria-hidden="true">·</span>}
+                <button type="button" onClick={part.run} className="rounded outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+                  {part.words}
+                </button>
+              </span>
+            ))}
+          </p>
+        )}
       </header>
 
       {ledgerDegraded && (
@@ -451,7 +446,7 @@ export function HomeScreen({
       <MorningSummary onOpenSession={onOpenSession} />
       <SmootherCard variant="reminder" />
 
-      {allSessions.length === 0 && conversations.length === 0 && (
+      {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-lg font-semibold">Start your first session</h2>
           <p className="max-w-xl text-sm leading-relaxed text-muted">
@@ -461,152 +456,26 @@ export function HomeScreen({
         </section>
       )}
 
+      <HomeApps items={items} runwayOf={runwayFor} />
+
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {needs.length + signIns.length + heavy.length + (macNeed ? 1 : 0) + capNeeds.caps.length > 0 && (
-            <section aria-labelledby="home-needs" className="flex flex-col gap-2.5" data-testid="home-needs">
-              <SectionTitle id="home-needs">Needs you</SectionTitle>
-              <ul className="flex flex-col gap-2.5">
-                {signIns.map((account) => (
-                  <li key={`signin-${account.id}`} className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-signin">
-                    <span className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft font-bold text-accent-hi">
-                        →
-                      </span>
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="text-[15px] font-medium text-ink">{account.label} needs its sign-in</span>
-                        <span className="text-xs text-muted" role="status">
-                          {signingIn === account.id
-                            ? "Finish signing in in the terminal that opened — this clears by itself when you're done."
-                            : `${ownSignIn(account.provider)}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`}
-                        </span>
-                        {signingIn === account.id && signInError && <span className="text-xs text-danger">{signInError}</span>}
-                      </span>
-                      <Button size="sm" variant={signingIn === account.id ? "ghost" : "secondary"} className="ml-auto" onClick={() => startSignIn(account)}>
-                        {signingIn === account.id ? "Open again" : "Sign in"}{" "}
-                        <span className="sr-only">— {account.label}</span>
-                      </Button>
-                    </span>
-                  </li>
-                ))}
-                {macNeed && (
-                  <li className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-mac-pressure">
-                    <span
-                      aria-hidden="true"
-                      className={
-                        "flex size-8 shrink-0 items-center justify-center rounded-lg font-bold " +
-                        (macNeed.severe ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")
-                      }
-                    >
-                      {macNeed.severe ? "■" : "▲"}
-                    </span>
-                    <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                      <span className="text-[15px] font-medium text-ink">{macNeed.title}</span>
-                      <span className="text-xs text-muted">{macNeed.detail}</span>
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="ml-auto"
-                      onClick={onOpenThisMac}
-                    >
-                      See what's using it
-                    </Button>
-                  </li>
-                )}
-                <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
-                {needs.map(({ session, need }) => {
-                  const words = needWords(need, session);
-                  const glyph = NEED_GLYPH[need];
-                  const place = placeOf(session, projects);
-                  return (
-                    <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5">
-                      <span aria-hidden="true" className={`flex size-8 shrink-0 items-center justify-center rounded-lg font-bold ${glyph.tint} ${glyph.tone}`}>
-                        {glyph.glyph}
-                      </span>
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="text-[15px] font-medium text-ink">{words.what}</span>
-                        <span className="truncate text-xs text-muted">
-                          {place.title}
-                          {place.detail ? ` · ${place.detail}` : ""}
-                          {` · ${minutes(session.attention?.since_ms ?? session.last_activity_ms ?? session.started_at_ms, now)}`}
-                        </span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="ml-auto"
-                        data-home-row
-                        aria-keyshortcuts="A"
-                        onClick={() => (need === "quota_blocked" && onLimit ? onLimit(session.id) : onOpenSession(session.id))}
-                      >
-                        {words.action}{" "}
-                        <span className="sr-only">— {place.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
-                {heavy.map((tree) => {
-                  const session = sessions.find((s) => s.id === tree.session_id)!;
-                  const place = placeOf(session, projects);
-                  return (
-                    <li key={`heavy-${tree.session_id}`} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border border-hairline bg-surface px-4 py-3.5" data-testid="home-heavy">
-                      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning-soft font-bold text-warning">
-                        ▲
-                      </span>
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="text-[15px] font-medium text-ink">Working your Mac hard — {tree.heavy_note}</span>
-                        <span className="truncate text-xs text-muted">
-                          {place.title}
-                          {place.detail ? ` · ${place.detail}` : ""}
-                          {tree.helpers > 0 ? ` · ${tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`}` : ""}
-                        </span>
-                      </span>
-                      <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpenSession(tree.session_id)}>
-                        Take a look <span className="sr-only">— {place.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+          {allNeeds.length + capNeeds.caps.length > 0 && (
+          <HomeNeeds
+            needs={allNeeds}
+            handlers={{
+              onOpenSession,
+              onLimit,
+              onWait: (id) => void instancePark(id).then(() => { showToast({ message: "Parked until its reset." }); onChanged?.(); }, (cause) => showToast({ tone: "warning", message: errorText(cause) })),
+              onSignIn: (need) => need.account && startSignIn(need.account),
+              onOpenThisMac,
+              onOpenCleanup,
+            }}
+          >
+            {signingIn && <p className="text-xs text-muted" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
+            <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
+          </HomeNeeds>
           )}
-
-          {calmRunning.length + elsewhere.length > 0 && (
-            <section aria-labelledby="home-running" className="flex flex-col gap-2.5" data-testid="home-running">
-              <SectionTitle id="home-running">Running</SectionTitle>
-              <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
-                {calmRunning.map((session) => {
-                  const place = placeOf(session, projects);
-                  return (
-                    <li key={session.id} data-home-item className="border-t border-hairline/60 first:border-t-0">
-                      <button
-                        type="button"
-                        data-home-row
-                        className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left hover:bg-surface-2"
-                        onClick={() => onOpenSession(session.id)}
-                      >
-                        <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-live shadow-[0_0_0_4px_var(--color-live-soft)]" />
-                        <ProjectMark projectId={session.project_id} size={16} />
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                          {place.title}
-                          {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
-                        </span>
-                        <span className="flex items-center gap-1.5 text-xs text-muted">
-                          <ToolMark tool={session.provider} size={12} className="shrink-0" />
-                          <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
-                          <span><span className="sr-only">{providerDisplayName(session.provider)} on </span>{session.account_label}</span>
-                        </span>
-                        <span className="w-14 text-right font-mono text-xs text-faint">{minutes(session.started_at_ms, now)}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-                <HomeOutsideRows rows={elsewhere} now={now} />
-              </ul>
-            </section>
-          )}
-
           {parked.length > 0 && (
             <section aria-labelledby="home-parked" className="flex flex-col gap-2.5" data-testid="home-parked">
               <SectionTitle id="home-parked">Parked until a reset</SectionTitle>
@@ -646,59 +515,8 @@ export function HomeScreen({
             </section>
           )}
         </div>
-
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-6">
-        <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
-          <SectionTitle id="home-runway">Runway</SectionTitle>
-          <div className="flex flex-col rounded-xl border border-hairline bg-surface px-4 py-1.5">
-            {runway.map((row) => (
-              <div key={row.account.id} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex min-w-0 items-center gap-2 font-medium text-ink">
-                    <AccountAvatar accountId={row.account.id} label={row.account.label} size={18} />
-                    <span className="truncate">{row.account.label}</span>
-                  </span>
-                  <span className={"shrink-0 font-mono text-xs " + (row.left !== null && row.left <= 25 ? "text-warning" : "text-muted")}>
-                    {row.left !== null ? `${row.left}% left` : "—"}
-                  </span>
-                </div>
-                {row.left !== null ? (
-                  <div
-                    className="h-1.5 overflow-hidden rounded-full bg-surface-3"
-                    role="meter"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={row.left}
-                    aria-label={`${row.account.label}: ${row.words}`}
-                  >
-                    <div
-                      className={"h-full rounded-full " + (row.left <= 25 ? "bg-warning" : "bg-accent")}
-                      style={{ width: `${row.left}%` }}
-                    />
-                  </div>
-                ) : null}
-                <span className="text-[11px] text-faint">{row.left !== null ? (row.resets ?? row.words) : row.words}</span>
-              </div>
-            ))}
-            {advice.words && runway.length > 1 && (
-              <p className="border-t border-hairline/60 py-3 text-xs text-muted" data-testid="new-work-advice">
-                {advice.words}
-              </p>
-            )}
-          </div>
-        </section>
-        <ScreenBoundary screen="this-mac" label="This Mac">
-          <ThisMacPanel
-            info={thisMac}
-            nameOf={(id) => {
-              const session = sessions.find((s) => s.id === id);
-              return session ? placeOf(session, projects).title : "A session";
-            }}
-            onOpenSession={onOpenSession}
-            onOpenCleanup={onOpenCleanup}
-            onOpenPage={onOpenThisMac}
-          />
-        </ScreenBoundary>
+          <HomeRunway accounts={accounts} quota={quota} sessions={sessions} advice={advice.words} />
         </div>
       </div>
 
@@ -751,7 +569,7 @@ export function HomeScreen({
         </section>
       )}
 
-      {needs.length + running.length + parked.length + recent.length > 0 && (
+      {allNeeds.length + parked.length + recent.length > 0 && (
         <p className="text-[11px] text-faint" data-testid="home-keys">
           {/* AJ-E1504: the same words and keys as the ? sheet. */}
           Keyboard:{" "}

@@ -263,7 +263,7 @@ const V8: &str = "ALTER TABLE accounts ADD COLUMN renewal_date TEXT;";
 const V9: &str = "ALTER TABLE instances ADD COLUMN running_model_json TEXT;";
 
 /// Schema version 10 (AJ-E414): the desktop window identity — additive
-/// nullable JSON blob (`{pid, bundle_id, title, cgwindow_id}`); `NULL`
+/// nullable JSON blob (`{pid, bundle_id, title, cgwindow_id[, start_time]}`); `NULL`
 /// for terminal Instances — plus the app-level settings kv (hotkey
 /// bindings and future user preferences; values are strings, namespaced
 /// by feature).

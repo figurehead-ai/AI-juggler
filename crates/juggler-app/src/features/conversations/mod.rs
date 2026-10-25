@@ -7,9 +7,15 @@
 //! is written: not into a setup, and not into AI Juggler's database
 //! (there is no migration; a restart rebuilds it from the files).
 
+pub mod asks;
 pub mod commands;
 pub mod dto;
+pub mod goto;
+pub mod last_messages;
 pub mod live;
+pub mod places;
+pub mod procs;
+pub mod scan;
 
 /// Emitted when the conversations or which are live changed (the rail
 /// reads them again).
@@ -143,8 +149,20 @@ fn store(
 #[derive(Debug, Default)]
 pub struct ConversationIndex {
     files: Mutex<HashMap<PathBuf, Entry>>,
-    /// `(account, tool, id)` of the conversations a running session is on.
-    live: Mutex<std::collections::HashSet<live::Live>>,
+    /// `(account, tool, id)` of the conversations a running session is
+    /// on, with where each is open (AJ-E2101).
+    live: Mutex<HashMap<live::Live, scan::LiveEntry>>,
+    /// Conversations in a running app's sidebar that no process runs.
+    inactive: Mutex<std::collections::HashSet<live::Live>>,
+    /// What is open now, as the live refresher last saw it.
+    model: Mutex<scan::LiveModel>,
+    /// The live refresher (its thread alone uses it).
+    scanner: Mutex<scan::Scanner>,
+    /// AJ-E2107: what each open terminal session's transcript tail last
+    /// said it waits on.
+    tails: Mutex<asks::Tails>,
+    /// The profile folders it reads, refreshed with the accounts.
+    profiles: Mutex<Option<(std::time::Instant, Vec<scan::Profile>)>>,
     /// Held while a pass reads the files: one pass at a time (QA batch 9:
     /// at a start, the background pass, the conversation list and the
     /// projects backfill each read every file at once).
@@ -180,12 +198,55 @@ impl ConversationIndex {
         Ok(out)
     }
 
+    /// AJ-E2108: the file that stands for `account`'s conversation `id`
+    /// (the newest of its files, as `merged` keeps), without copying
+    /// the index.
+    #[must_use]
+    pub fn path_of(&self, account: &str, id: &str) -> Option<PathBuf> {
+        let files = self.files.lock().ok()?;
+        files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+            .filter(|c| c.account_id == account && c.summary.id == id)
+            .max_by(|a, b| (a.summary.last_ms, &a.path).cmp(&(b.summary.last_ms, &b.path)))
+            .map(|c| c.path.clone())
+    }
+
     /// Whether a running session is on `account`'s `(tool, id)`.
     #[must_use]
     pub fn is_live(&self, account: &str, tool: &str, id: &str) -> bool {
-        self.live
+        self.live.lock().is_ok_and(|live| {
+            live.contains_key(&(account.to_owned(), tool.to_owned(), id.to_owned()))
+        })
+    }
+
+    /// Where `account`'s `(tool, id)` is open now, and its state.
+    #[must_use]
+    pub fn live_entry(&self, account: &str, tool: &str, id: &str) -> Option<scan::LiveEntry> {
+        self.live.lock().ok().and_then(|live| {
+            live.get(&(account.to_owned(), tool.to_owned(), id.to_owned()))
+                .cloned()
+        })
+    }
+
+    /// Whether `account`'s `(tool, id)` is in a running app's sidebar with
+    /// no process on it.
+    #[must_use]
+    pub fn is_inactive(&self, account: &str, tool: &str, id: &str) -> bool {
+        self.inactive.lock().is_ok_and(|inactive| {
+            inactive.contains(&(account.to_owned(), tool.to_owned(), id.to_owned()))
+        })
+    }
+
+    /// Each verified session pid's profile folder (This Mac's tools and
+    /// first run read which setup a process uses from this, never from its
+    /// environment).
+    #[must_use]
+    pub fn pid_dirs(&self) -> std::collections::BTreeMap<u32, PathBuf> {
+        self.model
             .lock()
-            .is_ok_and(|live| live.contains(&(account.to_owned(), tool.to_owned(), id.to_owned())))
+            .map(|model| model.pid_dirs.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -294,7 +355,7 @@ pub fn tick_with(
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
         refresh_with(state, &accounts, every, &|| {
-            if update_live(state, &accounts).is_ok() {
+            if update_live(state).is_ok() {
                 progress();
             }
         })?
@@ -303,29 +364,173 @@ pub fn tick_with(
         // New folders become projects without the UI asking.
         crate::commands::projects_backfill_impl(state)?;
     }
-    let live_changed = update_live(state, &accounts)?;
+    let live_changed = update_live(state)?;
     Ok(files_changed || live_changed)
 }
 
 /// How often a long pass reports what it has read so far.
 pub const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
 
-/// Which conversations are live now, from the process table and what's
-/// indexed; `true` when that changed.
-fn update_live(
-    state: &Arc<AppState>,
-    accounts: &[juggler_core::model::Account],
-) -> AppResult<bool> {
-    let running = live::running_sessions(state, accounts);
-    let now = live::live_ids(&state.conversations.all()?, &running);
-    let mut live = state
+/// Which conversations are live now, from the live refresher's last look
+/// and what's indexed; `true` when that changed.
+fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
+    let model = state
         .conversations
-        .live
+        .model
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .clone();
+    let all = state.conversations.all()?;
+    let mut now = live::live_entries(&all, &model);
+    // AJ-E2107: a terminal session's tail can say it waits on the user.
+    {
+        let mut tails = state
+            .conversations
+            .tails
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        let ask_of = |tool: &str, tail: &str| {
+            state
+                .registry
+                .get(&juggler_core::model::HarnessId::new(tool.to_owned()))
+                .and_then(|adapter| adapter.pending_ask(tail))
+        };
+        asks::apply(&mut now, &all, &mut tails, &ask_of, SystemTime::now());
+    }
+    let idle = live::inactive_ids(&all, &model);
+    let changed = {
+        let mut live = state
+            .conversations
+            .live
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        let changed = *live != now;
+        *live = now;
+        changed
+    };
+    let mut inactive = state
+        .conversations
+        .inactive
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
-    let changed = *live != now;
-    *live = now;
-    Ok(changed)
+    let idle_changed = *inactive != idle;
+    *inactive = idle;
+    Ok(changed || idle_changed)
+}
+
+/// How often the profile folders are listed again from the accounts.
+const PROFILES_EVERY: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// The folders whose per-session files are read: every account's, the
+/// folders accounts were copied from, and each tool's own default.
+fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
+    let now = std::time::Instant::now();
+    if let Ok(cached) = state.conversations.profiles.lock()
+        && let Some((at, profiles)) = cached.as_ref()
+        && now.saturating_duration_since(*at) < PROFILES_EVERY
+    {
+        return profiles.clone();
+    }
+    // Never waits on storage: a busy lock keeps the last list.
+    let accounts = match state.storage.try_lock() {
+        Ok(storage) => storage.accounts().list().unwrap_or_default(),
+        Err(_) => {
+            return state
+                .conversations
+                .profiles
+                .lock()
+                .ok()
+                .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()))
+                .unwrap_or_default();
+        }
+    };
+    let canonical =
+        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut out: Vec<scan::Profile> = Vec::new();
+    let mut add = |tool: &str, dir: &std::path::Path, account: Option<String>| {
+        let dir = canonical(dir);
+        if !out
+            .iter()
+            .any(|known| known.tool == tool && known.dir == dir)
+        {
+            out.push(scan::Profile {
+                tool: tool.to_owned(),
+                dir,
+                account_id: account,
+            });
+        }
+    };
+    for account in &accounts {
+        add(
+            account.harness.as_str(),
+            &account.state_dir,
+            Some(account.id.to_string()),
+        );
+    }
+    for account in &accounts {
+        if let Some(source) = account.import_source_path.as_deref() {
+            add(account.harness.as_str(), std::path::Path::new(source), None);
+        }
+    }
+    for id in state.registry.ids() {
+        if let Some(dir) = state.registry.get(&id).and_then(|a| a.vendor_default_dir()) {
+            add(id.as_str(), &dir, None);
+        }
+    }
+    if let Ok(mut cached) = state.conversations.profiles.lock() {
+        *cached = Some((now, out.clone()));
+    }
+    out
+}
+
+/// AJ-E2101: one look at what is open now (the app's live thread calls
+/// this every [`scan::TICK`]); `true` when what the UI shows changed.
+///
+/// # Errors
+///
+/// A poisoned lock.
+pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
+    let adapters: Vec<(String, juggler_adapter::SharedAdapter)> = state
+        .registry
+        .ids()
+        .into_iter()
+        .filter_map(|id| {
+            state
+                .registry
+                .get(&id)
+                .map(|adapter| (id.to_string(), adapter))
+        })
+        .collect();
+    let profiles = profiles(state);
+    let home = dirs::home_dir().unwrap_or_default();
+    let model = state
+        .conversations
+        .scanner
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .tick(
+            &scan::RealOs,
+            &adapters,
+            &profiles,
+            &home,
+            std::time::Instant::now(),
+        );
+    {
+        let mut known = state
+            .conversations
+            .model
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        if *known == model {
+            // Nothing new is open, but a tail can have gone quiet long
+            // enough to ask you (AJ-E2107).
+            drop(known);
+            return update_live(state);
+        }
+        *known = model;
+    }
+    update_live(state)?;
+    Ok(true)
 }
 
 /// Brings the index up to date with every account's files: new and

@@ -8,6 +8,7 @@ import { Card } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { editorChoices, editorSet } from "../lib/ipc/manage";
 import type { EditorChoicesInfo } from "../types/generated/EditorChoicesInfo";
+import { CardTitle } from "./CardTitle";
 
 /** AJ-E1502: the editor projects open in ("Open in …" in a project's
  * menu); Finder when none is chosen. Only editors this Mac has show. */
@@ -26,9 +27,9 @@ export function EditorCard(): JSX.Element {
   }, []);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-editor">
-      <h3 className="text-sm font-semibold" id="editor-title">
+      <CardTitle id="editor-title">
         Open projects in
-      </h3>
+      </CardTitle>
       <Select
         aria-labelledby="editor-title"
         className="max-w-xs"

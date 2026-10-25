@@ -55,8 +55,11 @@ Before anything is published, the sign job checks:
 - the app's signature, hardened runtime and lack of entitlements;
 - Gatekeeper, for the app and the disk image;
 - both stapled tickets;
-- the updater signature, against the public key baked into the app
-  (`scripts/updater_sig_check.py`).
+- the updater signature, against the public key baked into the app, and
+  that it's signed for its own version (`version:` in the trusted comment,
+  from `signer sign --app-version`), which the app's updater requires
+  (`scripts/updater_sig_check.py`). 0.1.0 was published without it, and
+  0.0.x couldn't update to it.
 
 **A dry run** (`release-rehearsal.yml`) builds both editions for real and
 rehearses the sign job with an ad-hoc signature and a throwaway updater
@@ -86,9 +89,10 @@ overlay `tauri.conf.json`); a debug build is always Dev. So:
   coming**, at the same time. Each edition keeps its own list of accounts:
   it can use a setup where it is (ADR-0018) or make its own copy inside its
   own data folder, and the two editions never share a copy. A copy needs its
-  own sign-in, and every edition draws on the same subscription's usage. Both want ⌥Space for Go to instance, and only
-  the one opened first gets it: give Nightly another shortcut (⌘K, then
-  change it there).
+  own sign-in, and every edition draws on the same subscription's usage.
+  The shortcut that opens AI Juggler from anywhere has no default (⌥Space
+  is refused because ChatGPT uses it): give each edition its own in
+  Settings › Desktop apps.
 - **Developers and agents run only AI Juggler Dev**, which can never open an
   installed edition's data.
 - **Promotion is unchanged**: beta and stable point at the AI Juggler build

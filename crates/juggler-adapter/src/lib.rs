@@ -25,6 +25,7 @@ pub mod identity;
 pub mod inventory;
 pub mod jsonc;
 pub mod launch;
+pub mod live;
 pub mod registry;
 pub mod spec;
 pub mod system_tools;

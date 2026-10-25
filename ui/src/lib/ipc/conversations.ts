@@ -7,19 +7,46 @@
 import { invoke, listen } from "./transport";
 import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
+import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
+import type { PlaceInfo } from "../../types/generated/PlaceInfo";
+import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
+import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
+import { placesConversations } from "../../preview/places";
 
-export type { ConversationInfo };
+export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo };
 
 const NOW = Date.now();
 
+function placesPreview(): boolean {
+  try {
+    return sessionStorage.getItem("aij.preview.places") === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** The preview's conversations: two started outside AI Juggler (one
- * live). A spec that seeds a fixture gets exactly its fixture's (none
+ * live); AJ-E2104's desktop with several places open when
+ * `sessionStorage["aij.preview.places"]` is "1". A spec that seeds a fixture gets exactly its fixture's (none
  * unless it lists them), so the other captures stay as they were. */
 function previewConversations(): ConversationInfo[] {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { conversations?: ConversationInfo[] } }).__AIJ_FIXTURE__;
   if (fixture) return fixture.conversations ?? [];
-  const base = { tool: PREVIEW_TOOLS[0]!.id, git_branch: "main", started_ms: NOW - 3_600_000, tokens: null, session_id: null };
+  if (placesPreview()) return placesConversations(NOW);
+  const base = {
+    tool: PREVIEW_TOOLS[0]!.id,
+    git_branch: "main",
+    started_ms: NOW - 3_600_000,
+    tokens: null,
+    session_id: null,
+    places: [] as PlaceInfo[],
+    pid: null,
+    state: null,
+    viewed_ms: null, probably: false,
+    background: false,
+    inactive: false,
+  };
   return [
     {
       ...base,
@@ -31,6 +58,10 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
+      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" }],
+      pid: 4242,
+      state: "working",
+      viewed_ms: NOW - 120_000,
     },
     {
       ...base,
@@ -67,6 +98,28 @@ export async function conversationsContinue(accountId: string, conversationId: s
   return invoke<LaunchResult>("conversations_continue", { accountId, conversationId });
 }
 
+/** AJ-E2102: Go to it, for any session open now: its app forward by the
+ * app's own process, then what the app allows; says what it reached. */
+export async function conversationsGoTo(accountId: string, conversationId: string, pid: number | null = null): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = previewConversations().find((row) => row.id === conversationId)?.places[0];
+    return place
+      ? { outcome: `Brought ${place.label} forward; pick the session in its sidebar`, reached: "app" }
+      : { outcome: "It isn't open now", reached: "none" };
+  }
+  return invoke<GoToOutcomeInfo>("conversations_go_to", { accountId, conversationId, pid });
+}
+
+/** AJ-E2104: a place's Open: brings the running app whose process is
+ * `appPid` forward (never launches it), and says what it did. */
+export async function conversationsBringForward(appPid: number): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = previewConversations().flatMap((row) => row.places).find((p) => p.app_pid === appPid);
+    return place ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: "That app isn't open now", reached: "none" };
+  }
+  return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
+}
+
 /** Called when the backend's list changed (no payload: read it again). */
 export function onConversationsChanged(handler: () => void): () => void {
   if (!hasLiveBackend()) return () => {};
@@ -80,4 +133,32 @@ export function onConversationsChanged(handler: () => void): () => void {
     disposed = true;
     stop?.();
   };
+}
+
+/** The preview's last messages: the fixture's per conversation id, else a
+ * short exchange ending in a question (a key in it shows redacted). */
+function previewLastMessages(conversationId: string): LastMessagesInfo {
+  const w = window as unknown as { __AIJ_FIXTURE__?: { last_messages?: Record<string, LastMessagesInfo> }; __AIJ_APP_SETTINGS__?: Record<string, string> };
+  // Off in Settings: nothing is read.
+  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return { state: "off", turns: [], redacted: 0 };
+  const fixture = w.__AIJ_FIXTURE__;
+  const seeded = fixture?.last_messages?.[conversationId];
+  if (seeded) return seeded;
+  if (fixture?.last_messages) return { state: "none", turns: [], redacted: 0 };
+  return {
+    state: "shown",
+    redacted: 1,
+    turns: [
+      { speaker: "assistant", text: "Seven panes are in, and every setting has a home. Two rows had no footer, so I wrote one for each." },
+      { speaker: "you", text: "Good. Keep the old shortcuts working; the test key is •••" },
+      { speaker: "assistant", text: "Should the Privacy pane stay last, or go after Notifications as in the design?" },
+    ],
+  };
+}
+
+/** AJ-E2108: a session's last 2–3 messages, read from the end of its
+ * transcript now (when its page opens), redacted; kept nowhere. */
+export async function conversationsLastMessages(accountId: string, conversationId: string): Promise<LastMessagesInfo> {
+  if (!hasLiveBackend()) return previewLastMessages(conversationId);
+  return invoke<LastMessagesInfo>("conversations_last_messages", { accountId, conversationId });
 }

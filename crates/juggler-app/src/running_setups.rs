@@ -8,10 +8,14 @@
 //! sixth Claude desktop window (0.0.6 dogfood). This reads the running
 //! processes instead.
 //!
-//! Privacy: of each process's environment only `CLAUDE_CONFIG_DIR` is
-//! read; nothing else is kept, logged or sent.
+//! Privacy (D-37, AJ-E2101): no process's environment is read. Which
+//! folder a process uses comes from where its own session file sits
+//! (`<folder>/sessions/<pid>.json`, matched by pid and start time); a
+//! desktop app's folder from the session files of the `claude` processes
+//! it runs. A process with no such file has no known folder, never a
+//! guessed one.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 /// One running process, as much as the classifier needs.
@@ -27,7 +31,8 @@ pub struct ProcFacts {
     pub name: String,
     /// The first command-line word and the rest, joined.
     pub cmd: String,
-    /// `CLAUDE_CONFIG_DIR` from its environment, if set.
+    /// The folder its session file sits in, when one names its pid
+    /// (never read from its environment).
     pub config_dir: Option<String>,
     /// Kernel start time, epoch seconds, when known (pins a measured root
     /// against pid reuse).
@@ -78,8 +83,9 @@ pub struct RunningTool {
     pub pid: u32,
     /// `desktop` or `terminal`.
     pub place: &'static str,
-    /// The config folder it uses, normalised.
-    pub config_dir: PathBuf,
+    /// The config folder it uses, normalised, when its session files say
+    /// (`None`: not known, never guessed).
+    pub config_dir: Option<PathBuf>,
     /// The root's kernel start time, when known.
     pub start_time: Option<i64>,
 }
@@ -108,7 +114,6 @@ pub fn tools(processes: &[ProcFacts], home: &Path) -> Vec<RunningTool> {
         }
         false
     };
-    let default_dir = home.join(".claude");
     let mut out = Vec::new();
     for process in processes {
         let place = if is_desktop_main(process) {
@@ -128,10 +133,7 @@ pub fn tools(processes: &[ProcFacts], home: &Path) -> Vec<RunningTool> {
             .config_dir
             .as_deref()
             .filter(|dir| !dir.is_empty())
-            .map_or_else(
-                || normalized(&default_dir.to_string_lossy(), home),
-                |dir| normalized(dir, home),
-            );
+            .map(|dir| normalized(dir, home));
         out.push(RunningTool {
             pid: process.pid,
             place,
@@ -147,7 +149,9 @@ pub fn tools(processes: &[ProcFacts], home: &Path) -> Vec<RunningTool> {
 pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
     let mut out: InUse = HashMap::new();
     for tool in tools(processes, home) {
-        out.entry(tool.config_dir).or_default().insert(tool.place);
+        if let Some(dir) = tool.config_dir {
+            out.entry(dir).or_default().insert(tool.place);
+        }
     }
     out
 }
@@ -156,53 +160,102 @@ pub fn classify(processes: &[ProcFacts], home: &Path) -> InUse {
 /// way).
 #[must_use]
 pub fn uses_folder(tool: &RunningTool, path: &str, home: &Path) -> bool {
-    tool.config_dir == normalized(path, home)
+    tool.config_dir.as_deref() == Some(normalized(path, home).as_path())
 }
 
-/// The live process table, reduced to [`ProcFacts`].
+/// Sets each process's folder from the session files that name its pid
+/// (`pid_dirs`, already matched by start time), and a desktop app's from
+/// the first `claude` it runs that has one.
+pub fn with_folders(processes: &mut [ProcFacts], pid_dirs: &BTreeMap<u32, PathBuf>) {
+    let parents: HashMap<u32, Option<u32>> = processes.iter().map(|p| (p.pid, p.ppid)).collect();
+    let mains: Vec<u32> = processes
+        .iter()
+        .filter(|process| is_desktop_main(process))
+        .map(|process| process.pid)
+        .collect();
+    let mut desktop: HashMap<u32, String> = HashMap::new();
+    for (pid, dir) in pid_dirs {
+        let mut next = parents.get(pid).copied().flatten();
+        for _ in 0..64 {
+            let Some(at) = next else { break };
+            if mains.contains(&at) {
+                desktop
+                    .entry(at)
+                    .or_insert_with(|| dir.to_string_lossy().into_owned());
+                break;
+            }
+            next = parents.get(&at).copied().flatten();
+        }
+    }
+    for process in processes.iter_mut() {
+        if let Some(dir) = pid_dirs.get(&process.pid) {
+            process.config_dir = Some(dir.to_string_lossy().into_owned());
+        } else if let Some(dir) = desktop.get(&process.pid) {
+            process.config_dir = Some(dir.clone());
+        }
+    }
+}
+
+/// The pids whose session files sit in one of `dirs` (each tool's own
+/// files, through its adapter), matched by start time against
+/// `processes`: pid → folder.
+#[must_use]
+pub fn pid_dirs_in(
+    adapters: &[juggler_adapter::SharedAdapter],
+    dirs: &[PathBuf],
+    processes: &[ProcFacts],
+) -> BTreeMap<u32, PathBuf> {
+    let starts: HashMap<u32, Option<i64>> =
+        processes.iter().map(|p| (p.pid, p.start_time)).collect();
+    let mut out = BTreeMap::new();
+    for dir in dirs {
+        for adapter in adapters {
+            for session in adapter.live_sessions(dir) {
+                let Some(pid) = session.pid else { continue };
+                if let Some(start) = starts.get(&pid)
+                    && juggler_adapter::live::same_start(session.started_secs, *start)
+                {
+                    out.insert(pid, dir.clone());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The live process table, reduced to [`ProcFacts`]: executables,
+/// arguments, parents and start times, never environments (the live
+/// view's own read, `features::conversations::procs`).
 #[must_use]
 pub fn running_processes() -> Vec<ProcFacts> {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-    let mut system = System::new();
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing()
-            .without_tasks()
-            .with_exe(UpdateKind::Always)
-            .with_cmd(UpdateKind::Always)
-            .with_environ(UpdateKind::Always),
-    );
-    system
-        .processes()
-        .values()
+    crate::features::conversations::procs::table()
+        .into_values()
         .map(|process| ProcFacts {
-            pid: process.pid().as_u32(),
-            ppid: process.parent().map(sysinfo::Pid::as_u32),
-            exe: process.exe().map(|exe| exe.to_string_lossy().into_owned()),
-            name: process.name().to_string_lossy().into_owned(),
-            cmd: process
-                .cmd()
-                .iter()
-                .map(|part| part.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" "),
-            config_dir: process.environ().iter().find_map(|entry| {
-                entry
-                    .to_str()
-                    .and_then(|entry| entry.strip_prefix("CLAUDE_CONFIG_DIR="))
-                    .map(str::to_owned)
-            }),
-            start_time: i64::try_from(process.start_time()).ok(),
+            pid: process.pid,
+            ppid: process.ppid,
+            name: process
+                .exe
+                .as_deref()
+                .and_then(Path::file_name)
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            exe: process.exe.map(|exe| exe.to_string_lossy().into_owned()),
+            cmd: process.args.join(" "),
+            config_dir: None,
+            start_time: process.start,
         })
         .collect()
 }
 
-/// AJ-E1402: the running tools from a process list WITHOUT environments
-/// (the collector's table), then `CLAUDE_CONFIG_DIR` read for the roots
-/// alone — a handful of pids, not every process on the Mac.
+/// AJ-E1402: the running tools from the collector's process list, each
+/// with the folder its session files name (`pid_dirs`, from the live
+/// view; AJ-E2101: never an environment).
 #[must_use]
-pub fn tools_from(briefs: &[juggler_supervisor::ProcessBrief], home: &Path) -> Vec<RunningTool> {
+pub fn tools_from(
+    briefs: &[juggler_supervisor::ProcessBrief],
+    home: &Path,
+    pid_dirs: &BTreeMap<u32, PathBuf>,
+) -> Vec<RunningTool> {
     let mut processes: Vec<ProcFacts> = briefs
         .iter()
         .map(|brief| ProcFacts {
@@ -215,47 +268,8 @@ pub fn tools_from(briefs: &[juggler_supervisor::ProcessBrief], home: &Path) -> V
             start_time: Some(brief.start_time),
         })
         .collect();
-    let roots: Vec<u32> = tools(&processes, home)
-        .iter()
-        .map(|tool| tool.pid)
-        .collect();
-    if roots.is_empty() {
-        return Vec::new();
-    }
-    let dirs = config_dirs_of(&roots);
-    for process in &mut processes {
-        if let Some(dir) = dirs.get(&process.pid) {
-            process.config_dir = Some(dir.clone());
-        }
-    }
+    with_folders(&mut processes, pid_dirs);
     tools(&processes, home)
-}
-
-/// `CLAUDE_CONFIG_DIR` of the given pids — nothing else of their
-/// environments is kept; the table that read them is dropped at once.
-fn config_dirs_of(pids: &[u32]) -> HashMap<u32, String> {
-    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-    let targets: Vec<Pid> = pids.iter().map(|pid| Pid::from_u32(*pid)).collect();
-    let mut system = System::new();
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&targets),
-        false,
-        ProcessRefreshKind::nothing()
-            .without_tasks()
-            .with_environ(UpdateKind::Always),
-    );
-    system
-        .processes()
-        .values()
-        .filter_map(|process| {
-            process.environ().iter().find_map(|entry| {
-                entry
-                    .to_str()
-                    .and_then(|entry| entry.strip_prefix("CLAUDE_CONFIG_DIR="))
-                    .map(|dir| (process.pid().as_u32(), dir.to_owned()))
-            })
-        })
-        .collect()
 }
 
 /// Where `path` is in use right now (`desktop`, `terminal`), sorted.
@@ -285,19 +299,14 @@ mod tests {
     }
 
     #[test]
-    fn desktop_windows_map_to_their_profile_and_the_default_folder() {
+    fn desktop_windows_map_to_the_folder_their_session_files_name() {
         let home = Path::new("/Users/you");
         let profiles = "/Users/you/Library/Application Support/ClaudeCodeProfiles";
-        let processes = vec![
-            proc(10, 1, "Claude", APP, Some(&format!("{profiles}/work-a"))),
-            proc(
-                11,
-                1,
-                "Claude",
-                APP,
-                Some(&format!("{profiles}/personal-max/")),
-            ),
-            // The sixth window: no override — the default ~/.claude.
+        let mut processes = vec![
+            proc(10, 1, "Claude", APP, None),
+            proc(11, 1, "Claude", APP, None),
+            // The sixth window runs no session: its folder isn't known, and
+            // is never guessed (the 0.1 code read its environment).
             proc(12, 1, "Claude", APP, None),
             // The desktop app's own `claude` child is still the desktop.
             proc(
@@ -307,14 +316,14 @@ mod tests {
                 "/Applications/Claude.app/Contents/Helpers/disclaimer",
                 None,
             ),
-            proc(
-                14,
-                13,
-                "claude",
-                "/Users/you/.local/bin/claude",
-                Some(&format!("{profiles}/work-a")),
-            ),
+            proc(14, 13, "claude", "/Users/you/.local/bin/claude", None),
+            proc(15, 11, "claude", "/Users/you/.local/bin/claude", None),
         ];
+        let pid_dirs = BTreeMap::from([
+            (14, PathBuf::from(format!("{profiles}/work-a"))),
+            (15, PathBuf::from(format!("{profiles}/personal-max/"))),
+        ]);
+        with_folders(&mut processes, &pid_dirs);
         let map = classify(&processes, home);
         assert_eq!(
             in_use_for(&map, &format!("{profiles}/work-a"), home),
@@ -324,10 +333,9 @@ mod tests {
             in_use_for(&map, &format!("{profiles}/personal-max"), home),
             ["desktop"]
         );
-        assert_eq!(
-            in_use_for(&map, "/Users/you/.claude", home),
-            ["desktop"],
-            "the default folder is the desktop app's too"
+        assert!(
+            in_use_for(&map, "/Users/you/.claude", home).is_empty(),
+            "no folder is guessed for a window with no session"
         );
     }
 
@@ -346,10 +354,16 @@ mod tests {
             proc(22, 20, "node", "/usr/local/bin/node", None),
             proc(30, 1, "Claude", APP, None),
             proc(31, 20, "claude", "/Users/you/.local/bin/claude", None),
+            proc(32, 30, "claude", "/Users/you/.local/bin/claude", None),
         ];
         let mut with_npm = processes.clone();
         with_npm[2].cmd =
             "node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js".to_owned();
+        let pid_dirs = BTreeMap::from([
+            (31, PathBuf::from("/Users/you/.claude")),
+            (32, PathBuf::from("/Users/you/.claude")),
+        ]);
+        with_folders(&mut with_npm, &pid_dirs);
         let map = classify(&with_npm, home);
         assert_eq!(
             in_use_for(&map, "/Users/you/.claude-work", home),
@@ -362,6 +376,32 @@ mod tests {
         assert!(
             in_use_for(&classify(&processes[..1], home), "/Users/you/.claude", home).is_empty()
         );
+    }
+
+    /// AJ-E2101: a session file counts only for the process that wrote it
+    /// (its start time), never a later process on the same pid.
+    #[test]
+    fn a_session_file_names_its_pid_only_while_the_start_time_matches() {
+        let dir = tempfile::tempdir().unwrap();
+        let sessions = dir.path().join("sessions");
+        std::fs::create_dir_all(&sessions).unwrap();
+        std::fs::write(
+            sessions.join("41.json"),
+            r#"{"pid":41,"sessionId":"s","procStart":"Sat Oct 24 08:12:34 2026"}"#,
+        )
+        .unwrap();
+        let adapters: Vec<juggler_adapter::SharedAdapter> = vec![std::sync::Arc::new(
+            juggler_adapters::ClaudeCodeAdapter::new(),
+        )];
+        let mut process = proc(41, 1, "claude", "/Users/you/.local/bin/claude", None);
+        process.start_time = Some(1_792_829_554);
+        let dirs = [dir.path().to_path_buf()];
+        assert_eq!(
+            pid_dirs_in(&adapters, &dirs, std::slice::from_ref(&process)).get(&41),
+            Some(&dirs[0])
+        );
+        process.start_time = Some(1_792_829_554 + 600);
+        assert!(pid_dirs_in(&adapters, &dirs, &[process]).is_empty());
     }
 }
 
@@ -399,7 +439,10 @@ mod tool_roots {
         let pids: Vec<(u32, &str)> = roots.iter().map(|tool| (tool.pid, tool.place)).collect();
         assert_eq!(pids, [(10, "desktop"), (21, "terminal")]);
         assert!(uses_folder(&roots[1], "/Users/you/.claude-work/", home));
-        assert!(uses_folder(&roots[0], "~/.claude", home));
+        assert!(
+            !uses_folder(&roots[0], "~/.claude", home),
+            "a desktop window with no session names no folder"
+        );
     }
 }
 

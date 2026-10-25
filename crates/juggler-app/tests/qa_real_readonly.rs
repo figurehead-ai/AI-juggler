@@ -132,6 +132,18 @@ fn real_setup_read_models() {
     );
     // AJ-E1529: every account's conversations, and which are live.
     juggler_app::features::conversations::tick(&state).unwrap();
+    // AJ-E2101: what is open now, from the apps' own files (the app's
+    // live thread runs this every couple of seconds; twice here so the
+    // first full look and its follow-up both happen).
+    juggler_app::features::conversations::live_tick(&state).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    juggler_app::features::conversations::live_tick(&state).unwrap();
+    // AJ-E2109: accounts as subscriptions, their profiles beneath.
+    report.insert(
+        "subscriptions".into(),
+        serde_json::to_value(juggler_app::features::subscriptions::list_impl(&state).unwrap())
+            .unwrap(),
+    );
     report.insert(
         "conversations".into(),
         serde_json::to_value(
@@ -162,7 +174,10 @@ fn real_setup_read_models() {
     let managed = app.state::<Arc<AppState>>();
     report.insert(
         "sessions".into(),
-        serde_json::to_value(commands::sessions_list(managed.clone()).unwrap()).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::sessions_list(managed.clone())).unwrap(),
+        )
+        .unwrap(),
     );
     // The launch settings each import made ("Main"), as the UI lists them.
     report.insert(
@@ -194,7 +209,10 @@ fn real_setup_read_models() {
     );
     report.insert(
         "quota_display_all".into(),
-        serde_json::to_value(commands::quota_display_all(managed.clone())).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::quota_display_all(managed.clone())).unwrap(),
+        )
+        .unwrap(),
     );
     report.insert(
         "cost_rollups".into(),

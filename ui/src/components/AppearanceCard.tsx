@@ -6,6 +6,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { DensityChoice } from "./DensityChoice";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
+import { CardTitle } from "./CardTitle";
 
 export function AppearanceCard(): JSX.Element {
   const [choice, setChoice] = useState<ThemeChoice>(storedTheme());
@@ -21,9 +22,9 @@ export function AppearanceCard(): JSX.Element {
   ];
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-appearance">
-      <h3 className="text-sm font-semibold" id="appearance-title">
+      <CardTitle id="appearance-title">
         Appearance
-      </h3>
+      </CardTitle>
       <div role="radiogroup" aria-labelledby="appearance-title" className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label

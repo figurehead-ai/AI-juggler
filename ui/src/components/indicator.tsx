@@ -3,6 +3,7 @@ import { toolSpec } from "../lib/tools";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
+import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
 import {
   IconFork,
   IconGitBranch,
@@ -79,7 +80,7 @@ export function stateChip(status: string): {
 // --- I-06 tokens (no pricing source exists: tokens only, never `$0.00`) ----
 
 export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000_000) return n >= 1_000_000_000 ? `${(n / 1_000_000_000).toFixed(1)}B` : `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
@@ -312,8 +313,9 @@ export function StaleChip({ caption }: { caption: string | null }) {
 
 // --- AJ-E403: the shared legend (identical in every surface) -------------------
 
-/** D-25: the rail's own words for each state — one list, shared by the
- * rail rows and the legend so the two can never drift apart. */
+/** D-25: a session's status in words, where the status itself is the
+ * detail (its page's header). Rows and the legend use the rail's states
+ * (AJ-E2104 Req.3: `stateWord` in lib/rail-items). */
 export const STATE_WORDS: Record<string, string> = {
   starting: "Starting",
   running: "Running",
@@ -326,20 +328,19 @@ export const STATE_WORDS: Record<string, string> = {
   handed_over: "Handed over",
 };
 
-const LEGEND_STATES: { status: string; Icon: typeof IconStateRunning; tone: StateChipTone; meaning: string }[] = [
-  { status: "starting", Icon: IconStateStarting, tone: "accent", meaning: "opening up" },
-  { status: "running", Icon: IconStateRunning, tone: "live", meaning: "working" },
-  { status: "waiting_user", Icon: IconStateWaiting, tone: "warning", meaning: "asked you something" },
-  { status: "stuck", Icon: IconStateStuck, tone: "warning", meaning: "no output for a while" },
-  { status: "quota_blocked", Icon: IconStateQuota, tone: "danger", meaning: "the account ran out" },
-  { status: "finished", Icon: IconStateFinished, tone: "success", meaning: "ended normally" },
-  { status: "stopped", Icon: IconStateStopped, tone: "neutral", meaning: "you stopped it" },
-  { status: "failed", Icon: IconStateFailed, tone: "danger", meaning: "ended with an error" },
-  { status: "handed_over", Icon: IconStateHandover, tone: "accent", meaning: "moved to another account" },
+/** The rail's states, in its words and colours (AJ-E2104 Req.3). */
+const LEGEND_STATES: { state: RailState; probably?: boolean; meaning: string }[] = [
+  { state: "asks_you", meaning: "waits on you: a question, a permission, its limit" },
+  { state: "asks_you", probably: true, meaning: "looks like it waits on you (worked out, not said)" },
+  { state: "working", meaning: "doing something now" },
+  { state: "idle", meaning: "open, nothing happening" },
+  { state: "done_review", meaning: "finished something for you to look at" },
+  { state: "ended", meaning: "closed; History has it" },
 ];
 
 /** The notes a rail row adds only when they matter (D-25). */
 const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
+  { sample: "Limit reached", tone: "text-warning", meaning: "why it needs you" },
   { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
   { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
   { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
@@ -357,13 +358,13 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
     <div className={compact ? "flex flex-col gap-1.5 text-[10px]" : "flex flex-col gap-2 text-[11px]"}>
       <span className="text-[11px] font-semibold text-ink">What the session list shows</span>
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1" aria-label="States">
-        {LEGEND_STATES.map((state) => (
-          <div key={state.status} className="contents">
-            <dt className="flex items-center gap-2 whitespace-nowrap font-medium text-ink">
-              <state.Icon width={12} height={12} aria-hidden="true" className={legendTone(state.tone)} />
-              {STATE_WORDS[state.status]}
+        {LEGEND_STATES.map((row) => (
+          <div key={stateWord(row.state, row.probably)} className="contents">
+            <dt className={"flex items-center gap-2 whitespace-nowrap font-medium " + STATE_TONE[row.state].text}>
+              <span aria-hidden="true" className={"size-1.5 shrink-0 rounded-full " + STATE_TONE[row.state].dot} />
+              {stateWord(row.state, row.probably)}
             </dt>
-            <dd className="text-muted">{state.meaning}</dd>
+            <dd className="text-muted">{row.meaning}</dd>
           </div>
         ))}
       </dl>
@@ -381,20 +382,9 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
           <dd className="text-muted">a reading stopped updating</dd>
         </div>
       </dl>
-      <span className="border-t border-hairline pt-1.5 text-muted">Each row's dot is its account's colour.</span>
+      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its profile's colour.</span>
     </div>
   );
-}
-
-function legendTone(tone: StateChipTone): string {
-  switch (tone) {
-    case "live": return "text-live";
-    case "success": return "text-success";
-    case "warning": return "text-warning";
-    case "danger": return "text-danger";
-    case "accent": return "text-accent-hi";
-    default: return "text-muted";
-  }
 }
 
 /**

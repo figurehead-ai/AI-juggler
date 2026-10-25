@@ -494,6 +494,30 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_conversations::session_process(exe, args)
     }
 
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::pid_files(profile_dir)
+    }
+
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::claude_live::read_pid_file(path)
+    }
+
+    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::app_files(instance_dir)
+    }
+
+    fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
+        crate::claude_live::read_app_file(path)
+    }
+
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::claude_asks::pending_ask(tail)
+    }
+
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::claude_live::host_apps()
+    }
+
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])
@@ -1191,12 +1215,39 @@ fn namespaced_service(state_dir: &Path) -> String {
 /// **without** extracting any secret (`-w` deliberately absent).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
-    std::process::Command::new(juggler_adapter::system_tools::SECURITY)
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+    // Each answer is a `security` process: the account list asks once per
+    // account, and the UI reads that list on every session event. With
+    // eight live sessions that ran dozens of processes a minute and kept
+    // the window busy (0.1.1, the maintainer's spinning wheel). An entry
+    // that exists stays known for 30 s; a missing one only 3 s, so a fresh
+    // sign-in still shows almost at once.
+    static SEEN: OnceLock<Mutex<HashMap<String, (Instant, bool)>>> = OnceLock::new();
+    let seen = SEEN.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(cache) = seen.lock()
+        && let Some((at, exists)) = cache.get(service)
+    {
+        let fresh_for = if *exists {
+            Duration::from_secs(30)
+        } else {
+            Duration::from_secs(3)
+        };
+        if at.elapsed() < fresh_for {
+            return *exists;
+        }
+    }
+    let exists = std::process::Command::new(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .is_ok_and(|status| status.success())
+        .is_ok_and(|status| status.success());
+    if let Ok(mut cache) = seen.lock() {
+        cache.insert(service.to_owned(), (Instant::now(), exists));
+    }
+    exists
 }
 
 /// AJ-E1001: Claude Code's sign-in metadata for a config dir (see
@@ -1233,7 +1284,11 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
     if let Some(org) = text("organizationName") {
         label = format!("{label} · {org}");
     }
-    IdentityProbe::SignedIn { subject, label }
+    IdentityProbe::SignedIn {
+        subject,
+        label,
+        org: text("organizationUuid"),
+    }
 }
 
 /// ADR-0019: Claude Code, described as data (every screen and command

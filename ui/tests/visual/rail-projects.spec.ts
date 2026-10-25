@@ -10,7 +10,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { readyHome, type FixtureSet } from "./fixtures";
+import { projectBoardByDefault, readyHome, type FixtureSet } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/74-rail-projects");
 const T0 = 1_728_800_000_000;
@@ -62,6 +62,9 @@ async function seed(page: Page, theme: "dark" | "light") {
 }
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
+// AJ-E2104: the history projects are the Project lens's (by place, the
+// default, lists what is open); every test here is about them.
+projectBoardByDefault(test);
 
 for (const theme of ["dark", "light"] as const) {
   test(`rail — projects from history, grouped, foldable — ${theme}`, gate("74-rail-projects"), async ({ page }) => {

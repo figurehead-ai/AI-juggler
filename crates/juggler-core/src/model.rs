@@ -874,6 +874,12 @@ pub struct WindowIdentity {
     /// FFI is barred by the workspace `unsafe_code = "forbid"` law).
     /// Never fabricated.
     pub cgwindow_id: Option<u64>,
+    /// AJ-E2101: the owning process's kernel start time, epoch seconds,
+    /// when known: a pid counts as this window's process only while its
+    /// start time matches (pids are reused). `None` in identities recorded
+    /// before 0.1.3.
+    #[serde(default)]
+    pub start_time: Option<i64>,
 }
 
 /// ADR-0008: old name kept one minor version as a pure alias.

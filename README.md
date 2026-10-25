@@ -1,6 +1,6 @@
 # AI Juggler
 
-**See every Claude Code and Codex session and account on your Mac, with honest usage and limits.**
+**See which AI coding sessions are open on your Mac and where, get to any of them in one step, and know how much room each account has left.**
 
 Free and open source (MIT), local-first, for macOS. AI Juggler works with the
 coding tools you already use. It never proxies their traffic, never signs in
@@ -13,29 +13,30 @@ for you, and never stores your credentials.
 
 [Download](#download) · [Quick start](#quick-start) · [User guide](./docs/guide/) · [Privacy](#what-ai-juggler-reads-writes-and-sends) · [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/home-dark.png">
-  <img alt="AI Juggler's Home: every running session, wherever it was started, and how much room each account has left" src="./docs/assets/readme/home-light.png">
-</picture>
-
-<sub>Screenshots from a test setup with made-up accounts and projects.</sub>
-
 ## Why
 
 If you pay for more than one AI coding subscription, say two Claude accounts
-and Codex, you end up juggling by hand: config folders, shell aliases,
-terminal tabs, and guessing which account still has room. AI Juggler puts all
-of it in one window:
+and Codex, you end up juggling by hand: several Claude app profiles, config
+folders, shell aliases, terminal tabs, and guessing which window holds which
+session and which account still has room. AI Juggler puts all of it in one
+window:
 
-- **Every session in one list**, grouped by project, including the ones you
-  started in a terminal or in the Claude app.
+- **What's open, where, and one step to it.** The list shows the sessions
+  open right now in the Claude app, your terminals, the Codex app and
+  Cursor, grouped by the app and profile each runs in, with what needs you
+  on top. **Go to it** brings the right app and profile forward. Ended and
+  inactive sessions are one click away, never in the way.
+- **Profiles and accounts kept apart.** A profile is the setup an app runs
+  on (a Claude Code folder, a Claude app profile, a Codex folder). An
+  account is the subscription it's signed in to. Several profiles on one
+  account are normal, and they share its limits.
 - **Usage and limits you can trust.** A number is shown only when it was
   measured. Anything else says "Not measured yet", never a made-up 100%.
 - **Your Mac at a glance.** How much memory and CPU your AI tools use, which
   window is heavy, and leftover processes you can clean up.
-- **Accounts managed for you.** Use each setup where it already is, or as a
-  separate copy, and start a session on the account you choose. A new
-  account can start with your usual MCP servers and permissions.
+- **Profiles managed for you.** Use each setup where it already is, or as a
+  separate copy, and start a session on the profile you choose. A new
+  profile can start with your usual MCP servers and permissions.
 - **Carry a conversation to another account or tool** when one runs out of
   room, and switch back later.
 - **Find anything you said.** History searches every ended session by what
@@ -58,55 +59,38 @@ Every build is signed and notarized by Apple. The first time you open it,
 macOS asks whether you're sure; choose **Open**.
 
 AI Juggler checks for updates at launch and offers them; it never installs
-one without you. Settings › About & updates shows your version, lets you
-switch between Stable and Beta, and can go back to an earlier version.
+one without you. Settings › General › About & updates shows your version,
+lets you switch between Stable and Beta, and can go back to an earlier
+version.
 
 ## Quick start
 
 1. Open AI Juggler and choose **Find my accounts**. It looks for your Claude
-   Code and Codex setups (for example `~/.claude` and `~/.codex`).
+   Code and Codex setups (for example `~/.claude` and `~/.codex`). Each one
+   is a profile.
 2. For each setup, choose **Use it where it is** (nothing is copied) or
    **Make a separate copy** (AI Juggler keeps its own copy, and your original
    is never touched).
 3. If a tool needs you to sign in, it opens that tool's own sign-in.
    AI Juggler never sees your password.
-4. Your sessions show up in the list on the left, under their projects,
-   wherever you started them. Start a new one with **New session**, and
-   pick the account it runs on.
-5. When an account runs low, open the session and choose **Switch
+4. The list on the left shows what's open now, grouped by place: the app
+   and profile each session runs in, such as "Claude app · Work". Press
+   Enter on a session (**Go to it**) to bring its app forward. Ended and
+   inactive sessions sit behind the "Also:" line under the list.
+5. Start a new session with **New session**, and pick the profile it runs
+   on.
+6. When an account runs low, open the session and choose **Switch
    account…** to carry the conversation to another account or tool.
 
-The [user guide](./docs/guide/) covers each step in more detail.
-
-<table>
-<tr>
-<td width="50%">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/project-dark.png">
-  <img alt="A project's page: its sessions from every account and tool" src="./docs/assets/readme/project-light.png">
-</picture>
-
-**A project:** its sessions from every account and tool.
-
-</td>
-<td width="50%">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/readme/accounts-dark.png">
-  <img alt="The Accounts page: each Claude Code and Codex account with its limits" src="./docs/assets/readme/accounts-light.png">
-</picture>
-
-**Accounts:** each one with its limits.
-
-</td>
-</tr>
-</table>
+The [user guide](./docs/guide/) covers each step in more detail, starting
+with [What's open, and getting to it](./docs/guide/whats-open.md).
 
 ## What works today
 
 | | Status |
 | --- | --- |
+| What's open now in the Claude app, terminals, the Codex app and Cursor, grouped by app and profile, with Go to it | Beta: new in 0.1.x |
+| Accounts as subscriptions, with the profiles signed in to each | Beta: new in 0.1.x |
 | Every session and project, including ones started outside AI Juggler | Works |
 | History of finished sessions, searchable by what was said in them (for sessions started outside AI Juggler, turn it on in Settings › Privacy) | Works |
 | How many subagents a session is running, and what each was asked to do | Works |
@@ -116,12 +100,12 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | Codex limits, read from what Codex records | Works |
 | About how many of your usual sessions are left in each window, and a burn-down chart | Works |
 | Monthly caps for an account or a group of projects: a warning at 80 % and 100 %, never a stop | Works |
-| Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per account (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
+| Claude limits | Works for sessions started in AI Juggler; for other sessions, turn it on per profile (see [Privacy](#what-ai-juggler-reads-writes-and-sends)) |
 | This Mac: memory and CPU of your AI tools, including the Claude app | Works |
 | Cleaning up leftover processes (automatic cleanup is off unless you turn it on) | Works |
-| Rename, remove and choose a default account | Works |
-| Coming from Claude Squad or Vibe Kanban: their worktrees stay with your projects, and the accounts their profiles use are found | Works |
-| A new account starting with your usual MCP servers, permissions and status line | Works |
+| Rename, remove and choose a default profile | Works |
+| Coming from Claude Squad or Vibe Kanban: their worktrees stay with your projects, and the config folders their profiles use are offered as profiles | Works |
+| A new profile starting with your usual MCP servers, permissions and status line | Works |
 | Rules files and MCP servers compared across your tools, brought in line when you apply | Works |
 | Restarting crashed sessions, keeping the Mac awake while they work, reopening after a crash | Works (each one is a setting) |
 | Opening AI Juggler at login | Beta: new in 0.1, not yet checked on an installed build |
@@ -144,7 +128,8 @@ The [user guide](./docs/guide/) covers each step in more detail.
 | **OpenCode** (the `opencode` command, 1.x and 2.x) | Beta, not yet checked live: sessions, usage (tokens, and its own cost estimate), starting sessions, rules and MCP servers |
 | **Grok Build** (the `grok` command) | Beta, not yet checked live: sessions, starting sessions (your Claude and Cursor setups stay out of it), rules and MCP servers; its usage isn't read yet |
 | **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its usage isn't read yet |
-| **Claude app** (desktop) | Its Claude Code sessions are listed; This Mac measures its memory and CPU |
+| **Claude app** (desktop) | Its open sessions are shown under each of its profiles, with Go to it; This Mac measures its memory and CPU |
+| **Codex app** (desktop) | Its open threads are shown, with Go to it |
 
 AI Juggler finds each tool through your shell's `PATH`, the way your terminal
 does, even when you open the app from Finder.
@@ -160,7 +145,13 @@ does, even when you open the app from Finder.
   Code's `~/.kimi-code` session list and settings; Grok Build's
   `~/.grok` sessions and settings.
 - Account names and emails from those setups, so you can tell accounts
-  apart.
+  apart and see which profiles share one.
+- Which sessions each app has open, from the apps' own session files, and
+  which app each running process belongs to (from its parent processes).
+  Never a process's environment, key files or token caches.
+- The last few messages of a session, from its transcript on this Mac, when
+  you open its page (**Last messages**, on by default; turn it off in
+  Settings › Desktop apps). They're kept nowhere.
 - The list of running processes, to show live sessions and This Mac.
 - If you use Claude Squad or Vibe Kanban: their own lists, read without
   changing them, for which repository each of their worktrees belongs to and
@@ -179,25 +170,25 @@ tokens or API keys, and never opens the tools' Keychain items.
 - In your own setups and projects, only what you choose, each shown before
   it's made:
   - **Measuring Claude limits for sessions started elsewhere** (off by
-    default, per account). It shows the exact one-line change to that
-    account's `settings.json` before making it, keeps your own status line
+    default, per profile). It shows the exact one-line change to that
+    profile's `settings.json` before making it, keeps your own status line
     working, and turning it off restores the file exactly.
-  - **Switching a conversation** into an account adds the conversation's
-    files to that account, beside its own and never over them. The MCP
+  - **Switching a conversation** into a profile adds the conversation's
+    files to that profile, beside its own and never over them. The MCP
     servers, skills and the like you tick on the switch screen are set up
     there too.
-  - **Copying settings** into an account: the MCP servers, permissions and
+  - **Copying settings** into a profile: the MCP servers, permissions and
     status line you tick. Never a sign-in, history or caches.
   - **Bringing a rules file in line** writes that one file in your
     project, and keeps the old one for Undo.
-  - **Copying an MCP server** to another account.
+  - **Copying an MCP server** to another profile.
 
   A secret is never copied: a server that needs one reads it from a named
   variable instead, or isn't copied at all. Every set-up, settings copy and
-  rules change is listed in Settings › Context packs & secrets, with an
-  Undo that takes out only what was added, and only while it's unchanged.
-  A switched conversation's files stay in the other account, where you can
-  switch back from.
+  rules change is listed in Settings › Switching › Context packs & secrets,
+  with an Undo that takes out only what was added, and only while it's
+  unchanged. A switched conversation's files stay in the other profile,
+  where you can switch back from.
 
 **Sends:**
 
@@ -217,7 +208,7 @@ AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
 
 [What AI Juggler touches](./docs/guide/trust.md) has the full list, and
 names the tests that check each line. The same list is in the app, under
-More › **Privacy**.
+More › **Privacy**, and Settings › Privacy links to it.
 
 ## Permissions
 
@@ -225,10 +216,14 @@ All optional. AI Juggler works without any of them.
 
 | Permission | What it's for | Without it |
 | --- | --- | --- |
-| Accessibility and Automation | Jumping to a session's own window | The app opens, but not the exact window |
+| Accessibility | Bringing a session's exact window to the front | The right app and profile come forward, but not the exact window |
+| Automation | Selecting a session's terminal tab | The terminal comes forward, but not the tab |
 | Screen Recording | A live preview of a session's window, on this Mac only (offered only where a tool can show one) | No live preview |
 | Notifications | Telling you when a session needs you while you're in another app | You see it when you come back to AI Juggler |
 | Local Network | Fleet, finding your other Macs | Fleet stays off |
+
+Turn on Accessibility and Automation in Settings › Desktop apps › **Going
+to a session**. Going to a session never asks for a permission by itself.
 
 ## Staying within your tools' terms
 
@@ -243,6 +238,28 @@ The [proposal](./docs/PROPOSAL.md) explains the reasoning.
 
 **Do I need an API key?** No. AI Juggler uses the tools you've already signed
 in to.
+
+**What's the difference between a profile and an account?** A profile is the
+setup an app runs on: a Claude Code folder, a Claude app profile, or a Codex
+folder. An account is the subscription a profile is signed in to. Sessions
+run in a profile; limits and money belong to the account. The same account
+signed in to two profiles is normal, and both share its limits. See
+[Accounts and profiles](./docs/guide/accounts.md).
+
+**Why isn't a session I closed in the list?** The list shows what's open now.
+Ended, inactive and background sessions are behind the "Also:" line under
+it, or **View** (⇧V) › **Show**, and every ended session is in History.
+Nothing is removed.
+
+**Go to it brought the app forward, but not the session's window.** Bringing
+the exact window forward needs the Accessibility permission, and the right
+terminal tab needs Automation. Turn them on in Settings › Desktop apps. For
+the Claude app, AI Juggler brings the right profile forward and tells you to
+pick the session in its sidebar.
+
+**Is there a shortcut to open AI Juggler from any app?** You can choose one
+in Settings › Desktop apps › **Open AI Juggler from anywhere**. There's none
+until you pick one. ⌥Space isn't accepted, because ChatGPT uses it.
 
 **Why does a limit say "Not measured yet"?** The tool hasn't reported that
 limit to AI Juggler yet. AI Juggler shows a percentage only when one was
@@ -283,18 +300,18 @@ possible.
 - **"Another AI Juggler is open."** AI Juggler waits a few seconds for an
   earlier copy to finish quitting. If it says this, choose **Try again**, or
   quit the other copy.
-- **An update failed, or you want the previous version.** Settings › About &
-  updates › **Go back to an earlier version**.
+- **An update failed, or you want the previous version.** Settings › General ›
+  About & updates › **Go back to an earlier version**.
 - **Something else?** Ask in [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions),
-  or report a bug from Settings › General › **Report a problem**. **Export
-  diagnostics…** there shows you, file by file, what it would save (scrubbed
-  of names, paths and keys) before you attach it.
+  or report a bug from Settings › Advanced › Diagnostics › **Report a
+  problem**. **Export diagnostics…** there shows you, file by file, what it
+  would save (scrubbed of names, paths and keys) before you attach it.
 
 ## Uninstall
 
-1. In AI Juggler, open Settings › Data › **Before you uninstall** and choose
-   **Prepare to uninstall**. It puts back the setting AI Juggler may have
-   added to a Claude account (measuring limits for sessions started
+1. In AI Juggler, open Settings › Advanced › **Before you uninstall** and
+   choose **Prepare to uninstall**. It puts back the setting AI Juggler may
+   have added to a Claude profile (measuring limits for sessions started
    elsewhere), and lists what's left for you to remove. Anything else you
    set up through AI Juggler stays unless you undo it; the
    [uninstall guide](./docs/guide/uninstall.md) has the steps.

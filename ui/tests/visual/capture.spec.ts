@@ -15,7 +15,10 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList } from "./fixtures";
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+
+// AJ-E2104: these galleries read the project board, every status drawn.
+projectBoardByDefault(test);
 
 const GALLERY = GALLERY_ROOT;
 const NOT_CAPTURETED = resolve(GALLERY, "not-captured.md");
@@ -76,7 +79,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first()).toBeVisible();
       } else {
         await expectRail(page); // D-25: the list, or its icon column when narrow
-        await expect(page.getByText("Handed over").first()).toBeVisible();
+        await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
       }
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/all-statuses-${vp.name}-${theme}.png`),
@@ -147,7 +150,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       // D-25: an account that needs its sign-in is a "Needs you" item on Home.
-      await expect(page.getByTestId("home-signin").first()).toContainText("needs its sign-in");
+      await expect(page.getByTestId("home-need-signin").first()).toContainText("needs its sign-in");
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/ready-home-${vp.name}-${theme}.png`),
       });
@@ -186,7 +189,7 @@ for (const density of DENSITIES) {
       if (density === "minimal") {
         await expect(page.getByTitle(/Work Max/).first()).toBeVisible();
       } else {
-        await expect(page.getByText("Handed over").first()).toBeVisible();
+        await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
       }
       await page.screenshot({
         path: resolve(GALLERY, `01-rail-density/${density}-${vp.name}.png`),
@@ -244,24 +247,23 @@ test("rail — stale row renders stale - Nm", async ({ page }) => {
 // AJ-E404 captures: the sorted/filtered rail states (1440x900).
 test("rail — needs-me sort default", gate("01-rail-sort"), async ({ page }) => {
   await seedRail(page, {});
-  await expect(page.getByText("Handed over").first()).toBeVisible();
+  await expect(page.locator('[data-instance-id="sess-9"]').first()).toContainText("Ended"); // handed over: AJ-E2104's word
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/needs-me-1440x900.png") });
 });
 
-test("rail — quota risk with no data group", async ({ page }) => {
+// AJ-E2104: the View's Group by and Show (the quota sort left with the
+// old Filters; Home's Runway by account reads the room left).
+test("rail — the View open", async ({ page }) => {
   await seedRail(page, {});
   await openFilters(page);
-  // The "no data" group is the quota sort's own grouping (no project groups).
-  await page.selectOption('select[aria-label="Group by"]', "none");
-  await page.selectOption('select[aria-label="Sort by"]', "quota");
-  await expect(page.getByText("Not measured yet").first()).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/quota-risk-1440x900.png") });
+  await expect(page.getByTestId("rail-view")).toBeVisible();
+  await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/view-1440x900.png") });
 });
 
 test("rail — group by project with rollups", async ({ page }) => {
   await seedRail(page, {});
   await openFilters(page);
-  await page.selectOption('select[aria-label="Group by"]', "project");
+  await page.getByTestId("rail-view").getByRole("radio", { name: /^Project/ }).check();
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
 });
@@ -342,7 +344,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Terminal", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Terminal", "Overview", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
@@ -352,7 +354,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Account / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+    await page.getByTestId("profile-open").first().click();
     const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
     await expect(tabs).toHaveText(["Overview", "Sessions"]);
     await tabs.filter({ hasText: "Sessions" }).click();
@@ -449,7 +451,7 @@ test("inspector — Account Overview rings + forecast", gate("08-inspector-aggre
   );
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+  await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
   await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
@@ -476,7 +478,8 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).nth(1).click();
+  // AJ-E2109: a profile not signed in sits last, under Not signed in.
+  await page.locator("[data-profile=\"claude-personal\"]").getByTestId("profile-open").click();
   await expect(page.getByTestId("account-signin-card")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
@@ -594,7 +597,7 @@ async function seedRenewalPage(
 
 async function openAccountOverview(page: import("@playwright/test").Page) {
   await goTo(page, "Accounts");
-  await page.getByRole("button", { name: "Inspect Claude Code" }).first().click();
+  await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
 
@@ -687,7 +690,7 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("Running");
@@ -714,7 +717,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
@@ -727,7 +730,7 @@ test("desktop — exited app state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /Done/ })
+    .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
@@ -740,7 +743,7 @@ test("desktop — crashed app state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /failed|crashed/i })
+    .filter({ hasText: /Stopped with an error/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("app crashed");
@@ -753,7 +756,7 @@ test("desktop — single-account warning state", async ({ page }) => {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   const warning = page.getByTestId("desktop-isolation");
   await expect(warning).toBeVisible();
@@ -808,7 +811,7 @@ test("focus — panel outcome after focus (Focused window, dark)", gate("14-focu
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await page.getByTestId("desktop-focus").click();
   await expect(page.getByTestId("desktop-focus-outcome")).toContainText("Focused window");
@@ -827,7 +830,7 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await page.getByTestId("desktop-focus").click();
   const explainer = page.getByTestId("desktop-a11y-explainer");
@@ -850,7 +853,8 @@ test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => 
   await expect(palette.locator('[data-testid="goto-row-sess-2"]')).toBeVisible();
   await expect(palette.locator('[data-testid="goto-row-sess-desktop-3"]')).toHaveCount(0);
   await expect(palette.locator('[data-testid="goto-row-sess-6"]')).toHaveCount(0);
-  await expect(palette).toContainText("Alt+Space");
+  // AJ-E2110: no key by default; the footer offers to choose one.
+  await expect(palette).toContainText("Choose a key to open from anywhere");
   await page.screenshot({ path: resolve(GALLERY, "14-focus/palette-1280x800.png") });
 });
 
@@ -915,7 +919,7 @@ async function openRunningDesktopPanel(page: import("@playwright/test").Page) {
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /running/i })
+    .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
 }
 
@@ -975,7 +979,7 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
-    .filter({ hasText: /Done/ })
+    .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
   await expect(page.getByTestId("desktop-preview")).toHaveCount(0);
@@ -1771,7 +1775,7 @@ for (const theme of THEMES) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page
       .getByRole("button", { name: /Work Max/ })
-      .filter({ hasText: /running/i })
+      .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
       .first()
       .click();
     await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ picked up after restart");
@@ -2401,7 +2405,7 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     const openDialog = async (page: import("@playwright/test").Page) => {
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2589,7 +2593,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2830,7 +2834,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -3087,7 +3091,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      // Its terminal loads on first use (#173): the capture waits for it.
+      await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
       await openSwitch(page);
       await expect(page.getByTestId("switch-target-rows")).toBeVisible();
       await page.screenshot({
@@ -3318,7 +3324,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+      await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await openSwitch(page);
       await page.getByTestId("handover-section")
         .locator("button[data-row]:not(:disabled)")
@@ -3964,7 +3970,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await goTo(page, "Accounts");
-      await page.getByRole("button", { name: /Edit launch settings/ }).first().click();
+      // AJ-E2109: a profile's launch settings open from its menu.
+      await page.getByTestId("account-menu").first().click();
+      await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
       await page.getByTestId("recipe-env-toggle").first().click();
       await expect(page.getByTestId("env-overlay-editor")).toBeVisible();
       await shot41(page, `accounts-pack-secrets-${vp.name}-${theme}`);
@@ -4210,6 +4218,7 @@ const openSettings = async (
   theme: string,
   vp: { width: number; height: number },
   seams: Record<string, unknown>,
+  pane = "Advanced",
 ) => {
   await page.addInitScript(
     ({ fixture, t, extra, t0 }) => {
@@ -4227,7 +4236,21 @@ const openSettings = async (
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
   await page.getByRole("button", { name: "Settings" }).first().click();
-  await expect(page.getByTestId("account-cloud")).toBeVisible();
+  await settingsPane(page, pane);
+  await expect(page.getByTestId(pane === "Advanced" ? "account-cloud" : `settings-pane-${PANE_IDS[pane]}`)).toBeVisible();
+};
+
+/** AJ-E2110: each pane's label and id. */
+const PANE_IDS: Record<string, string> = {
+  General: "general",
+  "Desktop apps": "desktop-apps",
+  Accounts: "accounts",
+  Sessions: "sessions",
+  Switching: "switching",
+  Notifications: "notifications",
+  Privacy: "privacy",
+  "Your Macs": "macs",
+  Advanced: "advanced",
 };
 
 const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string) =>
@@ -4396,14 +4419,13 @@ for (const theme of THEMES) {
       // Back to the home view (the board + the alert region).
       await page.reload();
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await expect(page.getByTestId("board-machine")).toBeVisible();
+      // AJ-E2104: other Macs fold after this Mac, each to its header.
+      await expect(page.getByTestId("rail-other-mac")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
-      await openFilters(page);
-      await page.getByLabel("Filter by machine").selectOption("machine-mini");
+      await onlyMac(page, "machine-mini");
       await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/one-machine-${vp.name}-${theme}.png`) });
-      await openFilters(page);
-      await page.getByLabel("Filter by machine").selectOption("all");
+      await onlyMac(page, "all");
       await expect(page.getByTestId("remote-alert-exhausted")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/alert-${vp.name}-${theme}.png`) });
     });
@@ -4596,10 +4618,9 @@ for (const theme of THEMES) {
     });
     await page.reload();
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openFilters(page);
-    await page.getByLabel("Filter by machine").selectOption("machine-mini");
+    await onlyMac(page, "machine-mini");
     await expect(page.getByTestId("board-machine")).toContainText("offline · last known");
-    await expect(page.getByTestId("board-remote-row").first()).toContainText("was running");
+    await expect(page.getByTestId("board-remote-row").first()).toContainText("was working"); // AJ-E2104 Req.3
     await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-board-1280x800-${theme}.png`) });
   });
 }
@@ -4686,8 +4707,10 @@ const openCross = async (
   await page.setViewportSize(CROSS_VP);
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /^(?!.*Starting).*Work Max/ }).first().click();
+  await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
   await expect(page.getByTestId("handover-section")).toBeVisible();
+  // Its terminal loads on first use (#173): the capture waits for it.
+  await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
   await openSwitch(page);
 };
 
@@ -5145,7 +5168,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await page.getByRole("button", { name: "History" }).click();
+      await page.locator("header").getByRole("button", { name: "History", exact: true }).click();
       await page.getByTestId("history-search").fill("stripe");
       await expect(page.getByTestId("history-snippet")).toContainText("Stripe webhook");
       await page.screenshot({ path: resolve(GALLERY, `56-history/search-${vp.name}-${theme}.png`) });
@@ -5166,6 +5189,7 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Settings" }).click();
+      await settingsPane(page, "Advanced");
       await page.getByTestId("settings-storage").scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(GALLERY, `56-history/retention-${vp.name}-${theme}.png`) });
       await page.getByTestId("storage-review").first().click();
@@ -5229,6 +5253,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
       await page.getByRole("button", { name: "Settings" }).click();
+      await settingsPane(page, "Advanced");
       await page.getByTestId("settings-backup").scrollIntoViewIfNeeded();
       if (state === "progress" || state === "done") {
         await page.getByTestId("backup-export").click();
@@ -5623,7 +5648,7 @@ for (const theme of THEMES) {
   for (const vp of STATS_VP) {
     for (const state of PRIVACY_STATES) {
       test(`62 privacy — ${state.name} — ${vp.name} — ${theme}`, gate("62-privacy"), async ({ page }) => {
-        await openSettings(page, theme, vp, state.seams);
+        await openSettings(page, theme, vp, state.seams, "Privacy");
         await expect(page.getByTestId("privacy-state")).toBeVisible();
         await page.getByTestId("settings-privacy").evaluate((card) => card.scrollIntoView({ block: "start" }));
         await page.mouse.move(0, 0);
@@ -5635,7 +5660,7 @@ for (const theme of THEMES) {
       await openSettings(page, theme, vp, {
         __AIJ_USAGE_STATS__: SHARE,
         __AIJ_USAGE_STATS_REPORTS__: { "pending/2026-W41": REPORT_JSON },
-      });
+      }, "Privacy");
       await page.getByTestId("privacy-report-view").first().click();
       await expect(page.getByTestId("privacy-report-json")).toContainText('"week": "2026-W41"');
       await page.getByTestId("privacy-report-json").evaluate((viewer) => viewer.scrollIntoView({ block: "end" }));
@@ -5707,7 +5732,7 @@ for (const theme of THEMES) {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_USAGE_STATS__: SHARE,
       __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
-    });
+    }, "Privacy");
     await page.getByTestId("privacy-crash-reports").evaluate((row) => row.scrollIntoView({ block: "center" }));
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `64-crash/setting-1280x800-${theme}.png`) });
@@ -5760,21 +5785,14 @@ const SETTINGS_PEER = {
   protocol: null,
   connection_detail: null,
 };
-const SETTINGS_SECTIONS: Array<[string, string]> = [
-  ["sessions", "Sessions"],
-  ["packs", "Context packs & secrets"],
-  ["cleanup", "Cleanup"],
-  ["renewal", "Accounts & renewal dates"],
-  ["notifications", "Notifications"],
-  ["fleet", "Fleet permissions"],
-];
+// AJ-E2110: every pane, in both themes (the 65 gallery: one shot per pane).
+const SETTINGS_SECTIONS: Array<[string, string]> = Object.entries(PANE_IDS).map(([label, id]) => [id, label]);
 
 for (const theme of THEMES) {
   for (const [name, title] of SETTINGS_SECTIONS) {
     test(`65 settings sections — ${name} — ${theme}`, gate("65-settings-sections"), async ({ page }) => {
-      await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] });
-      await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: title }).click();
-      await expect(page.locator(`#settings-${name}-title`)).toBeFocused();
+      await openSettings(page, theme, { width: 1280, height: 800 }, { __AIJ_FLEET_PEERS__: [SETTINGS_PEER] }, title);
+      await expect(page.getByRole("navigation", { name: "Settings" }).getByRole("button", { name: title, exact: true })).toHaveAttribute("aria-current", "page");
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/${name}-1280x800-${theme}.png`) });
     });
@@ -5898,8 +5916,7 @@ for (const theme of THEMES) {
   test(`65 settings sections — sessions, terminal open — ${theme}`, async ({ page }) => {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_SESSION_PREFS__: { stuck_after_minutes: 10, terminal_font_size: 12.5, terminal_scrollback_lines: 5000 },
-    });
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Sessions" }).click();
+    }, "Sessions");
     await page.getByTestId("settings-terminal").locator("summary").click();
     await expect(page.getByLabel("Scrollback")).toBeVisible();
     await expect(page.getByTestId("pref-stuck_after_minutes-reset")).toHaveText("Reset to 5");

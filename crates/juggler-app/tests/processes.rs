@@ -122,8 +122,13 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
                     dir.join("transcripts").to_str().unwrap(),
                     "--turns",
                     "3",
+                    // The child is in the session's tree only while the
+                    // harness lives (then launchd adopts it): 3 × 1.5 s
+                    // gives the collector a window a loaded test run can't
+                    // miss (0.3 s turns failed under a parallel workspace
+                    // run, 2026-10-24).
                     "--delay-ms",
-                    "300",
+                    "1500",
                     "--spawn-child",
                     "/bin/sleep",
                     "--child-args",

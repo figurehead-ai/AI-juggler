@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "./primitives";
-import type { InstanceInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
+import type { InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
+import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
+import { ActionIcon } from "./ActionIcon";
 import { useActionHost } from "./ItemMenu";
-import { conversationTitle, liveOutside, useConversations } from "../lib/conversations";
+import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
+export { paletteSelection } from "./PaletteActions";
+import { conversationTitle, useConversations } from "../lib/conversations";
+import { paletteMatches, parseQuery } from "../lib/rail-view";
+import type { ResolvedAction } from "../lib/actions";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 
 /**
@@ -19,29 +25,9 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 
 const isLive = (status: string) => status === "running" || status === "starting";
 
-/** Builds a Tauri accelerator string ("Alt+Space") from a KeyboardEvent;
- * null while only modifiers are held (the capture waits for a real key). */
-export function toAccelerator(event: {
-  key: string;
-  ctrlKey: boolean;
-  altKey: boolean;
-  metaKey: boolean;
-  shiftKey: boolean;
-}): string | null {
-  if (["Control", "Alt", "AltGraph", "Shift", "Meta", "Dead", "CapsLock"].includes(event.key)) {
-    return null;
-  }
-  if (event.key === "Escape") {
-    return null;
-  }
-  const parts: string[] = [];
-  if (event.ctrlKey) parts.push("Control");
-  if (event.altKey) parts.push("Alt");
-  if (event.metaKey) parts.push("Super");
-  if (event.shiftKey) parts.push("Shift");
-  parts.push(event.key === " " ? "Space" : event.key.length === 1 ? event.key.toUpperCase() : event.key);
-  return parts.join("+");
-}
+/** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey,
+ * shared with Settings › Desktop apps). */
+export { toAccelerator };
 
 export function GoToPalette({
   open,
@@ -54,6 +40,9 @@ export function GoToPalette({
   remoteMachines = [],
   onFocusRemote,
   onOpenRemote,
+  selected = null,
+  projects = [],
+  onChanged = () => {},
 }: {
   open: boolean;
   onClose: () => void;
@@ -66,6 +55,12 @@ export function GoToPalette({
   remoteMachines?: RemoteMachineInfo[];
   onFocusRemote?: (machineId: string, instanceId: string) => void;
   onOpenRemote?: (machineId: string, instanceId: string) => void;
+  /** AJ-E2106: what is selected now; its actions come first. */
+  selected?: PaletteSelection | null;
+  /** Projects to go to, listed once something is typed. */
+  projects?: ProjectInfo[];
+  /** Something an action changed (a rename, a pin). */
+  onChanged?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -76,15 +71,23 @@ export function GoToPalette({
   // AJ-E1529: sessions started outside AI Juggler, running now, too.
   const { all: conversations } = useConversations();
   const host = useActionHost();
+  const needle = parseQuery(query).text;
+  // AJ-E2106: the selected item's actions first.
+  const panel = usePaletteActions(selected, needle, onChanged);
+  const actions = panel.actions;
   const rows = useMemo<PaletteRow[]>(() => {
-    const needle = query.trim().toLowerCase();
-    const elsewhere: PaletteRow[] = liveOutside(conversations)
-      .filter((c) => !needle || `${c.account_label} ${c.tool} ${conversationTitle(c)}`.toLowerCase().includes(needle))
-      .map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
-    const local: PaletteRow[] = sessions
-      .filter((s) => isLive(s.status))
-      .filter((s) => !needle || `${s.account_label} ${s.provider} ${s.kind}`.toLowerCase().includes(needle))
-      .map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
+    const doing: PaletteRow[] = actions.map((action) => ({ where: "action", action, id: `action::${action.id}`, desktop: false }));
+    // Projects once something is typed: going to one is a search.
+    const places: PaletteRow[] = needle
+      ? projects
+          .filter((p) => `${p.name} ${p.root}`.toLowerCase().includes(needle))
+          .slice(0, 8)
+          .map((project) => ({ where: "project", project, id: `project::${project.id}`, desktop: false }))
+      : [];
+    // AJ-E2104: the rail's words work here too (is:ended app:claude …).
+    const found = paletteMatches(sessions, conversations, projects, parseQuery(query));
+    const elsewhere: PaletteRow[] = found.conversations.map((conversation) => ({ where: "outside", conversation, id: `outside::${conversation.account_id}::${conversation.id}`, desktop: false }));
+    const local: PaletteRow[] = found.sessions.map((row) => ({ where: "local", row, id: row.id, desktop: row.kind === "desktop" }));
     const remote: PaletteRow[] = remoteMachines.flatMap((machine) =>
       machine.instances
         .filter((row) => isLive(row.status) || row.status === "waiting_user")
@@ -104,13 +107,15 @@ export function GoToPalette({
     // Desktop first (they own windows — the hotkey's reason to exist),
     // this Mac before paired machines.
     return [
+      ...doing,
       ...local.filter((r) => r.desktop),
       ...remote.filter((r) => r.desktop),
       ...local.filter((r) => !r.desktop),
       ...elsewhere,
       ...remote.filter((r) => !r.desktop),
+      ...places,
     ];
-  }, [sessions, remoteMachines, query, conversations]);
+  }, [sessions, remoteMachines, needle, conversations, actions, projects]);
 
   useEffect(() => {
     if (open) {
@@ -126,13 +131,25 @@ export function GoToPalette({
     setActive((current) => Math.min(current, Math.max(rows.length - 1, 0)));
   }, [rows.length]);
 
+  // A sheet an action opened (a rename) outlives the palette.
   if (!open) {
-    return null;
+    return <>{panel.element}</>;
   }
 
   const choose = (entry: PaletteRow) => {
-    if (entry.where === "outside") {
-      host.openConversation?.(entry.conversation);
+    if (entry.where === "action") {
+      // Greyed: it says why, and stays.
+      if (entry.action.reason) return;
+      onClose();
+      void entry.action.run();
+      return;
+    }
+    if (entry.where === "project") {
+      host.openProjectById?.(entry.project.id);
+    } else if (entry.where === "outside") {
+      // AJ-E2102: the palette goes to it; its page when that can't be done.
+      if (host.goToConversation) void host.goToConversation(entry.conversation);
+      else host.openConversation?.(entry.conversation);
     } else if (entry.where === "local") {
       if (entry.desktop) onFocusWindow(entry.row);
       else onOpenSession(entry.row.id);
@@ -144,6 +161,8 @@ export function GoToPalette({
     onClose();
   };
 
+  const sectioned = new Set(rows.map(sectionOf)).size > 1;
+
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (capturing) {
       event.preventDefault();
@@ -152,6 +171,11 @@ export function GoToPalette({
         return;
       }
       const combo = toAccelerator(event.nativeEvent);
+      const refusal = combo === null ? null : hotkeyRefusal(combo);
+      if (refusal !== null) {
+        setCaptureError(refusal);
+        return;
+      }
       if (combo !== null) {
         setCaptureError(null);
         onHotkeyChange(combo)
@@ -194,9 +218,11 @@ export function GoToPalette({
             aria-expanded="true"
             aria-controls="goto-listbox"
             aria-activedescendant={rows[active] ? `goto-option-${domId(rows[active]!.id)}` : undefined}
-            aria-label="Go to session"
+            aria-label={selected ? `Actions for ${selected.heading}, or go to a session` : "Go to session"}
             value={query}
-            placeholder={capturing ? "Press the new combo (Esc cancels)…" : "Go to session…"}
+            placeholder={
+              capturing ? "Press the new combo (Esc cancels)…" : selected ? `Act on ${selected.heading}, or go to a session…` : "Go to session…"
+            }
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
             className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
@@ -205,8 +231,8 @@ export function GoToPalette({
         <ul
           id="goto-listbox"
           role="listbox"
-          aria-label="Live sessions"
-          className="max-h-72 overflow-y-auto p-1.5"
+          aria-label={selected ? "Actions and live sessions" : "Live sessions"}
+          className="max-h-80 overflow-y-auto p-1.5"
         >
           {rows.length === 0 && (
             <li className="px-2.5 py-3 text-[11.5px] text-muted">
@@ -214,13 +240,21 @@ export function GoToPalette({
             </li>
           )}
           {rows.map((entry, index) => (
-            // The option itself is the target: keyboard goes through the
-            // combobox (aria-activedescendant), so no nested button.
+            <Fragment key={entry.id}>
+              {/* Section names, when there's more than one kind of row:
+                  the options name themselves, so these are for the eye. */}
+              {sectioned && sectionOf(entry) !== (index > 0 ? sectionOf(rows[index - 1]!) : null) && (
+                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-[9.5px] font-medium uppercase tracking-wide text-faint first:pt-0.5">
+                  {entry.where === "action" ? `Actions for ${selected?.heading ?? ""}` : sectionOf(entry)}
+                </li>
+              )}
+            {/* The option itself is the target: keyboard goes through the
+                combobox (aria-activedescendant), so no nested button. */}
             <li
-              key={entry.id}
               id={`goto-option-${domId(entry.id)}`}
               role="option"
               aria-selected={index === active}
+              aria-disabled={entry.where === "action" && entry.action.reason ? true : undefined}
               data-testid={`goto-row-${entry.where === "remote" ? `remote-${entry.row.id}` : entry.id}`}
               onClick={() => choose(entry)}
               onMouseEnter={() => setActive(index)}
@@ -229,6 +263,17 @@ export function GoToPalette({
                 (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
               }
             >
+                {entry.where === "action" ? (
+                  <ActionOption action={entry.action} />
+                ) : entry.where === "project" ? (
+                  <>
+                    <ActionIcon name="project" className="text-muted" />
+                    <span className="min-w-0 shrink truncate">{entry.project.name}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.project.root}</span>
+                    <span className="ml-auto shrink-0 text-muted">open</span>
+                  </>
+                ) : (
+                <>
                 {entry.desktop ? <Chip tone="accent">app</Chip> : <Chip tone="neutral">term</Chip>}
                 {entry.where === "outside" ? (
                   <>
@@ -258,7 +303,10 @@ export function GoToPalette({
                       ? `Focus on ${entry.machine.label}`
                       : "inspect"}
                 </span>
+                </>
+                )}
             </li>
+            </Fragment>
           ))}
         </ul>
         <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-[10.5px] text-muted">
@@ -269,7 +317,7 @@ export function GoToPalette({
             data-testid="goto-change-hotkey"
             onClick={() => setCapturing(true)}
           >
-            {capturing ? "press a combo…" : `${hotkey} — change…`}
+            {capturing ? "press a combo…" : hotkey ? `${hotkeyWords(hotkey)} — change…` : "Choose a key to open from anywhere…"}
           </Button>
           {captureError !== null && (
             <span className="text-danger" data-testid="goto-hotkey-error">
@@ -283,9 +331,17 @@ export function GoToPalette({
 }
 
 type PaletteRow =
+  | { where: "action"; action: ResolvedAction; id: string; desktop: false }
+  | { where: "project"; project: ProjectInfo; id: string; desktop: false }
   | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
   | { where: "outside"; conversation: ConversationInfo; id: string; desktop: false }
   | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean };
+
+/** AJ-E2106: the palette's sections — the selected item's actions, then
+ * sessions, then projects. */
+function sectionOf(entry: PaletteRow): string {
+  return entry.where === "action" ? "Actions" : entry.where === "project" ? "Projects" : "Sessions";
+}
 
 /** A remote focus is offered only where that machine allows control and
  * is connected now (it decides again when the request arrives). */

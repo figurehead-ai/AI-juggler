@@ -27,7 +27,6 @@ sync account_set_preview_opt_in
 sync account_set_renewal
 sync account_storage
 sync account_use_original
-sync accounts_list
 sync alerts_tick
 sync app_info
 sync app_setting_get
@@ -51,7 +50,6 @@ sync crash_answer
 sync crash_info
 sync crash_set
 sync dashboard_stats
-sync desktop_focus
 sync desktop_launch
 sync environment_scan
 sync environment_scan_full
@@ -69,7 +67,6 @@ sync fleet_divergences
 sync fleet_peers
 sync fleet_prompt_decide
 sync fleet_prompts
-sync fleet_remote
 sync fleet_reset_identity
 sync fleet_reset_trust
 sync fleet_self
@@ -97,7 +94,6 @@ sync instance_quality
 sync instance_replay
 sync instance_unarchive
 sync instance_unmark_reviewed
-sync instances_list
 sync isolation_check
 sync isolation_offer
 sync kill_cancel
@@ -143,12 +139,10 @@ sync pricing_override_set
 sync profile_create
 sync profile_delete
 sync projects_backfill
-sync projects_list
 sync providers_capabilities
 sync providers_discover
 sync providers_list
 sync quota_display
-sync quota_display_all
 sync recommendation_for
 sync recovery_summary_dismiss
 sync recovery_summary_get
@@ -163,10 +157,8 @@ sync retention_preview
 sync retention_set
 sync scan_cancel
 sync session_handover
-sync sessions_list_alias
 sync source_inspect
 sync stop_session
-sync switch_back_suggestions
 sync switch_graph_overview
 sync switch_targets
 sync switch_undo

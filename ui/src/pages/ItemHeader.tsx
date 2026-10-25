@@ -24,6 +24,9 @@ import { since } from "../lib/time-words";
 import { useTools } from "../lib/tools";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
+import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
+import { GoToButton, SessionChips, SessionMark } from "./session/SessionHead";
+import { fromInstance } from "./session/model";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
   const props = { width: 16, height: 16 };
@@ -90,6 +93,7 @@ export function InspectorHeader({
   const host = useActionHost();
   const tools = useTools();
   const { all: conversations } = useConversations();
+  const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
   const instance = data.instance ?? null;
 
@@ -153,20 +157,22 @@ export function InspectorHeader({
         ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
         : [];
   const state = instance && kind === "instance" ? statusTone(instance.status) : null;
-  // AJ-E1534: each type its own mark shape — a session's terminal with its
-  // state dot, a project's rounded square, an account's round disc, a
-  // tool's own mark.
-  const mark =
-    kind === "provider" && data.provider ? (
-      <ToolMark tool={data.provider.id} size={18} />
-    ) : kind === "account" && account ? (
-      <AccountAvatar accountId={account.id} label={account.label} size={20} />
-    ) : kind === "instance" && state ? (
-      <span className="relative flex" data-testid="mark-session">
-        <IconTerminal width={16} height={16} />
-        <span aria-hidden="true" className={"absolute -bottom-0.5 -right-1 size-2 rounded-full ring-2 ring-canvas " + DOT[state.tone]} />
-      </span>
-    ) : kind === "project" && data.project ? (
+  // AJ-E2108: a session's page says where it runs (its conversation as
+  // the tools' files show it: where it's open, when it was viewed).
+  const model =
+    kind === "instance" && instance
+      ? fromInstance(instance, conversations.find((c) => c.session_id === instance.id))
+      : null;
+  // AJ-E1534: each type its own mark shape — a session's app mark with its
+  // profile's badge, a project's rounded square, an account's round disc,
+  // a tool's own mark.
+  const mark = model ? (
+    <SessionMark model={model} />
+  ) : kind === "provider" && data.provider ? (
+    <ToolMark tool={data.provider.id} size={18} />
+  ) : kind === "account" && account ? (
+    <AccountAvatar accountId={account.id} label={account.label} size={20} />
+  ) : kind === "project" && data.project ? (
       <ProjectMark projectId={data.project.id} />
     ) : (
       <KindIcon kind={kind} />
@@ -178,7 +184,11 @@ export function InspectorHeader({
       : null;
   const chips = (
     <>
-      {state && <Chip tone={state.tone}>{state.label}</Chip>}
+      {model ? (
+        <SessionChips model={model} account={subscriptions ? accountOfProfile(subscriptions, model.profileId) : undefined} now={now} />
+      ) : (
+        state && <Chip tone={state.tone}>{state.label}</Chip>
+      )}
       {/* AJ-E510: re-adopted after a crash; its earlier output is gone. */}
       {kind === "instance" && instance?.adopted && (
         <span data-testid="instance-adopted-chip">
@@ -210,6 +220,10 @@ export function InspectorHeader({
     ) : null;
   const actions = (
     <>
+      {/* AJ-E2102: a session in a desktop app's window: go to that window. */}
+      {model && instance && instance.kind === "desktop" && model.live && host.focusSession && (
+        <GoToButton onGo={() => void host.focusSession!(instance)} why={null} />
+      )}
       {/* D-25: the session's one-step-away move, beside its Stop. */}
       {/* Only with a conversation to carry over: the menu's own rule. */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
@@ -260,6 +274,7 @@ export function InspectorHeader({
   return (
     <PageHeader
       kind={page}
+      layout={model ? "session" : "item"}
       mark={mark}
       name={name}
       crumbs={crumbs}
@@ -271,16 +286,6 @@ export function InspectorHeader({
     />
   );
 }
-
-/** A state's dot, in its chip's tone. */
-const DOT: Record<ChipTone, string> = {
-  live: "bg-live",
-  success: "bg-success",
-  warning: "bg-warning",
-  danger: "bg-danger",
-  accent: "bg-accent",
-  neutral: "bg-faint",
-};
 
 /** A session that has ended (it can be relaunched). */
 const ENDED = ["finished", "stopped", "failed", "handed_over"];

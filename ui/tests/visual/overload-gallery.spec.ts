@@ -8,7 +8,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, openRailList } from "./fixtures";
+import { allStatuses, openRailList, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/74-overload");
 const T0 = 1_728_800_000_000;
@@ -73,6 +73,9 @@ async function seed(page: Page, machine: string, alerts: unknown[], theme: "dark
 /** Opens a session from the rail: the screens the banner is for. */
 async function openSession(page: Page, title: RegExp) {
   await openRailList(page);
+  // AJ-E2104: the rows named by state first are the place lens's; these
+  // read the project board's.
+  await projectLens(page);
   await page.getByTestId("instance-board").getByRole("button", { name: title }).first().click();
 }
 
@@ -94,12 +97,12 @@ async function axeClean(page: Page) {
 for (const theme of ["dark", "light"] as const) {
   test(`overload — memory pressure — ${theme}`, gate("74-overload"), async ({ page }) => {
     await seed(page, "tight", [MEMORY], theme);
-    const item = page.getByTestId("home-mac-pressure");
+    const item = page.getByTestId("home-need-mac");
     await expect(item).toContainText("Your Mac is under memory pressure");
     await expect(item).toContainText("ai-juggler is using 3.2 GB");
-    // Home says it once, in Needs you: no banner, a headline that points
-    // there (the 0.0.12 report).
-    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("Your Mac needs a look");
+    // Home says it once, in Needs you: no banner; the headline counts it
+    // (AJ-E2105).
+    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
     await expect(page.getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
     await page.screenshot({ path: resolve(OUT, `memory-pressure-1280x800-${theme}.png`) });
@@ -112,7 +115,7 @@ for (const theme of ["dark", "light"] as const) {
     test(`overload — the banner above a session, ${width} — ${theme}`, async ({ page }) => {
       await seed(page, "tight", [MEMORY], theme);
       await page.setViewportSize({ width, height: 800 });
-      await openSession(page, /Fake Desk app Running/);
+      await openSession(page, /Fake Desk app Working/);
       await expect(page.getByTestId("machine-alert")).toContainText("Your Mac is under memory pressure — macOS reports memory pressure");
       await bannerAbove(page);
       await page.screenshot({ path: resolve(OUT, `banner-above-session-${width}x800-${theme}.png`) });
@@ -122,7 +125,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`overload — busy processor, the Claude app — ${theme}`, async ({ page }) => {
     await seed(page, "tight", [CPU], theme);
-    await openSession(page, /Fake Desk app Running/);
+    await openSession(page, /Fake Desk app Working/);
     await expect(page.getByTestId("machine-alert")).toContainText("The Claude app is using CPU 140%");
     await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
     // Told once: dismissing clears it, and nothing else is offered.
@@ -133,6 +136,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`this mac — advice from history — ${theme}`, async ({ page }) => {
     await seed(page, "plenty", [], theme);
+    // AJ-E2105: This Mac's page (its line in the top bar), not Home.
+    await page.getByTestId("machine-status").click();
     const advice = page.getByTestId("this-mac-recommendations");
     await expect(advice).toContainText("comfortably runs about 5 sessions at once");
     await advice.scrollIntoViewIfNeeded();

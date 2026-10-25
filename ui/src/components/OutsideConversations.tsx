@@ -1,9 +1,11 @@
 /**
  * AJ-E1529 — conversations AI Juggler didn't start, in the rail under
  * their project: built like a session row (RailRow), with a quiet
- * "outside AI Juggler" mark, and read-only (D-08). The live ones always
- * show; then the most recent few, the rest one click away on the
- * project's page, so the rail stays within its budget at 50+.
+ * "outside AI Juggler" mark, and read-only (D-08). AJ-E2103: only the
+ * open ones show under their project (Open now); one that asks you leads
+ * the rail (Needs you), and ended, inactive and background ones wait
+ * behind the rail's "Also:" line. The Ended filter still lists the newest
+ * few per project, the rest on the project's page.
  */
 import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "./Avatar";
@@ -17,9 +19,33 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
+import { STATE_TONE, conversationItem, stateWord as railStateWord } from "../lib/rail-items";
 
-/** Recent outside conversations shown per project, besides the live ones. */
+/** Ended outside conversations shown per project under the Ended filter. */
 export const RECENT_SHOWN = 3;
+
+/** AJ-E2103: an open one whose app says it waits on you, or finished
+ * something to look at (the app's own word, D-37). */
+export function asksYou(conversation: ConversationInfo): boolean {
+  return conversation.live && (conversation.state === "asks_you" || conversation.state === "done_review");
+}
+
+/** Open now under its project: open, interactive, not asking. */
+export function openNow(conversation: ConversationInfo): boolean {
+  return conversation.live && !conversation.background && !asksYou(conversation);
+}
+
+/** E21's words for its state: the rail's (AJ-E2104 Req.3), never a word
+ * of its own. */
+export function stateWord(conversation: ConversationInfo): string {
+  const item = conversationItem(conversation, () => null, null);
+  return railStateWord(item.state, item.probably);
+}
+
+/** Its state's colour (the glyph and the word), as the place rows show it. */
+function stateTone(conversation: ConversationInfo): string {
+  return STATE_TONE[conversationItem(conversation, () => null, null).state].text;
+}
 
 
 /** Which outside conversations the rail's filters let through: all of
@@ -36,15 +62,17 @@ export function outsideScope(filters: ChipFilters, query: string): OutsideScope 
   return "none";
 }
 
-/** What the rail shows of one project's outside conversations: every
- * live one, then the newest few; and how many more there are. */
+/** What the rail shows of one project's outside conversations: the open
+ * ones (AJ-E2103: no ended ones under every project); under the Running
+ * filter every live one, under the Ended filter the newest few ended and
+ * how many more there are. */
 export function railSlice(all: ConversationInfo[], projectId: string, scope: OutsideScope = "all"): { shown: ConversationInfo[]; more: number } {
   if (scope === "none") return { shown: [], more: 0 };
   const mine = outside(all).filter((conversation) => conversation.project_id === projectId);
-  const live = scope === "ended" ? [] : mine.filter((conversation) => conversation.live);
-  const recent = scope === "live" ? [] : mine.filter((conversation) => !conversation.live).slice(0, RECENT_SHOWN);
-  const more = scope === "all" ? mine.length - live.length - recent.length : 0;
-  return { shown: [...live, ...recent], more };
+  if (scope === "all") return { shown: mine.filter(openNow), more: 0 };
+  if (scope === "live") return { shown: mine.filter((conversation) => conversation.live), more: 0 };
+  const ended = mine.filter((conversation) => !conversation.live);
+  return { shown: ended.slice(0, RECENT_SHOWN), more: ended.length - Math.min(ended.length, RECENT_SHOWN) };
 }
 
 /** The rail's project groups, plus one for each project where a session
@@ -53,7 +81,8 @@ export function railSlice(all: ConversationInfo[], projectId: string, scope: Out
 export function withOutsideGroups(groups: RowGroup[], all: ConversationInfo[], projects: ProjectInfo[], scope: OutsideScope = "all"): RowGroup[] {
   if (scope === "none" || scope === "ended") return groups;
   const have = new Set(groups.map((group) => group.id));
-  const live = new Set(outside(all).filter((conversation) => conversation.live).map((conversation) => conversation.project_id));
+  const open = scope === "all" ? openNow : (conversation: ConversationInfo) => conversation.live;
+  const live = new Set(outside(all).filter(open).map((conversation) => conversation.project_id));
   const extra = projects
     .filter((project) => !have.has(project.id) && live.has(project.id))
     .map((project) => ({ id: project.id, label: project.name, rollup: "", rows: [] }));
@@ -77,8 +106,15 @@ export function ConversationRow({
   const chip = stateChip(conversation.live ? "running" : "finished");
   const Icon = chip.Icon;
   const when = conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now);
-  const state = conversation.live ? "Running" : "Ended";
+  const state = stateWord(conversation);
   const menu = useItemMenu("conversation", conversation, title);
+  // AJ-E2102: an open one's primary (click, Enter) is Go to it.
+  const host = useActionHost();
+  const primary = conversation.live && host.goToConversation ? () => void host.goToConversation!(conversation) : () => onOpen(conversation);
+  // AJ-E2103: open in two places is one row that says so.
+  // (A fixture or an older backend may send none.)
+  const places = conversation.places ?? [];
+  const where = places.map((place) => place.label || "an app AI Juggler can't name").join(" and ");
   return (
     <div className="group relative" {...menu.triggerProps}>
       <button
@@ -87,7 +123,7 @@ export function ConversationRow({
         data-testid="rail-outside"
         aria-current={selected ? "true" : undefined}
         data-rail-selected={selected ? "true" : undefined}
-        onClick={() => onOpen(conversation)}
+        onClick={primary}
         className={
           "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
@@ -95,7 +131,7 @@ export function ConversationRow({
         }
       >
         {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
-        <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + (conversation.live ? "text-accent-hi" : "text-faint")}>
+        <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + stateTone(conversation)}>
           <Icon width={13} height={13} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
@@ -105,15 +141,21 @@ export function ConversationRow({
           </span>
           {density === "comfortable" && (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
-              <span className="shrink-0 whitespace-nowrap">{state}</span>
+              <span className={"shrink-0 whitespace-nowrap " + stateTone(conversation)} data-testid="rail-state-word">{state}</span>
               <span className="shrink-0 whitespace-nowrap" data-testid="outside-mark">
                 · outside AI Juggler
               </span>
+              {places.length > 1 && (
+                <span className="shrink-0 whitespace-nowrap" data-testid="outside-places" title={`Open in ${where}`}>
+                  · open in {places.length} places
+                </span>
+              )}
               {when && <span className="min-w-0 truncate">· {when}</span>}
             </span>
           )}
           <span className="sr-only">
             , {state}, outside AI Juggler, {providerDisplayName(conversation.tool)} on {conversation.account_label}
+            {where && `, open in ${where}`}
           </span>
         </span>
         <ToolMark tool={conversation.tool} size={12} className="shrink-0 text-muted" />

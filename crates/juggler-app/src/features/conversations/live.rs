@@ -1,228 +1,87 @@
-//! AJ-E1529: which conversations a running session is on now. A process
-//! is a session when its tool's adapter says so (never a helper, never a
-//! desktop app's internals); its account comes from the folder its
-//! environment points the tool at (else the tool's own default), and its
-//! conversation from `--resume <id>`, else the newest one in its folder
-//! that was written after it started.
+//! AJ-E1529, AJ-E2101: which conversations are open now. What is open
+//! comes from the live refresher ([`super::scan`]): the tools' own
+//! per-session files and the process table, never a process's environment
+//! (D-37). Here each open session is matched to a conversation in the
+//! index: on the account whose profile it runs in; a session whose
+//! profile isn't known (a `codex resume <id>` holding no file) is matched
+//! by its id when exactly one of the user's accounts has that
+//! conversation, and is nobody's otherwise.
 
-use std::collections::HashSet;
-use std::path::PathBuf;
+use std::collections::HashMap;
 
 use super::Conversation;
-
-/// A running session, as the process table shows it.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RunningSession {
-    /// Its tool.
-    pub tool: String,
-    /// The account whose folder it uses, when one of the user's matches.
-    pub account_id: Option<String>,
-    /// Its working folder.
-    pub cwd: Option<PathBuf>,
-    /// The conversation its arguments resume.
-    pub resumes: Option<String>,
-    /// When it started, epoch ms.
-    pub started_ms: Option<i64>,
-}
+use super::scan::{LiveEntry, LiveModel};
 
 /// A live conversation: `(account, tool, id)`.
 pub type Live = (String, String, String);
 
-/// A resumed session's key: on its own account.
-fn live_key(tool: &str, id: &str, session: &RunningSession) -> Live {
-    (
-        session.account_id.clone().unwrap_or_default(),
-        tool.to_owned(),
-        id.to_owned(),
-    )
-}
-
-/// The `(account, tool, id)` of every conversation a running session is
-/// on. Each session is on one conversation at most, each conversation is
-/// claimed once, and only on the session's own account (two accounts'
-/// conversations can share an id).
+/// Every open conversation of the user's, with where it's open. Each
+/// conversation is claimed once; two accounts' conversations can share an
+/// id, so a session counts only on its own account.
 #[must_use]
-pub fn live_ids(conversations: &[Conversation], running: &[RunningSession]) -> HashSet<Live> {
-    let mut live = HashSet::new();
-    // A session on a folder that isn't one of the user's accounts is
-    // nobody's here: never attributed to one.
-    let running: Vec<&RunningSession> = running
-        .iter()
-        .filter(|session| session.account_id.is_some())
-        .collect();
-    let same_account = |conversation: &Conversation, session: &RunningSession| {
-        session.account_id.as_deref() == Some(conversation.account_id.as_str())
-    };
-    // Resumed ones first: they name their conversation.
-    for session in &running {
-        if let Some(id) = &session.resumes
-            && conversations
-                .iter()
-                .any(|c| c.tool == session.tool && c.summary.id == *id && same_account(c, session))
-        {
-            live.insert(live_key(&session.tool, id, session));
+pub fn live_entries(conversations: &[Conversation], model: &LiveModel) -> HashMap<Live, LiveEntry> {
+    let mut by_tool_id: HashMap<(&str, &str), Vec<&str>> = HashMap::new();
+    for conversation in conversations {
+        by_tool_id
+            .entry((conversation.tool.as_str(), conversation.summary.id.as_str()))
+            .or_default()
+            .push(conversation.account_id.as_str());
+    }
+    let mut out: HashMap<Live, LiveEntry> = HashMap::new();
+    for entry in &model.entries {
+        let Some(accounts) = by_tool_id.get(&(entry.tool.as_str(), entry.session_id.as_str()))
+        else {
+            continue;
+        };
+        let account = match &entry.account_id {
+            Some(account) if accounts.contains(&account.as_str()) => account.clone(),
+            None if accounts.len() == 1 => accounts[0].to_owned(),
+            // Not on this account, or on several with nothing to tell
+            // them apart: nobody's.
+            _ => continue,
+        };
+        let key = (account, entry.tool.clone(), entry.session_id.clone());
+        match out.get_mut(&key) {
+            // Found twice (by its profile and by what a server holds): one
+            // row with every place.
+            Some(known) => {
+                for place in &entry.places {
+                    if !known.places.iter().any(|p| p.pid == place.pid) {
+                        known.places.push(place.clone());
+                    }
+                }
+            }
+            None => {
+                out.insert(key, entry.clone());
+            }
         }
     }
-    for session in running.iter().filter(|session| session.resumes.is_none()) {
-        let Some(cwd) = &session.cwd else { continue };
-        let newest = conversations
-            .iter()
-            .filter(|c| c.tool == session.tool && same_account(c, session))
-            .filter(|c| c.folder.as_ref() == Some(cwd))
-            .filter(|c| {
-                !live.contains(&(c.account_id.clone(), c.tool.clone(), c.summary.id.clone()))
-            })
-            .filter(|c| match (c.summary.last_ms, session.started_ms) {
-                (Some(last), Some(started)) => last >= started,
-                (Some(_), None) => true,
-                _ => false,
-            })
-            .max_by_key(|c| c.summary.last_ms);
-        if let Some(conversation) = newest {
-            live.insert((
+    out
+}
+
+/// The `(account, tool, id)` of each conversation in a running app's
+/// sidebar that no process runs now (inactive), by the same matching.
+#[must_use]
+pub fn inactive_ids(
+    conversations: &[Conversation],
+    model: &LiveModel,
+) -> std::collections::HashSet<Live> {
+    conversations
+        .iter()
+        .filter(|conversation| {
+            model
+                .inactive
+                .iter()
+                .any(|(tool, id)| *tool == conversation.tool && *id == conversation.summary.id)
+        })
+        .map(|conversation| {
+            (
                 conversation.account_id.clone(),
                 conversation.tool.clone(),
                 conversation.summary.id.clone(),
-            ));
-        }
-    }
-    live
-}
-
-/// The sessions running on this Mac now, by every registered tool's own
-/// rule. Two passes: the whole table with executables and arguments,
-/// then the environment and folder of the few that are sessions. Only
-/// the tool's pinned isolation variables are read from an environment.
-#[must_use]
-pub fn running_sessions(
-    state: &std::sync::Arc<crate::state::AppState>,
-    accounts: &[juggler_core::model::Account],
-) -> Vec<RunningSession> {
-    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-    let mut system = System::new();
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing()
-            .without_tasks()
-            .with_exe(UpdateKind::Always)
-            .with_cmd(UpdateKind::Always),
-    );
-    let adapters: Vec<_> = state
-        .registry
-        .ids()
-        .into_iter()
-        .filter_map(|id| state.registry.get(&id).map(|adapter| (id, adapter)))
-        .collect();
-    let mut found: Vec<(Pid, Option<Pid>, usize, Option<String>)> = Vec::new();
-    for (pid, process) in system.processes() {
-        let args: Vec<String> = process
-            .cmd()
-            .iter()
-            .map(|arg| arg.to_string_lossy().into_owned())
-            .collect();
-        for (index, (_, adapter)) in adapters.iter().enumerate() {
-            if let Some(session) = adapter.session_process(process.exe(), &args) {
-                found.push((*pid, process.parent(), index, session.resumes));
-                break;
-            }
-        }
-    }
-    // A session started by another of its tool's processes (a launcher,
-    // a node shim) is that one's: the outermost is the session.
-    let pids: HashSet<(Pid, usize)> = found
-        .iter()
-        .map(|(pid, _, tool, _)| (*pid, *tool))
-        .collect();
-    found.retain(|(_, parent, tool, _)| {
-        parent.is_none_or(|parent| !pids.contains(&(parent, *tool)))
-    });
-    let wanted: Vec<Pid> = found.iter().map(|(pid, ..)| *pid).collect();
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&wanted),
-        false,
-        ProcessRefreshKind::nothing()
-            .without_tasks()
-            .with_environ(UpdateKind::Always)
-            .with_cwd(UpdateKind::Always),
-    );
-    found
-        .into_iter()
-        .filter_map(|(pid, _, tool, resumes)| {
-            let process = system.process(pid)?;
-            let (id, adapter) = &adapters[tool];
-            let environ: Vec<&str> = process
-                .environ()
-                .iter()
-                .filter_map(|entry| entry.to_str())
-                .collect();
-            let account_id = account_of(adapter.as_ref(), id, &environ, accounts);
-            Some(RunningSession {
-                tool: id.to_string(),
-                account_id,
-                cwd: process.cwd().map(canonical),
-                resumes,
-                started_ms: i64::try_from(process.start_time())
-                    .ok()
-                    .map(|secs| secs * 1000),
-            })
+            )
         })
         .collect()
-}
-
-/// A path as this Mac resolves it (the path itself when it's gone).
-fn canonical(path: &std::path::Path) -> std::path::PathBuf {
-    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
-}
-
-/// The account a session of `tool` runs on: the one whose pinned folders
-/// its environment (`KEY=value` entries) names (AJ-E1602: a tool may pin
-/// several, each its own folder); with none of them set, the tool's own
-/// default folder.
-fn account_of(
-    adapter: &dyn juggler_adapter::HarnessAdapter,
-    tool: &juggler_core::model::HarnessId,
-    environ: &[&str],
-    accounts: &[juggler_core::model::Account],
-) -> Option<String> {
-    let pointed: Vec<(&str, std::path::PathBuf)> = adapter
-        .pinned_env_keys()
-        .iter()
-        .filter_map(|key| {
-            environ.iter().find_map(|entry| {
-                entry
-                    .strip_prefix(key)?
-                    .strip_prefix('=')
-                    .filter(|value| !value.is_empty())
-                    .map(|value| (*key, canonical(std::path::Path::new(value))))
-            })
-        })
-        .collect();
-    let default = if pointed.is_empty() {
-        adapter.vendor_default_dir().map(|path| canonical(&path))
-    } else {
-        None
-    };
-    accounts
-        .iter()
-        .filter(|account| account.harness == *tool)
-        .find(|account| {
-            if let Some(default) = &default {
-                return canonical(&account.state_dir) == *default;
-            }
-            adapter
-                .pinned_env(&account.state_dir)
-                .iter()
-                .any(|(key, value)| {
-                    value.as_deref().is_some_and(|value| {
-                        let value = canonical(std::path::Path::new(value));
-                        pointed
-                            .iter()
-                            .any(|(found, path)| found == key && *path == value)
-                    })
-                })
-        })
-        .map(|account| account.id.to_string())
 }
 
 #[cfg(test)]
@@ -230,144 +89,93 @@ mod tests {
     use super::*;
     use juggler_adapter::conversation::ConversationSummary;
 
-    fn conversation(id: &str, account: &str, cwd: &str, last_ms: i64) -> Conversation {
+    fn conversation(id: &str, account: &str) -> Conversation {
         Conversation {
             summary: ConversationSummary {
                 id: id.into(),
-                cwd: Some(cwd.into()),
-                last_ms: Some(last_ms),
                 ..ConversationSummary::default()
             },
             account_id: account.into(),
             tool: "t".into(),
-            path: format!("/x/{id}.jsonl").into(),
-            folder: Some(cwd.into()),
+            path: format!("/x/{account}/{id}.jsonl").into(),
+            folder: None,
         }
     }
 
-    fn running(
-        account: Option<&str>,
-        cwd: &str,
-        resumes: Option<&str>,
-        started_ms: i64,
-    ) -> RunningSession {
-        RunningSession {
+    fn entry(account: Option<&str>, id: &str, pid: u32) -> LiveEntry {
+        LiveEntry {
             tool: "t".into(),
             account_id: account.map(Into::into),
-            cwd: Some(cwd.into()),
-            resumes: resumes.map(Into::into),
-            started_ms: Some(started_ms),
+            session_id: id.into(),
+            places: vec![super::super::scan::Place {
+                pid,
+                start: None,
+                host: None,
+                profile: None,
+            }],
+            state: None,
+            probably: false,
+            viewed_ms: None,
+            app_title: None,
+            background: false,
+        }
+    }
+
+    fn model(entries: Vec<LiveEntry>) -> LiveModel {
+        LiveModel {
+            entries,
+            ..LiveModel::default()
         }
     }
 
     #[test]
-    fn a_resumed_session_names_its_conversation() {
-        let all = [
-            conversation("old", "a", "/w", 10),
-            conversation("new", "a", "/w", 50),
-        ];
-        let live = live_ids(&all, &[running(Some("a"), "/w", Some("old"), 100)]);
-        assert_eq!(
-            live,
-            HashSet::from([("a".into(), "t".into(), "old".into())])
-        );
+    fn a_session_is_live_on_its_own_account_only() {
+        let all = [conversation("same", "a"), conversation("same", "b")];
+        let live = live_entries(&all, &model(vec![entry(Some("a"), "same", 1)]));
+        assert_eq!(live.len(), 1);
+        assert!(live.contains_key(&("a".into(), "t".into(), "same".into())));
+        // A profile that isn't one of the user's accounts: nobody's.
+        assert!(live_entries(&all, &model(vec![entry(Some("z"), "same", 1)])).is_empty());
     }
 
     #[test]
-    fn otherwise_the_newest_in_its_folder_written_since_it_started() {
+    fn a_session_of_unknown_profile_is_matched_only_when_one_account_has_it() {
         let all = [
-            conversation("before", "a", "/w", 10),
-            conversation("since", "a", "/w", 150),
-            conversation("elsewhere", "a", "/v", 200),
+            conversation("only", "a"),
+            conversation("twice", "a"),
+            conversation("twice", "b"),
         ];
-        assert_eq!(
-            live_ids(&all, &[running(Some("a"), "/w", None, 100)]),
-            HashSet::from([("a".into(), "t".into(), "since".into())])
-        );
-        // Nothing written since it started (it hasn't said anything yet): none.
-        assert!(live_ids(&all[..1], &[running(Some("a"), "/w", None, 100)]).is_empty());
-    }
-
-    #[test]
-    fn a_session_on_none_of_the_users_accounts_is_nobodys() {
-        let all = [conversation("c", "a", "/w", 150)];
-        assert!(live_ids(&all, &[running(None, "/w", None, 100)]).is_empty());
-        assert!(live_ids(&all, &[running(None, "/w", Some("c"), 100)]).is_empty());
-    }
-
-    #[test]
-    fn two_sessions_in_one_folder_claim_two_conversations_on_their_own_accounts() {
-        let all = [
-            conversation("a1", "a", "/w", 150),
-            conversation("b1", "b", "/w", 160),
-            conversation("a2", "a", "/w", 170),
-        ];
-        let live = live_ids(
+        let live = live_entries(
             &all,
-            &[
-                running(Some("a"), "/w", None, 100),
-                running(Some("a"), "/w", None, 100),
-                running(Some("b"), "/w", None, 100),
-            ],
+            &model(vec![entry(None, "only", 1), entry(None, "twice", 2)]),
         );
-        assert_eq!(live.len(), 3);
+        assert_eq!(live.len(), 1);
+        assert!(live.contains_key(&("a".into(), "t".into(), "only".into())));
+        // Not in the index yet: not shown (nothing to show it as).
+        assert!(live_entries(&all, &model(vec![entry(Some("a"), "new", 3)])).is_empty());
     }
 
     #[test]
-    fn a_live_id_is_live_only_on_its_own_account() {
-        // Two accounts' conversations with one id: only the running
-        // session's account's is live.
-        let all = [
-            conversation("same", "a", "/w", 150),
-            conversation("same", "b", "/v", 150),
-        ];
-        let live = live_ids(&all, &[running(Some("a"), "/w", Some("same"), 100)]);
-        assert_eq!(
-            live,
-            HashSet::from([("a".into(), "t".into(), "same".into())])
+    fn found_twice_is_one_conversation_with_both_places() {
+        let all = [conversation("c", "a")];
+        let live = live_entries(
+            &all,
+            &model(vec![entry(Some("a"), "c", 1), entry(None, "c", 2)]),
         );
+        assert_eq!(live.len(), 1);
+        assert_eq!(live.values().next().unwrap().places.len(), 2);
     }
 
-    /// AJ-E1602: a tool that pins several folders (OpenCode's XDG roots)
-    /// is matched by any of them; with none set, by its default folder.
     #[test]
-    fn a_session_belongs_to_the_account_its_pinned_folders_name() {
-        let home = "/nonexistent-aj-e1602/home";
-        let adapter = juggler_adapters::OpenCodeAdapter::with_bin("/bin/echo").with_home(home);
-        let tool = juggler_core::model::HarnessId::new(juggler_adapters::OPENCODE_ID);
-        let account = |id: &str, dir: &str| juggler_core::model::Account {
-            id: juggler_core::model::AccountId::new(id),
-            harness: tool.clone(),
-            label: id.into(),
-            plan: None,
-            state_dir: dir.into(),
-            cleanup_opt_in: false,
-            renewal_date: None,
-            preview_opt_in: false,
-            import_source_path: None,
-            import_origin: None,
-            imported_at: None,
-            in_place: false,
+    fn an_app_sidebar_session_with_no_process_is_inactive() {
+        let all = [conversation("c", "a"), conversation("d", "a")];
+        let model = LiveModel {
+            inactive: vec![("t".into(), "c".into())],
+            ..LiveModel::default()
         };
-        let accounts = [
-            account("a", "/nonexistent-aj-e1602/accounts/a"),
-            account("b", "/nonexistent-aj-e1602/accounts/b"),
-            account("default", &format!("{home}/.local/share/opencode")),
-        ];
-        let of = |environ: &[&str]| account_of(&adapter, &tool, environ, &accounts);
         assert_eq!(
-            of(&[
-                "PATH=/bin",
-                "XDG_DATA_HOME=/nonexistent-aj-e1602/accounts/b/data"
-            ])
-            .as_deref(),
-            Some("b")
+            inactive_ids(&all, &model),
+            std::collections::HashSet::from([("a".into(), "t".into(), "c".into())])
         );
-        assert_eq!(
-            of(&["XDG_CONFIG_HOME=/nonexistent-aj-e1602/accounts/a/config"]).as_deref(),
-            Some("a")
-        );
-        assert_eq!(of(&["PATH=/bin"]).as_deref(), Some("default"));
-        assert_eq!(of(&["XDG_DATA_HOME=/elsewhere"]), None);
     }
 }

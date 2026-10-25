@@ -1,0 +1,19 @@
+[
+  { "id": "terminal", "name": "Terminal", "bundle": "Terminal.app", "bundle_id": "com.apple.Terminal", "kind": "terminal",
+    "tab_script": "tell application \"Terminal\"\nrepeat with w in windows\nrepeat with t in tabs of w\nif tty of t is \"{tty}\" then\nset selected of t to true\nset index of w to 1\nreturn \"ok\"\nend if\nend repeat\nend repeat\nend tell\nreturn \"\"" },
+  { "id": "iterm2", "name": "iTerm", "bundle": "iTerm.app", "bundle_id": "com.googlecode.iterm2", "kind": "terminal",
+    "tab_script": "tell application \"iTerm2\"\nrepeat with w in windows\nrepeat with t in tabs of w\nrepeat with s in sessions of t\nif tty of s is \"{tty}\" then\nselect t\nselect w\nreturn \"ok\"\nend if\nend repeat\nend repeat\nend repeat\nend tell\nreturn \"\"" },
+  { "id": "ghostty", "name": "Ghostty", "bundle": "Ghostty.app", "bundle_id": "com.mitchellh.ghostty", "kind": "terminal" },
+  { "id": "warp", "name": "Warp", "bundle": "Warp.app", "bundle_id": "dev.warp.Warp-Stable", "kind": "terminal" },
+  { "id": "wezterm", "name": "WezTerm", "bundle": "WezTerm.app", "bundle_id": "com.github.wez.wezterm", "kind": "terminal" },
+  { "id": "kitty", "name": "kitty", "bundle": "kitty.app", "bundle_id": "net.kovidgoyal.kitty", "kind": "terminal" },
+  { "id": "alacritty", "name": "Alacritty", "bundle": "Alacritty.app", "bundle_id": "org.alacritty", "kind": "terminal" },
+  { "id": "vscode", "name": "Visual Studio Code", "bundle": "Visual Studio Code.app", "bundle_id": "com.microsoft.VSCode", "kind": "editor",
+    "folder_command": "code" },
+  { "id": "cursor", "name": "Cursor", "bundle": "Cursor.app", "bundle_id": "com.todesktop.230313mzl4w4u92", "kind": "editor",
+    "folder_link": "cursor://file/{folder}" },
+  { "id": "windsurf", "name": "Windsurf", "bundle": "Windsurf.app", "bundle_id": "com.exafunction.windsurf", "kind": "editor",
+    "folder_command": "windsurf" },
+  { "id": "zed", "name": "Zed", "bundle": "Zed.app", "bundle_id": "dev.zed.Zed", "kind": "editor",
+    "folder_command": "zed" }
+]

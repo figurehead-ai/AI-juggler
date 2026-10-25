@@ -330,6 +330,7 @@ fn identity_is_the_account_id_masked_never_a_token() {
         IdentityProbe::SignedIn {
             subject: "acct-fixture-9f2c".into(),
             label: "ChatGPT account …9f2c".into(),
+            org: None,
         }
     );
     assert!(matches!(

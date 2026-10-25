@@ -13,6 +13,10 @@ import { repoGroups } from "./rail-groups";
 import * as manage from "../lib/ipc/manage";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { filterSessions, groupSessions, sortSessions, NO_CHIP_FILTERS } from "../lib/railview";
+import { useProjectLens } from "./project-lens.test-kit";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 afterEach(() => {
   cleanup();
@@ -128,11 +132,14 @@ describe("AJ-E1502 the session row's menu", () => {
   it("renames (blank goes back to the title) and pins", async () => {
     const rename = vi.spyOn(manage, "sessionRename").mockResolvedValue();
     const pin = vi.spyOn(manage, "sessionSetPinned").mockResolvedValue();
-    const { getByRole, getByTestId, onChanged } = board([mk("a")], [project("proj-1", "alpha")]);
+    // Open (AJ-E2103: an ended one waits behind the rail's "Also:" line).
+    const { getByRole, getByTestId, onChanged } = board([mk("a", { status: "running" })], [project("proj-1", "alpha")]);
 
     fireEvent.click(getByRole("button", { name: "Session actions for branch-a" }));
     const menu = getByRole("menu", { name: "Actions for branch-a" });
-    expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent).slice(0, 3)).toEqual(["Open", "Rename…", "Pin to top"]);
+    const lines = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent);
+    expect(lines.slice(0, 2)).toEqual(["Open its page", "Rename…"]);
+    expect(lines).toContain("Pin to top");
     fireEvent.click(within(menu).getByText("Rename…"));
     const name = getByTestId("rename-session-name") as HTMLInputElement;
     expect(name.placeholder).toBe("branch-a");
@@ -164,12 +171,12 @@ describe("AJ-E1502 the project row's menu", () => {
     const menu = await findByRole("menu", { name: "Actions for alpha" });
     await waitFor(() =>
       expect([...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent)).toEqual([
-        "Open",
+        "Open its page",
         "Open in Finder",
         "Copy path",
         "Rename…",
-        "Change its mark…",
         "Pin to top",
+        "Change its mark…",
         "Compare rules and servers…",
         "Forget…",
       ]),

@@ -4,6 +4,7 @@ import { InstanceBoard, ROW_HEIGHT, SessionRow } from "./WorkflowRail";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { cpuTimed } from "../test/cpuTime";
 import {
+  SORT_LABELS,
   chipCounts,
   filterSessions,
   severityRank,
@@ -11,6 +12,11 @@ import {
   unsnoozedNeedsCount,
   type SnoozeState,
 } from "../lib/railview";
+import { useProjectLens } from "./project-lens.test-kit";
+import { DEFAULT_VIEW, setRailView } from "../lib/rail-view";
+
+// AJ-E2104: these read the project board, the rail's Project lens.
+useProjectLens();
 
 /**
  * AJ-E404 evidence: the Needs-me order contract on a fixed 8-row fixture
@@ -97,23 +103,13 @@ function renderBoard(rows: InstanceInfo[] = FIXTURE, snooze: SnoozeState = {}, p
 const renderedIds = (container: HTMLElement): string[] =>
   [...container.querySelectorAll("[data-instance-id]")].map((el) => (el as HTMLElement).dataset.instanceId!);
 
-/** D-25: the advanced menus wait behind Filters — open it first. */
-const openFilters = (container: HTMLElement) => {
-  if (container.querySelector('[data-testid="rail-more-filters"]')) return;
-  const toggle = [...container.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")].find((button) =>
-    (button.getAttribute("aria-label") ?? "").startsWith("Filters"),
-  );
-  if (toggle) fireEvent.click(toggle);
-};
-const setSelect = (container: HTMLElement, label: string, value: string) => {
-  openFilters(container);
-  fireEvent.change(container.querySelector(`select[aria-label="${label}"]`)!, { target: { value } });
-};
-
 describe("AJ-E404 Needs-me sort (default)", () => {
   it("renders the exact severity order on the 8-row fixture (snoozed sinks, never disappears)", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 60 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
+    // AJ-E2103: the ended one waits behind the rail's "Also:" line.
+    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
+    fireEvent.click(container.querySelector('[data-testid="rail-also-ended"]')!);
     expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6", "s8"]);
   });
 
@@ -171,40 +167,27 @@ function snoozeHas(row: InstanceInfo, snooze: SnoozeState, now: number): number 
   return entry.until !== null && entry.until > now ? 1 : 0;
 }
 
-describe("AJ-E404 Quota risk sort", () => {
-  it("orders by lowest % left and groups the no-quota rows under `Not measured yet` last", () => {
-    const { container } = renderBoard();
-    // D-25 groups by project by default; the no-data bucket is the
-    // ungrouped quota view.
-    setSelect(container, "Group by", "none");
-    setSelect(container, "Sort by", "quota");
-    const groups = [...container.querySelectorAll("p")].map((p) => p.textContent ?? "");
-    expect(groups.some((text) => text.includes("Not measured yet"))).toBe(true);
-    expect(groups.some((text) => /no data/i.test(text))).toBe(false);
-    // s2 (0% left) first among known; s7 (no quota) inside the last group.
-    const ids = renderedIds(container);
+describe("AJ-E404 Quota risk order (the lib; AJ-E2104's View has no sort menu)", () => {
+  it("orders by lowest % left, the unmeasured last", () => {
+    const ids = sortSessions(FIXTURE, "quota", {}, NOW, PROJECTS).map((row) => row.id);
     expect(ids[0]).toBe("s2");
     expect(ids[ids.length - 1]).toBe("s7");
   });
 
-  it("the menu labels the sort honestly while burn rate is pending (AJ-E409)", () => {
-    const { container } = renderBoard();
-    openFilters(container);
-    const option = [...container.querySelectorAll<HTMLOptionElement>('select[aria-label="Sort by"] option')].find(
-      (option_) => option_.value === "quota",
-    );
-    expect(option?.textContent).toBe("Sort: Quota risk (quota only)");
+  it("the label stays honest while burn rate is pending (AJ-E409)", () => {
+    expect(SORT_LABELS.find((entry) => entry.id === "quota")?.label).toBe("Quota risk (quota only)");
   });
 });
 
 describe("AJ-E404 group-by rollups", () => {
-  it("group-by Project renders headers with running/needs/lowest-quota rollups; needs order inside groups", () => {
+  it("the Project lens renders headers with running/needs/lowest-quota rollups; needs order inside groups", () => {
+    // AJ-E2103: a project shows under Open now while something of it is
+    // open (s7 here); its header sums up all its sessions.
     const rows = [
       ...FIXTURE.slice(0, 3).map((row) => ({ ...row, project_id: "proj-1" })),
-      ...FIXTURE.slice(3).map((row) => ({ ...row, project_id: "proj-2" })),
+      ...FIXTURE.slice(3).map((row) => ({ ...row, project_id: row.id === "s7" ? "proj-1" : "proj-2" })),
     ];
     const { container } = renderBoard(rows);
-    setSelect(container, "Group by", "project");
     const headers = [...container.querySelectorAll("p")].map((p) => p.textContent ?? "");
     expect(headers.some((text) => text.includes("alpha"))).toBe(true);
     expect(headers.some((text) => text.includes("running"))).toBe(true);
@@ -226,40 +209,24 @@ describe("AJ-E404 search", () => {
     fireEvent.change(input, { target: { value: "does-not-exist" } });
     expect(container.textContent).toContain("No sessions match");
     expect(container.textContent).toContain("Clear filters");
+    input.focus();
     fireEvent.keyDown(input, { key: "Escape" });
-    expect(renderedIds(container).length).toBe(FIXTURE.length);
+    // AJ-E2103: back in the default view, the ended one is behind "Also:".
+    expect(renderedIds(container).length).toBe(FIXTURE.length - 1);
     expect(document.activeElement).toBe(input);
   });
 });
 
-/** A filter chip by its accessible name (its visible text plus " items"). */
-function chip(container: HTMLElement, name: string): HTMLElement {
-  const found = Array.from(container.querySelectorAll<HTMLElement>("button[aria-pressed]")).find(
-    (button) => (button.textContent ?? "").replace(/\s+/g, " ").trim() === name,
-  );
-  if (!found) throw new Error(`no chip named ${name}`);
-  return found;
-}
-
-describe("AJ-E404 filter chips", () => {
-  it("carry counts with announced labels and filter the list", () => {
-    const { container } = renderBoard();
-    const needsChip = chip(container, "Needs you 5 items");
-    expect(needsChip.getAttribute("aria-pressed")).toBe("false");
+describe("AJ-E404 counts and Only (AJ-E2104: the View's Only took the chips' place)", () => {
+  it("the counts the badge reads stay; Only › Project narrows the board", () => {
     expect(chipCounts(FIXTURE)).toEqual({ needs: 5, running: 2, ended: 2 }); // failed counts as Ended
-    fireEvent.click(needsChip);
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5"]);
-    const runningChip = chip(container, "Running 2 items");
-    expect(runningChip.getAttribute("aria-pressed")).toBe("false");
-  });
-
-  it("the provider dropdown ANDs with the chips", () => {
+    setRailView({ ...DEFAULT_VIEW, group: "project", only: { project: "beta" } });
     const { container } = renderBoard();
-    fireEvent.click(chip(container, "Needs you 5 items"));
-    setSelect(container, "Filter by project", "proj-1");
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5"]);
-    setSelect(container, "Filter by project", "proj-2");
     expect(renderedIds(container)).toEqual([]);
+    cleanup();
+    setRailView({ ...DEFAULT_VIEW, group: "project", only: { project: "alpha" } });
+    const again = renderBoard();
+    expect(renderedIds(again.container).length).toBeGreaterThan(0);
   });
 });
 
@@ -268,7 +235,7 @@ describe("AJ-E404 snooze/mute", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 12 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
     expect(container.textContent).toContain("snoozed 12m");
-    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6", "s8"]);
+    expect(renderedIds(container)).toEqual(["s1", "s2", "s3", "s4", "s5", "s7", "s6"]);
   });
 
   it("muted rows sink too; unsnoozed count feeds the badge only", () => {
