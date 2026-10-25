@@ -38,9 +38,9 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
   }, []);
 
   return (
-    <section aria-labelledby="usage-caps" className="flex flex-col gap-2.5" data-testid="usage-caps">
+    <section aria-labelledby="usage-caps" className="sheen flex flex-col gap-3 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-caps">
       <div className="flex items-center justify-between gap-3">
-        <h3 id="usage-caps" className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+        <h3 id="usage-caps" className="text-section text-ink">
           Monthly caps
         </h3>
         <Button size="sm" variant="ghost" onClick={() => setEditing("new")} data-testid="cap-add">
@@ -48,7 +48,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
         </Button>
       </div>
       {caps.length === 0 ? (
-        <p className="text-xs text-muted">
+        <p className="max-w-[70ch] text-meta text-muted">
           A cap tells you in Needs you when an account or a group of projects reaches 80 % and 100 % of an amount a month.
           Nothing is ever stopped.
         </p>
@@ -71,7 +71,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
                 <span className="text-xs tabular-nums text-ink" data-testid="cap-spent">
                   {spentWords(cap)}
                 </span>
-                {cap.unpriced && <span className="text-[11px] text-muted">Some usage has no price yet, so it isn't counted.</span>}
+                {cap.unpriced && <span className="text-label text-muted">Some usage has no price yet, so it isn't counted.</span>}
                 <span className="mt-auto flex justify-end gap-1">
                   <Button size="sm" variant="ghost" onClick={() => setEditing(cap)}>
                     Edit <span className="sr-only">— {cap.name}</span>
@@ -86,7 +86,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
         </ul>
       )}
       {caps.length > 0 && (
-        <p className="text-[11px] text-faint">
+        <p className="text-label text-faint">
           Estimated at list prices from what this Mac measured, as in the table below. On a subscription that's what your use
           would cost by the token, not your bill.
         </p>

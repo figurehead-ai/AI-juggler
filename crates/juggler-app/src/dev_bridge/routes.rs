@@ -265,6 +265,12 @@ read_routes! {
     // The rest of release/0.1's reads (AJ-E1503, E1513, E1514, E1538,
     // E1543, E1546), found missing in the 0.1 acceptance walk.
     "budgets_list" => async_result features::budgets::commands::budgets_list(state; month_start_ms: i64);
+    // 0.1.5: the usage history's summaries (reads only).
+    "usage_history_summary" => async_result features::usage_history::commands::usage_history_summary(state; input: features::usage_history::UsageQueryInput);
+    "usage_history_sessions" => async_result features::usage_history::commands::usage_history_sessions(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
+    "usage_history_first" => async_result features::usage_history::commands::usage_history_first(state; profile: Option<String>);
+    "usage_history_limits" => async_result features::usage_history::commands::usage_history_limits(state; profile: String, start_ms: i64, end_ms: i64);
+    "usage_history_session" => async_result features::usage_history::commands::usage_history_session(state; profile: String, conversation: String);
     "outside_search_status" => async_result features::outside_search::commands::outside_search_status(state);
     "outside_search_estimate" => async_result features::outside_search::commands::outside_search_estimate(state);
     "switch_setup_list" => async_result features::switch_setup::switch_setup_list(state);
