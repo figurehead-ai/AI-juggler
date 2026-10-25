@@ -1431,39 +1431,44 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     <div className="flex flex-col gap-3" data-testid="processes-tab">
       {adoptedNotice}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-label text-muted">Measured every 2 seconds</p>
+        <p className="text-meta text-muted">Measured every 2 seconds</p>
         {lastSpark && (
-          <span className="flex items-end gap-[2px]" aria-hidden="true" data-testid="processes-spark">
-            {spark.slice(-30).map((sample, i) => (
-              <span
-                key={i}
-                className="w-[3px] rounded-sm bg-accent/70"
-                style={{
-                  height: `${Math.max(2, ((sample.cpu_pct ?? 0) / 100) * 18)}px`,
-                }}
-              />
-            ))}
+          // Named and on a baseline, so a quiet minute reads as a chart,
+          // not a dotted line.
+          <span className="flex items-end gap-2 text-label text-muted" aria-hidden="true">
+            CPU, last minute
+            <span className="flex h-[18px] items-end gap-[2px] border-b border-hairline" data-testid="processes-spark">
+              {spark.slice(-30).map((sample, i) => (
+                <span
+                  key={i}
+                  className="w-[3px] rounded-sm bg-accent/70"
+                  style={{
+                    height: `${Math.max(2, ((sample.cpu_pct ?? 0) / 100) * 18)}px`,
+                  }}
+                />
+              ))}
+            </span>
           </span>
         )}
       </div>
 
       {/* AJ-E804: a scrollable region is reachable by keyboard. */}
       <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
-        <table className="w-full min-w-[420px] text-left text-label">
+        <table className="w-full min-w-[420px] text-left text-meta">
           <thead>
-            <tr className="text-section font-semibold text-ink">
+            <tr className="text-meta text-muted">
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
               <th scope="col" className="py-1 pr-2 font-medium">Memory</th>
               <th scope="col" className="py-1 pr-2 font-medium">Age</th>
-              <th scope="col" className="py-1 font-medium">Helpers</th>
+              <th scope="col" className="py-1 font-medium">More processes</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-3 text-center text-label text-muted" data-testid="processes-empty">
+                <td colSpan={6} className="py-3 text-center text-meta text-muted" data-testid="processes-empty">
                   {/* One source per fact: never "none" while the header counts helpers. */}
                   {(instance.child_count ?? 0) > 0 ? "Reading the process tree…" : "No subprocesses"}
                 </td>
@@ -1471,17 +1476,17 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
             ) : (
               rows.map((row) => (
                 <tr key={row.pid} className="border-t border-hairline">
-                  <td className="py-1 pr-2 font-mono text-label tabular-nums text-muted">{row.pid}</td>
-                  <td className="py-1 pr-2 text-ink">
+                  <td className="py-1.5 pr-2 font-mono text-meta tabular-nums text-muted">{row.pid}</td>
+                  <td className="py-1.5 pr-2 text-ink">
                     <span aria-hidden="true" className="text-muted">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
                     {row.name}
                   </td>
-                  <td className="py-1 pr-2 tabular-nums text-ink">
+                  <td className="py-1.5 pr-2 tabular-nums text-ink">
                     {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-muted">measuring…</span>}
                   </td>
-                  <td className="py-1 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
-                  <td className="py-1 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
-                  <td className="py-1 tabular-nums text-muted">{row.child_count}</td>
+                  <td className="py-1.5 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
+                  <td className="py-1.5 tabular-nums text-muted">{row.child_count}</td>
                 </tr>
               ))
             )}
@@ -1497,7 +1502,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
       {!readOnly && (
         <Card className="flex flex-col gap-2 p-3" data-testid="processes-orphans">
           <p className="text-section font-semibold text-ink" data-testid="orphans-heading">
-            {orphans.length > 0 ? `Orphaned - left behind (${orphans.length})` : "No orphaned processes"}
+            {orphans.length > 0 ? `Left behind (${orphans.length})` : "Nothing left behind"}
           </p>
           {orphans.length === 0 ? (
             <p className="text-label text-muted">
