@@ -136,7 +136,7 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
         type="button"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
-        aria-label={`More about where it runs: its ${rows.map(([label]) => label.toLowerCase()).join(" and ")}`}
+        aria-label={`+${rows.length} more: its ${rows.map(([label]) => label.toLowerCase()).join(" and ")}`}
         title={words}
         onClick={() => {
           const rect = button.current?.getBoundingClientRect();
@@ -146,8 +146,9 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
         data-testid="session-more-chips"
         className="inline-flex h-6 shrink-0 items-center rounded-full border border-hairline bg-surface-2 px-2 text-meta leading-5 text-ink outline-none transition-colors hover:bg-surface-3 focus-visible:ring-1 focus-visible:ring-accent/60 @[60rem]:hidden"
       >
-        {/* "+2": how many more, unlike the page's own ⋯ menu beside it. */}
-        <span aria-hidden="true" className="tabular-nums">+{rows.length}</span>
+        {/* "+2": how many more, unlike the page's own ⋯ menu beside it; its
+            name starts with the same words (WCAG 2.5.3). */}
+        <span className="tabular-nums">+{rows.length}</span>
       </button>
       {open &&
         place &&
