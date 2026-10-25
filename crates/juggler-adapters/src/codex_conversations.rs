@@ -4,13 +4,10 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::conversation::{ConversationSummary, SessionProcess, title_from, value_after};
+use juggler_adapter::conversation::{ConversationSummary, SessionProcess, value_after};
 use juggler_core::time::timestamp_ms;
 
 use crate::codex_transcript::{RolloutParser, thread_id_from_name};
-
-/// The longest title kept.
-const TITLE_MAX: usize = 80;
 
 /// Every `sessions/*/*/*/rollout-*.jsonl` under `home`.
 #[must_use]
@@ -42,9 +39,9 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// Reads one rollout: its thread id, folder, branch, title (the first
-/// thing the user asked, not the context Codex injects), first and last
-/// activity, and tokens (each response counted once).
+/// Reads one rollout: its thread id, folder, branch, title
+/// ([`crate::codex_titles`]: never the context Codex or its app injects),
+/// first and last activity, and tokens (each response counted once).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     let name = path.file_name()?.to_string_lossy().into_owned();
@@ -54,7 +51,17 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
         true
     })
     .ok()?;
-    summary.finish(&name)
+    named(path, summary.finish(&name))
+}
+
+/// The summary with Codex's own name for the thread as its title, when
+/// Codex keeps one.
+fn named(path: &Path, summary: Option<ConversationSummary>) -> Option<ConversationSummary> {
+    let mut summary = summary?;
+    if let Some(title) = crate::codex_titles::indexed(path, &summary.id) {
+        summary.title = Some(title);
+    }
+    Some(summary)
 }
 
 /// QA batch 10: a large rollout's quick read, from its start and end
@@ -65,7 +72,10 @@ pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
         return compressed_head(path);
     }
     let ends = juggler_adapter::conversation::file_ends(path)?;
-    let mut summary = summary_of(&ends, &path.file_name()?.to_string_lossy())?;
+    let mut summary = named(
+        path,
+        summary_of(&ends, &path.file_name()?.to_string_lossy()),
+    )?;
     summary.tokens = juggler_core::model::TokenCounts::default();
     Some(summary)
 }
@@ -88,7 +98,10 @@ fn compressed_head(path: &Path) -> Option<ConversationSummary> {
             .rposition(|b| *b == b'\n')
             .map_or(0, |end| end + 1),
     );
-    let mut summary = summary_of(&head, &path.file_name()?.to_string_lossy())?;
+    let mut summary = named(
+        path,
+        summary_of(&head, &path.file_name()?.to_string_lossy()),
+    )?;
     summary.tokens = juggler_core::model::TokenCounts::default();
     Some(summary)
 }
@@ -119,6 +132,10 @@ struct Summary {
     started_ms: Option<i64>,
     last_ms: Option<i64>,
     git_branch: Option<String>,
+    /// The thread pursues a goal (`thread_goal_updated`), and its latest
+    /// objective.
+    goal: bool,
+    objective: Option<String>,
 }
 
 impl Summary {
@@ -139,6 +156,17 @@ impl Summary {
         {
             self.started_ms = Some(self.started_ms.map_or(at, |first| first.min(at)));
             self.last_ms = Some(self.last_ms.map_or(at, |last| last.max(at)));
+        }
+        if value.pointer("/payload/type").and_then(serde_json::Value::as_str)
+            == Some("thread_goal_updated")
+        {
+            self.goal = true;
+            if let Some(objective) = value
+                .pointer("/payload/goal/objective")
+                .and_then(serde_json::Value::as_str)
+            {
+                self.objective = Some(objective.to_owned());
+            }
         }
         if value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta") {
             let field = |pointer: &str| {
@@ -173,13 +201,18 @@ impl Summary {
             return None;
         }
         let parser = self.parser?;
+        let cwd = self.cwd.map(PathBuf::from);
+        let title = crate::codex_titles::from_rollout(&crate::codex_titles::Parts {
+            first_ask: parser.first_ask(),
+            goal: self.goal,
+            objective: self.objective.as_deref(),
+            cwd: cwd.as_deref(),
+        });
         Some(ConversationSummary {
             id: self.id.or_else(|| thread_id_from_name(name))?,
-            cwd: self.cwd.map(PathBuf::from),
+            cwd,
             tokens: parser.usage(),
-            title: parser
-                .first_ask()
-                .and_then(|text| title_from(text, TITLE_MAX)),
+            title,
             started_ms: self.started_ms,
             last_ms: self.last_ms,
             git_branch: self.git_branch,
@@ -347,6 +380,52 @@ mod tests {
         assert_eq!(conversation_files(dir.path()), vec![path]);
         // Small: no quick read, the whole file is as quick.
         assert!(read_conversation_quick(&summary_path(&dir)).is_none());
+    }
+
+    /// The 0.1.5 review: a Codex app thread was titled with the block the
+    /// app injects (`<external_codex_apps_…>`).
+    #[test]
+    fn an_app_block_never_titles_a_thread() {
+        let meta = r#"{"timestamp":"2026-10-25T08:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/shop"}}"#;
+        let user = |text: &str| {
+            format!(
+                r#"{{"timestamp":"2026-10-25T08:00:01.000Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":{}}}]}}}}"#,
+                serde_json::Value::from(text)
+            )
+        };
+        let agents = user("# AGENTS.md instructions for /w/shop");
+        let block = user("<external_codex_apps_operation>{\"op\":\"goal\"}</external_codex_apps_operation>");
+        let ask = user("Speed up checkout. It takes 4 s.");
+        let goal = |objective: &str| {
+            format!(
+                r#"{{"timestamp":"2026-10-25T08:00:02.000Z","type":"event_msg","payload":{{"type":"thread_goal_updated","threadId":"t","goal":{{"objective":{},"status":"active"}}}}}}"#,
+                serde_json::Value::from(objective)
+            )
+        };
+        let title = |lines: &[&str]| {
+            summary_of(format!("{}\n", lines.join("\n")).as_bytes(), "rollout-a.jsonl")
+                .unwrap()
+                .title
+        };
+        // The first thing typed, to its first sentence.
+        assert_eq!(
+            title(&[meta, &agents, &block, &ask]).as_deref(),
+            Some("Speed up checkout.")
+        );
+        // A goal's objective comes first.
+        let objective = goal("Keep the nightly build green");
+        assert_eq!(
+            title(&[meta, &block, &objective, &ask]).as_deref(),
+            Some("Keep the nightly build green")
+        );
+        // A goal with no words of its own: the goal and the project.
+        let wordless = goal("");
+        assert_eq!(
+            title(&[meta, &block, &wordless]).as_deref(),
+            Some("Codex goal · shop")
+        );
+        // Nothing typed and no goal: no title, never the block.
+        assert_eq!(title(&[meta, &agents, &block]), None);
     }
 
     #[test]

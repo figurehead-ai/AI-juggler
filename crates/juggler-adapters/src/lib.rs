@@ -26,6 +26,7 @@ pub mod codex_environment;
 pub mod codex_handover;
 pub mod codex_inventory;
 pub mod codex_live;
+pub mod codex_titles;
 pub mod codex_transcript;
 pub mod codex_turn;
 pub mod config_edit;
