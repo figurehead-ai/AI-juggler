@@ -84,19 +84,21 @@ describe("AJ-E2108 a session's page holds still", () => {
     render(page([conversation()]));
     await waitFor(() => expect(tabs()).toEqual(["Overview", "Usage"]));
     fireEvent.click(screen.getByRole("tab", { name: "Usage" }));
-    expect(await screen.findByTestId("session-usage-none")).toBeTruthy();
+    // 0.1.5: its tool has named the conversation, so the tab is its charts.
+    expect(await screen.findByTestId("session-usage-visual")).toBeTruthy();
     await listIs([conversation({ tokens: { input: 1200, output: 300, cache_read: 9000, cache_write: 0, reasoning: 0 } })]);
-    await waitFor(() => expect(screen.getByTestId("session-usage-total").textContent).toBe("10.5k"));
     expect(tabs()).toEqual(["Overview", "Usage"]);
-    // A refresh without the counts: the tab, and the last counts, stay.
+    // A refresh without the counts: the tab, and its charts, stay.
     await listIs([conversation({ tokens: null })]);
     expect(tabs()).toEqual(["Overview", "Usage"]);
     expect(screen.getByRole("tab", { name: "Usage" }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByTestId("session-usage-total").textContent).toBe("10.5k");
+    expect(screen.getByTestId("session-usage-visual")).toBeTruthy();
   });
 
   it("a refresh that misses its row never flashes gone; missing for GONE_MS, it is", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Opens on Overview (the tab the test before left is remembered).
+    localStorage.removeItem("aij.page.tab.conversation");
     const read = vi.spyOn(ipc, "conversationsLastMessages").mockResolvedValue({ state: "none", turns: [], redacted: 0, earlier: null, stamp: null });
     render(page([conversation()]));
     await waitFor(() => expect(screen.getByTestId("conversation-page")).toBeTruthy());

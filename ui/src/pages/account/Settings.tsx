@@ -78,7 +78,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs }: { account: 
               {resetsAtMs ? (
                 <span className="text-ink">{formatCountdown(resetsAtMs, now)}</span>
               ) : (
-                <span className="text-faint">not known yet</span>
+                <span className="text-muted">not known yet</span>
               )}
             </dd>
           </div>
@@ -128,7 +128,7 @@ function FeeEditor({ account }: { account: AccountInfo }) {
         save
       </button>
       {status && (
-        <span role="status" className="text-label text-faint">
+        <span role="status" className="text-label text-muted">
           {status}
         </span>
       )}
@@ -170,7 +170,7 @@ function RenewalEditor({ account }: { account: AccountInfo }) {
       >
         Clear
       </Button>
-      <span className="text-label text-faint">Entered by you - AI Juggler does not read billing</span>
+      <span className="text-label text-muted">Entered by you - AI Juggler does not read billing</span>
     </span>
   );
 }

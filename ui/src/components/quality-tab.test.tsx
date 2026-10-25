@@ -131,7 +131,8 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
     const { container } = qualityShell(instance("full"));
     await waitFor(() => expect(container.querySelector('[data-testid="quality-tokens"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("490 a minute on average over the last 5 minutes");
-    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).toContain("Measured");
+    // The tier in plain words under each reading, never a boxed tag.
+    expect(container.querySelector('[data-testid="quality-tokens"]')!.textContent).not.toContain("Measured");
     // 0.0.11 walk, Q5: each tier tag says what it means, beside it.
     expect(container.querySelector('[data-testid="quality-tokens"] [data-testid="tier-words"]')!.textContent).toBe("read from the session");
     expect(container.querySelector('[data-testid="quality-cost"] [data-testid="tier-words"]')!.textContent).toBe("a best guess");
@@ -143,12 +144,13 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
       "Claude Code doesn't say how full its context is",
     );
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("tokens used in this session so far");
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("API prices");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("at list prices");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).not.toContain("'s API prices");
     // A plain dollar sign, no backslash before it (0.0.11 walk).
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/about \$\d+\.\d{2} at /);
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("opus");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/for Opus/i);
     expect(container.querySelector('[data-testid="quality-forecast"]')!.textContent).toContain("Not using its limit right now");
-    expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("Stuck?");
+    expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("Probably stuck");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("no output 6m");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("No output for a while");
   });

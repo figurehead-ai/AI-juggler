@@ -18,6 +18,7 @@ import { lazyNamed } from "../lib/lazy";
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
+const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";
@@ -31,12 +32,12 @@ import type {
 } from "../lib/bridge";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
-import { TwoClocks } from "./QuotaRings";
-import { quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
+import { modelName } from "./charts/colors";
 import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -308,13 +309,16 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "overview": // AJ-E2108: where it runs and its last messages.
           return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
         case "usage":
-          // AJ-E1533: Quality joins Usage — one place for what it used
-          // and how it went.
-          return (
-            <>
-              <InstanceUsage {...props} />
+          // 0.1.5: the same Usage tab as any session's (its charts and its
+          // account's window), then how it's going (AJ-E1533: Quality
+          // joins Usage).
+          return props.data.instance ? (
+            <div className="flex flex-col gap-grid" data-testid="instance-usage">
+              <OwnSessionUsage session={props.data.instance} visible />
               <QualityTab {...props} />
-            </>
+            </div>
+          ) : (
+            <HonestEmpty tab="usage" />
           );
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
@@ -1066,68 +1070,6 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
   );
 }
 
-/** Instance Usage (§5.1): the real breakdown + honest chart empties. */
-function InstanceUsage(props: PanelProps) {
-  const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="usage" />;
-  const tokens = instance.tokens;
-  return (
-    <div className="flex flex-col gap-3" data-testid="instance-usage">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-section font-semibold text-ink">Token breakdown</p>
-        {tokens ? (
-          <table className="w-full max-w-sm text-meta">
-            <tbody className="[&_td]:py-0.5">
-              <tr><td className="text-muted">input</td><td className="text-right tabular-nums text-ink">{tokens.input.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">output</td><td className="text-right tabular-nums text-ink">{tokens.output.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">read from cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">written to cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
-              <tr className="border-t border-hairline"><td className="text-muted">total (input + output)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-meta text-muted">No usage recorded yet</p>
-        )}
-        <span className="text-label text-muted">
-          <TierTag tier="Measured" />
-        </span>
-      </Card>
-      <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-section font-semibold text-ink">This account's limits</p>
-        {/* AJ-E610: the account's windows + the SEPARATE subscription
-            clock (a calendar line — never merged with the rings) and
-            the forecast pill. */}
-        <AccountTwoClocks accountId={instance.account_id} />
-      </Card>
-      {/* D-25: tokens/min and cost over time join this tab once a time
-          series exists; until then the card isn't shown. */}
-    </div>
-  );
-}
-
-/** AJ-E610: the Usage tab's account block (engine query; a null
- * account id — orphaned launch settings — renders the honest empty). */
-function AccountTwoClocks({ accountId }: { accountId: string | null }) {
-  const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
-  useEffect(() => {
-    if (!accountId) return;
-    let alive = true;
-    quotaDisplay(accountId).then((payload) => {
-      if (alive) setDisplay(payload);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [accountId]);
-  if (!accountId) {
-    return <p className="text-xs text-muted">Account unknown — usage cannot be attributed.</p>;
-  }
-  if (!display) {
-    return <p className="text-xs text-muted">loading…</p>;
-  }
-  return <TwoClocks display={display} />;
-}
-
 // --- AJ-E408: Provider / Account / Project content -----------------------
 
 /** Provider Overview (§5.3): counts, worst-first aggregate, honest
@@ -1259,13 +1201,8 @@ const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
 
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="rounded border border-hairline px-1 text-section font-semibold text-ink">
-        {tier}
-      </span>
-      <span className="text-label font-normal normal-case tracking-normal text-muted" data-testid="tier-words">
-        {TIER_WORDS[tier]}
-      </span>
+    <span className="mt-auto pt-1 text-label text-muted" data-testid="tier-words" data-tier={tier}>
+      {TIER_WORDS[tier]}
     </span>
   );
 }
@@ -1407,7 +1344,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          about ${quality.session_cost_usd.toFixed(2)} at {quality.priced_model}'s API prices
+          about ${quality.session_cost_usd.toFixed(2)} at list prices{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""}
         </span>
       ) : (
         <span className="text-muted">
@@ -1424,7 +1361,7 @@ function QualityTab(props: PanelProps) {
     if (quality.stuck) {
       signals.push({
         testId: "quality-stuck",
-        label: "Stuck?",
+        label: "Probably stuck",
         tier: "Computed",
         body: (
           <span className="text-ink">
@@ -1436,15 +1373,14 @@ function QualityTab(props: PanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="quality-tab">
-      {signals.length === 0 ? (
-        <Card className="flex flex-col gap-1 p-4">
-          <p className="text-meta text-muted">Nothing measured yet — this fills in as the session works.</p>
-        </Card>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-label text-muted">Measured every 2 seconds</p>
+    <section className="flex flex-col gap-3" data-testid="quality-tab" aria-labelledby="quality-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 id="quality-title" className="text-section font-semibold text-ink">
+          How it's going
+        </h3>
+        {signals.length > 0 && (
+          <span className="flex items-center gap-3">
+            <span className="text-meta text-muted">every 2 seconds</span>
             <button
               type="button"
               onClick={() => setAsTable((v) => !v)}
@@ -1453,18 +1389,26 @@ function QualityTab(props: PanelProps) {
             >
               {asTable ? "View as chart" : "View as table"}
             </button>
-          </div>
+          </span>
+        )}
+      </div>
+      {signals.length === 0 ? (
+        <Card className="flex flex-col gap-1 p-5">
+          <p className="text-body text-muted">Nothing measured yet — this fills in as the session works.</p>
+        </Card>
+      ) : (
+        // Cards sized to what they say, as many to a row as fit.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-grid">
           {signals.map((signal) => (
-            <Card key={signal.testId} className="flex flex-col gap-1 p-3" data-testid={signal.testId}>
-              <p className="flex items-center gap-2 text-section font-semibold text-ink">
-                {signal.label} <TierTag tier={signal.tier} />
-              </p>
+            <Card key={signal.testId} className="flex flex-col gap-1.5 p-5 text-body" data-testid={signal.testId}>
+              <p className="text-meta font-medium text-muted">{signal.label}</p>
               {signal.body}
+              <TierTag tier={signal.tier} />
             </Card>
           ))}
-        </>
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 

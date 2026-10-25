@@ -83,7 +83,7 @@ export function CostMatrix(): JSX.Element {
           <table className="w-full border-collapse text-xs">
             <caption className="sr-only">Cost per session, model, and day</caption>
             <thead>
-              <tr className="text-left text-[11px] text-muted">
+              <tr className="text-left text-label text-muted">
                 <th scope="col" className="px-2 py-1.5 font-medium">Session</th>
                 <th scope="col" className="px-2 py-1.5 font-medium">Model</th>
                 <th scope="col" className="px-2 py-1.5 font-medium">Day</th>
@@ -95,7 +95,7 @@ export function CostMatrix(): JSX.Element {
             <tbody>
               {data.rows.map((row) => (
                 <tr key={`${row.key}-${row.model ?? "unknown"}-${row.day ?? ""}`}>
-                  <td className={`${cell} font-mono text-[11px]`}>{row.key}</td>
+                  <td className={`${cell} font-mono text-label`}>{row.key}</td>
                   <td className={cell}>{row.model ?? "unknown model"}</td>
                   <td className={`${cell} tabular-nums`}>{row.day ?? ""}</td>
                   <td className={numeric}>
@@ -113,7 +113,7 @@ export function CostMatrix(): JSX.Element {
                         {row.model ? `No price for ${row.model} yet` : "—"}
                       </span>
                     )}
-                    <span className="ml-1 text-[10px] uppercase text-muted">{row.confidence}</span>
+                    <span className="ml-1 text-label uppercase text-muted">{row.confidence}</span>
                   </td>
                 </tr>
               ))}

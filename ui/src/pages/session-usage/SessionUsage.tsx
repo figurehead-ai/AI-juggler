@@ -99,7 +99,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
             showTable={table}
             caption="Tokens per turn"
           >
-            <TimeChart edges={bars!.edges} series={series} unit="tokens" height={240} label="Input and output tokens per turn" bucketWords={words} tickWords={(at) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} mode="bars" />
+            <TimeChart edges={bars?.edges ?? [0, 1]} series={series} unit="tokens" height={240} label="Input and output tokens per turn" bucketWords={words} tickWords={(at) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} mode="bars" />
           </ChartBody>
         </Section>
         <Section title="By kind" icon={<IconDonut />} busy={busy} testId="session-usage-kinds">
