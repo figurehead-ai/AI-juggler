@@ -11,6 +11,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod activation;
 pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
@@ -685,6 +686,9 @@ pub fn run() {
                 // Without it a second launch uses the plugin's hand-over.
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
+            // 0.1.5: Go to it hands activation over on the main thread.
+            let main_handle = app.handle().clone();
+            activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
             register_go_to_hotkey(app.handle());
             features::notifications::connect(
                 app.handle(),

@@ -6,7 +6,9 @@
 //! PROCESS (`NSRunningApplication`, safe objc2 calls, no permission):
 //! never by bundle id, which brought the wrong instance forward when an
 //! app runs several (all six of the maintainer's Claude profiles share
-//! one, AJ-E2102). Tiers (b) and (c) go through `/usr/bin/osascript` +
+//! one, AJ-E2102). AI Juggler hands activation over first and checks the
+//! app is frontmost afterwards ([`crate::activation`], 0.1.5). Tiers (b)
+//! and (c) go through `/usr/bin/osascript` +
 //! System Events (AX), and run ONLY when the user turned window focus on
 //! in Settings: a click never raises a permission prompt (D-37).
 //! Scriptable through the [`ScriptRunner`] seam so the tier logic is
@@ -15,6 +17,8 @@
 use std::sync::Arc;
 
 use juggler_core::model::WindowIdentity;
+
+use crate::activation::{self, Activation, Front, Request, Why};
 
 /// Req.5 copy-exact outcome: the exact window was found and raised.
 pub const OUTCOME_FOCUSED_WINDOW: &str = "Focused window";
@@ -25,9 +29,23 @@ pub const OUTCOME_WINDOW_NOT_FOUND: &str = "App opened — window not found";
 pub const OUTCOME_NOT_RUNNING: &str = "App not running — Relaunch?";
 /// Honest outcome on non-macOS builds (no window system to target).
 pub const OUTCOME_UNSUPPORTED: &str = "Window focus unavailable on this platform";
-/// AJ-E2102: the app came forward; the exact window needs window focus
-/// turned on in Settings (never asked for from a click).
+/// AJ-E2102: the app came forward (checked: it's frontmost); the exact
+/// window needs window focus turned on in Settings (never asked for from
+/// a click).
 pub const OUTCOME_APP_FORWARD: &str = "Brought the app forward";
+
+/// 0.1.5: the app is running and stayed behind; the words say why when
+/// it's known (the same as [`activation::behind_text`] for "the app").
+#[must_use]
+pub fn outcome_behind(why: Why) -> &'static str {
+    match why {
+        Why::NotInFront => {
+            "macOS didn't bring the app forward: AI Juggler wasn't in front. Click it in the Dock"
+        }
+        Why::Refused => "macOS refused to bring the app forward. Click it in the Dock",
+        Why::StayedBehind => "macOS didn't bring the app forward. Click it in the Dock",
+    }
+}
 
 /// One focus attempt: the honest outcome, whether the Accessibility
 /// grant is missing (degraded tier), and the (possibly enriched)
@@ -44,9 +62,11 @@ pub struct FocusAttempt {
     pub identity: Option<WindowIdentity>,
 }
 
-/// The two OS operations the tiers need (tests script them; the real
-/// runner shells out — no FFI, see the module pin above).
-pub trait ScriptRunner: Send + Sync {
+/// The OS operations the tiers need (tests script them): `AppleScript`
+/// (shelled out), and [`Front`] to bring the app forward by its process
+/// and read the frontmost app (no permission prompts, the right instance
+/// of an app that runs several).
+pub trait ScriptRunner: Front {
     /// Runs one `AppleScript` source against System Events;
     /// `Ok(stdout)` on exit 0, `Err(stderr)` otherwise.
     ///
@@ -55,20 +75,21 @@ pub trait ScriptRunner: Send + Sync {
     /// The stderr text of a failed script (non-zero exit or spawn
     /// failure) — the tiers match on it, never panic on it.
     fn osascript(&self, source: &str) -> Result<String, String>;
-    /// AJ-E2102: brings the app whose process is `pid` forward
-    /// (`NSRunningApplication`) — no permission prompts, the right
-    /// instance of an app that runs several.
-    ///
-    /// # Errors
-    ///
-    /// Why the app could not come forward (gone, or macOS refused);
-    /// focus degrades, never panics.
-    fn activate(&self, pid: u32) -> Result<(), String>;
 }
 
-/// The real runner: `/usr/bin/osascript -e` and `NSRunningApplication`.
+/// The real runner: `/usr/bin/osascript -e` and [`activation::Mac`].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OsascriptRunner;
+
+impl Front for OsascriptRunner {
+    fn request(&self, pid: u32) -> Request {
+        activation::Mac.request(pid)
+    }
+
+    fn frontmost(&self) -> Option<u32> {
+        activation::Mac.frontmost()
+    }
+}
 
 impl ScriptRunner for OsascriptRunner {
     fn osascript(&self, source: &str) -> Result<String, String> {
@@ -81,15 +102,6 @@ impl ScriptRunner for OsascriptRunner {
             Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
         } else {
             Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-        }
-    }
-
-    fn activate(&self, pid: u32) -> Result<(), String> {
-        use crate::features::conversations::goto::{Activation, activate_pid};
-        match activate_pid(pid) {
-            Activation::Done => Ok(()),
-            Activation::Gone => Err("not running".to_owned()),
-            Activation::Refused => Err("macOS didn't let it come forward".to_owned()),
         }
     }
 }
@@ -164,17 +176,22 @@ impl FocusService {
     pub fn attempt(&self, identity: &WindowIdentity, exact_windows: bool) -> FocusAttempt {
         let mut identity = identity.clone();
         // Tier (a): app activation by its process, always (Space reveal +
-        // degrade path). Pid 0 is a pre-v10 identity: nothing to activate
-        // until tier (b) re-discovers it.
-        let activated = identity.pid != 0 && self.runner.activate(identity.pid).is_ok();
+        // degrade path), checked: "forward" only once it's frontmost. Pid
+        // 0 is a pre-v10 identity: nothing to activate until tier (b)
+        // re-discovers it.
+        let activated = if identity.pid == 0 {
+            Activation::Gone
+        } else {
+            activation::bring(self.runner.as_ref(), identity.pid)
+        };
         if !exact_windows {
             return FocusAttempt {
-                outcome: if activated {
-                    OUTCOME_APP_FORWARD
-                } else {
-                    OUTCOME_NOT_RUNNING
+                outcome: match activated {
+                    Activation::Forward => OUTCOME_APP_FORWARD,
+                    Activation::Behind(why) => outcome_behind(why),
+                    Activation::Gone => OUTCOME_NOT_RUNNING,
                 },
-                permission_missing: activated,
+                permission_missing: activated == Activation::Forward,
                 identity: Some(identity),
             };
         }
@@ -218,7 +235,7 @@ impl FocusService {
                         {
                             identity.pid = pid;
                             identity.start_time = None;
-                            let _ = self.runner.activate(pid);
+                            let _ = activation::bring(self.runner.as_ref(), pid);
                         }
                         raw
                     }
@@ -258,21 +275,33 @@ impl FocusService {
             identity.title = Some(names[0].clone());
             names[0].clone()
         };
-        // Tier (c): clear AXMinimized FIRST, then AXRaise, then
-        // frontmost — one script so the order is atomic.
+        self.raise(identity, &title)
+    }
+
+    /// Tier (c): clear `AXMinimized` FIRST, then `AXRaise`, then
+    /// frontmost — one script so the order is atomic. Focused only once
+    /// the app is frontmost.
+    fn raise(&self, identity: WindowIdentity, title: &str) -> FocusAttempt {
         let raise = format!(
             "tell application \"System Events\"\ntell (first application process whose unix id is {})\nset value of attribute \"AXMinimized\" of window \"{}\" to false\nperform action \"AXRaise\" of window \"{}\"\nset frontmost to true\nend tell\nend tell",
             identity.pid,
-            applescript_escape(&title),
-            applescript_escape(&title)
+            applescript_escape(title),
+            applescript_escape(title)
         );
-        match self.runner.osascript(&raise) {
-            Ok(_) => FocusAttempt {
-                outcome: OUTCOME_FOCUSED_WINDOW,
-                permission_missing: false,
-                identity: Some(identity),
-            },
-            Err(_) => window_not_found(identity),
+        if self.runner.osascript(&raise).is_err() {
+            return window_not_found(identity);
+        }
+        // The raise said yes; the window counts as focused only once its
+        // app is frontmost.
+        let outcome = match activation::settle(self.runner.as_ref(), identity.pid, true) {
+            Activation::Forward => OUTCOME_FOCUSED_WINDOW,
+            Activation::Behind(why) => outcome_behind(why),
+            Activation::Gone => OUTCOME_NOT_RUNNING,
+        };
+        FocusAttempt {
+            outcome,
+            permission_missing: false,
+            identity: Some(identity),
         }
     }
 }
@@ -334,6 +363,10 @@ mod tests {
         permission_denied: AtomicBool,
         window_read_denied: AtomicBool,
         raise_fails: AtomicBool,
+        /// macOS takes the request and another app stays in front.
+        stays_behind: AtomicBool,
+        /// The frontmost app's process (the last one that came forward).
+        front: Mutex<Option<u32>>,
     }
 
     impl FixtureRunner {
@@ -347,6 +380,8 @@ mod tests {
                 permission_denied: AtomicBool::new(false),
                 window_read_denied: AtomicBool::new(false),
                 raise_fails: AtomicBool::new(false),
+                stays_behind: AtomicBool::new(false),
+                front: Mutex::new(Some(1)),
             })
         }
 
@@ -408,11 +443,22 @@ mod tests {
             }
             Ok("System Events".into())
         }
+    }
 
-        fn activate(&self, pid: u32) -> Result<(), String> {
+    impl Front for FixtureRunner {
+        fn request(&self, pid: u32) -> Request {
             self.activation_log.lock().unwrap().push(pid.to_string());
-            Ok(())
+            if !self.stays_behind.load(Ordering::SeqCst) {
+                *self.front.lock().unwrap() = Some(pid);
+            }
+            Request::Asked { in_front: true }
         }
+
+        fn frontmost(&self) -> Option<u32> {
+            *self.front.lock().unwrap()
+        }
+
+        fn pause(&self, _span: std::time::Duration) {}
     }
 
     fn identity() -> WindowIdentity {
@@ -613,6 +659,30 @@ mod tests {
         let result = FocusService::new(runner.clone()).attempt(&legacy, false);
         assert_eq!(result.outcome, OUTCOME_NOT_RUNNING);
         assert!(runner.scripts().is_empty());
+    }
+
+    /// 0.1.5: macOS took the request and another app stayed in front.
+    /// Never "Brought the app forward" (and no permission explainer);
+    /// with window focus on, a raise that said yes isn't "Focused
+    /// window" either.
+    #[test]
+    fn an_app_that_stays_behind_is_never_reported_forward() {
+        let runner = FixtureRunner::two_windows();
+        runner.stays_behind.store(true, Ordering::SeqCst);
+        let result = FocusService::new(runner.clone()).attempt(&identity(), false);
+        assert_eq!(result.outcome, outcome_behind(Why::StayedBehind));
+        assert!(!result.permission_missing);
+        let result = FocusService::new(runner.clone()).attempt(&identity(), true);
+        assert_eq!(result.outcome, outcome_behind(Why::StayedBehind));
+        assert_eq!(runner.raises().len(), 1, "the raise ran; it isn't proof");
+    }
+
+    /// The focus words are Go to it's words, for "the app".
+    #[test]
+    fn the_focus_words_match_go_to() {
+        for why in [Why::NotInFront, Why::Refused, Why::StayedBehind] {
+            assert_eq!(outcome_behind(why), activation::behind_text("the app", why));
+        }
     }
 
     /// The platform gate: on this build the entry either runs the
