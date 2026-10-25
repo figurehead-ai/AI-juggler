@@ -62,6 +62,10 @@ pub struct SpawnedProcess {
     pub identity: Option<crate::tree::ProcessIdentity>,
 }
 
+#[path = "piped.rs"]
+mod piped;
+pub use piped::DriverPipes;
+
 pub use crate::live_stats::{
     CollectorWork, LiveStatsCollector, ObservedRoot, ObservedTree, ProcessBrief, ProcessFacts,
     ProcessRow, ProcessTable, TreeSample, TreeState, observed_sums, push_ring_sample,
@@ -405,6 +409,17 @@ impl Supervisor {
         spec: &LaunchSpec,
         ctx: &crate::tree::SpawnContext,
     ) -> Result<SpawnedProcess, SupervisorError> {
+        self.spawn_owned(session, spec, ctx, false)
+            .map(|(spawned, _)| spawned)
+    }
+
+    fn spawn_owned(
+        &self,
+        session: &SessionId,
+        spec: &LaunchSpec,
+        ctx: &crate::tree::SpawnContext,
+        driver: bool,
+    ) -> Result<(SpawnedProcess, Option<DriverPipes>), SupervisorError> {
         // Intent BEFORE spawn (AJ-E501 Req.3): the ownership record
         // exists even if the spawn or the app dies mid-breath. Ledger
         // failure degrades health, never the spawn.
@@ -425,10 +440,10 @@ impl Supervisor {
         if let Ok(mut contexts) = self.spawn_contexts.lock() {
             contexts.insert(session.clone(), ctx.clone());
         }
-        let spawned = if spec.needs_pty {
-            self.spawn_pty(session, spec)?
+        let (spawned, pipes) = if spec.needs_pty {
+            (self.spawn_pty(session, spec)?, None)
         } else {
-            self.spawn_piped(session, spec)?
+            self.spawn_piped(session, spec, driver)?
         };
         // The identity probe already landed inside the spawn path;
         // its fork-time start time IS the ledger's started_at (one
@@ -458,7 +473,7 @@ impl Supervisor {
             session: session.clone(),
             pid: spawned.pid,
         });
-        Ok(spawned)
+        Ok((spawned, pipes))
     }
 
     /// Spawns a desktop-class harness app (AJ-E413): tracked in the
@@ -579,123 +594,6 @@ impl Supervisor {
     }
 
     #[allow(clippy::similar_names)] // pid/pgid are the kernel's own names
-    fn spawn_piped(
-        &self,
-        session: &SessionId,
-        spec: &LaunchSpec,
-    ) -> Result<SpawnedProcess, SupervisorError> {
-        use std::process::{Command, Stdio};
-
-        let mut command = Command::new(&spec.program);
-        command.env("PATH", launch_path(&spec.program));
-        apply_env(&mut command, &spec.env);
-        command
-            .args(&spec.args)
-            .current_dir(&spec.cwd)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        // AJ-E502: the piped root becomes its OWN group leader at
-        // spawn — every in-group helper is later reachable as one
-        // owned group (deterministic kill), not a ppid-walk snapshot.
-        // Where groups do not exist, spawn proceeds groupless (the
-        // honest `None`, never a pretended group).
-        if let Err(group::GroupError::UnsupportedPlatform) = group::make_group_leader(&mut command)
-        {
-            eprintln!(
-                "ai-juggler: process groups unsupported; tracking pid-only for {}",
-                session.as_str()
-            );
-        }
-        let child = command.spawn().map_err(|e| SupervisorError::Spawn {
-            program: spec.program.clone(),
-            message: e.to_string(),
-        })?;
-        let pid = child.id();
-        let pgid = group::pgid_of(pid).ok();
-        let identity = Self::spawn_identity(pid, pgid);
-        let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
-        let child = Arc::new(Mutex::new(child));
-        let finished = Arc::new(AtomicBool::new(false));
-        let kill_child = Arc::clone(&child);
-        let force_kill: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
-            let _ = kill_child.lock().map(|mut c| c.kill());
-        });
-        // Register before readers start so output tracking exists from
-        // the first chunk (AJ-E405).
-        let exit_at = Arc::new(AtomicI64::new(0));
-        let handle = self.register(
-            session.clone(),
-            pid,
-            Arc::clone(&ring),
-            Arc::clone(&finished),
-            force_kill,
-            ChildExtras {
-                pty: None,
-                last_output_ms: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-                pgid,
-                identity: identity.clone(),
-                exit_at_ms: Arc::clone(&exit_at),
-            },
-        );
-        let last_output = Arc::clone(&handle.last_output_ms);
-        let (out_atomic, err_atomic) = (Arc::clone(&last_output), last_output);
-        let (out_tx, err_tx) = (
-            std::sync::mpsc::SyncSender::clone(&self.activity_tx),
-            std::sync::mpsc::SyncSender::clone(&self.activity_tx),
-        );
-        let (out_session, err_session) = (session.clone(), session.clone());
-        let (drained_tx, drained) = std::sync::mpsc::channel();
-        spawn_reader(
-            child_lock(&child).stdout.take(),
-            Arc::clone(&ring),
-            out_atomic,
-            out_session,
-            out_tx,
-            drained_tx.clone(),
-        );
-        spawn_reader(
-            child_lock(&child).stderr.take(),
-            ring,
-            err_atomic,
-            err_session,
-            err_tx,
-            drained_tx,
-        );
-
-        let session_for_thread = session.clone();
-        let journal = self.journal.clone();
-        let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
-        let done = Arc::clone(&finished);
-        std::thread::spawn(move || {
-            let status = child.lock().ok().and_then(|mut c| c.wait().ok());
-            if let Some(status) = status {
-                emit_exit(
-                    &session_for_thread,
-                    pid,
-                    exit_kind_std(status),
-                    &done,
-                    &exit_at,
-                    journal.as_ref(),
-                    ledger.as_ref(),
-                    &events,
-                    Some(&drained),
-                );
-            } else {
-                wait_for_output(&drained);
-                done.store(true, Ordering::Release);
-            }
-        });
-
-        Ok(SpawnedProcess {
-            session: session.clone(),
-            pid,
-            pgid,
-            identity,
-        })
-    }
-
     #[allow(clippy::similar_names)] // pid/pgid are the kernel's own names
     fn spawn_pty(
         &self,
