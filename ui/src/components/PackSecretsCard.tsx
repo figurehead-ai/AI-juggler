@@ -67,11 +67,11 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
           </p>
         </div>
         <fieldset className="flex flex-col gap-1.5" data-testid="pack-secrets-global">
-          <legend className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+          <legend className="mb-1 text-label font-medium uppercase tracking-wider text-muted">
             Your choice (all tools)
           </legend>
           {global === null && (
-            <p className="text-[11px] text-muted" data-testid="pack-secrets-unset">
+            <p className="text-label text-muted" data-testid="pack-secrets-unset">
               Not chosen yet — your first switch asks before any pack is built.
             </p>
           )}
@@ -98,14 +98,14 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               />
               <span className="flex flex-col gap-0.5">
                 <span className="font-medium text-ink">{option.title}</span>
-                <span className="text-[11px] leading-relaxed text-muted">{option.consequence}</span>
+                <span className="text-label leading-relaxed text-muted">{option.consequence}</span>
               </span>
             </label>
           ))}
         </fieldset>
         {providers.length > 0 && (
           <div className="flex flex-col gap-1.5" data-testid="pack-secrets-overrides">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted">
+            <p className="text-label font-medium uppercase tracking-wider text-muted">
               Per-tool choice
             </p>
             {providers.map((provider) => {
@@ -139,12 +139,12 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
           </div>
         )}
         {status && (
-          <p className="text-[11px] text-muted" role="status">
+          <p className="text-label text-muted" role="status">
             {status}
           </p>
         )}
         {error && (
-          <p className="text-[11px] text-danger" role="alert">
+          <p className="text-label text-danger" role="alert">
             {error}
           </p>
         )}

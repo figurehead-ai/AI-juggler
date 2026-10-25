@@ -62,7 +62,7 @@ export function RowProject({ item, rest }: { item: RailItem; rest: string }): JS
   // Its 24 px target reaches down from the line, never up over the row's
   // middle (where the row's own click is).
   return (
-    <span className="flex min-w-0 items-start text-[10.5px] leading-[14px] text-muted">
+    <span className="flex min-w-0 items-start text-label leading-[14px] text-muted">
       {linked ? (
         <button
           type="button"
@@ -153,7 +153,7 @@ export function NeedRow(props: RowProps): JSX.Element {
         <PlaceMark place={item.place} profile={item.accountLabel} size={24} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span aria-hidden="true" className="truncate text-[12.5px] font-semibold text-ink">
+        <span aria-hidden="true" className="truncate text-meta font-semibold text-ink">
           {item.title}
         </span>
         {/* Why it needs you, under the title: the title keeps the width
@@ -162,7 +162,7 @@ export function NeedRow(props: RowProps): JSX.Element {
           <span className="min-w-0 flex-1">
             <RowProject item={item} rest={[item.place.app, item.place.profile].filter(Boolean).join(" · ")} />
           </span>
-          <span aria-hidden="true" className="shrink-0 text-[10.5px] font-semibold text-warning" data-testid="need-word">
+          <span aria-hidden="true" className="shrink-0 text-label font-semibold text-warning" data-testid="need-word">
             {word}
           </span>
         </span>
@@ -203,21 +203,21 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
       <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
       <span className="flex min-w-0 flex-1 flex-col">
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
+          <span className="truncate text-meta font-semibold text-ink">{item.title}</span>
           {pinned && <PinMark />}
         </span>
-        <span className="flex min-w-0 items-center text-[10.5px] text-muted">
+        <span className="flex min-w-0 items-center text-label text-muted">
           <RowProject item={item} rest={when} />
           {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
           {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
         </span>
       </span>
       <span aria-hidden="true" className="flex shrink-0 flex-col items-end">
-        <span className={"text-[10.5px] font-medium " + tone.text} data-testid="state-word">
+        <span className={"text-label font-medium " + tone.text} data-testid="state-word">
           {word}
         </span>
-        {low && <span className="text-[10px] text-warning">{low}</span>}
-        {!low && heavy && <span className="text-[10px] text-warning" data-testid="rail-heavy">{heavy}</span>}
+        {low && <span className="text-label text-warning">{low}</span>}
+        {!low && heavy && <span className="text-label text-warning" data-testid="rail-heavy">{heavy}</span>}
       </span>
     </RowShell>
   );
@@ -267,18 +267,18 @@ export function PlaceHeader({
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
           {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
-          <span className="ml-0.5 shrink-0 truncate text-[12px] font-semibold text-ink">{label}</span>
+          <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
           {/* The profile: its dot and name, beside the icon (D-38). The
               folded summary gives way first. */}
           {place?.profile && (
-            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-[12px] font-medium text-ink/80" data-testid="place-profile">
+            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
               <ProfileBadge name={place.profile} size={6} />
               <span className="truncate">{place.profile}</span>
             </span>
           )}
-          {folded !== null && <span className="min-w-0 shrink-[8] truncate text-[10.5px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-          {needs > 0 && <span className="shrink-0 rounded-full bg-warning-soft px-1 text-[10px] font-semibold text-warning">{needs}</span>}
-          {folded === null && <span className="shrink-0 text-[10px] tabular-nums text-faint">{count}</span>}
+          {folded !== null && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+          {needs > 0 && <span className="shrink-0 rounded-full bg-warning-soft px-1 text-label font-semibold text-warning">{needs}</span>}
+          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted">{count}</span>}
         </span>
       </button>
       {onOpen && (
@@ -288,7 +288,7 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `Bring it forward (⌘${shortcut})` : "Bring it forward"}
           data-testid="place-open"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-ink/80 outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           {/* Its ↗, as a row's: the way out to the app. The words are its
               name; the room goes to the place's app and profile. */}

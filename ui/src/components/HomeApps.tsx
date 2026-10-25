@@ -50,10 +50,10 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
       <div className="flex min-w-0 items-start gap-2.5">
         <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[13px] font-semibold text-ink">{place.app}</span>
+          <span className="truncate text-meta font-semibold text-ink">{place.app}</span>
           {/* The profile's badge beside its name, never on the icon
               (D-38); the count moves under it rather than being cut. */}
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] leading-[17px] text-ink/80">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 text-label leading-[17px] text-muted">
             {place.profile && (
               <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
                 <ProfileBadge name={place.profile} />
@@ -65,7 +65,7 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
           </span>
         </div>
         {needs > 0 && (
-          <span className="shrink-0 rounded-full bg-warning-soft px-1.5 text-[11px] font-semibold text-warning" title={`${needs} need you`}>
+          <span className="shrink-0 rounded-full bg-warning-soft px-1.5 text-label font-semibold text-warning" title={`${needs} need you`}>
             <span className="sr-only">Needs you: </span>
             {needs}
           </span>
@@ -73,7 +73,7 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
       </div>
       {runway && (
         <div className="flex flex-col gap-1">
-          <span className={"truncate text-[11px] " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
+          <span className={"truncate text-label " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
           {runway.left !== null && (
             <div className="h-1 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
               <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${runway.left}%` }} />
@@ -85,7 +85,7 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
         <button
           type="button"
           onClick={() => bringForward(group)}
-          className="self-start rounded-md border border-hairline px-2 py-0.5 text-[11px] font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="self-start rounded-md border border-hairline px-2 py-0.5 text-label font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           Open {place.app}
           <span className="sr-only"> · {place.profile}</span>

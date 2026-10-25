@@ -97,13 +97,13 @@ export function MoreMenu<Id extends string>({
               <ScreenIcon id={item.id} />
               <span className="flex flex-col items-start gap-0.5">
                 <span className="text-xs font-medium text-ink">{item.label}</span>
-                <span className="text-[11px] text-muted">{item.hint}</span>
+                <span className="text-label text-muted">{item.hint}</span>
               </span>
             </button>
           ))}
           {tools.length > 0 && (
             <>
-              <p className="mt-1 border-t border-hairline px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">Tools</p>
+              <p className="mt-1 border-t border-hairline px-3 pb-1 pt-2 text-label font-medium uppercase tracking-wider text-muted">Tools</p>
               {tools.map((tool) => (
                 <button
                   key={tool.id}

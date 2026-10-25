@@ -6,7 +6,7 @@ import type { JSX } from "react";
 
 export function SectionTitle({ id, children }: { id: string; children: string }): JSX.Element {
   return (
-    <h2 id={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+    <h2 id={id} className="text-label font-semibold uppercase tracking-wider text-muted">
       {children}
     </h2>
   );

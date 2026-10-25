@@ -661,7 +661,7 @@ export default function App() {
               </span>
             </button>
             {!minimal && (
-              <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
+              <span className="whitespace-nowrap text-section font-semibold tracking-tight">
                 AI Juggler
               </span>
             )}
@@ -669,7 +669,7 @@ export default function App() {
                 AI Juggler itself (Nightly and Dev run side by side). */}
             {info && info.edition !== "main" && (
               <span
-                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-ink"
+                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-ink"
                 data-testid="edition-badge"
                 title={`${info.name}: its own data, separate from AI Juggler`}
               >
@@ -688,7 +688,7 @@ export default function App() {
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
               </div>
-              <div className="truncate font-mono text-[10px] text-faint">
+              <div className="truncate font-mono text-label text-muted">
                 v{info?.version ?? "0.0.0"}
               </div>
             </div>

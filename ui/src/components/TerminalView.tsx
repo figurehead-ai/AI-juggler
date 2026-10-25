@@ -350,20 +350,20 @@ export function TerminalView({
         {/* Shown only while the terminal has focus; always read with it. */}
         <p
           id={hintId}
-          className="pointer-events-none absolute bottom-1 right-2 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] text-muted opacity-0 group-focus-within/term:opacity-100"
+          className="pointer-events-none absolute bottom-1 right-2 rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted opacity-0 group-focus-within/term:opacity-100"
           data-testid="terminal-leave-hint"
         >
           ⌃Tab leaves the terminal · {keyName("F")} finds
         </p>
         {linkHint && (
-          <p className="pointer-events-none absolute bottom-1 left-3 max-w-[60%] truncate rounded bg-surface-3 px-1.5 py-0.5 text-[10px] text-muted" data-testid="terminal-link-hint">
+          <p className="pointer-events-none absolute bottom-1 left-3 max-w-[60%] truncate rounded bg-surface-3 px-1.5 py-0.5 text-label text-muted" data-testid="terminal-link-hint">
             {/Mac/.test(navigator.platform) ? "⌘-click" : "Ctrl-click"} opens {linkHint}
           </p>
         )}
         {scrolledUp && (
           <button
             type="button"
-            className="absolute bottom-7 left-1/2 -translate-x-1/2 rounded-full border border-hairline bg-surface px-3 py-1 text-[11px] text-ink shadow-md hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
+            className="absolute bottom-7 left-1/2 -translate-x-1/2 rounded-full border border-hairline bg-surface px-3 py-1 text-label text-ink shadow-md hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
             onClick={() => {
               termRef.current?.scrollToBottom();
               termRef.current?.focus();

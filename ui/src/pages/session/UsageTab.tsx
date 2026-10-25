@@ -80,25 +80,25 @@ export function SessionUsageTab({
         <Card className="flex flex-col gap-5 p-5" data-testid="session-usage-tokens">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <CardTitle>Tokens</CardTitle>
-            <span className="text-[13px] text-ink/80">each message counted once</span>
+            <span className="text-meta text-muted">each message counted once</span>
           </div>
           {tokens && total > 0 ? (
             <>
               <div className="flex items-baseline gap-2">
-                <span className="text-[28px] font-semibold leading-none tabular-nums text-ink" data-testid="session-usage-total" title={total.toLocaleString()}>
+                <span className="text-stat font-semibold leading-none tabular-nums text-ink" data-testid="session-usage-total" title={total.toLocaleString()}>
                   {shortCount(total)}
                 </span>
-                <span className="text-[14px] text-ink/80">tokens in all</span>
+                <span className="text-body text-muted">tokens in all</span>
               </div>
               <div className="flex h-3 w-full overflow-hidden rounded-full bg-surface-3" role="img" aria-label={KINDS.map((kind) => `${kind.label} ${Math.round((tokens[kind.key] / total) * 100)}%`).join(", ")}>
                 {KINDS.map((kind) =>
                   tokens[kind.key] > 0 ? <span key={kind.key} className={"h-full " + kind.swatch} style={{ width: `${(tokens[kind.key] / total) * 100}%` }} /> : null,
                 )}
               </div>
-              <table className="w-full text-[14px]">
+              <table className="w-full text-body">
                 <caption className="sr-only">Tokens by kind</caption>
                 <thead>
-                  <tr className="text-left text-[13px] text-ink/80">
+                  <tr className="text-left text-meta text-muted">
                     <th scope="col" className="pb-2 font-medium">
                       Kind
                     </th>
@@ -120,7 +120,7 @@ export function SessionUsageTab({
                         </span>
                       </th>
                       <td className="py-2 text-right tabular-nums text-ink">{tokens[kind.key].toLocaleString()}</td>
-                      <td className="py-2 text-right tabular-nums text-ink/80">{Math.round((tokens[kind.key] / total) * 100)}%</td>
+                      <td className="py-2 text-right tabular-nums text-muted">{Math.round((tokens[kind.key] / total) * 100)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -128,8 +128,8 @@ export function SessionUsageTab({
             </>
           ) : (
             <div className="flex flex-col gap-2" data-testid="session-usage-none">
-              <span className="text-[22px] font-semibold text-ink">Not measured</span>
-              <p className="max-w-prose text-[14px] leading-[1.5] text-ink/80">
+              <span className="text-title font-semibold text-ink">Not measured</span>
+              <p className="max-w-prose text-body leading-[1.5] text-muted">
                 Its app hasn't written token counts for it on this Mac yet. They show here once it does: input, output and what came from the cache.
               </p>
             </div>
@@ -141,17 +141,17 @@ export function SessionUsageTab({
             {models && models.length > 0 ? (
               <ul className="flex flex-wrap gap-2">
                 {models.map((model) => (
-                  <li key={model} className="rounded-full border border-hairline bg-surface-2 px-2.5 py-0.5 font-mono text-[13px] text-ink">
+                  <li key={model} className="rounded-full border border-hairline bg-surface-2 px-2.5 py-0.5 font-mono text-meta text-ink">
                     {model}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] leading-[1.5] text-ink/80">{modelsWhy ?? (models ? "Not recorded in the end of its transcript." : "Reading its transcript…")}</p>
+              <p className="text-meta leading-[1.5] text-muted">{modelsWhy ?? (models ? "Not recorded in the end of its transcript." : "Reading its transcript…")}</p>
             )}
           </Card>
           <Runway display={display} title={accountTitle} heading="Its account's window" testId="session-usage-runway">
-            <p className="border-t border-hairline pt-3 text-[12px] leading-[1.5] text-ink/80">This session's share isn't measured: the window counts every session on the account.</p>
+            <p className="border-t border-hairline pt-3 text-label leading-[1.5] text-muted">This session's share isn't measured: the window counts every session on the account.</p>
           </Runway>
         </div>
       </div>

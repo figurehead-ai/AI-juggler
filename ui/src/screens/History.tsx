@@ -261,7 +261,7 @@ export function History({
               aria-selected={list === tab.id}
               onClick={() => setList(tab.id)}
               className={
-                "rounded-md px-2.5 py-1 text-[11px] font-medium " +
+                "rounded-md px-2.5 py-1 text-label font-medium " +
                 (list === tab.id ? "bg-surface-2 text-ink" : "text-muted hover:text-ink")
               }
               data-testid={`history-tab-${tab.id}`}
@@ -296,13 +296,13 @@ export function History({
           badge={(row) => {
             const session = sessionOf(row);
             return session && archived(session) ? (
-              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10px] text-muted">Archived</span>
+              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted">Archived</span>
             ) : null;
           }}
           below={(row) => {
             const snippet = snippetOf(row);
             return snippet ? (
-              <p className="mx-4 mb-2 rounded bg-surface-2/60 px-2 py-1 font-mono text-[11px] text-ink" data-testid="history-snippet">
+              <p className="mx-4 mb-2 rounded bg-surface-2/60 px-2 py-1 font-mono text-label text-ink" data-testid="history-snippet">
                 {snippet}
               </p>
             ) : null;

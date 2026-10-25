@@ -178,7 +178,7 @@ function withBreaks(text: string, key: string): ReactNode[] {
 export function Markdown({ text }: { text: string }): JSX.Element {
   const blocks = blocksOf(text);
   return (
-    <div className="flex min-w-0 flex-col gap-3 text-[14px] leading-[1.6] text-ink" data-testid="md">
+    <div className="flex min-w-0 flex-col gap-3 text-body leading-[1.6] text-ink" data-testid="md">
       {blocks.map((block, index) => {
         const key = `b${index}`;
         switch (block.kind) {
@@ -186,16 +186,16 @@ export function Markdown({ text }: { text: string }): JSX.Element {
             return (
               <figure key={key} className="min-w-0 overflow-hidden rounded-xl border border-hairline bg-surface-2" data-testid="md-code">
                 {block.lang && (
-                  <figcaption className="border-b border-hairline px-3.5 py-1.5 font-mono text-[12px] text-ink/80">{block.lang}</figcaption>
+                  <figcaption className="border-b border-hairline px-3.5 py-1.5 font-mono text-label text-muted">{block.lang}</figcaption>
                 )}
-                <pre className="whitespace-pre-wrap px-3.5 py-3 font-mono text-[13px] leading-[1.55] text-ink [overflow-wrap:anywhere]">
+                <pre className="whitespace-pre-wrap px-3.5 py-3 font-mono text-meta leading-[1.55] text-ink [overflow-wrap:anywhere]">
                   <code>{block.text}</code>
                 </pre>
               </figure>
             );
           case "heading":
             return (
-              <p key={key} className={"font-semibold text-ink " + (block.level <= 2 ? "text-[16px]" : "text-[15px]")}>
+              <p key={key} className={"font-semibold text-ink " + (block.level <= 2 ? "text-[16px]" : "text-section")}>
                 {inline(block.text, key)}
               </p>
             );
@@ -206,11 +206,11 @@ export function Markdown({ text }: { text: string }): JSX.Element {
               </li>
             ));
             return block.ordered ? (
-              <ol key={key} start={block.start} className="flex list-decimal flex-col gap-1 pl-6 marker:text-ink/70">
+              <ol key={key} start={block.start} className="flex list-decimal flex-col gap-1 pl-6 marker:text-muted">
                 {items}
               </ol>
             ) : (
-              <ul key={key} className="flex list-disc flex-col gap-1 pl-6 marker:text-ink/70">
+              <ul key={key} className="flex list-disc flex-col gap-1 pl-6 marker:text-muted">
                 {items}
               </ul>
             );
@@ -224,7 +224,7 @@ export function Markdown({ text }: { text: string }): JSX.Element {
           case "table":
             return (
               <div key={key} className="min-w-0 overflow-x-auto rounded-xl border border-hairline" tabIndex={0} role="region" aria-label="Table">
-                <table className="w-full border-collapse text-[13px] tabular-nums">
+                <table className="w-full border-collapse text-meta tabular-nums">
                   <thead className="bg-surface-2 text-left">
                     <tr>
                       {block.head.map((cell, i) => (

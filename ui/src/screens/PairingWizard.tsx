@@ -275,7 +275,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 | "done" | "failed" }): JSX.E
   const names = ["Find", "Verify", "Permissions"];
   const current = typeof step === "number" ? step : step === "done" ? 4 : 0;
   return (
-    <ol className="flex items-center gap-2 text-[11px]" aria-label="Pairing steps">
+    <ol className="flex items-center gap-2 text-label" aria-label="Pairing steps">
       {names.map((name, index) => {
         const number = index + 1;
         const state = number < current ? "done" : number === current ? "current" : "todo";
@@ -291,7 +291,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 | "done" | "failed" }): JSX.E
             <span
               aria-hidden="true"
               className={
-                "flex h-4 w-4 items-center justify-center rounded-full border text-[10px] " +
+                "flex h-4 w-4 items-center justify-center rounded-full border text-label " +
                 (state === "current"
                   ? "border-accent bg-accent-soft text-accent-hi"
                   : state === "done"
@@ -359,7 +359,7 @@ function HostFind({
           {code ?? "··· ···"}
         </p>
         {left !== null && (
-          <p className="text-[11px] text-muted" data-testid="pairing-countdown">
+          <p className="text-label text-muted" data-testid="pairing-countdown">
             Code works for {left}
           </p>
         )}
@@ -379,11 +379,11 @@ function HostFind({
         >
           {copied ? "Copied" : "Copy pairing link"}
         </Button>
-        <span className="flex-1 text-[11px] leading-relaxed text-muted">
+        <span className="flex-1 text-label leading-relaxed text-muted">
           The link also carries this Mac's fingerprint, so the other machine checks it for you.
         </span>
       </div>
-      <p className="text-[11px] text-muted" role="status">
+      <p className="text-label text-muted" role="status">
         Waiting for the other machine…
       </p>
       <div className="flex justify-end">
@@ -503,14 +503,14 @@ function JoinFind({
                   data-autofocus={index === 0 ? true : undefined}
                 />
                 <span className="flex-1">{machine.label}</span>
-                <span className="text-[11px] text-muted">v{machine.version}</span>
+                <span className="text-label text-muted">v{machine.version}</span>
               </label>
             ))}
           </div>
         )}
         {byAddress ? (
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium" htmlFor="pairing-address">
+            <label className="text-label font-medium" htmlFor="pairing-address">
               The other machine's address
             </label>
             <input
@@ -522,7 +522,7 @@ function JoinFind({
               data-testid="pairing-address"
               data-autofocus
             />
-            <p className="text-[11px] leading-relaxed text-muted">
+            <p className="text-label leading-relaxed text-muted">
               Not on the same network? Connect your machines with Tailscale or WireGuard
               first, then enter the other machine's address. AI Juggler never relays
               through the internet.
@@ -531,7 +531,7 @@ function JoinFind({
         ) : null}
         <button
           type="button"
-          className="self-start text-[11px] text-accent-hi underline-offset-2 hover:underline"
+          className="self-start text-label text-accent-hi underline-offset-2 hover:underline"
           onClick={() => setByAddress((now) => !now)}
           data-testid="pairing-toggle-address"
         >
@@ -581,7 +581,7 @@ function JoinFind({
           ))}
         </div>
         {link && (
-          <p className="text-[11px] text-muted" data-testid="pairing-link-pasted">
+          <p className="text-label text-muted" data-testid="pairing-link-pasted">
             Pairing link pasted — the other machine's fingerprint will be checked automatically.
           </p>
         )}
@@ -630,7 +630,7 @@ function Verify({
         <span className="font-medium text-ink">{state.peer_label}</span> under This Mac.
       </p>
       <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-canvas p-3">
-        <p className="text-[11px] uppercase tracking-wider text-muted">The other machine</p>
+        <p className="text-label uppercase tracking-wider text-muted">The other machine</p>
         <p className="text-sm font-semibold" data-testid="pairing-peer-label">
           {state.peer_label}
         </p>
@@ -642,7 +642,7 @@ function Verify({
           {state.peer_fingerprint}
         </code>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted">
+      <p className="text-label leading-relaxed text-muted">
         It shows this Mac as <span className="font-medium text-ink">{selfLabel}</span> ·{" "}
         <span className="font-mono">{selfFingerprint}</span>
       </p>
@@ -708,12 +708,12 @@ function Permissions({
             />
             <span className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">{option.title}</span>
-              <span className="text-[11px] leading-relaxed text-muted">{option.body}</span>
+              <span className="text-label leading-relaxed text-muted">{option.body}</span>
             </span>
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-muted">You can unpair it any time in Fleet.</p>
+      <p className="text-label text-muted">You can unpair it any time in Fleet.</p>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onBack}>
           Back

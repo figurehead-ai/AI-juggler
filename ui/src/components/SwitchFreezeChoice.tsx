@@ -21,7 +21,7 @@ export function SwitchFreezeChoice({
 }): JSX.Element {
   if (keepsRunning) {
     return (
-      <p className="text-[11px] text-muted" data-testid="switch-keeps-running">
+      <p className="text-label text-muted" data-testid="switch-keeps-running">
         AI Juggler can't stop this session: if it's still open, it keeps going there, and the
         switch starts a separate continuation.
       </p>
@@ -29,7 +29,7 @@ export function SwitchFreezeChoice({
   }
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className="text-[11px] uppercase tracking-wider text-muted">
+      <legend className="text-label uppercase tracking-wider text-muted">
         {sourceLive ? "Freeze the source first" : "The source is at rest"}
       </legend>
       <label className="flex items-center gap-2 text-xs">

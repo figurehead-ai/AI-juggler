@@ -90,7 +90,7 @@ function RedactionBlock({
   if (redaction.effective === null) {
     return (
       <fieldset className="flex flex-col gap-1.5 rounded border border-warning/40 px-2 py-1.5" data-testid="switch-redaction-chooser">
-        <legend className="text-[11px] uppercase tracking-wider text-warning">
+        <legend className="text-label uppercase tracking-wider text-warning">
           Choose how secrets are handled in packs (required, once)
         </legend>
         {REDACTION_OPTIONS.map((option) => (
@@ -123,12 +123,12 @@ function RedactionBlock({
   }
   return (
     <div className="flex flex-col gap-1" data-testid="switch-redaction">
-      <p className="text-[11px] text-muted" data-testid="switch-redaction-line">
+      <p className="text-label text-muted" data-testid="switch-redaction-line">
         {redaction.line}
       </p>
       {redaction.effective === "ask" && (
         <fieldset className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5">
-          <legend className="text-[11px] uppercase tracking-wider text-muted">
+          <legend className="text-label uppercase tracking-wider text-muted">
             This switch
           </legend>
           <label className="flex items-center gap-2 text-xs">
@@ -153,7 +153,7 @@ function RedactionBlock({
       )}
       {showItems && items.length > 0 && (
         <div className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5" data-testid="switch-redaction-items">
-          <p className="text-[11px] uppercase tracking-wider text-muted">
+          <p className="text-label uppercase tracking-wider text-muted">
             Secrets detected — un-redact per item for this switch only
           </p>
           {items.map((item, index) => (
@@ -163,14 +163,14 @@ function RedactionBlock({
                 checked={unredact.has(index)}
                 onChange={() => onToggleItem(index)}
               />
-              <span className="font-mono text-[11px]">{item.preview}</span>
+              <span className="font-mono text-label">{item.preview}</span>
               <span className="text-muted">{item.kind}</span>
             </label>
           ))}
         </div>
       )}
       {items.length === 0 && (
-        <p className="text-[10px] text-muted" data-testid="switch-redaction-none">
+        <p className="text-label text-muted" data-testid="switch-redaction-none">
           No secrets detected in this conversation.
         </p>
       )}
@@ -375,18 +375,18 @@ export function SwitchFlow({
           <div className="flex flex-col gap-3" data-testid="switch-oneclick">
             <h3 className="text-sm font-semibold">
               Switch to {targetLabel}
-              <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
+              <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
                 {phase.preflight.fidelity_words} · usual account · {validationWords(phase.preflight.validated)}
               </span>
             </h3>
-            <p className="text-[11px] text-muted" data-testid="switch-oneclick-carry">
+            <p className="text-label text-muted" data-testid="switch-oneclick-carry">
               {carryOneLiner(phase.preflight.carry)}.
             </p>
-            <p className="text-[11px] text-muted">{phase.preflight.experimental_copy}</p>
+            <p className="text-label text-muted">{phase.preflight.experimental_copy}</p>
             {phase.preflight.warnings.length > 0 && (
               <ul className="flex flex-col gap-1" data-testid="switch-warnings">
                 {phase.preflight.warnings.map((warning) => (
-                  <li key={warning} className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning">
+                  <li key={warning} className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
                     {warning}
                   </li>
                 ))}
@@ -445,7 +445,7 @@ export function SwitchFlow({
               data-testid="switch-steps"
               aria-live="polite"
             >
-              <p className="text-[11px] uppercase tracking-wider text-muted">
+              <p className="text-label uppercase tracking-wider text-muted">
                 Step {step + 1} of {steps.length}: {steps[step]}
               </p>
               <ol className="flex flex-wrap gap-1">
@@ -453,7 +453,7 @@ export function SwitchFlow({
                   <li
                     key={title}
                     className={
-                      "rounded-full border px-2 py-0.5 text-[10px] " +
+                      "rounded-full border px-2 py-0.5 text-label " +
                       (index === step
                         ? "border-accent/60 bg-accent-soft text-accent-hi"
                         : index < step
@@ -472,7 +472,7 @@ export function SwitchFlow({
               <div className="flex flex-col gap-2" data-testid="switch-step-target">
                 <h3 className="text-sm font-semibold">
                   Switch to {targetLabel}
-                  <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
+                  <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
                     {phase.preflight.fidelity_words} · {validationWords(phase.preflight.validated)}
                   </span>
                 </h3>
@@ -480,13 +480,13 @@ export function SwitchFlow({
                   {phase.preflight.wizard_reasons.map((reason) => (
                     <li
                       key={reason}
-                      className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning"
+                      className="rounded border border-warning/40 px-2 py-1 text-label text-warning"
                     >
                       {reason}
                     </li>
                   ))}
                 </ul>
-                <p className="text-[11px] text-muted">
+                <p className="text-label text-muted">
                   {phase.preflight.usual_account
                     ? "The usual account for this project — suggested first."
                     : "A suggestion only — you pick the target; nothing moves until you confirm."}
@@ -497,10 +497,10 @@ export function SwitchFlow({
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-carried">
                 <h3 className="text-sm font-semibold">What's carried</h3>
-                <p className="text-[11px] text-muted">
+                <p className="text-label text-muted">
                   Only what's listed here moves.
                 </p>
-                <div className="flex flex-col gap-1 text-[11px]">
+                <div className="flex flex-col gap-1 text-label">
                   {phase.preflight.carry.carried.length > 0 && (
                     <p data-testid="switch-carry-carried">
                       <span className="text-muted">Carried: </span>
@@ -539,7 +539,7 @@ export function SwitchFlow({
             {steps[step] === "Conflicts" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-conflicts">
                 <h3 className="text-sm font-semibold">Conflicts</h3>
-                <p className="text-[11px] text-muted">
+                <p className="text-label text-muted">
                   Both sides changed. AI Juggler can't merge the two versions yet, so this
                   switch keeps the source's version and records the fork.
                 </p>
@@ -549,7 +549,7 @@ export function SwitchFlow({
             {steps[step] === "Rules & diff" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-rules">
                 <h3 className="text-sm font-semibold">Rules &amp; diff</h3>
-                <p className="text-[11px] text-muted">
+                <p className="text-label text-muted">
                   Rules or the worktree diverged between accounts — the uncommitted diff
                   rides the pack as a snapshot and the divergence is recorded.
                 </p>
@@ -559,7 +559,7 @@ export function SwitchFlow({
             {steps[step] === "Confirm" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-confirm">
                 <h3 className="text-sm font-semibold">Confirm the switch</h3>
-                <p className="text-[11px] text-muted" data-testid="switch-cost">
+                <p className="text-label text-muted" data-testid="switch-cost">
                   {phase.preflight.fidelity_words}
                   {phase.preflight.usual_account ? " · usual account" : ""}
                 </p>
@@ -574,13 +574,13 @@ export function SwitchFlow({
                   unredact={unredact}
                   onToggleItem={toggleUnredact}
                 />
-                <p className="text-[11px] text-muted">{phase.preflight.experimental_copy}</p>
+                <p className="text-label text-muted">{phase.preflight.experimental_copy}</p>
                 {phase.preflight.warnings.length > 0 && (
                   <ul className="flex flex-col gap-1" data-testid="switch-warnings">
                     {phase.preflight.warnings.map((warning) => (
                       <li
                         key={warning}
-                        className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning"
+                        className="rounded border border-warning/40 px-2 py-1 text-label text-warning"
                       >
                         {warning}
                       </li>
@@ -645,12 +645,12 @@ export function SwitchFlow({
                 reports only its terminal state. */}
             <ol className="flex flex-col gap-1">
               {STAGES.map((stage) => (
-                <li key={stage} className="text-[11px] text-muted">
+                <li key={stage} className="text-label text-muted">
                   · {stage}
                 </li>
               ))}
             </ol>
-            <p className="text-[10px] text-muted" data-testid="switch-elapsed">
+            <p className="text-label text-muted" data-testid="switch-elapsed">
               Running — freeze → stage → verify → launch in progress. The source stays resumable
               throughout.
             </p>
@@ -660,7 +660,7 @@ export function SwitchFlow({
         {phase.kind === "done" && (
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
-            <p className="text-[11px] text-muted">
+            <p className="text-label text-muted">
               {targetLabel} is picking up the conversation. The original has stopped, and you can
               switch back to it any time.
             </p>
@@ -680,10 +680,10 @@ export function SwitchFlow({
         {phase.kind === "failed" && (
           <div className="flex flex-col gap-3" data-testid="switch-failed">
             <h3 className="text-sm font-semibold text-warning">Switch didn’t complete</h3>
-            <p className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning">
+            <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
               {phase.message}
             </p>
-            <p className="text-[11px] text-muted">
+            <p className="text-label text-muted">
               The source is safe — resume it exactly where you left it.
             </p>
             {/* What was set up before the switch failed stays undoable. */}

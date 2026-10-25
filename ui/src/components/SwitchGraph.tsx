@@ -46,7 +46,7 @@ function GraphNode({
       onClick={onToggle}
       title={`${epoch.account_label} on ${providerDisplayName(epoch.provider)}${epoch.resumable ? " — resumable" : ""}`}
       className={
-        "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-[11px] transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
+        "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-label transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
         (open
           ? "border-accent/60 bg-surface"
           : "border-hairline hover:border-accent/40 hover:bg-surface")
@@ -56,7 +56,7 @@ function GraphNode({
         <Icon width={12} height={12} />
         <span className="font-medium">{epoch.account_label}</span>
       </span>
-      <span className="flex items-center gap-1 text-[10px] text-muted">
+      <span className="flex items-center gap-1 text-label text-muted">
         <span className="font-mono">{mark.abbrev}</span>
         <span aria-hidden="true">·</span>
         <span>{epoch.kind}</span>
@@ -71,7 +71,7 @@ function GraphNode({
           </span>
         )}
       </span>
-      <span className={`text-[10px] ${epoch.resumable ? "text-success" : "text-muted"}`}>
+      <span className={`text-label ${epoch.resumable ? "text-success" : "text-muted"}`}>
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
       <span className="sr-only">
@@ -100,7 +100,7 @@ function GraphEdge({
         data-testid="switch-graph-failed-edge"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex shrink-0 flex-col items-center gap-0.5 rounded px-2 py-1 text-[10px] text-danger focus:outline-none focus:ring-2 focus:ring-accent"
+        className="flex shrink-0 flex-col items-center gap-0.5 rounded px-2 py-1 text-label text-danger focus:outline-none focus:ring-2 focus:ring-accent"
       >
         <span aria-hidden="true" className="tracking-widest">
           ✕ ┄┄▶
@@ -115,7 +115,7 @@ function GraphEdge({
       data-testid="switch-graph-edge"
       role="img"
       aria-label={edge.label}
-      className="flex shrink-0 select-none flex-col items-center gap-0.5 px-1 text-[10px] text-muted"
+      className="flex shrink-0 select-none flex-col items-center gap-0.5 px-1 text-label text-muted"
     >
       <span aria-hidden="true" className="tracking-widest">
         {edge.switch_back ? "↺" : "→"}
@@ -249,7 +249,7 @@ export function SwitchGraph({
             <div className="flex flex-wrap items-baseline gap-x-2">
               <p className="text-xs font-medium">{work.title}</p>
               {work.hop_note !== null && work.hop_note !== undefined && (
-                <p className="text-[10px] text-warning" data-testid="switch-graph-hop-note">
+                <p className="text-label text-warning" data-testid="switch-graph-hop-note">
                   {work.hop_note}
                 </p>
               )}
@@ -265,7 +265,7 @@ export function SwitchGraph({
                 <span
                   data-testid="switch-graph-collapse"
                   title={`Collapsed: ${work.collapsed} older switches stay in the graph store`}
-                  className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10px] text-muted"
+                  className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted"
                 >
                   +{work.collapsed} switches
                 </span>
@@ -333,7 +333,7 @@ export function SwitchGraph({
             {failedEdge !== null && (
               <div
                 data-testid="switch-graph-failed-detail"
-                className="rounded-lg border border-danger/40 bg-danger-soft px-2.5 py-2 text-[11px]"
+                className="rounded-lg border border-danger/40 bg-danger-soft px-2.5 py-2 text-label"
               >
                 <p className="text-danger">
                   Switch failed: {failedEdge.label}
@@ -356,7 +356,7 @@ export function SwitchGraph({
                     onClick={() => {
                       if (failedSource?.session_id) onOpenSession(failedSource.session_id);
                     }}
-                    className="rounded border border-hairline px-2 py-1 text-[11px] transition-colors hover:border-accent/40 disabled:opacity-50"
+                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40 disabled:opacity-50"
                   >
                     Open the source epoch
                   </button>
@@ -369,7 +369,7 @@ export function SwitchGraph({
                 data-testid="switch-graph-node-menu"
                 className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
               >
-                <p className="text-[10px] uppercase tracking-wider text-muted">
+                <p className="text-label uppercase tracking-wider text-muted">
                   {openEpoch.account_label} · {providerMark(openEpoch.provider).abbrev}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -383,7 +383,7 @@ export function SwitchGraph({
                         : "No native session transcript survives for this epoch"
                     }
                     onClick={() => void doResume(openEpoch.id)}
-                    className="rounded border border-accent/40 px-2 py-1 text-[11px] text-accent-hi transition-colors hover:border-accent/60 disabled:border-hairline disabled:text-faint"
+                    className="rounded border border-accent/40 px-2 py-1 text-label text-accent-hi transition-colors hover:border-accent/60 disabled:border-hairline disabled:text-muted"
                   >
                     Resume {openEpoch.resumable && "(⌘R)"}
                   </button>
@@ -399,7 +399,7 @@ export function SwitchGraph({
                     onClick={() => {
                       if (openEpoch.session_id) onOpenSession(openEpoch.session_id);
                     }}
-                    className="rounded border border-hairline px-2 py-1 text-[11px] transition-colors hover:border-accent/40 disabled:opacity-50"
+                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40 disabled:opacity-50"
                   >
                     Switch from here…
                   </button>
@@ -408,7 +408,7 @@ export function SwitchGraph({
                     data-testid="epoch-export-button"
                     onClick={() => void doExport(openEpoch.id)}
                     title="Exports this epoch's pack through your redaction policy"
-                    className="rounded border border-hairline px-2 py-1 text-[11px] transition-colors hover:border-accent/40"
+                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40"
                   >
                     Export pack…
                   </button>
@@ -419,12 +419,12 @@ export function SwitchGraph({
         );
       })}
       {actionLine !== null && (
-        <p className="text-[11px] text-success" data-testid="pack-export-toast">
+        <p className="text-label text-success" data-testid="pack-export-toast">
           {actionLine}
         </p>
       )}
       {actionError !== null && (
-        <p className="text-[11px] text-danger" data-testid="switch-graph-action-error">
+        <p className="text-label text-danger" data-testid="switch-graph-action-error">
           {actionError}
         </p>
       )}

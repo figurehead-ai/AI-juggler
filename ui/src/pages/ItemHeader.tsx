@@ -48,7 +48,7 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
 function SessionResources({ session }: { session: InstanceInfo }) {
   const heavy = useHeavyNote(session.id);
   return (
-    <span className={"font-mono text-[11px] " + (heavy ? "text-warning" : "text-faint")} data-testid="session-resources">
+    <span className={"font-mono text-label " + (heavy ? "text-warning" : "text-muted")} data-testid="session-resources">
       {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
       {heavy && <span className="font-sans"> — working your Mac hard</span>}
     </span>
@@ -124,7 +124,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-faint">(⌘[ back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">(⌘[ back)</span>
           </span>
         }
         folded={folded}

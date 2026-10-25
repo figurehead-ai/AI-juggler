@@ -28,7 +28,7 @@ function Row({ row, onOpen }: { row: SummaryRowInfo; onOpen: (id: string) => voi
       <button
         type="button"
         onClick={() => onOpen(row.session_id)}
-        className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-hairline px-2.5 py-1.5 text-left text-[11px] hover:border-accent/40 hover:bg-surface"
+        className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-hairline px-2.5 py-1.5 text-left text-label hover:border-accent/40 hover:bg-surface"
         data-testid="summary-row"
         data-group={row.group}
       >
@@ -76,18 +76,18 @@ export function MorningSummary({ onOpenSession }: { onOpenSession: (id: string) 
         <h2 id="summary-title" className="text-sm font-semibold">
           Since you were away
         </h2>
-        <span className="text-[11px] text-muted">since {since(summary.since_ms)}</span>
+        <span className="text-label text-muted">since {since(summary.since_ms)}</span>
         <span className="flex-1" />
         <button
           type="button"
           onClick={() => void overnightSummarySeen().then(() => setSummary(null))}
-          className="rounded border border-hairline px-2 py-0.5 text-[11px] text-ink"
+          className="rounded border border-hairline px-2 py-0.5 text-label text-ink"
           data-testid="summary-seen"
         >
           Mark all seen
         </button>
       </div>
-      <p className="text-[11px] text-ink" data-testid="summary-headline">
+      <p className="text-label text-ink" data-testid="summary-headline">
         {headline}
         {summary.leftovers > 0
           ? ` · ${summary.leftovers} leftover ${summary.leftovers === 1 ? "process" : "processes"} to clean up`
@@ -98,7 +98,7 @@ export function MorningSummary({ onOpenSession }: { onOpenSession: (id: string) 
         if (rows.length === 0) return null;
         return (
           <div key={group.id} className="flex flex-col gap-1">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted">
+            <p className="text-label font-medium uppercase tracking-wider text-muted">
               <span aria-hidden="true">{group.icon} </span>
               {group.title} ({rows.length})
             </p>

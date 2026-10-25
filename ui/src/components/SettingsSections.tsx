@@ -37,13 +37,13 @@ export function NoAccounts(): JSX.Element {
 export function Status({ status, error }: { status: string | null; error: string | null }): JSX.Element | null {
   if (error)
     return (
-      <p className="text-[11px] text-danger" role="alert">
+      <p className="text-label text-danger" role="alert">
         {error}
       </p>
     );
   if (status)
     return (
-      <p className="text-[11px] text-muted" role="status">
+      <p className="text-label text-muted" role="status">
         {status}
       </p>
     );
@@ -196,10 +196,10 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
           Clear{" "}<span className="sr-only">the renewal date for {accountName(account)}</span>
         </Button>
       ) : (
-        <span className="text-[11px] text-muted">Not set: no renewal reminders</span>
+        <span className="text-label text-muted">Not set: no renewal reminders</span>
       )}
       {error && (
-        <span className="text-[11px] text-danger" role="alert">
+        <span className="text-label text-danger" role="alert">
           {error}
         </span>
       )}

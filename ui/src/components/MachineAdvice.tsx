@@ -9,7 +9,7 @@ import { Chip } from "./primitives";
 import { bytesWords, reasonSentence, type MachineAdviceInfo } from "../lib/machine";
 
 const GLYPH: Record<string, { glyph: string; tone: string }> = {
-  ok: { glyph: "●", tone: "text-faint" },
+  ok: { glyph: "●", tone: "text-muted" },
   tight: { glyph: "▲", tone: "text-warning" },
   no: { glyph: "■", tone: "text-danger" },
 };
@@ -38,7 +38,7 @@ export function MachineAdviceLine({
   return (
     <div className="flex flex-col gap-0.5 text-xs" data-testid="machine-advice" data-verdict={advice.verdict} role="status">
       <span className="flex items-center gap-1.5 font-medium text-ink">
-        <span aria-hidden="true" className={`text-[10px] ${look.tone}`}>{look.glyph}</span>
+        <span aria-hidden="true" className={`text-label ${look.tone}`}>{look.glyph}</span>
         {advice.words}
       </span>
       <span className="text-muted">

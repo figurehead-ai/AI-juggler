@@ -92,7 +92,7 @@ function HeadChip({ tone = "neutral", strong = false, title, children, testId }:
       data-testid={testId}
       data-tone={tone}
       title={title}
-      className={"inline-flex min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] leading-5 " + (strong ? "font-semibold " : "") + TONES[tone]}
+      className={"inline-flex min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta leading-5 " + (strong ? "font-semibold " : "") + TONES[tone]}
     >
       {children}
     </span>
@@ -115,7 +115,7 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
       </HeadChip>
       <span
         data-testid="session-profile-chip"
-        className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-medium leading-5 text-ink"
+        className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-medium leading-5 text-ink"
         style={{ borderColor: profileColor(profileName(model)) }}
       >
         <ProfileBadge name={profileName(model)} size={16} />
@@ -131,7 +131,7 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
       )}
       {model.cwd && (
         <HeadChip testId="session-folder-chip" title={model.cwd}>
-          <span className="truncate font-mono text-[12.5px]">{shortPath(model.cwd)}</span>
+          <span className="truncate font-mono text-meta">{shortPath(model.cwd)}</span>
         </HeadChip>
       )}
     </>
@@ -158,7 +158,7 @@ export function GoToButton({ onGo, why }: { onGo: () => void; why: string | null
     <Button size="md" variant="primary" disabled={why !== null} title={why ?? "Go to it (↵)"} onClick={onGo} data-testid="session-go-to">
       Go to it
       <IconGoTo width={14} height={14} aria-hidden="true" />
-      <kbd aria-hidden="true" className="font-sans text-[12px] opacity-80">
+      <kbd aria-hidden="true" className="font-sans text-label opacity-80">
         ↵
       </kbd>
     </Button>

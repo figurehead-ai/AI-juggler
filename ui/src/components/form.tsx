@@ -16,11 +16,11 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+      <span className="text-label uppercase tracking-[0.14em] text-muted">
         {label}
       </span>
       {children}
-      {hint && <span className="text-[11px] text-muted">{hint}</span>}
+      {hint && <span className="text-label text-muted">{hint}</span>}
     </label>
   );
 }
@@ -29,7 +29,7 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
   return (
     <input
       className={`h-9 rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink
-        placeholder:text-faint transition-colors focus:border-accent/50 ${className}`}
+        placeholder:text-muted transition-colors focus:border-accent/50 ${className}`}
       {...props}
     />
   );
@@ -130,7 +130,7 @@ export function Modal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

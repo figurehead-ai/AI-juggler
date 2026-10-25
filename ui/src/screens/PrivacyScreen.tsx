@@ -43,7 +43,7 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
       <details className="group">
         <summary className="flex cursor-pointer list-none items-start [&::-webkit-details-marker]:hidden gap-2.5 rounded-lg text-sm text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           {/* The rail's fold chevron: one look for every disclosure. */}
-          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none">
+          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
             <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="flex-1">{text}</span>
@@ -55,10 +55,10 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
               const [path, name] = reference.split("::");
               return (
                 <li key={reference}>
-                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-[11px]">
+                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-label">
                     {name}
                   </OutLink>
-                  <span className="text-faint"> · {path}</span>
+                  <span className="text-muted"> · {path}</span>
                 </li>
               );
             })}

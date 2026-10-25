@@ -245,7 +245,7 @@ export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const subtasks = session.subtask_count ?? 0;
   if (children === 0 && subtasks === 0) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] text-muted">
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-label text-muted">
       {children > 0 && (
         <span className="inline-flex items-center gap-0.5" title={`${children} child processes`}>
           <IconFork width={10} height={10} /> {children}
@@ -280,7 +280,7 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
   const dirty = session.git_dirty_count;
   return (
     <span
-      className="inline-flex min-w-0 items-center gap-0.5 text-[10px] text-muted"
+      className="inline-flex min-w-0 items-center gap-0.5 text-label text-muted"
       title={gitWords(session)}
       data-testid="git-badge"
     >
@@ -305,7 +305,7 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
 export function StaleChip({ caption }: { caption: string | null }) {
   if (caption === null) return null;
   return (
-    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
+    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
       {caption}
     </span>
   );
@@ -355,8 +355,8 @@ const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
  */
 export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={compact ? "flex flex-col gap-1.5 text-[10px]" : "flex flex-col gap-2 text-[11px]"}>
-      <span className="text-[11px] font-semibold text-ink">What the session list shows</span>
+    <div className={compact ? "flex flex-col gap-1.5 text-label" : "flex flex-col gap-2 text-label"}>
+      <span className="text-label font-semibold text-ink">What the session list shows</span>
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1" aria-label="States">
         {LEGEND_STATES.map((row) => (
           <div key={stateWord(row.state, row.probably)} className="contents">
@@ -377,7 +377,7 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
         ))}
         <div className="contents">
           <dt>
-            <span className="inline-flex items-center whitespace-nowrap rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium text-warning">stale - 3m</span>
+            <span className="inline-flex items-center whitespace-nowrap rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium text-warning">stale - 3m</span>
           </dt>
           <dd className="text-muted">a reading stopped updating</dd>
         </div>

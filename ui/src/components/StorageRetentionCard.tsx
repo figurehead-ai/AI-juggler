@@ -48,21 +48,21 @@ export function StorageRetentionCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-storage">
       <CardTitle>Storage &amp; retention</CardTitle>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         What AI Juggler keeps for each Account. Retention only ever removes AI Juggler's own records, and only after you
         review the list. The Provider's transcripts are theirs and stay where they are.
       </p>
       {error && (
-        <p role="alert" className="text-[11px] text-ink">
+        <p role="alert" className="text-label text-ink">
           {error}
         </p>
       )}
-      {rows?.length === 0 && <p className="text-[11px] text-muted">No Accounts yet.</p>}
+      {rows?.length === 0 && <p className="text-label text-muted">No Accounts yet.</p>}
       <ul className="flex flex-col gap-2">
         {rows?.map((row) => (
           <li
             key={row.account_id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-hairline px-3 py-2 text-[11px]"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-hairline px-3 py-2 text-label"
             data-testid="storage-row"
           >
             <span className="min-w-0 flex-1 truncate font-medium text-ink">{row.label}</span>
@@ -80,7 +80,7 @@ export function StorageRetentionCard(): JSX.Element {
                     .then(load)
                     .catch((cause) => setError(errorText(cause)));
                 }}
-                className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-[11px] text-ink"
+                className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
                 aria-label={`Retention for ${row.label}`}
                 data-testid="storage-retention"
               >
@@ -99,7 +99,7 @@ export function StorageRetentionCard(): JSX.Element {
                   .then(setPreview)
                   .catch((cause) => setError(errorText(cause)))
               }
-              className="rounded-lg border border-hairline px-2 py-0.5 text-[11px] text-ink disabled:text-muted"
+              className="rounded-lg border border-hairline px-2 py-0.5 text-label text-ink disabled:text-muted"
               data-testid="storage-review"
             >
               Review cleanup…
@@ -158,11 +158,11 @@ function RetentionDryRun({
           Dry run — {label}, older than {preview.retention_days} days
         </h3>
         {n === 0 ? (
-          <p className="text-[11px] text-ink" data-testid="dry-run-nothing">
+          <p className="text-label text-ink" data-testid="dry-run-nothing">
             Nothing to remove — no ended session is past the policy.
           </p>
         ) : (
-          <div className="text-[11px] text-ink">
+          <div className="text-label text-ink">
             <p className="font-medium">
               Would permanently remove AI Juggler's records for {n} {n === 1 ? "session" : "sessions"}:
             </p>
@@ -170,28 +170,28 @@ function RetentionDryRun({
               {preview.deletes.map((row) => (
                 <li key={row.session_id}>
                   {row.project ?? "No project"} · last active {new Date(row.last_active_ms).toLocaleDateString()}{" "}
-                  <span className="font-mono text-[10px] text-muted">{row.session_id}</span>
+                  <span className="font-mono text-label text-muted">{row.session_id}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
         {preview.kept.length > 0 && (
-          <div className="text-[11px] text-muted">
+          <div className="text-label text-muted">
             <p className="font-medium text-ink">Old enough, but kept:</p>
             <ul className="ml-4 list-disc" data-testid="dry-run-kept">
               {preview.kept.map((row) => (
                 <li key={row.session_id}>
                   {row.project ?? "No project"} — {row.kept_because}{" "}
-                  <span className="font-mono text-[10px]">{row.session_id}</span>
+                  <span className="font-mono text-label">{row.session_id}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
-        {preview.keeps.length > 0 && <p className="text-[11px] text-muted">Always kept: {preview.keeps.join(" · ")}.</p>}
+        {preview.keeps.length > 0 && <p className="text-label text-muted">Always kept: {preview.keeps.join(" · ")}.</p>}
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}

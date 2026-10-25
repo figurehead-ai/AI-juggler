@@ -44,8 +44,8 @@ function LoginItemRow({ state, setState }: { state: LoginItemInfo["state"]; setS
     <div className="flex flex-wrap items-center gap-4 rounded-xl border border-hairline bg-surface-2 px-4 py-3" data-testid="smoother-login-item">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-sm font-semibold text-ink">Open AI Juggler at login</span>
-        <span className="text-[13px] leading-relaxed text-muted">
-          So it's watching your sessions as soon as you log in. <span className="text-faint">You can turn it off in Settings › Sessions.</span>
+        <span className="text-meta leading-relaxed text-muted">
+          So it's watching your sessions as soon as you log in. <span className="text-muted">You can turn it off in Settings › Sessions.</span>
         </span>
         {error && (
           <span className="text-xs text-danger" role="alert">
@@ -85,11 +85,11 @@ export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): 
       <section aria-labelledby="smoother-title" className="flex flex-col gap-3" data-testid="smoother">
         <div className="flex items-baseline justify-between gap-3">
           <SectionTitle id="smoother-title">Make it smoother</SectionTitle>
-          <button type="button" className="text-[13px] text-muted hover:text-ink hover:underline" onClick={() => setDismissed(dismiss("all"))} data-testid="smoother-not-now">
+          <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setDismissed(dismiss("all"))} data-testid="smoother-not-now">
             Not now
           </button>
         </div>
-        <p className="text-[13px] leading-relaxed text-muted">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
+        <p className="text-meta leading-relaxed text-muted">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
         {missing.length > 0 && <OsAccessRows entries={entries} setEntries={setEntries} size="compact" testIdPrefix="smoother" />}
         <LoginItemRow state={loginItem} setState={setLoginItem} />
       </section>
@@ -106,7 +106,7 @@ export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): 
         size="compact"
         testIdPrefix="smoother-reminder"
         aside={(entry) => (
-          <button type="button" className="px-2 text-[13px] text-muted hover:text-ink hover:underline" onClick={() => setDismissed(dismiss(entry.id))} data-testid="smoother-reminder-not-now">
+          <button type="button" className="px-2 text-meta text-muted hover:text-ink hover:underline" onClick={() => setDismissed(dismiss(entry.id))} data-testid="smoother-reminder-not-now">
             Not now <span className="sr-only">— {entry.title}</span>
           </button>
         )}

@@ -104,7 +104,7 @@ export function Chip({
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5
-        text-[11px] font-medium tracking-wide ${chipTones[tone]}`}
+        text-label font-medium tracking-wide ${chipTones[tone]}`}
     >
       {dot && (
         <span
@@ -151,7 +151,7 @@ export function StatCard({
   return (
     <Card className="group p-4 flex flex-col gap-2 hover:-translate-y-0.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+        <span className="text-label uppercase tracking-[0.14em] text-muted">
           {label}
         </span>
         {icon && (
@@ -162,7 +162,7 @@ export function StatCard({
           </span>
         )}
       </div>
-      <span className={`text-[26px] leading-8 font-semibold tabular-nums ${valueClass}`}>
+      <span className={`text-stat leading-8 font-semibold tabular-nums ${valueClass}`}>
         {value}
       </span>
       {hint && <span className="text-xs text-muted">{hint}</span>}
@@ -196,7 +196,7 @@ export function QuotaBar({
         title="Quota: not measured yet"
       >
         <span className="inline-block h-1.5 w-14 rounded-full border border-dashed border-faint/70" />
-        <span className="whitespace-nowrap text-[10px] text-muted">Not measured yet</span>
+        <span className="whitespace-nowrap text-label text-muted">Not measured yet</span>
       </span>
     );
   }
@@ -215,10 +215,10 @@ export function QuotaBar({
           style={{ width: `${Math.max(2, quota.used_percentage)}%` }}
         />
       </span>
-      <span className="whitespace-nowrap text-[10px] tabular-nums text-muted">
+      <span className="whitespace-nowrap text-label tabular-nums text-muted">
         {Math.round(left)}% left
       </span>
-      <span className="shrink-0 whitespace-nowrap text-[10px] text-faint">
+      <span className="shrink-0 whitespace-nowrap text-label text-muted">
         {quotaTierTag(quota.confidence)}
       </span>
     </span>
@@ -255,7 +255,7 @@ export function Sparkline({
 }) {
   if (series.cpu.length < 2 || series.ram.length < 2) {
     return (
-      <span className="text-[10px] leading-none text-faint" title={title ?? "resources unavailable"}>
+      <span className="text-label leading-none text-muted" title={title ?? "resources unavailable"}>
         —
       </span>
     );

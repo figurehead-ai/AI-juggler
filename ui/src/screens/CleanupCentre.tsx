@@ -152,20 +152,20 @@ function GroupBlock(props: {
           aria-expanded={!collapsed}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
-          <span aria-hidden="true" className="w-3 text-center text-[9px] text-muted">
+          <span aria-hidden="true" className="w-3 text-center text-label text-muted">
             {collapsed ? "▸" : "▾"}
           </span>
-          <span className="truncate text-[11.5px] font-medium text-ink">
+          <span className="truncate text-meta font-medium text-ink">
             {providerDisplayName(group.provider)}
             {group.account !== null ? ` · ${group.account}` : ""}
             {group.project !== null ? ` · ${group.project}` : ""}
           </span>
-          <span className="font-mono text-[9.5px] text-faint">
+          <span className="font-mono text-label text-muted">
             {group.machine} · {group.rows.length}{" "}
             {group.rows.length === 1 ? "process" : "processes"}
           </span>
           {group.healthy && (
-            <span className="ml-auto rounded-full border border-hairline px-1.5 py-[1px] text-[9px] text-muted">
+            <span className="ml-auto rounded-full border border-hairline px-1.5 py-[1px] text-label text-muted">
               healthy
             </span>
           )}
@@ -374,7 +374,7 @@ export function CleanupCentre(props: {
               aria-checked={filter === entry.id}
               onClick={() => setFilter(entry.id)}
               className={
-                "rounded-md px-2 py-1 text-[10.5px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                "rounded-md px-2 py-1 text-label font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (filter === entry.id
                   ? "bg-accent-soft text-accent-hi"
                   : "text-muted hover:bg-surface hover:text-ink")
@@ -387,7 +387,7 @@ export function CleanupCentre(props: {
         {/* AJ-E511: the machine dimension appears once another Mac is
             paired (D-25: Fleet shows up when it has something). */}
         {(otherMacs || machineScope === "all") && (
-          <label className="flex items-center gap-1 text-[10.5px] text-muted">
+          <label className="flex items-center gap-1 text-label text-muted">
             Machine
             <select
               aria-label="Machine filter"
@@ -395,7 +395,7 @@ export function CleanupCentre(props: {
               onChange={(event) =>
                 setMachineScope(event.target.value === "all" ? "all" : "this")
               }
-              className="rounded-md border border-hairline bg-surface px-1.5 py-1 text-[10.5px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="rounded-md border border-hairline bg-surface px-1.5 py-1 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
               data-testid="cleanup-machine-filter"
             >
               <option value="this">This machine</option>
@@ -431,7 +431,7 @@ export function CleanupCentre(props: {
                   data-testid="cleanup-pause-toggle"
                 >
                   <span className="text-xs font-medium text-ink">Pause automatic cleanup</span>
-                  <span className="text-[11px] text-muted">For every account, until you resume it</span>
+                  <span className="text-label text-muted">For every account, until you resume it</span>
                 </button>
               )}
               <button
@@ -445,7 +445,7 @@ export function CleanupCentre(props: {
                 data-testid="cleanup-open-settings"
               >
                 <span className="text-xs font-medium text-ink">Cleanup settings…</span>
-                <span className="text-[11px] text-muted">What each account may clean up by itself</span>
+                <span className="text-label text-muted">What each account may clean up by itself</span>
               </button>
             </div>
           )}
@@ -463,7 +463,7 @@ export function CleanupCentre(props: {
 
       {/* Req.4/5: the persistent banners — shown, never silent. */}
       {status?.paused && (
-        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink">
+        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2 text-label text-ink">
           <p role="status" className="min-w-0 flex-1" data-testid="cleanup-paused-banner">
             Automatic cleanup is paused.
           </p>
@@ -474,7 +474,7 @@ export function CleanupCentre(props: {
       )}
       {status?.suspended && (
         <p
-          className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink"
+          className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2 text-label text-ink"
           role="status"
           data-testid="cleanup-suspended-banner"
         >
@@ -526,7 +526,7 @@ export function CleanupCentre(props: {
       )}
       {data?.ledger_degraded && (
         <p
-          className="rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink"
+          className="rounded-lg border border-warning/40 bg-warning/5 p-2 text-label text-ink"
           role="alert"
           data-testid="cleanup-degraded-banner"
         >
@@ -551,7 +551,7 @@ export function CleanupCentre(props: {
             alert.kind === "hog" ? (
               <p
                 key={`hog-${alert.pid}`}
-                className="flex items-center gap-2 rounded-lg border border-hairline bg-surface/60 p-2 text-[11px] text-ink"
+                className="flex items-center gap-2 rounded-lg border border-hairline bg-surface/60 p-2 text-label text-ink"
                 data-testid={`hog-alert-${alert.pid}`}
               >
                 <span aria-hidden="true" className="text-warning">
@@ -591,7 +591,7 @@ export function CleanupCentre(props: {
             ) : (
               <p
                 key={`idle-${alert.pid}`}
-                className="rounded-lg border border-hairline bg-surface/40 p-2 text-[11px] text-muted"
+                className="rounded-lg border border-hairline bg-surface/40 p-2 text-label text-muted"
                 data-testid={`idle-nudge-${alert.pid}`}
               >
                 <span aria-hidden="true" className="mr-1">
@@ -605,7 +605,7 @@ export function CleanupCentre(props: {
       )}
 
       {error !== null && (
-        <p className="text-[11px] text-muted" role="alert" data-testid="cleanup-error">
+        <p className="text-label text-muted" role="alert" data-testid="cleanup-error">
           Cleanup inventory unavailable: {error}
         </p>
       )}
@@ -656,7 +656,7 @@ export function CleanupCentre(props: {
         />
       )}
 
-      <p className="text-[10px] text-faint" data-testid="cleanup-glossary">
+      <p className="text-label text-muted" data-testid="cleanup-glossary">
         An <dfn>orphan</dfn> is a process still running after its session closed; a{" "}
         <dfn>helper</dfn> is any process a session spawned (dev server, watcher…).
       </p>
@@ -670,7 +670,7 @@ function HistoryList(props: { history: CleanupHistoryData }) {
   const [exported, setExported] = useState<string | null>(null);
   if (props.history.rows.length === 0) {
     return (
-      <p className="text-[12px] text-muted" data-testid="cleanup-history-empty">
+      <p className="text-label text-muted" data-testid="cleanup-history-empty">
         {props.history.empty_note ?? "No cleanups yet — automatic cleanup is off by default."}
       </p>
     );
@@ -696,13 +696,13 @@ function HistoryList(props: { history: CleanupHistoryData }) {
   return (
     <div className="flex flex-col gap-2" data-testid="cleanup-history">
       <div className="flex items-center gap-2">
-        <h3 className="text-[11.5px] font-medium text-ink">History (7 days)</h3>
+        <h3 className="text-meta font-medium text-ink">History (7 days)</h3>
         <Button size="sm" variant="secondary" onClick={doExport}>
           Export audit log…
         </Button>
       </div>
       {exported !== null && (
-        <p className="text-[10px] text-faint" data-testid="cleanup-history-exported">
+        <p className="text-label text-muted" data-testid="cleanup-history-exported">
           Exported {exported.split("\n").length} JSONL lines — command lines are hashed.
         </p>
       )}
@@ -710,14 +710,14 @@ function HistoryList(props: { history: CleanupHistoryData }) {
         {props.history.rows.map((row) => (
           <li
             key={row.id}
-            className="flex items-center gap-2 border-t border-hairline py-1.5 text-[11px]"
+            className="flex items-center gap-2 border-t border-hairline py-1.5 text-label"
             data-testid={`cleanup-history-row-${row.id}`}
           >
             <span
               className={
                 row.automatic
-                  ? "inline-flex items-center gap-1 rounded-full border border-accent/40 px-1.5 py-[1px] text-[9.5px] text-accent"
-                  : "inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-[1px] text-[9.5px] text-muted"
+                  ? "inline-flex items-center gap-1 rounded-full border border-accent/40 px-1.5 py-[1px] text-label text-accent"
+                  : "inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-[1px] text-label text-muted"
               }
               data-testid={`cleanup-history-actor-${row.id}`}
             >
@@ -725,13 +725,13 @@ function HistoryList(props: { history: CleanupHistoryData }) {
               <span aria-hidden="true">{row.automatic ? "⚙" : "👤"}</span>
               {row.automatic ? "automatic" : "you"}
             </span>
-            <span className="truncate font-mono text-[10.5px] text-ink">{row.cmdline_trunc}</span>
-            <span className="font-mono text-[10px] text-muted">PID {row.pid}</span>
-            <span className="ml-auto whitespace-nowrap text-[10px] text-muted">
+            <span className="truncate font-mono text-label text-ink">{row.cmdline_trunc}</span>
+            <span className="font-mono text-label text-muted">PID {row.pid}</span>
+            <span className="ml-auto whitespace-nowrap text-label text-muted">
               {row.outcome}
               {row.ports_before !== null && row.ports_after === null ? "" : ""}
             </span>
-            <span className="whitespace-nowrap font-mono text-[9.5px] text-faint">
+            <span className="whitespace-nowrap font-mono text-label text-muted">
               {new Date(row.at_ms).toISOString().slice(5, 16).replace("T", " ")}
             </span>
           </li>
@@ -771,7 +771,7 @@ function Tier2Notices(props: {
         return (
           <li
             key={notice.pid}
-            className="flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning/5 p-2 text-[11px] text-ink"
+            className="flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning/5 p-2 text-label text-ink"
             data-testid={`cleanup-tier2-notice-${notice.pid}`}
           >
             <p>

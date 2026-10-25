@@ -55,7 +55,7 @@ export function MainNav<Id extends string>({
         <button
           type="button"
           onClick={() => onPick("cleanup" as Id)}
-          className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-[11px] font-medium text-ink"
+          className="ml-1 rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-label font-medium text-ink"
           data-testid="nav-cleanup-pill"
         >
           {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}

@@ -64,7 +64,7 @@ export function PaneSection({
       className="flex scroll-mt-4 flex-col gap-2"
       data-settings-section={id}
     >
-      <h3 id={`settings-${id}-title`} tabIndex={-1} className="px-1 text-[13px] font-bold text-ink outline-none">
+      <h3 id={`settings-${id}-title`} tabIndex={-1} className="px-1 text-meta font-bold text-ink outline-none">
         {title}
       </h3>
       <InSettingsSection.Provider value>

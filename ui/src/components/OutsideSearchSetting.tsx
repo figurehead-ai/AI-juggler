@@ -54,7 +54,7 @@ export function OutsideSearchSetting(): JSX.Element | null {
   if (!info) return null;
   return (
     <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-outside-search">
-      <label className="flex items-center gap-2 text-[11px] text-ink">
+      <label className="flex items-center gap-2 text-label text-ink">
         <input
           type="checkbox"
           checked={info.enabled}
@@ -72,16 +72,16 @@ export function OutsideSearchSetting(): JSX.Element | null {
         />
         <span className="font-medium">Search the words of every session</span>
       </label>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         History can find what was said in sessions started outside AI Juggler too. For that, AI Juggler keeps an index
         of their words on this Mac, read from the tools&apos; own files, which it never changes. Off by default; turning
         it off deletes the index.
       </p>
-      <p className="text-[11px] text-ink" data-testid="outside-search-size" aria-live="polite">
+      <p className="text-label text-ink" data-testid="outside-search-size" aria-live="polite">
         {indexWords(info, estimate)}
       </p>
       {error && (
-        <p role="alert" className="text-[11px] text-ink">
+        <p role="alert" className="text-label text-ink">
           {error}
         </p>
       )}

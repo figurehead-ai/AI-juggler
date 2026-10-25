@@ -10,7 +10,7 @@ import { SHORTCUT_AREAS, SHORTCUTS } from "../lib/shortcuts";
 /** One key, as a key cap (the tier tag's quiet border). */
 export function Keycap({ children }: { children: string }): JSX.Element {
   return (
-    <kbd className="rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-ink">{children}</kbd>
+    <kbd className="rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-label text-ink">{children}</kbd>
   );
 }
 
@@ -26,7 +26,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
       <div className="grid max-h-[60vh] gap-x-8 gap-y-5 overflow-y-auto pr-1 sm:grid-cols-2" tabIndex={0} aria-label="Shortcuts by area">
         {SHORTCUT_AREAS.map((area) => (
           <section key={area} aria-labelledby={`shortcuts-${area}`} className="flex flex-col gap-1.5">
-            <h3 id={`shortcuts-${area}`} className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+            <h3 id={`shortcuts-${area}`} className="text-label font-medium uppercase tracking-[0.08em] text-muted">
               {area}
             </h3>
             <ul className="flex flex-col">
@@ -40,7 +40,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
                   <span className="flex shrink-0 items-center gap-1">
                     {entry.keys.map((keys, index) => (
                       <span key={keys} className="flex items-center gap-1">
-                        {index > 0 && <span className="text-[11px] text-muted">or</span>}
+                        {index > 0 && <span className="text-label text-muted">or</span>}
                         <Keycap>{keys}</Keycap>
                       </span>
                     ))}

@@ -142,7 +142,7 @@ export function FleetScreen({
           <button
             type="button"
             onClick={onOpenCloud}
-            className="flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-muted hover:text-ink"
+            className="flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-label text-muted hover:text-ink"
             data-testid="fleet-cloud-chip"
           >
             Find your Macs through your Figurehead account
@@ -178,13 +178,13 @@ export function FleetScreen({
           <p id="fleet-link-label" className="text-sm font-medium">
             Link {link?.enabled ? "on" : "off"}
           </p>
-          <p id="fleet-link-detail" className="text-[11px] leading-relaxed text-muted" data-testid="fleet-link-detail">
+          <p id="fleet-link-detail" className="text-label leading-relaxed text-muted" data-testid="fleet-link-detail">
             {link?.enabled
               ? `Paired machines can connect to this Mac (port ${link.port ?? "—"}); machines on this network see an unnamed entry until you pair.`
               : "This Mac isn't visible to, or reachable from, other machines. Turn Link on to pair or connect."}
           </p>
           {link?.error && (
-            <p className="mt-1 text-[11px] text-warning" role="status" data-testid="fleet-link-error">
+            <p className="mt-1 text-label text-warning" role="status" data-testid="fleet-link-error">
               {link.error}
             </p>
           )}
@@ -211,7 +211,7 @@ export function FleetScreen({
             trusting any of them. Nothing connects until you reset trust and pair again.
           </p>
           {self.trust_reason && (
-            <details className="text-[11px] text-muted">
+            <details className="text-label text-muted">
               <summary className="cursor-pointer">Details</summary>
               <p className="mt-1">{self.trust_reason}</p>
             </details>
@@ -293,7 +293,7 @@ export function FleetScreen({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{peer.label}</p>
-                  <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
+                  <p className="font-mono text-label text-muted">{peer.fingerprint}</p>
                 </div>
                 <ConnectionChip peer={peer} />
                 <SyncChip
@@ -314,10 +314,10 @@ export function FleetScreen({
                   Access…{" "}<span className="sr-only">for {peer.label} on this Mac</span>
                 </Button>
                 {peer.paired_via === "account" && (
-                  <span className="text-[11px] text-muted">via your Figurehead account</span>
+                  <span className="text-label text-muted">via your Figurehead account</span>
                 )}
                 {!peer.pairing_unfinished && (
-                  <span className="text-[11px] text-muted">
+                  <span className="text-label text-muted">
                     {peer.last_seen_ms === null
                       ? "Not seen yet"
                       : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
@@ -348,7 +348,7 @@ export function FleetScreen({
                   // the fingerprint.
                   <div className="flex basis-full flex-wrap items-center gap-3">
                     <span
-                      className="text-[11px] text-muted"
+                      className="text-label text-muted"
                       role="status"
                       data-testid="fleet-pairing-unfinished"
                     >
@@ -466,7 +466,7 @@ function ThisMacCard({
     <Card className="flex flex-col gap-4 p-5" data-testid="fleet-this-mac">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-muted">This Mac</p>
+          <p className="text-label uppercase tracking-wider text-muted">This Mac</p>
           {editing ? (
             <form
               className="mt-1 flex flex-wrap items-center gap-2"
@@ -510,14 +510,14 @@ function ThisMacCard({
               </Button>
             </div>
           )}
-          <p className="mt-0.5 text-[11px] text-muted">
+          <p className="mt-0.5 text-label text-muted">
             The name is only shown on this Mac and to machines you pair with.
           </p>
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <p className="text-[11px] font-medium text-ink" id="fleet-fingerprint-label">
+        <p className="text-label font-medium text-ink" id="fleet-fingerprint-label">
           Fingerprint
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -542,14 +542,14 @@ function ThisMacCard({
             {copied ? "Copied" : "Copy"}
           </Button>
         </div>
-        <p className="text-[11px] leading-relaxed text-muted">
+        <p className="text-label leading-relaxed text-muted">
           When you pair, both machines show their fingerprints — check they match what
           each machine shows here before you confirm.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
-        <span className="text-[11px] text-muted">
+        <span className="text-label text-muted">
           {self.peer_count === 1 ? "1 paired machine" : `${self.peer_count} paired machines`}
         </span>
         <span className="flex-1" />
@@ -636,7 +636,7 @@ function RemoteInstances({
   return (
     <>
     {lastKnown && (
-      <p className="w-full pl-1 text-[11px] text-muted" data-testid="fleet-last-known">
+      <p className="w-full pl-1 text-label text-muted" data-testid="fleet-last-known">
         Last known{asOf !== null ? ` · as of ${new Date(asOf).toLocaleString()}` : ""} — may have changed since.
       </p>
     )}
@@ -737,12 +737,12 @@ export function AccessSheet({
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">{option.title}</span>
-                <span className="text-[11px] leading-relaxed text-muted">{option.body}</span>
+                <span className="text-label leading-relaxed text-muted">{option.body}</span>
               </span>
             </label>
           ))}
         </div>
-        <p className="text-[11px] text-muted">
+        <p className="text-label text-muted">
           Only this Mac can change this. {peer.label} sees the change within half a minute.
         </p>
         <div className="flex justify-end gap-2">

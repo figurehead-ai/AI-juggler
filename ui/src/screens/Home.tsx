@@ -442,7 +442,7 @@ export function HomeScreen({
         <div
           role="alert"
           data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-[12.5px] text-ink"
+          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-meta text-ink"
         >
           <span aria-hidden>⚠</span>
           Process tracking degraded — cleanup is read-only until restart.
@@ -497,7 +497,7 @@ export function HomeScreen({
                       <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
                         <span className="truncate text-sm text-ink">
                           {place.title}
-                          {session.git_branch && <span className="text-faint"> · {session.git_branch}</span>}
+                          {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
                         </span>
                         <span className="truncate text-xs text-muted" title={words.long}>
                           {session.account_label} · {words.short.replace(/^Parked · /, "")}
@@ -542,7 +542,7 @@ export function HomeScreen({
                     onClick={() => onOpenSession(session.id)}
                   >
                     <span className="w-full truncate text-sm font-medium text-ink">{place.title}</span>
-                    <span className="w-full truncate text-xs text-faint">
+                    <span className="w-full truncate text-xs text-muted">
                       {place.detail} · {minutes(session.last_activity_ms ?? session.started_at_ms, now)} ago
                     </span>
                     <span className="text-xs text-accent-hi">Open →</span>
@@ -554,7 +554,7 @@ export function HomeScreen({
                     aria-keyshortcuts="A"
                     disabled={busy === session.id}
                     onClick={() => void act(session, "reviewed")}
-                    className="self-end px-4 pb-2.5 text-[11px] text-muted hover:text-ink hover:underline disabled:opacity-60"
+                    className="self-end px-4 pb-2.5 text-label text-muted hover:text-ink hover:underline disabled:opacity-60"
                   >
                     Mark reviewed<span className="sr-only"> — {place.title}</span>
                   </button>
@@ -577,7 +577,7 @@ export function HomeScreen({
       )}
 
       {allNeeds.length + parked.length + recent.length > 0 && (
-        <p className="text-[11px] text-faint" data-testid="home-keys">
+        <p className="text-label text-muted" data-testid="home-keys">
           {/* AJ-E1504: the same words and keys as the ? sheet. */}
           Keyboard:{" "}
           {(["home-next", "home-prev", "home-open", "home-action", "help"] as const).map((id, index) => {

@@ -45,11 +45,11 @@ export function ThisMacPanel({
       data-level={machine.summary.level}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="home-this-mac" className="text-[15px] font-semibold text-ink">
+        <h2 id="home-this-mac" className="text-section font-semibold text-ink">
           This Mac
         </h2>
         {onOpenPage && (
-          <button type="button" className="text-[13px] text-ink/80 hover:text-ink hover:underline" onClick={onOpenPage} data-testid="this-mac-open-page">
+          <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={onOpenPage} data-testid="this-mac-open-page">
             See all <span className="sr-only">of This Mac</span>
           </button>
         )}
@@ -77,7 +77,7 @@ export function ThisMacPanel({
         {info.others.length > 0 && (
           <button
             type="button"
-            className="self-start text-[13px] text-ink/80 underline-offset-2 hover:text-ink hover:underline"
+            className="self-start text-meta text-muted underline-offset-2 hover:text-ink hover:underline"
             aria-expanded={showAll}
             onClick={() => setShowAll((open) => !open)}
             data-testid="this-mac-more"
@@ -86,13 +86,13 @@ export function ThisMacPanel({
           </button>
         )}
         {info.theirs.count > 0 && info.top.every((tree) => tree.session_id !== null) && (
-          <p className="text-[13px] text-ink/80">
+          <p className="text-meta text-muted">
             Also counted: {info.theirs.count === 1 ? "1 Claude tool" : `${info.theirs.count} Claude tools`} not started by AI Juggler.
           </p>
         )}
 
         {info.recommendations.length > 0 && (
-          <ul className="flex flex-col gap-1 border-t border-hairline/60 pt-3 text-[13px] text-ink/80" aria-label="From your history" data-testid="this-mac-recommendations">
+          <ul className="flex flex-col gap-1 border-t border-hairline/60 pt-3 text-meta text-muted" aria-label="From your history" data-testid="this-mac-recommendations">
             {info.recommendations.map((line) => (
               <li key={line}>{line}.</li>
             ))}
@@ -101,7 +101,7 @@ export function ThisMacPanel({
 
         {info.leftover_processes > 0 && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline/60 pt-3" data-testid="this-mac-leftovers">
-            <span className="min-w-0 flex-1 basis-40 text-[14px] text-ink/80">
+            <span className="min-w-0 flex-1 basis-40 text-body text-muted">
               {info.leftover_processes === 1 ? "1 process" : `${info.leftover_processes} processes`} left running after
               {info.leftover_processes === 1 ? " its" : " their"} session closed
               {info.leftover_ports > 0 ? ` · ${info.leftover_ports === 1 ? "holding a port" : `holding ${info.leftover_ports} ports`}` : ""}

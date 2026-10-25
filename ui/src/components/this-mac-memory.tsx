@@ -24,7 +24,7 @@ export function FoldChevron({ group = "group" }: { group?: "group" | "group/more
       width="12"
       height="12"
       viewBox="0 0 10 10"
-      className={`shrink-0 text-ink/80 transition-transform motion-reduce:transition-none ${group === "group" ? "group-open:rotate-90" : "group-open/more:rotate-90"}`}
+      className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${group === "group" ? "group-open:rotate-90" : "group-open/more:rotate-90"}`}
     >
       <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -47,11 +47,11 @@ type PartKey = keyof typeof PART_LOOK;
 export function PressureNote({ info, more }: { info: ThisMacInfo; more: boolean }): JSX.Element | null {
   if (!underPressure(info.machine)) return null;
   return (
-    <div className="flex flex-col gap-1 text-[14px] text-ink/80" data-testid="this-mac-pressure-note">
+    <div className="flex flex-col gap-1 text-body text-muted" data-testid="this-mac-pressure-note">
       <p>{PRESSURE_SHORT}</p>
       {more && (
         <details className="group/more">
-          <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-[13px] text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+          <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-meta text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
             <FoldChevron group="group/more" />
             What it means
           </summary>
@@ -81,10 +81,10 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
   ].filter((part): part is { key: PartKey; words: string; bytes: number } => part !== null);
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] text-ink/80" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
+      <p className="flex flex-wrap items-baseline gap-x-1.5 text-body text-muted" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
         {used !== null ? (
           <>
-            <span className="text-[22px] font-semibold tabular-nums text-ink">{bytesWords(used)}</span>{" "}
+            <span className="text-title font-semibold tabular-nums text-ink">{bytesWords(used)}</span>{" "}
             <span className="tabular-nums">in use of {bytesWords(total)}</span>
           </>
         ) : (
@@ -113,7 +113,7 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
                 <div key={part.key} className={`h-full ${PART_LOOK[part.key]}`} style={{ width: share(part.bytes) }} title={part.words} />
               ))}
           </div>
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-x-4 gap-y-1 text-[13px] tabular-nums text-ink" aria-label="Memory by part" data-testid="this-mac-memory-parts">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-x-4 gap-y-1 text-meta tabular-nums text-ink" aria-label="Memory by part" data-testid="this-mac-memory-parts">
             {parts.map((part) => (
               <li key={part.key} className="flex items-center gap-2" data-part={part.key}>
                 <span aria-hidden="true" className={`size-3 shrink-0 rounded-sm ${PART_LOOK[part.key]}`} />
@@ -140,27 +140,27 @@ export function OtherAppsGroup({ info }: { info: ThisMacInfo }): JSX.Element | n
     <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-other-apps">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
         <FoldChevron />
-        <span className="flex min-w-0 flex-1 basis-40 items-baseline gap-2 text-[14px] font-medium text-ink">
+        <span className="flex min-w-0 flex-1 basis-40 items-baseline gap-2 text-body font-medium text-ink">
           <span className="truncate">{info.tools.count > 0 ? "Other apps and macOS" : "Apps and macOS"}</span>
-          <span className="shrink-0 text-[13px] font-normal text-ink/80">not AI tools</span>
+          <span className="shrink-0 text-meta font-normal text-muted">not AI tools</span>
         </span>
-        <span className="ml-auto shrink-0 text-[14px] tabular-nums text-ink">{figure}</span>
+        <span className="ml-auto shrink-0 text-body tabular-nums text-ink">{figure}</span>
       </summary>
       <div className="mb-3 ml-[22px] flex flex-col gap-2">
         {apps.length > 0 && (
           <ul className="flex flex-col" aria-label="Other apps, biggest first">
             {apps.map((app) => (
               <li key={app.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-hairline/60 py-2 first:border-t-0" data-testid="this-mac-other-app">
-                <span className="min-w-0 flex-1 basis-28 truncate text-[14px] text-ink">{app.name}</span>
+                <span className="min-w-0 flex-1 basis-28 truncate text-body text-ink">{app.name}</span>
                 <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-                  <span className="text-[14px] text-ink">{otherAppBytes(app)}</span>
-                  {app.processes > 1 && <span className="text-[13px] text-ink/80">{app.processes} processes</span>}
+                  <span className="text-body text-ink">{otherAppBytes(app)}</span>
+                  {app.processes > 1 && <span className="text-meta text-muted">{app.processes} processes</span>}
                 </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="text-[13px] text-ink/80">
+        <p className="text-meta text-muted">
           The biggest, by name. The rest is macOS itself and smaller apps
           {compressed > 0 ? `, and macOS keeps ${bytesWords(compressed)} more compressed for every app, AI tools too` : ""}. AI Juggler only reads
           these, and never stops them.

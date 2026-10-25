@@ -57,7 +57,7 @@ export function ConversationPage({ accountId, id, now, projects = [] }: { accoun
   const { row, gone } = useSteadyRow(all, accountId, id);
   if (gone) {
     return (
-      <Card className="m-6 p-6 text-[14px] text-ink/80" data-testid="conversation-gone">
+      <Card className="m-6 p-6 text-body text-muted" data-testid="conversation-gone">
         This conversation isn't there any more.
       </Card>
     );
@@ -155,7 +155,7 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
           )
         }
         footer={(tab) => (
-          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[12px] text-ink/80">from {tab.source}</footer>
+          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">from {tab.source}</footer>
         )}
       />
       {menu.element}

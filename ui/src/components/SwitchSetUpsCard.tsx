@@ -71,7 +71,7 @@ export function SwitchSetUpsCard(): JSX.Element | null {
                     onClick={() => void run(setUp, switchSetupForget)}
                     aria-label={`Forget: ${setUp.what} on ${setUp.place}`}
                     title="Stop listing it here and leave it as it is"
-                    className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
+                    className="rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2"
                   >
                     Forget
                   </button>
@@ -80,7 +80,7 @@ export function SwitchSetUpsCard(): JSX.Element | null {
                   type="button"
                   onClick={() => void run(setUp, switchSetupUndo)}
                   aria-label={`Undo: ${setUp.what} on ${setUp.place}`}
-                  className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
+                  className="rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2"
                 >
                   Undo
                 </button>
@@ -90,12 +90,12 @@ export function SwitchSetUpsCard(): JSX.Element | null {
         </ul>
       )}
       {status && (
-        <p className="text-[11px] text-muted" role="status">
+        <p className="text-label text-muted" role="status">
           {status}
         </p>
       )}
       {error && (
-        <p className="text-[11px] text-danger" role="alert">
+        <p className="text-label text-danger" role="alert">
           {error}
           {refused && " Forget stops listing it here and leaves it as it is."}
         </p>

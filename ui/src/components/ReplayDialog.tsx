@@ -53,7 +53,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
             Replay · read-only
           </h3>
           {replay && (
-            <span className="min-w-0 truncate text-[11px] text-muted" data-testid="replay-proof">
+            <span className="min-w-0 truncate text-label text-muted" data-testid="replay-proof">
               {replay.transcript_path
                 ? `${size(replay.bytes)} · sha256 ${replay.sha256?.slice(0, 12) ?? "unavailable"}…`
                 : "No transcript recorded"}
@@ -72,7 +72,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
           </button>
         </div>
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}
@@ -80,12 +80,12 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_260px]">
             <div className="min-h-[240px] overflow-hidden rounded-lg border border-hairline bg-[#05070b] p-2" data-testid="replay-transcript">
               {replay.entries.length === 0 ? (
-                <p className="p-3 text-[11px] text-[#cdd5e0]">Nothing to replay — the transcript is empty or missing.</p>
+                <p className="p-3 text-label text-[#cdd5e0]">Nothing to replay — the transcript is empty or missing.</p>
               ) : (
                 <ReplayTerminal entries={replay.entries} />
               )}
             </div>
-            <div className="flex min-h-0 flex-col gap-3 overflow-y-auto text-[11px]">
+            <div className="flex min-h-0 flex-col gap-3 overflow-y-auto text-label">
               <section aria-labelledby="replay-history">
                 <h4 id="replay-history" className="mb-1 font-semibold">
                   History

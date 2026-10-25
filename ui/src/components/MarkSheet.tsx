@@ -57,12 +57,12 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
       >
         <div className="flex items-center gap-3">
           <MarkTile mark={preview} icon={shows === "icon" ? icon : null} size={40} />
-          <p className="text-[12px] leading-relaxed text-muted">
+          <p className="text-label leading-relaxed text-muted">
             {project.mark?.clone !== undefined ? "Its clones change with it: they share one mark." : "It shows wherever the project does."}
           </p>
         </div>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[12px] font-medium text-ink">Colour</legend>
+          <legend className="mb-1.5 text-label font-medium text-ink">Colour</legend>
           <div role="radiogroup" aria-label="Colour" className="flex flex-wrap gap-1.5">
             {/* Around the wheel, not in the order they are given out. */}
             {[...PALETTE.keys()].sort((a, b) => PALETTE[a]!.h - PALETTE[b]!.h).map((index) => (
@@ -86,7 +86,7 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
           </div>
         </fieldset>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[12px] font-medium text-ink">It shows</legend>
+          <legend className="mb-1.5 text-label font-medium text-ink">It shows</legend>
           <div role="radiogroup" aria-label="It shows" className="flex flex-wrap gap-2">
             {(
               [

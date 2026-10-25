@@ -78,16 +78,16 @@ export function Welcome({
           <IconJuggler width={64} height={64} />
         </span>
         <div className="relative flex flex-col gap-3">
-          <h1 className="text-[28px] font-semibold leading-tight tracking-tight sm:text-[34px]">
+          <h1 className="text-stat font-semibold leading-tight tracking-tight sm:text-[34px]">
             All your AI coding accounts, in one calm place.
           </h1>
-          <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
+          <p className="max-w-2xl text-section leading-relaxed text-muted">
             AI Juggler runs your {names.length > 0 ? listWords(names) : "AI coding"} sessions side by side, shows you what needs
             you, and helps you carry on in another account before one runs out.
           </p>
         </div>
         <p
-          className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-hairline bg-surface px-3 py-1 text-[13px] text-ink"
+          className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-hairline bg-surface px-3 py-1 text-meta text-ink"
           role="status"
           data-testid="welcome-found"
         >
@@ -120,7 +120,7 @@ export function Welcome({
       <SmootherCard variant="welcome" />
 
       <section aria-labelledby="welcome-what" className="flex flex-col gap-3">
-        <h2 id="welcome-what" className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+        <h2 id="welcome-what" className="text-label font-semibold uppercase tracking-wider text-muted">
           What it does for you
         </h2>
         <ul className="grid gap-2.5 sm:grid-cols-2">
@@ -135,7 +135,7 @@ export function Welcome({
             </li>
           ))}
         </ul>
-        <p className="flex items-center gap-2 text-[13px] text-muted" data-testid="welcome-trust">
+        <p className="flex items-center gap-2 text-meta text-muted" data-testid="welcome-trust">
           <span aria-hidden="true" className="text-success">
             <IconShield width={14} height={14} />
           </span>
@@ -144,18 +144,18 @@ export function Welcome({
       </section>
 
       <details className="group text-sm" data-testid="welcome-how">
-        <summary className="w-fit cursor-pointer rounded-md text-[13px] font-medium text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="w-fit cursor-pointer rounded-md text-meta font-medium text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
           How it works
         </summary>
         <ol className="mt-4 flex flex-col gap-3">
           {STEPS.map((step, index) => (
             <li key={step.title} className="flex items-start gap-3">
-              <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-[11px] font-semibold text-ink">
+              <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-label font-semibold text-ink">
                 {index + 1}
               </span>
               <span className="flex flex-col gap-0.5">
                 <span className="font-medium text-ink">{step.title}</span>
-                <span className="text-[13px] leading-relaxed text-muted">{step.text}</span>
+                <span className="text-meta leading-relaxed text-muted">{step.text}</span>
               </span>
             </li>
           ))}
@@ -169,7 +169,7 @@ export function Welcome({
  * the welcome while no account is in. */
 export function WelcomePointer({ onOpenHome }: { onOpenHome: () => void }): JSX.Element {
   return (
-    <p className="text-[12px] text-muted" data-testid="welcome-pointer">
+    <p className="text-label text-muted" data-testid="welcome-pointer">
       New here?{" "}
       <button
         type="button"

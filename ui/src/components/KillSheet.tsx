@@ -352,7 +352,7 @@ export function KillSheet(props: {
         <div className="flex items-start justify-between gap-4 border-b border-hairline p-4">
           <div>
             <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="mt-0.5 font-mono text-[10.5px] text-muted">
+            <p className="mt-0.5 font-mono text-label text-muted">
               Session {props.session}
               {verify?.machine_id ? ` · ${verify.machine_id}` : ""}
               {verify !== null && verify.account_id !== null
@@ -365,7 +365,7 @@ export function KillSheet(props: {
           </div>
           <button
             onClick={() => close(phase === "report")}
-            className="rounded-lg p-1 text-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
             data-testid={`kill-close-${props.pid}`}
           >
@@ -375,7 +375,7 @@ export function KillSheet(props: {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 text-[11.5px] text-muted">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 text-meta text-muted">
           {error !== null && (
             <p role="alert" className="mb-2 text-danger" data-testid={`kill-error-${props.pid}`}>
               {error}
@@ -396,10 +396,10 @@ export function KillSheet(props: {
               <p className="mt-2">
                 The verification facts, for the record — nothing was signalled:
               </p>
-              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[10.5px]">
-                <dt className="text-faint">recorded exe</dt>
+              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
+                <dt className="text-muted">recorded exe</dt>
                 <dd>{verify.exe_path}</dd>
-                <dt className="text-faint">ports</dt>
+                <dt className="text-muted">ports</dt>
                 <dd>{verify.ports.length > 0 ? verify.ports.map((p) => `:${p}`).join(" ") : "—"}</dd>
               </dl>
             </div>
@@ -407,14 +407,14 @@ export function KillSheet(props: {
 
           {phase === "ready" && verify !== null && (
             <div data-testid={`kill-ready-${props.pid}`}>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[10.5px]">
-                <dt className="text-faint">command</dt>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
+                <dt className="text-muted">command</dt>
                 <dd className="break-all text-ink" data-testid={`kill-cmdline-${props.pid}`}>
                   {verify.cmdline}
                 </dd>
-                <dt className="text-faint">cwd</dt>
+                <dt className="text-muted">cwd</dt>
                 <dd className="break-all">{verify.cwd}</dd>
-                <dt className="text-faint">ports now</dt>
+                <dt className="text-muted">ports now</dt>
                 <dd>
                   {verify.ports.length > 0
                     ? verify.ports.map((p) => `:${p}`).join(" ")
@@ -422,14 +422,14 @@ export function KillSheet(props: {
                 </dd>
                 {goalPort !== null && (
                   <>
-                    <dt className="text-faint">goal</dt>
+                    <dt className="text-muted">goal</dt>
                     <dd className="text-accent">free :{goalPort}</dd>
                   </>
                 )}
               </dl>
 
               <fieldset className="mt-3">
-                <legend className="text-[11px] font-medium text-ink">Scope</legend>
+                <legend className="text-label font-medium text-ink">Scope</legend>
                 <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="Kill scope">
                   {KILL_SCOPES.map((entry) => (
                     <label
@@ -452,19 +452,19 @@ export function KillSheet(props: {
 
               {verify.members.length > 1 && (
                 <div className="mt-3" data-testid={`kill-members-${props.pid}`}>
-                  <p className="text-[11px] font-medium text-ink">
+                  <p className="text-label font-medium text-ink">
                     Shares the process group ({verify.members.length} live members)
                   </p>
                   <ul className="mt-1 flex flex-col gap-1">
                     {verify.members.map((member) => (
                       <li
                         key={member.pid}
-                        className="flex items-center gap-2 rounded-lg border border-hairline px-2 py-1 font-mono text-[10px]"
+                        className="flex items-center gap-2 rounded-lg border border-hairline px-2 py-1 font-mono text-label"
                         data-testid={`kill-member-${member.pid}`}
                       >
                         <span className="text-ink">{member.exe}</span>
                         <span>PID {member.pid}</span>
-                        <span className="text-faint">{member.role_guess} (guess)</span>
+                        <span className="text-muted">{member.role_guess} (guess)</span>
                         {!member.from_ledger && (
                           <span className="text-warning">not Juggler-managed</span>
                         )}
@@ -486,11 +486,11 @@ export function KillSheet(props: {
               )}
 
               {verify.platform === "TerminateProcess only" ? (
-                <p className="mt-3 text-[11px]" data-testid={`kill-platform-${props.pid}`}>
+                <p className="mt-3 text-label" data-testid={`kill-platform-${props.pid}`}>
                   Windows: TerminateProcess only — there is no grace window here.
                 </p>
               ) : (
-                <p className="mt-3 text-[11px]" data-testid={`kill-platform-${props.pid}`}>
+                <p className="mt-3 text-label" data-testid={`kill-platform-${props.pid}`}>
                   Ladder: {verify.platform} — {verify.grace_secs}s of grace you can cancel, then
                   KILL only what ignored SIGTERM.
                 </p>
@@ -505,7 +505,7 @@ export function KillSheet(props: {
                   ? `Waiting for clean exit — ${countdown}s of grace left`
                   : "Escalating to KILL — survivors ignored SIGTERM"}
               </p>
-              <ul className="mt-2 flex flex-col gap-1 font-mono text-[10.5px]">
+              <ul className="mt-2 flex flex-col gap-1 font-mono text-label">
                 {(scope === "pid"
                   ? [props.pid]
                   : scope === "pgid"
@@ -535,7 +535,7 @@ export function KillSheet(props: {
               {report.cancelled && (
                 <p className="text-ink">Cancelled during grace — TERM was sent; outcomes unknown.</p>
               )}
-              <ul className="mt-2 flex flex-col gap-1 font-mono text-[10.5px]">
+              <ul className="mt-2 flex flex-col gap-1 font-mono text-label">
                 {report.members.map((member) => (
                   <li key={member.pid} data-testid={`kill-outcome-${member.pid}`}>
                     PID {member.pid} — {member.outcome}
@@ -547,7 +547,7 @@ export function KillSheet(props: {
                   <p className="text-warning">
                     Still holding (never claimed freed):
                   </p>
-                  <ul className="font-mono text-[10.5px]">
+                  <ul className="font-mono text-label">
                     {report.still_holding.map((held) => (
                       <li key={`${held.pid}-${held.port}`}>
                         :{held.port} by {held.exe} (PID {held.pid})
@@ -608,7 +608,7 @@ export function KillSheet(props: {
               type="button"
               ref={confirmRef}
               onClick={confirm}
-              className="rounded-xl border border-danger bg-danger px-3 py-1.5 text-[11.5px] font-medium text-canvas transition-opacity hover:opacity-90 outline-none focus-visible:ring-1 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
+              className="rounded-xl border border-danger bg-danger px-3 py-1.5 text-meta font-medium text-canvas transition-opacity hover:opacity-90 outline-none focus-visible:ring-1 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
               data-testid={`kill-confirm-${props.pid}`}
             >
               Terminate {killDisplayName(verify.cmdline, verify.exe_path)} (PID {props.pid})

@@ -362,7 +362,7 @@ function FoundStep({
   if (report === null || inPlace === null) {
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
-        <h1 className="text-[28px] font-semibold tracking-tight">
+        <h1 className="text-stat font-semibold tracking-tight">
           {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
         </h1>
         <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
@@ -374,8 +374,8 @@ function FoundStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{words.heading}</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">{words.lead}</p>
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">{words.heading}</h1>
+        <p className="max-w-2xl text-section leading-relaxed text-muted">{words.lead}</p>
         {scanError !== null && (
           <div>
             <Button onClick={onScanAgain} data-testid="first-run-scan-again">
@@ -414,10 +414,10 @@ function FoundStep({
                 <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
                   <span className="flex items-center gap-1.5 font-semibold text-ink">
                     <ToolMark tool={group.tool} size={12} className="text-muted" />
-                    <span>{group.title} <span className="font-normal text-faint">· {rows.length}</span></span>
+                    <span>{group.title} <span className="font-normal text-muted">· {rows.length}</span></span>
                   </span>
                   {group.showsInstall && install && toolFound(install) && (
-                    <span className="text-faint" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
+                    <span className="text-muted" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
                   )}
                 </div>
                 {rows.map((found) => {
@@ -448,8 +448,8 @@ function FoundStep({
                         style={{ background: colour }}
                       />
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[15px] font-medium text-ink">{labelOf(found)}</span>
-                        <span className="truncate font-mono text-[11px] text-faint" title={found.path}>
+                        <span className="truncate text-section font-medium text-ink">{labelOf(found)}</span>
+                        <span className="truncate font-mono text-label text-muted" title={found.path}>
                           {found.path.replace(/^\/Users\/[^/]+/, "~")}
                         </span>
                       </span>
@@ -527,7 +527,7 @@ function FoundStep({
           role="alert"
           data-testid="first-run-outcome"
         >
-          <p className="text-[15px] font-medium text-ink">
+          <p className="text-section font-medium text-ink">
             {outcomeWords({
               stopped,
               done: doneCount,
@@ -600,7 +600,7 @@ function FoundStep({
         </div>
         {installs.length > 0 && !showOutcome && (
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-faint md:inline">Names and plans can be changed later.</span>
+            <span className="hidden text-xs text-muted md:inline">Names and plans can be changed later.</span>
             <Button
               variant="primary"
               disabled={chosen.length === 0 || busy}
@@ -697,7 +697,7 @@ function SigninRow({
     <li className="flex flex-col border-t border-hairline/60 first:border-t-0" data-testid="first-run-signin-row">
       <div className="flex flex-wrap items-center gap-4 px-5 py-3">
         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: entry.colour }} />
-        <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{entry.label}</span>
+        <span className="min-w-0 flex-1 truncate text-section font-medium text-ink">{entry.label}</span>
         <span className="text-xs" role="status">
           {ready ? (
             <span className="flex items-center gap-1.5 text-success"><Check />Signed in</span>
@@ -790,14 +790,14 @@ function SigninStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-signin">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">
           {left.length === 0
             ? "Everyone's signed in."
             : left.length === 1
               ? "One account needs a quick sign-in."
               : `${left.length} accounts need a quick sign-in.`}
         </h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
+        <p className="max-w-2xl text-section leading-relaxed text-muted">
           {(() => {
             // One tool: its own sign-in by name. First run with every tool
             // (AJ-E1301): each account opens its own tool's sign-in.
@@ -932,8 +932,8 @@ function FolderStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-folder">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Bring in this folder?</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">Bring in this folder?</h1>
+        <p className="max-w-2xl text-section leading-relaxed text-muted">
           AI Juggler makes its own copy; the folder itself isn't changed, and you can keep using it as before.
         </p>
       </div>
@@ -1014,7 +1014,7 @@ function FolderStep({
           <input
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-[15px] font-normal text-ink outline-none focus:border-accent/60"
+            className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-section font-normal text-ink outline-none focus:border-accent/60"
             data-testid="first-run-folder-name"
           />
         </label>

@@ -41,12 +41,12 @@ function RemoteBoardSection({
         : "○ offline · last known";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="board-machine" data-machine={machine.machine_id}>
-      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted">
+      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-label font-medium uppercase tracking-[0.08em] text-muted">
         <span className="truncate normal-case tracking-normal">{machine.label}</span>
         <span className="shrink-0 font-normal normal-case tracking-normal">{state}</span>
       </p>
       {rows.length === 0 ? (
-        <p className="px-3 py-1 text-[11px] text-muted">
+        <p className="px-3 py-1 text-label text-muted">
           {machine.freshness === "offline" ? "Offline — nothing to show." : "No sessions match."}
         </p>
       ) : (
@@ -80,13 +80,13 @@ function RemoteBoardSection({
                   }
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-[12.5px]">
+                <span className="min-w-0 flex-1 truncate text-meta">
                   {row.account_label}
                   {" "}<span className="sr-only">on</span>
                 </span>
-                <span className="shrink-0 rounded border border-hairline px-1 text-[9.5px] text-muted">{machine.label}</span>
+                <span className="shrink-0 rounded border border-hairline px-1 text-label text-muted">{machine.label}</span>
               </span>
-              <span className="flex min-w-0 gap-1 truncate pl-3 text-[10.5px] text-muted">
+              <span className="flex min-w-0 gap-1 truncate pl-3 text-label text-muted">
                 <span>{row.provider}</span>
                 <span>· {row.model ?? "model unknown"}</span>
                 <span>· {status}</span>
@@ -132,7 +132,7 @@ export function OtherMacs({
                   controls={id}
                   onToggle={() => setOpened((current) => new Set([...current, machine.machine_id]))}
                 />
-                <p className="min-w-0 truncate text-[11.5px] font-semibold text-muted">
+                <p className="min-w-0 truncate text-meta font-semibold text-muted">
                   {machine.label} <span className="font-normal">· {rows.length} open</span>
                 </p>
               </div>

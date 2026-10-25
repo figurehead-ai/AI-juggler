@@ -27,7 +27,7 @@ export function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolea
             <span
               aria-hidden="true"
               className={
-                "flex size-5 items-center justify-center rounded-full text-[11px] " +
+                "flex size-5 items-center justify-center rounded-full text-label " +
                 (index < at
                   ? "bg-success-soft text-success"
                   : index === at
@@ -59,7 +59,7 @@ export function TermsLine({ tools }: { tools: string[] }): JSX.Element | null {
     <ul className="flex flex-col gap-1.5 border-t border-hairline pt-4 text-xs text-muted" aria-label="Your accounts and the tools' terms" data-testid="terms-line">
       {rows.map(({ id, terms }) => (
         <li key={id} className="flex items-start gap-2">
-          <ToolMark tool={id} size={13} className="mt-0.5 shrink-0 text-faint" />
+          <ToolMark tool={id} size={13} className="mt-0.5 shrink-0 text-muted" />
           <span>
             {terms.accounts}{" "}
             <button type="button" onClick={() => void trustOpen({ kind: "terms", id })} className="text-accent underline underline-offset-2">

@@ -118,7 +118,7 @@ export function BackupRestoreCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-backup">
       <CardTitle>Backup &amp; restore</CardTitle>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         One file with AI Juggler's records, Launch settings, history and lineage, to keep or to move to a new Mac. It never
         holds your sign-ins or this Mac's identity, and it stays on your disk; nothing is uploaded.
       </p>
@@ -143,7 +143,7 @@ export function BackupRestoreCard(): JSX.Element {
         </button>
       </div>
 
-      <div aria-live="polite" className="flex flex-col gap-2 text-[11px]" data-testid="backup-status">
+      <div aria-live="polite" className="flex flex-col gap-2 text-label" data-testid="backup-status">
         {phase.kind === "exporting" && (
           <div className="flex flex-col gap-1">
             <span className="text-ink">Writing the backup… {percent}%</span>
@@ -164,7 +164,7 @@ export function BackupRestoreCard(): JSX.Element {
             <p>
               <span aria-hidden="true">✓ </span>Backed up — {size(phase.info.bytes)}, every file checksummed.
             </p>
-            <p className="break-all font-mono text-[10.5px] text-muted">{phase.info.path}</p>
+            <p className="break-all font-mono text-label text-muted">{phase.info.path}</p>
             <p className="text-muted">{countLine(phase.info.manifest.counts)}</p>
             {phase.info.manifest.withheld.length > 0 && (
               <p className="text-muted">
@@ -212,14 +212,14 @@ export function BackupRestoreCard(): JSX.Element {
             <h3 id="restore-title" className="text-sm font-semibold">
               Restore this backup?
             </h3>
-            <p className="text-[11px] text-ink">
+            <p className="text-label text-ink">
               <span aria-hidden="true">✓ </span>Every file checked — {countLine(phase.plan.manifest.counts)}. Made{" "}
               {new Date(phase.plan.manifest.created_at_ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} on{" "}
               {phase.plan.manifest.origin.label}.
             </p>
             {phase.plan.other_machine && (
               <p
-                className="rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-[11px] text-ink"
+                className="rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-label text-ink"
                 data-testid="restore-other-machine"
               >
                 <span aria-hidden="true">⚠ </span>
@@ -227,7 +227,7 @@ export function BackupRestoreCard(): JSX.Element {
                 This Mac keeps its own and must pair again with your other Macs.
               </p>
             )}
-            <ul id="restore-notes" className="ml-4 list-disc text-[11px] text-ink" data-testid="restore-notes">
+            <ul id="restore-notes" className="ml-4 list-disc text-label text-ink" data-testid="restore-notes">
               {phase.plan.notes
                 .filter((note) => !(phase.plan.other_machine && note.includes("never its identity")))
                 .map((note) => (

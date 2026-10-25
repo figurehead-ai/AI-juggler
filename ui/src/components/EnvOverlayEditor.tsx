@@ -80,7 +80,7 @@ export function EnvOverlayEditor({
   }, [recipeId]);
 
   if (rows === null) {
-    return <p className="text-[11px] text-muted">Loading environment overrides…</p>;
+    return <p className="text-label text-muted">Loading environment overrides…</p>;
   }
 
   const problems = rows.map((row) => envRowProblem(row.key, row.value, protectedKeys));
@@ -113,7 +113,7 @@ export function EnvOverlayEditor({
   return (
     <div className="flex flex-col gap-2" data-testid="env-overlay-editor">
       {rows.length === 0 ? (
-        <p className="text-[11px] text-muted">No environment overrides — the defaults apply.</p>
+        <p className="text-label text-muted">No environment overrides — the defaults apply.</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {rows.map((row, index) => {
@@ -136,7 +136,7 @@ export function EnvOverlayEditor({
                         ),
                       )
                     }
-                    className="w-[clamp(10rem,42%,20rem)] min-w-0 rounded-lg border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink outline-none focus:border-accent/50"
+                    className="w-[clamp(10rem,42%,20rem)] min-w-0 rounded-lg border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink outline-none focus:border-accent/50"
                     data-testid="env-key"
                   />
                   <span className="text-muted" aria-hidden="true">
@@ -154,20 +154,20 @@ export function EnvOverlayEditor({
                         ),
                       )
                     }
-                    className="min-w-0 flex-1 rounded-lg border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink outline-none focus:border-accent/50"
+                    className="min-w-0 flex-1 rounded-lg border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink outline-none focus:border-accent/50"
                     data-testid="env-value"
                   />
                   <button
                     type="button"
                     aria-label={`Remove ${row.key || `variable ${index + 1}`}`}
                     onClick={() => setRows((current) => (current ?? []).filter((_, at) => at !== index))}
-                    className="rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface hover:text-ink"
+                    className="rounded-md px-1.5 py-0.5 text-label text-muted hover:bg-surface hover:text-ink"
                   >
                     ✕
                   </button>
                 </div>
                 {problem !== null && (
-                  <span id={problemId} className="text-[11px] text-danger" data-testid="env-problem">
+                  <span id={problemId} className="text-label text-danger" data-testid="env-problem">
                     {problem}
                   </span>
                 )}
@@ -177,7 +177,7 @@ export function EnvOverlayEditor({
         </ul>
       )}
       {duplicate !== undefined && (
-        <p className="text-[11px] text-danger">{duplicate.key} is listed twice.</p>
+        <p className="text-label text-danger">{duplicate.key} is listed twice.</p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button
@@ -198,13 +198,13 @@ export function EnvOverlayEditor({
           {busy ? "Saving…" : "Save overrides"}
         </Button>
         {notice && (
-          <span className="text-[11px] text-muted" role="status">
+          <span className="text-label text-muted" role="status">
             {notice}
           </span>
         )}
       </div>
       {error && (
-        <p className="text-[11px] text-danger" role="alert" data-testid="env-error">
+        <p className="text-label text-danger" role="alert" data-testid="env-error">
           {error}
         </p>
       )}

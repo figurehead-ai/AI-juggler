@@ -190,7 +190,7 @@ export function NewProjectSheet({
           <div className="ml-auto flex items-center gap-2">
             {directory && (
               <Chip tone="accent">
-                <span className="max-w-64 truncate font-mono text-[10px]">
+                <span className="max-w-64 truncate font-mono text-label">
                   {directory.split("/").pop()}
                 </span>
               </Chip>
@@ -213,7 +213,7 @@ export function NewProjectSheet({
           }}
         >
           {/* Step 1 — where */}
-          <p className="text-[11px] uppercase tracking-wider text-muted">
+          <p className="text-label uppercase tracking-wider text-muted">
             Step 1 — where do you want to work?
           </p>
           <div
@@ -243,7 +243,7 @@ export function NewProjectSheet({
                     {row.name}
                   </span>
                 </span>
-                <span className="truncate text-[10px] text-muted">
+                <span className="truncate text-label text-muted">
                   {row.accounts_used.length > 0
                     ? `last used with ${row.accounts_used[row.accounts_used.length - 1]}`
                     : row.root}
@@ -266,14 +266,14 @@ export function NewProjectSheet({
             >
               <IconProjects width={14} height={14} />
               <span className="text-xs font-medium">Choose folder…</span>
-              <span className="text-[10px] text-muted">or drop it anywhere</span>
+              <span className="text-label text-muted">or drop it anywhere</span>
             </button>
           </div>
 
           {/* Step 2 — who (appears once a directory is chosen) */}
           {directory !== null && (
             <>
-              <p className="mt-5 text-[11px] uppercase tracking-wider text-muted">
+              <p className="mt-5 text-label uppercase tracking-wider text-muted">
                 Step 2 — which account?
               </p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
@@ -301,7 +301,7 @@ export function NewProjectSheet({
                         {quotaByAccount.get(recommended.account_id)?.forecast.badge ?? "quota unknown"}
                       </Chip>
                       <span className="text-muted">{recommended.name}</span>
-                      <span className="ml-auto text-[10px] text-muted">
+                      <span className="ml-auto text-label text-muted">
                         {project?.default_account_id === recommended.account_id
                           ? "this project's default"
                           : accounts.find((account) => account.is_default)?.id === recommended.account_id
@@ -326,7 +326,7 @@ export function NewProjectSheet({
                       </Button>
                     </div>
                     {!signedIn(loginByAccount.get(recommended.account_id)) && (
-                      <p className="text-[11px] text-muted">
+                      <p className="text-label text-muted">
                         This account needs sign-in (Ready home) — pick another or sign in first.
                       </p>
                     )}
@@ -390,7 +390,7 @@ export function NewProjectSheet({
         </div>
 
         <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
-          <span className="text-[11px] text-muted">
+          <span className="text-label text-muted">
             {directory
               ? `Starting in ${directory.split("/").pop()}`
               : "Pick a folder to continue"}

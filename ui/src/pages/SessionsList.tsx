@@ -145,7 +145,7 @@ export function useSessionRows(
 /** The heading over a list: how many, how many open. */
 function ListCount({ total, open }: { total: number; open: number }): JSX.Element {
   return (
-    <p className="text-[11px] text-muted" data-testid="page-sessions-count">
+    <p className="text-label text-muted" data-testid="page-sessions-count">
       {total === 1 ? "1 session" : `${total} sessions`}
       {open > 0 && ` · ${open} open`}
     </p>
@@ -348,8 +348,8 @@ function SessionRowBody({
         <AppIcon {...appOfRow(row)} size={16} />
         <span className="min-w-0 flex-1 truncate text-sm text-ink">
           {row.title}
-          {row.detail && <span className="text-faint"> · {row.detail}</span>}
-          <span className="text-faint">
+          {row.detail && <span className="text-muted"> · {row.detail}</span>}
+          <span className="text-muted">
             {" "}
             · <span className={row.tone} data-testid="page-session-state">{row.state}</span>
             {row.outside && " · outside AI Juggler"}
@@ -367,7 +367,7 @@ function SessionRowBody({
           <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
         </span>
         {badge}
-        <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">{row.when}</span>
+        <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-muted">{row.when}</span>
       </button>
       {below}
       {menu.button({ label: `Actions for ${row.title}`, className: "absolute right-2 top-2" })}

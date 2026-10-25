@@ -51,7 +51,7 @@ export function AccountStack({ accounts, max = 3, size = 16 }: { accounts: Stack
           <AccountAvatar accountId={account.id} label={account.label} size={size} live={account.live} />
         </span>
       ))}
-      {more > 0 && <span className="ml-1 text-[10px] font-medium tabular-nums text-muted">+{more}</span>}
+      {more > 0 && <span className="ml-1 text-label font-medium tabular-nums text-muted">+{more}</span>}
     </span>
   );
 }

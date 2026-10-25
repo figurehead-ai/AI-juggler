@@ -202,7 +202,7 @@ describe("D-38 ProfileBadge and PlaceMark", () => {
     render(<ProfileBadge name="Personal" variant="pill" />);
     const pill = screen.getByTestId("profile-badge");
     expect(pill.textContent).toBe("Personal");
-    expect(pill.className).toContain("text-[12px]");
+    expect(pill.className).toContain("text-label");
   });
 });
 

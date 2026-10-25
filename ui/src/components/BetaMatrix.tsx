@@ -60,7 +60,7 @@ export function BetaMatrix(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-4" data-testid="beta-matrix">
       <div>
-        <p className="text-[11px] uppercase tracking-wider text-muted">Proven switches</p>
+        <p className="text-label uppercase tracking-wider text-muted">Proven switches</p>
         <p className="mt-1 text-xs text-muted" data-testid="beta-matrix-summary">
           {proven === 0
             ? `None of the ${rows.length} switches is proven yet; all are in beta. `
@@ -70,7 +70,7 @@ export function BetaMatrix(): JSX.Element {
         </p>
       </div>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Proven switches">
-        <table className="w-full text-left text-[11px]" data-testid="beta-matrix-table">
+        <table className="w-full text-left text-label" data-testid="beta-matrix-table">
           <thead>
             <tr className="border-b border-hairline text-muted">
               <th scope="col" className="py-1.5 pr-3 font-medium">Switch</th>
@@ -94,7 +94,7 @@ export function BetaMatrix(): JSX.Element {
                 <td className="py-1.5 pr-3">
                   <span className={row.validated ? "text-success" : "text-warning"}>{row.badge}</span>
                   {row.advertised !== row.researched_ceiling && (
-                    <span className="block text-[10px] text-danger">one level less — a hand check failed</span>
+                    <span className="block text-label text-danger">one level less — a hand check failed</span>
                   )}
                 </td>
                 <td className="py-1.5 pr-3 text-muted">{testWords(row)}</td>
@@ -103,9 +103,9 @@ export function BetaMatrix(): JSX.Element {
                 </td>
                 <td className="py-1.5 text-muted">
                   <span className="block">{row.validated ? "Proven ✓" : "Beta — not proven yet"}</span>
-                  <span className="block text-[10px] text-muted">{row.status}</span>
+                  <span className="block text-label text-muted">{row.status}</span>
                   {row.notes.length > 0 && (
-                    <span className="block text-[10px] text-muted">{row.notes.join(" · ")}</span>
+                    <span className="block text-label text-muted">{row.notes.join(" · ")}</span>
                   )}
                 </td>
               </tr>
@@ -113,7 +113,7 @@ export function BetaMatrix(): JSX.Element {
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-muted">
+      <p className="text-label text-muted">
         Hand checks use the real tools and record the files before and after. A failed one lowers what that
         switch promises by one level until it's fixed.
       </p>

@@ -42,7 +42,7 @@ function RestartChoice({ recipe }: { recipe: LaunchRecipeInfo }): JSX.Element {
         <option value="stay">Leave it ended</option>
       </select>
       {error && (
-        <span className="text-[11px] text-danger" role="alert">
+        <span className="text-label text-danger" role="alert">
           {error}
         </span>
       )}
@@ -70,7 +70,7 @@ function RecipeEnvEditor({ provider, accountId, recipeId }: { provider: string; 
     };
   }, [provider, accountId]);
   if (protectedKeys === null) {
-    return <p className="text-[11px] text-muted">Loading…</p>;
+    return <p className="text-label text-muted">Loading…</p>;
   }
   return <EnvOverlayEditor recipeId={recipeId} protectedKeys={protectedKeys} />;
 }

@@ -72,13 +72,13 @@ export function ProjectRow({
         <ProjectMark projectId={project.id} size={16} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-[12.5px] font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
+            <span className={"min-w-0 truncate text-meta font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
             {project.pinned && <PinMark />}
-            {project.missing && <span className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">moved</span>}
-            {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
+            {project.missing && <span className="shrink-0 text-label font-medium uppercase tracking-wide text-muted">moved</span>}
+            {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-label text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
           </span>
           {density === "comfortable" && stats.length > 0 && (
-            <span className="min-w-0 truncate text-[11px] text-muted" data-testid="rail-project-stats">
+            <span className="min-w-0 truncate text-label text-muted" data-testid="rail-project-stats">
               {stats.join(" · ")}
             </span>
           )}
@@ -134,7 +134,7 @@ export function RailProjectHeader({
         aria-current={selected ? "true" : undefined}
         data-rail-selected={selected ? "true" : undefined}
         className={
-          "relative flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-[11.5px] font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          "relative flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-meta font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (selected ? "bg-surface text-ink" : "text-muted hover:text-ink")
         }
         data-testid="rail-project"
@@ -148,7 +148,7 @@ export function RailProjectHeader({
         <span className="flex shrink-0 items-center gap-1.5">
           {children}
           <AccountStack accounts={accounts} size={14} />
-          <span className="text-[10px] font-normal text-faint">{count}</span>
+          <span className="text-label font-normal text-muted">{count}</span>
         </span>
       </button>
       {/* The accounts are its description, outside it: its name stays

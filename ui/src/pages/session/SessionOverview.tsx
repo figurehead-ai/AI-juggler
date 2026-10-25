@@ -83,23 +83,23 @@ function WhereItRuns({ model, accountWords, outside }: { model: SessionModel; ac
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="where-it-runs">
       <CardTitle>Where it runs</CardTitle>
-      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px]">
+      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-2 text-meta">
         {rows.map(([label, value, mono]) => (
           <div key={label} className="contents">
-            <dt className="text-ink/80">{label}</dt>
-            <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-[12.5px]" : "")} title={value}>
+            <dt className="text-muted">{label}</dt>
+            <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-meta" : "")} title={value}>
               {value}
             </dd>
           </div>
         ))}
       </dl>
       {model.places.length > 1 && (
-        <p className="text-[13px] text-ink/80" data-testid="where-also">
+        <p className="text-meta text-muted" data-testid="where-also">
           Also open in {model.places.slice(1).map((p) => p.label || p.app).join(", ")}.
         </p>
       )}
       {outside && (
-        <p className="border-t border-hairline pt-3 text-[12px] leading-[1.5] text-ink/80" data-testid="where-outside">
+        <p className="border-t border-hairline pt-3 text-label leading-[1.5] text-muted" data-testid="where-outside">
           Started <span data-testid="outside-chip">outside AI Juggler</span>: shown here to read and follow. AI Juggler never stops or changes it.
         </p>
       )}

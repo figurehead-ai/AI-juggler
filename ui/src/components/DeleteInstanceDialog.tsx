@@ -57,14 +57,14 @@ export function DeleteInstanceDialog({
           Delete this session{preview?.account_label ? ` (${preview.account_label})` : ""}?
         </h3>
         {preview?.refused ? (
-          <p className="text-[11px] text-ink" data-testid="delete-refused">
+          <p className="text-label text-ink" data-testid="delete-refused">
             <span aria-hidden="true">⚠ </span>
             {preview.refused}
           </p>
         ) : (
           preview && (
             <>
-              <div id="delete-removes" className="text-[11px] text-ink">
+              <div id="delete-removes" className="text-label text-ink">
                 <p className="font-medium">This cannot be undone. It permanently removes:</p>
                 <ul className="ml-4 list-disc" data-testid="delete-removes">
                   {preview.removes.map((line) => (
@@ -72,7 +72,7 @@ export function DeleteInstanceDialog({
                   ))}
                 </ul>
               </div>
-              <div className="text-[11px] text-muted">
+              <div className="text-label text-muted">
                 <p className="font-medium text-ink">It keeps:</p>
                 <ul className="ml-4 list-disc break-all" data-testid="delete-keeps">
                   {preview.keeps.map((line) => (
@@ -80,13 +80,13 @@ export function DeleteInstanceDialog({
                   ))}
                 </ul>
               </div>
-              <label className="flex flex-col gap-1 text-[11px] text-ink">
+              <label className="flex flex-col gap-1 text-label text-ink">
                 Type «delete» to confirm
                 <input
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}
-                  className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink"
+                  className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"
                   aria-label="Type delete to confirm"
                   data-testid="delete-confirm"
                 />
@@ -95,7 +95,7 @@ export function DeleteInstanceDialog({
           )
         )}
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}

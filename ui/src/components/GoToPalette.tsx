@@ -228,7 +228,7 @@ export function GoToPalette({
             }
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
-            className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+            className="w-full bg-transparent text-meta text-ink outline-none placeholder:text-muted"
           />
         </div>
         <ul
@@ -238,7 +238,7 @@ export function GoToPalette({
           className="max-h-80 overflow-y-auto p-1.5"
         >
           {rows.length === 0 && (
-            <li className="px-2.5 py-3 text-[11.5px] text-muted">
+            <li className="px-2.5 py-3 text-meta text-muted">
               No live sessions — start one from the rail.
             </li>
           )}
@@ -247,7 +247,7 @@ export function GoToPalette({
               {/* Section names, when there's more than one kind of row:
                   the options name themselves, so these are for the eye. */}
               {sectioned && sectionOf(entry) !== (index > 0 ? sectionOf(rows[index - 1]!) : null) && (
-                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-[9.5px] font-medium uppercase tracking-wide text-faint first:pt-0.5">
+                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-label font-medium uppercase tracking-wide text-muted first:pt-0.5">
                   {entry.where === "action" ? `Actions for ${selected?.heading ?? ""}` : sectionOf(entry)}
                 </li>
               )}
@@ -262,7 +262,7 @@ export function GoToPalette({
               onClick={() => choose(entry)}
               onMouseEnter={() => setActive(index)}
               className={
-                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11.5px] transition-colors " +
+                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-meta transition-colors " +
                 (index === active ? "bg-accent-soft text-accent-hi" : "text-ink hover:bg-surface")
               }
             >
@@ -316,7 +316,7 @@ export function GoToPalette({
             </Fragment>
           ))}
         </ul>
-        <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-[10.5px] text-muted">
+        <div className="flex items-center gap-3 border-t border-hairline px-3 py-2 text-label text-muted">
           <span>↑↓ navigate · Enter go · Esc close</span>
           <Button
             size="sm"
