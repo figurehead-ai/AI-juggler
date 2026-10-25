@@ -2,9 +2,8 @@ import { useId, useState, type JSX } from "react";
 
 import { errorText } from "../lib/bridge";
 import { AGENT_ACTIONS, agentRuleRevoke, poolSetAccess, poolSetDelivery, type PoolInfo, type PoolsInfo } from "../lib/ipc/pools";
-import { ACTION_WORDS, LEVELS, levelLabel, setPools, usePools } from "../lib/pools";
+import { ACTION_WORDS, LEVELS, setPools } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
-import { Card } from "./primitives";
 
 /**
  * D-28: what agents may do in one pool — its level, picked by you here
@@ -137,48 +136,5 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
         </p>
       )}
     </div>
-  );
-}
-
-/**
- * Settings › Agent access: every pool's level and every rule, on one
- * page. A pool's row opens its details.
- */
-export function AgentAccessCard(): JSX.Element {
-  const pools = usePools();
-  return (
-    <Card className="flex flex-col gap-3 p-5" data-testid="settings-agent-access">
-      <div>
-        <h3 className="text-sm font-semibold">Agent access</h3>
-        <p className="mt-1 text-xs text-muted">
-          What agents in each pool may do. Only you change it, here or on the pool's page, and a change counts from the next request. Anything more becomes a question for you in Needs you.
-        </p>
-      </div>
-      {pools === null ? (
-        <p className="text-xs text-muted">Loading…</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5" data-testid="agent-access-pools">
-          {pools.pools.map((pool) => (
-            <li key={pool.id}>
-              <details className="group rounded-lg border border-hairline/60 px-3 py-2" data-testid="agent-access-pool">
-                <summary className="flex cursor-pointer select-none items-center gap-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-                  <span aria-hidden="true" className="text-faint transition-transform group-open:rotate-90">›</span>
-                  <span className="min-w-0 flex-1 truncate font-medium text-ink">{pool.name}</span>
-                  <span className="shrink-0 text-muted">{levelLabel(pool.access.level)}</span>
-                  {pool.rules.length > 0 && (
-                    <span className="shrink-0 text-faint">
-                      · {pool.rules.length} {pool.rules.length === 1 ? "rule" : "rules"}
-                    </span>
-                  )}
-                </summary>
-                <div className="mt-2.5">
-                  <PoolAccessPanel pool={pool} />
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
   );
 }

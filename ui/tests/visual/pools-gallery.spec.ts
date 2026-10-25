@@ -1,15 +1,16 @@
 /**
  * AJ-E1702 / AJ-E1703 gallery: pools.
  *
- * - The rail grouped by pool (an empty pool keeps its place) and Home's
- *   pool picker.
+ * - The rail's Pool lens (the View's Group by › Pool, offered once a pool
+ *   of yours exists): Open now by pool, a pool's header opens its page.
  * - A session's "Move to pool…" sheet, and the pool sheet with what
  *   agents may do unfolded (D-28 levels).
  * - The pool page: the members' context cards, one unfolded (the agent's
  *   own words marked; Unavailable and why), and its Agent access tab
  *   (hop limit, rules, "Include my paired Macs").
- * - Settings › Agent access, every pool listed.
- * - Keyboard: a pool's header opens its page, a card unfolds with Enter,
+ * - Settings › Agent access (its own pane): every pool's level, and the
+ *   rules you made.
+ * - Keyboard: a pool's header Open opens its page, a card unfolds with Enter,
  *   the level moves with the arrow keys.
  *
  * Both themes; axe 0 critical/serious on each.
@@ -75,27 +76,31 @@ async function axe(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
+/** The View's Group by › Pool, then the View closed. */
 async function groupByPool(page: Page) {
   await openFilters(page);
-  await page.getByRole("combobox", { name: "Group by" }).selectOption("pool");
-  await page.getByRole("button", { name: /^Filters/ }).click();
+  const pool = page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ });
+  await expect(pool).toBeEnabled();
+  await pool.check();
+  await page.keyboard.press("Escape");
 }
+
+/** A pool's header: its Open button. */
+const poolOpen = (page: Page, name: string) => page.getByTestId("place-header").getByRole("button", { name: new RegExp(`^Open ${name}`) });
 
 async function poolPage(page: Page) {
   await groupByPool(page);
-  await page.getByTestId("rail-pool").filter({ hasText: "Checkout redesign" }).click();
+  await poolOpen(page, "Checkout redesign").click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail by pool, and Home's picker — ${theme}`, gate("91-pools"), async ({ page }) => {
+  test(`the rail's Pool lens — ${theme}`, gate("91-pools"), async ({ page }) => {
     await open(page, theme);
     await groupByPool(page);
-    const headers = page.getByTestId("rail-pool");
-    await expect(headers.filter({ hasText: "Checkout redesign" })).toContainText("2");
-    await expect(headers.filter({ hasText: "Docs" })).toContainText("0");
-    await expect(page.getByTestId("rail-new-pool")).toBeVisible();
-    await expect(page.getByTestId("home-pool-filter")).toBeVisible();
+    await expect(poolOpen(page, "Checkout redesign")).toBeVisible();
+    // No pools section and no Home picker: a pool's view is its page.
+    await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `rail-by-pool-1280x800-${theme}.png`) });
     await axe(page, `rail by pool ${theme}`);
@@ -157,7 +162,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`Settings › Agent access — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
-    await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Agent access" }).click();
+    await page.getByRole("navigation", { name: "Settings" }).getByRole("button", { name: "Agent access" }).click();
+    await expect(page.getByTestId("settings-pane-agent-access")).toBeVisible();
+    await expect(page.getByTestId("agent-access-rule")).toContainText("Give a task to someone else");
     const card = page.getByTestId("settings-agent-access");
     await expect(card.getByTestId("agent-access-pool")).toHaveCount(5);
     await card.getByTestId("agent-access-pool").nth(1).locator("> summary").click();
@@ -171,7 +178,7 @@ for (const theme of ["dark", "light"] as const) {
 test("keyboard: a pool's header, a card's disclosure, the level", async ({ page }) => {
   await open(page, "dark");
   await groupByPool(page);
-  const header = page.getByTestId("rail-pool").filter({ hasText: "Checkout redesign" });
+  const header = poolOpen(page, "Checkout redesign");
   await header.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("pool-page")).toBeVisible();

@@ -39,10 +39,10 @@ export const PANES: readonly PaneSpec[] = [
   { id: "accounts", label: "Accounts", tone: "live" },
   { id: "sessions", label: "Sessions", tone: "success" },
   { id: "switching", label: "Switching", tone: "accent" },
-  // The hook for 0.2's pools: their Agent access pane (asks, the
-  // injection switch, the audit) shows here once pools exist. Pools
-  // aren't on this line, so it never shows.
-  { id: "agent-access", label: "Agent access", tone: "warning", shown: () => false },
+  // AJ-E1702, D-28: what agents may do in each pool, and your rules.
+  // Always shown: every project has its default pool (D-33), whose level
+  // applies too, so these controls are in reach before you make a pool.
+  { id: "agent-access", label: "Agent access", tone: "warning" },
   { id: "notifications", label: "Notifications", tone: "danger" },
   { id: "privacy", label: "Privacy", tone: "live" },
   { id: "macs", label: "Your Macs", tone: "success", shown: ({ pairedMacs }) => (pairedMacs ?? 0) > 0 },
@@ -74,6 +74,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   privacy: { pane: "privacy" },
   "go-to": { pane: "desktop-apps", anchor: "go-to" },
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },
+  // 0.2's first Agent access section (one page of Settings).
+  agents: { pane: "agent-access" },
 };
 
 /** Where `section` (an older section id, a pane id, or nothing) lands. */

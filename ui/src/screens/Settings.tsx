@@ -1,8 +1,8 @@
 /**
  * Settings (AJ-E1203; AJ-E2110, Apple's System Settings pattern): a
  * sidebar of panes — General, Desktop apps, Accounts, Sessions,
- * Switching, Notifications, Privacy, Your Macs (once one is paired) and
- * Advanced — each with grouped sections. ⌘, opens the pane viewed last;
+ * Switching, Agent access (AJ-E1702), Notifications, Privacy, Your Macs
+ * (once one is paired) and Advanced — each with grouped sections. ⌘, opens the pane viewed last;
  * a link from elsewhere opens its pane at its section (`panes.ts` maps
  * every older section id). Each pane loads when it's first opened.
  *
@@ -19,12 +19,13 @@ import { PaneTile } from "./settings/parts";
 
 type PaneProps = { anchor?: string };
 
-const PANE_BODIES: Record<Exclude<PaneId, "agent-access">, (props: PaneProps) => JSX.Element> = {
+const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
   general: lazyNamed(() => import("./settings/GeneralPane"), "GeneralPane"),
   "desktop-apps": lazyNamed(() => import("./settings/DesktopAppsPane"), "DesktopAppsPane"),
   accounts: lazyNamed(() => import("./settings/AccountsPane"), "AccountsPane"),
   sessions: lazyNamed(() => import("./settings/SessionsPane"), "SessionsPane"),
   switching: lazyNamed(() => import("./settings/SwitchingPane"), "SwitchingPane"),
+  "agent-access": lazyNamed(() => import("./settings/AgentAccessPane"), "AgentAccessPane"),
   notifications: lazyNamed(() => import("./settings/NotificationsPane"), "NotificationsPane"),
   privacy: lazyNamed(() => import("./settings/PrivacyPane"), "PrivacyPane"),
   macs: lazyNamed(() => import("./settings/MacsPane"), "MacsPane"),
@@ -70,7 +71,7 @@ export function SettingsScreen({
     return () => window.removeEventListener("aij:open-settings", open);
   }, []);
   const panes = shownPanes({ pairedMacs }, pane);
-  const Body = pane === "agent-access" ? null : PANE_BODIES[pane];
+  const Body = PANE_BODIES[pane];
   return (
     <div className="mx-auto flex w-full max-w-5xl gap-8" data-testid="settings-screen">
       <nav aria-label="Settings" className="sticky top-0 w-52 shrink-0 self-start pt-1">
@@ -100,7 +101,7 @@ export function SettingsScreen({
           ))}
         </ul>
       </nav>
-      <div className="min-w-0 max-w-[760px] flex-1 pb-10">{Body && <Body key={`${pane}:${jumps}`} anchor={anchor} />}</div>
+      <div className="min-w-0 max-w-[760px] flex-1 pb-10"><Body key={`${pane}:${jumps}`} anchor={anchor} /></div>
     </div>
   );
 }
