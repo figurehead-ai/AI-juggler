@@ -44,7 +44,7 @@ import { ownSignIn } from "../lib/providers";
 import { HomeApps } from "../components/HomeApps";
 import { HomeNeeds } from "../components/HomeNeeds";
 import { HomeRunway } from "../components/HomeRunway";
-import { homeNeeds, needsHeading } from "../lib/home-needs";
+import { homeNeeds, isSessionNeed, needsHeading } from "../lib/home-needs";
 import { endedToday, itemsOf, needsYou, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
 import { isSnoozed, readSnooze } from "../lib/railview";
@@ -392,7 +392,8 @@ export function HomeScreen({
     }),
     leftovers: thisMac?.leftover_processes ?? 0,
   });
-  const headline = needsHeading(allNeeds.length + capNeeds.caps.length, {
+  const sessionNeeds = allNeeds.filter(isSessionNeed).length;
+  const headline = needsHeading({ sessions: sessionNeeds, others: allNeeds.length - sessionNeeds + capNeeds.caps.length }, {
     runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,

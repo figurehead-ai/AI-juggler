@@ -30,3 +30,14 @@ export function projectStats(project: ProjectInfo, now: number): string[] {
 export function homeRelative(path: string): string {
   return path.replace(/^\/Users\/[^/]+/, "~");
 }
+
+/** Branches that name no piece of work. */
+const PLAIN_BRANCHES = new Set(["main", "master", "trunk", "develop", "development", "dev", "head", "default"]);
+
+/** A session's title from what's known when nothing named it (the review
+ * of 0.1.4: rows read "main"): a telling branch ("fix/limits"), else
+ * "Untitled session · <project or folder>". */
+export function untitled(branch: string | null | undefined, project: string): string {
+  if (branch && !PLAIN_BRANCHES.has(branch.toLowerCase())) return branch;
+  return project ? `Untitled session · ${project}` : "Untitled session";
+}
