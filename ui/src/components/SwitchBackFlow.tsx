@@ -147,17 +147,17 @@ export function SwitchBackFlow({
           <div className="flex flex-col gap-3" data-testid="switch-back-review">
             <h3 className="text-sm font-semibold">
               Switch back to {plan.original_account}
-              <span className="ml-2 rounded border border-accent/50 px-1 text-[10px] text-accent">
+              <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
                 {plan.original_alive ? "Continues, with what changed since" : "Briefing pack"}
               </span>
             </h3>
             {/* Req.3 verbatim — suggested, never executed. */}
-            <p className="text-[11px]" data-testid="switch-back-suggestion">
+            <p className="text-label" data-testid="switch-back-suggestion">
               {plan.suggestion}
             </p>
             {plan.returns.length > 1 && (
               <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-returns">
-                <legend className="text-[11px] uppercase tracking-wider text-muted">Go back to</legend>
+                <legend className="text-section font-semibold text-ink">Go back to</legend>
                 {plan.returns.map((option) => (
                   <label key={option.epoch_id} className="flex items-center gap-2 text-xs">
                     <input
@@ -176,7 +176,7 @@ export function SwitchBackFlow({
               </fieldset>
             )}
             {!plan.original_alive && (
-              <p className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning" data-testid="switch-back-sf7">
+              <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning" data-testid="switch-back-sf7">
                 {plan.sf7_copy}
                 {plan.sf7_fallback.startsWith("nearest-epoch") &&
                   " — the nearest surviving conversation resumes instead."}
@@ -184,11 +184,11 @@ export function SwitchBackFlow({
                   " — a fresh session starts from a briefing pack."}
               </p>
             )}
-            <p className="text-[11px] text-muted" data-testid="switch-back-divergence">
+            <p className="text-label text-muted" data-testid="switch-back-divergence">
               {plan.divergence}
             </p>
             <div
-              className="rounded border border-hairline bg-surface-2 px-2 py-1.5 text-[11px] whitespace-pre-wrap"
+              className="rounded border border-hairline bg-surface-2 px-2 py-1.5 text-label whitespace-pre-wrap"
               data-testid="switch-back-delta"
             >
               {plan.delta_preview}
@@ -196,12 +196,12 @@ export function SwitchBackFlow({
 
             {plan.conflicts.length > 0 && (
               <div className="flex flex-col gap-2" data-testid="switch-back-conflicts">
-                <p className="text-[11px] uppercase tracking-wider text-muted">
+                <p className="text-section font-semibold text-ink">
                   Conflicts — nothing merges silently
                 </p>
                 {plan.conflicts.map((conflict) => (
                   <fieldset key={conflict.rel_path} className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5">
-                    <legend className="text-[11px] font-medium">{conflict.rel_path}</legend>
+                    <legend className="text-label font-medium">{conflict.rel_path}</legend>
                     {CHOICES.map((option) => (
                       <label key={option.value} className="flex items-center gap-2 text-xs">
                         <input
@@ -225,7 +225,7 @@ export function SwitchBackFlow({
 
             {plan.away_live && (
               <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-freeze-or-fork">
-                <legend className="text-[11px] uppercase tracking-wider text-muted">
+                <legend className="text-section font-semibold text-ink">
                   The away session is still running
                 </legend>
                 <label className="flex items-center gap-2 text-xs">
@@ -247,7 +247,7 @@ export function SwitchBackFlow({
                   Keep it running
                 </label>
                 {keepAwayRunning && (
-                  <p className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning" data-testid="switch-back-both-live">
+                  <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning" data-testid="switch-back-both-live">
                     {plan.both_live_copy}
                   </p>
                 )}
@@ -255,7 +255,7 @@ export function SwitchBackFlow({
             )}
 
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] text-muted" data-testid="switch-back-unresolved">
+              <p className="text-label text-muted" data-testid="switch-back-unresolved">
                 {unresolved > 0
                   ? `Choose for ${unresolved} conflict${unresolved === 1 ? "" : "s"} to continue — the work stays forked until you do.`
                   : plan.original_alive
@@ -294,12 +294,12 @@ export function SwitchBackFlow({
             <h3 className="text-sm font-semibold">Returning to the original conversation…</h3>
             <ol className="flex flex-col gap-1">
               {STAGES.map((stage) => (
-                <li key={stage} className="text-[11px] text-muted">
+                <li key={stage} className="text-label text-muted">
                   · {stage}
                 </li>
               ))}
             </ol>
-            <p className="text-[10px] text-muted">
+            <p className="text-label text-muted">
               The original transcript is never written — the away work arrives as one update turn.
             </p>
           </div>
@@ -308,7 +308,7 @@ export function SwitchBackFlow({
         {phase.kind === "done" && (
           <div className="flex flex-col gap-3" data-testid="switch-back-done">
             <h3 className="text-sm font-semibold">You returned to the original conversation</h3>
-            <p className="text-[11px] text-muted">
+            <p className="text-label text-muted">
               It resumed exactly where it rested — the away work arrived as one
               “while you were away” update. {phase.sessionId}
             </p>
@@ -327,10 +327,10 @@ export function SwitchBackFlow({
         {phase.kind === "failed" && (
           <div className="flex flex-col gap-3" data-testid="switch-back-failed">
             <h3 className="text-sm font-semibold text-warning">Return didn’t complete</h3>
-            <p className="rounded border border-warning/40 px-2 py-1 text-[11px] text-warning">
+            <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
               {phase.message}
             </p>
-            <p className="text-[11px] text-muted">
+            <p className="text-label text-muted">
               Nothing was merged silently — both sides stay resumable exactly as they are.
             </p>
             <div className="flex justify-end">

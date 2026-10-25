@@ -13,6 +13,7 @@
  * words in ink at 80 % (7:1 or better); figures in tabular numbers; the
  * Mac's figures as cards sized to their content, in a grid.
  */
+import { Page } from "../components/Page";
 import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { ToolMark } from "../components/ToolMark";
@@ -33,7 +34,7 @@ export function treesOf(group: ToolGroupInfo, info: ThisMacInfo): ToolTreeInfo[]
 function Section({ id, title, bare = false, children }: { id: string; title: string; bare?: boolean; children: ReactNode }): JSX.Element {
   return (
     <section aria-labelledby={`${id}-title`} className="flex flex-col gap-3" data-testid={id}>
-      <h2 id={`${id}-title`} className="text-[15px] font-semibold text-ink">
+      <h2 id={`${id}-title`} className="text-section font-semibold text-ink">
         {title}
       </h2>
       {bare ? children : <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface px-4 py-3.5">{children}</div>}
@@ -45,7 +46,7 @@ function Section({ id, title, bare = false, children }: { id: string; title: str
 function Card({ title, testId, className = "", children }: { title: string; testId?: string; className?: string; children: ReactNode }): JSX.Element {
   return (
     <div className={`flex flex-col gap-2.5 rounded-xl border border-hairline bg-surface px-4 py-3.5 ${className}`} data-testid={testId}>
-      <h3 className="text-[14px] font-semibold text-ink">{title}</h3>
+      <h3 className="text-body font-semibold text-ink">{title}</h3>
       {children}
     </div>
   );
@@ -54,8 +55,8 @@ function Card({ title, testId, className = "", children }: { title: string; test
 /** A big figure and what it is of: "93%" "of all 30 cores". */
 function Figure({ value, of }: { value: string; of: string }): JSX.Element {
   return (
-    <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] tabular-nums text-ink/80">
-      <span className="text-[22px] font-semibold text-ink">{value}</span> <span>{of}</span>
+    <p className="flex flex-wrap items-baseline gap-x-1.5 text-body tabular-nums text-muted">
+      <span className="text-title font-semibold text-ink">{value}</span> <span>{of}</span>
     </p>
   );
 }
@@ -89,17 +90,17 @@ function ToolGroup({
     <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"} open={group.ours}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
         <FoldChevron />
-        <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-[14px] font-medium text-ink">
-          {mark && <ToolMark tool={mark} size={14} className="text-ink/80" />}
+        <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-body font-medium text-ink">
+          {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
           <span className="truncate">{group.label}</span>
-          <span className="shrink-0 text-[13px] font-normal text-ink/80">
+          <span className="shrink-0 text-meta font-normal text-muted">
             {trees.length === 1 ? "1" : trees.length} {group.ours ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
             {group.ours ? "" : " · not started by AI Juggler"}
           </span>
         </span>
         <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-          <span className="text-[14px] text-ink">{memory}</span>
-          <span className="text-[13px] text-ink/80" title="As Activity Monitor counts it: 100% is one core busy">
+          <span className="text-body text-ink">{memory}</span>
+          <span className="text-meta text-muted" title="As Activity Monitor counts it: 100% is one core busy">
             {cpuWords(group.cpu_one_core_pct)}
           </span>
         </span>
@@ -128,26 +129,25 @@ export function ThisMacScreen({
   const info = useContext(ThisMacContext);
   const machine = info?.machine;
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 py-2" data-testid="this-mac-page">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink">This Mac</h1>
-        <p className="text-[14px] text-ink/80">What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere.</p>
-      </header>
+    <Page title="This Mac" subtitle="What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere." testId="this-mac-page" headingLevel={1}>
       {!info || !machine ? (
         <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
       ) : (
-        <>
+        // Two columns on a wide window: the Mac's figures, and what's
+        // using it (the shared page frame, 0.1.5).
+        <div className="grid items-start gap-x-8 gap-y-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-state" title="Now" bare>
             <MachineState info={info} reasonsShown={machine.summary.reasons.length} />
             {/* The Mac's figures as cards sized to their content: memory,
                 the tallest, beside the processor, swap and AI Juggler. */}
-            <div className="grid items-start gap-3 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" data-testid="this-mac-figures">
-              <Card title="Memory" testId="this-mac-memory-card" className="md:row-span-3">
+            <div className="grid items-start gap-3 md:grid-cols-2" data-testid="this-mac-figures">
+              <Card title="Memory" testId="this-mac-memory-card" className="md:col-span-2">
                 <MemoryMeter info={info} more />
               </Card>
               <Card title="Processor" testId="this-mac-cpu">
                 {machine.cpu_pct === null ? (
-                  <p className="text-[14px] text-ink/80">Not measured yet</p>
+                  <p className="text-body text-muted">Not measured yet</p>
                 ) : (
                   <>
                     <Figure value={`${Math.round(machine.cpu_pct)}%`} of={`of all ${machine.cores} cores`} />
@@ -155,7 +155,7 @@ export function ThisMacScreen({
                   </>
                 )}
                 {info.tools.count > 0 && (
-                  <p className="text-[13px] tabular-nums text-ink/80">
+                  <p className="text-meta tabular-nums text-muted">
                     AI tools: {info.tools.cpu_pct === null ? "not measured yet" : `${Math.round(info.tools.cpu_pct)}% of all cores`}
                   </p>
                 )}
@@ -164,7 +164,7 @@ export function ThisMacScreen({
                 <Card title="Swap" testId="this-mac-swap">
                   <Figure value={bytesWords(machine.swap_used)} of={`of ${bytesWords(machine.swap_total)} moved to disk`} />
                   <Gauge pct={(machine.swap_used / machine.swap_total) * 100} label={`Swap: ${bytesWords(machine.swap_used)} of ${bytesWords(machine.swap_total)} moved to disk`} />
-                  <p className="text-[13px] text-ink/80">Memory macOS moved to disk to make room. Reading it back is slow.</p>
+                  <p className="text-meta text-muted">Memory macOS moved to disk to make room. Reading it back is slow.</p>
                 </Card>
               )}
               <Card title="AI Juggler" testId="this-mac-own-card">
@@ -173,9 +173,11 @@ export function ThisMacScreen({
               </Card>
             </div>
           </Section>
+          </div>
 
+          <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-using" title="What's using it">
-            {info.by_tool.length === 0 && <p className="text-[14px] text-ink/80">No AI tools are running.</p>}
+            {info.by_tool.length === 0 && <p className="text-body text-muted">No AI tools are running.</p>}
             <div className="flex flex-col">
               {info.by_tool.map((group) => (
                 <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />
@@ -201,14 +203,14 @@ export function ThisMacScreen({
                 <ul className="flex flex-col gap-2" aria-label="Recent alerts">
                   {info.alerts.map((alert) => (
                     <li key={alert.key} className="flex flex-col gap-0.5" data-testid="this-mac-alert">
-                      <span className="text-[14px] font-medium text-ink">{alert.title}</span>
-                      <span className="text-[13px] text-ink/80">{[alert.detail, alertSubject(alert, nameOf)].filter(Boolean).join(". ")}</span>
+                      <span className="text-body font-medium text-ink">{alert.title}</span>
+                      <span className="text-meta text-muted">{[alert.detail, alertSubject(alert, nameOf)].filter(Boolean).join(". ")}</span>
                     </li>
                   ))}
                 </ul>
               )}
               {info.recommendations.length > 0 && (
-                <ul className="flex flex-col gap-1 text-[13px] text-ink/80" aria-label="From your history" data-testid="this-mac-recommendations">
+                <ul className="flex flex-col gap-1 text-meta text-muted" aria-label="From your history" data-testid="this-mac-recommendations">
                   {info.recommendations.map((line) => (
                     <li key={line}>{line}.</li>
                   ))}
@@ -220,7 +222,7 @@ export function ThisMacScreen({
           {info.leftover_processes > 0 && (
             <Section id="this-mac-leftovers-page" title="Left behind">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="min-w-0 flex-1 basis-40 text-[14px] text-ink/80">
+                <span className="min-w-0 flex-1 basis-40 text-body text-muted">
                   {info.leftover_processes === 1 ? "1 process" : `${info.leftover_processes} processes`} left running after
                   {info.leftover_processes === 1 ? " its" : " their"} session closed
                   {info.leftover_ports > 0 ? ` · ${info.leftover_ports === 1 ? "holding a port" : `holding ${info.leftover_ports} ports`}` : ""}
@@ -233,8 +235,9 @@ export function ThisMacScreen({
               </div>
             </Section>
           )}
-        </>
+          </div>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

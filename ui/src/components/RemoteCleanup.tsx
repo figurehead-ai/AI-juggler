@@ -80,12 +80,12 @@ export function RemoteCleanup(): JSX.Element | null {
               <Chip tone="neutral">
                 {machine.freshness === "live" ? "● live" : machine.freshness === "stale" ? "◐ stale" : "○ offline"}
               </Chip>
-              <span className="text-[11px] font-normal text-muted">
+              <span className="text-label font-normal text-muted">
                 {verifiedCount} verified · {machine.processes.length - verifiedCount} not owned or unverified
               </span>
             </h3>
             {!canClean && (
-              <p className="text-[11px] text-muted" data-testid="remote-cleanup-readonly">
+              <p className="text-label text-muted" data-testid="remote-cleanup-readonly">
                 {machine.permission === "control"
                   ? `${machine.label} isn't connected — cleaning waits until it is.`
                   : `View-only pairing — cleaning needs View + control on ${machine.label}.`}
@@ -93,7 +93,7 @@ export function RemoteCleanup(): JSX.Element | null {
             )}
             {Object.entries(byInstance).map(([instanceId, rows]) => (
               <div key={instanceId} className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium text-muted">
+                <p className="text-label font-medium text-muted">
                   {rows[0]!.account_label || "Session"} · {rows[0]!.provider}
                 </p>
                 <ul className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline">
@@ -102,7 +102,7 @@ export function RemoteCleanup(): JSX.Element | null {
                     const outcome = outcomes[key];
                     return (
                       <li key={row.pid} className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 text-xs" data-testid="remote-cleanup-row" data-verified={row.verified ? "true" : "false"}>
-                        <span className="font-mono text-[11px]">{row.name || "process"}</span>
+                        <span className="font-mono text-label">{row.name || "process"}</span>
                         <span className="text-muted">pid {row.pid}</span>
                         <span className="text-muted">· {row.state_label}</span>
                         {row.ports && <span className="text-muted">· ports {row.ports}</span>}
@@ -125,7 +125,7 @@ export function RemoteCleanup(): JSX.Element | null {
                           </Button>
                         )}
                         {outcome !== undefined && (
-                          <span className="w-full text-[11px]" aria-live="polite" data-testid="remote-cleanup-outcome">
+                          <span className="w-full text-label" aria-live="polite" data-testid="remote-cleanup-outcome">
                             {typeof outcome === "string"
                               ? outcome
                               : outcome.accepted

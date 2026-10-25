@@ -18,7 +18,8 @@ import { useRange } from "../components/usage/useUsage";
 import { accountColor } from "../lib/palette";
 import { RANGES } from "../lib/usage/range";
 import { quotaDisplay, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../lib/bridge";
-import { SessionsList, useSessionRows } from "./SessionsList";
+import { PagedSessions, useSessionRows } from "./SessionsList";
+import { sessionsQuery } from "../lib/ipc/sessions";
 
 export type AccountPanelProps = {
   account: AccountInfo;
@@ -106,9 +107,18 @@ export function AccountOverview(props: AccountPanelProps) {
  * Sessions rows that are live. */
 function AccountRunning(props: AccountPanelProps) {
   const rows = useSessionRows(props.sessions, { accountId: props.account.id }, props.onOpenSession, props.now).filter((row) => row.live);
+  const [open, setOpen] = useState<number | null>(null);
+  const count = open ?? rows.length;
   return (
-    <Section title="Running now" icon={<IconPlay />} sub={rows.length === 0 ? undefined : `${rows.length} open`} testId="account-running">
-      <SessionsList rows={rows} empty="Nothing running on this profile now." />
+    <Section title="Running now" icon={<IconPlay />} sub={count === 0 ? undefined : `${count} open`} testId="account-running">
+      <PagedSessions
+        listKey={`account-open:${props.account.id}`}
+        query={sessionsQuery({ account_id: props.account.id, which: "open" })}
+        local={() => rows}
+        empty="Nothing running on this profile now."
+        onOpenSession={props.onOpenSession}
+        onTotal={setOpen}
+      />
     </Section>
   );
 }
@@ -117,7 +127,15 @@ function AccountRunning(props: AccountPanelProps) {
 /** An account's sessions, on every project. */
 export function AccountSessions(props: AccountPanelProps) {
   const rows = useSessionRows(props.sessions, { accountId: props.account.id }, props.onOpenSession, props.now);
-  return <SessionsList rows={rows} empty="No sessions on this account yet." />;
+  return (
+    <PagedSessions
+      listKey={`account-sessions:${props.account.id}`}
+      query={sessionsQuery({ account_id: props.account.id })}
+      local={() => rows}
+      empty="No sessions on this account yet."
+      onOpenSession={props.onOpenSession}
+    />
+  );
 }
 
 

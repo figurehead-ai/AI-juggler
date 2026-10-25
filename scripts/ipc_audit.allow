@@ -45,7 +45,7 @@ unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks
 unbounded conversations_get  # bounded: one conversation (its places: one per process it is open in)
 unbounded conversations_last_messages  # bounded: the last 2-3 messages
 unbounded conversations_list  # bounded: the working set (open, in a sidebar, the newest 200 of the week); History and the Sessions tabs page the rest
-unbounded cost_rollups  # TO PAGE: its rows; the table reads cost_rows_page (the charts agent's Usage), totals stay
+unbounded cost_rollups  # TO PAGE: the UI reads only its totals (Prices and details pages cost_rows_page); its rows are still read by the real-account QA harness (qa_real_readonly, real_truth.py)
 unbounded crash_answer  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded crash_info  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded crash_set  # bounded: a fixed set (settings, checks, choices or tools)

@@ -64,7 +64,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
         <h3 id="recovery-title" className="text-sm font-semibold">
           Save your recovery code
         </h3>
-        <p className="text-[11px] text-ink">
+        <p className="text-label text-ink">
           Your Cloud backups are encrypted on this Mac with a key only you have. Figurehead can't read them. This code is
           that key: you'll need it to open your backups on a new Mac.
         </p>
@@ -72,7 +72,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
           ref={codeRef}
           tabIndex={0}
           aria-label="Recovery code"
-          className="select-all break-all rounded-lg border border-hairline bg-canvas px-3 py-2 text-center font-mono text-[13px] leading-relaxed tracking-wide text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="select-all break-all rounded-lg border border-hairline bg-canvas px-3 py-2 text-center font-mono text-meta leading-relaxed tracking-wide text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="recovery-code"
         >
           {code
@@ -104,18 +104,18 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
           >
             Save…
           </button>
-          <span className="self-center text-[11px] text-muted" aria-live="polite">
+          <span className="self-center text-label text-muted" aria-live="polite">
             {note}
           </span>
         </div>
         <p
           id="recovery-warning"
-          className="rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-[11px] font-medium text-ink"
+          className="rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-label font-medium text-ink"
           data-testid="recovery-warning"
         >
           <span aria-hidden="true">⚠ </span>Without this code, a new Mac can't open your backups. We can't recover it for you.
         </p>
-        <label className="flex items-center gap-2 text-[11px] text-ink">
+        <label className="flex items-center gap-2 text-label text-ink">
           <input
             type="checkbox"
             checked={saved}
@@ -125,7 +125,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
           I've saved my recovery code
         </label>
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}

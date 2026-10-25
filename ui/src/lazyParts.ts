@@ -14,7 +14,6 @@ export const ConversationPage = lazyNamed(() => import("./components/Conversatio
 export const PortWarningSheet = lazyNamed(() => import("./components/PortMap"), "PortWarningSheet");
 export const CleanupCentre = lazyNamed(() => import("./screens/CleanupCentre"), "CleanupCentre");
 export const ThisMacScreen = lazyNamed(() => import("./screens/ThisMacScreen"), "ThisMacScreen");
-export const PrivacyScreen = lazyNamed(() => import("./screens/PrivacyScreen"), "PrivacyScreen");
 export const ShortcutSheet = lazyNamed(() => import("./components/ShortcutSheet"), "ShortcutSheet");
 export const History = lazyNamed(() => import("./screens/History"), "History");
 export const AddProviderSheet = lazyNamed(() => import("./screens/AddProviderSheet"), "AddProviderSheet");

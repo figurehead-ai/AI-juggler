@@ -45,7 +45,7 @@ const SECTION: Record<"needs" | "open", { label: string; tone: string; Icon: typ
 /** A fold chevron, as the Project lens's (FoldButton). */
 function Chevron({ open }: { open: boolean }): JSX.Element {
   return (
-    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-faint transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
+    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-muted transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
       <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -55,9 +55,9 @@ function Chevron({ open }: { open: boolean }): JSX.Element {
 function SectionHead({ id, count, open, onToggle }: { id: "needs" | "open"; count: number; open: boolean; onToggle: () => void }): JSX.Element {
   const { label, tone, Icon } = SECTION[id];
   return (
-    <h3 className={"flex h-[28px] items-end px-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
-      <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 uppercase outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-        <Icon width={12} height={12} aria-hidden="true" />
+    <h3 className={"flex h-[30px] items-end px-0.5 text-meta font-semibold " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
+      <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <Icon width={13} height={13} aria-hidden="true" />
         {label}
         <span className="tabular-nums">{count}</span>
         <Chevron open={open} />
@@ -79,7 +79,7 @@ function AlsoLine({ also, hidden }: { also: AlsoCounts; hidden: HiddenApp[] }): 
   // 24 px targets (WCAG 2.5.8), the line wrapping when it must.
   const link = "inline-flex min-h-6 items-center rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
-    <p className="flex min-h-[30px] flex-wrap items-center gap-x-1 px-2 text-[11px] text-muted" data-testid="rail-also">
+    <p className="flex min-h-[36px] flex-wrap items-center gap-x-1 px-2 pt-2 text-label text-muted" data-testid="rail-also">
       <span>Also:</span>
       {ALSO.filter((part) => also[part.key] > 0).map((part) => (
         <Fragment key={part.key}>
@@ -278,7 +278,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
       case "more":
         return (
-          <button type="button" onClick={() => toggle(`${line.group.key}#all`)} data-testid="rail-more-quiet" className="ml-3 flex h-[24px] items-center rounded-md px-2.5 text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+          <button type="button" onClick={() => toggle(`${line.group.key}#all`)} data-testid="rail-more-quiet" className="ml-3 flex h-[24px] items-center rounded-md px-2.5 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
             +{line.quiet} quiet
           </button>
         );
@@ -286,9 +286,9 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <AlsoLine also={built.also} hidden={hidden} />;
       case "label":
         return (
-          <h3 className="flex h-[26px] items-end px-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted" data-testid={`rail-also-view-${line.id}`}>
+          <h3 className="flex h-[26px] items-end px-0.5 text-meta font-semibold text-muted" data-testid={`rail-also-view-${line.id}`}>
             {/* Folds it away again (the Also line's part turns it on). */}
-            <button type="button" aria-expanded="true" data-rail-nav onClick={() => showInRail(line.id, false)} className="flex min-h-6 w-full items-center gap-1 rounded-md px-1.5 uppercase outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+            <button type="button" aria-expanded="true" data-rail-nav onClick={() => showInRail(line.id, false)} className="flex min-h-6 w-full items-center gap-1 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
               {line.id === "ended" ? "Ended today" : "Inactive"} <span className="tabular-nums">{line.count}</span>
               <Chevron open />
             </button>
@@ -323,8 +323,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       {win && <div style={{ height: win.after }} aria-hidden="true" />}
       {items.length === 0 && (
         <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
-          <p className="text-[12px] font-medium text-ink">Nothing open yet</p>
-          <p className="text-[11px] leading-relaxed text-muted">Start one with New session, or open one in your apps: it shows here.</p>
+          <p className="text-label font-medium text-ink">Nothing open yet</p>
+          <p className="text-label leading-relaxed text-muted">Start one with New session, or open one in your apps: it shows here.</p>
         </div>
       )}
     </div>

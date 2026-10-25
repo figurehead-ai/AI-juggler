@@ -109,19 +109,19 @@ export function ProcessRow(props: {
   const killable = killableRow(row) && props.onKill !== undefined;
   return (
     <li className="border-t border-hairline" data-testid={`cleanup-row-${row.pid}`}>
-      <div className="flex items-center gap-2 py-1.5 text-[11px]">
+      <div className="flex items-center gap-2 py-2 text-meta">
         <button
           type="button"
           onClick={() => setExpanded((open) => !open)}
           aria-expanded={expanded}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-          title="Why does Juggler think this is mine?"
+          title="Why AI Juggler counts it as your session's"
         >
-          <span aria-hidden="true" className="w-3 text-center text-[9px] text-muted">
+          <span aria-hidden="true" className="w-3 text-center text-label text-muted">
             {expanded ? "▾" : "▸"}
           </span>
           <span
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-[1px] text-[9.5px] ${
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-[1px] text-label ${
               row.state === "orphaned"
                 ? "border-accent/50 text-accent"
                 : row.state === "unverifiable"
@@ -133,7 +133,7 @@ export function ProcessRow(props: {
             <span aria-hidden="true">{stateIcon(row.state)}</span>
         {props.localMachine !== undefined && row.machine_id !== undefined && (
           <span
-            className="shrink-0 font-mono text-[9.5px] text-faint"
+            className="shrink-0 font-mono text-label text-muted"
             title={`Machine: ${row.machine_id}`}
             data-testid={`cleanup-machine-${row.pid}`}
           >
@@ -144,14 +144,14 @@ export function ProcessRow(props: {
           </span>
           {row.hog && (
             <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/50 px-1.5 py-[1px] text-[9.5px] text-warning"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/50 px-1.5 py-[1px] text-label text-warning"
               title={row.hog_rules.join("; ")}
             >
-              <span aria-hidden="true">▲</span>hog
+              <span aria-hidden="true">▲</span>heavy
             </span>
           )}
-          <span className="truncate font-mono text-[10.5px] text-ink">{row.cmdline}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-[10px] text-muted">
+          <span className="truncate font-mono text-label text-ink">{row.cmdline}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-2 text-label tabular-nums text-muted">
             <span>PID {row.pid}</span>
             {row.pgid !== null && <span>PGID {row.pgid}</span>}
             <span>{ageText(row.age_ms)}</span>
@@ -176,17 +176,17 @@ export function ProcessRow(props: {
       </div>
       {expanded && (
         <div
-          className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface/40 p-2.5 text-[10.5px] text-muted"
+          className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface/40 p-2.5 text-label text-muted"
           data-testid={`cleanup-evidence-${row.pid}`}
         >
-          <p className="font-medium text-ink">Why does Juggler think this is mine?</p>
+          <p className="font-medium text-ink">Why AI Juggler counts it as your session's</p>
           <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
-            <dt className="text-faint">Spawned by</dt>
+            <dt className="text-muted">Spawned by</dt>
             <dd>
               Session root PID {evidence.root_pid ?? "—"}
               {evidence.parent_pid !== null && <> · first-seen parent {evidence.parent_pid}</>}
             </dd>
-            <dt className="text-faint">Group</dt>
+            <dt className="text-muted">Group</dt>
             <dd>
               PGID {evidence.pgid ?? "—"}{" "}
               {evidence.escaped_group
@@ -195,19 +195,19 @@ export function ProcessRow(props: {
                   ? "— matches the root (contained)"
                   : ""}
             </dd>
-            <dt className="text-faint">Identity check</dt>
+            <dt className="text-muted">Identity check</dt>
             <dd data-testid={`cleanup-verification-${row.pid}`}>
               {evidence.verification.verdict} — {evidence.verification.detail}
             </dd>
-            <dt className="text-faint">Role</dt>
+            <dt className="text-muted">Role</dt>
             <dd>{row.role_guess}</dd>
-            <dt className="text-faint">Seen</dt>
+            <dt className="text-muted">Seen</dt>
             <dd>
               first {new Date(evidence.first_seen).toISOString().slice(0, 19)} · last{" "}
               {new Date(evidence.last_seen).toISOString().slice(0, 19)}
             </dd>
           </dl>
-          <p className="text-faint">
+          <p className="text-muted">
             Stopping a verified process always asks you to confirm first — never a one-click kill.
           </p>
         </div>
@@ -216,13 +216,29 @@ export function ProcessRow(props: {
   );
 }
 
-/** The empty success state — copy EXACT (Req.5). */
-export function CleanupEmpty(props: { cleanInstances: number }) {
+/** The empty success state — copy EXACT (Req.5), as a designed card
+ * (the review of 0.1.4: one grey line on an empty page). */
+export function CleanupEmpty(props: { cleanInstances: number; onHistory?: () => void }) {
   return (
-    <p className="text-[12px] text-muted" data-testid="cleanup-empty">
-      {props.cleanInstances === 0
-        ? "Nothing left behind."
-        : `Nothing left behind — ${props.cleanInstances} ${props.cleanInstances === 1 ? "session" : "sessions"} running clean.`}
-    </p>
+    <div className="flex flex-col items-center gap-3 rounded-card border border-hairline bg-surface px-6 py-12 text-center shadow-card" data-testid="cleanup-empty-card">
+      <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-full bg-success-soft text-success">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </span>
+      <p className="text-section font-semibold text-ink" data-testid="cleanup-empty">
+        {props.cleanInstances === 0
+          ? "Nothing left behind."
+          : `Nothing left behind — ${props.cleanInstances} ${props.cleanInstances === 1 ? "session" : "sessions"} running clean.`}
+      </p>
+      <p className="max-w-[52ch] text-body text-muted">
+        When a session closes and something it started keeps running, such as a dev server or a file watcher, it shows here for you to stop.
+      </p>
+      {props.onHistory && (
+        <button type="button" onClick={props.onHistory} className="text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">
+          See what was cleaned up in the last 7 days
+        </button>
+      )}
+    </div>
   );
 }

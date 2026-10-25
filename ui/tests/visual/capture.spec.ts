@@ -453,7 +453,9 @@ test("inspector — Account Overview rings + forecast", gate("08-inspector-aggre
   await goTo(page, "Accounts");
   await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
-  await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+  // 0.1.5: the profile page's Limits are gauges of what's left (68% used).
+  await expect(page.getByTestId("window-gauge").first()).toBeVisible();
+  await expect(page.getByTestId("account-rings")).toContainText("32%");
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
 });
 
@@ -693,7 +695,7 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
     .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-surface")).toContainText("Running");
+  await expect(page.getByTestId("desktop-surface")).toContainText("Working");
   await expect(page.getByTestId("desktop-focus")).toBeVisible();
   await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-running-1280x800.png") });
@@ -1117,8 +1119,8 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await page.getByRole("tab", { name: "Processes" }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
-      await expect(page.getByTestId("port-row-5173")).toContainText("Managed orphan");
-      await expect(page.getByTestId("port-row-8000")).toContainText("Not managed by Juggler");
+      await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
+      await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
       await page.screenshot({ path: resolve(GALLERY, `18-ports/inventory-${vp.name}-${theme}.png`) });
     });
   }
@@ -1200,7 +1202,7 @@ for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiab
           await expect(page.getByTestId("cleanup-row-8123")).toContainText(
             "Still running after its session closed",
           );
-          await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+          await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
         }
         if (state === "empty") {
           await expect(page.getByTestId("cleanup-empty")).toContainText(
@@ -1902,7 +1904,7 @@ for (const theme of THEMES) {
       await goTo(page, "Cleanup");
       await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
       await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+      await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/mixed-${vp.name}-${theme}.png`) });
     });
   }
@@ -2096,8 +2098,10 @@ for (const theme of THEMES) {
             (window as never as { __AIJ_COST_ROLLUPS__: unknown }).__AIJ_COST_ROLLUPS__ = rollups;
             (window as never as { __AIJ_COST_CSV__: unknown }).__AIJ_COST_CSV__ =
               "/tmp/ai-juggler-costs.csv";
+            // Prices and details shows once an account is in.
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = {
-              accounts: [], recipes: [], sessions: [], projects: [],
+              accounts: [{ id: "claude-work", provider: "claude-code", label: "Work Max", plan: "max-20x", login_state: "logged_in" }],
+              recipes: [], sessions: [], projects: [],
             };
             localStorage.setItem("aij.theme", themeName);
             localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -2109,8 +2113,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        // The matrix lives on the Usage screen.
+        // The matrix is Usage's Prices and details (0.1.5: its rows paged).
         await goTo(page, "Usage");
+        await page.getByTestId("usage-prices-open").click();
         await expect(
           page.getByText("USD is Estimated — list pricing, not your subscription fee."),
         ).toBeVisible();
@@ -2173,13 +2178,17 @@ for (const theme of THEMES) {
         await expectRail(page); // D-25: the list, or its icon column when narrow
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("tab", { name: "Usage" }).click();
-        await expect(page.getByTestId("two-clock-card")).toBeVisible();
-        // Copy conformance before capture: the badge sits adjacent.
+        // 0.1.5: a session's Usage tab shows its account's window as every
+        // session page does (the old two-clock card left with the strips;
+        // the renewal clock lives on the profile's page).
+        const window_ = page.getByTestId("session-usage-runway");
+        await expect(window_).toBeVisible();
+        // Copy conformance before capture: what's left, in words, never 0%.
         if (state === "measured") {
-          await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+          await expect(window_).toContainText("18% left");
         }
         if (state === "no-data") {
-          await expect(page.getByText("Start a session to measure")).toBeVisible();
+          await expect(window_).not.toContainText("0% left");
         }
         await page.screenshot({
           path: resolve(GALLERY, `26-quota/usage-${state}-${vp.name}-${theme}.png`),
@@ -3922,20 +3931,14 @@ for (const theme of THEMES) {
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
-      await expect(page.getByRole("heading", { level: 1, name: "Claude Code" })).toBeVisible();
+      // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
+      const tool = page.getByTestId("settings-tool").filter({ hasText: "Claude Code" });
+      await expect(tool).toBeVisible();
       await expect(chip).toHaveCount(0); // the view doesn't link to itself
-      await expect(page.getByTestId("provider-install")).toHaveText(/^Version \S+/);
+      await expect(tool).toContainText(/Version \S+/);
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      // AJ-E1533: a tool's page is its body alone (no tabs); its actions
-      // are the header's Add account… and its ⋯ menu.
-      const inspector = page.getByTestId("right-inspector");
-      await expect(inspector.getByRole("tablist")).toHaveCount(0);
-      const text = (await page.getByTestId("provider-overview").innerText()) ?? "";
+      const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
-      await expect(page.getByTestId("header-add-account")).toBeVisible();
-      await page.getByTestId("header-menu").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await page.screenshot({ path: resolve(GALLERY, `72-tool-view/header-menu-${vp.name}-${theme}.png`), fullPage: true });
     });
   }
 }

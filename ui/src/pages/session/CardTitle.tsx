@@ -6,7 +6,7 @@ import type { JSX, ReactNode } from "react";
 
 export function CardTitle({ children, id }: { children: ReactNode; id?: string }): JSX.Element {
   return (
-    <h3 id={id} className="text-[15px] font-semibold text-ink">
+    <h3 id={id} className="text-section font-semibold text-ink">
       {children}
     </h3>
   );

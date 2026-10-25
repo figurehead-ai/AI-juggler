@@ -57,7 +57,7 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
           onChange={(on) => save(kind.id, on)}
         />
       ))}
-      <span className="text-[11px] leading-relaxed text-muted">
+      <span className="text-label leading-relaxed text-muted">
         Each shows once, never while AI Juggler is in front, and clicking it opens that session. macOS may ask once
         whether AI Juggler can notify you; if none appear, allow it in System Settings › Notifications.
       </span>
@@ -140,7 +140,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                 ))}
               </select>
             </label>
-            <span className="w-full text-[11px] text-muted">
+            <span className="w-full text-label text-muted">
               {quietOff
                 ? "No quiet hours: the digest comes every hour, notifications any time."
                 : "The digest and notifications wait until the quiet hours end; nothing is dropped. The same hour twice means no quiet hours."}

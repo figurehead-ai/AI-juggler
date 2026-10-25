@@ -20,6 +20,7 @@ import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import { useActionHost, useItemMenu } from "../components/ItemMenu";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
+export { dayWords } from "../lib/time-words";
 import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { sessionsCounts, sessionsPage, type SessionRowInfo, type SessionsCountsInfo, type SessionsQuery } from "../lib/ipc/sessions";
@@ -145,7 +146,7 @@ export function useSessionRows(
 /** The heading over a list: how many, how many open. */
 function ListCount({ total, open }: { total: number; open: number }): JSX.Element {
   return (
-    <p className="text-[11px] text-muted" data-testid="page-sessions-count">
+    <p className="text-meta text-muted" data-testid="page-sessions-count">
       {total === 1 ? "1 session" : `${total} sessions`}
       {open > 0 && ` · ${open} open`}
     </p>
@@ -154,7 +155,7 @@ function ListCount({ total, open }: { total: number; open: number }): JSX.Elemen
 
 function EmptyList({ empty }: { empty: string }): JSX.Element {
   return (
-    <p className="rounded-xl border border-hairline bg-surface px-4 py-6 text-center text-xs text-muted" data-testid="page-sessions-empty">
+    <p className="rounded-card border border-hairline bg-surface px-4 py-8 text-center text-body text-muted" data-testid="page-sessions-empty">
       {empty}
     </p>
   );
@@ -198,7 +199,7 @@ export function SessionsList({
         ))}
       </ul>
       {rows.length > shown.length && (
-        <button type="button" onClick={() => setAll(true)} className="self-start text-xs text-accent-hi hover:underline" data-testid="page-sessions-all">
+        <button type="button" onClick={() => setAll(true)} className="self-start text-meta text-accent-hi hover:underline" data-testid="page-sessions-all">
           Show all {rows.length}
         </button>
       )}
@@ -223,9 +224,12 @@ export function PagedSessions({
   onOpenSession,
   onCounts,
   onTotal,
+  groupOf,
 }: {
   /** Names the list and everything that shapes it (its memory's key). */
   listKey: string;
+  /** A heading for each run of rows that share it (History's days). */
+  groupOf?: (row: Row) => string;
   query: SessionsQuery;
   /** The design preview's rows, already narrowed (no backend). */
   local: () => Row[];
@@ -289,18 +293,30 @@ export function PagedSessions({
         list={list}
         keyOf={(row) => row.key}
         label="Sessions"
-        rowHeight={45}
+        rowHeight={groupOf ? 64 : 58}
         empty={<EmptyList empty={empty} />}
         testId="page-sessions-list"
-        renderRow={(row) => (
-          <SessionRowBody
-            as="div"
-            row={row}
-            project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null}
-            below={below?.(row)}
-            badge={badge?.(row)}
-          />
-        )}
+        renderRow={(row, index) => {
+          const group = groupOf?.(row) ?? null;
+          const before = index > 0 ? list.items[index - 1] : undefined;
+          const heads = group !== null && (before === undefined || groupOf!(before) !== group);
+          return (
+            <>
+              {heads && (
+                <h3 className="border-b border-hairline/60 bg-surface-2/50 px-4 pb-1.5 pt-2.5 text-meta font-semibold text-ink" data-testid="page-sessions-group">
+                  {group}
+                </h3>
+              )}
+              <SessionRowBody
+                as="div"
+                row={row}
+                project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null}
+                below={below?.(row)}
+                badge={badge?.(row)}
+              />
+            </>
+          );
+        }}
       />
     </div>
   );
@@ -337,40 +353,41 @@ function SessionRowBody({
         data-testid="page-session-row"
         data-outside={row.outside ? "true" : undefined}
         data-live={row.live ? "true" : undefined}
-        className="flex w-full items-center gap-3.5 px-4 py-2.5 pr-10 text-left hover:bg-surface-2"
+        className="flex w-full items-center gap-3.5 px-4 py-2.5 pr-11 text-left hover:bg-surface-2"
         onClick={row.open}
       >
-        <span
-          aria-hidden="true"
-          data-state-dot={row.railState}
-          className={"size-2 shrink-0 rounded-full " + STATE_TONE[row.railState].dot + (row.railState === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
-        />
-        <AppIcon {...appOfRow(row)} size={16} />
-        <span className="min-w-0 flex-1 truncate text-sm text-ink">
-          {row.title}
-          {row.detail && <span className="text-faint"> · {row.detail}</span>}
-          <span className="text-faint">
-            {" "}
-            · <span className={row.tone} data-testid="page-session-state">{row.state}</span>
-            {row.outside && " · outside AI Juggler"}
+        <span className="relative flex shrink-0">
+          <AppIcon {...appOfRow(row)} size={24} />
+          <span
+            aria-hidden="true"
+            data-state-dot={row.railState}
+            className={"absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface " + STATE_TONE[row.railState].dot}
+          />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-body font-medium text-ink">{project && row.title.startsWith("Untitled session · ") ? "Untitled session" : row.title}</span>
+          <span className="truncate text-meta text-muted">
+            <span className={row.tone} data-testid="page-session-state">{row.state}</span>
+            {row.detail && row.detail !== row.title && <> · {row.detail}</>}
+            {row.outside && ` · in ${appOfRow(row).name}`}
           </span>
         </span>
         {project && (
-          <span className="flex min-w-0 max-w-[30%] shrink items-center gap-1.5 text-xs text-muted" data-testid="page-session-project">
+          <span className="hidden w-44 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted md:flex" data-testid="page-session-project">
             <ProjectMark projectId={project.id} size={16} />
             <span className="truncate">{project.name ?? "a moved project"}</span>
           </span>
         )}
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+        <span className="flex w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted">
           <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
-          <span aria-hidden="true" className="hidden sm:inline">{row.accountLabel}</span>
+          <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
           <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
         </span>
         {badge}
-        <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">{row.when}</span>
+        <span className="w-24 shrink-0 whitespace-nowrap text-right text-meta tabular-nums text-muted">{row.when}</span>
       </button>
       {below}
-      {menu.button({ label: `Actions for ${row.title}`, className: "absolute right-2 top-2" })}
+      {menu.button({ label: `Actions for ${row.title}`, className: "absolute right-2 top-1/2 -translate-y-1/2" })}
       {menu.element}
     </Box>
   );

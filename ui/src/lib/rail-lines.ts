@@ -24,12 +24,12 @@ export type Line =
   | { kind: "plain"; item: RailItem };
 
 export const LINE_HEIGHT: Record<Line["kind"], number> = {
-  section: 28,
-  need: 46,
+  section: 30,
+  need: 64,
   header: 32,
-  row: 42,
+  row: 46,
   more: 24,
-  also: 30,
+  also: 36,
   label: 26,
   plain: 42,
 };

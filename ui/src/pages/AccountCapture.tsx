@@ -86,26 +86,26 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-capture">
-      <p className="text-[11px] uppercase tracking-wider text-muted">Limits for terminal sessions</p>
+      <p className="text-section font-semibold text-ink">Limits for terminal sessions</p>
       {status.state === "on" ? (
-        <p className="text-[12px] text-ink" data-testid="account-capture-words">
+        <p className="text-label text-ink" data-testid="account-capture-words">
           On: sessions you start with claude in a terminal report their limits to AI Juggler too. Your own status line
           still shows as before. The Claude app's sessions are measured from the app's own meter.
         </p>
       ) : status.state === "changed" ? (
-        <p className="text-[12px] text-ink" data-testid="account-capture-words">
+        <p className="text-label text-ink" data-testid="account-capture-words">
           Your status line changed since you turned this on, so terminal sessions aren't measured any more. AI Juggler
           left your change as it is.
         </p>
       ) : (
-        <p className="text-[12px] text-muted" data-testid="account-capture-words">
+        <p className="text-label text-muted" data-testid="account-capture-words">
           For sessions you start with claude in a terminal: Claude Code reports their limits only to its status line.
           AI Juggler can add its capture to this profile's status line, with your consent; your own still shows. The
           Claude app's sessions don't need this: they're measured from the app's own meter.
         </p>
       )}
       {problem && (
-        <p className="text-[11.5px] text-warning" role="alert" data-testid="account-capture-problem">
+        <p className="text-meta text-warning" role="alert" data-testid="account-capture-problem">
           {problem}
         </p>
       )}
@@ -127,25 +127,25 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
           wide
           testId="account-capture-preview"
         >
-          <div data-modal-body className="flex flex-col gap-3 text-[12px]">
+          <div data-modal-body className="flex flex-col gap-3 text-label">
             <p className="text-ink">
               AI Juggler changes one setting in <span className="font-mono">{preview.file}</span>, the status line, so
               Claude also sends its limits to AI Juggler. Your own status line keeps running and looks the same; turn this
               off here to put the file back.
             </p>
             <div className="flex flex-col gap-1" data-testid="account-capture-diff">
-              <p className="text-[11px] text-muted">Now</p>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-danger/10 px-3 py-2 font-mono text-[11px] text-ink">
+              <p className="text-label text-muted">Now</p>
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-danger/10 px-3 py-2 font-mono text-label text-ink">
                 {preview.before ? `- ${preview.before}` : "(no status line)"}
               </pre>
-              <p className="text-[11px] text-muted">After</p>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-success/10 px-3 py-2 font-mono text-[11px] text-ink">
+              <p className="text-label text-muted">After</p>
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-success/10 px-3 py-2 font-mono text-label text-ink">
                 {`+ ${preview.after}`}
               </pre>
-              <p className="text-[11px] text-muted">Nothing else in the file changes.</p>
+              <p className="text-label text-muted">Nothing else in the file changes.</p>
             </div>
             {problem && (
-              <p className="text-[11.5px] text-warning" role="alert">
+              <p className="text-meta text-warning" role="alert">
                 {problem}
               </p>
             )}

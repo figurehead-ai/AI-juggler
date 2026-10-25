@@ -55,7 +55,7 @@ export function usePack(onFolder: (folder: string) => void): PackChoice {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
   return (
-    <div className="grid grid-cols-[7.5rem_1fr] gap-2 text-[11px]">
+    <div className="grid grid-cols-[7.5rem_1fr] gap-2 text-label">
       <span className="text-muted">{label}</span>
       <span className="min-w-0 text-ink">{children}</span>
     </div>
@@ -66,7 +66,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   if (!pack.opened) {
     return (
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-label">
         <button type="button" onClick={() => void pack.choose()} className="text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
           Start from a context pack…
         </button>
@@ -107,9 +107,9 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
             : `${info.withheld.map((item) => `${item.count} ${item.what}`).join(", ")}, when it was made. They stay out.`}
         </span>
       </Row>
-      <details className="text-[11px]">
+      <details className="text-label">
         <summary className="cursor-pointer text-muted">The pack's brief</summary>
-        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-[10.5px] text-ink" aria-label="The pack's brief (read-only)" tabIndex={0}>
+        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-label text-ink" aria-label="The pack's brief (read-only)" tabIndex={0}>
           {info.brief}
         </pre>
       </details>

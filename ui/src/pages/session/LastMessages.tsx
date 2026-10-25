@@ -27,7 +27,7 @@ const NONE: Record<string, string> = {
 };
 
 /** Meta text: 7:1 or better on every surface, both themes. */
-const META = "text-[13px] text-ink/80";
+const META = "text-meta text-muted";
 
 function openSettings(): void {
   window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "last-messages" } }));
@@ -57,9 +57,9 @@ export function LastMessages({
   return (
     <Card className="flex h-full min-h-[22rem] flex-col overflow-hidden" data-testid="last-messages">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline px-5 py-3.5">
-        <h3 className="text-[15px] font-semibold text-ink">Conversation</h3>
+        <h3 className="text-section font-semibold text-ink">Conversation</h3>
         {following && (
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-live" data-testid="last-messages-live" title="Following along while it runs">
+          <span className="inline-flex items-center gap-1.5 text-label font-medium text-live" data-testid="last-messages-live" title="Following along while it runs">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-current motion-safe:animate-pulse" />
             Live
           </span>
@@ -86,7 +86,7 @@ export function LastMessages({
 function Quiet({ children, testId, state }: { children: ReactNode; testId?: string; state?: string }): JSX.Element {
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-10">
-      <p className={"max-w-md text-center text-[14px] leading-[1.5] text-ink/80"} data-testid={testId} data-state={state} role="status">
+      <p className={"max-w-md text-center text-body leading-[1.5] text-muted"} data-testid={testId} data-state={state} role="status">
         {children}
       </p>
     </div>
@@ -175,7 +175,7 @@ function When({ ms }: { ms: number | null }): JSX.Element | null {
   if (ms === null) return null;
   const date = new Date(ms);
   return (
-    <time dateTime={date.toISOString()} title={date.toLocaleString()} className="text-[12px] tabular-nums text-ink/80">
+    <time dateTime={date.toISOString()} title={date.toLocaleString()} className="text-label tabular-nums text-muted">
       {agoWords(ms, Date.now())}
     </time>
   );
@@ -187,7 +187,7 @@ function Turn({ turn, tool, speaker, asks }: { turn: LastTurnInfo; tool: string;
     return (
       <li className="flex flex-col items-end gap-1.5" data-testid="last-turn" data-speaker="you">
         <span className="sr-only">You</span>
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-accent/20 bg-accent-soft px-4 py-2.5 text-[14px] leading-[1.5] text-ink">{words}</p>
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-accent/20 bg-accent-soft px-4 py-2.5 text-body leading-[1.5] text-ink">{words}</p>
         <When ms={turn.at_ms} />
       </li>
     );
@@ -198,9 +198,9 @@ function Turn({ turn, tool, speaker, asks }: { turn: LastTurnInfo; tool: string;
         <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full border border-hairline bg-surface-2 text-ink">
           <ToolMark tool={tool} size={15} />
         </span>
-        <span className="text-[14px] font-semibold text-ink">{speaker}</span>
+        <span className="text-body font-semibold text-ink">{speaker}</span>
         {asks && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[12px] font-semibold text-warning" data-testid="last-turn-asks">
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="last-turn-asks">
             asks you
           </span>
         )}
@@ -258,7 +258,7 @@ function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((now) => !now)}
-        className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-hairline bg-surface-2/60 px-2.5 py-1.5 text-left text-[13px] font-medium text-ink/85 outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-hairline bg-surface-2/60 px-2.5 py-1.5 text-left text-meta font-medium text-ink/85 outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={"shrink-0 transition-transform " + (open ? "rotate-90" : "")}>
           <path d="M9 6l6 6-6 6" />
@@ -267,9 +267,9 @@ function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
       </button>
       {open && (
         <ul className="mt-2 flex flex-col gap-1 border-l border-hairline pl-4" data-testid="last-turn-step-lines">
-          {block.hidden > 0 && <li className="text-[12px] text-ink/80">{block.hidden === 1 ? "1 earlier step" : `${block.hidden} earlier steps`} not shown</li>}
+          {block.hidden > 0 && <li className="text-label text-muted">{block.hidden === 1 ? "1 earlier step" : `${block.hidden} earlier steps`} not shown</li>}
           {block.steps.map((line, index) => (
-            <li key={index} className="break-words font-mono text-[12.5px] leading-[1.5] text-ink/90">
+            <li key={index} className="break-words font-mono text-meta leading-[1.5] text-ink/90">
               {line}
             </li>
           ))}
@@ -297,9 +297,11 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
   if (!model.live) return null;
   const place = model.places[0];
   const app = appWords(place, model.tool);
+  // "Answer it" only while it asks (the backlog: a working session's
+  // page said "Answer it in ChatGPT" with nothing to answer).
   const answer = app ? (
     <p className={META} data-testid="last-messages-answer">
-      Answer it in {app}. Go to it brings {place?.label || app} to the front
+      {model.state.asks ? `Answer it in ${app}. ` : ""}Go to it brings {place?.label || app} to the front
       {isDesktopApp(place, model.tool) ? "; if another session is showing there, pick this one in its sidebar." : "."}
     </p>
   ) : null;
@@ -310,9 +312,9 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
       <div className="border-t border-warning/30 bg-warning-soft px-5 py-4" data-testid="last-messages-asks">
         <div className="mx-auto flex w-full max-w-[760px] flex-wrap items-start gap-x-4 gap-y-3">
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-            <p className="text-[13px] font-semibold text-warning">{speaker} asks you</p>
+            <p className="text-meta font-semibold text-warning">{speaker} asks you</p>
             {question && (
-              <p className="line-clamp-3 text-[14px] leading-[1.5] text-ink" data-testid="last-messages-question">
+              <p className="line-clamp-3 text-body leading-[1.5] text-ink" data-testid="last-messages-question">
                 {question}
               </p>
             )}
@@ -332,7 +334,7 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
     <div className="border-t border-hairline px-5 py-3" data-testid={model.state.working ? "last-messages-working" : "last-messages-open"}>
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-1">
         {model.state.working && (
-          <p className="inline-flex items-center gap-2 text-[14px] font-medium text-live" role="status">
+          <p className="inline-flex items-center gap-2 text-body font-medium text-live" role="status">
             <span aria-hidden="true" className="inline-flex gap-1">
               {[0, 1, 2].map((dot) => (
                 <span key={dot} className="size-1.5 rounded-full bg-current motion-safe:animate-pulse" style={{ animationDelay: `${dot * 200}ms` }} />

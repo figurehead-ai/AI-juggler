@@ -123,7 +123,7 @@ export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNe
             <div className="flex min-w-0 items-start gap-3">
               <Mark need={first} size={32} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[15px] font-semibold text-ink">{first.title}</span>
+                <span className="truncate text-section font-semibold text-ink">{first.title}</span>
                 <span className="truncate text-xs text-muted">{first.detail}</span>
               </div>
               {first.item && <span className={"shrink-0 text-xs font-semibold " + (first.severe ? "text-danger" : "text-warning")}>{needWord(first.item)}</span>}
@@ -159,8 +159,8 @@ export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNe
                 <>
                 <Mark need={need} size={24} />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13px] font-medium text-ink">{need.title}</span>
-                  <span className="truncate text-[11px] text-muted">{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
+                  <span className="truncate text-meta font-medium text-ink">{need.title}</span>
+                  <span className="truncate text-label text-muted">{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
                 </span>
                 <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts="A" onClick={() => run(need)}>
                   {primaryWords(need)}

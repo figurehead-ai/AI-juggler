@@ -10,7 +10,7 @@ import { switchSetupUndo } from "../lib/ipc/switchSetup";
 export type Done = { message: string; record: string | null };
 
 /** The sync sheet's section headings. */
-export const SYNC_HEADING = "text-[11px] uppercase tracking-wider text-muted";
+export const SYNC_HEADING = "text-section font-semibold text-ink";
 
 /** What a change did, with its Undo. */
 export function DoneLine({ done, onUndone }: { done: Done; onUndone: () => void }) {
@@ -39,12 +39,12 @@ export function DoneLine({ done, onUndone }: { done: Done; onUndone: () => void 
       <p ref={line} tabIndex={-1} className="flex items-center gap-2 outline-none" role="status">
         <span className="text-ink">{status}</span>
         {done.record && !undone && (
-          <button type="button" onClick={() => void undo()} className="rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2">
+          <button type="button" onClick={() => void undo()} className="rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2">
             Undo
           </button>
         )}
       </p>
-      {!undone && done.record && <p className="text-[11px] text-muted">You can also undo it later in Settings › Switching.</p>}
+      {!undone && done.record && <p className="text-label text-muted">You can also undo it later in Settings › Switching.</p>}
       {error && (
         <p className="text-danger" role="alert">
           {error}

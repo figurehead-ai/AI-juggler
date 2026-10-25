@@ -6,19 +6,25 @@
  * week, when you work, and the top projects and sessions, each opening its
  * page. The frame draws at once and the last summary shows from memory.
  * With nothing set up it says what will appear, and how to get there.
- * Every number here is from the backend's summaries, never a sum of rows.
+ * Every number here is from the backend's summaries, never a sum of rows;
+ * Prices and details reads its rows a page at a time (`CostMatrix`).
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import { WelcomePointer } from "../components/Welcome";
 import { BudgetCaps } from "../components/BudgetCaps";
 import { MachineUsageCard } from "../components/MachineUsage";
 import { Button, Card } from "../components/primitives";
+import { Modal } from "../components/form";
+import { lazyNamed } from "../lib/lazy";
 import { SPAN, UsageDashboard } from "../components/usage/Dashboard";
 import { RunwayCards } from "../components/usage/RunwayCards";
 import { Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
 import { RANGES } from "../lib/usage/range";
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+
+/** Loaded once it's opened: the table pages its rows. */
+const CostMatrix = lazyNamed(() => import("../components/CostMatrix"), "CostMatrix");
 
 export function UsageScreen({
   accounts,
@@ -35,6 +41,7 @@ export function UsageScreen({
   onOpenHome?: () => void;
 }): JSX.Element {
   const [range, setRange] = useRange("usage");
+  const [prices, setPrices] = useState(false);
   const profiles = accounts.length;
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 pb-8" data-testid="usage-screen">
@@ -49,6 +56,9 @@ export function UsageScreen({
         </div>
         {profiles > 0 && (
           <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setPrices(true)} data-testid="usage-prices-open">
+              Prices and details
+            </Button>
             <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="usage-range" />
           </div>
         )}
@@ -74,6 +84,12 @@ export function UsageScreen({
         {profiles > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
         <MachineUsageCard />
       </div>
+
+      {prices && (
+        <Modal title="Prices and details" subtitle="What each model cost at list prices, by day" wide onClose={() => setPrices(false)} testId="usage-prices">
+          <CostMatrix />
+        </Modal>
+      )}
 
     </div>
   );

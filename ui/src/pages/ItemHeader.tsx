@@ -48,7 +48,7 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
 function SessionResources({ session }: { session: InstanceInfo }) {
   const heavy = useHeavyNote(session.id);
   return (
-    <span className={"font-mono text-[11px] " + (heavy ? "text-warning" : "text-faint")} data-testid="session-resources">
+    <span className={"text-meta tabular-nums " + (heavy ? "text-warning" : "text-muted")} data-testid="session-resources">
       {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
       {heavy && <span className="font-sans"> — working your Mac hard</span>}
     </span>
@@ -124,7 +124,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-faint">(⌘[ back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">(⌘[ back)</span>
           </span>
         }
         folded={folded}
@@ -314,7 +314,7 @@ export function toolRunning(toolId: string, sessions: InstanceInfo[], conversati
 /** A tool's facts: how many of its sessions run now. */
 function toolFacts(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): string {
   const running = toolRunning(toolId, sessions, conversations);
-  return running === 0 ? "Nothing running" : `${running} running`;
+  return running === 0 ? "Nothing working" : `${running} working`;
 }
 
 

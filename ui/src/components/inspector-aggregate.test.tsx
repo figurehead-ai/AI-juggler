@@ -265,7 +265,7 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     const fiveHourAria = rings.querySelector('[data-testid="window-gauge"]')!.getAttribute("aria-label")!;
     expect(fiveHourAria).toContain("45% left");
     expect(fiveHourAria).toContain("in 1 h");
-    expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("1h0m");
+    expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("in 1 h");
     expect(container.querySelector('[data-testid="account-renewal"]')?.textContent).toContain("Expiry: unknown");
     expect(container.querySelector('[data-testid="account-affinity"]')?.textContent).toContain("ai-juggler");
     // AJ-E410 (D-08): the Tier-1 cleanup opt-in toggle — off by default.

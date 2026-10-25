@@ -48,7 +48,7 @@ export function AppearanceCard(): JSX.Element {
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-muted">⌘⇧L switches between them from anywhere.</p>
+      <p className="text-label text-muted">⌘⇧L switches between them from anywhere.</p>
       <DensityChoice />
     </Card>
   );

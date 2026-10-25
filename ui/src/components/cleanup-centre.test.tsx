@@ -173,10 +173,10 @@ describe("CleanupCentre (AJ-E506)", () => {
     const toggle = view
       .getByTestId("cleanup-row-8123")
       .querySelector("button") as HTMLButtonElement;
-    expect(toggle.title).toContain("Why does Juggler think this is mine?");
+    expect(toggle.title).toContain("Why AI Juggler counts it as your session's");
     fireEvent.click(toggle);
     expect(view.getByTestId("cleanup-evidence-8123").textContent ?? "").toContain(
-      "Why does Juggler think this is mine?",
+      "Why AI Juggler counts it as your session's",
     );
     view.unmount();
   });

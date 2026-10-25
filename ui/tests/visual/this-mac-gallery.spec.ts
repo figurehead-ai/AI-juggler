@@ -98,7 +98,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("rail-heavy")).toContainText("3.2 GB");
     await item.getByRole("button", { name: /Take a look/ }).click();
     const header = page.getByTestId("session-resources");
-    await expect(header).toContainText("CPU 96% · 3.2 GB · 5 helpers");
+    await expect(header).toContainText("CPU 96% · 3.2 GB · 5 more processes");
     await expect(header).toContainText("working your Mac hard");
     await page.screenshot({ path: resolve(OUT, `session-header-heavy-1280x800-${theme}.png`) });
     await axeClean(page, "session header heavy");

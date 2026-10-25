@@ -220,7 +220,7 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   await expectRail(page); // D-25: the list, or its icon column when narrow
   // AJ-E2104: other Macs fold after this Mac; unfolded, its rows show.
   await page.getByTestId("rail-other-mac").getByRole("button", { name: /^Unfold Mac mini/ }).click();
-  await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName(/^Work Max on Mac mini.*waiting user/);
+  await expect(page.getByTestId("board-remote-row")).toHaveAccessibleName(/^Work Max on Mac mini.*Asks you/);
   await onlyMac(page, "machine-mini");
   await page.reload();
   await expectRail(page); // D-25: the list, or its icon column when narrow

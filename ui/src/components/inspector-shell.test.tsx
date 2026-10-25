@@ -129,7 +129,7 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session", tabs: ["Terminal", "Overview", "Usage", "Processes"] },
+    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Terminal", "Overview", "Usage", "Processes"] },
     // A tool's page is its body alone: no tab strip.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
@@ -186,9 +186,11 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   });
 
   it("a project's body lists its sessions, live first", () => {
-    const { getAllByTestId, getByTestId } = shell({ kind: "project", id: "proj-1" });
-    expect(getAllByTestId("page-session-row")).toHaveLength(1);
-    expect(getByTestId("page-sessions-count").textContent).toBe("1 session · 1 open");
+    const { getByTestId } = shell({ kind: "project", id: "proj-1" });
+    // The Sessions panel's own list (Overview's Open sessions is a list too).
+    const panel = getByTestId("page-panel-sessions");
+    expect(panel.querySelectorAll('[data-testid="page-session-row"]')).toHaveLength(1);
+    expect(panel.querySelector('[data-testid="page-sessions-count"]')!.textContent).toBe("1 session · 1 open");
   });
 });
 

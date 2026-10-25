@@ -8,8 +8,8 @@
  *   screen, and kept in memory for every row that shows the same app.
  * - Until it arrives, a quiet square holds its place.
  * - When the app isn't installed or its icon can't be read, a clean one-
- *   letter (16 and 20 px) or two-letter (24 and 32 px) mark stands in,
- *   centred and never cut off, at 12 px or more.
+ *   letter mark stands in at every size, centred and never cut off, at
+ *   12 px or more.
  * - The profile is never drawn on it (`ProfileBadge`, beside it).
  *
  * Decorative (`alt=""`): the app's name is always beside it in words.
@@ -48,15 +48,13 @@ export function pixelsFor(size: number): AppIconPixels {
   return need <= 32 ? 32 : need <= 64 ? 64 : 128;
 }
 
-/** The fallback's letters: one under 24 px, two from 24 px (a two-word
- * name's initials, else its first two letters). */
-export function appLetters(name: string, size: number): string {
+/** The fallback's letter: the name's first, at every size and in every
+ * place (the review of 0.1.4: "C" in the rail and "Ch" on Home read as
+ * two different marks). `_size` stays for callers that pass it. */
+export function appLetters(name: string, _size?: number): string {
   const words = name.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
   const first = [...(words[0] ?? "?")];
-  const one = (first[0] ?? "?").toUpperCase();
-  if (size < 24) return one;
-  if (words.length >= 2) return `${one}${[...words[1]!][0]!.toUpperCase()}`;
-  return `${one}${(first[1] ?? "").toLowerCase()}`;
+  return (first[0] ?? "?").toUpperCase();
 }
 
 /** The fallback's type size: 12 px or more, small enough that its

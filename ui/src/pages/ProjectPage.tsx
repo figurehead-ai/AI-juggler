@@ -23,7 +23,8 @@ import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
-import { SessionsList, useSessionRows } from "./SessionsList";
+import { PagedSessions, useSessionRows } from "./SessionsList";
+import { sessionsQuery } from "../lib/ipc/sessions";
 import { launchSettingsName } from "../lib/account-words";
 
 export type ProjectPanelProps = {
@@ -137,10 +138,22 @@ export function ProjectSessions(props: ProjectPanelProps) {
   const host = useActionHost();
   const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession, props.now);
   const start = () => (host.newSessionIn ? host.newSessionIn(project) : window.dispatchEvent(new Event("aij:new-session")));
+  // A page at a time (0.1.5): the backend's whole list, not the working set.
+  const [total, setTotal] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-3">
       <MissingBanner project={project} onStopped={props.onStopped} />
-      {rows.length > 0 ? <SessionsList rows={rows} empty="" /> : <EmptyProject project={project} now={props.now} onStart={start} />}
+      {total === 0 && <EmptyProject project={project} now={props.now} onStart={start} />}
+      <div hidden={total === 0}>
+        <PagedSessions
+          listKey={`project-sessions:${project.id}`}
+          query={sessionsQuery({ project_id: project.id })}
+          local={() => rows}
+          empty=""
+          onOpenSession={props.onOpenSession}
+          onTotal={setTotal}
+        />
+      </div>
     </div>
   );
 }

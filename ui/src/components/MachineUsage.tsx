@@ -35,7 +35,7 @@ export function MachineUsageCard(): JSX.Element | null {
     <Card className="flex flex-col gap-2 p-4" data-testid="machine-usage">
       <div className="flex items-baseline justify-between gap-2">
         <h4 className="text-sm font-medium">Last 24 hours, by machine</h4>
-        <span className="text-[11px] text-muted" data-testid="machine-usage-total">
+        <span className="text-label text-muted" data-testid="machine-usage-total">
           {tokenWords(all)} tokens in all
         </span>
       </div>
@@ -50,7 +50,7 @@ export function MachineUsageCard(): JSX.Element | null {
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-muted">Each Mac's sessions and costs in detail are on its own Usage.</p>
+      <p className="text-label text-muted">Each Mac's sessions and costs in detail are on its own Usage.</p>
     </Card>
   );
 }

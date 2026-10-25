@@ -1,5 +1,5 @@
 /**
- * E14 vitest — This Mac on Home (AJ-E1404), the rail's heavy note and the
+ * E14 vitest — Home's Needs you for a heavy session (AJ-E1404), the rail's heavy note and the
  * session header's resources (AJ-E1405). Calm until it matters: nothing
  * before the first sample, colour and Needs-you entries only when heavy
  * or under pressure, and a tool AI Juggler didn't start offers nothing to
@@ -7,9 +7,9 @@
  */
 import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ThisMacPanel } from "./ThisMacPanel";
 import { RailRow } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
+import { ThisMacScreen } from "../screens/ThisMacScreen";
 import { ThisMacContext, keptNotices, mockMachineHealth, type MachineNotice, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 
@@ -93,128 +93,6 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
 
 afterEach(cleanup);
 
-describe("This Mac panel (AJ-E1404)", () => {
-  const nameOf = (id: string) => `name-of-${id}`;
-
-  it("says nothing before the first sample", () => {
-    const unsampled = { ...info("plenty", []), machine: mockMachineHealth("unsampled") };
-    const { container } = render(<ThisMacPanel info={unsampled} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    expect(container.innerHTML).toBe("");
-    const none = render(<ThisMacPanel info={null} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    expect(none.container.innerHTML).toBe("");
-  });
-
-  it("is calm with room to spare and nothing running", () => {
-    render(<ThisMacPanel info={info("plenty", [])} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    expect((screen.getByRole("status"))!.textContent).toContain("Nothing running — your Mac has room");
-    expect(screen.queryByTestId("this-mac-reasons")).toBeNull();
-    expect(screen.queryByTestId("this-mac-leftovers")).toBeNull();
-    expect((screen.getByTestId("this-mac-memory"))!.textContent).toBe("22 GB in use of 32 GB");
-    // Nothing running: no AI tools part, and no word of pressure.
-    const parts = [...screen.getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
-    expect(parts).toEqual(["Apps and macOS 20 GB", "Kept compressed 2.4 GB", "Available 10 GB"]);
-    expect(screen.queryByTestId("this-mac-pressure-note")).toBeNull();
-  });
-
-  it("names the state, its reasons, and splits ours from the tools we didn't start", () => {
-    const open = vi.fn();
-    render(
-      <ThisMacPanel
-        info={info("tight", [tree({ session_id: "s1", place: null, account_label: "Work Max", rss_bytes: 3_200_000_000, cpu_pct: 96, heavy_note: "CPU 96% · 3.2 GB" }), tree({})])}
-        nameOf={nameOf}
-        onOpenSession={open}
-      />,
-    );
-    expect((screen.getByRole("status"))!.textContent).toContain("Getting tight");
-    // "macOS" keeps its lower-case m in the sentence.
-    expect(screen.getByTestId("this-mac-reasons").textContent).toBe("macOS reports memory pressure; swap is growing — 140 MB a minute");
-    const [ours, theirs] = screen.getAllByTestId("this-mac-tree");
-    fireEvent.click(within(ours!).getAllByRole("button")[0]!);
-    expect(open).toHaveBeenCalledWith("s1");
-    // AJ-E1537: its menu goes to the session; theirs says it isn't ours.
-    fireEvent.contextMenu(ours!);
-    expect(screen.getByRole("menuitem", { name: "Open the session's page" })).toBeTruthy();
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.contextMenu(theirs!);
-    const line = screen.getByRole("menuitem", { name: "Not started by AI Juggler" }) as HTMLButtonElement;
-    expect(line.disabled).toBe(true);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect((ours)!.textContent).toContain("name-of-s1");
-    expect((ours)!.textContent).toContain("heavy: CPU 96% · 3.2 GB");
-    // D-08: shown and counted, never actionable.
-    expect((theirs)!.textContent).toContain("Claude app");
-    expect((theirs)!.textContent).toContain("Personal · not started by AI Juggler");
-    expect(within(theirs!).queryByRole("button")).toBeNull();
-    // Its memory is summed over helpers that share pages: an estimate.
-    expect(theirs!.textContent).toContain("about 1.6 GB");
-    expect(ours!.textContent).not.toContain("about");
-    // The whole Mac's memory, in named parts: the AI tools, the rest, and
-    // what's left (the 0.1.4 review).
-    const parts = screen.getByTestId("this-mac-memory-parts");
-    expect([...parts.querySelectorAll("li")].map((part) => part.textContent)).toEqual([
-      "AI tools about 4.8 GB",
-      "Other apps and macOS 20 GB",
-      "Kept compressed 5.1 GB",
-      "Available 2.6 GB",
-    ]);
-    // Compressed memory is told by stripes too, never by colour alone.
-    expect(parts.querySelector('[data-part="compressed"] span')!.className).toContain("repeating-linear-gradient");
-    expect(screen.getByTestId("this-mac-memory").textContent).toBe("29 GB in use of 32 GB");
-    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain(
-      "AI tools about 4.8 GB, Other apps and macOS 20 GB, Kept compressed 5.1 GB, Available 2.6 GB",
-    );
-    // macOS reports pressure: said in plain words beside the figures.
-    expect(screen.getByTestId("this-mac-pressure-note").textContent).toContain("Memory pressure is macOS's own measure of how hard it is working to make room.");
-  });
-
-  it("names what memory in use counts, and shows nothing when it couldn't be read", () => {
-    const measured = info("plenty", []);
-    const { unmount } = render(<ThisMacPanel info={measured} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    const line = screen.getByTestId("this-mac-memory");
-    expect(line.getAttribute("title")).toContain("app memory, wired and compressed");
-    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain("close to Activity Monitor");
-    unmount();
-    const unread = info("plenty", []);
-    unread.machine = { ...unread.machine, memory_used: null, memory_basis: null };
-    render(<ThisMacPanel info={unread} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    expect(screen.queryByRole("meter")).toBeNull();
-    expect(screen.getByTestId("this-mac-memory").textContent).toBe("Memory: 32 GB");
-    expect(screen.queryByTestId("this-mac-memory-parts")).toBeNull();
-  });
-
-  // AJ-E1526: a tool line carries its tool's mark beside the name, and a
-  // line whose tool isn't known carries none.
-  it("marks each tool line with its tool's mark, decoratively", () => {
-    render(
-      <ThisMacPanel
-        info={info("plenty", [tree({ tool: "claude-code" }), tree({ place: "terminal", rss_bytes: 1_000 })])}
-        nameOf={nameOf}
-        onOpenSession={vi.fn()}
-      />,
-    );
-    const [marked, unmarked] = screen.getAllByTestId("this-mac-tree");
-    expect(marked!.querySelector("[data-mark]")?.getAttribute("aria-hidden")).toBe("true");
-    expect(marked!.textContent).toContain("Claude app");
-    expect(unmarked!.querySelector("[data-mark]")).toBeNull();
-  });
-
-  it("offers Clean up only when something was left running", () => {
-    const clean = vi.fn();
-    render(<ThisMacPanel info={info("plenty", [tree({})], [2, 1])} nameOf={nameOf} onOpenSession={vi.fn()} onOpenCleanup={clean} />);
-    expect((screen.getByTestId("this-mac-leftovers"))!.textContent).toContain("2 processes left running after their session closed · holding a port");
-    fireEvent.click(screen.getByRole("button", { name: "Clean up" }));
-    expect(clean).toHaveBeenCalled();
-  });
-
-  it("mentions tools we didn't start when none is among the heaviest", () => {
-    const ours = [1, 2, 3].map((n) => tree({ session_id: `s${n}`, place: null, rss_bytes: 3e9 }));
-    const all = info("plenty", [...ours, tree({ rss_bytes: 1e8 })]);
-    all.top = ours;
-    render(<ThisMacPanel info={all} nameOf={nameOf} onOpenSession={vi.fn()} />);
-    expect(screen.getByText("Also counted: 1 Claude tool not started by AI Juggler.")).toBeTruthy();
-  });
-});
-
 describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   const accounts = [{ id: "work", provider: "claude-code", label: "Work Max", plan: null, login_state: "logged_in" }] as AccountInfo[];
   const projects: ProjectInfo[] = [];
@@ -237,7 +115,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
     expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
     const item = screen.getByTestId("home-need-heavy");
     expect((item)!.textContent).toContain("Working your Mac hard — 3.2 GB");
-    expect((item)!.textContent).toContain("heavy-one · Work Max · 5 helpers");
+    expect((item)!.textContent).toContain("heavy-one · Work Max · 5 more processes");
     fireEvent.click(within(item).getByRole("button", { name: /Take a look/ }));
     expect(open).toHaveBeenCalledWith("heavy-one");
     expect(screen.getAllByTestId("home-need-heavy")).toHaveLength(1);
@@ -452,43 +330,21 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(screen.queryByTestId("machine-alert")).toBeNull();
   });
 
-  it("never drops a row: six Claude app windows show three, then 'and 3 more' opens the rest (P6)", () => {
-    const windows = [7.4e9, 5.2e9, 3.5e9, 2.0e9, 1.1e9, 0.6e9].map((rss, i) =>
-      tree({ account_label: `Window ${i + 1}`, rss_bytes: rss }),
-    );
-    render(<ThisMacPanel info={info("plenty", windows)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
-    const list = screen.getByTestId("this-mac-top");
-    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
-    const more = screen.getByTestId("this-mac-more");
-    expect(more.textContent).toBe("and 3 more");
-    expect(more.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(more);
-    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(6);
-    expect(screen.getByTestId("this-mac-more").textContent).toBe("Show fewer");
-    // Three or fewer: no button at all.
-    cleanup();
-    render(<ThisMacPanel info={info("plenty", windows.slice(0, 3))} nameOf={() => "x"} onOpenSession={vi.fn()} />);
-    expect(screen.queryByTestId("this-mac-more")).toBeNull();
-  });
-
-  it("two app windows that look alike are two rows, each keyed by its process (#126 review, L6)", () => {
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const twins = [501, 502].map((pid) => tree({ root_pid: pid, account_label: "Personal", rss_bytes: 2e9 }));
-    render(<ThisMacPanel info={info("plenty", twins)} nameOf={() => "x"} onOpenSession={vi.fn()} />);
-    expect(within(screen.getByTestId("this-mac-top")).getAllByRole("listitem")).toHaveLength(2);
-    expect(errors.mock.calls.flat().join(" ")).not.toContain("same key");
-    errors.mockRestore();
-  });
-
   it("shows advice from history only when there is some", () => {
     const mac = info("plenty", [tree({})]);
-    const { rerender } = render(<ThisMacPanel info={mac} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    // The This Mac page (Home's panel went with AJ-E2105).
+    const page = (value: typeof mac) => (
+      <ThisMacContext.Provider value={value}>
+        <ThisMacScreen nameOf={() => "x"} onOpenSession={vi.fn()} />
+      </ThisMacContext.Provider>
+    );
+    const { rerender } = render(page(mac));
     expect(screen.queryByTestId("this-mac-recommendations")).toBeNull();
     mac.recommendations = [
       "This Mac comfortably runs about 5 sessions at once (about 2.0 GB each, from your last 12)",
       "“Deep work” (Work Max) is the heaviest launch setting — about 3.1 GB a session",
     ];
-    rerender(<ThisMacPanel info={{ ...mac }} nameOf={() => "x"} onOpenSession={vi.fn()} />);
+    rerender(page({ ...mac }));
     const list = screen.getByTestId("this-mac-recommendations");
     expect(list.textContent).toContain("comfortably runs about 5 sessions at once");
     expect(list.textContent).toContain("is the heaviest launch setting");

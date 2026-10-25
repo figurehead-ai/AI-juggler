@@ -47,12 +47,12 @@ export function TreeRow({
   const numbers = (
     <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
       <span
-        className={`text-[14px] ${tree.heavy_note ? "font-semibold text-warning" : "text-ink"}`}
+        className={`text-body ${tree.heavy_note ? "font-semibold text-warning" : "text-ink"}`}
         title={tree.memory_estimate ? ESTIMATE_WORDS : undefined}
       >
         {tree.memory_estimate ? `about ${bytesWords(tree.rss_bytes)}` : bytesWords(tree.rss_bytes)}
       </span>
-      <span className="text-[13px] text-ink/80" title="As Activity Monitor counts it: 100% is one core busy">
+      <span className="text-meta text-muted" title="As Activity Monitor counts it: 100% is one core busy">
         {cpuWords(tree.cpu_pct)}
       </span>
     </span>
@@ -60,12 +60,12 @@ export function TreeRow({
   const body = (
     <>
       <span className="flex min-w-0 flex-1 basis-28 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-1.5 text-[14px] text-ink">
-          {tree.tool && <ToolMark tool={tree.tool} size={14} className="text-ink/80" />}
+        <span className="flex min-w-0 items-center gap-1.5 text-body text-ink">
+          {tree.tool && <ToolMark tool={tree.tool} size={14} className="text-muted" />}
           <span className="truncate">{title}</span>
           {tree.heavy_note && <span className="sr-only"> — heavy: {tree.heavy_note}</span>}
         </span>
-        {detail && <span className="truncate text-[13px] text-ink/80">{detail}</span>}
+        {detail && <span className="truncate text-meta text-muted">{detail}</span>}
       </span>
       {numbers}
     </>
@@ -99,12 +99,12 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
   const reasons = info.machine.summary.reasons.slice(0, reasonsShown).map((reason) => reason.words);
   return (
     <div className="flex flex-col gap-0.5" role="status">
-          <span className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <span aria-hidden="true" className={`text-[12px] ${level.tone}`}>{level.glyph}</span>
+          <span className="flex items-center gap-2 text-section font-semibold text-ink">
+            <span aria-hidden="true" className={`text-label ${level.tone}`}>{level.glyph}</span>
             {nothing && calm ? "Nothing running — your Mac has room" : level.words}
           </span>
           {!calm && reasons.length > 0 && (
-            <span className="text-[14px] text-ink/80" data-testid="this-mac-reasons">
+            <span className="text-body text-muted" data-testid="this-mac-reasons">
               {reasonSentence(reasons)}
             </span>
           )}
@@ -128,7 +128,7 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
       ? `On battery, so not kept awake while ${sessions}`
       : `Not kept awake while ${sessions} (off in Settings)`;
   return (
-    <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink/80" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
+    <p className="flex flex-wrap items-center gap-x-2 text-meta text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
       <span aria-hidden="true" className={`size-2 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
       <span>{words}</span>
       <button
@@ -155,7 +155,7 @@ export function OwnLine({ info }: { info: ThisMacInfo }): JSX.Element {
     atLogin ? "opens at login" : null,
   ].filter(Boolean);
   return (
-    <p className="text-[13px] text-ink/80" data-testid="this-mac-own">
+    <p className="text-meta text-muted" data-testid="this-mac-own">
       {parts.join(" · ")}
     </p>
   );

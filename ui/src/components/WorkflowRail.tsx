@@ -244,8 +244,9 @@ export function WorkflowRail({
           type="button"
           onClick={onNewSession}
           title={minimal ? "New session" : undefined}
+          aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
-          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-[12px] font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-meta font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
@@ -516,7 +517,7 @@ export function InstanceBoard({
                 <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
               )}
               <span className={"size-1.5 shrink-0 rounded-full " + (t.ended ? "bg-faint" : "bg-live animate-breathe")} />
-              <span className="min-w-0 flex-1 truncate text-[12.5px]">{t.title}</span>
+              <span className="min-w-0 flex-1 truncate text-meta">{t.title}</span>
             </button>
           ))}
         </ListSection>
@@ -528,7 +529,7 @@ export function InstanceBoard({
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
         {hasRemote && showLocal && (
-          <p className="px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted" data-testid="board-machine-local">
+          <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted" data-testid="board-machine-local">
             This Mac
           </p>
         )}
@@ -544,12 +545,12 @@ export function InstanceBoard({
             /* D-25: empty means "start here" — the legend lives behind
                the footer's "?". */
             <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
-              <p className="text-[12px] font-medium text-ink">No sessions yet</p>
-              <p className="text-[11px] leading-relaxed text-muted">Start one with New session.</p>
+              <p className="text-label font-medium text-ink">No sessions yet</p>
+              <p className="text-label leading-relaxed text-muted">Start one with New session.</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
-              <p className="text-[11.5px] font-medium text-muted">No sessions match</p>
+              <p className="text-meta font-medium text-muted">No sessions match</p>
               <Button
                 size="sm"
                 variant="secondary"
@@ -579,7 +580,7 @@ export function InstanceBoard({
               />
             ))}
             <div style={{ height: (flatRows.length - windowed.end) * ROW_HEIGHT[effectiveDensity] }} />
-            <p className="px-3 pt-1 text-center text-[9px] text-faint">
+            <p className="px-3 pt-1 text-center text-label text-muted">
               {flatRows.length} sessions
             </p>
           </div>
@@ -608,14 +609,14 @@ export function InstanceBoard({
                     </RailProjectHeader>
                   ) : (
                     <p
-                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted"
+                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted"
                       title={entry.rollup || undefined}
                     >
                       <span className="min-w-0 truncate">{entry.label}</span>
                       {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
                       <span className="flex shrink-0 items-center gap-1.5">
                         {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
-                        <span className="text-[10px] font-normal text-faint">{entry.rows.length}</span>
+                        <span className="text-label font-normal text-muted">{entry.rows.length}</span>
                       </span>
                     </p>
                   )}
@@ -658,9 +659,9 @@ export function InstanceBoard({
                 controls="rail-history-list"
                 onToggle={() => toggleFold(HISTORY_GROUP)}
               />
-              <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted">
+              <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted">
                 <span className="min-w-0 truncate">Projects</span>
-                <span className="shrink-0 text-[10px] font-normal text-faint">{repoGroups(idleProjects).length}</span>
+                <span className="shrink-0 text-label font-normal text-muted">{repoGroups(idleProjects).length}</span>
               </p>
             </div>
             <div id="rail-history-list" className="flex flex-col gap-0.5" hidden={folded.has(HISTORY_GROUP)}>
@@ -685,12 +686,12 @@ export function InstanceBoard({
                           controls={safeId("rail-repo", group.key)}
                           onToggle={() => toggleFold(group.key)}
                         />
-                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-[11.5px] font-semibold text-muted" title={group.key}>
+                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted" title={group.key}>
                           <span className="flex min-w-0 items-center gap-1.5">
                             <ProjectMark projectId={group.projects[0]!.id} size={14} />
                             <span className="min-w-0 truncate">{group.name}</span>
                           </span>
-                          <span className="shrink-0 text-[10px] font-normal text-faint">{group.projects.length}</span>
+                          <span className="shrink-0 text-label font-normal text-muted">{group.projects.length}</span>
                         </p>
                       </div>
                       <div id={safeId("rail-repo", group.key)} className="flex flex-col gap-0.5 pl-3" hidden={folded.has(group.key)}>
@@ -712,7 +713,7 @@ export function InstanceBoard({
                 <button
                   type="button"
                   onClick={() => setAllProjects((open) => !open)}
-                  className="self-start rounded-md py-1 pl-7 pr-2 text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+                  className="self-start rounded-md py-1 pl-7 pr-2 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                   aria-expanded={allProjects}
                   data-testid="rail-history-all"
                 >
@@ -761,7 +762,7 @@ function BoardRow({
   return (
     <div className="group relative" {...menu.triggerProps}>
       {caption && (
-        <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-[8.5px] font-medium text-muted" title={caption}>
+        <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-label font-medium text-muted" title={caption}>
           {caption}
         </span>
       )}
@@ -777,7 +778,7 @@ function BoardRow({
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>
@@ -866,17 +867,17 @@ export function RailRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
-          <span className={"min-w-0 truncate text-[12.5px] font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
+          <span className={"min-w-0 truncate text-meta font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
-            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-[9.5px] font-medium uppercase tracking-wide text-muted">
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
               app
             </span>
           )}
-          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when}</span>}
+          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
         </span>
         {density === "comfortable" && (
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
+          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : "rail-state-word"}
@@ -902,9 +903,9 @@ export function RailRow({
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
       </span>
-      {density === "compact" && low && <span className="shrink-0 font-mono text-[10px] text-warning">{low}</span>}
+      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-warning">{low}</span>}
       {density === "compact" && !low && heavy && (
-        <span data-testid="rail-heavy" className="shrink-0 font-mono text-[10px] text-warning">
+        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-warning">
           {heavy}
         </span>
       )}
@@ -924,7 +925,7 @@ function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean
 function ListSection({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="px-3 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
+      <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">
         {label}
       </p>
       {children}
@@ -987,7 +988,7 @@ export function MinimalInstanceColumn({
             {badge ? (
               <span
                 className={
-                  "absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold " +
+                  "absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full text-label font-bold " +
                   (badge.tone === "danger"
                     ? "bg-danger text-white"
                     : "bg-warning text-black")
@@ -1001,12 +1002,12 @@ export function MinimalInstanceColumn({
                 instance (Req.3) — never a bare disc. */}
             <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
               <span className="flex items-center gap-1.5">
-                <span className="truncate text-[11.5px] font-medium text-ink">
+                <span className="truncate text-meta font-medium text-ink">
                   {s.account_label}
                 </span>
                 <AccountAvatar accountId={s.account_id} label={s.account_label} size={16} />
               </span>
-              <span className="mt-1 block text-[10px] leading-relaxed text-muted">
+              <span className="mt-1 block text-label leading-relaxed text-muted">
                 {ariaSummary(s)}
               </span>
             </span>
@@ -1015,7 +1016,7 @@ export function MinimalInstanceColumn({
       })}
       {needsYou > 0 && (
         <span
-          className="mt-1 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-bold text-warning"
+          className="mt-1 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-label font-bold text-warning"
           title={`${needsYou} session${needsYou === 1 ? "" : "s"} need you`}
         >
           ! {needsYou}

@@ -4,6 +4,7 @@
  * the account page's running counts, and the go-to palette. Read once,
  * read again when the backend says it changed (and when asked).
  */
+import { untitled } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
 
@@ -73,5 +74,6 @@ export function liveOutside(all: ConversationInfo[], accountId?: string): Conver
  * folder's name. */
 export function conversationTitle(conversation: ConversationInfo): string {
   const folder = (conversation.cwd ?? "").replace(/\/+$/, "").split("/").pop() ?? "";
-  return conversation.title ?? conversation.git_branch ?? (folder || conversation.id.slice(0, 8));
+  // Never a bare "main": a telling branch, else "Untitled session · <folder>".
+  return conversation.title ?? untitled(conversation.git_branch, folder);
 }

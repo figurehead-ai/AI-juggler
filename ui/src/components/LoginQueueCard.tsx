@@ -169,8 +169,8 @@ export function LoginQueueCard({
         <p className="text-xs font-medium text-ink" aria-live="polite" data-testid="login-status">
           {ready ? "● Signed in ✓ auto-detected" : `○ ${copy.headline}`}
         </p>
-        <span className="text-[11px] text-muted">·</span>
-        <span className="text-[11px] text-muted">{label}</span>
+        <span className="text-label text-muted">·</span>
+        <span className="text-label text-muted">{label}</span>
         {state === "api_key" && <Chip tone="accent">API key account</Chip>}
         <span className="flex-1" />
         {onDone && ready && (
@@ -180,20 +180,20 @@ export function LoginQueueCard({
         )}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted" data-testid="login-detail">
+      <p className="text-label leading-relaxed text-muted" data-testid="login-detail">
         {copy.detail}
         {loginNote ? ` ${loginNote}` : ""}
       </p>
 
       {!ready && state !== "api_key" && (
         <>
-          <p className="text-[11px] leading-relaxed text-muted">
+          <p className="text-label leading-relaxed text-muted">
             This is {providerName}'s own sign-in. AI Juggler never sees your
             credentials. 1. Sign in → 2. follow the vendor prompts → 3. return;
             we detect it.
           </p>
           {!compact && (
-            <div className="rounded-lg border border-hairline px-3 py-2 font-mono text-[11px] leading-relaxed text-success">
+            <div className="rounded-lg border border-hairline px-3 py-2 font-mono text-label leading-relaxed text-success">
               {command || "…"}
             </div>
           )}
@@ -235,7 +235,7 @@ export function LoginQueueCard({
       )}
 
       {spawnError && (
-        <p className="text-[11px] text-danger" role="alert">
+        <p className="text-label text-danger" role="alert">
           {spawnError}
         </p>
       )}

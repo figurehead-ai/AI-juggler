@@ -84,7 +84,7 @@ export function FreshAccountStep({
   if (unfinished) {
     return (
       <div className="flex flex-col gap-6" data-testid="first-run-fresh-settings">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{unfinished.target} is ready.</h1>
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">{unfinished.target} is ready.</h1>
         <SwitchSetupResults target={unfinished.target} results={unfinished.results} />
         <div className="flex justify-end">
           <Button variant="primary" onClick={() => onCreated(unfinished.next)} data-autofocus>
@@ -106,8 +106,8 @@ export function FreshAccountStep({
       }}
     >
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-muted">
+        <h1 className="text-stat font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
+        <p className="max-w-2xl text-section leading-relaxed text-muted">
           AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
           {ownSignIn(provider)}; AI Juggler never sees your password.
         </p>
@@ -119,10 +119,10 @@ export function FreshAccountStep({
           value={shown}
           onChange={(event) => setLabel(event.target.value)}
           placeholder="e.g. Work, Personal"
-          className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-[15px] font-normal text-ink outline-none placeholder:text-faint focus:border-accent/60"
+          className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-section font-normal text-ink outline-none placeholder:text-muted focus:border-accent/60"
           data-testid="first-run-fresh-name"
         />
-        <span className="text-xs font-normal text-faint">What it's for — you can rename it and set its plan later in Accounts.</span>
+        <span className="text-xs font-normal text-muted">What it's for — you can rename it and set its plan later in Accounts.</span>
       </label>
       <StartWithSettings sources={sources} onChange={setSettings} />
       {error && (

@@ -148,7 +148,7 @@ export function RemoveAccountModal({
                   />
                   <span className="flex flex-col">
                     <span>{option.label}</span>
-                    <span className="text-[11px] text-muted">{option.what}</span>
+                    <span className="text-label text-muted">{option.what}</span>
                   </span>
                 </label>
               ))}

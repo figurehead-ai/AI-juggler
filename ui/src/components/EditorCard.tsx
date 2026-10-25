@@ -55,7 +55,7 @@ export function EditorCard(): JSX.Element {
           </option>
         ))}
       </Select>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         {choices !== null && choices.installed.length === 0
           ? "No editor AI Juggler knows is installed, so projects open in Finder."
           : "A project's menu opens it here. Show in Finder is always there too."}

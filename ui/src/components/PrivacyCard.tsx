@@ -140,17 +140,10 @@ export function PrivacyCard(): JSX.Element {
         <CardTitle id="privacy-title">
           Privacy
         </CardTitle>
-        {/* AJ-E1518: the full list, each line tested. */}
-        <button
-          type="button"
-          className="text-[11px] text-accent underline-offset-2 hover:underline"
-          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "privacy" } }))}
-          data-testid="privacy-open-page"
-        >
-          What AI Juggler reads, changes and sends ›
-        </button>
+        {/* AJ-E1518: the full list, each line tested, follows this card
+            in Settings › Privacy (one place since 0.1.5). */}
       </div>
-      <p className="text-[11px] text-ink" data-testid="privacy-state" aria-live="polite">
+      <p className="text-label text-ink" data-testid="privacy-state" aria-live="polite">
         {stateLine(overview)}
       </p>
       {info.included && (
@@ -162,7 +155,7 @@ export function PrivacyCard(): JSX.Element {
       )}
       {info.included && overview.sync.offered && (
         <div className="flex flex-col gap-1 rounded-lg border border-hairline px-3 py-2" data-testid="privacy-sync">
-          <label className="flex items-start gap-2 text-[11px] text-ink">
+          <label className="flex items-start gap-2 text-label text-ink">
             <input
               type="checkbox"
               className="mt-0.5"
@@ -179,30 +172,30 @@ export function PrivacyCard(): JSX.Element {
             </span>
           </label>
           {overview.sync.on && overview.sync.email && (
-            <p className="pl-5 text-[11px] text-muted" data-testid="privacy-sync-email">
+            <p className="pl-5 text-label text-muted" data-testid="privacy-sync-email">
               Synced to {overview.sync.email}
             </p>
           )}
         </div>
       )}
       {overview.sync.notice && (
-        <p className="text-[11px] text-ink" role="status" data-testid="privacy-sync-notice">
+        <p className="text-label text-ink" role="status" data-testid="privacy-sync-notice">
           {overview.sync.notice}
         </p>
       )}
       {message && (
-        <p className="text-[11px] text-ink" role="status" data-testid="privacy-message">
+        <p className="text-label text-ink" role="status" data-testid="privacy-message">
           {message}
         </p>
       )}
       {error && (
-        <p className="text-[11px] text-ink" role="alert" data-testid="privacy-error">
+        <p className="text-label text-ink" role="alert" data-testid="privacy-error">
           <span aria-hidden="true">⚠ </span>
           {error}
         </p>
       )}
       {counting && overview.last_error && (
-        <p className="text-[11px] text-ink" role="alert" data-testid="privacy-upload-error">
+        <p className="text-label text-ink" role="alert" data-testid="privacy-upload-error">
           <span aria-hidden="true">⚠ </span>
           {overview.last_error}
           {nextTry ? ` Will retry ${when(nextTry)}.` : ""}
@@ -214,19 +207,19 @@ export function PrivacyCard(): JSX.Element {
             What's collected
           </h4>
           {info.effective === "share" && overview.next_upload_ms && (
-            <p className="text-[11px] text-muted" data-testid="privacy-next-upload">
+            <p className="text-label text-muted" data-testid="privacy-next-upload">
               Next report may be sent after {when(overview.next_upload_ms)}.
             </p>
           )}
           {categories.length === 0 ? (
-            <p className="text-[11px] text-muted">Nothing counted yet this week ({overview.week}).</p>
+            <p className="text-label text-muted">Nothing counted yet this week ({overview.week}).</p>
           ) : (
             categories.map((category) => (
               <div key={category} className="flex flex-col gap-1">
-                <p className="text-[11px] font-medium text-ink">
+                <p className="text-label font-medium text-ink">
                   {CATEGORY_LABEL[category]} · {overview.week}
                 </p>
-                <table className="w-full table-fixed text-[11px]" data-testid={`privacy-rows-${category}`}>
+                <table className="w-full table-fixed text-label" data-testid={`privacy-rows-${category}`}>
                   <tbody>
                     {overview.rows
                       .filter((row) => row.category === category)
@@ -236,7 +229,7 @@ export function PrivacyCard(): JSX.Element {
                           <td className="truncate py-0.5 pr-2 text-muted" title={row.dims || undefined}>
                             {row.dims || "—"}
                           </td>
-                          <td className="w-16 py-0.5 text-right font-mono text-ink">{row.value}</td>
+                          <td className="w-16 py-0.5 text-right tabular-nums text-ink">{row.value}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -244,19 +237,19 @@ export function PrivacyCard(): JSX.Element {
               </div>
             ))
           )}
-          <p className="text-[11px] font-medium text-ink">Reports</p>
+          <p className="text-label font-medium text-ink">Reports</p>
           {overview.reports.length === 0 ? (
-            <p className="text-[11px] text-muted">No reports yet — the first is made when this week ends.</p>
+            <p className="text-label text-muted">No reports yet — the first is made when this week ends.</p>
           ) : (
             <ul className="flex flex-col gap-1" data-testid="privacy-reports">
               {overview.reports.map((row) => (
                 <li
                   key={`${row.status}/${row.week}`}
-                  className="flex items-center gap-2 text-[11px]"
+                  className="flex items-center gap-2 text-label"
                   data-testid="privacy-report"
                   data-status={row.status}
                 >
-                  <span className="w-20 shrink-0 font-mono text-ink">{row.week}</span>
+                  <span className="w-20 shrink-0 tabular-nums text-ink">{row.week}</span>
                   <span className="w-28 shrink-0 text-ink">
                     {row.synced ? "Synced to your account" : (STATUS_LABEL[row.status] ?? row.status)}
                   </span>
@@ -278,7 +271,7 @@ export function PrivacyCard(): JSX.Element {
           )}
           {viewing && (
             <div className="flex flex-col gap-1.5 rounded-lg border border-hairline p-2" data-testid="privacy-report-json">
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-label">
                 <span className="flex-1 text-ink">
                   {viewing.row.week} · {STATUS_LABEL[viewing.row.status] ?? viewing.row.status} — the exact report, spaced
                   out to read (Copy gives it byte for byte)
@@ -305,7 +298,7 @@ export function PrivacyCard(): JSX.Element {
                 </button>
               </div>
               <pre
-                className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-[10.5px] text-ink"
+                className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-label text-ink"
                 aria-label="Report JSON (read-only)"
                 tabIndex={0}
               >
@@ -320,7 +313,7 @@ export function PrivacyCard(): JSX.Element {
           <button
             type="button"
             onClick={() => void deleteLocal()}
-            className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="rounded-lg border border-hairline px-2.5 py-1 text-label text-ink focus:outline-none focus:ring-2 focus:ring-accent"
             data-testid="privacy-delete"
           >
             Delete local stats
@@ -329,13 +322,13 @@ export function PrivacyCard(): JSX.Element {
         <button
           type="button"
           onClick={() => void usageStatsOpenDocs()}
-          className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="rounded-lg border border-hairline px-2.5 py-1 text-label text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           data-testid="privacy-open-docs"
         >
           Open metrics documentation
         </button>
       </div>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         Reports carry no ID, so one that was already sent can't be found and deleted later. Figurehead keeps raw reports
         for 35 days, then only totals.
       </p>

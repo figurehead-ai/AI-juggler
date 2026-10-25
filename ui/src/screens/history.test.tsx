@@ -143,7 +143,7 @@ describe("AJ-E1536 History you can scan", () => {
     await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1", "s/s1"]));
     const [outside, mine] = Array.from(container.querySelectorAll<HTMLElement>("[data-testid='page-session-item']"));
     expect(outside!.textContent).toContain("Tidy the release notes");
-    expect(outside!.textContent).toContain("outside AI Juggler");
+    expect(outside!.textContent).toContain("in Codex");
     expect(mine!.textContent).toContain("Fix the invoice export");
     for (const item of [outside!, mine!]) {
       expect(item.querySelector("[data-testid='page-session-project']")!.textContent).toContain("storefront");

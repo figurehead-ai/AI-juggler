@@ -222,16 +222,22 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, PAGE_FIXTURE, theme);
     await openConversation(page, "Fix the flaky checkout test");
     await page.getByTestId("page-tab-usage").click();
-    await expect(page.getByTestId("session-usage-kind")).toHaveCount(4);
-    await expect(page.getByTestId("session-usage-models")).toContainText("claude-opus-4-5");
+    // 0.1.5: its charts (turn by turn, by kind, by model, its share of
+    // the limits), with its account's window beside them.
+    await expect(page.getByTestId("session-usage-visual")).toBeVisible();
+    await expect(page.getByTestId("session-usage-turns")).toBeVisible();
+    await expect(page.getByTestId("session-usage-runway")).toBeVisible();
     await shoot(page, PAGES, "usage", theme);
   });
 
-  test(`a session page's Usage, not measured yet — ${theme}`, async ({ page }) => {
+  test(`a session page's Usage, with no counts of its own — ${theme}`, async ({ page }) => {
     await seed(page, PAGE_FIXTURE, theme);
     await openConversation(page, "Add pagination to the orders endpoint with page");
     await page.getByTestId("page-tab-usage").click();
-    await expect(page.getByTestId("session-usage-none")).toContainText("Not measured");
+    await expect(page.getByTestId("session-usage-visual")).toBeVisible();
+    // The usage history has its turns even when the app's own record
+    // has no counts (the preview's history answers for every session).
+    await expect(page.getByTestId("session-usage-turns")).toContainText("Tokens per turn");
     await shoot(page, PAGES, "usage-not-measured", theme);
   });
 

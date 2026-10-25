@@ -111,6 +111,9 @@ describe("AJ-E2108 last messages", () => {
     render(<LastMessages model={model({}, { asks: false, working: true, words: "Working", tone: "live" })} visible />);
     expect((await screen.findByTestId("last-messages-working")).textContent).toContain("Claude is working");
     expect(screen.queryByTestId("last-messages-asks")).toBeNull();
+    // Nothing to answer while it works: only where Go to it leads.
+    expect(screen.getByTestId("last-messages-answer").textContent).not.toContain("Answer it");
+    expect(screen.getByTestId("last-messages-answer").textContent).toContain("Go to it brings");
   });
 
   it("earlier turns load before the shown ones, from where they start", async () => {

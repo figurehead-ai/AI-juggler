@@ -116,7 +116,7 @@ export function AddProviderSheet({
                       {/* 0.0.11 walk, Q4: plain words here; the version and
                           what it was tested with are in the tool's own view. */}
                       {desktop && <Chip tone="accent">Desktop</Chip>}
-                      <span className="text-[10px] text-muted" data-testid="provider-state">
+                      <span className="text-label text-muted" data-testid="provider-state">
                         {(row.status === "installed" || row.status === "unverified") && "Installed"}
                         {row.status === "not_installed" && "Not installed"}
                         {versionUnchecked(row) && FOUND_UNCHECKED}
@@ -124,7 +124,7 @@ export function AddProviderSheet({
                       </span>
                     </div>
                     {desktop && row.single_instance_note && (
-                      <span className="text-[10px] leading-relaxed text-muted">
+                      <span className="text-label leading-relaxed text-muted">
                         {row.single_instance_note} — one session at a time with this tool.
                       </span>
                     )}
@@ -148,7 +148,7 @@ export function AddProviderSheet({
                         href={row.install_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="shrink-0 text-[11px] text-accent underline-offset-2 hover:underline"
+                        className="shrink-0 text-label text-accent underline-offset-2 hover:underline"
                       >
                         Install {row.display_name} →
                       </a>

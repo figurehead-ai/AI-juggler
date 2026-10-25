@@ -121,15 +121,15 @@ export function ContinueOn({
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       <CardTitle>Continue on another account</CardTitle>
       {switchBack && onSwitchBack && (
-        <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-[13px] text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
           <span className="block">{switchBack.copy}</span>
-          <span className="text-ink/80">Go back to where it came from ▸</span>
+          <span className="text-muted">Go back to where it came from ▸</span>
         </button>
       )}
       {rows === null ? (
-        <p className="text-[13px] text-ink/80" role="status">Looking for room…</p>
+        <p className="text-meta text-muted" role="status">Looking for room…</p>
       ) : others.length === 0 ? (
-        <p className="text-[13px] text-ink/80" data-testid="continue-none">No other account to continue on.</p>
+        <p className="text-meta text-muted" data-testid="continue-none">No other account to continue on.</p>
       ) : (
         <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
           {others.map((group) => {
@@ -137,9 +137,9 @@ export function ContinueOn({
             const left = runwayOf(display).left;
             return (
               <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account">
-                <span className="flex items-baseline justify-between gap-2 text-[13px]">
+                <span className="flex items-baseline justify-between gap-2 text-meta">
                   <span className="truncate font-medium text-ink">{group.account ? accountName(group.account) : label(group.targets[0]!)}</span>
-                  <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-ink/80")}>{left === null ? "not measured" : `${left}% left`}</span>
+                  <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-muted")}>{left === null ? "not measured" : `${left}% left`}</span>
                 </span>
                 {group.targets.map((target) => {
                   const words = target.recipeId && target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
@@ -156,10 +156,10 @@ export function ContinueOn({
                       >
                         <AccountAvatar accountId={target.profileId} label={label(target)} size={14} />
                         <span className="truncate">{label(target)}</span>
-                        {left !== null && <span className="ml-auto tabular-nums text-ink/80">{left}% left</span>}
+                        {left !== null && <span className="ml-auto tabular-nums text-muted">{left}% left</span>}
                       </Button>
                       {(target.blocked || words) && (
-                        <span className="pl-1 text-[12px] text-ink/80" data-testid="continue-check">
+                        <span className="pl-1 text-label text-muted" data-testid="continue-check">
                           {target.blocked ?? words}
                         </span>
                       )}
@@ -172,13 +172,13 @@ export function ContinueOn({
         </ul>
       )}
       {sameAccount.map((target) => (
-        <p key={target.profileId} className="text-[12px] text-ink/80" data-testid="continue-no-room">
+        <p key={target.profileId} className="text-label text-muted" data-testid="continue-no-room">
           {label(target)} shares this account, so it gives no new room.
         </p>
       ))}
       {!own && (
         <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-          <p className="text-[13px] leading-[1.5] text-ink/80">
+          <p className="text-meta leading-[1.5] text-muted">
             {model.live
               ? "It's open in its app now. Close it there, continue it in AI Juggler, then move it from there."
               : "To move it, continue it in AI Juggler first; its page then offers these accounts."}

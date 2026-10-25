@@ -1,4 +1,5 @@
 import { FleetPeersEmpty } from "../components/FleetPeersEmpty";
+import { Page } from "../components/Page";
 import { ClockSkewNote, ConnectionChip, SyncChip } from "../components/FleetChips";
 import { AccountMacsCard } from "../components/AccountMacsCard";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
@@ -9,6 +10,7 @@ import { errorText, fleetPeers, fleetRemote, fleetDivergences, fleetSetPermissio
 import { fleetResetIdentity, fleetResetTrust, fleetSelf, fleetSetLabel, fleetUnpair } from "../lib/bridge";
 import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetSelfInfo } from "../lib/bridge";
 import { MachineUsageCard } from "../components/MachineUsage";
+import { ThisMacCard } from "../components/FleetThisMac";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -106,19 +108,16 @@ export function FleetScreen({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5" data-testid="fleet-screen">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold tracking-tight">Fleet</h2>
-            <Chip tone="accent">Beta</Chip>
-          </div>
-          <p className="text-xs text-muted">
-            Your own machines in one console — paired by code, connected directly over
-            your network. No relay, and vendor credentials never leave a machine.
-          </p>
-        </div>
+    <Page
+      title="Fleet"
+      badge={<Chip tone="accent">Beta</Chip>}
+      subtitle="Your other Macs in one place, paired by a code and connected directly over your network. Your sign‑ins never leave a Mac."
+      testId="fleet-screen"
+      actions={
         <div className="flex flex-wrap items-center gap-2">
+          {/* Off, they say why beside them (the review of 0.1.4: they
+              looked broken). */}
+          {!link?.enabled && link !== null && <span className="text-meta text-muted" data-testid="fleet-actions-why">Turn Link on to pair</span>}
           <Button
             size="sm"
             variant="secondary"
@@ -138,20 +137,16 @@ export function FleetScreen({
             Add a machine…
           </Button>
         </div>
-        {onOpenCloud && !discoveryShown && (
-          <button
-            type="button"
-            onClick={onOpenCloud}
-            className="flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-[11px] text-muted hover:text-ink"
-            data-testid="fleet-cloud-chip"
-          >
-            Find your Macs through your Figurehead account
-            <Chip tone="accent">Cloud</Chip>
-          </button>
-        )}
-      </header>
-
-      <Card className="flex flex-wrap items-center gap-3 p-4" data-testid="fleet-link">
+      }
+    >
+      {error && (
+        <Card className="border-danger/30 bg-danger-soft p-4 text-body text-danger" role="alert">
+          {error}
+        </Card>
+      )}
+      <div className="grid items-start gap-grid xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 flex-col gap-grid">
+      <Card className="flex flex-wrap items-center gap-3 p-card" data-testid="fleet-link">
         <button
           type="button"
           role="switch"
@@ -162,7 +157,7 @@ export function FleetScreen({
           onClick={() => void toggleLink()}
           className={
             "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-            (link?.enabled ? "border-accent bg-accent" : "border-hairline bg-surface-2")
+            (link?.enabled ? "border-accent bg-accent" : "border-muted/60 bg-surface-3")
           }
           data-testid="fleet-link-switch"
         >
@@ -175,29 +170,22 @@ export function FleetScreen({
           />
         </button>
         <div className="min-w-0 flex-1">
-          <p id="fleet-link-label" className="text-sm font-medium">
+          <p id="fleet-link-label" className="text-section font-semibold text-ink">
             Link {link?.enabled ? "on" : "off"}
           </p>
-          <p id="fleet-link-detail" className="text-[11px] leading-relaxed text-muted" data-testid="fleet-link-detail">
+          <p id="fleet-link-detail" className="text-meta text-muted" data-testid="fleet-link-detail">
             {link?.enabled
               ? `Paired machines can connect to this Mac (port ${link.port ?? "—"}); machines on this network see an unnamed entry until you pair.`
               : "This Mac isn't visible to, or reachable from, other machines. Turn Link on to pair or connect."}
           </p>
           {link?.error && (
-            <p className="mt-1 text-[11px] text-warning" role="status" data-testid="fleet-link-error">
+            <p className="mt-1 text-label text-warning" role="status" data-testid="fleet-link-error">
               {link.error}
             </p>
           )}
         </div>
       </Card>
 
-      <AccountMacsCard onShown={setDiscoveryShown} />
-
-      {error && (
-        <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger" role="alert">
-          {error}
-        </Card>
-      )}
 
       {self?.trust === "broken" && (
         <Card
@@ -211,7 +199,7 @@ export function FleetScreen({
             trusting any of them. Nothing connects until you reset trust and pair again.
           </p>
           {self.trust_reason && (
-            <details className="text-[11px] text-muted">
+            <details className="text-label text-muted">
               <summary className="cursor-pointer">Details</summary>
               <p className="mt-1">{self.trust_reason}</p>
             </details>
@@ -228,21 +216,10 @@ export function FleetScreen({
         </Card>
       )}
 
-      {self === null ? (
-        <Card className="p-5 text-xs text-muted">Loading…</Card>
-      ) : (
-        <ThisMacCard
-          self={self}
-          onRename={(label) => run(() => fleetSetLabel(label))}
-          onResetIdentity={() => setConfirm({ kind: "reset-identity" })}
-        />
-      )}
-
-      <MachineUsageCard />
-      <Card className="flex flex-col gap-3 p-5" data-testid="fleet-peers">
+      <Card className="flex flex-col gap-3 p-card" data-testid="fleet-peers">
         <div className="flex items-center gap-2">
-          <IconFleet width={14} height={14} />
-          <h3 className="text-sm font-semibold">Paired machines</h3>
+          <IconFleet width={16} height={16} className="text-muted" />
+          <h3 className="text-section font-semibold text-ink">Paired machines</h3>
         </div>
         {peers.length === 0 ? (
           <FleetPeersEmpty onOpenHome={onOpenHome} />
@@ -293,7 +270,7 @@ export function FleetScreen({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{peer.label}</p>
-                  <p className="font-mono text-[11px] text-muted">{peer.fingerprint}</p>
+                  <p className="font-mono text-label text-muted">{peer.fingerprint}</p>
                 </div>
                 <ConnectionChip peer={peer} />
                 <SyncChip
@@ -314,10 +291,10 @@ export function FleetScreen({
                   Access…{" "}<span className="sr-only">for {peer.label} on this Mac</span>
                 </Button>
                 {peer.paired_via === "account" && (
-                  <span className="text-[11px] text-muted">via your Figurehead account</span>
+                  <span className="text-label text-muted">via your Figurehead account</span>
                 )}
                 {!peer.pairing_unfinished && (
-                  <span className="text-[11px] text-muted">
+                  <span className="text-label text-muted">
                     {peer.last_seen_ms === null
                       ? "Not seen yet"
                       : `Last seen ${new Date(peer.last_seen_ms).toLocaleString()}`}
@@ -348,7 +325,7 @@ export function FleetScreen({
                   // the fingerprint.
                   <div className="flex basis-full flex-wrap items-center gap-3">
                     <span
-                      className="text-[11px] text-muted"
+                      className="text-label text-muted"
                       role="status"
                       data-testid="fleet-pairing-unfinished"
                     >
@@ -379,6 +356,35 @@ export function FleetScreen({
           </>
         )}
       </Card>
+
+      <AccountMacsCard onShown={setDiscoveryShown} />
+      {onOpenCloud && !discoveryShown && (
+        <button
+          type="button"
+          onClick={onOpenCloud}
+          className="flex items-center gap-2 self-start rounded-lg border border-hairline px-3 py-1.5 text-meta text-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="fleet-cloud-chip"
+        >
+          Find your Macs through your Figurehead account
+          <Chip tone="accent">Cloud</Chip>
+        </button>
+      )}
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-grid">
+      {self === null ? (
+        <Card className="p-card text-body text-muted">Loading…</Card>
+      ) : (
+        <ThisMacCard
+          self={self}
+          linkOn={link?.enabled ?? false}
+          onRename={(label) => run(() => fleetSetLabel(label))}
+          onResetIdentity={() => setConfirm({ kind: "reset-identity" })}
+        />
+      )}
+      <MachineUsageCard />
+      </div>
+      </div>
 
       {wizard !== null && self !== null && (
         <PairingWizard
@@ -443,123 +449,10 @@ export function FleetScreen({
           }
         />
       )}
-    </div>
+    </Page>
   );
 }
 
-function ThisMacCard({
-  self,
-  onRename,
-  onResetIdentity,
-}: {
-  self: FleetSelfInfo;
-  onRename: (label: string) => Promise<void> | void;
-  onResetIdentity: () => void;
-}): JSX.Element {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(self.label);
-  const [copied, setCopied] = useState(false);
-  useEffect(() => setDraft(self.label), [self.label]);
-  const valid = draft.trim().length > 0 && draft.trim().length <= 64;
-
-  return (
-    <Card className="flex flex-col gap-4 p-5" data-testid="fleet-this-mac">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-wider text-muted">This Mac</p>
-          {editing ? (
-            <form
-              className="mt-1 flex flex-wrap items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!valid) return;
-                void onRename(draft);
-                setEditing(false);
-              }}
-            >
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                aria-label="Machine name"
-                maxLength={64}
-                autoFocus
-                className="rounded-lg border border-hairline bg-canvas px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent/50"
-                data-testid="fleet-label-input"
-              />
-              <Button size="sm" variant="primary" type="submit" disabled={!valid}>
-                Save
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setDraft(self.label);
-                  setEditing(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </form>
-          ) : (
-            <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-base font-semibold" data-testid="fleet-label">
-                {self.label}
-              </p>
-              <Button size="sm" variant="ghost" onClick={() => setEditing(true)} data-testid="fleet-rename">
-                Rename
-              </Button>
-            </div>
-          )}
-          <p className="mt-0.5 text-[11px] text-muted">
-            The name is only shown on this Mac and to machines you pair with.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <p className="text-[11px] font-medium text-ink" id="fleet-fingerprint-label">
-          Fingerprint
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <code
-            className="rounded-lg border border-hairline bg-canvas px-3 py-2 font-mono text-sm tracking-wide text-ink"
-            aria-label="Machine fingerprint"
-            tabIndex={0}
-            data-testid="fleet-fingerprint"
-          >
-            {self.fingerprint}
-          </code>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={async () => {
-              await navigator.clipboard?.writeText(self.fingerprint).catch(() => null);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            }}
-            data-testid="fleet-copy-fingerprint"
-          >
-            {copied ? "Copied" : "Copy"}
-          </Button>
-        </div>
-        <p className="text-[11px] leading-relaxed text-muted">
-          When you pair, both machines show their fingerprints — check they match what
-          each machine shows here before you confirm.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
-        <span className="text-[11px] text-muted">
-          {self.peer_count === 1 ? "1 paired machine" : `${self.peer_count} paired machines`}
-        </span>
-        <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={onResetIdentity} data-testid="fleet-reset-identity">
-          Reset this Mac's identity…
-        </Button>
-      </div>
-    </Card>
-  );
-}
 
 /** A confirmation sheet for a change that removes trust: names what
  * changes, focuses Cancel by default (non-destructive), Esc cancels. */
@@ -636,7 +529,7 @@ function RemoteInstances({
   return (
     <>
     {lastKnown && (
-      <p className="w-full pl-1 text-[11px] text-muted" data-testid="fleet-last-known">
+      <p className="w-full pl-1 text-label text-muted" data-testid="fleet-last-known">
         Last known{asOf !== null ? ` · as of ${new Date(asOf).toLocaleString()}` : ""} — may have changed since.
       </p>
     )}
@@ -737,12 +630,12 @@ export function AccessSheet({
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">{option.title}</span>
-                <span className="text-[11px] leading-relaxed text-muted">{option.body}</span>
+                <span className="text-label leading-relaxed text-muted">{option.body}</span>
               </span>
             </label>
           ))}
         </div>
-        <p className="text-[11px] text-muted">
+        <p className="text-label text-muted">
           Only this Mac can change this. {peer.label} sees the change within half a minute.
         </p>
         <div className="flex justify-end gap-2">

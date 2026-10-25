@@ -86,7 +86,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
         </ul>
       )}
       {caps.length > 0 && (
-        <p className="text-label text-faint">
+        <p className="text-label text-muted">
           Estimated at list prices from what this Mac measured, as in the table below. On a subscription that's what your use
           would cost by the token, not your bill.
         </p>
@@ -159,7 +159,7 @@ export function BudgetSheet({
           <Input inputMode="decimal" value={amount} placeholder="300" onChange={(event) => setAmount(event.target.value)} data-testid="cap-amount" />
         </Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[11px] uppercase tracking-[0.14em] text-faint">Counts</legend>
+          <legend className="mb-1.5 text-meta font-semibold text-ink">Counts</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} className="accent-[var(--color-accent)]" />
             One account

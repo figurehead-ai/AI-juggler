@@ -32,7 +32,9 @@ const INJECTED_PREFIXES: &[&str] = &[
 /// the conversation).
 fn is_codex_context(body: &str) -> bool {
     let body = body.trim_start();
-    INJECTED_PREFIXES.iter().any(|prefix| body.starts_with(prefix))
+    INJECTED_PREFIXES
+        .iter()
+        .any(|prefix| body.starts_with(prefix))
 }
 
 /// Whether a user-role message is one Codex, its app or a harness injects

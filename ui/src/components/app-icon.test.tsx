@@ -78,7 +78,7 @@ describe("D-38 AppIcon", () => {
     await flush();
     const letters = screen.getByTestId("app-icon");
     expect(letters.dataset.state).toBe("letters");
-    expect(letters.dataset.letters).toBe("Cu");
+    expect(letters.dataset.letters).toBe("C");
     // Drawn by CSS, so never text that joins a control's label.
     expect(letters.textContent).toBe("");
   });
@@ -122,7 +122,7 @@ describe("D-38 AppIcon", () => {
     expect(screen.getByTestId("app-icon").dataset.state).toBe("icon");
   });
 
-  it("never cuts its letters off: one letter under 24 px, two from 24, 12 px or more", async () => {
+  it("never cuts its letter off: one letter at every size, 12 px or more", async () => {
     seam({});
     const names = ["ChatGPT", "Claude", "Terminal", "Visual Studio Code", "iTerm", "WezTerm", "kitty", "Warp", "Mm", "WW"];
     for (const size of SIZES) {
@@ -132,7 +132,7 @@ describe("D-38 AppIcon", () => {
         const mark = screen.getByTestId("app-icon");
         const letters = mark.dataset.letters!;
         const font = Number.parseFloat(mark.style.fontSize);
-        expect(letters.length, `${name} at ${size}`).toBe(size < 24 ? 1 : 2);
+        expect([...letters].length, `${name} at ${size}`).toBe(1);
         expect(font, `${name} at ${size}`).toBeGreaterThanOrEqual(12);
         expect(font).toBe(letterSize(size));
         // A wide capital is about 0.72 em: the letters fit with room.
@@ -142,8 +142,8 @@ describe("D-38 AppIcon", () => {
         cleanup();
       }
     }
-    expect(appLetters("Visual Studio Code", 24)).toBe("VS");
-    expect(appLetters("ChatGPT", 32)).toBe("Ch");
+    expect(appLetters("Visual Studio Code", 24)).toBe("V");
+    expect(appLetters("ChatGPT", 32)).toBe("C");
     expect(appLetters("ChatGPT", 16)).toBe("C");
   });
 
@@ -202,7 +202,7 @@ describe("D-38 ProfileBadge and PlaceMark", () => {
     render(<ProfileBadge name="Personal" variant="pill" />);
     const pill = screen.getByTestId("profile-badge");
     expect(pill.textContent).toBe("Personal");
-    expect(pill.className).toContain("text-[12px]");
+    expect(pill.className).toContain("text-label");
   });
 });
 
@@ -225,12 +225,15 @@ describe("D-38 the app a row shows", () => {
     expect(screen.getByTestId("app-icon").querySelector("img")!.getAttribute("src")).toBe(TEST_ICON);
     cleanup();
 
-    // ChatGPT not installed: Codex's own letters.
+    // ChatGPT not installed: Codex's own letter, named Codex (its title
+    // and app), never Claude Code's.
     forgetAppIconsForTests();
     seam({});
     render(<AppIcon {...appOfConversation(ended)} size={24} />);
     await flush();
-    expect(screen.getByTestId("app-icon").dataset.letters).toBe("Co");
+    expect(screen.getByTestId("app-icon").dataset.letters).toBe("C");
+    expect(screen.getByTestId("app-icon").getAttribute("title")).toBe("Codex");
+    expect(screen.getByTestId("app-icon").dataset.app).toBe("codex-app");
   });
 
   it("a tool's app comes from its spec, and a tool no spec names has none", () => {

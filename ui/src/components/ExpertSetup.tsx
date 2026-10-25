@@ -134,7 +134,7 @@ export function ExpertSetup({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
-        className="self-start rounded text-[11px] text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
         data-testid="expert-hatch"
       >
         Expert setup… {open ? "▾" : "▸"}
@@ -142,7 +142,7 @@ export function ExpertSetup({
       {open && (
         <div
           id={panelId}
-          className="mt-2 flex flex-col gap-3 rounded-xl border border-hairline bg-canvas px-4 py-3 text-[11px]"
+          className="mt-2 flex flex-col gap-3 rounded-xl border border-hairline bg-canvas px-4 py-3 text-label"
           data-testid="expert-panel"
         >
           {error && (
@@ -156,7 +156,7 @@ export function ExpertSetup({
               <select
                 value={accountId ?? ""}
                 onChange={(event) => setAccountId(event.target.value)}
-                className="rounded-lg border border-hairline bg-surface px-2 py-1 text-[11px] text-ink"
+                className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
                 data-testid="expert-account"
               >
                 {accounts.map((account) => (
@@ -177,7 +177,7 @@ export function ExpertSetup({
                     readOnly
                     value={info.state_dir}
                     onFocus={(event) => event.currentTarget.select()}
-                    className="w-full rounded-lg border border-hairline bg-surface px-2 py-1 font-mono text-[11px] text-ink outline-none focus:border-accent/50"
+                    className="w-full rounded-lg border border-hairline bg-surface px-2 py-1 font-mono text-label text-ink outline-none focus:border-accent/50"
                     data-testid="expert-state-dir"
                   />
                 </label>
@@ -205,7 +205,7 @@ export function ExpertSetup({
                 {info.shell_snippet !== null ? (
                   <>
                     <code
-                      className="block break-all rounded-lg border border-hairline bg-surface px-2.5 py-2 font-mono text-[11px] leading-relaxed text-ink"
+                      className="block break-all rounded-lg border border-hairline bg-surface px-2.5 py-2 font-mono text-label leading-relaxed text-ink"
                       data-testid="expert-snippet"
                     >
                       {info.shell_snippet}
@@ -242,7 +242,7 @@ export function ExpertSetup({
                         <select
                           value={recipe.id}
                           onChange={(event) => setRecipeId(event.target.value)}
-                          className="rounded-lg border border-hairline bg-surface px-2 py-1 text-[11px] text-ink"
+                          className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
                         >
                           {recipes.map((entry) => (
                             <option key={entry.id} value={entry.id}>

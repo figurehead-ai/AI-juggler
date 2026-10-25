@@ -119,8 +119,8 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         className={
           "z-10 flex size-6 shrink-0 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 disabled:hidden " +
           (shown
-            ? "text-[12px] text-muted hover:bg-surface-2 hover:text-ink "
-            : "text-[10px] text-faint opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ") +
+            ? "text-label text-muted hover:bg-surface-2 hover:text-ink "
+            : "text-label text-muted opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ") +
           className
         }
       >
@@ -161,12 +161,12 @@ function Line({ icon, label, keys, more }: { icon: ActionIconName; label: string
         {label}
       </span>
       {keys && (
-        <span aria-hidden="true" className="shrink-0 font-mono text-[10px] text-faint">
+        <span aria-hidden="true" className="shrink-0 font-mono text-label text-muted">
           {keys}
         </span>
       )}
       {more && (
-        <span aria-hidden="true" className="shrink-0 text-faint">
+        <span aria-hidden="true" className="shrink-0 text-muted">
           ›
         </span>
       )}
@@ -191,7 +191,7 @@ function ItemMenuLine({ action, onRun }: { action: ResolvedAction; onRun: () => 
         <Line icon={action.icon} label={action.label} keys={action.shortcut} />
       </MenuItem>
       {action.reason && (
-        <span id={why} aria-hidden="true" className="-mt-0.5 block pb-1 pl-[30px] pr-2 text-[10px] leading-snug text-faint">
+        <span id={why} aria-hidden="true" className="-mt-0.5 block pb-1 pl-[30px] pr-2 text-label leading-snug text-muted">
           {action.reason}
         </span>
       )}

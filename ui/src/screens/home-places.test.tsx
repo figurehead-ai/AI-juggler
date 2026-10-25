@@ -57,7 +57,7 @@ function home(sessions: InstanceInfo[], conversations: ConversationInfo[], props
 describe("Home, desktop first", () => {
   it("one sentence about what needs you, the other counts as links that turn the rail's views on", async () => {
     const view = home([], placesConversations(NOW));
-    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("3 things need you"));
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you"));
     const counts = view.getByTestId("home-counts");
     expect(counts.textContent).toMatch(/4 open.*1 inactive.*1 ended today/);
     fireEvent.click(within(counts).getByRole("button", { name: "1 inactive" }));
@@ -71,8 +71,8 @@ describe("Home, desktop first", () => {
     const tiles = await view.findAllByTestId("home-app-tile");
     expect(tiles.map((tile) => tile.dataset.place)).toEqual(["ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]);
     const work = tiles[2]!;
-    expect(work.textContent).toContain("Work Max · 2 sessions");
-    expect(within(work).getByText("1")).toBeTruthy();
+    expect(work.textContent).toContain("Work Max·2 sessions");
+    expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     cleanup();
     // Eight places: six tiles, then "+2".
@@ -99,7 +99,7 @@ describe("Home, desktop first", () => {
     expect(onLimit).toHaveBeenCalledWith("lim");
     fireEvent.click(within(view.getByTestId("home-need-leftovers")).getByRole("button", { name: /^Clean up/ }));
     expect(onOpenCleanup).toHaveBeenCalledOnce();
-    expect(view.getByTestId("home-heading").textContent).toBe("5 things need you");
+    expect(view.getByTestId("home-heading").textContent).toBe("4 sessions and 1 more thing need you");
   });
 
   it("a session's need opens its page; its ↗ (and ⌘↩) goes to its app, and only while it's open", async () => {

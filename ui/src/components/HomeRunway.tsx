@@ -71,10 +71,10 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                   <AccountAvatar accountId={first.id} label={group.name} size={18} />
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium text-ink">{group.name}</span>
-                    {group.detail && <span className="truncate text-[11px] text-muted">{group.detail}</span>}
+                    {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
                   </span>
                 </span>
-                <span className={"shrink-0 font-mono text-xs " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
+                <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
                   {row.left !== null ? `${row.left}% left` : "—"}
                 </span>
               </div>
@@ -83,16 +83,16 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-[11px] text-muted">Profiles: {group.profiles.map((profile) => profile.label).join(", ")}</span>
+              <span className="text-label text-muted">Profiles: {group.profiles.map((profile) => profile.label).join(", ")}</span>
               {row.left !== null ? (
-                <span className="text-[11px] text-muted">{row.resets ?? row.words}</span>
+                <span className="text-label text-muted">{row.resets ?? row.words}</span>
               ) : (
-                <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-muted">
+                <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}
                 {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && <button
                   type="button"
                   onClick={() => host.openAccount?.(first)}
-                  className="self-start rounded text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+                  className="self-start rounded text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                 >
                   Measure its limits ›<span className="sr-only"> — {group.name}</span>
                 </button>}

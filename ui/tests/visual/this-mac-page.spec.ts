@@ -1,6 +1,6 @@
 /**
- * AJ-E1528 gallery and navigation: the This Mac page, reached from Home's
- * panel ("See all"), from More and from the rail's footer line; with
+ * AJ-E1528 gallery and navigation: the This Mac page, reached from More
+ * and from the top bar's This Mac line; with
  * many Claude app windows (`?aij_windows=6`) and a heavy session
  * (`?aij_load=heavy`); and the 0.1.4 review's Mac, other apps holding most
  * of the memory (`?aij_machine=others`). Both themes and densities; axe 0
@@ -41,15 +41,14 @@ async function axe(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
-test("Home's panel, More and the rail's footer all open the page", async ({ page }) => {
+// Home's This Mac panel went with AJ-E2105 (This Mac's line moved to the
+// top bar); More and that line are the ways to the page.
+test("More and the top bar's This Mac line open the page", async ({ page }) => {
   await open(page, "dark", "comfortable");
-  await page.getByTestId("this-mac-open-page").click();
-  await expect(page.getByTestId("this-mac-page")).toBeVisible();
-  await goTo(page, "Home");
   await goTo(page, "This Mac");
   await expect(page.getByTestId("this-mac-page")).toBeVisible();
   await goTo(page, "Home");
-  await page.getByTestId("machine-status").click();
+  await page.getByTestId("machine-status").first().click();
   await expect(page.getByTestId("this-mac-page")).toBeVisible();
 });
 

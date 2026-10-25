@@ -46,15 +46,15 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-probe">
-      <p className="text-[11px] uppercase tracking-wider text-muted">Ask Claude Code for its limits</p>
-      <p className="text-[12px] text-muted" data-testid="account-probe-words">
+      <p className="text-section font-semibold text-ink">Ask Claude Code for its limits</p>
+      <p className="text-label text-muted" data-testid="account-probe-words">
         {status.state === "on"
           ? "On: when the Claude app's meter is older than 15 minutes and this profile is in use, AI Juggler runs Claude Code's own usage check here."
           : "When the Claude app isn't open on this profile, its meter goes old. AI Juggler can run Claude Code's own usage check here instead."}
         {last && ` ${last}`}
       </p>
       {problem && (
-        <p className="text-[11.5px] text-warning" role="alert">
+        <p className="text-meta text-warning" role="alert">
           {problem}
         </p>
       )}
@@ -76,7 +76,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
       </div>
       {asking && (
         <Modal title="Ask Claude Code for this profile's limits" onClose={() => setAsking(false)} testId="account-probe-sheet">
-          <div data-modal-body className="flex flex-col gap-2.5 text-[12px] text-ink">
+          <div data-modal-body className="flex flex-col gap-2.5 text-label text-ink">
             <p>AI Juggler runs Claude Code's own usage check here, the same as typing /usage, without opening a window.</p>
             <ul className="flex list-disc flex-col gap-1 pl-4 text-muted">
               <li>It costs no quota: no message goes to Claude.</li>
@@ -87,7 +87,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
             </ul>
             <p className="text-muted">Turn it off here at any time.</p>
             {problem && (
-              <p className="text-[11.5px] text-warning" role="alert">
+              <p className="text-meta text-warning" role="alert">
                 {problem}
               </p>
             )}

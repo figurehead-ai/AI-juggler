@@ -115,7 +115,7 @@ export function AccountSettingsSheet({
             {check && check.offers.length > 0 && (
               <SwitchSetupList check={{ ...check, to: account.label }} picked={picked} onToggle={toggle} />
             )}
-            <p className="text-[11px] text-faint">Never its sign-in, history or caches, and nothing {account.label} has of its own is replaced.</p>
+            <p className="text-label text-muted">Never its sign-in, history or caches, and nothing {account.label} has of its own is replaced.</p>
           </>
         )}
         {results && <SwitchSetupResults target={account.label} results={results} />}

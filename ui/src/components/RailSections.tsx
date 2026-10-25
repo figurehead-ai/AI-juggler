@@ -73,7 +73,7 @@ export function alsoParts(all: ConversationInfo[], now: number): Record<AlsoView
 /** A section's label; with `onToggle`, a click folds the section in
  * place and unfolds it (Needs you, Open now). */
 function SectionLabel({ children, testId, open, onToggle }: { children: ReactNode; testId?: string; open?: boolean; onToggle?: () => void }): JSX.Element {
-  const words = "text-[10px] font-medium uppercase tracking-[0.08em] text-muted";
+  const words = "text-meta font-semibold text-muted";
   if (!onToggle) {
     return (
       <p className={"px-3 pb-0.5 pt-1.5 " + words} data-testid={testId}>
@@ -85,7 +85,7 @@ function SectionLabel({ children, testId, open, onToggle }: { children: ReactNod
     <h3 className="px-1 pt-1" data-testid={testId}>
       <button type="button" aria-expanded={open} data-testid="rail-section-fold" onClick={onToggle} className={"flex min-h-6 w-full items-center gap-1 rounded-md px-2 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60 " + words}>
         {children}
-        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-faint transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-muted transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
           <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -164,7 +164,7 @@ export function AlsoLine({ ended, renderRow, ...props }: RowProps & { ended: Ins
   const link = "rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="rail-also">
-      <p className="flex flex-wrap items-center gap-x-1 px-3 py-1 text-[11px] text-muted">
+      <p className="flex flex-wrap items-center gap-x-1 px-3 py-1 text-label text-muted">
         <span>Also:</span>
         {VIEWS.filter((view) => count(view) > 0).map((view) => (
           <Fragment key={view}>

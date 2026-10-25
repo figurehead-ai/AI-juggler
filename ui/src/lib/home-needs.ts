@@ -62,10 +62,24 @@ export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers 
   return out.sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 }
 
+/** The needs the rail's Needs you counts too: its sessions. */
+export function isSessionNeed(need: HomeNeed): boolean {
+  return need.kind === "session" || need.kind === "limit" || need.kind === "failed";
+}
+
 /** The heading: one sentence about what needs the user; with nothing,
- * whether anything has run out, then whether anything runs. */
-export function needsHeading(count: number, calm: { runOut: string[]; running: boolean; anything: boolean }): string {
-  if (count > 0) return count === 1 ? "1 thing needs you" : `${count} things need you`;
+ * whether anything has run out, then whether anything runs. Sessions are
+ * counted as the rail's Needs you counts them, so the two agree ("3
+ * sessions need you" beside "Needs you 3"); a sign-in, the Mac, a cap or
+ * leftovers are the "more" (the review of 0.1.4: "4 things" beside 3). */
+export function needsHeading(count: number | { sessions: number; others: number }, calm: { runOut: string[]; running: boolean; anything: boolean }): string {
+  const { sessions, others } = typeof count === "number" ? { sessions: 0, others: count } : count;
+  if (sessions > 0) {
+    const them = sessions === 1 ? "1 session" : `${sessions} sessions`;
+    if (others === 0) return `${them} ${sessions === 1 ? "needs" : "need"} you`;
+    return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
+  }
+  if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
   // QA batch 9: never "All clear" while an account has run out.
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
   if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;

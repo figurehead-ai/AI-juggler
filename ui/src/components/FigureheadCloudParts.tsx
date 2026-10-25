@@ -108,7 +108,7 @@ function FeatureRow({
           {copy.title}
           {feature.tier === "paid" && <Chip tone="accent">Paid</Chip>}
         </p>
-        <div id={`${id}-body`} className="flex flex-col gap-0.5 text-[11px] leading-relaxed text-muted">
+        <div id={`${id}-body`} className="flex flex-col gap-0.5 text-label leading-relaxed text-muted">
           <span>{copy.does}</span>
           <span>
             <span className="text-ink">Sends:</span> {copy.sends}
@@ -209,7 +209,7 @@ export function Connected({
     <div className="flex flex-col gap-4" data-testid="cloud-connected">
       {backupOn && vault && !vault.code_saved && (
         <p
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-[11px] text-ink"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-label text-ink"
           data-testid="vault-pending"
         >
           <span aria-hidden="true">⚠</span>
@@ -230,18 +230,18 @@ export function Connected({
       )}
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <dt className="text-[11px] text-muted">Figurehead account</dt>
+          <dt className="text-label text-muted">Figurehead account</dt>
           <dd className="text-sm" data-testid="cloud-email">
             {status.email ?? "—"}
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] text-muted">Plan</dt>
+          <dt className="text-label text-muted">Plan</dt>
           <dd className="text-sm">{status.plan ?? "—"}</dd>
         </div>
       </dl>
       {status.offline && (
-        <p className="text-[11px] text-warning" role="status" data-testid="cloud-offline">
+        <p className="text-label text-warning" role="status" data-testid="cloud-offline">
           ○ Offline — showing what Figurehead said
           {status.refreshed_at_ms ? ` at ${new Date(status.refreshed_at_ms).toLocaleString()}` : " last time"}.
           Everything on this Mac keeps working.
@@ -254,7 +254,7 @@ export function Connected({
           if (renamed) void run(() => figureheadRename(name.trim()));
         }}
       >
-        <label className="flex flex-col gap-1 text-[11px] font-medium">
+        <label className="flex flex-col gap-1 text-label font-medium">
           This Mac's name on Figurehead
           <input
             value={name}
@@ -292,7 +292,7 @@ export function Connected({
         <span className="flex-1" />
         <button
           type="button"
-          className="text-[11px] text-accent-hi underline-offset-2 hover:underline"
+          className="text-label text-accent-hi underline-offset-2 hover:underline"
           onClick={() => void figureheadOpenPage("dashboard")}
           data-testid="cloud-delete-data"
         >

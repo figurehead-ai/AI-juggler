@@ -261,7 +261,7 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
   const parts = [
     `CPU ${cpu !== null ? `${Math.round(cpu)}%` : "—"}`,
     rss !== null ? bytesWords(rss) : "memory —",
-    helpers === null ? "helpers —" : helpers === 1 ? "1 helper" : `${helpers} helpers`,
+    helpers === null ? "more processes —" : helpers === 1 ? "1 more process" : `${helpers} more processes`,
   ];
   return parts.join(" · ");
 }
@@ -273,7 +273,7 @@ export const ThisMacContext = createContext<ThisMacInfo | null>(null);
 /** How each level of the Mac's state looks: This Mac's glyph and tone,
  * the rail footer's dot. */
 export const MACHINE_LEVEL: Record<string, { glyph: string; tone: string; dot: string }> = {
-  plenty: { glyph: "●", tone: "text-faint", dot: "bg-success" },
+  plenty: { glyph: "●", tone: "text-muted", dot: "bg-success" },
   tight: { glyph: "▲", tone: "text-warning", dot: "bg-warning" },
   pressure: { glyph: "■", tone: "text-danger", dot: "bg-danger" },
 };

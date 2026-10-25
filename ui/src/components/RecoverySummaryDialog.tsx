@@ -47,10 +47,10 @@ export function RecoverySummaryDialog({
     >
       <div className="sheen w-full max-w-md rounded-card border border-hairline bg-surface p-5 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]">
         <h2 className="text-sm font-semibold text-ink">AI Juggler restarted — here is what kept running</h2>
-        <p className="mt-2 text-[12px] text-ink" data-testid="recovery-summary-text">
+        <p className="mt-2 text-label text-ink" data-testid="recovery-summary-text">
           {summary.summary}
         </p>
-        <p className="mt-2 text-[10.5px] text-muted">
+        <p className="mt-2 text-label text-muted">
           Sessions picked up again keep running, and Terminate… still stops them safely (in the
           Cleanup Centre or their process tab). Automatic cleanup stays paused for 24 hours —
           turn it back on in the Cleanup Centre when you are ready.

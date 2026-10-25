@@ -24,7 +24,7 @@ export function ProjectDefaultAccount({
   const fallback = accounts.find((account) => account.is_default);
   return (
     <div className="flex flex-col gap-1 pb-2">
-      <label className="flex flex-wrap items-center gap-2 text-[11.5px] text-muted" data-testid="project-default-account">
+      <label className="flex flex-wrap items-center gap-2 text-meta text-muted" data-testid="project-default-account">
         New sessions here start with
         <Select
           aria-label="New sessions here start with"
@@ -52,7 +52,7 @@ export function ProjectDefaultAccount({
         </Select>
       </label>
       {error && (
-        <p className="text-[11px] text-danger" role="alert">
+        <p className="text-label text-danger" role="alert">
           {error}
         </p>
       )}

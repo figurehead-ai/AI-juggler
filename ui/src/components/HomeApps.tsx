@@ -6,6 +6,7 @@
  */
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
+import { IconAlert } from "./icons";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
@@ -46,50 +47,56 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
   const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
   return (
-    <li className="flex min-w-0 flex-col gap-2 rounded-xl border border-hairline bg-surface p-3" data-testid="home-app-tile" data-place={place.key}>
-      <div className="flex min-w-0 items-start gap-2.5">
+    <li className="flex min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
+      <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[13px] font-semibold text-ink">{place.app}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-body font-semibold text-ink">{place.app}</span>
           {/* The profile's badge beside its name, never on the icon
               (D-38); the count moves under it rather than being cut. */}
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] leading-[17px] text-ink/80">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-meta text-muted">
             {place.profile && (
-              <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
+              <span className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-ink">
                 <ProfileBadge name={place.profile} />
                 <span className="truncate">{place.profile}</span>
               </span>
             )}
-            {place.profile ? " · " : ""}
+            {place.profile ? <span>·</span> : null}
             <span className="whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
           </span>
         </div>
-        {needs > 0 && (
-          <span className="shrink-0 rounded-full bg-warning-soft px-1.5 text-[11px] font-semibold text-warning" title={`${needs} need you`}>
-            <span className="sr-only">Needs you: </span>
-            {needs}
-          </span>
-        )}
       </div>
       {runway && (
         <div className="flex flex-col gap-1">
-          <span className={"truncate text-[11px] " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
+          <span className={"truncate text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
           {runway.left !== null && (
-            <div className="h-1 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
               <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${runway.left}%` }} />
             </div>
           )}
         </div>
       )}
-      {place.appPid !== null && (
-        <button
-          type="button"
-          onClick={() => bringForward(group)}
-          className="self-start rounded-md border border-hairline px-2 py-0.5 text-[11px] font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          Open {place.app}
-          <span className="sr-only"> · {place.profile}</span>
-        </button>
+      {/* Open on the left; what the amber count is, in words, on the
+          right (the review of 0.1.4), never squeezing the app's name. */}
+      {(place.appPid !== null || needs > 0) && (
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          {place.appPid !== null && (
+            <button
+              type="button"
+              onClick={() => bringForward(group)}
+              className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
+            >
+              Open {place.app}
+              <span className="sr-only"> · {place.profile}</span>
+            </button>
+          )}
+          {needs > 0 && (
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
+              <IconAlert width={11} height={11} aria-hidden="true" />
+              {needs} {needs === 1 ? "needs" : "need"} you
+            </span>
+          )}
+        </div>
       )}
     </li>
   );
@@ -103,7 +110,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   return (
     <section aria-labelledby="home-apps" className="flex flex-col gap-2.5" data-testid="home-apps">
       <SectionTitle id="home-apps">Your apps</SectionTitle>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 xl:grid-cols-4">
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-grid">
         {shown.map((group) => (
           <Tile key={group.key} group={group} runway={runwayOf(group.items[0]?.accountId ?? null)} />
         ))}
@@ -114,7 +121,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
               aria-expanded={all}
               onClick={() => setAll((open) => !open)}
               data-testid="home-apps-more"
-              className="flex min-h-16 flex-1 items-center justify-center rounded-xl border border-dashed border-hairline text-sm text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="flex min-h-16 flex-1 items-center justify-center rounded-card border border-dashed border-hairline text-body text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             >
               {all ? "Fewer" : `+${places.length - TILES_SHOWN}`}
             </button>

@@ -86,14 +86,14 @@ export function IsolationOfferDialog(): JSX.Element | null {
           {others} {offer.in_use_by.length === 1 ? "is" : "are"} already working in {offer.project_name}
         </h3>
         {!offer.available && (
-          <p className="text-[11px] text-ink" data-testid="isolation-unavailable">
+          <p className="text-label text-ink" data-testid="isolation-unavailable">
             {offer.unavailable_reason}. Both sessions would edit the same files.
           </p>
         )}
         <div role="radiogroup" aria-labelledby="isolation-title" className="flex flex-col gap-1.5">
           <label
             className={
-              "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] " +
+              "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
               (choice === "worktree" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
               (offer.available ? "" : " opacity-70")
             }
@@ -121,7 +121,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
                     type="text"
                     value={path}
                     onChange={(event) => setPath(event.target.value)}
-                    className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink"
+                    className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"
                     data-testid="isolation-path"
                     aria-label="Worktree folder"
                   />
@@ -131,7 +131,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
           </label>
           <label
             className={
-              "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] " +
+              "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
               (choice === "shared" ? "border-accent/60 bg-accent-soft" : "border-hairline")
             }
           >

@@ -34,7 +34,7 @@ export function ProfileBadge({
       <span
         data-testid="profile-badge"
         data-variant="pill"
-        className="inline-flex min-w-0 shrink items-center rounded-full px-1.5 py-px text-[12px] font-semibold leading-[16px] text-white"
+        className="inline-flex min-w-0 shrink items-center rounded-full px-1.5 py-px text-label font-semibold leading-[16px] text-white"
         style={{ background: profileColor(name) }}
       >
         <span className="truncate">{name}</span>

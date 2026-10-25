@@ -6,9 +6,6 @@
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
-import { AppIcon } from "../../components/AppIcon";
-import { ProfileBadge } from "../../components/ProfileBadge";
-import { appOfConversation, appOfSession } from "../../lib/app-of";
 import { useActionHost } from "../../components/ItemMenu";
 import { PROJECT_SYNC_EVENT, ProjectSyncSheet } from "../../components/ProjectSyncSheet";
 import { Section } from "../../components/charts/ChartCard";
@@ -18,7 +15,8 @@ import { projectsGitStatus } from "../../lib/ipc/projects";
 import { homeRelative } from "../../lib/project-words";
 import type { ProjectInfo } from "../../lib/bridge";
 import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
-import type { Row } from "../SessionsList";
+import { PagedSessions, type Row } from "../SessionsList";
+import { sessionsQuery } from "../../lib/ipc/sessions";
 
 const BUTTON =
   "inline-flex h-8 shrink-0 items-center rounded-lg border border-hairline bg-surface-2 px-3 text-meta font-medium text-ink outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60";
@@ -130,23 +128,18 @@ export function CheckoutCallout({ project, sharedBy, className = "" }: { project
   );
 }
 
-/** A state's chip: its tone's text on its tone's soft fill (the tokens keep both AA). */
-const CHIP: Record<string, string> = {
-  "text-warning": "text-warning bg-warning-soft",
-  "text-live": "text-live bg-live-soft",
-  "text-success": "text-success bg-success-soft",
-  "text-danger": "text-danger bg-danger-soft",
-};
-const DOT: Record<string, string> = { "text-warning": "bg-warning", "text-live": "bg-live", "text-success": "bg-success", "text-danger": "bg-danger" };
-
-/** The sessions open in the project now, each opening its page. */
-export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onAll: () => void; className?: string }): JSX.Element {
-  const live = rows.filter((row) => row.live);
+/** The sessions open in the project now, each opening its page: the
+ * backend's open list, a page at a time (0.1.5); `rows` are the design
+ * preview's and say when the last one ran. */
+export function OpenSessions({ projectId, rows, onAll, onOpenSession, className = "" }: { projectId: string; rows: Row[]; onAll: () => void; onOpenSession: (id: string) => void; className?: string }): JSX.Element {
+  const local = rows.filter((row) => row.live);
+  const [open, setOpen] = useState<number | null>(null);
+  const count = open ?? local.length;
   return (
     <Section
       title="Open sessions"
       icon={<IconPlay />}
-      sub={live.length === 0 ? "none open now" : `${live.length} open now`}
+      sub={count === 0 ? "none open now" : `${count} open now`}
       className={className}
       testId="project-open-sessions"
       actions={
@@ -155,39 +148,14 @@ export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onA
         </button>
       }
     >
-      {live.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-hairline px-4 py-5 text-center text-meta text-muted">
-          Nothing is open here now. {rows.length > 0 ? `The last one ran ${rows[0]!.when}.` : "Start a session from the project's header."}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {live.slice(0, 6).map((row) => {
-            return (
-              <li key={row.key}>
-                <button
-                  type="button"
-                  onClick={row.open}
-                  className="flex w-full items-center gap-3 rounded-xl border border-hairline bg-surface-2 px-3 py-2.5 text-left outline-none hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent/60"
-                  data-testid="project-open-session"
-                >
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    <AppIcon {...(row.item.kind === "conversation" ? appOfConversation(row.item.conversation) : appOfSession(row.item.session))} size={24} />
-                    <ProfileBadge name={row.accountLabel} />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-body font-semibold text-ink">{row.title}</span>
-                    <span className="truncate text-meta text-muted">{[row.accountLabel, row.detail, row.when].filter(Boolean).join(" · ")}</span>
-                  </span>
-                  <span className={"inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-label font-semibold " + (CHIP[row.tone] ?? "bg-surface-3 text-muted")}>
-                    <span aria-hidden="true" className={"size-1.5 rounded-full " + (DOT[row.tone] ?? "bg-faint")} />
-                    {row.state}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <PagedSessions
+        listKey={`project-open:${projectId}`}
+        query={sessionsQuery({ project_id: projectId, which: "open" })}
+        local={() => local}
+        empty={`Nothing is open here now. ${rows.length > 0 ? `The last one ran ${rows[0]!.when}.` : "Start a session from the project's header."}`}
+        onOpenSession={onOpenSession}
+        onTotal={setOpen}
+      />
     </Section>
   );
 }

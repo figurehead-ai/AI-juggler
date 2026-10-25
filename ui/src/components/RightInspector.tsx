@@ -18,6 +18,7 @@ import { lazyNamed } from "../lib/lazy";
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
+const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
 import { PortInventoryList } from "./PortMap";
 import { ProcessRow } from "./ProcessRow";
@@ -31,13 +32,15 @@ import type {
 } from "../lib/bridge";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
-import { TwoClocks } from "./QuotaRings";
-import { quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
-import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
+import { modelName } from "./charts/colors";
+import { useCached } from "../lib/usage/cached";
+import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
+import { installWords, providerDisplayName } from "../lib/providers";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
@@ -82,8 +85,8 @@ function HonestEmpty({ tab }: { tab: EmptyTab }) {
   };
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-      <p className="text-[12px] font-medium text-muted">Unavailable</p>
-      <p className="max-w-xs text-[11px] leading-relaxed text-muted">{copy[tab]}</p>
+      <p className="text-label font-medium text-muted">Unavailable</p>
+      <p className="max-w-xs text-label leading-relaxed text-muted">{copy[tab]}</p>
     </div>
   );
 }
@@ -183,6 +186,7 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
+  const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
@@ -202,7 +206,7 @@ export function RightInspector({
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
-    hasUsage: data.project ? projectHasUsage(data.project.id, sessions, conversations) : false,
+    hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
         outside(conversations).some((c) => c.account_id === data.account!.id)
@@ -271,7 +275,7 @@ export function RightInspector({
       }
       footer={(tab) => (
         // Sticky with a solid background: a long tab scrolls under it.
-        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
+        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">
           <span>
             Updated{" "}
             {since(remote ? (remote.machine.last_heard_ms ?? now) : (freshness[data.instance?.id ?? ""]?.resources ?? now), now)} ago
@@ -288,8 +292,23 @@ export function RightInspector({
 /** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
 type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-/** A project has usage to show when any of its sessions measured some. */
-function projectHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
+/** A project has usage to show when the usage history holds any of it,
+ * at any time (0.1.5: its summaries, not the sessions the app holds
+ * now); until that answer comes, what the working set says, so the tab
+ * doesn't blink. */
+function useProjectHasUsage(projectId: string | null, meanwhile: boolean): boolean {
+  const result = useCached<UsageHistoryInfo>(
+    projectId ? `project-has-usage:${projectId}` : null,
+    () => usageHistory({ edges_ms: [0, Date.now()], group_by: "profile", profile: null, project: projectId, top: 0 }),
+    60_000,
+  );
+  if (!projectId) return false;
+  const summary = result.current ? result.data : null;
+  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
+}
+
+/** What the sessions the app holds now say: any measured some. */
+function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
   const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
   return (
     sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||
@@ -308,13 +327,16 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "overview": // AJ-E2108: where it runs and its last messages.
           return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
         case "usage":
-          // AJ-E1533: Quality joins Usage — one place for what it used
-          // and how it went.
-          return (
-            <>
-              <InstanceUsage {...props} />
+          // 0.1.5: the same Usage tab as any session's (its charts and its
+          // account's window), then how it's going (AJ-E1533: Quality
+          // joins Usage).
+          return props.data.instance ? (
+            <div className="flex flex-col gap-grid" data-testid="instance-usage">
+              <OwnSessionUsage session={props.data.instance} visible />
               <QualityTab {...props} />
-            </>
+            </div>
+          ) : (
+            <HonestEmpty tab="usage" />
           );
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
@@ -495,9 +517,9 @@ function InstanceOverview(props: PanelProps) {
           {/* The header already says the state, the account and its low
               runway (D-25); this row adds only when it ended and the
               identity check. */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] empty:hidden">
+          <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
             {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
-              <span className="text-[11.5px] text-muted" data-testid="session-ended-stamp">
+              <span className="text-meta text-muted" data-testid="session-ended-stamp">
                 Ended{" "}
                 {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
               </span>
@@ -521,14 +543,14 @@ function InstanceOverview(props: PanelProps) {
                 : null;
             if (drift) {
               return (
-                <p data-testid="instance-model-line" className="text-[11px] text-ink">
-                  {drift} <span className="text-faint">(observed in transcript)</span>
+                <p data-testid="instance-model-line" className="text-label text-ink">
+                  {drift} <span className="text-muted">(observed in transcript)</span>
                 </p>
               );
             }
             if (session.running_model === null && session.launch_model === null) {
               return (
-                <p data-testid="instance-model-line" className="text-[11px] text-muted">
+                <p data-testid="instance-model-line" className="text-label text-muted">
                   Model: not reported by {providerDisplayName(session.provider)}
                 </p>
               );
@@ -536,9 +558,10 @@ function InstanceOverview(props: PanelProps) {
             return null;
           })()}
           <SessionNotes session={session} live={live} now={props.now} />
-          <details className="group text-[11px]" data-testid="instance-details">
+          <details className="group text-meta" data-testid="instance-details">
+            {/* Says what's inside (the review of 0.1.4: an empty strip). */}
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-              Details
+              Details <span className="text-muted">· its launch settings, folder, model and session id</span>
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -563,7 +586,7 @@ function InstanceOverview(props: PanelProps) {
               </span>
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label">
             <span className="inline-flex items-center gap-1.5" data-testid="instance-quota">
               <QuotaBar quota={session.quota} />
             </span>
@@ -579,11 +602,11 @@ function InstanceOverview(props: PanelProps) {
               )}
             </span>
             <span data-testid="instance-cost" className="text-muted">
-              cost: <span className="text-faint">—</span>
+              cost: <span className="text-muted">—</span>
             </span>
             <span data-testid="instance-resources" className="tabular-nums text-muted">
               cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · helpers{" "}
+              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
               {session.child_count ?? "—"}
             </span>
           </div>
@@ -594,7 +617,7 @@ function InstanceOverview(props: PanelProps) {
           <button
             type="button"
             onClick={() => props.onOpenProject(project.id)}
-            className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
+            className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
           >
             <IconProjects width={12} height={12} />
             {project.name}
@@ -617,7 +640,7 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone="neutral">app</Chip>
               </span>
               <ToolChip tool={session.provider} />
-              <span className="text-[11.5px] text-muted">
+              <span className="text-meta text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
               </span>
@@ -655,7 +678,7 @@ function InstanceOverview(props: PanelProps) {
               />
             )}
             <div
-              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] tabular-nums text-muted"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
               data-testid="desktop-resources"
             >
               <span>
@@ -677,16 +700,16 @@ function InstanceOverview(props: PanelProps) {
                 data-testid="desktop-isolation"
               >
                 <Chip tone="warning">isolation</Chip>
-                <p className="text-[11.5px] leading-relaxed text-ink">
+                <p className="text-meta leading-relaxed text-ink">
                   {session.isolation_label}
                 </p>
               </div>
             )}
             {focusOutcome !== null && (
-              <p className="text-[11.5px] text-muted" data-testid="desktop-focus-outcome">
+              <p className="text-meta text-muted" data-testid="desktop-focus-outcome">
                 {focusOutcome.outcome}
                 {focusOutcome.window_title !== null ? (
-                  <span className="text-faint"> · window “{focusOutcome.window_title}”</span>
+                  <span className="text-muted"> · window “{focusOutcome.window_title}”</span>
                 ) : null}
               </p>
             )}
@@ -697,7 +720,7 @@ function InstanceOverview(props: PanelProps) {
                 className="flex flex-col gap-2 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
                 data-testid="desktop-a11y-explainer"
               >
-                <p className="text-[11.5px] leading-relaxed text-ink">
+                <p className="text-meta leading-relaxed text-ink">
                   Juggler can open the app; exact-window focus needs Accessibility permission
                 </p>
                 <div className="flex items-center gap-2">
@@ -725,13 +748,13 @@ function InstanceOverview(props: PanelProps) {
               </div>
             )}
             {!live && (
-              <p className="text-[11px] text-faint" data-testid="desktop-state-line">
+              <p className="text-label text-muted" data-testid="desktop-state-line">
                 {session.status === "failed"
                   ? "app crashed · exit details on the Processes tab"
                   : "app exited · Relaunch, above, starts it again"}
               </p>
             )}
-            <p className="text-[11px] text-faint">
+            <p className="text-label text-muted">
               The window is the app's own; Juggler tracks the process, never embeds it.
               Focus matches this session's recorded window — a stale title or a collision is
               reported, never guessed to a wrong window.
@@ -743,7 +766,7 @@ function InstanceOverview(props: PanelProps) {
           </Card>
         )}
         {!live && !isDesktop && (
-          <p className="text-[11px] text-faint">
+          <p className="text-label text-muted">
             {`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}
           </p>
         )}
@@ -755,7 +778,7 @@ function InstanceOverview(props: PanelProps) {
           className="group flex flex-col gap-2"
           data-testid="handover-section"
         >
-          <summary className="cursor-pointer list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+          <summary className="cursor-pointer list-none text-section font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
             <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
             Continue on another account
           </summary>
@@ -769,7 +792,7 @@ function InstanceOverview(props: PanelProps) {
                 type="button"
                 onClick={() => props.onSwitchBack?.(suggestion.session_id)}
                 data-testid="switch-back-card"
-                className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-2 text-left text-[11px] text-accent-hi transition-colors hover:border-accent/60"
+                className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-2 text-left text-label text-accent-hi transition-colors hover:border-accent/60"
               >
                 <span className="block" data-testid="switch-back-card-copy">
                   {suggestion.copy}
@@ -788,7 +811,7 @@ function InstanceOverview(props: PanelProps) {
               onClick={() => setBackOpen(true)}
               data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
               className={
-                "rounded-lg border px-2.5 py-2 text-left text-[11px] transition-colors " +
+                "rounded-lg border px-2.5 py-2 text-left text-label transition-colors " +
                 (divergence
                   ? "border-warning/50 text-ink hover:border-warning"
                   : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
@@ -814,11 +837,11 @@ function InstanceOverview(props: PanelProps) {
             </button>
           )}
           {switchTargets_ === null ? (
-            <p className="text-[11px] text-faint" data-testid="handover-targets-loading">
+            <p className="text-label text-muted" data-testid="handover-targets-loading">
               Ranking destinations…
             </p>
           ) : switchTargets_.length === 0 ? (
-            <p className="text-[11px] text-faint" data-testid="handover-targets-empty">
+            <p className="text-label text-muted" data-testid="handover-targets-empty">
               Add another account to juggle between them.
             </p>
           ) : (
@@ -831,7 +854,7 @@ function InstanceOverview(props: PanelProps) {
           )}
           {remoteTargets.length > 0 && (
             <>
-              <p className="mt-1 text-[11px] uppercase tracking-wider text-muted">
+              <p className="mt-1 text-section font-semibold text-ink">
                 Continue on another machine
               </p>
               <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
@@ -878,10 +901,10 @@ function InstanceOverview(props: PanelProps) {
     const history = sessions.filter((s) => s.project_id === project.id);
     return (
       <div className="flex flex-col gap-3">
-        <p className="font-mono text-[11px] text-faint">{project.root}</p>
+        <p className="font-mono text-label text-muted">{project.root}</p>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <Card className="flex flex-col gap-3 p-4">
-            <p className="text-[11px] uppercase tracking-wider text-faint">On it now</p>
+            <p className="text-section font-semibold text-ink">On it now</p>
             {project.active_instance ? (
               <button
                 type="button"
@@ -893,14 +916,14 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone={statusTone(project.active_instance.status).tone}>
                   {statusTone(project.active_instance.status).label}
                 </Chip>
-                <span className="ml-auto flex items-center gap-1 text-[11px] text-muted">
+                <span className="ml-auto flex items-center gap-1 text-label text-muted">
                   open <IconTerminal width={12} height={12} />
                 </span>
               </button>
             ) : (
               <p className="text-xs text-muted">No live session — free to juggle.</p>
             )}
-            <p className="mt-2 text-[11px] uppercase tracking-wider text-faint">
+            <p className="mt-2 text-section font-semibold text-ink">
               Launch with another account
             </p>
             <div className="flex flex-col gap-1.5">
@@ -920,9 +943,9 @@ function InstanceOverview(props: PanelProps) {
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <span className="text-faint">·</span>
+                    <span className="text-muted">·</span>
                     <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                    {recipe.model && <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>}
+                    {recipe.model && <span className="ml-auto font-mono text-label text-muted">{recipe.model}</span>}
                     {!ready && <Chip tone="neutral">sign in first</Chip>}
                   </button>
                 );
@@ -933,7 +956,7 @@ function InstanceOverview(props: PanelProps) {
             </div>
           </Card>
           <Card className="flex flex-col gap-2 p-4">
-            <p className="text-[11px] uppercase tracking-wider text-faint">Sessions in this project</p>
+            <p className="text-section font-semibold text-ink">Sessions in this project</p>
             {history.length === 0 ? (
               <p className="text-xs text-muted">Nothing recorded yet.</p>
             ) : (
@@ -963,8 +986,8 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Account</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11.5px]">
+          <p className="text-section font-semibold text-ink">Account</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
             <span>
               tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
             </span>
@@ -977,7 +1000,7 @@ function InstanceOverview(props: PanelProps) {
           </div>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Sessions on this account</p>
+          <p className="text-section font-semibold text-ink">Sessions on this account</p>
           {rows.length === 0 ? (
             <p className="text-xs text-muted">No sessions recorded yet.</p>
           ) : (
@@ -1003,15 +1026,15 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Tool</p>
-          <p className="font-mono text-[11.5px]">{data.provider.id}</p>
-          <p className="text-[11.5px] text-muted">
+          <p className="text-section font-semibold text-ink">Tool</p>
+          <p className="font-mono text-meta">{data.provider.id}</p>
+          <p className="text-meta text-muted">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
             {providerAccounts.filter((a) => signedIn(a.login_state)).length} signed in
           </p>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Accounts</p>
+          <p className="text-section font-semibold text-ink">Accounts</p>
           {providerAccounts.map((account) => (
             <p key={account.id} className="flex items-center gap-2 py-1 text-xs">
               <span className="min-w-0 flex-1 truncate font-medium">{account.label}</span>
@@ -1058,74 +1081,12 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
             setCopied(false);
           }
         }}
-        className="shrink-0 rounded px-1 py-1.5 text-[9px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="shrink-0 rounded px-1 py-1.5 text-label text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {copied ? "copied" : "copy"}
       </button>
     </span>
   );
-}
-
-/** Instance Usage (§5.1): the real breakdown + honest chart empties. */
-function InstanceUsage(props: PanelProps) {
-  const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="usage" />;
-  const tokens = instance.tokens;
-  return (
-    <div className="flex flex-col gap-3" data-testid="instance-usage">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Token breakdown</p>
-        {tokens ? (
-          <table className="w-full max-w-sm text-[11.5px]">
-            <tbody className="[&_td]:py-0.5">
-              <tr><td className="text-muted">input</td><td className="text-right tabular-nums text-ink">{tokens.input.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">output</td><td className="text-right tabular-nums text-ink">{tokens.output.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">read from cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">written to cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
-              <tr className="border-t border-hairline"><td className="text-muted">total (input + output)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-[11.5px] text-muted">No usage recorded yet</p>
-        )}
-        <span className="text-[10px] text-muted">
-          <TierTag tier="Measured" />
-        </span>
-      </Card>
-      <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">This account's limits</p>
-        {/* AJ-E610: the account's windows + the SEPARATE subscription
-            clock (a calendar line — never merged with the rings) and
-            the forecast pill. */}
-        <AccountTwoClocks accountId={instance.account_id} />
-      </Card>
-      {/* D-25: tokens/min and cost over time join this tab once a time
-          series exists; until then the card isn't shown. */}
-    </div>
-  );
-}
-
-/** AJ-E610: the Usage tab's account block (engine query; a null
- * account id — orphaned launch settings — renders the honest empty). */
-function AccountTwoClocks({ accountId }: { accountId: string | null }) {
-  const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
-  useEffect(() => {
-    if (!accountId) return;
-    let alive = true;
-    quotaDisplay(accountId).then((payload) => {
-      if (alive) setDisplay(payload);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [accountId]);
-  if (!accountId) {
-    return <p className="text-xs text-muted">Account unknown — usage cannot be attributed.</p>;
-  }
-  if (!display) {
-    return <p className="text-xs text-muted">loading…</p>;
-  }
-  return <TwoClocks display={display} />;
 }
 
 // --- AJ-E408: Provider / Account / Project content -----------------------
@@ -1163,21 +1124,7 @@ export function useToolInstall(
   return result && result.providerId === providerId ? result.install : null;
 }
 
-/** The installed version and verified range, in words. */
-export function installWords(install: import("../lib/bridge").ProviderInstallData): string {
-  const verified = install.verified_against ?? [];
-  switch (install.status) {
-    case "installed":
-      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
-    case "unverified":
-      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
-    case "not_installed":
-      return "Not installed on this Mac";
-    default:
-      if (versionUnchecked(install)) return FOUND_UNCHECKED;
-      return "Couldn't check what's installed";
-  }
-}
+export { installWords } from "../lib/providers";
 
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
@@ -1212,7 +1159,7 @@ function ProviderOverview(props: PanelProps) {
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+        <div className="flex flex-wrap items-center gap-2 text-meta">
           <span className="text-ink">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
           </span>
@@ -1220,21 +1167,21 @@ function ProviderOverview(props: PanelProps) {
         </div>
         {/* Shown once known; nothing in its place until then (D-25). */}
         {install !== null && (
-          <p className="text-[11px] text-muted" data-testid="provider-install">
+          <p className="text-label text-muted" data-testid="provider-install">
             {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
           </p>
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Runway, least left first</p>
+        <p className="text-section font-semibold text-ink">Runway, least left first</p>
         {perAccount.length === 0 ? (
-          <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
+          <p className="text-meta text-muted">No accounts for this tool yet.</p>
         ) : (
           perAccount.map(({ account, display, sessions }) => (
             <div key={account.id} className="flex flex-col gap-1.5 py-1">
-              <span className="text-[11.5px]">
+              <span className="text-meta">
                 <span className="text-ink">{account.label}</span>
-                {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
+                {!signedIn(account.login_state) ? <span className="text-muted"> · signed out</span> : null}
               </span>
               {/* D-25: a signed-out account with no reading says "signed
                   out" above; its runway would only repeat it. */}
@@ -1259,13 +1206,8 @@ const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
 
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
-        {tier}
-      </span>
-      <span className="text-[10px] font-normal normal-case tracking-normal text-faint" data-testid="tier-words">
-        {TIER_WORDS[tier]}
-      </span>
+    <span className="mt-auto pt-1 text-label text-muted" data-testid="tier-words" data-tier={tier}>
+      {TIER_WORDS[tier]}
     </span>
   );
 }
@@ -1315,8 +1257,8 @@ function QualityTab(props: PanelProps) {
   if (loadError) {
     return (
       <Card className="flex flex-col gap-1 p-4" data-testid="quality-tab">
-        <p className="text-[11.5px] text-muted">Signals unavailable right now.</p>
-        <p className="text-[10px] text-muted">{loadError}</p>
+        <p className="text-meta text-muted">Signals unavailable right now.</p>
+        <p className="text-label text-muted">{loadError}</p>
       </Card>
     );
   }
@@ -1331,7 +1273,7 @@ function QualityTab(props: PanelProps) {
             {Math.round(quality.avg_tokens_per_min)} a minute on average over the last 5 minutes
           </span>
           {asTable ? (
-            <table className="text-[10px]">
+            <table className="text-label">
               <tbody>
                 <tr>
                   <td className="pr-2 text-muted">minutes ago</td>
@@ -1407,7 +1349,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          about ${quality.session_cost_usd.toFixed(2)} at {quality.priced_model}'s API prices
+          about ${quality.session_cost_usd.toFixed(2)} at list prices{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""}
         </span>
       ) : (
         <span className="text-muted">
@@ -1424,7 +1366,7 @@ function QualityTab(props: PanelProps) {
     if (quality.stuck) {
       signals.push({
         testId: "quality-stuck",
-        label: "Stuck?",
+        label: "Probably stuck",
         tier: "Computed",
         body: (
           <span className="text-ink">
@@ -1436,35 +1378,42 @@ function QualityTab(props: PanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="quality-tab">
-      {signals.length === 0 ? (
-        <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted">Nothing measured yet — this fills in as the session works.</p>
-        </Card>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] text-muted">Measured every 2 seconds</p>
+    <section className="flex flex-col gap-3" data-testid="quality-tab" aria-labelledby="quality-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 id="quality-title" className="text-section font-semibold text-ink">
+          How it's going
+        </h3>
+        {signals.length > 0 && (
+          <span className="flex items-center gap-3">
+            <span className="text-meta text-muted">every 2 seconds</span>
             <button
               type="button"
               onClick={() => setAsTable((v) => !v)}
               aria-pressed={asTable}
-              className="rounded-lg border border-hairline px-2 py-0.5 text-[10px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="rounded-lg border border-hairline px-2 py-0.5 text-label text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             >
               {asTable ? "View as chart" : "View as table"}
             </button>
-          </div>
+          </span>
+        )}
+      </div>
+      {signals.length === 0 ? (
+        <Card className="flex flex-col gap-1 p-5">
+          <p className="text-body text-muted">Nothing measured yet — this fills in as the session works.</p>
+        </Card>
+      ) : (
+        // Cards sized to what they say, as many to a row as fit.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-grid">
           {signals.map((signal) => (
-            <Card key={signal.testId} className="flex flex-col gap-1 p-3" data-testid={signal.testId}>
-              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted">
-                {signal.label} <TierTag tier={signal.tier} />
-              </p>
+            <Card key={signal.testId} className="flex flex-col gap-1.5 p-5 text-body" data-testid={signal.testId}>
+              <p className="text-meta font-medium text-muted">{signal.label}</p>
               {signal.body}
+              <TierTag tier={signal.tier} />
             </Card>
           ))}
-        </>
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -1510,7 +1459,7 @@ function InstanceCleanupRows(props: { sessionId: string }) {
   if (rows === null || rows.length === 0) return null;
   return (
     <section className="mt-3" data-testid="instance-cleanup-rows">
-      <h4 className="text-[10.5px] font-medium text-ink">Ledger rows (read-only)</h4>
+      <h4 className="text-label font-medium text-ink">Ledger rows (read-only)</h4>
       <ul className="mt-1">
         {rows.map((row) => (
           <ProcessRow key={row.pid} row={row} />
@@ -1570,8 +1519,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   // E507 sheet) is the way to end it.
   const adoptedNotice = instance.adopted ? (
     <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
-      <p className="text-[11.5px] font-medium text-ink">Running — picked up after restart</p>
-      <p className="text-[10.5px] text-muted">
+      <p className="text-meta font-medium text-ink">Running — picked up after restart</p>
+      <p className="text-label text-muted">
         The terminal is detached: output from before the app closed is not available. Stop
         runs through the verified sheet (Terminate… on a row below).
       </p>
@@ -1581,8 +1530,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   if (error) {
     return (
       <Card className="flex flex-col gap-2 p-4" data-testid="processes-error" role="alert">
-        <p className="text-[11.5px] font-medium text-ink">Process tree read failed</p>
-        <p className="text-[10px] break-all text-muted">{error}</p>
+        <p className="text-meta font-medium text-ink">Process tree read failed</p>
+        <p className="text-label break-all text-muted">{error}</p>
         <Button size="sm" variant="secondary" onClick={() => setReloadKey((key) => key + 1)}>
           Retry
         </Button>
@@ -1593,8 +1542,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   if (info?.unavailable_reason) {
     return (
       <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
-        <p className="text-[11.5px] text-muted">{info.unavailable_reason}</p>
-        <p className="text-[10px] text-faint">
+        <p className="text-meta text-muted">{info.unavailable_reason}</p>
+        <p className="text-label text-muted">
           Adopted or desktop-kind sessions have no readable process tree — resources are
           unavailable, never flat zero.
         </p>
@@ -1663,7 +1612,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     <div className="flex flex-col gap-3" data-testid="processes-tab">
       {adoptedNotice}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] text-muted">Measured every 2 seconds</p>
+        <p className="text-label text-muted">Measured every 2 seconds</p>
         {lastSpark && (
           <span className="flex items-end gap-[2px]" aria-hidden="true" data-testid="processes-spark">
             {spark.slice(-30).map((sample, i) => (
@@ -1681,9 +1630,9 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
 
       {/* AJ-E804: a scrollable region is reachable by keyboard. */}
       <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
-        <table className="w-full min-w-[420px] text-left text-[11px]">
+        <table className="w-full min-w-[420px] text-left text-label">
           <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-muted">
+            <tr className="text-section font-semibold text-ink">
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
@@ -1695,7 +1644,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-3 text-center text-[11px] text-muted" data-testid="processes-empty">
+                <td colSpan={6} className="py-3 text-center text-label text-muted" data-testid="processes-empty">
                   {/* One source per fact: never "none" while the header counts helpers. */}
                   {(instance.child_count ?? 0) > 0 ? "Reading the process tree…" : "No subprocesses"}
                 </td>
@@ -1703,13 +1652,13 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
             ) : (
               rows.map((row) => (
                 <tr key={row.pid} className="border-t border-hairline">
-                  <td className="py-1 pr-2 font-mono text-[10.5px] tabular-nums text-muted">{row.pid}</td>
+                  <td className="py-1 pr-2 font-mono text-label tabular-nums text-muted">{row.pid}</td>
                   <td className="py-1 pr-2 text-ink">
-                    <span aria-hidden="true" className="text-faint">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
+                    <span aria-hidden="true" className="text-muted">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
                     {row.name}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">
-                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">measuring…</span>}
+                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-muted">measuring…</span>}
                   </td>
                   <td className="py-1 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
                   <td className="py-1 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
@@ -1720,7 +1669,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </tbody>
         </table>
         {readOnly && (
-          <p className="pt-1 text-[10px] text-faint">
+          <p className="pt-1 text-label text-muted">
             Read-only — ended conversation; stop actions live on the session&apos;s Processes tab.
           </p>
         )}
@@ -1728,23 +1677,23 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
 
       {!readOnly && (
         <Card className="flex flex-col gap-2 p-3" data-testid="processes-orphans">
-          <p className="text-[11px] uppercase tracking-wider text-muted" data-testid="orphans-heading">
+          <p className="text-section font-semibold text-ink" data-testid="orphans-heading">
             {orphans.length > 0 ? `Orphaned - left behind (${orphans.length})` : "No orphaned processes"}
           </p>
           {orphans.length === 0 ? (
-            <p className="text-[10px] text-faint">
+            <p className="text-label text-muted">
               Nothing this session started is still running after it.
             </p>
           ) : (
             <>
               {orphans.map((orphan) => (
                 <div key={orphan.pid} className="flex flex-col gap-1 border-t border-hairline pt-2" data-testid={`orphan-row-${orphan.pid}`}>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                    <span className="font-mono text-[10.5px] tabular-nums text-muted">{orphan.pid}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label">
+                    <span className="font-mono text-label tabular-nums text-muted">{orphan.pid}</span>
                     <span className="text-ink">{orphan.name}</span>
                     <span className="tabular-nums text-muted">{formatRss(orphan.rss_bytes)}</span>
                     <span className="tabular-nums text-muted">since exit {formatAge(orphan.age_since_parent_exit_ms)}</span>
-                    <span className="text-faint">parent: {orphan.parent_label}</span>
+                    <span className="text-muted">parent: {orphan.parent_label}</span>
                     {orphan.stop_state && (
                       <span
                         data-testid={`orphan-state-${orphan.pid}`}
@@ -1755,7 +1704,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                     )}
                   </div>
                   {verifyNotes[orphan.pid] && (
-                    <p className="text-[10px] text-muted" data-testid={`orphan-verify-${orphan.pid}`}>
+                    <p className="text-label text-muted" data-testid={`orphan-verify-${orphan.pid}`}>
                       Verify owner: {verifyNotes[orphan.pid]}
                     </p>
                   )}
@@ -1771,7 +1720,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                   </div>
                   {confirmPid === orphan.pid && (
                     <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid={`orphan-confirm-${orphan.pid}`} role="alertdialog" aria-label={`Stop process ${orphan.pid}`}>
-                      <p className="text-[11px] text-ink">
+                      <p className="text-label text-ink">
                         Stop process <span className="font-mono">{orphan.pid}</span> ({orphan.name})? SIGTERM
                         first, SIGKILL after a grace period — only this journal-recorded PID.
                       </p>
@@ -1794,7 +1743,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                   </Button>
                   {confirmAll && (
                     <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid="orphans-confirm-all" role="alertdialog" aria-label="Stop all orphans">
-                      <p className="text-[11px] text-ink">
+                      <p className="text-label text-ink">
                         Stop all orphaned processes — {orphans.filter((orphan) => !orphan.stop_state).map((orphan) => orphan.pid).join(", ")}?
                         Each gets the SIGTERM → SIGKILL ladder and a re-read.
                       </p>

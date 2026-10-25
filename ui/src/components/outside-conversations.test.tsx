@@ -99,7 +99,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(row.textContent).toContain("Claude Code on Work Max");
     // AJ-E1532: the account at a glance — its avatar, initials and colour —
     // beside the tool's mark.
-    expect(row.querySelector("[data-testid='account-avatar']")?.textContent).toBe("WM");
+    expect(row.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
     expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
@@ -241,7 +241,7 @@ describe("AJ-E1529 outside sessions count as running", () => {
     );
     const row = await screen.findByTestId("goto-row-outside::a1::c");
     expect(row.textContent).toContain("Fix the login test");
-    expect(row.textContent).toContain("outside AI Juggler");
+    expect(row.textContent).toContain("in Claude Code");
     expect(screen.queryByTestId("goto-row-outside::a1::ended")).toBeNull();
     await act(async () => {
       fireEvent.click(row);
