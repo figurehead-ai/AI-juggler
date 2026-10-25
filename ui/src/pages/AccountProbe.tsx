@@ -1,9 +1,8 @@
 /**
- * D-39 (needs the maintainer's ruling; the backend offers it only once
- * ruled): asking Claude Code itself for this profile's limits when the
- * Claude app's meter is old. Off per profile until its owner turns it on,
- * after one sheet that says what runs, what it costs and what leaves the
- * Mac; off again from the same place.
+ * D-39 (SETTLED 2026-10-25, option A): asking Claude Code itself for this
+ * profile's limits when the Claude app's meter is old. On by default; off
+ * per profile from here, and back on after the sheet that says what runs,
+ * what it costs and what leaves the Mac.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "../components/primitives";
@@ -82,7 +81,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
               <li>It costs no quota: no message goes to Claude.</li>
               <li>Claude Code uses its own sign-in. AI Juggler never sees it, and macOS asks nothing.</li>
               <li>Claude Code asks Anthropic for this account's usage, as /usage does. AI Juggler sends nothing.</li>
-              <li>Claude Code saves the answer in its own state file, where AI Juggler reads it. Nothing else changes.</li>
+              <li>Claude Code saves the answer in its own state file, where AI Juggler reads it.</li>
               <li>At most every 15 minutes, only while it's in use and the app's meter is old.</li>
             </ul>
             <p className="text-muted">Turn it off here at any time.</p>

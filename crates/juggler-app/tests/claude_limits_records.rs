@@ -258,12 +258,25 @@ fn walkdir(dir: &Path) -> Vec<PathBuf> {
 }
 
 #[test]
-fn asking_claude_code_is_refused_until_it_is_ruled_on() {
+fn asking_claude_code_is_on_by_default_and_off_everywhere_when_turned_off() {
     use juggler_app::features::quota::probe;
     let dir = tempfile::tempdir().unwrap();
     let setup = setup(dir.path());
+    // D-39 (SETTLED, option A): on by default for every profile.
     let status = probe::status_impl(&setup.state, &setup.account).unwrap();
-    assert!(!status.offered, "off until D-39 is ruled");
+    assert!(status.offered, "D-39: offered by default");
+    assert_eq!(status.state, "on", "D-39: each profile is on by default");
+    // Turned off everywhere: nothing is offered and nothing runs.
+    setup
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set(probe::ALLOWED_KEY, "off")
+        .unwrap();
+    let status = probe::status_impl(&setup.state, &setup.account).unwrap();
+    assert!(!status.offered, "off everywhere when turned off");
     assert!(probe::turn_on_impl(&setup.state, &setup.account).is_err());
     assert!(probe::run_now_impl(&setup.state, &setup.account).is_err());
 }

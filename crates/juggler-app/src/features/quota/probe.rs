@@ -1,4 +1,4 @@
-//! D-39 (needs the maintainer's ruling; off until then): asking the tool
+//! D-39 (SETTLED 2026-10-25, option A): asking the tool
 //! itself for a profile's limits, when its own records are old. For Claude
 //! that is Claude Code's own `/usage`, run headless in the profile
 //! (`HarnessAdapter::limits_probe_spec`): a local command, so no model turn
@@ -7,9 +7,9 @@
 //! it, and no macOS prompt is shown: the item is Claude Code's own) and
 //! leaves the answer in its state file, which `records` reads.
 //!
-//! - Nothing here runs, and the UI offers nothing, until [`ALLOWED_KEY`]
-//!   is `on` (the ruling). Then each profile is off until its owner turns
-//!   it on, and off again from the same place.
+//! - On by default (the ruling): every profile is asked when its reading
+//!   is old. Each profile can be turned off from its page, and
+//!   [`ALLOWED_KEY`] set to `off` turns it off everywhere.
 //! - While on, it runs at most every [`EVERY_MS`] per profile, only while
 //!   the profile is in use (usage in the last hour) and its newest reading
 //!   is older than that; or once when asked ("Measure now").
@@ -25,9 +25,9 @@ use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-/// `on` once D-39 is ruled for this option; until then nothing runs.
+/// `off` turns the probe off everywhere; anything else (or unset) is on.
 pub const ALLOWED_KEY: &str = "limits_probe_allowed";
-/// Per profile: `on` when its owner turned it on.
+/// Per profile: `off` when its owner turned it off; otherwise on.
 const ACCOUNT_KEY_PREFIX: &str = "limits_probe:";
 /// The least time between two runs for one profile, and the age a
 /// reading must reach before a background run.
@@ -61,11 +61,12 @@ fn account_key(account_id: &str) -> String {
     format!("{ACCOUNT_KEY_PREFIX}{account_id}")
 }
 
+/// On unless turned `off` (D-39: on by default).
 fn setting_on(state: &Arc<AppState>, key: &str) -> AppResult<bool> {
     Ok(lock_storage_arc(state)?
         .app_settings()
         .get(key)?
-        .is_some_and(|value| value == "on"))
+        .is_none_or(|value| value != "off"))
 }
 
 /// The probe for an account, when it is ruled on and its tool has one.

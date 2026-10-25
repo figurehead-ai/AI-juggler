@@ -1,8 +1,8 @@
 /**
- * D-39 (needs the maintainer's ruling; off until then): asking the tool
+ * D-39 (SETTLED 2026-10-25, option A; on by default): asking the tool
  * itself for a profile's limits (Claude Code's own usage check, headless).
  * The preview and the tests read the seam `__AIJ_PROBE__` (per account);
- * without an entry it isn't offered, as in the app until it is ruled.
+ * without an entry it isn't offered, as when it is turned off everywhere.
  */
 import { hasLiveBackend } from "../bridge";
 import { invoke } from "./transport";

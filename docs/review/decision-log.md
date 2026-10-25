@@ -631,7 +631,16 @@
 - Consequences: the `app_icons` feature module, `AppIcon` and
   `ProfileBadge` in the UI, a Privacy line; ships in 0.1.5.
 
-### D-39 Fresh Claude limits when the Claude app's meter is old — NEEDS THE MAINTAINER'S RULING (2026-10-25)
+### D-39 Fresh Claude limits when the Claude app's meter is old — SETTLED (2026-10-25)
+
+**Ruling.** The maintainer, 2026-10-25: "Yes to D-39 option A: run Claude
+Code's own /usage check (claude -p /usage, hooks off) for profiles whose
+reading is old, at most every 15 minutes while in use. Reading the Claude
+app's plan-usage-history.json is fine too." It is on by default for every
+profile; each profile's page turns it off. Proven live the same day on a
+real app-signed-in profile (AJ-E1704 lab, 2026-10-25): no model call, no
+cost, `cachedUsageUtilization` refreshed. Correction from that lab: Claude
+Code also leaves an empty `projects/<folder>/memory/` folder of its own.
 
 **The problem.** The maintainer reported it three times: every Claude
 account read "Not measured yet" for both windows. Claude Code reports its
@@ -740,8 +749,6 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
 
 ## Unresolved (in discussion order)
 
-- D-39 (Claude limits when the app's meter is old): needs the
-  maintainer's ruling; option A is built and off.
-- D-01..D-15 were marked Final on maintainer instruction
+- None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24 and D-38 on 2026-10-25 (D-28..D-34 on release/0.2); all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24 and D-38 and D-39 on 2026-10-25 (D-28..D-34 and D-40 on release/0.2); all follow the same law.

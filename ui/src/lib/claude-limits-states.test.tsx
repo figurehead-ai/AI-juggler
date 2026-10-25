@@ -99,7 +99,7 @@ describe("Claude limits from its own records", () => {
   });
 });
 
-describe("D-39: ask Claude Code (off until ruled)", () => {
+describe("D-39: ask Claude Code (on by default; offered when the backend says so)", () => {
   it("isn't shown while the backend doesn't offer it", async () => {
     const view = render(<AccountProbe accountId="a1" />);
     await waitFor(() => expect(view.queryByTestId("account-probe")).toBeNull());

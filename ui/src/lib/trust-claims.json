@@ -62,6 +62,14 @@
           ]
         },
         {
+          "id": "limit-check",
+          "text": "When a Claude profile's limit reading is old and the profile is in use, AI Juggler runs Claude Code's own usage check there (claude -p /usage, with hooks off), at most every 15 minutes. Claude Code asks Anthropic with its own sign-in, as /usage does: no message goes to Claude, AI Juggler sends nothing, never sees the sign-in and keeps no output. Each profile's page turns it off.",
+          "tests": [
+            "crates/juggler-app/tests/claude_limits_records.rs::once_ruled_on_the_probe_runs_claude_codes_usage_in_the_profile_and_keeps_no_output",
+            "crates/juggler-app/tests/claude_limits_records.rs::asking_claude_code_is_on_by_default_and_off_everywhere_when_turned_off"
+          ]
+        },
+        {
           "id": "parent-chain",
           "text": "To know which app and profile a session runs in, it reads the names of running programs, the apps that started them and the options they started with, on your Mac only, and never their environment.",
           "tests": [
