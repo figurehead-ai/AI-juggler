@@ -398,7 +398,9 @@ export default function App() {
   // says so; the lists are read again then.
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
-    return onConversationsChanged(() => void refresh());
+    // Only a change of the files can change the app's own lists; which
+    // are open (every few seconds with many) is the conversations' alone.
+    return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
   // Drop a folder anywhere → New session pre-filled with it.

@@ -1046,7 +1046,10 @@ fn spawn_read_model_ticks(
                 use tauri::Emitter;
                 // QA batch 8: a long first pass tells the UI as it goes.
                 let tell = || {
-                    let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
+                    let _ = conversations_app.emit(
+                        features::conversations::EVENT_CHANGED,
+                        features::conversations::CHANGED_INDEX,
+                    );
                 };
                 if let Ok(true) = features::conversations::tick_with(
                     &conversations_state,
@@ -1071,7 +1074,10 @@ fn spawn_read_model_ticks(
                 loop {
                     use tauri::Emitter;
                     if let Ok(true) = features::conversations::live_tick(&live_state) {
-                        let _ = live_app.emit(features::conversations::EVENT_CHANGED, ());
+                        let _ = live_app.emit(
+                            features::conversations::EVENT_CHANGED,
+                            features::conversations::CHANGED_LIVE,
+                        );
                     }
                     // poll: the live view's cadence (scan::TICK, 2 s).
                     std::thread::sleep(features::conversations::scan::TICK);

@@ -120,12 +120,17 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
   return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
 }
 
-/** Called when the backend's list changed (no payload: read it again). */
-export function onConversationsChanged(handler: () => void): () => void {
+/** What changed: `index` the files (new conversations, titles, folders,
+ * counts), `live` only which are open and their states (every few
+ * seconds with many open sessions). */
+export type ConversationsChange = "index" | "live";
+
+/** Called when the backend's list changed (read it again), with what changed. */
+export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {
   if (!hasLiveBackend()) return () => {};
   let stop: (() => void) | null = null;
   let disposed = false;
-  void listen("conversations://changed", () => handler()).then((unlisten) => {
+  void listen<ConversationsChange | null>("conversations://changed", (event) => handler(event.payload === "live" ? "live" : "index")).then((unlisten) => {
     if (disposed) unlisten();
     else stop = unlisten;
   });
