@@ -743,9 +743,12 @@ function InstanceOverview(props: PanelProps) {
         ) : session.runtime?.kind === "driven" ? (
           <DrivenPanel session={session} onOpenSession={props.onOpenSession} />
         ) : (
-          <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
-          </Card>
+          <>
+            {session.runtime?.fell_back && <p className="text-[11px] text-muted" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
+            <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+              <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
+            </Card>
+          </>
         )}
         {!live && !isDesktop && (
           <p className="text-[11px] text-faint">

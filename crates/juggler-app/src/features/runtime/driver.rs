@@ -713,3 +713,45 @@ fn run(
         drop(state);
     }
 }
+
+#[cfg(test)]
+mod held {
+    use super::{ITEMS_KEPT, Snapshot};
+    use juggler_adapter::runtime::{ItemKind, ItemSummary, RuntimeEvent};
+    use juggler_core::model::SessionId;
+
+    #[test]
+    fn the_conversation_is_held_in_memory_and_bounded() {
+        let mut snapshot = Snapshot::default();
+        let session = SessionId::new("s");
+        for n in 0..(ITEMS_KEPT + 25) {
+            snapshot.apply(
+                &session,
+                &RuntimeEvent::Item {
+                    item: ItemSummary {
+                        kind: ItemKind::AgentMessage,
+                        text: format!("line {n}"),
+                    },
+                },
+            );
+        }
+        assert_eq!(snapshot.items.len(), ITEMS_KEPT, "only the latest are held");
+        assert_eq!(
+            snapshot.items.back().unwrap().text,
+            format!("line {}", ITEMS_KEPT + 24)
+        );
+        // Nothing here writes: the snapshot is the only copy, in memory.
+        let source = include_str!("driver.rs");
+        let shipped = source.split("mod held {").next().unwrap();
+        for writer in [
+            "std::fs::write",
+            "File::create",
+            "OpenOptions",
+            "tracing::",
+            "println!",
+            "eprintln!",
+        ] {
+            assert!(!shipped.contains(writer), "the driver writes with {writer}");
+        }
+    }
+}

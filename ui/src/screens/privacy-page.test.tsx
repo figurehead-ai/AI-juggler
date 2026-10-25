@@ -83,6 +83,18 @@ describe("AJ-E1518 the Privacy page", () => {
     });
   });
 
+  it("says how each tool's sessions run under its terms, only for a tool that has a runtime", () => {
+    const view = render(<PrivacyScreen />);
+    const rows = view.getAllByTestId("privacy-terms-row");
+    const withTerms = PREVIEW_TOOLS.filter((tool) => tool.terms !== null);
+    withTerms.forEach((tool, index) => {
+      const note = within(rows[index]!).queryByTestId("privacy-runtime-note");
+      if (tool.runtime?.terms_note) expect(note?.textContent).toBe(tool.runtime.terms_note);
+      else expect(note).toBeNull();
+    });
+    expect(view.getAllByTestId("privacy-runtime-note")).toHaveLength(2);
+  });
+
   it("the private report opens from the page's last line", () => {
     const view = render(<PrivacyScreen />);
     fireEvent.click(view.getByRole("button", { name: "report it privately" }));

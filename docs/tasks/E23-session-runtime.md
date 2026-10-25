@@ -52,7 +52,7 @@
 
 ## Step 1 — the contract and the spike
 
-### AJ-E2301 The runtime lab on real tools | Status: TODO | Priority P0 | Effort S | Depends: —
+### AJ-E2301 The runtime lab on real tools | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: —
 **Goal**: The five things only a real run can show are proven before driven sessions become anyone's default.
 **User story**: As the maintainer (or the agent I allow to), I run the lab checklist with one or two of my real tools in a throwaway lab project, and the evidence turns from "unverified" to measured.
 **Requirements**:
@@ -70,7 +70,7 @@
 **Research basis**: `session-runtime.md` §9 step 2; ADR-0022 Consequences.
 **Handover note**: The live part runs on the maintainer's accounts with their leave (2026-10-25: one or two real tools, lab project only). Everything else in E23 is built and tested on fakes first.
 
-### AJ-E2302 The runtime contract | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2302 The runtime contract | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: —
 **Goal**: One neutral contract lets any adapter offer a driven session next to the terminal.
 **User story**: As an adapter author, I implement `DrivenRuntime` for my tool, declare `PROTOCOL_SERVER`, and the conformance kit tells me whether both runtimes keep the rules.
 **Requirements**:
@@ -91,7 +91,7 @@
 
 ## Step 2 — Codex driven through app-server
 
-### AJ-E2303 Codex through app-server, by default | Status: TODO | Priority P0 | Effort L | Depends: AJ-E2302
+### AJ-E2303 Codex through app-server, by default | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E2302
 **Goal**: Each Codex session AI Juggler starts is driven through the user's own `codex app-server`: exact state, approvals and questions in AI Juggler, and live limits with resets.
 **User story**: As a Codex user, I see "Asks you: run `npm test`?" in Needs you, click Allow once, and the session carries on; the 5-hour and weekly limits show with their reset times before the first turn ends.
 **Requirements**:
@@ -109,7 +109,7 @@
 **Research basis**: `session-runtime.md` §3.2, §6.2; `codex.md` §9 addendum.
 **Handover note**: Who is asked when the TUI is attached too is the spike's (AJ-E2301 Req.1); until then, while a terminal is attached AI Juggler shows the ask and says it can also be answered there; the first answer wins (`serverRequest/resolved`).
 
-### AJ-E2304 Open in terminal, and Start in terminal | Status: TODO | Priority P0 | Effort S | Depends: AJ-E2303
+### AJ-E2304 Open in terminal, and Start in terminal | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E2303
 **Goal**: The real Codex TUI is one click away, and the PTY stays the fallback.
 **User story**: As a user who likes Codex's TUI, I click Open in terminal and get it on the same live thread; on a profile I set to "Start in terminal", sessions run as today.
 **Requirements**:
@@ -125,7 +125,7 @@
 **Research basis**: `session-runtime.md` §6.2 items 3–4.
 **Handover note**: Two clients on one thread is the spike's.
 
-### AJ-E2305 Switching and hand-over across runtimes | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2303
+### AJ-E2305 Switching and hand-over across runtimes | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2303
 **Goal**: A→B→Codex→A keeps history, tasks and context whichever runtime each step runs in (the 0.1 core rule).
 **User story**: As a user, I switch a driven Codex session to Claude and back, and both conversations continue where they were.
 **Requirements**:
@@ -143,7 +143,7 @@
 
 ## Step 3 — Claude: exact state in the terminal
 
-### AJ-E2306 Claude terminal sessions with hooks and the status line | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2302
+### AJ-E2306 Claude terminal sessions with hooks and the status line | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2302
 **Goal**: Every Claude session AI Juggler starts reports its exact state and limits through Claude Code's own hooks and status line, with no guessing.
 **User story**: As a Claude user, Needs you says "Asks you: Bash `rm -rf build`" the moment Claude asks, and "Working" and "Idle" are exact.
 **Requirements**:
@@ -164,7 +164,7 @@
 
 ## Step 4 — answering from AI Juggler
 
-### AJ-E2307 Answers from Needs you and the session page | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2303
+### AJ-E2307 Answers from Needs you and the session page | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2303
 **Goal**: A driven session's approval or question is answered in AI Juggler, with the tool's own options, by the user's click only.
 **User story**: As a user, I answer "Which database?" with "Postgres" from Needs you without opening a terminal.
 **Requirements**:
@@ -184,7 +184,7 @@
 
 ## Step 5 — Claude headless (Beta)
 
-### AJ-E2308 Run without a terminal: answer from AI Juggler (Beta) | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2302, AJ-E2307
+### AJ-E2308 Run without a terminal: answer from AI Juggler (Beta) | Status: IN-PROGRESS | Priority P1 | Effort L | Depends: AJ-E2302, AJ-E2307
 **Goal**: A Claude session can run headless, per session, with its questions and approvals answered in AI Juggler.
 **User story**: As a user who picked "Run without a terminal: answer from AI Juggler" for one session, I see its turns and answer its prompts in AI Juggler, and Open in terminal continues it in the TUI.
 **Requirements**:
@@ -203,7 +203,7 @@
 
 ## Step 6 — documents
 
-### AJ-E2309 Docs, Privacy and terms lines, evidence | Status: TODO | Priority P0 | Effort S | Depends: AJ-E2303, AJ-E2306, AJ-E2308
+### AJ-E2309 Docs, Privacy and terms lines, evidence | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: AJ-E2303, AJ-E2306, AJ-E2308
 **Goal**: What runs, under whose terms, and what AI Juggler holds is written down and tested.
 **User story**: As a careful user, I read on the Privacy page that a driven session's messages are held in memory to show them and never stored.
 **Requirements**:

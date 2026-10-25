@@ -81,6 +81,28 @@ Word for word, from each adapter's `terms` (the test
 - **Grok Build**, linking xAI's Terms of Service: "xAI's Terms of Service say not to share an account, and its usage pool is shared with Cursor and Grok on the X Subscription."
   - The Grok Build table's rows 1 and 2.
 
+## How a tool's sessions run (D-40)
+
+Read on the vendors' own pages on 2026-10-25 (Anthropic's by fetching it,
+OpenAI's app-server page through its learn.chatgpt.com redirect); the full
+quotes, with Wayback history, are in `docs/research/session-runtime.md`
+§2.1 and §2.2. Re-checked at each release (`docs/RELEASING.md` step 3).
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| An end user may sign in to the unmodified Claude Code binary with their own subscription | code.claude.com/docs/en/legal-and-compliance · 2026-10-25 | Verified-primary | It does not "prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription" |
+| `claude -p` is the Agent SDK through the CLI | code.claude.com/docs/en/headless · 2026-10-25 | Verified-primary | "This page covers using the Agent SDK via the CLI" |
+| A local or open-source app may use Codex's app-server with Codex's own sign-in; a commercial or hosted service may not | learn.chatgpt.com/docs/app-server · 2026-10-25 | Verified-primary | App-server authentication "has never been permitted for commercial or hosted services" |
+
+The Privacy page shows each line under the tool's terms, word for word,
+from each adapter's `terms_note` (the test
+`every_tool_names_its_terms_and_the_preview_matches` checks it):
+
+- **Claude Code**: "Its sessions run in their terminal. Run without a terminal (Beta) runs your own Claude Code with your own sign-in, which Anthropic's terms allow; Anthropic may count it as Agent SDK use."
+  - The table's rows 1 and 2.
+- **Codex**: "Its sessions run through your own Codex's app-server, with your own sign-in: OpenAI lets a local or open-source app do that, never a commercial or hosted service."
+  - The table's row 3.
+
 ## What AI Juggler does with them
 
 - Add account shows one line per tool, with its terms linked (`terms` in

@@ -39,6 +39,12 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     },
     home_env: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
     supports: { in_place: true, limits: true },
+    runtime: {
+      label: "Claude Code without a terminal",
+      beta: true,
+      terms_note:
+        "Its sessions run in their terminal. Run without a terminal (Beta) runs your own Claude Code with your own sign-in, which Anthropic's terms allow; Anthropic may count it as Agent SDK use.",
+    },
   },
   {
     id: "codex",
@@ -67,6 +73,12 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     },
     home_env: ["CODEX_HOME", "CODEX_SQLITE_HOME", "AI_JUGGLER_CODEX_BIN"],
     supports: { in_place: true, limits: false },
+    runtime: {
+      label: "Codex's app-server",
+      beta: false,
+      terms_note:
+        "Its sessions run through your own Codex's app-server, with your own sign-in: OpenAI lets a local or open-source app do that, never a commercial or hosted service.",
+    },
   },
   {
     id: "opencode",

@@ -76,6 +76,14 @@
             "crates/juggler-app/src/features/conversations/last_messages.rs::nothing_is_kept_written_or_logged",
             "crates/juggler-app/src/features/conversations/last_messages.rs::off_in_settings_no_transcript_is_looked_up_or_read"
           ]
+        },
+        {
+          "id": "runtime-held",
+          "text": "For a session it runs without a terminal, what the page shows comes from the tool as it works. AI Juggler holds only the latest part, in memory, and never writes it down; the tool keeps its own transcript as it always does.",
+          "tests": [
+            "crates/juggler-app/src/features/runtime/driver.rs::the_conversation_is_held_in_memory_and_bounded",
+            "crates/juggler-app/tests/runtime.rs::a_driven_session_is_exact_and_answered_only_by_the_user"
+          ]
         }
       ]
     },
@@ -166,6 +174,17 @@
             "crates/juggler-agentbridge/tests/bridge.rs::each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited",
             "crates/juggler-agentbridge/tests/bridge.rs::agents_see_account_labels_never_emails_or_plans",
             "crates/juggler-agentbridge/tests/bridge.rs::the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys"
+          ]
+        },
+        {
+          "id": "runtime-launch",
+          "text": "Sessions it starts run your own installed tool, unmodified: Codex through its own app-server, and Claude Code in its terminal, with Claude Code's own hooks added to that launch only so it can say what the session is doing. Nothing is written into your setup. Running Claude Code without a terminal is a Beta you pick for one session at a time.",
+          "tests": [
+            "crates/juggler-app/tests/runtime.rs::codex_runs_through_its_own_app_server_by_default",
+            "crates/juggler-agentbridge/tests/reports.rs::the_tools_own_hooks_make_the_state_exact",
+            "crates/juggler-adapters/tests/conformance/mod.rs::adds_state_reports_honestly",
+            "crates/juggler-adapters/tests/conformance/mod.rs::runs_both_runtimes_honestly",
+            "crates/juggler-app/tests/runtime.rs::claude_runs_without_a_terminal_only_as_a_per_session_beta"
           ]
         }
       ]
@@ -280,6 +299,26 @@
             "crates/juggler-app/src/features/conversations/goto/tests.rs::window_counts_and_minimised_need_window_focus_turned_on",
             "crates/juggler-app/src/features/conversations/goto/tests.rs::a_terminal_tab_is_selected_only_when_tabs_are_on",
             "crates/juggler-app/src/focus.rs::without_window_focus_only_the_process_is_activated"
+          ]
+        },
+        {
+          "id": "no-answer-by-itself",
+          "text": "It never answers a tool's question or permission prompt by itself. It shows the tool's own choices, sends the one you click to the tool, and records it in the account's log.",
+          "tests": [
+            "crates/juggler-app/tests/runtime_guardrails.rs::only_the_users_click_reaches_an_answer",
+            "crates/juggler-app/tests/runtime.rs::a_driven_session_is_exact_and_answered_only_by_the_user",
+            "crates/juggler-adapters/tests/conformance/mod.rs::keeps_the_tools_own_option_rules",
+            "ui/src/components/ask-card.test.tsx::sends nothing without a click"
+          ]
+        },
+        {
+          "id": "no-bypass",
+          "text": "It never starts a tool with its permission prompts turned off, and tells Codex it's AI Juggler, never another app.",
+          "tests": [
+            "crates/juggler-app/tests/runtime_guardrails.rs::no_launch_bypasses_a_tools_prompts",
+            "crates/juggler-adapters/tests/claude_stream.rs::the_fake_refuses_what_claude_code_refuses",
+            "crates/juggler-adapters/tests/codex_app_server.rs::the_driven_launch_never_carries_a_bypass_or_an_inherited_key",
+            "crates/juggler-adapters/tests/codex_app_server.rs::every_request_the_codec_sends_has_its_required_fields"
           ]
         },
         {

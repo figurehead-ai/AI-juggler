@@ -975,11 +975,24 @@ fn every_tool_names_its_terms_and_the_preview_matches() {
     let registry = juggler_app::state::default_registry();
     let ids = registry.ids();
     assert!(!ids.is_empty());
-    for spec in ids
-        .iter()
-        .filter_map(|id| registry.get(id))
-        .map(|adapter| adapter.spec())
-    {
+    for adapter in ids.iter().filter_map(|id| registry.get(id)) {
+        let spec = adapter.spec();
+        // D-40: how its sessions run, under the terms, the same way.
+        if let Some(note) = adapter.driven().and_then(|driven| driven.terms_note()) {
+            let entry = preview
+                .split("\n  {\n")
+                .find(|entry| entry.contains(&format!("id: \"{}\"", spec.id)))
+                .unwrap_or_else(|| panic!("the preview has no {}", spec.id));
+            assert!(
+                entry.contains(note),
+                "the preview's {} entry lacks {note:?}",
+                spec.id
+            );
+            assert!(
+                register.contains(note),
+                "the register doesn't record {note:?}"
+            );
+        }
         let terms = spec
             .terms
             .unwrap_or_else(|| panic!("{} names no terms", spec.id));

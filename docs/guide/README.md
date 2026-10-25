@@ -16,8 +16,9 @@
   left shows, places, Go to it, View, Last messages, and Settings › Desktop
   apps.
 - [Sessions and the terminal](sessions-and-the-terminal.md): your
-  sessions, starting one, and the terminal's tools: Find, links, text size,
-  Maximize and its own window.
+  sessions, starting one, the terminal's tools (Find, links, text size,
+  Maximize and its own window), how a session runs, and answering its
+  questions from AI Juggler.
 - [Accounts and profiles](accounts.md): accounts are your subscriptions,
   profiles are the setups your apps run on; adding a profile, starting it
   with your usual settings, the default profile and launch settings.

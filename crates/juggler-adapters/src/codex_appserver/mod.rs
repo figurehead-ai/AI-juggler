@@ -145,6 +145,13 @@ impl DrivenRuntime for CodexAdapter {
         true
     }
 
+    /// Codex's app-server page (research §2.2, checked 2026-10-25).
+    fn terms_note(&self) -> Option<&'static str> {
+        Some(
+            "Its sessions run through your own Codex's app-server, with your own sign-in: OpenAI lets a local or open-source app do that, never a commercial or hosted service.",
+        )
+    }
+
     fn unavailable(&self) -> Option<String> {
         self.driven_check()
     }

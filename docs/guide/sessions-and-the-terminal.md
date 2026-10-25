@@ -38,7 +38,8 @@ Juggler**. To carry one to another account or tool, see
 
 ## The terminal
 
-A session AI Juggler started runs in a terminal inside its page. The strip
+A session AI Juggler started in a terminal shows it inside its page (how
+else a session can run is [below](#how-a-session-runs)). The strip
 above it says whether it's **Live**, **Reconnecting** (while it catches up
 after the window reopens) or **Ended**, and holds its tools. Each tool's key
 is in its tooltip, and the **?** sheet lists them all.
@@ -66,3 +67,71 @@ is in its tooltip, and the **?** sheet lists them all.
 
 Keeping sessions going when they crash or the Mac would sleep is in
 [Keep work going](keep-work-going.md).
+
+## How a session runs
+
+A session AI Juggler starts runs one of two ways, and its page says which:
+
+- **In a terminal**, the tool's own screen, as when you run it yourself.
+  This is how Claude Code and the other tools run.
+- **Through the tool's own app-server**, with no terminal. This is how a
+  Codex session runs by default. The page shows the conversation as it goes,
+  the session's state, and its usage limits as Codex reports them. A box at
+  the bottom sends a message, or adds to what it's doing while a turn runs.
+
+Either way it's your own installed tool, unmodified, signed in as you signed
+it in. AI Juggler doesn't talk to OpenAI or Anthropic itself.
+
+**Open in terminal** (on a Codex session's page) waits for the turn to end,
+then continues the same conversation in Codex's own terminal. A Codex
+session that can't run through its app-server, for example with a Codex
+version AI Juggler doesn't know yet, starts in a terminal instead, and its
+page says why.
+
+To choose per profile, go to Settings › Sessions › **How sessions run**: a
+profile can always start in a terminal. **New session** has **How it runs**
+for just that session.
+
+A Claude Code session in a terminal still tells AI Juggler exactly what it's
+doing (working, waiting for you, asking a question) through Claude Code's
+own hooks. They're added to that launch only, in AI Juggler's folder, and
+never written into your profile.
+
+## Answering a session's questions
+
+When a session asks something, it's on top under **Needs you**, on Home and
+on its page:
+
+- **The tool's own choices**, in its words: for example **Allow once**,
+  **Always allow `npm test`** or **Deny**. "Always allow" is the tool's own
+  rule, which the tool keeps. Take it back in the tool.
+- **A question** shows its choices, and a box for your own answer.
+- **Keys:** 1 to 9 answer with that choice, and Enter with the first.
+- Several open questions are listed together, each with its session.
+
+Nothing is answered until you click. AI Juggler never answers by itself, on
+a timer or by default. The answer goes to the tool, and the account's log
+records it. A Claude Code session in a terminal is answered in its terminal:
+**Go to it**.
+
+### Claude Code without a terminal (Beta)
+
+Settings › Sessions › **Run without a terminal (Beta)** lets you start a
+Claude Code session with no terminal, its questions and approvals answered
+here. It's off by default. Once it's on, pick **Run without a terminal:
+answer from AI Juggler (Beta)** under **How it runs** when you start a
+session. The terminal stays the default.
+
+It runs your own Claude Code with your own sign-in, which Anthropic's terms
+allow, but Anthropic may count it as Agent SDK use rather than ordinary
+Claude Code use. **Open in terminal** hands the conversation back to Claude
+Code's terminal when a turn ends.
+
+It stays a Beta until all four of these hold:
+
+1. Anthropic's published terms, rechecked at each release, still allow it.
+2. Claude Code still signs in with your subscription when it runs this way.
+   Anthropic says a future version may stop reading it by default.
+3. A month of use on the developers' own lab accounts changed nothing in
+   how they're billed.
+4. The conversation view passes a walk by hand.

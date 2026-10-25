@@ -102,6 +102,14 @@ impl DrivenRuntime for ClaudeCodeAdapter {
         Maturity::Beta
     }
 
+    /// Anthropic's legal page and Help Center (research §2.1, checked
+    /// 2026-10-25).
+    fn terms_note(&self) -> Option<&'static str> {
+        Some(
+            "Its sessions run in their terminal. Run without a terminal (Beta) runs your own Claude Code with your own sign-in, which Anthropic's terms allow; Anthropic may count it as Agent SDK use.",
+        )
+    }
+
     fn unavailable(&self) -> Option<String> {
         let report = self.discover();
         let InstallStatus::Installed { version } = report.install else {

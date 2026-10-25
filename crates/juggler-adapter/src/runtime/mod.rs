@@ -192,6 +192,12 @@ pub trait DrivenRuntime: Send + Sync {
     /// Whether driven is settled or a Beta.
     fn maturity(&self) -> Maturity;
 
+    /// How a driven session of this tool stands under the tool's terms, in
+    /// one line for the Privacy page's terms section (D-40). Default: none.
+    fn terms_note(&self) -> Option<&'static str> {
+        None
+    }
+
     /// Whether its sessions take more input into a running turn
     /// ([`DrivenSession::steer`]). Default: no.
     fn steers(&self) -> bool {
