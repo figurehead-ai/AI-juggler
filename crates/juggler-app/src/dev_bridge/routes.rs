@@ -217,6 +217,7 @@ read_routes! {
     "quota_display_all" => async_result commands::quota_display_all(state);
     "quota_capture_status" => async_result features::quota::capture::quota_capture_status(state; account_id: String);
     "quota_capture_preview" => async_result features::quota::capture::quota_capture_preview(state; account_id: String);
+    "quota_probe_status" => async_result features::quota::probe::quota_probe_status(state; account_id: String);
     "cost_rollups" => async_result commands::cost_rollups(state; account: Option<String>);
     "cost_rows_page" => async_result commands::cost_rows_page(state; account: Option<String>, page: crate::paging::PageRequest);
     "pricing_catalog_info" => async_result commands::pricing_catalog_info(state);

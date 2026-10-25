@@ -56,11 +56,7 @@ pub struct Tails {
 impl Tails {
     /// What `path`'s tail says, and when the file last changed; read
     /// again only when its size or time changed.
-    fn read(
-        &mut self,
-        path: &Path,
-        read: impl FnOnce(&str) -> Said,
-    ) -> (Said, Option<SystemTime>) {
+    fn read(&mut self, path: &Path, read: impl FnOnce(&str) -> Said) -> (Said, Option<SystemTime>) {
         let Ok(meta) = std::fs::metadata(path) else {
             self.files.remove(path);
             return (Said::default(), None);

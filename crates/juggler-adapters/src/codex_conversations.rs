@@ -156,7 +156,9 @@ impl Summary {
             self.started_ms = Some(self.started_ms.map_or(at, |first| first.min(at)));
             self.last_ms = Some(self.last_ms.map_or(at, |last| last.max(at)));
         }
-        if value.pointer("/payload/type").and_then(serde_json::Value::as_str)
+        if value
+            .pointer("/payload/type")
+            .and_then(serde_json::Value::as_str)
             == Some("thread_goal_updated")
         {
             let objective = value
@@ -390,7 +392,9 @@ mod tests {
             )
         };
         let agents = user("# AGENTS.md instructions for /w/shop");
-        let block = user("<external_codex_apps_operation>{\"op\":\"goal\"}</external_codex_apps_operation>");
+        let block = user(
+            "<external_codex_apps_operation>{\"op\":\"goal\"}</external_codex_apps_operation>",
+        );
         let ask = user("Speed up checkout. It takes 4 s.");
         let goal = |objective: &str| {
             format!(
@@ -399,9 +403,12 @@ mod tests {
             )
         };
         let title = |lines: &[&str]| {
-            summary_of(format!("{}\n", lines.join("\n")).as_bytes(), "rollout-a.jsonl")
-                .unwrap()
-                .title
+            summary_of(
+                format!("{}\n", lines.join("\n")).as_bytes(),
+                "rollout-a.jsonl",
+            )
+            .unwrap()
+            .title
         };
         // The first thing typed, to its first sentence.
         assert_eq!(

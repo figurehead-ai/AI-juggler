@@ -155,7 +155,10 @@ mod tests {
             title("Fix the cart total. Then run the tests.\nMore").as_deref(),
             Some("Fix the cart total.")
         );
-        assert_eq!(title("  \n  v1.2 is out, ship it").as_deref(), Some("v1.2 is out, ship it"));
+        assert_eq!(
+            title("  \n  v1.2 is out, ship it").as_deref(),
+            Some("v1.2 is out, ship it")
+        );
         assert_eq!(title("Why? Because").as_deref(), Some("Why?"));
         let long = "word ".repeat(40);
         assert_eq!(title(&long).unwrap().chars().count(), TITLE_MAX + 1);
