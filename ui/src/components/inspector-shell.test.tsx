@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import type {
@@ -156,13 +156,17 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     expect(openProject).toHaveBeenCalledWith("proj-1");
   });
 
-  it("a project's Usage tab appears once something is measured, by account", () => {
+  it("a project's Usage tab appears once something is measured: its dashboard, scoped to it", async () => {
     const measured = { ...instance, tokens: { input: 1200, output: 300, cache_read: 5000, cache_write: 0, reasoning: 0 } };
     const { container, getByTestId } = render(
       <RightInspector selection={{ kind: "project", id: "proj-1" }} data={{ project, machineId: "this-mac" }} {...props} sessions={[measured]} />,
     );
     fireEvent.click(container.querySelector("#page-tab-usage")!);
-    expect(getByTestId("project-usage-total").textContent).toBe("2k");
+    const dashboard = getByTestId("project-usage-dashboard");
+    // The frame draws at once: four figures, the charts' cards.
+    expect(within(dashboard).getAllByTestId("stat-value").length).toBe(4);
+    expect(within(dashboard).getByTestId("usage-over-time")).toBeTruthy();
+    await waitFor(() => expect(within(dashboard).getByTestId("tile-tokens").textContent).not.toContain("—"));
   });
 
   it("a project's header reads its root's git state: branch, ahead/behind, not committed", async () => {
