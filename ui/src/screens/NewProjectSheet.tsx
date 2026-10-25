@@ -213,7 +213,7 @@ export function NewProjectSheet({
           }}
         >
           {/* Step 1 — where */}
-          <p className="text-label uppercase tracking-wider text-muted">
+          <p className="text-section font-semibold text-ink">
             Step 1 — where do you want to work?
           </p>
           <div
@@ -273,7 +273,7 @@ export function NewProjectSheet({
           {/* Step 2 — who (appears once a directory is chosen) */}
           {directory !== null && (
             <>
-              <p className="mt-5 text-label uppercase tracking-wider text-muted">
+              <p className="mt-5 text-section font-semibold text-ink">
                 Step 2 — which account?
               </p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">

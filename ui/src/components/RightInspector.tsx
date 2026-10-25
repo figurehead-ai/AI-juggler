@@ -755,7 +755,7 @@ function InstanceOverview(props: PanelProps) {
           className="group flex flex-col gap-2"
           data-testid="handover-section"
         >
-          <summary className="cursor-pointer list-none text-label uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+          <summary className="cursor-pointer list-none text-section font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
             <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
             Continue on another account
           </summary>
@@ -831,7 +831,7 @@ function InstanceOverview(props: PanelProps) {
           )}
           {remoteTargets.length > 0 && (
             <>
-              <p className="mt-1 text-label uppercase tracking-wider text-muted">
+              <p className="mt-1 text-section font-semibold text-ink">
                 Continue on another machine
               </p>
               <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
@@ -881,7 +881,7 @@ function InstanceOverview(props: PanelProps) {
         <p className="font-mono text-label text-muted">{project.root}</p>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <Card className="flex flex-col gap-3 p-4">
-            <p className="text-label uppercase tracking-wider text-muted">On it now</p>
+            <p className="text-section font-semibold text-ink">On it now</p>
             {project.active_instance ? (
               <button
                 type="button"
@@ -900,7 +900,7 @@ function InstanceOverview(props: PanelProps) {
             ) : (
               <p className="text-xs text-muted">No live session — free to juggle.</p>
             )}
-            <p className="mt-2 text-label uppercase tracking-wider text-muted">
+            <p className="mt-2 text-section font-semibold text-ink">
               Launch with another account
             </p>
             <div className="flex flex-col gap-1.5">
@@ -933,7 +933,7 @@ function InstanceOverview(props: PanelProps) {
             </div>
           </Card>
           <Card className="flex flex-col gap-2 p-4">
-            <p className="text-label uppercase tracking-wider text-muted">Sessions in this project</p>
+            <p className="text-section font-semibold text-ink">Sessions in this project</p>
             {history.length === 0 ? (
               <p className="text-xs text-muted">Nothing recorded yet.</p>
             ) : (
@@ -963,7 +963,7 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-label uppercase tracking-wider text-muted">Account</p>
+          <p className="text-section font-semibold text-ink">Account</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
             <span>
               tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
@@ -977,7 +977,7 @@ function InstanceOverview(props: PanelProps) {
           </div>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-label uppercase tracking-wider text-muted">Sessions on this account</p>
+          <p className="text-section font-semibold text-ink">Sessions on this account</p>
           {rows.length === 0 ? (
             <p className="text-xs text-muted">No sessions recorded yet.</p>
           ) : (
@@ -1003,7 +1003,7 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-label uppercase tracking-wider text-muted">Tool</p>
+          <p className="text-section font-semibold text-ink">Tool</p>
           <p className="font-mono text-meta">{data.provider.id}</p>
           <p className="text-meta text-muted">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
@@ -1011,7 +1011,7 @@ function InstanceOverview(props: PanelProps) {
           </p>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-label uppercase tracking-wider text-muted">Accounts</p>
+          <p className="text-section font-semibold text-ink">Accounts</p>
           {providerAccounts.map((account) => (
             <p key={account.id} className="flex items-center gap-2 py-1 text-xs">
               <span className="min-w-0 flex-1 truncate font-medium">{account.label}</span>
@@ -1074,7 +1074,7 @@ function InstanceUsage(props: PanelProps) {
   return (
     <div className="flex flex-col gap-3" data-testid="instance-usage">
       <Card className="flex flex-col gap-2 p-4">
-        <p className="text-label uppercase tracking-wider text-muted">Token breakdown</p>
+        <p className="text-section font-semibold text-ink">Token breakdown</p>
         {tokens ? (
           <table className="w-full max-w-sm text-meta">
             <tbody className="[&_td]:py-0.5">
@@ -1093,7 +1093,7 @@ function InstanceUsage(props: PanelProps) {
         </span>
       </Card>
       <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-label uppercase tracking-wider text-muted">This account's limits</p>
+        <p className="text-section font-semibold text-ink">This account's limits</p>
         {/* AJ-E610: the account's windows + the SEPARATE subscription
             clock (a calendar line — never merged with the rings) and
             the forecast pill. */}
@@ -1226,7 +1226,7 @@ function ProviderOverview(props: PanelProps) {
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-label uppercase tracking-wider text-muted">Runway, least left first</p>
+        <p className="text-section font-semibold text-ink">Runway, least left first</p>
         {perAccount.length === 0 ? (
           <p className="text-meta text-muted">No accounts for this tool yet.</p>
         ) : (
@@ -1260,7 +1260,7 @@ const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="rounded border border-hairline px-1 text-label font-medium uppercase tracking-wide text-muted">
+      <span className="rounded border border-hairline px-1 text-section font-semibold text-ink">
         {tier}
       </span>
       <span className="text-label font-normal normal-case tracking-normal text-muted" data-testid="tier-words">
@@ -1456,7 +1456,7 @@ function QualityTab(props: PanelProps) {
           </div>
           {signals.map((signal) => (
             <Card key={signal.testId} className="flex flex-col gap-1 p-3" data-testid={signal.testId}>
-              <p className="flex items-center gap-2 text-label uppercase tracking-wider text-muted">
+              <p className="flex items-center gap-2 text-section font-semibold text-ink">
                 {signal.label} <TierTag tier={signal.tier} />
               </p>
               {signal.body}
@@ -1683,7 +1683,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
       <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
         <table className="w-full min-w-[420px] text-left text-label">
           <thead>
-            <tr className="text-label uppercase tracking-wider text-muted">
+            <tr className="text-section font-semibold text-ink">
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
@@ -1728,7 +1728,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
 
       {!readOnly && (
         <Card className="flex flex-col gap-2 p-3" data-testid="processes-orphans">
-          <p className="text-label uppercase tracking-wider text-muted" data-testid="orphans-heading">
+          <p className="text-section font-semibold text-ink" data-testid="orphans-heading">
             {orphans.length > 0 ? `Orphaned - left behind (${orphans.length})` : "No orphaned processes"}
           </p>
           {orphans.length === 0 ? (

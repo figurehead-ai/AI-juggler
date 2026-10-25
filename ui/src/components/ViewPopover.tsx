@@ -63,7 +63,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const legend = "px-0.5 pb-1 text-label font-semibold uppercase tracking-[0.08em] text-muted";
+  const legend = "px-0.5 pb-1 text-label font-semibold text-muted";
   return (
     <>
       <button

@@ -86,7 +86,7 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-capture">
-      <p className="text-label uppercase tracking-wider text-muted">Limits for terminal sessions</p>
+      <p className="text-section font-semibold text-ink">Limits for terminal sessions</p>
       {status.state === "on" ? (
         <p className="text-label text-ink" data-testid="account-capture-words">
           On: sessions you start with claude in a terminal report their limits to AI Juggler too. Your own status line

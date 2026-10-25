@@ -151,7 +151,7 @@ export function StatCard({
   return (
     <Card className="group p-4 flex flex-col gap-2 hover:-translate-y-0.5">
       <div className="flex items-center justify-between">
-        <span className="text-label uppercase tracking-[0.14em] text-muted">
+        <span className="text-label font-semibold text-muted">
           {label}
         </span>
         {icon && (

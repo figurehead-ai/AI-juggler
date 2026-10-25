@@ -369,7 +369,7 @@ export function SwitchGraph({
                 data-testid="switch-graph-node-menu"
                 className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
               >
-                <p className="text-label uppercase tracking-wider text-muted">
+                <p className="text-section font-semibold text-ink">
                   {openEpoch.account_label} · {providerMark(openEpoch.provider).abbrev}
                 </p>
                 <div className="flex flex-wrap gap-2">

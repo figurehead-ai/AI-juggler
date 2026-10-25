@@ -67,7 +67,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
           </p>
         </div>
         <fieldset className="flex flex-col gap-1.5" data-testid="pack-secrets-global">
-          <legend className="mb-1 text-label font-medium uppercase tracking-wider text-muted">
+          <legend className="mb-1 text-section font-semibold text-ink">
             Your choice (all tools)
           </legend>
           {global === null && (
@@ -105,7 +105,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
         </fieldset>
         {providers.length > 0 && (
           <div className="flex flex-col gap-1.5" data-testid="pack-secrets-overrides">
-            <p className="text-label font-medium uppercase tracking-wider text-muted">
+            <p className="text-section font-semibold text-ink">
               Per-tool choice
             </p>
             {providers.map((provider) => {

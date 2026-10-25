@@ -10,13 +10,11 @@ import { MARKS } from "../assets/third-party-marks";
 import { toolSpec } from "../lib/tools";
 import { Chip, type ChipTone } from "./primitives";
 
-/** The letter mark's letters: a two-word name's initials ("CC"), else its
- * first two letters ("Co"). */
+/** The letter mark's letter: the name's first, as an app's fallback
+ * (`appLetters`): one letter everywhere, never "CC" beside "C". */
 export function markLetters(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return `${words[0]![0]}${words[1]![0]}`.toUpperCase();
-  const word = words[0] ?? "?";
-  return `${word[0]!.toUpperCase()}${word.slice(1, 2).toLowerCase()}`;
+  const word = name.trim().split(/\s+/).filter(Boolean)[0] ?? "?";
+  return word[0]!.toUpperCase();
 }
 
 /** The registry entry a tool (or its company) draws, if it may be drawn. */
@@ -61,7 +59,7 @@ export function ToolMark({
   // The letters are drawn from `data-letters` by CSS, not written as text:
   // a picture beside the name, so they never count as the control's
   // visible label (WCAG 2.5.3) or as text of their own.
-  const style: CSSProperties = { width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.46)) };
+  const style: CSSProperties = { width: size, height: size, fontSize: Math.max(12, Math.round(size * 0.62)) };
   return (
     <span
       aria-hidden="true"
@@ -77,7 +75,7 @@ export function ToolMark({
 export function ToolChip({ tool, tone = "neutral" }: { tool: string; tone?: ChipTone }): JSX.Element {
   return (
     <Chip tone={tone}>
-      <ToolMark tool={tool} size={11} />
+      <ToolMark tool={tool} size={14} />
       {toolSpec(tool).display_name}
     </Chip>
   );

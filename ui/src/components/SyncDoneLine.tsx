@@ -10,7 +10,7 @@ import { switchSetupUndo } from "../lib/ipc/switchSetup";
 export type Done = { message: string; record: string | null };
 
 /** The sync sheet's section headings. */
-export const SYNC_HEADING = "text-label uppercase tracking-wider text-muted";
+export const SYNC_HEADING = "text-section font-semibold text-ink";
 
 /** What a change did, with its Undo. */
 export function DoneLine({ done, onUndone }: { done: Done; onUndone: () => void }) {

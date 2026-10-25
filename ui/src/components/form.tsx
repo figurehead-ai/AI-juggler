@@ -16,7 +16,7 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-label uppercase tracking-[0.14em] text-muted">
+      <span className="text-label font-semibold text-muted">
         {label}
       </span>
       {children}

@@ -264,7 +264,7 @@ export function NewSessionModal({
           <MachinePicker where={where} />
           <PackPicker pack={pack} />
           {/* Step 1 — where */}
-          <p className="text-label uppercase tracking-wider text-muted">
+          <p className="text-section font-semibold text-ink">
             Where do you want to work?
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -315,7 +315,7 @@ export function NewSessionModal({
 
           {/* Step 2 — who (AJ-E306 flow (e)): the recommended Launch
               settings preselected; the full list under Customise ▸. */}
-          <p className="mt-5 text-label uppercase tracking-wider text-muted">
+          <p className="mt-5 text-section font-semibold text-ink">
             {ranked.length > 0 && (
               <RankedRows
                 rows={ranked}

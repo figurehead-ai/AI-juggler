@@ -90,7 +90,7 @@ function RedactionBlock({
   if (redaction.effective === null) {
     return (
       <fieldset className="flex flex-col gap-1.5 rounded border border-warning/40 px-2 py-1.5" data-testid="switch-redaction-chooser">
-        <legend className="text-label uppercase tracking-wider text-warning">
+        <legend className="text-section font-semibold text-warning">
           Choose how secrets are handled in packs (required, once)
         </legend>
         {REDACTION_OPTIONS.map((option) => (
@@ -128,7 +128,7 @@ function RedactionBlock({
       </p>
       {redaction.effective === "ask" && (
         <fieldset className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5">
-          <legend className="text-label uppercase tracking-wider text-muted">
+          <legend className="text-section font-semibold text-ink">
             This switch
           </legend>
           <label className="flex items-center gap-2 text-xs">
@@ -153,7 +153,7 @@ function RedactionBlock({
       )}
       {showItems && items.length > 0 && (
         <div className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5" data-testid="switch-redaction-items">
-          <p className="text-label uppercase tracking-wider text-muted">
+          <p className="text-section font-semibold text-ink">
             Secrets detected — un-redact per item for this switch only
           </p>
           {items.map((item, index) => (
@@ -445,7 +445,7 @@ export function SwitchFlow({
               data-testid="switch-steps"
               aria-live="polite"
             >
-              <p className="text-label uppercase tracking-wider text-muted">
+              <p className="text-section font-semibold text-ink">
                 Step {step + 1} of {steps.length}: {steps[step]}
               </p>
               <ol className="flex flex-wrap gap-1">

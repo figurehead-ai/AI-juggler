@@ -29,7 +29,7 @@ export function SwitchFreezeChoice({
   }
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className="text-label uppercase tracking-wider text-muted">
+      <legend className="text-section font-semibold text-ink">
         {sourceLive ? "Freeze the source first" : "The source is at rest"}
       </legend>
       <label className="flex items-center gap-2 text-xs">

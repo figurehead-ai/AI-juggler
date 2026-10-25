@@ -314,7 +314,7 @@ export function toolRunning(toolId: string, sessions: InstanceInfo[], conversati
 /** A tool's facts: how many of its sessions run now. */
 function toolFacts(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): string {
   const running = toolRunning(toolId, sessions, conversations);
-  return running === 0 ? "Nothing running" : `${running} running`;
+  return running === 0 ? "Nothing working" : `${running} working`;
 }
 
 

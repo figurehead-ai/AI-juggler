@@ -344,7 +344,7 @@ export function SessionRow({
         )}
       </span>
       {session.kind === "desktop" && (
-        <span className="self-start text-label font-medium uppercase tracking-wide text-accent-hi">
+        <span className="self-start text-label font-semibold text-accent-hi">
           app
         </span>
       )}

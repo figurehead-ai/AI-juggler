@@ -46,7 +46,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-probe">
-      <p className="text-label uppercase tracking-wider text-muted">Ask Claude Code for its limits</p>
+      <p className="text-section font-semibold text-ink">Ask Claude Code for its limits</p>
       <p className="text-label text-muted" data-testid="account-probe-words">
         {status.state === "on"
           ? "On: when the Claude app's meter is older than 15 minutes and this profile is in use, AI Juggler runs Claude Code's own usage check here."

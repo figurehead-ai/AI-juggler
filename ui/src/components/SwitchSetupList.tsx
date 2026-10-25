@@ -141,7 +141,7 @@ export function SwitchSetupResults({
   };
   return (
     <section className="flex flex-col gap-1" data-testid="switch-setup-results">
-      <h4 className="text-label uppercase tracking-wider text-muted">Set up on {target}</h4>
+      <h4 className="text-section font-semibold text-ink">Set up on {target}</h4>
       <ul className="flex flex-col gap-1">
         {results.map((result) => {
           const record = result.record;

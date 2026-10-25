@@ -68,7 +68,7 @@ export function SubagentsSection({
   if (!info || info.items.length === 0) return null;
   return (
     <details className="group flex flex-col gap-2" data-testid="subagents-section">
-      <summary className="cursor-pointer list-none text-label uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+      <summary className="cursor-pointer list-none text-section font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
         <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
         Subagents <span className="normal-case tracking-normal text-muted">{subagentsSummary(info.items)}</span>
       </summary>

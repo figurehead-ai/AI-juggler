@@ -157,7 +157,7 @@ export function SwitchBackFlow({
             </p>
             {plan.returns.length > 1 && (
               <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-returns">
-                <legend className="text-label uppercase tracking-wider text-muted">Go back to</legend>
+                <legend className="text-section font-semibold text-ink">Go back to</legend>
                 {plan.returns.map((option) => (
                   <label key={option.epoch_id} className="flex items-center gap-2 text-xs">
                     <input
@@ -196,7 +196,7 @@ export function SwitchBackFlow({
 
             {plan.conflicts.length > 0 && (
               <div className="flex flex-col gap-2" data-testid="switch-back-conflicts">
-                <p className="text-label uppercase tracking-wider text-muted">
+                <p className="text-section font-semibold text-ink">
                   Conflicts — nothing merges silently
                 </p>
                 {plan.conflicts.map((conflict) => (
@@ -225,7 +225,7 @@ export function SwitchBackFlow({
 
             {plan.away_live && (
               <fieldset className="flex flex-col gap-1.5" data-testid="switch-back-freeze-or-fork">
-                <legend className="text-label uppercase tracking-wider text-muted">
+                <legend className="text-section font-semibold text-ink">
                   The away session is still running
                 </legend>
                 <label className="flex items-center gap-2 text-xs">

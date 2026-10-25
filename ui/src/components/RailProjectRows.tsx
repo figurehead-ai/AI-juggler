@@ -74,7 +74,7 @@ export function ProjectRow({
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className={"min-w-0 truncate text-meta font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
             {project.pinned && <PinMark />}
-            {project.missing && <span className="shrink-0 text-label font-medium uppercase tracking-wide text-muted">moved</span>}
+            {project.missing && <span className="shrink-0 text-label font-semibold text-muted">moved</span>}
             {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-label text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
           </span>
           {density === "comfortable" && stats.length > 0 && (

@@ -60,7 +60,7 @@ export function BetaMatrix(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-4" data-testid="beta-matrix">
       <div>
-        <p className="text-label uppercase tracking-wider text-muted">Proven switches</p>
+        <p className="text-section font-semibold text-ink">Proven switches</p>
         <p className="mt-1 text-xs text-muted" data-testid="beta-matrix-summary">
           {proven === 0
             ? `None of the ${rows.length} switches is proven yet; all are in beta. `

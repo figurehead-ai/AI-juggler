@@ -247,7 +247,7 @@ export function GoToPalette({
               {/* Section names, when there's more than one kind of row:
                   the options name themselves, so these are for the eye. */}
               {sectioned && sectionOf(entry) !== (index > 0 ? sectionOf(rows[index - 1]!) : null) && (
-                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-label font-medium uppercase tracking-wide text-muted first:pt-0.5">
+                <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-label font-semibold text-muted first:pt-0.5">
                   {entry.where === "action" ? `Actions for ${selected?.heading ?? ""}` : sectionOf(entry)}
                 </li>
               )}

@@ -630,7 +630,7 @@ function Verify({
         <span className="font-medium text-ink">{state.peer_label}</span> under This Mac.
       </p>
       <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-canvas p-3">
-        <p className="text-label uppercase tracking-wider text-muted">The other machine</p>
+        <p className="text-section font-semibold text-ink">The other machine</p>
         <p className="text-sm font-semibold" data-testid="pairing-peer-label">
           {state.peer_label}
         </p>

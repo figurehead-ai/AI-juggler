@@ -103,7 +103,7 @@ export function MoreMenu<Id extends string>({
           ))}
           {tools.length > 0 && (
             <>
-              <p className="mt-1 border-t border-hairline px-3 pb-1 pt-2 text-label font-medium uppercase tracking-wider text-muted">Tools</p>
+              <p className="mt-1 border-t border-hairline px-3 pb-1 pt-2 text-label font-semibold text-muted">Tools</p>
               {tools.map((tool) => (
                 <button
                   key={tool.id}

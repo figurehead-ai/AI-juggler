@@ -173,7 +173,7 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
   it("names the tool, not its id, and the state in the rail's words", () => {
     const { container } = shell(mk({ status: "quota_blocked" }));
     expect(container.textContent).not.toContain("claude-code");
-    expect(container.textContent).toContain("Hit its limit");
+    expect(container.textContent).toContain("Limit reached");
     expect(container.textContent).not.toContain("quota_blocked");
   });
 });

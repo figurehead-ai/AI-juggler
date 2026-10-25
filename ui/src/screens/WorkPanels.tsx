@@ -143,7 +143,7 @@ export function SessionPanel({
 
       {!isLoginTerminal && session && (
         <div className="flex flex-col gap-2">
-          <p className="text-label uppercase tracking-wider text-muted">
+          <p className="text-section font-semibold text-ink">
             Continue on another account
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -239,7 +239,7 @@ export function NewSessionModal({
           it at a directory to make (or reuse) a project.
         </p>
 
-        <label className="mt-4 block text-label uppercase tracking-wider text-muted">
+        <label className="mt-4 block text-section font-semibold text-ink">
           Directory (optional)
           <input
             value={directory}

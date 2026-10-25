@@ -26,7 +26,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
       <div className="grid max-h-[60vh] gap-x-8 gap-y-5 overflow-y-auto pr-1 sm:grid-cols-2" tabIndex={0} aria-label="Shortcuts by area">
         {SHORTCUT_AREAS.map((area) => (
           <section key={area} aria-labelledby={`shortcuts-${area}`} className="flex flex-col gap-1.5">
-            <h3 id={`shortcuts-${area}`} className="text-label font-medium uppercase tracking-[0.08em] text-muted">
+            <h3 id={`shortcuts-${area}`} className="text-label font-semibold text-muted">
               {area}
             </h3>
             <ul className="flex flex-col">

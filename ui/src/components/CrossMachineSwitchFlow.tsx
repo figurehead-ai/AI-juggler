@@ -151,7 +151,7 @@ export function CrossMachineSwitchFlow({
         {phase.kind === "wizard" && (
           <>
             <div className="flex flex-col gap-1" aria-live="polite" data-testid="cross-switch-steps">
-              <p className="text-label uppercase tracking-wider text-muted">
+              <p className="text-section font-semibold text-ink">
                 Step {step + 1} of {steps.length}: {current}
               </p>
               <ol className="flex flex-wrap gap-1">

@@ -114,7 +114,7 @@ export function RowMenu({
       style={style}
       className="fixed z-50 flex max-h-[calc(100vh-8px)] w-64 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
     >
-      <span className="truncate px-2 pb-1 pt-0.5 text-label font-medium uppercase tracking-wide text-muted">{heading}</span>
+      <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>
       {children}
     </div>,
     document.body,

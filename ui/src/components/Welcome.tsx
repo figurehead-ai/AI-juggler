@@ -120,7 +120,7 @@ export function Welcome({
       <SmootherCard variant="welcome" />
 
       <section aria-labelledby="welcome-what" className="flex flex-col gap-3">
-        <h2 id="welcome-what" className="text-label font-semibold uppercase tracking-wider text-muted">
+        <h2 id="welcome-what" className="text-section font-semibold text-ink">
           What it does for you
         </h2>
         <ul className="grid gap-2.5 sm:grid-cols-2">

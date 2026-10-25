@@ -98,7 +98,7 @@ export function MorningSummary({ onOpenSession }: { onOpenSession: (id: string) 
         if (rows.length === 0) return null;
         return (
           <div key={group.id} className="flex flex-col gap-1">
-            <p className="text-label font-medium uppercase tracking-wider text-muted">
+            <p className="text-section font-semibold text-ink">
               <span aria-hidden="true">{group.icon} </span>
               {group.title} ({rows.length})
             </p>

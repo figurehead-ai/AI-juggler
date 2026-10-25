@@ -138,7 +138,7 @@ describe("AJ-E403 density field presence per mode", () => {
       <SessionRow session={mk()} selected={false} onSelect={() => {}} freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
     const text = container.textContent ?? "";
-    for (const field of ["Claude", "opus", "Running", "% left", "15.0k tokens", "main", "12% · 1.0 GB"]) {
+    for (const field of ["Claude", "opus", "Working", "% left", "15.0k tokens", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
     expect(container.querySelector("svg polyline")).not.toBeNull(); // sparkline
@@ -152,7 +152,7 @@ describe("AJ-E403 density field presence per mode", () => {
     const shown = container.cloneNode(true) as HTMLElement;
     shown.querySelectorAll("[hidden], .sr-only").forEach((node) => node.remove());
     const text = shown.textContent ?? "";
-    for (const field of ["Claude", "Running", "main", "12% · 1.0 GB"]) {
+    for (const field of ["Claude", "Working", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
     // I-05 bar-only: the bar renders (title carries semantics), the
@@ -167,7 +167,7 @@ describe("AJ-E403 density field presence per mode", () => {
     const { container } = render(
       <SessionRow session={waiting} selected={false} onSelect={() => {}} density="compact" freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
-    expect(container.textContent).toContain("Needs you");
+    expect(container.textContent).toContain("Asks you");
   });
 
   it("Minimal shows disc + state glyph + ! badge and keeps the full text in its name and description", () => {

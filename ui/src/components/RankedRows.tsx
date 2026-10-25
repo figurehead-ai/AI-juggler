@@ -38,7 +38,7 @@ export function RankedRows({
   return (
     <div className="flex flex-col gap-1.5" data-testid="ranked-rows">
       <div className="flex items-center justify-between">
-        <p className="text-label uppercase tracking-wider text-muted">Ranked for you</p>
+        <p className="text-section font-semibold text-ink">Ranked for you</p>
         <button
           type="button"
           aria-expanded={whyOpen}

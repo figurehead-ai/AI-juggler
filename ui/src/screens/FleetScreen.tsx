@@ -466,7 +466,7 @@ function ThisMacCard({
     <Card className="flex flex-col gap-4 p-5" data-testid="fleet-this-mac">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-label uppercase tracking-wider text-muted">This Mac</p>
+          <p className="text-section font-semibold text-ink">This Mac</p>
           {editing ? (
             <form
               className="mt-1 flex flex-wrap items-center gap-2"

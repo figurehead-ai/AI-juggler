@@ -49,23 +49,23 @@ export function stateChip(status: string): {
 } {
   switch (status) {
     case "starting":
-      return { label: "Starting", Icon: IconStateStarting, tone: "accent" };
+      return { label: "Working", Icon: IconStateStarting, tone: "accent" };
     case "running":
-      return { label: "Running", Icon: IconStateRunning, tone: "live" };
+      return { label: "Working", Icon: IconStateRunning, tone: "live" };
     case "waiting_user":
-      return { label: "Needs you", Icon: IconStateWaiting, tone: "warning" };
+      return { label: "Asks you", Icon: IconStateWaiting, tone: "warning" };
     case "stuck":
-      return { label: "Stuck?", Icon: IconStateStuck, tone: "warning" };
+      return { label: "Probably stuck", Icon: IconStateStuck, tone: "warning" };
     case "quota_blocked":
-      return { label: "Quota blocked", Icon: IconStateQuota, tone: "danger" };
+      return { label: "Limit reached", Icon: IconStateQuota, tone: "danger" };
     case "finished":
-      return { label: "Finished", Icon: IconStateFinished, tone: "success" };
+      return { label: "Ended", Icon: IconStateFinished, tone: "neutral" };
     case "stopped":
-      return { label: "Stopped", Icon: IconStateStopped, tone: "neutral" };
+      return { label: "Ended", Icon: IconStateStopped, tone: "neutral" };
     case "failed":
-      return { label: "Failed", Icon: IconStateFailed, tone: "danger" };
+      return { label: "Stopped with an error", Icon: IconStateFailed, tone: "danger" };
     case "handed_over":
-      return { label: "Handed over", Icon: IconStateHandover, tone: "accent" };
+      return { label: "Ended", Icon: IconStateHandover, tone: "neutral" };
     // Unknown wire value → `Unknown` chip, never a neutral dot.
     default:
       return { label: "Unknown", Icon: IconStateUnknown, tone: "neutral" };
@@ -152,20 +152,20 @@ export function waitingFor(
  * I-10 needs-attention badge. For the attention states the badge IS the
  * line-1 state indicator (icon + text + colour — the chip contract still
  * holds); `null` renders the plain I-04 chip instead. Exact copy:
- * `Needs you`, `Stuck?`, `Quota blocked`.
+ * the rail's words: `Asks you`, `Probably stuck`, `Limit reached`.
  */
 export function attentionBadge(
   session: InstanceInfo,
 ): { text: string; tone: StateChipTone } | null {
   switch (session.needs_attention) {
     case "waiting_user":
-      return { text: "Needs you", tone: "warning" };
+      return { text: "Asks you", tone: "warning" };
     case "stuck":
-      return { text: "Stuck?", tone: "warning" };
+      return { text: "Probably stuck", tone: "warning" };
     case "quota_blocked":
-      return { text: "Quota blocked", tone: "danger" };
+      return { text: "Limit reached", tone: "danger" };
     case "failed":
-      return { text: "Failed", tone: "danger" };
+      return { text: "Stopped with an error", tone: "danger" };
     default:
       return null;
   }
@@ -317,15 +317,17 @@ export function StaleChip({ caption }: { caption: string | null }) {
  * detail (its page's header). Rows and the legend use the rail's states
  * (AJ-E2104 Req.3: `stateWord` in lib/rail-items). */
 export const STATE_WORDS: Record<string, string> = {
-  starting: "Starting",
-  running: "Running",
-  waiting_user: "Waiting for you",
-  stuck: "Looks stuck",
-  quota_blocked: "Hit its limit",
-  finished: "Done",
-  stopped: "Stopped",
-  failed: "Failed",
-  handed_over: "Handed over",
+  // The rail's words (`statusState`), never "Running" here and "Working"
+  // there (the review of 0.1.4).
+  starting: "Working",
+  running: "Working",
+  waiting_user: "Asks you",
+  stuck: "Probably stuck",
+  quota_blocked: "Limit reached",
+  finished: "Ended",
+  stopped: "Ended",
+  failed: "Stopped with an error",
+  handed_over: "Ended",
 };
 
 /** The rail's states, in its words and colours (AJ-E2104 Req.3). */
