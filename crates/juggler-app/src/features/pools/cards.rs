@@ -3,7 +3,8 @@
 //! says "Unavailable" and why, never a guess).
 //!
 //! - Name, place, tool, state and last activity: the read model (the
-//!   sessions list, without any account).
+//!   sessions list, without any account). The place is the rows' place
+//!   line (D-36): project · app · profile.
 //! - The files changed most recently and the step the session's own task
 //!   list has in progress: read from each live session's transcript on
 //!   the read model's 2 s tick, only what was appended since the last
@@ -11,9 +12,9 @@
 //!   that ended keeps what was read while it ran, until AI Juggler quits.
 //! - The task it claimed: tasks are E19, so it's unavailable here.
 //!
-//! Of the account, a card carries only its label, never an email, a plan
-//! or any other detail (D-33): it is what an agent will be shown
-//! (AJ-E1704). Nothing here starts, stops or types into a session.
+//! Of the account, a card carries only its profile's label (D-35), never
+//! an email, a plan or any other detail (D-33): it is what an agent will
+//! be shown (AJ-E1704). Nothing here starts, stops or types into a session.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,6 +29,8 @@ use crate::error::{AppError, AppResult};
 use crate::features::sessions::dto::InstanceInfo;
 use crate::state::AppState;
 
+/// The app AI Juggler's own sessions run in, as the rail names it.
+const OWN_APP: &str = "AI Juggler";
 /// Why a card's activity isn't known.
 const NOT_READ: &str = "read only while it runs in AI Juggler";
 /// Why a card's task isn't known.
@@ -157,7 +160,8 @@ fn role_rank(role: &str) -> u8 {
 }
 
 /// One card from a session's row and what its transcript said. Of the
-/// row's account only the label goes in, and not when it is an email.
+/// row's account only its profile's label goes in, and not when it is an
+/// email: in the place line and as the card's account.
 fn card_of(
     state: &Arc<AppState>,
     row: &InstanceInfo,
@@ -185,10 +189,15 @@ fn card_of(
         .and_then(|id| projects.get(id))
         .cloned()
         .unwrap_or(folder);
-    let place = match &row.git_branch {
-        Some(branch) => format!("{project} · {branch}"),
-        None => project,
-    };
+    let profile = Some(row.account_label.trim())
+        .filter(|label| !label.is_empty() && !label.contains('@'))
+        .map(str::to_owned);
+    // D-36: the rows' place line, project · app · profile.
+    let place = [Some(project.as_str()), Some(OWN_APP), profile.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" · ");
     let (said, files, files_unavailable) = match activity {
         Some(log) => (
             match log.step() {
@@ -212,9 +221,7 @@ fn card_of(
         name,
         place,
         tool: crate::features::tools::display_name(&state.registry, &row.provider),
-        account: Some(row.account_label.trim())
-            .filter(|label| !label.is_empty() && !label.contains('@'))
-            .map(str::to_owned),
+        account: profile,
         state: row.status.clone(),
         role,
         task: CardField::unavailable(NO_TASKS),

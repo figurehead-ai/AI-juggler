@@ -4,14 +4,15 @@ import type { InstanceInfo } from "../lib/bridge";
 import type { CardField, ContextCard } from "../lib/ipc/pools";
 import { roleLabel } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
-import { stateChip } from "./indicator";
+import { sessionState, statusState, STATE_TONE } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
 
 /**
- * AJ-E1703: a pool's context cards, as rows like Home's — name, place,
- * state, tool and last activity — with the rest behind each row's
+ * AJ-E1703: a pool's context cards, as rows like Home's — name, place
+ * (project · app · profile), state in the rail's one vocabulary (AJ-E2104),
+ * tool and last activity — with the rest behind each row's
  * disclosure: its role, what it says it's doing (marked as its own
  * words), its task and the files it changed. A field AI Juggler doesn't
  * know says "Unavailable" and why (D-06).
@@ -36,7 +37,8 @@ export function PoolCardRows({ cards, sessions, now }: { cards: ContextCard[]; s
 function CardRow({ card, session, now }: { card: ContextCard; session: InstanceInfo | undefined; now: number }): JSX.Element {
   const host = useActionHost();
   const [open, setOpen] = useState(false);
-  const state = stateChip(card.state);
+  // The rail's words and dot (Asks you, Working, Idle, Ended).
+  const said = session ? sessionState(session) : { ...statusState(card.state), tone: STATE_TONE[statusState(card.state).state].text };
   const detailId = `pool-card-${card.session_id}`;
   return (
     <li data-home-item className="border-t border-hairline/60 first:border-t-0" data-testid="pool-card">
@@ -47,19 +49,26 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
           className="flex min-w-0 flex-1 items-center gap-3.5 px-4 py-2.5 text-left outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60"
           onClick={() => host.openSessionById?.(card.session_id)}
         >
-          <state.Icon aria-hidden="true" width={13} height={13} className="shrink-0 text-muted" />
-          <span className="sr-only">{state.label}: </span>
+          <span
+            aria-hidden="true"
+            data-state-dot={said.state}
+            className={"size-2 shrink-0 rounded-full " + STATE_TONE[said.state].dot + (said.state === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
+          />
           <ProjectMark projectId={session?.project_id ?? null} size={16} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm text-ink">{card.name}</span>
+            <span className="truncate text-sm text-ink">
+              {card.name}
+              <span className="text-faint">
+                {" "}
+                · <span className={said.tone} data-testid="pool-card-state">{said.word}</span>
+              </span>
+            </span>
             <span className="truncate text-xs text-faint">{card.place}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
             {session && <ToolMark tool={session.provider} size={12} className="shrink-0" />}
-            <span>
-              {card.tool}
-              {card.account ? ` · ${card.account}` : ""}
-            </span>
+            {/* The place line names the profile; the tool stands alone here. */}
+            <span>{card.tool}</span>
           </span>
           {card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-[10.5px] text-accent-hi">Lead</span>}
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">

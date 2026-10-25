@@ -12,7 +12,8 @@
  * - Agent access: the level picker, Custom's actions (never delivery),
  *   the hop limit and stop-all, rules taken back; Settings lists every
  *   pool.
- * - Cards: rows like Home's, the rest behind a disclosure; unknown fields
+ * - Cards: rows like Home's (the rows' place line, the rail's state
+ *   words), the rest behind a disclosure; unknown fields
  *   say Unavailable; the agent's words are marked as its own.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
@@ -24,6 +25,7 @@ import { openPoolSheet, refreshPools, resetPools } from "../lib/pools";
 import { ConversationsProvider } from "../lib/conversations";
 import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { ActionHostProvider } from "./ItemMenu";
+import { sessionState } from "../lib/rail-items";
 import { PoolAccessPanel } from "./PoolAccess";
 import { AgentAccessCard } from "../screens/settings/AgentAccessPane";
 import { PoolCardRows } from "./PoolCards";
@@ -254,7 +256,7 @@ describe("context cards", () => {
   const card = (over: Partial<ContextCard>): ContextCard => ({
     session_id: first.id,
     name: "Split checkout",
-    place: "shop · feature/steps",
+    place: "shop · AI Juggler · Work Max",
     tool: "Claude Code",
     account: "Work Max",
     state: "running",
@@ -270,7 +272,11 @@ describe("context cards", () => {
   it("shows a row like Home's, and the rest behind its disclosure", () => {
     const { getByTestId, getByLabelText } = render(<PoolCardRows cards={[card({})]} sessions={MOCK_SESSIONS} now={Date.now()} />);
     expect(getByTestId("pool-card").textContent).toContain("Split checkout");
-    expect(getByTestId("pool-card").textContent).toContain("Claude Code · Work Max");
+    // D-36: the rows' place line; the tool beside it (the line names the profile).
+    expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
+    expect(getByTestId("pool-card").textContent).toContain("Claude Code");
+    // AJ-E2104: the rail's one state vocabulary.
+    expect(getByTestId("pool-card-state").textContent).toBe(sessionState(first).word);
     const more = getByLabelText("Show what Split checkout is doing");
     expect(more.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(more);

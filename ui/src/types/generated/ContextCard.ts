@@ -17,7 +17,8 @@ session_id: string,
  */
 name: string, 
 /**
- * Where it works: its project (and branch), else its folder's name.
+ * Where it works, as the rows say it (D-36): project · app ·
+ * profile, its folder's name standing in for a project.
  */
 place: string, 
 /**
@@ -25,9 +26,9 @@ place: string,
  */
 tool: string, 
 /**
- * D-33: the account's label (the user's name for it, "Work Max"),
- * never an email, a plan or any other account detail; `None` when
- * the label is an email address.
+ * D-33, D-35: its profile's label (the user's name for it, "Work
+ * Max"), never an email, a plan or any other account detail; `None`
+ * when the label is an email address.
  */
 account: string | null, 
 /**

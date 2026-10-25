@@ -6,8 +6,9 @@
 //! - What it doesn't know says "Unavailable" and why: before the tick has
 //!   read a transcript, for a session with none, and for tasks (E19).
 //! - What the agent says is its own words, never a fact AI Juggler made.
-//! - A card names its account by label only, never an email or a plan
-//!   (D-33; it is what agents will be shown).
+//! - A card's place is the rows' place line (project · app · profile,
+//!   D-36); it names its account by the profile's label only, never an
+//!   email or a plan (D-33; it is what agents will be shown).
 //! - The tick reads only what was appended; a session that ended keeps
 //!   what was read while it ran.
 
@@ -179,7 +180,11 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     assert_eq!(result.cards[0].session_id, "s-planner", "the lead first");
     let planner = card(&result.cards, "s-planner");
     assert_eq!(planner.role, "lead");
-    assert_eq!(planner.place, "shop");
+    // D-36: the rows' place line, project · app · profile.
+    assert_eq!(
+        planner.place,
+        format!("shop · AI Juggler · {ACCOUNT_LABEL}")
+    );
     assert_eq!(
         planner.name, "shop",
         "no label, title or branch: its folder"

@@ -300,12 +300,15 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
   const folder = (session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || "its folder";
   const project = MOCK_PROJECTS.find((row) => row.id === session.project_id)?.name ?? folder;
   const activity = seams().__AIJ_POOL_ACTIVITY__?.[session.id];
+  // D-33, D-35: the profile's label, never an email.
+  const profile = session.account_label && !session.account_label.includes("@") ? session.account_label : null;
   return {
     session_id: session.id,
     name: session.label ?? session.title ?? session.git_branch ?? folder,
-    place: session.git_branch ? `${project} · ${session.git_branch}` : project,
+    // D-36: the rows' place line, project · app · profile.
+    place: [project, "AI Juggler", profile].filter(Boolean).join(" · "),
     tool: providerDisplayName(session.provider),
-    account: session.account_label && !session.account_label.includes("@") ? session.account_label : null,
+    account: profile,
     state: session.status,
     role,
     task: unavailable("AI Juggler doesn't keep tasks yet"),
