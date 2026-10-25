@@ -11,7 +11,7 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
@@ -32,7 +32,7 @@ import type {
 } from "../lib/bridge";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
-import { quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
@@ -41,18 +41,7 @@ import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { installWords, providerDisplayName } from "../lib/providers";
-import { SwitchTargetRows } from "./SwitchTargetRows";
-import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
-import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
-import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
-import {
-  fleetDivergences,
-  fleetSwitchBackPlan,
-  fleetSwitchTargets,
-  type DivergenceRecordInfo,
-  type FleetSwitchBackPlanInfo,
-  type RemoteSwitchTargetInfo,
-} from "../lib/bridge";
+import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 
@@ -426,7 +415,6 @@ const defaultFocusBridge: FocusBridge = async (sessionId) =>
   (await import("../lib/bridge")).desktopFocus(sessionId);
 
 function InstanceOverview(props: PanelProps) {
-  const handoverRef = useRef<HTMLDetailsElement | null>(null);
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
   // shown verbatim, never overstated. A missing Accessibility grant
   // additionally raises the one-time explainer (Req.3).
@@ -434,68 +422,6 @@ function InstanceOverview(props: PanelProps) {
   const [explainerDismissed, setExplainerDismissed] = useState(
     () => localStorage.getItem("aij.a11y-explainer.dismissed") === "1",
   );
-  // D-25: the ranked switch list is one step away — open when this
-  // session hit its limit (or a way back is on offer), otherwise behind
-  // "Switch account…" (header) or ⌘⇧H.
-  const [switchOpen, setSwitchOpen] = useState(() => props.data.instance?.status === "quota_blocked");
-  useEffect(() => {
-    const scroll = () => {
-      setSwitchOpen(true);
-      // jsdom has no scrollIntoView; the guard keeps tests honest.
-      requestAnimationFrame(() => {
-        handoverRef.current?.scrollIntoView?.({ block: "center" });
-        // ⌘⇧H "focuses the hand-over section": its summary takes focus.
-        handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
-      });
-    };
-    window.addEventListener("aij:focus-handover", scroll);
-    return () => window.removeEventListener("aij:focus-handover", scroll);
-  }, []);
-  // AJ-E209: the ranked + badged switch destinations for the selected
-  // instance (§Q6 extended; suggest-only). Refetch when the instance
-  // or its live state changes — the ranker's inputs (quota, sessions)
-  // move with them.
-  const [switchTargets_, setSwitchTargets] = useState<SwitchTargetData[] | null>(null);
-  const instanceId = props.data.instance?.id ?? null;
-  useEffect(() => {
-    if (instanceId === null) return;
-    let alive = true;
-    switchTargets(instanceId)
-      .then((rows) => {
-        if (alive) setSwitchTargets(rows);
-      })
-      .catch(() => {
-        if (alive) setSwitchTargets([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [instanceId, props.data.instance?.status]);
-  // AJ-E706: paired machines as destinations, and — for an Instance
-  // that came from another machine — the way back (with any divergence
-  // that waits for the user, AJ-E708).
-  const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
-  const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
-  const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);
-  const [crossTarget, setCrossTarget] = useState<RemoteSwitchTargetInfo | null>(null);
-  const [backOpen, setBackOpen] = useState(false);
-  const [crossTick, setCrossTick] = useState(0);
-  useEffect(() => {
-    if (instanceId === null) return;
-    let alive = true;
-    fleetSwitchTargets(instanceId)
-      .then((rows) => alive && setRemoteTargets(rows))
-      .catch(() => alive && setRemoteTargets([]));
-    fleetSwitchBackPlan(instanceId)
-      .then((plan) => alive && setBackPlan(plan))
-      .catch(() => alive && setBackPlan(null));
-    fleetDivergences()
-      .then((rows) => alive && setDivergence(rows.find((row) => row.session_id === instanceId) ?? null))
-      .catch(() => alive && setDivergence(null));
-    return () => {
-      alive = false;
-    };
-  }, [instanceId, props.data.instance?.status, crossTick]);
   const { kind, data, sessions, accounts, profiles, terminalTitle } = props;
 
   if (kind === "instance" && data.instance) {
@@ -506,113 +432,137 @@ function InstanceOverview(props: PanelProps) {
     const terminalId = session.id;
     const live = session.status === "running" || session.status === "starting";
     const project = props.projects.find((p) => p.id === session.project_id) ?? null;
-    return (
-      // Grows with its content (the section scrolls): a long handover
-      // list never squashes the overview or the terminal.
-      <div className="flex flex-1 flex-col gap-3">
-        {/* §5.1 Overview fields (every field honest: absent → named
-            empty, never fabricated). Lineage is omitted entirely until
-            the Switch Graph exists (E2) — no fabricated A→B links. */}
-        <Card className="flex flex-col gap-2 p-3" data-testid="instance-overview-fields">
-          {/* The header already says the state, the account and its low
-              runway (D-25); this row adds only when it ended and the
-              identity check. */}
-          <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
-            {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
-              <span className="text-meta text-muted" data-testid="session-ended-stamp">
-                Ended{" "}
-                {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-              </span>
-            ) : null}
-            {identityWords(session) && (
-              <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
-                <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
-                  {identityWords(session)!.text}
-                </Chip>
-              </span>
+    // §5.1 Overview fields (every field honest: absent → named empty,
+    // never fabricated). Lineage is omitted entirely until the Switch
+    // Graph exists (E2) — no fabricated A→B links.
+    const fields = (
+      <div className={"flex flex-col gap-2 " + (isDesktop ? "" : "border-t border-hairline pt-3")} data-testid="instance-overview-fields">
+        {/* The header already says the state, the account and its low
+            runway (D-25); this row adds only when it ended and the
+            identity check. */}
+        <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
+          {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
+            <span className="text-meta text-muted" data-testid="session-ended-stamp">
+              Ended{" "}
+              {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+            </span>
+          ) : null}
+          {identityWords(session) && (
+            <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
+              <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
+                {identityWords(session)!.text}
+              </Chip>
+            </span>
+          )}
+        </div>
+        {(() => {
+          // AJ-E412 Req.3/5: the observed running model line — drift
+          // shown in full, unobservable providers named honestly.
+          const drift =
+            session.running_model !== null &&
+            session.launch_model !== null &&
+            session.running_model !== session.launch_model
+              ? `Launched with ${session.launch_model} - now running ${session.running_model}`
+              : null;
+          if (drift) {
+            return (
+              <p data-testid="instance-model-line" className="text-label text-ink">
+                {drift} <span className="text-muted">(observed in transcript)</span>
+              </p>
+            );
+          }
+          if (session.running_model === null && session.launch_model === null) {
+            return (
+              <p data-testid="instance-model-line" className="text-label text-muted">
+                Model: not reported by {providerDisplayName(session.provider)}
+              </p>
+            );
+          }
+          return null;
+        })()}
+        <SessionNotes session={session} live={live} now={props.now} />
+        <details className="group text-meta" data-testid="instance-details">
+          {/* Says what's inside (the review of 0.1.4: an empty strip). */}
+          <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+            Details <span className="text-muted">· launch settings and session id</span>
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ToolChip tool={session.provider} />
+          <Chip tone="neutral">
+            {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
+          </Chip>
+          <Chip tone="accent">{session.model ?? "default model"}</Chip>
+          {session.model_source === "launch" && session.launch_model !== null && (
+            <Chip tone="warning">not verified live</Chip>
+          )}
+        </div>
+        <div className="flex flex-col gap-1 text-muted">
+          {project ? (
+            <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
+          ) : null}
+          <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
+          <span data-testid="instance-native-id">
+            Claude session:{" "}
+            <span className="font-mono text-ink">
+              {session.conversation_id ?? "not found yet"}
+            </span>
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label">
+          <span className="inline-flex items-center gap-1.5" data-testid="instance-quota">
+            <QuotaBar quota={session.quota} />
+          </span>
+          <span data-testid="instance-tokens" className="inline-flex items-center gap-1.5 text-muted">
+            {session.tokens ? (
+              <>
+                tokens: <span className="tabular-nums text-ink">
+                  {(session.tokens.input + session.tokens.output).toLocaleString()} ({session.tokens.input.toLocaleString()} in / {session.tokens.output.toLocaleString()} out)
+                </span>
+              </>
+            ) : (
+              "No usage recorded yet"
             )}
+          </span>
+          <span data-testid="instance-cost" className="text-muted">
+            cost: <span className="text-muted">—</span>
+          </span>
+          <span data-testid="instance-resources" className="tabular-nums text-muted">
+            cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
+            {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
+            {session.child_count ?? "—"}
+          </span>
+        </div>
           </div>
-          {(() => {
-            // AJ-E412 Req.3/5: the observed running model line — drift
-            // shown in full, unobservable providers named honestly.
-            const drift =
-              session.running_model !== null &&
-              session.launch_model !== null &&
-              session.running_model !== session.launch_model
-                ? `Launched with ${session.launch_model} - now running ${session.running_model}`
-                : null;
-            if (drift) {
-              return (
-                <p data-testid="instance-model-line" className="text-label text-ink">
-                  {drift} <span className="text-muted">(observed in transcript)</span>
-                </p>
-              );
-            }
-            if (session.running_model === null && session.launch_model === null) {
-              return (
-                <p data-testid="instance-model-line" className="text-label text-muted">
-                  Model: not reported by {providerDisplayName(session.provider)}
-                </p>
-              );
-            }
-            return null;
-          })()}
-          <SessionNotes session={session} live={live} now={props.now} />
-          <details className="group text-meta" data-testid="instance-details">
-            {/* Says what's inside (the review of 0.1.4: an empty strip). */}
-            <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-              Details <span className="text-muted">· its launch settings, folder, model and session id</span>
-            </summary>
-            <div className="mt-2 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <ToolChip tool={session.provider} />
-            <Chip tone="neutral">
-              {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
-            </Chip>
-            <Chip tone="accent">{session.model ?? "default model"}</Chip>
-            {session.model_source === "launch" && session.launch_model !== null && (
-              <Chip tone="warning">not verified live</Chip>
-            )}
-          </div>
-          <div className="flex flex-col gap-1 text-muted">
-            {project ? (
-              <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
-            ) : null}
-            <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
-            <span data-testid="instance-native-id">
-              Claude session:{" "}
-              <span className="font-mono text-ink">
-                {session.conversation_id ?? "not found yet"}
-              </span>
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label">
-            <span className="inline-flex items-center gap-1.5" data-testid="instance-quota">
-              <QuotaBar quota={session.quota} />
-            </span>
-            <span data-testid="instance-tokens" className="inline-flex items-center gap-1.5 text-muted">
-              {session.tokens ? (
-                <>
-                  tokens: <span className="tabular-nums text-ink">
-                    {(session.tokens.input + session.tokens.output).toLocaleString()} ({session.tokens.input.toLocaleString()} in / {session.tokens.output.toLocaleString()} out)
-                  </span>
-                </>
-              ) : (
-                "No usage recorded yet"
-              )}
-            </span>
-            <span data-testid="instance-cost" className="text-muted">
-              cost: <span className="text-muted">—</span>
-            </span>
-            <span data-testid="instance-resources" className="tabular-nums text-muted">
-              cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
-              {session.child_count ?? "—"}
-            </span>
-          </div>
+        </details>
+      </div>
+    );
+    // A terminal's session: the page every session has (its terminal the
+    // main pane, the side column beside it).
+    if (!isDesktop) {
+      return (
+        <OwnTerminalOverview
+          session={session}
+          project={project}
+          onOpenProject={props.onOpenProject}
+          details={fields}
+          switchBackSuggestions={props.switchBackSuggestions}
+          onSwitchBack={props.onSwitchBack}
+          onHandover={props.onHandover}
+          terminal={
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+                <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
+              </Card>
+              {!live && <p className="text-meta text-muted">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
             </div>
-          </details>
-        </Card>
+          }
+        />
+      );
+    }
+    return (
+      <div className="flex flex-1 flex-col gap-3">
+        <Card className="flex flex-col gap-2 p-3">{fields}</Card>
         {project && (
           <button
             type="button"
@@ -760,138 +710,7 @@ function InstanceOverview(props: PanelProps) {
               reported, never guessed to a wrong window.
             </p>
           </Card>
-        ) : (
-          <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
-          </Card>
-        )}
-        {!live && !isDesktop && (
-          <p className="text-label text-muted">
-            {`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}
-          </p>
-        )}
-        {!isDesktop && (
-        <details
-          ref={handoverRef}
-          open={switchOpen || Boolean(backPlan) || (props.switchBackSuggestions ?? []).some((suggestion) => suggestion.session_id === session.id)}
-          onToggle={(event) => setSwitchOpen((event.currentTarget as HTMLDetailsElement).open)}
-          className="group flex flex-col gap-2"
-          data-testid="handover-section"
-        >
-          <summary className="cursor-pointer list-none text-section font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-            <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
-            Continue on another account
-          </summary>
-          {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
-              never executed; the user clicks. */}
-          {(props.switchBackSuggestions ?? [])
-            .filter((suggestion) => suggestion.session_id === session.id)
-            .map((suggestion) => (
-              <button
-                key={suggestion.session_id}
-                type="button"
-                onClick={() => props.onSwitchBack?.(suggestion.session_id)}
-                data-testid="switch-back-card"
-                className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-2 text-left text-label text-accent-hi transition-colors hover:border-accent/60"
-              >
-                <span className="block" data-testid="switch-back-card-copy">
-                  {suggestion.copy}
-                </span>
-                <span className="text-muted">Resume the original conversation ▸</span>
-              </button>
-            ))}
-          {/* AJ-E209 Req.1/3: the ranked, badged destinations —
-              §Q6 + switch cost + return bonus; every cross-Provider
-              row carries its ordered-pair badge and Drop list
-              (D-04/D-11). Suggest-only; the click opens the E205
-              flow. */}
-          {backPlan && (
-            <button
-              type="button"
-              onClick={() => setBackOpen(true)}
-              data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
-              className={
-                "rounded-lg border px-2.5 py-2 text-left text-label transition-colors " +
-                (divergence
-                  ? "border-warning/50 text-ink hover:border-warning"
-                  : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-              }
-            >
-              <span className="block">
-                {divergence ? (
-                  <>
-                    <span aria-hidden="true">⚠ </span>Diverged — {divergence.turns_since} new{" "}
-                    {divergence.turns_since === 1 ? "turn" : "turns"} on {divergence.machine_label} since the work
-                    left. Choose what to keep.
-                  </>
-                ) : (
-                  <>
-                    Came from {backPlan.original_machine_label} ({backPlan.original_account_label}) —{" "}
-                    {backPlan.new_turns} new {backPlan.new_turns === 1 ? "turn" : "turns"} here.
-                  </>
-                )}
-              </span>
-              <span className="text-muted">
-                {divergence ? "Review the conflict ▸" : `Switch back to ${backPlan.original_machine_label} ▸`}
-              </span>
-            </button>
-          )}
-          {switchTargets_ === null ? (
-            <p className="text-label text-muted" data-testid="handover-targets-loading">
-              Ranking destinations…
-            </p>
-          ) : switchTargets_.length === 0 ? (
-            <p className="text-label text-muted" data-testid="handover-targets-empty">
-              Add another account to juggle between them.
-            </p>
-          ) : (
-            <SwitchTargetRows
-              targets={switchTargets_}
-              onPick={(target) =>
-                props.onHandover(session.id, target.recipe_id, target.account_label)
-              }
-            />
-          )}
-          {remoteTargets.length > 0 && (
-            <>
-              <p className="mt-1 text-section font-semibold text-ink">
-                Continue on another machine
-              </p>
-              <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
-            </>
-          )}
-        </details>
-        )}
-        {crossTarget && (
-          <CrossMachineSwitchFlow
-            sessionId={session.id}
-            target={crossTarget}
-            onClose={() => {
-              setCrossTarget(null);
-              setCrossTick((tick) => tick + 1);
-            }}
-          />
-        )}
-        {backOpen && backPlan && (
-          <CrossMachineSwitchBack
-            sessionId={session.id}
-            plan={backPlan}
-            divergence={
-              divergence
-                ? {
-                    turns_since: divergence.turns_since,
-                    last_activity_ms: divergence.last_activity_ms,
-                    summary: divergence.summary,
-                  }
-                : null
-            }
-            onClose={() => {
-              setBackOpen(false);
-              setCrossTick((tick) => tick + 1);
-            }}
-            onResolved={() => setCrossTick((tick) => tick + 1)}
-          />
-        )}
+        ) : null}
       </div>
     );
   }

@@ -29,9 +29,9 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   // AJ-E2104: an AI Juggler session's row, under AI Juggler's place: a
-  // click opens its page, on its Terminal tab (AJ-E1533).
+  // click opens its page, on its terminal: its Overview (AJ-E1533).
   await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click();
-  await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
   return page.locator("[data-terminal-host]").first().getAttribute("data-terminal-host") as Promise<string>;
 }

@@ -10,13 +10,14 @@ import { accountDisplay, accountName, type SubscriptionInfo } from "../../lib/su
 import { SessionUsage } from "../session-usage/SessionUsage";
 import { useCached } from "../../lib/usage/cached";
 import { usageSession } from "../../lib/ipc/usageHistory";
-import { useRunways } from "./data";
+import { useProfiles, useRunways } from "./data";
 import type { SessionModel } from "./model";
 import { Runway } from "./Runway";
 import { SessionUsageTab, useTranscriptModels, type TokenKinds } from "./UsageTab";
 
 export function UsagePanel({ model, visible, tokens, account }: { model: SessionModel; visible: boolean; tokens: TokenKinds | null; account: SubscriptionInfo | undefined }): JSX.Element {
   const displays = useRunways();
+  const profile = useProfiles().find((p) => p.id === model.profileId) ?? null;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
   // The same read SessionUsage makes (one key, one answer): a session the
   // usage history has no turns for shows its own counts instead of a page
@@ -31,7 +32,7 @@ export function UsagePanel({ model, visible, tokens, account }: { model: Session
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-grid" data-testid="session-usage">
         <SessionUsage profile={model.profileId} conversation={model.conversationId!} profileLabel={model.profileLabel} />
         <div className="grid grid-cols-1 gap-grid lg:grid-cols-2">
-          <Runway display={display} title={accountTitle} heading="Its account's window" testId="session-usage-runway">
+          <Runway display={display} title={accountTitle} heading="Its account's window" testId="session-usage-runway" profile={profile}>
             <p className="border-t border-hairline pt-3 text-label leading-[1.5] text-muted">The window counts every session on the account; this session's share is above.</p>
           </Runway>
         </div>
@@ -45,6 +46,7 @@ export function UsagePanel({ model, visible, tokens, account }: { model: Session
       modelsWhy={why}
       display={display}
       accountTitle={accountTitle}
+      profile={profile}
     />
   );
 }
