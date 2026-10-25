@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — the chart kit's maths: one linear scale with "nice" ticks
+ * ADR-0021 — the chart kit's maths: one linear scale with "nice" ticks
  * (so every axis label names a value the chart reaches), the stacked
  * layout, and the words numbers are drawn in. Every chart places marks,
  * ticks and labels with these, never by hand.

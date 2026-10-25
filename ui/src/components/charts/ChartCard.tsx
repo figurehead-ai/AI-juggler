@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — the frame every chart sits in: a card with its title row
+ * ADR-0021 — the frame every chart sits in: a card with its title row
  * (an icon, the title in ink, a muted line, its controls), a legend, the
  * chart or its table ("Show as table"), and an honest empty state that
  * keeps the chart's height. The tooltip and the keyboard reading of a

@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — a limit window at a glance: a ring of what's left (the
+ * ADR-0021 — a limit window at a glance: a ring of what's left (the
  * fill turns amber, then red, as it runs out), the window's name, and
  * when it resets. Not measured is said in words, never drawn as empty.
  */

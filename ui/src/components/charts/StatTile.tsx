@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — the figures a page leads with: a stat tile (a label, a big
+ * ADR-0021 — the figures a page leads with: a stat tile (a label, a big
  * number, its change against the period before, a sparkline), the
  * sparkline itself, and a share bar (one item's part of a whole, split by
  * who did it).

@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — the chart kit's contracts: axes name values the chart
+ * ADR-0021 — the chart kit's contracts: axes name values the chart
  * reaches, numbers read short with the exact one on hover, every chart is
  * one keyboard stop that reads its marks aloud, the empty state keeps the
  * frame, "Show as table" shows the numbers, and colour follows the entity.

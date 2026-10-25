@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — a profile's limits over time: the weekly window's percent
+ * ADR-0021 — a profile's limits over time: the weekly window's percent
  * used as a line (it climbs through the week and drops at its reset), and
  * each 5-hour window as a bar to the highest it was read at. Arrow keys
  * read it day by day.

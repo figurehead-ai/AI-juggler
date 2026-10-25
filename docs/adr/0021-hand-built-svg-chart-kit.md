@@ -1,4 +1,4 @@
-# ADR-0020: A hand-built SVG chart kit, no charting library
+# ADR-0021: A hand-built SVG chart kit, no charting library
 
 **Status:** Accepted
 **Date:** 2026-10-25

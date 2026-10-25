@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — a share as a donut: segments in the legend's order with a
+ * ADR-0021 — a share as a donut: segments in the legend's order with a
  * 2 px gap, the total (or the leader) in the middle, and a legend that
  * names each part with its value and percentage, so colour is never the
  * only key. Arrow keys read the parts.

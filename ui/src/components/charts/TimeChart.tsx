@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — usage over time: stacked bars (up to 60 buckets) or a
+ * ADR-0021 — usage over time: stacked bars (up to 60 buckets) or a
  * stacked area (more), one series per profile, tool, model or project.
  * A crosshair snaps to the nearest bucket and the tooltip lists every
  * series there; arrow keys read the buckets one by one.

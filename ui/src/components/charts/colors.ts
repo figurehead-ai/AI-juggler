@@ -1,5 +1,5 @@
 /**
- * ADR-0020 — a series' colour comes from what it is, never its rank: a
+ * ADR-0021 — a series' colour comes from what it is, never its rank: a
  * profile wears its badge's swatch (`accountColor`, the same on every
  * page), a project its mark's, a tool its place in the catalog, a model
  * its family. "Other" is a neutral grey, so it never reads as an entity.

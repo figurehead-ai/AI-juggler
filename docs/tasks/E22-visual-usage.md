@@ -7,7 +7,7 @@
 > visual, easy to read." Usage was one narrow table of hundreds of rows
 > that stayed blank for seconds; the project page was three 11 px lines in
 > cards stretched across the window. The mockup (a private artifact,
-> linked from the ADR-0020 work's report) set the look on the approved
+> linked from the ADR-0021 work's report) set the look on the approved
 > desktop-first canvas. It ships in 0.1.5.
 >
 > **Law for every task here:**
@@ -39,15 +39,15 @@
 **Goal**: Stat tiles, time charts, donuts, heatmaps, share bars, gauges, the limit history and a work timeline, themed and accessible.
 **User story**: As a user, I see usage as pictures I can hover, read by keyboard or as a table.
 **Requirements**:
-1. No new dependency (ADR-0020); lazy with the screens that use it.
+1. No new dependency (ADR-0021); lazy with the screens that use it.
 2. Colour by entity; a legend for two or more series; tooltips; one keyboard stop per chart that reads its marks; Show as table; empty states that keep the frame; reduced motion.
-**UI/UX reasoning**: ADR-0020.
+**UI/UX reasoning**: ADR-0021.
 **Performance budget**: a chart renders in one frame for 400 buckets.
 **Quality gates**: `ui/src/components/charts/charts.test.tsx`.
 **Evidence/validation proof**: the gallery above.
 **Visual testing**: in every usage state.
 **Files to touch**: `ui/src/components/charts/`.
-**Research basis**: ADR-0020.
+**Research basis**: ADR-0021.
 **Handover note**: —
 
 ### AJ-E2203 The usage history's summaries | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: —
