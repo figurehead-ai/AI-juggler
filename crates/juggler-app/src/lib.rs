@@ -49,6 +49,7 @@ pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
+pub mod paging;
 pub mod parked;
 pub mod preview;
 pub mod quit;
