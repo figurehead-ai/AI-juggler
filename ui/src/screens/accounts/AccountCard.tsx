@@ -32,6 +32,18 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
   return { count: own.length + elsewhere.length, apps: [...apps] };
 }
 
+/** Why an account has no reading now, and where one comes from: its
+ * tool's own records (the desktop app's meter while it runs, a limit hit),
+ * never a dead end (the maintainer's third report). */
+export function unmeasuredWords(tool: string): string {
+  const spec = toolSpec(tool);
+  const app = spec.desktop_app ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
+  const name = providerDisplayName(tool);
+  return app
+    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
+    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
+}
+
 export type AccountCardProps = {
   subscription: SubscriptionInfo;
   profiles: AccountInfo[];
@@ -106,7 +118,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               <AccountRunway display={display} sessions={ownSessions} />
               {unmeasured && ownSessions.length === 0 && (
                 <p className="text-[11px] text-muted" data-testid="account-unmeasured">
-                  Its sessions run outside AI Juggler, so limits aren't measured yet.{" "}
+                  {unmeasuredWords(sub.tool)}{" "}
                   {first && props.onInspect && (
                     <button type="button" onClick={() => props.onInspect!(first.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
                       Measure its limits…

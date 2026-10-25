@@ -52,6 +52,16 @@
           ]
         },
         {
+          "id": "limit-records",
+          "text": "For a Claude account's limits in sessions it didn't start, it reads three of Claude's own records, on your Mac: the Claude app's plan-usage-history.json (percent used and when), the limit-hit lines in Claude Code's transcripts (which limit and when it resets, never the message) and cachedUsageUtilization in Claude Code's .claude.json (percent used and resets). It keeps no other field and logs none of it.",
+          "tests": [
+            "crates/juggler-adapters/src/claude_limits/tests.rs::nothing_but_the_ids_and_the_numbers_is_kept",
+            "crates/juggler-adapters/src/claude_limits/tests.rs::a_transcripts_hits_are_read_line_by_line_and_its_words_never_kept",
+            "crates/juggler-adapters/src/claude_limits/tests.rs::two_accounts_of_one_org_in_one_instance_make_its_samples_nobodys",
+            "crates/juggler-adapters/src/claude_limits/tests.rs::the_limit_readers_log_nothing"
+          ]
+        },
+        {
           "id": "parent-chain",
           "text": "To know which app and profile a session runs in, it reads the names of running programs, the apps that started them and the options they started with, on your Mac only, and never their environment.",
           "tests": [

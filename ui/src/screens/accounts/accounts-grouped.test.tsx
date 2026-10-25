@@ -101,7 +101,7 @@ describe("AJ-E2109 the Accounts screen", () => {
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toContain("Its sessions run outside AI Juggler, so limits aren't measured yet.");
+    expect(note.textContent).toContain("No current reading.");
     expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });

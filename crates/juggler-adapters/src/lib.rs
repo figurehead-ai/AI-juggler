@@ -18,6 +18,7 @@ pub mod claude_conversations;
 pub mod claude_environment;
 pub mod claude_handover;
 pub mod claude_inventory;
+pub mod claude_limits;
 pub mod claude_live;
 pub mod claude_transcript;
 pub mod codex;
