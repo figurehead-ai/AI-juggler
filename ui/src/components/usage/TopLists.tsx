@@ -162,7 +162,7 @@ function Header(): JSX.Element {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
       <span>Session</span>
-      <span>Profile</span>
+      <span>Ran on</span>
       <span className="text-right">Tokens</span>
       <span className="text-right">Cost</span>
     </div>

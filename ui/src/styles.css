@@ -47,7 +47,7 @@
     ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
 
   /*
-   * The readability scale (0.1.6; every new screen uses it, the rest
+   * The readability scale (0.1.5; every new screen uses it, the rest
    * adopts it as it's rebuilt). One size per role, nothing under 12 px
    * anywhere — chips, captions and chart axes included:
    *   text-title    22 px semibold — a page's name
