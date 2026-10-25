@@ -88,7 +88,13 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
     const at = (await page.getByRole("menu").boundingBox())!;
     expect(Math.abs(at.x - (box.x + 40))).toBeLessThanOrEqual(1);
-    expect(Math.abs(at.y - (box.y + 10))).toBeLessThanOrEqual(1);
+    // At the pointer, or (a menu taller than the room below it) moved up
+    // just enough to stay in the window.
+    const viewport = page.viewportSize()!;
+    if (Math.abs(at.y - (box.y + 10)) > 1) {
+      expect(at.y).toBeLessThan(box.y + 10);
+      expect(Math.abs(at.y + at.height - (viewport.height - 4))).toBeLessThanOrEqual(1);
+    }
     await page.keyboard.press("Escape");
     await row.getByRole("button").first().focus();
     await page.keyboard.press("Shift+F10");

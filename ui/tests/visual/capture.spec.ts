@@ -4247,6 +4247,8 @@ const PANE_IDS: Record<string, string> = {
   Accounts: "accounts",
   Sessions: "sessions",
   Switching: "switching",
+  // AJ-E1702: 0.2's Agent access pane, always in the sidebar.
+  "Agent access": "agent-access",
   Notifications: "notifications",
   Privacy: "privacy",
   "Your Macs": "macs",
