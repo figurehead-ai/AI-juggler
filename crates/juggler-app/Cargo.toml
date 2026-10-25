@@ -38,6 +38,7 @@ dirs = "7.0.0"
 flate2 = "1.1"
 juggler-adapter = { version = "0.2.0", path = "../juggler-adapter" }
 juggler-account = { version = "0.2.0", path = "../juggler-account" }
+juggler-agentbridge = { version = "0.2.0", path = "../juggler-agentbridge" }
 juggler-adapters = { version = "0.2.0", path = "../juggler-adapters" }
 juggler-core = { version = "0.2.0", path = "../juggler-core" }
 juggler-handover = { version = "0.2.0", path = "../juggler-handover" }

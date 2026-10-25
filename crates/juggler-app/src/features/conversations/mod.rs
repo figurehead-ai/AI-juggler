@@ -919,7 +919,7 @@ pub fn continue_impl(
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let spec = adapter.launch_spec(
+    let mut spec = adapter.launch_spec(
         &account,
         &profile,
         &cwd,
@@ -928,6 +928,16 @@ pub fn continue_impl(
             delta_prompt: None,
         },
     )?;
+    // AJ-E1704 (D-30): continued in AI Juggler, it gets the agent tools.
+    let project_id = project.id.as_str();
+    crate::features::agent_bridge::prepare(
+        state,
+        adapter.as_ref(),
+        &mut spec,
+        &session,
+        Some(project_id),
+        account.id.as_str(),
+    );
     let spawned = state.supervisor.spawn(
         &session,
         &spec,

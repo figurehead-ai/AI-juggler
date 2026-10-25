@@ -3,6 +3,7 @@
 //! features land here, not in `commands.rs`.
 
 pub mod account_settings;
+pub mod agent_bridge;
 pub mod app;
 pub mod budgets;
 pub mod conversations;

@@ -11,6 +11,9 @@
 //!   read (`juggler_adapters::activity`, each tool's parser). A session
 //!   that ended keeps what was read while it ran, until AI Juggler quits.
 //! - The task it claimed: tasks are E19, so it's unavailable here.
+//! - What the agent said of itself: its `set_status` line through the
+//!   agent bridge (AJ-E1704) when it set one, else the step its own task
+//!   list has in progress.
 //!
 //! Of the account, a card carries only its profile's label (D-35), never
 //! an email, a plan or any other detail (D-33): it is what an agent will
@@ -22,6 +25,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapters::{ActivityLog, ActivityTail};
 use juggler_core::model::SessionId;
+use juggler_core::storage::MemberRef;
 
 use super::{CardField, ContextCard, PoolCards};
 use crate::commands::lock_storage_arc;
@@ -109,7 +113,7 @@ pub fn tick(state: &Arc<AppState>) {
 ///
 /// [`AppError::Refused`] for a pool that isn't there; storage failures.
 pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> {
-    let (members, projects) = {
+    let (members, projects, works) = {
         let storage = lock_storage_arc(state)?;
         storage
             .pools()
@@ -128,7 +132,8 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
             .into_iter()
             .map(|project| (project.id.as_str().to_owned(), project.name))
             .collect();
-        (members, projects)
+        let works = storage.switch_graph().works_by_session()?;
+        (members, projects, works)
     };
     let rows = crate::commands::instances_shared_snapshot(state)?;
     let mut cards: Vec<ContextCard> = rows
@@ -136,8 +141,20 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))
         .filter_map(|row| {
             let role = members.get(&row.id)?.clone();
-            let activity = state.pool_activity.of(&SessionId::new(row.id.as_str()));
-            Some(card_of(state, &row, role, &projects, activity.as_ref()))
+            let session = SessionId::new(row.id.as_str());
+            let activity = state.pool_activity.of(&session);
+            // AJ-E1704: what the agent set with `set_status` takes the
+            // said line's place (kept per member, so across switches).
+            let member = MemberRef::of_session(&session, works.get(&session)).to_wire();
+            let status = state.agent_bridge.status_of(&member);
+            Some(card_of(
+                state,
+                &row,
+                role,
+                &projects,
+                activity.as_ref(),
+                status,
+            ))
         })
         .collect();
     cards.sort_by(|a, b| {
@@ -168,6 +185,7 @@ fn card_of(
     role: String,
     projects: &HashMap<String, String>,
     activity: Option<&ActivityLog>,
+    status: Option<crate::features::agent_bridge::Said>,
 ) -> ContextCard {
     let folder = row
         .cwd
@@ -216,6 +234,7 @@ fn card_of(
             Some(format!("Unavailable — {NOT_READ}")),
         ),
     };
+    let said = status.map_or(said, |status| CardField::known(status.text));
     ContextCard {
         session_id: row.id.clone(),
         name,

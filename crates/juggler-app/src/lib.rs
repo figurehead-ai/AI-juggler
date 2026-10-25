@@ -322,6 +322,9 @@ macro_rules! app_commands {
             Write features::pools::commands::pools_set_delivery,
             Write features::pools::commands::pools_set_spans_macs,
             Write features::pools::commands::pools_revoke_rule,
+            Read  features::agent_bridge::commands::agent_bridge_get,
+            Write features::agent_bridge::commands::agent_bridge_answer,
+            Write features::agent_bridge::commands::agent_bridge_set,
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
@@ -699,6 +702,9 @@ pub fn run() {
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
             register_go_to_hotkey(app.handle());
+            // AJ-E1704: the agent bridge's socket, only if sessions that
+            // outlived the last run still hold keys (else lazily).
+            features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
             features::notifications::connect(
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
