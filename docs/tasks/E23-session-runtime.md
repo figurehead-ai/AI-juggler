@@ -41,7 +41,9 @@
 >   Keychain (D-37).** Hooks report what the tool hands them; the key a
 >   hook uses is one AI Juggler wrote into the launch.
 > - **Policy (research §2).** Claude driven mode is a labelled Beta, off by
->   default, until ADR-0022 decision 4's four gates hold. Never `--bare`,
+>   default, until ADR-0022 decision 4's four gates hold (the first, as
+>   amended 2026-10-25: Anthropic's published terms, rechecked each
+>   release, still allow it). Never `--bare`,
 >   `bypassPermissions` or a spoofed entrypoint; `clientInfo` names AI
 >   Juggler honestly.
 > - **Unknown means the terminal, never a guess.** A tool version whose
@@ -50,15 +52,15 @@
 
 ## Step 1 — the contract and the spike
 
-### AJ-E2301 The spike on spare accounts | Status: TODO | Priority P0 | Effort S | Depends: —
+### AJ-E2301 The runtime lab on real tools | Status: TODO | Priority P0 | Effort S | Depends: —
 **Goal**: The five things only a real run can show are proven before driven sessions become anyone's default.
-**User story**: As the maintainer, I run the spike on spare accounts in a throwaway lab project and the evidence turns from "unverified" to measured.
+**User story**: As the maintainer (or the agent I allow to), I run the lab checklist with one or two of my real tools in a throwaway lab project, and the evidence turns from "unverified" to measured.
 **Requirements**:
 1. Codex: an owned `codex app-server --listen unix://…` per session; an approval and a `requestUserInput` answered over the protocol; `account/rateLimits/read` and `…/updated`; `codex --remote unix://… resume <thread>` with two clients on one thread, and who is asked when both are connected.
 2. Claude: a per-launch `--settings` file's hooks and status line **merge** with the user's own (both run); `PermissionRequest` timing in the TUI (does the dialog show while the hook runs?).
 3. Claude headless: a stream-json session with `--permission-prompt-tool stdio`, one approval, one AskUserQuestion answer and a `rate_limit_event`.
 4. A mode switch at a turn boundary (headless → terminal → headless) keeps one transcript.
-5. The exact commands are `docs/internal/MAINTAINER-STEPS.md` §18. Captures go to `docs/research/evidence/` per the evidence standard.
+5. The exact commands, the before/after snapshot of the tool folders and the cleanup are `docs/qa/runtime-lab.md` (runnable by the maintainer or an agent they allow, on one or two of their real tools' accounts, 2026-10-25); `docs/internal/MAINTAINER-STEPS.md` §18 points to it. Captures go to `docs/research/evidence/` per the evidence standard.
 **UI/UX reasoning**: n/a.
 **Performance budget**: n/a.
 **Quality gates**: the evidence standard; captures redacted with the fail-closed tool.
@@ -66,7 +68,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `docs/research/evidence/`, the E23 manifests' "unverified" lines.
 **Research basis**: `session-runtime.md` §9 step 2; ADR-0022 Consequences.
-**Handover note**: The live part needs spare accounts, which is the maintainer's step (as AJ-E1701). Everything else in E23 is built and tested on fakes first.
+**Handover note**: The live part runs on the maintainer's accounts with their leave (2026-10-25: one or two real tools, lab project only). Everything else in E23 is built and tested on fakes first.
 
 ### AJ-E2302 The runtime contract | Status: TODO | Priority P0 | Effort M | Depends: —
 **Goal**: One neutral contract lets any adapter offer a driven session next to the terminal.
@@ -189,7 +191,7 @@
 1. Stream-json from Rust to the user's own `claude`: `-p --input-format stream-json --output-format stream-json --verbose --permission-prompt-tool stdio` with `--session-id` or `--resume`, the profile's `CLAUDE_CONFIG_DIR`; permission prompts (`can_use_tool`, AskUserQuestion) over stdio; `interrupt`; `set_model`; `rate_limit_event`; `result`.
 2. Hand back to the terminal at a turn boundary with `claude --resume <id>`, and back again; one writer per session, enforced.
 3. Never `--bare`, `bypassPermissions`, `--dangerously-skip-permissions` or a spoofed entrypoint; only in a folder Claude Code already trusts.
-4. Off by default, labelled Beta, per session; ADR-0022 decision 4's four gates written into the docs (guide and ADR) as what makes it a default.
+4. Off by default, labelled Beta, per session; ADR-0022 decision 4's four gates written into the docs (guide and ADR) as what makes it a default: Anthropic's published terms, rechecked each release, still allow it; `-p` keeps subscription sign-in once `--bare` is its default; a month of lab use with no billing change; the conversation view passes a hand walk.
 **UI/UX reasoning**: The choice is in the launch sheet's "More" fold, with "Beta" and one line on what changes.
 **Performance budget**: n/a.
 **Quality gates**: codec tests over fixtures; end to end against a fake `claude` speaking stream-json; the guardrails (no forbidden flag in any spec).
@@ -197,7 +199,7 @@
 **Visual testing**: the choice; a headless session's page.
 **Files to touch**: `crates/juggler-adapters/src/claude_stream/`, `src/bin/fake_claude_stream.rs`, `features/runtime/`.
 **Research basis**: `session-runtime.md` §3.1, §6.3 items 2–3.
-**Handover note**: Whether to ask Anthropic for written approval is the maintainer's call (D-40 Open).
+**Handover note**: No written approval is sought (the maintainer, 2026-10-25): the Beta runs the user's own `claude -p`, never the Agent SDK, and never handles a sign-in. The terms check is a release step (`docs/RELEASING.md`).
 
 ## Step 6 — documents
 

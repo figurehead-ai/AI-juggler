@@ -258,7 +258,7 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
-| AJ-E2301 | The spike on spare accounts | E23-session-runtime.md | P0 | S | — |
+| AJ-E2301 | The runtime lab on real tools | E23-session-runtime.md | P0 | S | — |
 | AJ-E2302 | The runtime contract | E23-session-runtime.md | P0 | M | — |
 | AJ-E2303 | Codex through app-server, by default | E23-session-runtime.md | P0 | L | AJ-E2302 |
 | AJ-E2304 | Open in terminal, and Start in terminal | E23-session-runtime.md | P0 | S | AJ-E2303 |

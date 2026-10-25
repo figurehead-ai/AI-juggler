@@ -1,6 +1,6 @@
 # ADR-0022: How AI Juggler runs the sessions it starts — a runtime per tool
 
-- Status: Accepted (D-40, 2026-10-25)
+- Status: Accepted (D-40, 2026-10-25; decision 4's first gate amended by the maintainer the same day: no written approval is sought, the published terms are rechecked each release)
 - Date: 2026-10-25
 - Deciders: the maintainer (D-40); research agent (draft)
 - Relates to: ADR-0002 (adapters), ADR-0003 (automation policy), ADR-0010 (spawn ledger), ADR-0018 (per-launch files in AI Juggler's folder), ADR-0019 (tools as data), ADR-0020 (agent bridge, on release/0.2), D-28 to D-33, D-37, D-39
@@ -55,7 +55,7 @@ The maintainer wants users to "handle as much as they can within our tool with a
    - Terminal sessions get a per-launch `--settings` overlay in AI Juggler's folder, never the user's files. It holds hooks that report state through `juggler-agent` and a status line wrapper that records `rate_limits` and still runs the user's own status line.
    - Driven sessions run `claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio` with the profile's `CLAUDE_CONFIG_DIR`. They never use `--bare`, `bypassPermissions` or a spoofed entrypoint, and they run only in folders Claude Code already trusts.
    - **Open in terminal** and **Run in AI Juggler** hand the conversation between modes at a turn boundary with `--resume <id>`. There is never more than one writer.
-   - Driven becomes Claude's default only by a later decision, after four gates: Anthropic's written answer to an approval request; `-p` keeping subscription sign-in once `--bare` is its default; a month of lab use with no billing reclassification; and the conversation view passing the D-25 walk.
+   - Driven becomes Claude's default only by a later decision, after four gates: Anthropic's published terms, rechecked each release, still allow it (the Beta runs the user's own installed `claude -p`, which Anthropic's Help Center of 2026-10-07 lists as drawing on subscription limits, never the Agent SDK, and AI Juggler never handles a sign-in); `-p` keeping subscription sign-in once `--bare` is its default; a month of lab use with no billing reclassification; and the conversation view passing the D-25 walk.
 5. **Answers are always the user's.**
    - AI Juggler carries the user's own answer to a tool's question or permission prompt, from Needs you, the session page or a notification action. It never answers one by itself: no timer, rule, agent or default does.
    - "Don't ask again" is the **tool's own rule**, chosen from the options the tool offers (Claude's `updatedPermissions` suggestions; Codex's `acceptForSession` or execpolicy amendment), so it is visible and revocable in the tool too.

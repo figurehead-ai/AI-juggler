@@ -767,9 +767,14 @@
     AI Juggler speaks Claude Code's stream-json protocol from Rust to the
     user's own `claude`, and hands back to the terminal at a turn boundary
     with `--resume`. It becomes the default only after four gates
-    (ADR-0022 decision 4): Anthropic's written approval; `-p` keeping
-    subscription sign-in once `--bare` is its default; a month of lab use
-    with no billing change; the conversation view passing a hand walk.
+    (ADR-0022 decision 4): Anthropic's published terms, rechecked each
+    release, still allow it; `-p` keeping subscription sign-in once
+    `--bare` is its default; a month of lab use with no billing change;
+    the conversation view passing a hand walk. (Amended by the maintainer,
+    2026-10-25: no written approval is sought. The Beta never uses the
+    Agent SDK; it runs the user's own installed `claude -p`, which
+    Anthropic's Help Center of 2026-10-07 says may use subscription
+    limits, and AI Juggler never handles a sign-in.)
   - No vendor SDK is bundled. AI Juggler speaks each tool's protocol to
     the user's own installed binary. The terminal stays a first-class
     runtime for every tool, and the only one for tools without a protocol.
@@ -786,8 +791,6 @@
   approvals); terminal only (turns down the protocol Codex's own TUI
   uses); headless by default for both now (loses Claude's TUI before the
   policy questions settle).
-- Open: whether to ask Anthropic for written approval of the Claude
-  headless mode (the maintainer's call).
 - Consequences: ADR-0022 Accepted; a runtime trait in `juggler-adapter`
   (Terminal or Driven, per launch), the conformance kit testing both
   runtimes; a live spike on spare accounts first (the maintainer's step,
