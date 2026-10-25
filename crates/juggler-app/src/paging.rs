@@ -73,7 +73,7 @@ impl PageRequest {
 /// One page of a list.
 #[derive(Clone, Debug, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct Page<T: TS> {
+pub struct Page<T> {
     /// The page's rows, in the list's order.
     pub items: Vec<T>,
     /// Where the next page starts; none on the last page.
@@ -83,7 +83,7 @@ pub struct Page<T: TS> {
     pub total: Option<u64>,
 }
 
-impl<T: TS> Page<T> {
+impl<T> Page<T> {
     /// An empty list.
     #[must_use]
     pub fn empty() -> Self {
@@ -95,7 +95,7 @@ impl<T: TS> Page<T> {
     }
 
     /// Each row as another type (the page and its cursor kept).
-    pub fn map<U: TS>(self, f: impl FnMut(T) -> U) -> Page<U> {
+    pub fn map<U>(self, f: impl FnMut(T) -> U) -> Page<U> {
         Page {
             items: self.items.into_iter().map(f).collect(),
             next_cursor: self.next_cursor,
@@ -183,7 +183,7 @@ impl SortKey {
 /// # Errors
 ///
 /// [`AppError::Validation`] for a cursor this app didn't make.
-pub fn page<T: TS>(
+pub fn page<T>(
     rows: Vec<T>,
     key: impl Fn(&T) -> SortKey,
     request: &PageRequest,
@@ -211,7 +211,7 @@ pub fn page<T: TS>(
 /// A page from rows a query read in key order after the cursor, one more
 /// than the page holds (that one only says another page follows).
 #[must_use]
-pub fn page_of_fetched<T: TS>(
+pub fn page_of_fetched<T>(
     mut fetched: Vec<(SortKey, T)>,
     limit: usize,
     total: Option<u64>,
@@ -325,7 +325,12 @@ mod tests {
     #[test]
     fn fetched_rows_page_the_same_way() {
         let fetched: Vec<(SortKey, Row)> = (0..4)
-            .map(|n| (newest(&row(&format!("r{n}"), -n)), row(&format!("r{n}"), -n)))
+            .map(|n| {
+                (
+                    newest(&row(&format!("r{n}"), -n)),
+                    row(&format!("r{n}"), -n),
+                )
+            })
             .collect();
         let page = page_of_fetched(fetched, 3, Some(10));
         assert_eq!(ids(&page), ["r0", "r1", "r2"]);

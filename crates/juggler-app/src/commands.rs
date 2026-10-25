@@ -3658,6 +3658,20 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<InstanceInfo>> {
+    let records = lock_storage_arc(state)?.sessions().list(None)?;
+    instances_of(state, records)
+}
+
+/// The rows of `records` as [`sessions_list`] gives them (from the last
+/// resource sample, never a new one): a page of sessions.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub(crate) fn instances_of(
+    state: &Arc<AppState>,
+    records: Vec<SessionRecord>,
+) -> AppResult<Vec<InstanceInfo>> {
     let live: LiveStatsMap = state
         .resources
         .lock()
@@ -3672,7 +3686,7 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage_arc(state)?;
-    let rows = session_infos(&storage, &live, &labels, &adopted)?;
+    let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
     drop(storage);
     let rows = crate::features::subtasks::counted(state, rows);
     crate::features::conversations::titled(state, rows)
@@ -4529,7 +4543,7 @@ pub(crate) fn is_active(status: SessionStatus) -> bool {
 /// launch-recipe or account row is gone (defensive only — storage FKs
 /// prevent it today), the Provider and label degrade to a generic
 /// `unknown` marker, never a blank string, and the account id to `null`.
-fn resolved_join(
+pub(crate) fn resolved_join(
     recipe_index: &std::collections::BTreeMap<String, (String, String, Option<String>)>,
     account_index: &std::collections::BTreeMap<String, (String, String)>,
     recipe_id: &str,
@@ -4558,7 +4572,7 @@ fn resolved_join(
 /// AJ-E412 Req.1 classification: the I-03 display model prefers the
 /// OBSERVED running model over the launch intent; the source names how
 /// it is known (`in-session` = observed drift from the overlay).
-fn display_model(
+pub(crate) fn display_model(
     running: Option<&juggler_core::model::RunningModel>,
     launch: Option<&String>,
 ) -> (Option<String>, String) {
@@ -4609,9 +4623,9 @@ pub fn session_infos_snapshot(storage: &Storage) -> AppResult<Vec<InstanceInfo>>
 }
 
 /// account id → (label, provider).
-type AccountIndex = std::collections::BTreeMap<String, (String, String)>;
+pub(crate) type AccountIndex = std::collections::BTreeMap<String, (String, String)>;
 /// launch-recipe id → (account id, provider, overlay model).
-type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<String>)>;
+pub(crate) type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<String>)>;
 
 /// Join indexes for the read model: account id → (label, provider) and
 /// launch-recipe id → (account id, provider, overlay model). One
@@ -4620,7 +4634,7 @@ type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<St
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on storage failures.
-fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
+pub(crate) fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
     // AJ-E1501: a removed account's sessions keep its name, marked.
     let removed = storage.accounts().removed_ids()?;
     let account_index: AccountIndex = storage
@@ -4682,14 +4696,24 @@ fn session_infos(
     desktop_labels: &std::collections::BTreeMap<String, String>,
     adopted_ids: &[juggler_core::model::SessionId],
 ) -> AppResult<Vec<InstanceInfo>> {
+    let records = storage.sessions().list(None)?;
+    session_infos_for(storage, records, live, desktop_labels, adopted_ids)
+}
+
+/// [`session_infos`] for some sessions only (a page of them).
+fn session_infos_for(
+    storage: &Storage,
+    records: Vec<SessionRecord>,
+    live: &LiveStatsMap,
+    desktop_labels: &std::collections::BTreeMap<String, String>,
+    adopted_ids: &[juggler_core::model::SessionId],
+) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
     let marks = storage.sessions().marks().unwrap_or_default();
-    Ok(storage
-        .sessions()
-        .list(None)?
+    Ok(records
         .into_iter()
         .map(|record| {
             let (account_id, account_label, provider, launch_model) =
@@ -13966,7 +13990,7 @@ pub async fn validation_dogfood_record(
     target_sha256: String,
     note: String,
 ) -> AppResult<()> {
-    crate::ipc::blocking(state.inner(), "validation dogfood record", move |state| {
+    crate::ipc::blocking(state.inner(), "the tried-by-hand record", move |state| {
         validation_dogfood_record_impl(
             state,
             &from,

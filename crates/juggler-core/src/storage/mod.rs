@@ -58,7 +58,7 @@ pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
-pub use usage::{Stored, UsageRepo, anchor_settings_key, cap_settings_key};
+pub use usage::{CostBucket, Stored, UsageRepo, anchor_settings_key, bucket_key, cap_settings_key};
 
 use crate::error::CoreError;
 

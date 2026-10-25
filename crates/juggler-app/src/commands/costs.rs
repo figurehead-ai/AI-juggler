@@ -270,3 +270,97 @@ pub async fn pricing_catalog_info(
     })
     .await
 }
+
+/// The cost table (session × model × UTC day), a page at a time: newest
+/// day first, then by session and model. Each row is one of
+/// [`cost_rollups`]'s rows (the same rollup, so the two reconcile); the
+/// totals, the subscription view and the pricing flags stay there. The
+/// whole table is never read: a page reads its buckets, then only the
+/// events of the days they're in.
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for a cursor this app didn't make; storage
+/// errors.
+#[tauri::command]
+pub async fn cost_rows_page(
+    state: tauri::State<'_, Arc<AppState>>,
+    account: Option<String>,
+    page: crate::paging::PageRequest,
+) -> AppResult<crate::paging::Page<juggler_core::cost_ledger::CostRollup>> {
+    crate::ipc::blocking(state.inner(), "the cost table", move |state| {
+        cost_rows_page_impl(state, account.as_deref(), &page)
+    })
+    .await
+}
+
+/// [`cost_rows_page`]'s work.
+///
+/// # Errors
+///
+/// As [`cost_rows_page`].
+pub fn cost_rows_page_impl(
+    state: &Arc<AppState>,
+    account: Option<&str>,
+    request: &crate::paging::PageRequest,
+) -> AppResult<crate::paging::Page<juggler_core::cost_ledger::CostRollup>> {
+    use crate::paging::{Page, SortKey};
+    use juggler_core::cost_ledger::{RollupDimension, day_of, rollup};
+    const DAY_MS: i64 = 86_400_000;
+
+    let limit = request.limit();
+    // Newest day first: a bucket's rank is its day, negated.
+    let after = request
+        .start_after()?
+        .map(|key| (-key.ranks.first().copied().unwrap_or_default(), key.id));
+    let (buckets, total, events, catalog) = {
+        let storage = lock_storage_arc(state)?;
+        let usage = storage.usage();
+        let mut buckets = usage.cost_buckets_page(
+            account,
+            after.as_ref().map(|(day, key)| (*day, key.as_str())),
+            limit + 1,
+        )?;
+        // The one past the page only says another page follows.
+        let more = buckets.len() > limit;
+        buckets.truncate(limit);
+        let first = buckets.iter().map(|bucket| bucket.day).min();
+        let last = buckets.iter().map(|bucket| bucket.day).max();
+        let events = match (first, last) {
+            (Some(first), Some(last)) => usage.events_in_days(account, first, last)?,
+            _ => Vec::new(),
+        };
+        let total = usage.cost_bucket_count(account).ok();
+        ((buckets, more), total, events, pricing_catalog(&storage))
+    };
+    let (buckets, more) = buckets;
+    let mut rows: std::collections::HashMap<(String, String, Option<String>), _> =
+        rollup(&events, &catalog, RollupDimension::Session)
+            .into_iter()
+            .map(|row| {
+                (
+                    (
+                        row.day.clone().unwrap_or_default(),
+                        row.key.clone(),
+                        row.model.clone(),
+                    ),
+                    row,
+                )
+            })
+            .collect();
+    let next_cursor = buckets
+        .last()
+        .filter(|_| more)
+        .map(|bucket| SortKey::new([-bucket.day], bucket.key()).cursor());
+    let items = buckets
+        .into_iter()
+        .filter_map(|bucket| {
+            rows.remove(&(day_of(bucket.day * DAY_MS), bucket.session, bucket.model))
+        })
+        .collect();
+    Ok(Page {
+        items,
+        next_cursor,
+        total,
+    })
+}

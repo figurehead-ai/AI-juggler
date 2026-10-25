@@ -9,8 +9,6 @@
 uncalled account_audit
 uncalled harnesses_list_alias
 uncalled isolation_check
-uncalled launch_recipe_env_get
-uncalled launch_recipe_env_set
 uncalled parked_list
 uncalled pricing_catalog_info
 uncalled pricing_override_clear

@@ -40,3 +40,39 @@ pub async fn sessions_restart_choice_set(
     })
     .await
 }
+
+/// History, a project's or an account's Sessions: every session (AI
+/// Juggler's and the ones started outside it), a page at a time, open
+/// first, then newest (0.1.5 review: they read every session at once).
+///
+/// # Errors
+///
+/// As [`super::rows::sessions_page_impl`].
+#[tauri::command]
+pub async fn sessions_page(
+    state: tauri::State<'_, Arc<AppState>>,
+    query: super::rows::SessionsQuery,
+    page: crate::paging::PageRequest,
+) -> AppResult<crate::paging::Page<super::rows::SessionRowInfo>> {
+    crate::ipc::blocking(state.inner(), "the sessions", move |state| {
+        super::rows::sessions_page_impl(state, &query, &page)
+    })
+    .await
+}
+
+/// How many sessions a list holds: open, ended and archived (a list's
+/// heading, History's Archived tab).
+///
+/// # Errors
+///
+/// As [`super::rows::sessions_counts_impl`].
+#[tauri::command]
+pub async fn sessions_counts(
+    state: tauri::State<'_, Arc<AppState>>,
+    query: super::rows::SessionsQuery,
+) -> AppResult<super::rows::SessionsCountsInfo> {
+    crate::ipc::blocking(state.inner(), "the session counts", move |state| {
+        super::rows::sessions_counts_impl(state, &query)
+    })
+    .await
+}

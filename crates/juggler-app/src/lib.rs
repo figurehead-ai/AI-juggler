@@ -155,6 +155,7 @@ macro_rules! app_commands {
             Write crash::crash_ui_error,
             Read  commands::usage_source_health,
             Read  commands::cost_rollups,
+            Read  commands::cost_rows_page,
             Write commands::cost_csv_export,
             Write commands::pricing_override_set,
             Write commands::pricing_override_clear,
@@ -425,6 +426,8 @@ macro_rules! app_commands {
             Read  features::subscriptions::commands::subscriptions_list,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
+            Read  features::sessions::commands::sessions_page,
+            Read  features::sessions::commands::sessions_counts,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.

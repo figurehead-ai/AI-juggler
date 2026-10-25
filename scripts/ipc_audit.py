@@ -39,7 +39,8 @@ RULES = ("uncalled", "sync", "main-thread", "long", "name")
 MARKER = re.compile(r"ipc: main-thread\s*\(([^)]+)\)")
 COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\])\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
-INVOKE = re.compile(r"""\binvoke\s*(?:<[^>]*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
+# A type argument may nest one level (`invoke<Page<Row>>("…")`).
+INVOKE = re.compile(r"""\binvoke\s*(?:<(?:[^<>]|<[^<>]*>)*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
 HANDLER = re.compile(r"generate_handler!\[(.*?)\]", re.S)
 # The registry (lib.rs `app_commands!`): one `Read|Write path::to::command,` a line.
 REGISTRY = re.compile(r"^\s*(?:Read|Write)\s+((?:\w+::)*\w+),", re.M)

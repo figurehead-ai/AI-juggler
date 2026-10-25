@@ -4,6 +4,7 @@
 pub mod commands;
 pub mod dto;
 pub mod restart;
+pub mod rows;
 
 use std::sync::Arc;
 
