@@ -1202,7 +1202,7 @@ for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiab
           await expect(page.getByTestId("cleanup-row-8123")).toContainText(
             "Still running after its session closed",
           );
-          await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+          await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
         }
         if (state === "empty") {
           await expect(page.getByTestId("cleanup-empty")).toContainText(
@@ -1904,7 +1904,7 @@ for (const theme of THEMES) {
       await goTo(page, "Cleanup");
       await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
       await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+      await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/mixed-${vp.name}-${theme}.png`) });
     });
   }
@@ -2178,13 +2178,17 @@ for (const theme of THEMES) {
         await expectRail(page); // D-25: the list, or its icon column when narrow
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("tab", { name: "Usage" }).click();
-        await expect(page.getByTestId("two-clock-card")).toBeVisible();
-        // Copy conformance before capture: the badge sits adjacent.
+        // 0.1.5: a session's Usage tab shows its account's window as every
+        // session page does (the old two-clock card left with the strips;
+        // the renewal clock lives on the profile's page).
+        const window_ = page.getByTestId("session-usage-runway");
+        await expect(window_).toBeVisible();
+        // Copy conformance before capture: what's left, in words, never 0%.
         if (state === "measured") {
-          await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+          await expect(window_).toContainText("18% left");
         }
         if (state === "no-data") {
-          await expect(page.getByText("Start a session to measure")).toBeVisible();
+          await expect(window_).not.toContainText("0% left");
         }
         await page.screenshot({
           path: resolve(GALLERY, `26-quota/usage-${state}-${vp.name}-${theme}.png`),

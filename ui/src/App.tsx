@@ -710,8 +710,10 @@ export default function App() {
           // window keeps the single row.
           className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
-          <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
+          {/* Room for the title and its tool chip, so the nav beside it
+              wraps rather than covering the chip at 1024 px (0.1.5). */}
+          <div className="flex min-w-[12rem] flex-1 basis-0 items-center gap-3">
+            <h1 className="min-w-0 truncate text-body font-semibold">{contextTitle}</h1>
             {/* The tool's own view (what's installed, its accounts and
                 their quota): one click from a session that runs on it. */}
             {contextProvider && contextProviderId && selection.kind !== "provider" && (
