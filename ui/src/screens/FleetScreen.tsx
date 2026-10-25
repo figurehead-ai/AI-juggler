@@ -111,7 +111,7 @@ export function FleetScreen({
     <Page
       title="Fleet"
       badge={<Chip tone="accent">Beta</Chip>}
-      subtitle="Your other Macs in one place, paired by a code and connected directly over your network. Sign-ins never leave a Mac."
+      subtitle="Your other Macs in one place, paired by a code and connected directly over your network. Your sign‑ins never leave a Mac."
       testId="fleet-screen"
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -157,7 +157,7 @@ export function FleetScreen({
           onClick={() => void toggleLink()}
           className={
             "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-            (link?.enabled ? "border-accent bg-accent" : "border-hairline bg-surface-2")
+            (link?.enabled ? "border-accent bg-accent" : "border-muted/60 bg-surface-3")
           }
           data-testid="fleet-link-switch"
         >
