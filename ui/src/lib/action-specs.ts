@@ -18,8 +18,8 @@ const notSnoozed = (row: InstanceInfo, h: ActionHost) => has(h.snoozeSession) &&
 export const SESSION: ActionSpec<"session">[] = [
   // Getting there. D-37: the app's own window, or (one AI Juggler runs)
   // its terminal here. An ended session has nowhere to go: left out.
-  { id: "focus", label: "Go to it", icon: "go-to", group: "go", rank: 10, applies: (row, h) => has(h.focusSession) && isLive(row), run: (row, h) => h.focusSession!(row) },
-  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 20, applies: (_, h) => has(h.openSession), run: (row, h) => h.openSession!(row) },
+  { id: "focus", label: "Go to it", icon: "go-to", group: "go", rank: 10, shortcut: "row-go-to", applies: (row, h) => has(h.focusSession) && isLive(row), run: (row, h) => h.focusSession!(row) },
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 20, shortcut: "row-open", applies: (_, h) => has(h.openSession), run: (row, h) => h.openSession!(row) },
   {
     id: "reveal-project",
     label: "Show its project",
@@ -117,7 +117,7 @@ export const SESSION: ActionSpec<"session">[] = [
 ];
 
 export const HISTORY: ActionSpec<"history">[] = [
-  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, applies: (_, h) => has(h.openHistory), run: (row, h) => h.openHistory!(row) },
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, shortcut: "row-open", applies: (_, h) => has(h.openHistory), run: (row, h) => h.openHistory!(row) },
   {
     id: "continue",
     label: "Continue on another account…",
@@ -145,8 +145,8 @@ export const HISTORY: ActionSpec<"history">[] = [
 // ("Continue in AI Juggler"), never stopped or tidied from here.
 export const CONVERSATION: ActionSpec<"conversation">[] = [
   // AJ-E2102: getting there first, while it's open somewhere.
-  { id: "go-to", label: "Go to it", icon: "go-to", group: "go", rank: 10, applies: (c, h) => has(h.goToConversation) && c.live, run: (c, h) => h.goToConversation!(c) },
-  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 20, applies: (_, h) => has(h.openConversation), run: (c, h) => h.openConversation!(c) },
+  { id: "go-to", label: "Go to it", icon: "go-to", group: "go", rank: 10, shortcut: "row-go-to", applies: (c, h) => has(h.goToConversation) && c.live, run: (c, h) => h.goToConversation!(c) },
+  { id: "open", label: "Open its page", icon: "page", group: "go", rank: 20, shortcut: "row-open", applies: (_, h) => has(h.openConversation), run: (c, h) => h.openConversation!(c) },
   {
     id: "reveal-project",
     label: "Show its project",
