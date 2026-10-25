@@ -564,3 +564,106 @@ sign in to nothing new.
 
 If a prompt appears, say which: the fix is in the adapter's
 `claude_bridge.rs` or `codex_bridge.rs` only.
+
+## Part 9 — A runtime per tool (E23, D-40)
+
+### 18. The runtime spike on spare accounts (AJ-E2301; about 45 min)
+
+**Why:** E23 drives Codex through its app-server and adds Claude Code's
+own hooks to terminal sessions, built to the vendors' documents and
+tested on fakes only. Five things only a real run can show, and the E23
+manifests mark them **unverified** until you've done this. Use spare
+accounts, a throwaway lab project (`~/lab/project` below) and AI Juggler
+Dev (`just dev`, which builds `juggler-agent` beside it). Allow only the
+lab commands below, sign in to nothing new, and keep your real accounts
+out of it.
+
+**Codex: an owned app-server, answered over the protocol.**
+
+- [ ] Terminal 1, a server on the spare Codex account (its own folder,
+      already signed in with `codex login`):
+      ```sh
+      export CODEX_HOME="$HOME/lab/codex-spare"
+      mkdir -p "$HOME/lab/rt" && chmod 700 "$HOME/lab/rt"
+      codex app-server --listen "unix://$HOME/lab/rt/spike.sock"
+      ```
+- [ ] Terminal 2, speak to it by hand (`nc -U` sends each line you paste):
+      ```sh
+      nc -U "$HOME/lab/rt/spike.sock"
+      {"id":1,"method":"initialize","params":{"clientInfo":{"name":"ai_juggler","title":"AI Juggler","version":"spike"}}}
+      {"method":"initialized"}
+      {"id":2,"method":"account/rateLimits/read"}
+      {"id":3,"method":"thread/start","params":{"cwd":"/Users/<you>/lab/project","approvalPolicy":"untrusted"}}
+      {"id":4,"method":"turn/start","params":{"threadId":"<thread id from 3>","input":[{"type":"text","text":"Run ls in this folder.","text_elements":[]}]}}
+      ```
+  - [ ] `initialize` answers with `codexHome` = `~/lab/codex-spare`.
+  - [ ] `account/rateLimits/read` answers `primary`/`secondary` with
+        `usedPercent`, `windowDurationMins` and `resetsAt` (record them).
+  - [ ] The turn sends `item/commandExecution/requestApproval` with an
+        `"id"`; answer it with `{"id":<that id>,"result":{"decision":"accept"}}`
+        and the turn completes (`turn/completed`).
+  - [ ] Ask "Ask me which colour I like, with two options" and record the
+        `item/tool/requestUserInput` request (or that none came: then
+        questions arrive as plain text on this version).
+- [ ] Terminal 3, the real TUI on the same server and thread:
+      ```sh
+      codex --remote "unix://$HOME/lab/rt/spike.sock" resume <thread id>
+      ```
+  - [ ] It opens the same conversation, live.
+  - [ ] Start a turn that needs an approval from the TUI. **Who is asked**:
+        the TUI, the `nc` client, or both? If both, does the first answer
+        win and the other get `serverRequest/resolved`?
+- [ ] Stop everything with Ctrl-C; `pgrep -fl "codex app-server"` lists
+      nothing of the lab's.
+- [ ] Then in AI Juggler Dev: start a Codex session on the spare account
+      in the lab project. The session page says "Driven by Codex's
+      app-server"; Needs you shows the first approval with the tool's own
+      options; Allow once carries on; Open in terminal attaches the TUI;
+      the limits show with their resets before the first turn ends.
+
+**Claude: hooks and the status line through `--settings`.**
+
+- [ ] Give the spare Claude account one hook of its own, so you can see
+      whether yours still runs next to AI Juggler's (a file in the lab
+      account, never your real one):
+      ```sh
+      export CLAUDE_CONFIG_DIR="$HOME/lab/claude-spare"
+      cat > "$CLAUDE_CONFIG_DIR/settings.json" <<'JSON'
+      {"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"echo user-hook >> /tmp/aj-spike-user-hook.log"}]}]}}
+      JSON
+      ```
+- [ ] In AI Juggler Dev, start a Claude session on that account in the
+      lab project and send "hello".
+  - [ ] `/tmp/aj-spike-user-hook.log` gained a line (**the user's hook
+        still runs**), and the session's state went Working → Idle in AI
+        Juggler without "probably" (**AI Juggler's hooks run too**).
+  - [ ] `/hooks` in the session lists both, and the status line still
+        shows what the account's own status line shows.
+  - [ ] Ask for something that needs a permission (`run ls`). Does the
+        TUI's dialog show **at once**, while `juggler-agent hook` runs, or
+        only after? Needs you shows "Asks you" with the tool and command.
+- [ ] Remove the lab hook: `rm "$CLAUDE_CONFIG_DIR/settings.json"`.
+
+**Claude headless (Beta) and the hand-over.**
+
+- [ ] In AI Juggler Dev › Settings › Sessions, turn on "Run without a
+      terminal (Beta)"; start a Claude session on the spare account with
+      "Run without a terminal: answer from AI Juggler".
+  - [ ] Ask "run ls": the approval shows in Needs you with Claude Code's
+        own options; Allow once carries on.
+  - [ ] Ask "Ask me which colour I like, using your question tool": the
+        question and its options show; answering it carries on.
+  - [ ] A limit line with its reset shows (`rate_limit_event`), or record
+        that none came on this plan.
+  - [ ] **Open in terminal** waits for the turn to end and opens the TUI on
+        the same conversation; **Run in AI Juggler** brings it back. The
+        transcript (`$CLAUDE_CONFIG_DIR/projects/…/<id>.jsonl`) has one
+        writer's turns in order, none interleaved.
+  - [ ] The account's usage page shows no "extra usage" or "third-party
+        apps" note for these runs (record it either way, with the date).
+- [ ] Put the captures in `docs/research/evidence/` (redacted with the
+      fail-closed tool) and tick AJ-E2301 and the "unverified" lines in the
+      E23 manifests (`docs/qa/evidence/AJ-E2302`…`AJ-E2308`).
+
+If something differs, say which line: the fix is in the adapter's
+`codex_appserver/`, `claude_hooks.rs` or `claude_stream/` only.

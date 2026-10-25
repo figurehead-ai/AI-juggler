@@ -258,5 +258,14 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
-Total: 256 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2301 | The spike on spare accounts | E23-session-runtime.md | P0 | S | — |
+| AJ-E2302 | The runtime contract | E23-session-runtime.md | P0 | M | — |
+| AJ-E2303 | Codex through app-server, by default | E23-session-runtime.md | P0 | L | AJ-E2302 |
+| AJ-E2304 | Open in terminal, and Start in terminal | E23-session-runtime.md | P0 | S | AJ-E2303 |
+| AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
+| AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
+| AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
+| AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
+| AJ-E2309 | Docs, Privacy and terms lines, evidence | E23-session-runtime.md | P0 | S | AJ-E2303, AJ-E2306, AJ-E2308 |
+Total: 265 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
