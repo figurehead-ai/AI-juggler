@@ -142,9 +142,10 @@ async function shoot(page: Page, dir: string, name: string, theme: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${name}`).toEqual([]);
 }
 
-/** An outside session's page, from Home's list. */
+/** An outside session's page, from its row in the list (a click opens it
+ * here; its ↗ goes to its app). */
 async function openConversation(page: Page, title: string) {
-  await page.getByTestId("home-outside").filter({ hasText: title }).first().click();
+  await page.getByTestId("rail").locator("[data-conversation-id]").filter({ hasText: title }).first().click();
   await expect(page.getByTestId("conversation-page")).toBeVisible();
 }
 
