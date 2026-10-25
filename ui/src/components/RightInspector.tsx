@@ -558,9 +558,10 @@ function InstanceOverview(props: PanelProps) {
             return null;
           })()}
           <SessionNotes session={session} live={live} now={props.now} />
-          <details className="group text-label" data-testid="instance-details">
+          <details className="group text-meta" data-testid="instance-details">
+            {/* Says what's inside (the review of 0.1.4: an empty strip). */}
             <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-              Details
+              Details <span className="text-muted">· its launch settings, folder, model and session id</span>
             </summary>
             <div className="mt-2 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -605,7 +606,7 @@ function InstanceOverview(props: PanelProps) {
             </span>
             <span data-testid="instance-resources" className="tabular-nums text-muted">
               cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · helpers{" "}
+              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
               {session.child_count ?? "—"}
             </span>
           </div>
