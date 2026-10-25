@@ -128,18 +128,21 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
       ? `On battery, so not kept awake while ${sessions}`
       : `Not kept awake while ${sessions} (off in Settings)`;
   return (
-    <p className="flex flex-wrap items-center gap-x-2 text-meta text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
-      <span aria-hidden="true" className={`size-2 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
-      <span>{words}</span>
-      <button
-        type="button"
-        className="text-ink underline underline-offset-2 hover:no-underline focus-visible:ring-1 focus-visible:ring-accent/60"
-        onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
-        data-testid="this-mac-awake-settings"
-      >
-        Change{" "}
-        <span className="sr-only">when the Mac is kept awake</span>
-      </button>
+    <p className="flex items-start gap-2 text-meta text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
+      <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
+      {/* The dot beside the words, never on a line of its own. */}
+      <span>
+        {words}{" "}
+        <button
+          type="button"
+          className="text-ink underline underline-offset-2 hover:no-underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
+          data-testid="this-mac-awake-settings"
+        >
+          Change{" "}
+          <span className="sr-only">when the Mac is kept awake</span>
+        </button>
+      </span>
     </p>
   );
 }
