@@ -141,7 +141,7 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
   useEffect(() => {
     let alive = true;
     switchGraphOverview(project.id).then(
-      (works) => alive && setMoved(works.some((work) => work.epochs.length > 1)),
+      (works) => alive && setMoved(works.length > 0),
       () => undefined,
     );
     return () => {
