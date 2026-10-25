@@ -18,6 +18,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2303, Codex through app-server, by
 | Live: a question | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), "Codex" | `item/tool/requestUserInput` or text | plain text on 0.163.0 with `experimentalApi: false` (no requestUserInput) | PASS | 2414a4bd | 2026-10-25 | agent |
 | Live: the approval's summary names the command | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), bug 2 | "ls" | Codex sends `command: "/bin/zsh -lc ls"` (the real command is in `commandActions`); `command_ask` would show the wrapper | FAIL | 2414a4bd | 2026-10-25 | agent |
 | Live: in the app (the session page, Needs you, the audit) | docs/qa/runtime-lab.md step 1 | seen in the app | BLOCKED: AI Juggler Dev not built (disk < 25 GB), no desktop control | UNPROVEN | — | 2026-10-25 | agent |
+| Lab 2 bug 2: an approval shows Codex's parsed commands (`commandActions`, all of them), not the shell wrapper | `cargo test -p juggler-adapters --test codex_app_server recorded_messages_make_the_right_events_and_answers` (fixture request 4, the live wrapped shape) | "ls · pwd"; only the listed decisions | pass | PASS | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 

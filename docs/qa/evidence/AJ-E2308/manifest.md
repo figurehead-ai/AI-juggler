@@ -16,6 +16,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2308, Run without a terminal: answ
 | Live: the round trip to the terminal and back | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md) | one transcript | one file, one `sessionId`, sdk-cli → cli → sdk-cli in order | PASS | 2414a4bd | 2026-10-25 | agent |
 | Live: an "add directory" suggestion's label | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), bug 3 | names the folder | `rule_words` gives "Always allow this, for this session" for `addDirectories` | FAIL | 2414a4bd | 2026-10-25 | agent |
 | Live: from the app (the Beta switch, the session page) | docs/qa/runtime-lab.md step 4 | seen in the app | BLOCKED: AI Juggler Dev not built (disk < 25 GB), no desktop control | UNPROVEN | — | 2026-10-25 | agent |
+| Lab 2 bug 3: an `addDirectories` suggestion names its folder | `cargo test -p juggler-adapters --lib a_folder_suggestion_names_its_folder`; `--test claude_stream` (the fixture's live second suggestion) | "Allow edits in ~/…/lab for this session" | pass | PASS | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 

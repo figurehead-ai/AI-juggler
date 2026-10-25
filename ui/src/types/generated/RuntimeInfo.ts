@@ -42,4 +42,9 @@ error: string | null,
 /**
  * The account's limits as this session's tool last reported them.
  */
-limits: Array<LimitWindowInfo>, };
+limits: Array<LimitWindowInfo>, 
+/**
+ * AJ-E2310: AI Juggler stopped during its turn, in words; Resume
+ * continues the conversation (nothing runs until then).
+ */
+cut_off: string | null, };

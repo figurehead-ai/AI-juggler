@@ -19,8 +19,10 @@ pub mod commands;
 pub mod driver;
 pub mod dto;
 pub mod launch;
+pub mod pickup;
 pub mod reports;
 pub mod settings;
+pub mod trust;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -45,6 +47,8 @@ pub struct Runtimes {
     fallbacks: Mutex<HashMap<String, String>>,
     /// What terminal sessions' hooks said last (AJ-E2306).
     observed: Mutex<HashMap<String, reports::Observed>>,
+    /// Driven sessions AI Juggler stopped during a turn (AJ-E2310).
+    cut_off: Mutex<HashMap<String, pickup::CutOff>>,
     notifier: Mutex<Option<Notifier>>,
 }
 
@@ -94,10 +98,33 @@ impl Runtimes {
     #[must_use]
     pub fn is_exact(&self, session: &SessionId) -> bool {
         self.is_driven(session)
+            || self.is_cut_off(session.as_str())
             || self
                 .observed
                 .lock()
                 .is_ok_and(|observed| observed.contains_key(session.as_str()))
+    }
+
+    /// Notes that AI Juggler stopped during `session`'s turn (AJ-E2310).
+    pub fn note_cut_off(&self, session: &SessionId, how: pickup::CutOff) {
+        if let Ok(mut cut) = self.cut_off.lock() {
+            cut.insert(session.to_string(), how);
+        }
+    }
+
+    /// Whether `session`'s turn was cut off and waits for Resume.
+    #[must_use]
+    pub fn is_cut_off(&self, session: &str) -> bool {
+        self.cut_off
+            .lock()
+            .is_ok_and(|cut| cut.contains_key(session))
+    }
+
+    /// `session` is resumed or ended: no longer cut off.
+    pub fn clear_cut_off(&self, session: &str) {
+        if let Ok(mut cut) = self.cut_off.lock() {
+            cut.remove(session);
+        }
     }
 
     /// Takes in a hook's report for a terminal session: its exact state,
@@ -152,6 +179,7 @@ impl Runtimes {
         if let Ok(mut observed) = self.observed.lock() {
             observed.remove(session);
         }
+        self.clear_cut_off(session);
     }
 
     /// The runtime of `session`, as the UI shows it; `None` for a session
@@ -160,6 +188,20 @@ impl Runtimes {
     pub fn info(&self, session: &str) -> Option<RuntimeInfo> {
         if let Some(driver) = self.driver(session) {
             return Some(driver.info());
+        }
+        if let Some(how) = self
+            .cut_off
+            .lock()
+            .ok()
+            .and_then(|c| c.get(session).copied())
+        {
+            return Some(RuntimeInfo {
+                kind: "driven".into(),
+                label: Some(how.label.to_owned()),
+                beta: how.beta,
+                cut_off: Some(pickup::CUT_OFF_WORDS.to_owned()),
+                ..RuntimeInfo::default()
+            });
         }
         let why = self
             .fallbacks

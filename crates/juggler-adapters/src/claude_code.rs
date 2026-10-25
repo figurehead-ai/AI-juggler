@@ -149,7 +149,7 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         launch: &juggler_adapter::reports::ReportsLaunch,
         args: &[String],
     ) -> Option<juggler_adapter::reports::ReportsInjection> {
-        Some(crate::claude_hooks::injection(launch, args))
+        crate::claude_hooks::injection(launch, args)
     }
 
     fn agent_bridge(

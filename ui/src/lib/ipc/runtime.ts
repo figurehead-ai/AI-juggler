@@ -18,8 +18,9 @@ import type { RuntimeChoicesInfo } from "../../types/generated/RuntimeChoicesInf
 import type { RuntimeInfo } from "../../types/generated/RuntimeInfo";
 import type { RuntimeViewInfo } from "../../types/generated/RuntimeViewInfo";
 import type { HandoverInfo } from "../../types/generated/HandoverInfo";
+import type { FolderTrustInfo } from "../../types/generated/FolderTrustInfo";
 
-export type { AnswerInput, AskInfo, RuntimeChoicesInfo, RuntimeInfo, RuntimeViewInfo, HandoverInfo };
+export type { AnswerInput, AskInfo, RuntimeChoicesInfo, RuntimeInfo, RuntimeViewInfo, HandoverInfo, FolderTrustInfo };
 
 /** The event the backend sends when driven sessions change (their ids). */
 export const RUNTIME_CHANGED = "runtime://changed";
@@ -27,6 +28,8 @@ export const RUNTIME_CHANGED = "runtime://changed";
 interface Seams {
   __AIJ_RUNTIME__?: Record<string, RuntimeViewInfo>;
   __AIJ_RUNTIME_CALLS__?: string[];
+  /** The folder-trust question the preview asks (none when unset). */
+  __AIJ_TRUST__?: FolderTrustInfo;
 }
 const seams = () => window as unknown as Seams;
 const record = (call: string) => (seams().__AIJ_RUNTIME_CALLS__ ??= []).push(call);
@@ -86,6 +89,44 @@ export async function runtimeHandover(sessionId: string, toward: "terminal" | "d
     return { session_id: sessionId };
   }
   return invoke<HandoverInfo>("runtime_handover", { sessionId, toward });
+}
+
+/** AJ-E2310: the user's Resume on a session whose turn was cut off when
+ * AI Juggler stopped: its conversation is resumed, and nothing is sent. */
+export async function runtimeResume(sessionId: string): Promise<HandoverInfo> {
+  if (!hasLiveBackend()) {
+    record(`resume:${sessionId}`);
+    return { session_id: sessionId };
+  }
+  return invoke<HandoverInfo>("runtime_resume", { sessionId });
+}
+
+/** AJ-E2310: the user's End on a session whose turn was cut off. */
+export async function runtimeEnd(sessionId: string): Promise<void> {
+  if (!hasLiveBackend()) {
+    record(`end:${sessionId}`);
+    return;
+  }
+  return invoke<void>("runtime_end", { sessionId });
+}
+
+/** Lab 2: the folder-trust question a launch of these settings in `cwd`
+ * needs (the tool's own words), with the answer so far; `null` when its
+ * tool asks nothing. */
+export async function runtimeTrust(profileId: string, cwd: string | null): Promise<FolderTrustInfo | null> {
+  if (!hasLiveBackend()) return seams().__AIJ_TRUST__ ?? null;
+  return invoke<FolderTrustInfo | null>("runtime_trust", { profileId, cwd });
+}
+
+/** The user's answer to it (their click), kept in AI Juggler and passed to
+ * each launch in memory: the tool's own config is never written. */
+export async function runtimeTrustChoose(profileId: string, cwd: string | null, trusted: boolean): Promise<FolderTrustInfo | null> {
+  if (!hasLiveBackend()) {
+    record(`trust:${profileId}:${trusted ? "trusted" : "untrusted"}`);
+    const asked = seams().__AIJ_TRUST__;
+    return asked ? { ...asked, choice: trusted ? "trusted" : "untrusted" } : null;
+  }
+  return invoke<FolderTrustInfo | null>("runtime_trust_choose", { profileId, cwd, trusted });
 }
 
 /** The profiles' runtime choices and the Beta switch. */

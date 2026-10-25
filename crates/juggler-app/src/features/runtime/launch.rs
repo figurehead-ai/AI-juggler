@@ -152,6 +152,7 @@ fn try_driven(
     session: &SessionId,
     start: &Start<'_>,
     cwd: &Path,
+    trust: Option<bool>,
 ) -> Result<Started, NotDriven> {
     let socket = socket_path(&state.data_dir, session).ok_or_else(|| {
         NotDriven::Before("the data folder's path is too long for a socket".into())
@@ -167,6 +168,10 @@ fn try_driven(
     let mut spec = driven
         .driven_spec(start.account, start.profile, cwd, &launch)
         .map_err(|e| NotDriven::Before(e.to_string()))?;
+    // Lab 2: the folder's trust, in memory (never the tool's own config).
+    if let Some(trusted) = trust {
+        adapter.apply_folder_trust(&mut spec.launch.args, cwd, trusted);
+    }
     crate::features::agent_bridge::prepare(
         state,
         adapter,
@@ -246,15 +251,19 @@ pub fn start(
     start: &Start<'_>,
     mut terminal: LaunchSpec,
 ) -> AppResult<Started> {
-    let (profile_choice, beta) = {
+    let (profile_choice, beta, trust) = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         (
             settings::profile_choices(&storage)
                 .get(start.profile.id.as_str())
                 .copied(),
             settings::beta_on(&storage),
+            super::trust::plan(&storage, adapter, start.account, &terminal.cwd),
         )
     };
+    if let Some(trusted) = trust {
+        adapter.apply_folder_trust(&mut terminal.args, &terminal.cwd, trusted);
+    }
     let mut session = session;
     let fell_back = match settings::plan(adapter.driven(), start.requested, profile_choice, beta) {
         Plan::Terminal(why) => why,
@@ -262,7 +271,15 @@ pub fn start(
             let driven = adapter
                 .driven()
                 .ok_or_else(|| AppError::Refused("no driven runtime".into()))?;
-            match try_driven(state, adapter, driven, &session, start, &terminal.cwd) {
+            match try_driven(
+                state,
+                adapter,
+                driven,
+                &session,
+                start,
+                &terminal.cwd,
+                trust,
+            ) {
                 Ok(started) => return Ok(started),
                 Err(NotDriven::Before(why)) => Some(why),
                 Err(NotDriven::After(why)) => {

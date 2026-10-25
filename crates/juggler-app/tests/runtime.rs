@@ -10,6 +10,9 @@
 //! - Fallbacks: "Start in terminal" per session and per profile, a Codex
 //!   too old or a protocol AI Juggler hasn't pinned → the terminal, with
 //!   the reason on the session.
+//! - AJ-E2310: the app core killed (a child process, `SIGKILL`) between
+//!   turns brings the session back driven on its thread; mid-turn it says
+//!   its turn was cut off and waits for Resume; a stopped one stays ended.
 
 #![allow(
     clippy::unwrap_used,
@@ -479,9 +482,7 @@ fn switching_away_from_a_driven_session_releases_it_first() {
         assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
         runtime::send_impl(&state, &session, prompt).unwrap();
         if freeze == "finish-turn" {
-            wait_for("the turn's end", || {
-                row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
-            });
+            replied(&state, &session);
         } else {
             wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
         }
@@ -613,4 +614,362 @@ fn a_profile_choice_is_kept_and_a_bad_word_refused() {
     assert!(cleared.profiles.iter().all(|p| p.chosen.is_none()));
     assert!(!cleared.beta_on);
     assert!(runtime::beta_impl(&state, true).unwrap().beta_on);
+}
+
+// ---------------------------------------------------------------------
+// AJ-E2310: a driven session comes back after the app core is killed.
+
+/// Waits for the driven session's turn to end with the agent's reply
+/// (idle alone can be the state before the turn started).
+fn replied(state: &Arc<AppState>, session: &str) {
+    wait_for("the reply", || {
+        let snap = state.runtime.driver(session).unwrap().snapshot();
+        !snap.turn_running && snap.items.iter().any(|item| item.kind == "agent_message")
+    });
+}
+
+/// The data folder the child app core runs in.
+const CORE_DATA: &str = "AIJ_PICKUP_CORE";
+/// Where the child leaves its session when killed: `between`, `mid` or
+/// `stopped`.
+const CORE_STAGE: &str = "AIJ_PICKUP_STAGE";
+
+/// The app core, in a child process: a Codex session on the fake
+/// app-server brought to the stage asked, its ids written down, then it
+/// waits to be killed (and ends by itself after a minute, never left
+/// behind).
+#[test]
+#[ignore = "run by the pickup tests below, in a child process"]
+fn app_core_in_a_child() {
+    let work = PathBuf::from(std::env::var(CORE_DATA).unwrap());
+    let stage = std::env::var(CORE_STAGE).unwrap();
+    let state = app_state(&work, None);
+    let profile = new_profile(&state, CODEX_ID, &work);
+    let launched = commands::launch_profile(&state, &profile, None).unwrap();
+    let session = launched.session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    let thread = state
+        .runtime
+        .driver(&session)
+        .unwrap()
+        .snapshot()
+        .native_id
+        .unwrap();
+    let marks = || juggler_app::features::runtime::pickup::marks(&state.storage.lock().unwrap());
+    wait_for("the first turn's mark", || {
+        marks().get(&session).is_some_and(|mark| !mark.in_turn)
+    });
+    match stage.as_str() {
+        "mid" => {
+            runtime::send_impl(&state, &session, "ask: npm test").unwrap();
+            wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
+        }
+        "stopped" => stop(&state, &session),
+        _ => {}
+    }
+    // The mark is in the store before the kill (no message text in it).
+    if stage == "stopped" {
+        assert!(marks().is_empty(), "{:?}", marks());
+    } else {
+        wait_for("the mark", || {
+            marks()
+                .get(&session)
+                .is_some_and(|mark| mark.native_id == thread && mark.in_turn == (stage == "mid"))
+        });
+    }
+    std::fs::write(
+        work.join("core-ready"),
+        format!("{session} {thread} {}", launched.pid),
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+/// Whether process `pid` is alive (`kill -0`).
+fn alive(pid: &str) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", pid])
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+/// Runs the app core in a child to `stage`, kills it (`SIGKILL`), and
+/// waits for the tool's server to end with it. Returns the session and
+/// its thread.
+fn kill_core_at(work: &Path, stage: &str) -> (String, String) {
+    let mut core = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "app_core_in_a_child", "--ignored", "--nocapture"])
+        .env(CORE_DATA, work)
+        .env(CORE_STAGE, stage)
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let ready = work.join("core-ready");
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while !ready.is_file() {
+        if let Some(status) = core.try_wait().unwrap() {
+            panic!("the app core ended before its session was ready: {status}");
+        }
+        assert!(Instant::now() < deadline, "the app core never got ready");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let text = std::fs::read_to_string(&ready).unwrap();
+    let mut words = text.split_whitespace();
+    let (session, thread, server) = (
+        words.next().unwrap().to_owned(),
+        words.next().unwrap().to_owned(),
+        words.next().unwrap().to_owned(),
+    );
+    core.kill().unwrap();
+    core.wait().unwrap();
+    // Its input closed with the core: the tool's server ends on its own.
+    wait_for("the server to end with the app core", || !alive(&server));
+    (session, thread)
+}
+
+#[test]
+fn a_session_between_turns_comes_back_driven_on_its_thread_after_a_kill() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, thread) = kill_core_at(work.path(), "between");
+
+    // A new app core on the same data.
+    let state = app_state(work.path(), None);
+    assert_eq!(
+        status_of(&state, &session),
+        "starting",
+        "kept for the pickup"
+    );
+    pickup::after_restart(&state);
+    wait_for("the session to come back", || {
+        state.runtime.driver(&session).is_some()
+    });
+    let driver = state.runtime.driver(&session).unwrap();
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(thread.as_str()),
+        "the same thread"
+    );
+    assert!(
+        state
+            .supervisor
+            .is_supervised(&SessionId::new(session.as_str()))
+    );
+    // No turn was sent by itself; the next one is the user's.
+    assert!(runtime::asks_impl(&state, 0, 10).is_empty());
+    runtime::send_impl(&state, &session, "again").unwrap();
+    replied(&state, &session);
+    let rollout = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(session.as_str()))
+        .unwrap()
+        .transcript_ref
+        .unwrap()
+        .path;
+    let lines = std::fs::read_to_string(rollout).unwrap();
+    assert!(
+        lines.contains("hello") && lines.contains("again"),
+        "one conversation"
+    );
+    stop(&state, &session);
+    assert!(
+        pickup::marks(&state.storage.lock().unwrap()).is_empty(),
+        "a stop forgets it"
+    );
+}
+
+#[test]
+fn a_session_killed_mid_turn_says_so_and_waits_for_resume() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, thread) = kill_core_at(work.path(), "mid");
+
+    let state = app_state(work.path(), None);
+    pickup::after_restart(&state);
+    let info = row(&state, &session).runtime.unwrap();
+    assert_eq!(info.cut_off.as_deref(), Some(pickup::CUT_OFF_WORDS));
+    assert_eq!(info.label.as_deref(), Some("Codex's app-server"));
+    assert_eq!(status_of(&state, &session), "waiting_user");
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(session.as_str()))
+        .unwrap();
+    assert_eq!(record.attention.unwrap().rule, pickup::CUT_OFF_RULE);
+    // Nothing runs by itself.
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(state.runtime.driver(&session).is_none());
+    assert!(
+        !state
+            .supervisor
+            .is_supervised(&SessionId::new(session.as_str()))
+    );
+
+    // The user's Resume: the same thread, nothing sent.
+    let resumed = pickup::resume_impl(&state, &session).unwrap();
+    assert_eq!(resumed.session_id, session);
+    let driver = state.runtime.driver(&session).expect("driven again");
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(thread.as_str())
+    );
+    assert!(row(&state, &session).runtime.unwrap().cut_off.is_none());
+    assert!(pickup::resume_impl(&state, &session).is_err(), "once");
+    runtime::send_impl(&state, &session, "hello again").unwrap();
+    replied(&state, &session);
+    stop(&state, &session);
+}
+
+#[test]
+fn a_cut_off_session_can_be_ended_and_a_stopped_one_never_comes_back() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, _) = kill_core_at(work.path(), "mid");
+    let state = app_state(work.path(), None);
+    pickup::after_restart(&state);
+    pickup::end_impl(&state, &session).unwrap();
+    assert_eq!(status_of(&state, &session), "stopped");
+    assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
+    assert!(state.runtime.info(&session).is_none());
+    drop(state);
+
+    let other = tempfile::tempdir().unwrap();
+    let (stopped, _) = kill_core_at(other.path(), "stopped");
+    let state = app_state(other.path(), None);
+    pickup::after_restart(&state);
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(state.runtime.driver(&stopped).is_none());
+    assert_ne!(status_of(&state, &stopped), "starting");
+    assert!(state.runtime.info(&stopped).is_none());
+}
+
+// ---------------------------------------------------------------------
+// Lab 2: Codex's folder trust is the user's choice in AI Juggler, passed
+// in memory; Codex's own config is never written.
+
+/// The launches `fake-codex` saw (one line each) that contain `word`.
+fn launches_with(log: &Path, word: &str) -> Vec<String> {
+    std::fs::read_to_string(log)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| line.contains(word))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    use juggler_app::features::runtime::trust;
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("codex-args.log");
+    let state = app_state(
+        work.path(),
+        Some(codex_with(
+            work.path(),
+            &format!("FAKE_CODEX_ARGS_LOG={}", log.display()),
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let folder = work.path().canonicalize().unwrap();
+    let override_of = |level: &str| {
+        format!(
+            "-c projects={{\"{}\"={{trust_level=\"{level}\"}}}}",
+            folder.display()
+        )
+    };
+
+    // Codex's own question, not answered yet.
+    let asked = trust::trust_impl(&state, &profile, None).unwrap().unwrap();
+    assert_eq!(
+        (
+            asked.question.as_str(),
+            asked.trust.as_str(),
+            asked.restrict.as_str()
+        ),
+        (
+            "Trust this folder?",
+            "Trust and continue",
+            "Open restricted"
+        )
+    );
+    assert!(asked.choice.is_none());
+
+    // Not answered: restricted, in memory (Codex's trust screen would
+    // have saved an answer to its config).
+    let first = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the launch", || !launches_with(&log, "--listen").is_empty());
+    assert!(launches_with(&log, "--listen")[0].starts_with(&override_of("untrusted")));
+    stop(&state, &first);
+
+    // The user's answer, kept and passed to each launch.
+    let answered = trust::trust_choose_impl(&state, &profile, None, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(answered.choice.as_deref(), Some("trusted"));
+    let session = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the second launch", || {
+        launches_with(&log, "--listen").len() == 2
+    });
+    assert!(launches_with(&log, "--listen")[1].starts_with(&override_of("trusted")));
+
+    // Open in terminal carries it too.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    wait_for("the terminal", || {
+        !launches_with(&log, " resume ").is_empty()
+    });
+    assert!(launches_with(&log, " resume ")[0].starts_with(&override_of("trusted")));
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str()))
+    });
+
+    // Codex's own config was never written.
+    let home = state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|a| a.harness.as_str() == CODEX_ID)
+        .unwrap()
+        .state_dir;
+    assert!(!home.join("config.toml").exists());
+
+    // A folder the user decided in Codex itself is left to Codex.
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::write(
+        home.join("config.toml"),
+        format!(
+            "[projects.\"{}\"]\ntrust_level = \"untrusted\"\n",
+            folder.display()
+        ),
+    )
+    .unwrap();
+    let decided = trust::trust_impl(&state, &profile, None).unwrap().unwrap();
+    assert_eq!(decided.choice.as_deref(), Some("in_tool"));
+    let third = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the third launch", || {
+        launches_with(&log, "--listen").len() == 3
+    });
+    assert!(!launches_with(&log, "--listen")[2].contains("-c projects="));
+    stop(&state, &third);
 }

@@ -478,6 +478,19 @@ impl HarnessAdapter for CodexAdapter {
         Some(self)
     }
 
+    /// Lab 2: Codex's folder trust, asked by AI Juggler, passed in memory.
+    fn folder_trust(&self) -> Option<juggler_adapter::folder_trust::FolderTrust> {
+        Some(crate::codex_trust::QUESTION)
+    }
+
+    fn folder_trust_decided(&self, account: &Account, cwd: &Path) -> bool {
+        crate::codex_trust::decided(&account.state_dir, cwd)
+    }
+
+    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &Path, trusted: bool) {
+        crate::codex_trust::apply(args, cwd, trusted);
+    }
+
     fn agent_bridge(
         &self,
         bridge: &juggler_adapter::BridgeLaunch,

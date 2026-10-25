@@ -23,16 +23,20 @@ export function runningWords(plan: QuitPlanInfo): string {
   return plan.live === 1 ? "1 session is running." : `${plan.live} sessions are running.`;
 }
 
-/** What quitting does to them, in words. */
+/** What quitting does to them, in words. AJ-E2310: a session AI Juggler
+ * runs without a terminal ends with it and comes back when it opens again. */
 export function quitEffectWords(plan: QuitPlanInfo): string {
   const one = plan.live === 1;
-  if (plan.keep_running === 0) return one ? "It ends when AI Juggler quits." : "They end when AI Juggler quits.";
-  if (plan.end_on_quit === 0) {
-    return one ? "It keeps running after AI Juggler quits." : "They keep running after AI Juggler quits.";
-  }
-  const ends = plan.end_on_quit === 1 ? "1 ends" : `${plan.end_on_quit} end`;
-  const keeps = plan.keep_running === 1 ? "1 keeps running" : `${plan.keep_running} keep running`;
-  return `${ends} when AI Juggler quits; ${keeps}.`;
+  const back = plan.come_back ?? 0;
+  const only = (n: number) => n === plan.live;
+  if (only(plan.end_on_quit)) return one ? "It ends when AI Juggler quits." : "They end when AI Juggler quits.";
+  if (only(plan.keep_running)) return one ? "It keeps running after AI Juggler quits." : "They keep running after AI Juggler quits.";
+  if (only(back)) return one ? "It comes back when AI Juggler opens again." : "They come back when AI Juggler opens again.";
+  const parts: string[] = [];
+  if (plan.end_on_quit > 0) parts.push(`${plan.end_on_quit === 1 ? "1 ends" : `${plan.end_on_quit} end`} when AI Juggler quits`);
+  if (plan.keep_running > 0) parts.push(plan.keep_running === 1 ? "1 keeps running" : `${plan.keep_running} keep running`);
+  if (back > 0) parts.push(back === 1 ? "1 comes back when it opens again" : `${back} come back when it opens again`);
+  return `${parts.join("; ")}.`;
 }
 
 export function QuitSheet(): JSX.Element | null {

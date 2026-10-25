@@ -137,15 +137,16 @@
 | AJ-E2108 | (no claims yet) | 2026-10-24 | [manifest](AJ-E2108/manifest.md) |
 | AJ-E2109 | (no claims yet) | 2026-10-24 | [manifest](AJ-E2109/manifest.md) |
 | AJ-E2110 | PASS7 UNPROVEN2 | 2026-10-24 | [manifest](AJ-E2110/manifest.md) |
-| AJ-E2301 | FAIL1 PASS9 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2301/manifest.md) |
+| AJ-E2301 | FAIL1 PASS10 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2301/manifest.md) |
 | AJ-E2302 | PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2302/manifest.md) |
-| AJ-E2303 | FAIL1 PASS8 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2303/manifest.md) |
-| AJ-E2304 | PASS5 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2304/manifest.md) |
+| AJ-E2303 | FAIL1 PASS9 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2303/manifest.md) |
+| AJ-E2304 | PASS6 UNPROVEN3 | 2026-10-25 | [manifest](AJ-E2304/manifest.md) |
 | AJ-E2305 | PASS3 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2305/manifest.md) |
-| AJ-E2306 | FAIL1 PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2306/manifest.md) |
+| AJ-E2306 | FAIL1 PASS7 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2306/manifest.md) |
 | AJ-E2307 | PASS5 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2307/manifest.md) |
-| AJ-E2308 | FAIL1 PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2308/manifest.md) |
+| AJ-E2308 | FAIL1 PASS7 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2308/manifest.md) |
 | AJ-E2309 | PASS6 | 2026-10-25 | [manifest](AJ-E2309/manifest.md) |
+| AJ-E2310 | PASS7 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2310/manifest.md) |
 | AJ-E301 | PASS11 | 2026-10-16 | [manifest](AJ-E301/manifest.md) |
 | AJ-E302 | PASS12 | 2026-10-17 | [manifest](AJ-E302/manifest.md) |
 | AJ-E303 | PASS10 | 2026-10-17 | [manifest](AJ-E303/manifest.md) |

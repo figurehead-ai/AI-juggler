@@ -244,7 +244,7 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
   it("a session that couldn't run through its runtime says why above its terminal (AJ-E2302)", () => {
     const runtime = {
       kind: "terminal", label: null, beta: false, state: null, asks: [], can_steer: false,
-      fell_back: "Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives", error: null, limits: [],
+      fell_back: "Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives", error: null, limits: [], cut_off: null,
     };
     const { container } = shell(mk({ provider: "codex", runtime }));
     open(container, "terminal");

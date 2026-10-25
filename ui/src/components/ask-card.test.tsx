@@ -78,6 +78,7 @@ const view = (asks: AskInfo[]): RuntimeViewInfo => ({
     fell_back: null,
     error: null,
     limits: [{ id: "seven_day", window_mins: 10080, used_pct: 41, resets_at_ms: 1_761_897_600_000 }],
+    cut_off: null,
   },
   items: [{ kind: "user_message", text: "Run the tests", at_ms: 1 }],
   streaming: null,
@@ -165,5 +166,44 @@ describe("a driven session's page", () => {
     await act(async () => fireEvent.click(getByTestId("open-in-terminal")));
     expect(calls()).toEqual(["handover:sess-1:terminal"]);
     expect(opened).toBe("sess-1");
+  });
+
+  // Lab 2: in a folder whose trust isn't answered yet, Open in terminal
+  // asks the tool's own question first (its terminal would save the answer
+  // to the tool's config).
+  it("asks the folder's trust before Open in terminal, then hands over", async () => {
+    seams().__AIJ_RUNTIME__ = { "sess-1": view([]) };
+    (window as unknown as { __AIJ_TRUST__?: unknown }).__AIJ_TRUST__ = {
+      folder: "/Users/me/lab", question: "Trust this folder?", trust: "Trust and continue", restrict: "Open restricted", note: "", choice: null,
+    };
+    try {
+      const session = { id: "sess-1", launch_recipe_id: "p1", cwd: "/Users/me/lab", runtime: view([]).runtime } as unknown as InstanceInfo;
+      const { findByTestId, getByTestId } = render(<DrivenPanel session={session} />);
+      await act(async () => fireEvent.click(await findByTestId("open-in-terminal")));
+      expect(getByTestId("folder-trust").textContent).toContain("Trust this folder?");
+      expect(calls()).toEqual([]);
+      await act(async () => fireEvent.click(getByTestId("folder-trust-restrict")));
+      expect(calls()).toEqual(["trust:p1:untrusted", "handover:sess-1:terminal"]);
+    } finally {
+      delete (window as unknown as { __AIJ_TRUST__?: unknown }).__AIJ_TRUST__;
+    }
+  });
+
+  // AJ-E2310: AI Juggler stopped during its turn.
+  it("whose turn was cut off says so, sends nothing, and offers Resume and End", async () => {
+    const runtime = { ...view([]).runtime, state: null, limits: [], cut_off: "Its turn was cut off when AI Juggler stopped" };
+    const session = { id: "sess-1", runtime } as unknown as InstanceInfo;
+    let opened: string | null = null;
+    const { getByTestId, queryByTestId, queryByRole } = render(<DrivenPanel session={session} onOpenSession={(id) => (opened = id)} />);
+    expect(getByTestId("runtime-cut-off").textContent).toContain("Its turn was cut off when AI Juggler stopped");
+    expect(queryByTestId("open-in-terminal")).toBeNull();
+    expect(queryByRole("textbox")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(calls()).toEqual([]);
+    await act(async () => fireEvent.click(getByTestId("runtime-resume")));
+    expect(calls()).toEqual(["resume:sess-1"]);
+    expect(opened).toBe("sess-1");
+    await act(async () => fireEvent.click(getByTestId("runtime-end")));
+    expect(calls()).toEqual(["resume:sess-1", "end:sess-1"]);
   });
 });

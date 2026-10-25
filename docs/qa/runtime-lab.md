@@ -17,15 +17,16 @@ maintainer's longer note is `docs/internal/MAINTAINER-STEPS.md` §18.
 - Snapshot the tool folders before and after (metadata only:
   `scripts/qa/runtime_lab_snapshot.sh` lists names, sizes and times, never
   contents).
-- Stop everything you start, and check nothing is left (step 6).
+- Stop everything you start, and check nothing is left (step 7).
 
 **Learned in lab 2 (2026-10-25, `docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md`)**
-- **Codex's trust screen.** `codex resume` in a folder Codex hasn't trusted asks "Trust this folder?", and the answer is saved to the user's `config.toml`. Quit rather than trust, or start with `-c 'projects={"<lab>"={trust_level="untrusted"}}'`, which saves nothing and offers "Open restricted". Skip Codex's update prompt with Esc.
+- **Codex's trust screen.** `codex resume` in a folder Codex hasn't trusted asks "Trust this folder?", and the answer is saved to the user's `config.toml`. AI Juggler now asks this itself (once per folder, Codex's words) and passes the answer in memory (`-c projects=…`). By hand, quit rather than trust, or start with `-c 'projects={"<lab>"={trust_level="untrusted"}}'`, which saves nothing and offers "Open restricted". Skip Codex's update prompt with Esc.
+- **Check, from lab 3 on:** the first Codex start in `$LAB` shows AI Juggler's **Trust this folder?** sheet; pick **Open restricted**. `config.toml` keeps its size and time (step 6's diff), and Open in terminal goes straight to "Open restricted" without Codex's own trust screen.
 - **Claude's onboarding.** A profile that has never run Claude Code in a terminal shows a theme picker and security notes first; the theme choice creates its `settings.json`. On the trust dialog the default is **"No, exit"**: move to "Yes" before Enter.
 - **Claude's self-update.** The first terminal start can update Claude Code for the whole Mac. Set `DISABLE_AUTOUPDATER=1` for the lab's terminal runs.
 - **A dialog needs a write.** In auto mode (some accounts' default), and for read-only commands, Claude asks nothing. Use `echo lab > lab.txt` to bring up a dialog.
 - **`/hooks` doesn't list `--settings` hooks.** Check the "running … hooks 0/2" line and the hook logs instead.
-- **Process listings.** Print `pid` and `comm` only; `pgrep -fl` can show other processes' environment text.
+- **Process listings.** Print `pid` and `comm` only; `pgrep -fl` can show other processes' environment text. Use `scripts/qa/runtime_lab_snapshot.sh procs [PATTERN]` (pid and program name; the apps' own servers under `/Applications` left out).
 
 **Fill in first**
 
@@ -35,6 +36,9 @@ export CODEX_DIR="<the Codex profile's folder>"         # e.g. ~/.codex
 export CLAUDE_DIR="<the Claude Code profile's folder>"  # e.g. ~/.claude
 export AJ_LAB_OUT=/tmp/aj-runtime-lab                   # snapshots and notes (0700)
 export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
+export DISABLE_AUTOUPDATER=1    # Claude Code never updates itself during the lab
+                                # (lab 2: a terminal start updated it Mac-wide);
+                                # `just dev` and every hand-run `claude` get it
 ```
 
 ## 0. Set up and snapshot (5 min)
@@ -50,7 +54,7 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 
 - [ ] New session → the Codex profile → folder `$LAB` → Start. The session
       page says **Runs through Codex's app-server**.
-- [ ] `pgrep -fl 'codex app-server --listen stdio://' | grep -v /Applications/`
+- [ ] `scripts/qa/runtime_lab_snapshot.sh procs 'codex app-server --listen stdio://'`
       shows one server for the session (the Codex app's own server, inside
       `/Applications`, isn't the lab's). Over stdio there is no socket
       anywhere, and nothing new under `/private/tmp/codex-daemon-*`.
@@ -75,14 +79,14 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 ## 2. Codex: the real TUI on the same thread, by hand-over (5 min)
 
 - [ ] On the session page, **Open in terminal**. It waits for the turn's
-      end; then the app-server ends (`pgrep` above prints nothing) and a new
+      end; then the app-server ends (the listing above prints nothing) and a new
       session opens in AI Juggler's terminal with `codex resume <thread>
       --no-daemon`: the same conversation. The old session says "handed
       over".
 - [ ] Send "hello" in the TUI, then exit it (`/quit`). On that session's
       page, **Run in AI Juggler**: a new driven session continues the same
       thread (its last messages include "hello").
-- [ ] **Stop** the session in AI Juggler. `pgrep -fl 'codex app-server'`
+- [ ] **Stop** the session in AI Juggler. `scripts/qa/runtime_lab_snapshot.sh procs 'codex app-server'`
       lists nothing of the lab's (the Codex app's own server, under
       `/Applications/ChatGPT.app`, is not the lab's).
 - [ ] Optional, the protocol by hand without AI Juggler (stdio, the way AI
@@ -130,9 +134,11 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 - [ ] New session → the Claude Code profile → `$LAB` → More → **Run
       without a terminal: answer from AI Juggler** → Start. The session page
       says **Runs without a terminal (Beta)**.
-  - [ ] `pgrep -fl 'claude -p --input-format stream-json'` shows it with
-        `--permission-prompt-tool stdio` and without `--bare` or any
-        permission bypass.
+  - [ ] `scripts/qa/runtime_lab_snapshot.sh procs 'claude -p --input-format stream-json'` shows one
+        `claude` for the session. (Its flags, `--permission-prompt-tool
+        stdio` and never `--bare` or a bypass, are the conformance kit's and
+        `no_launch_bypasses_a_tools_prompts`'s to check: the lab lists no
+        command lines.)
   - [ ] Send "Run `ls`." The approval shows with Claude Code's own options;
         **Allow once** carries on.
   - [ ] Send "Ask me which colour I like, using your question tool." The
@@ -150,7 +156,37 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
 - [ ] The account's usage page (claude.ai) shows no "extra usage" or
       "third-party apps" note for these runs (record it, with the date).
 
-## 5. Snapshot after and compare (5 min)
+## 5. Coming back after AI Juggler quits or crashes (AJ-E2310, 10 min)
+
+Codex first (the default); then, if there is time, the same with a Claude
+session without a terminal (the Beta switch on, as in step 4).
+
+- [ ] **Between turns, a quit.** New Codex session → `$LAB` → send
+      "hello", wait for Idle. Note its thread: on the session page, or
+      `sqlite3 "$AJ_DATA/juggler.sqlite" "select value from app_settings where key = 'runtime.live'"`
+      (the session id, the thread id and `"in_turn":false`; no message
+      text). Quit AI Juggler Dev with **Quit anyway**: the sheet says the
+      session **comes back when AI Juggler opens again**. `scripts/qa/runtime_lab_snapshot.sh procs 'codex app-server --listen stdio://'`
+      prints nothing.
+- [ ] `just dev` again. The same session (same row, same id) is driven
+      again within a few seconds; the listing above shows one new server; send
+      "what did I say first?" and the reply knows "hello" (the same thread).
+- [ ] **Between turns, a crash.** `pkill -9 -f 'target/debug/juggler-app'`
+      (AI Juggler Dev only: check with `scripts/qa/runtime_lab_snapshot.sh procs 'target/debug/juggler-app'` first
+      that nothing else matches). Its server ends within a few seconds (the listing
+      above). `just dev`: the session comes back as above.
+- [ ] **Mid-turn, a crash.** Send "Run `ls` in this folder." and, while
+      **Asks you** shows, `pkill -9 -f 'target/debug/juggler-app'`. `just
+      dev`: the session says **Its turn was cut off when AI Juggler
+      stopped**, is in Needs you, and nothing runs (the listing above prints
+      nothing). Click **Resume**: it is driven again on the same thread,
+      nothing is sent by itself; send "hello again" and it answers.
+- [ ] **Stopped first never comes back.** Stop the session, quit, `just
+      dev`: it stays ended, and `runtime.live` no longer lists it.
+- [ ] Record what Codex says about the cut-off turn after Resume (its
+      thread may show the turn as interrupted).
+
+## 6. Snapshot after and compare (5 min)
 
 - [ ] `scripts/qa/runtime_lab_snapshot.sh take after "$CODEX_DIR" "$CLAUDE_DIR" "$AJ_DATA"`
 - [ ] `scripts/qa/runtime_lab_snapshot.sh diff before after > "$AJ_LAB_OUT/diff.txt"`
@@ -170,17 +206,17 @@ export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
       the Claude sessions.
 - [ ] The processes section is empty.
 
-## 6. Clean up (2 min)
+## 7. Clean up (2 min)
 
 - [ ] Stop any session still running in AI Juggler Dev, quit it.
-- [ ] `pgrep -fl 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent' | grep -v /Applications/`
+- [ ] `scripts/qa/runtime_lab_snapshot.sh procs 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent'`
       prints nothing (if it does: `kill <pid>` each, and record it as a bug).
 - [ ] `rm -rf "$LAB" /tmp/aj-lab-hook.log /tmp/aj-rt`
 - [ ] The lab's conversations stay in the tools' history (they are the
       account's own); archive the Codex thread in `codex resume` if wanted.
 - [ ] Keep `$AJ_LAB_OUT` until the evidence is written, then `rm -rf "$AJ_LAB_OUT"`.
 
-## 7. Write the evidence
+## 8. Write the evidence
 
 - [ ] `docs/qa/evidence/AJ-E2301/manifest.md`: each checkbox above with
       what was seen, the versions (`codex --version`, `claude --version`),

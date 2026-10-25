@@ -35,6 +35,7 @@ pub mod codex_handover;
 pub mod codex_inventory;
 pub mod codex_live;
 pub mod codex_transcript;
+pub mod codex_trust;
 pub mod config_edit;
 pub mod fake;
 pub mod fake_driven;

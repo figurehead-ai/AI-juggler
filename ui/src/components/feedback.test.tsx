@@ -207,7 +207,7 @@ describe("AJ-E1503 toasts and screen readers", () => {
 });
 
 describe("AJ-E1503 quit warning", () => {
-  const plan = (live: number, end_on_quit: number, keep_running: number): QuitPlanInfo => ({ live, end_on_quit, keep_running });
+  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back });
 
   it("says how many are running and what quitting does", () => {
     expect(runningWords(plan(1, 1, 0))).toBe("1 session is running.");
@@ -230,6 +230,15 @@ describe("AJ-E1503 quit warning", () => {
     expect(quitEffectWords(desktopOrAdopted)).not.toMatch(/ends/);
     expect(quitEffectWords(plan(2, 0, 2))).toBe("They keep running after AI Juggler quits.");
     expect(quitEffectWords(plan(2, 1, 1))).toBe("1 ends when AI Juggler quits; 1 keeps running.");
+  });
+
+  // AJ-E2310 (quit.rs `a_driven_session_comes_back_and_the_plan_says_so`):
+  // a session AI Juggler runs without a terminal comes back.
+  it("says a driven session comes back when AI Juggler opens again", () => {
+    expect(quitEffectWords(plan(1, 0, 0, 1))).toBe("It comes back when AI Juggler opens again.");
+    expect(quitEffectWords(plan(2, 0, 0, 2))).toBe("They come back when AI Juggler opens again.");
+    expect(quitEffectWords(plan(2, 1, 0, 1))).toBe("1 ends when AI Juggler quits; 1 comes back when it opens again.");
+    expect(quitEffectWords(plan(3, 1, 1, 1))).toBe("1 ends when AI Juggler quits; 1 keeps running; 1 comes back when it opens again.");
   });
 
   it("shows only when asked, and quits only from a click", async () => {

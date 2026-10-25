@@ -19,8 +19,7 @@ import { useRuntimePick } from "../components/RuntimePick";
 
 /**
  * New session — zero typing: recent projects (real history), a native
- * folder picker, or drag a folder onto the window; then an account whose
- * sign-in state is visible before you commit.
+ * folder picker, or drag a folder onto the window; then an account whose sign-in state is visible before you commit.
  */
 export function NewSessionModal({
   projects,
@@ -204,6 +203,7 @@ export function NewSessionModal({
     setBusy(true);
     setError(null);
     try {
+      if (!pack.opened && !(await runtimePick.confirm(recipe.id, directory))) return setBusy(false); // Lab 2: the folder's trust
       const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");
