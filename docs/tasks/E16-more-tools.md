@@ -28,7 +28,7 @@
 > - **Detect by path and version,** never by binary name alone (`grok` is
 >   also an unofficial CLI's name).
 
-### AJ-E1601 Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1521
+### AJ-E1601 Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | Status: DONE-EVIDENCED (live check pending, AJ-E1612) | Priority P0 | Effort S | Depends: AJ-E1521
 **Goal**: Subscriptions that speak Claude Code's or Codex's protocol run through the adapters we already have.
 **User story**: As a user with OpenCode Go and a Kimi membership, I add each as an account on Claude Code or Codex and juggle them like the rest.
 **Requirements**:
