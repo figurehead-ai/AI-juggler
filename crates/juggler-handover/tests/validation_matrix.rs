@@ -125,8 +125,8 @@ fn every_pair_is_enumerated_exercised_and_honestly_labelled() {
     let rows = validation_matrix();
     assert_eq!(
         rows.len(),
-        11,
-        "pass2/02 §10 pairs (3 same + 6 cross + 2 pack-only)"
+        17,
+        "pass2/02 §10 pairs (3 same + 6 cross + 2 pack-only) + 6 through another service (AJ-E1601)"
     );
 
     let claude_row = rows

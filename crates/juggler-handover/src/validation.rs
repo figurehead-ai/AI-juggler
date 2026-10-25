@@ -201,6 +201,58 @@ impl PairCell {
 /// Providers whose real adapters carry green fixture rows in CI.
 const REAL_ADAPTERS: [&str; 2] = ["claude-code", "codex"];
 
+/// AJ-E1601 (D-34): what a pair's side has after the tool's id when the
+/// profile runs that tool through another service (`claude-code+service`).
+pub const THROUGH_SERVICE: &str = "+service";
+
+/// The side of a pair for `tool` run through another service.
+#[must_use]
+pub fn through_service(tool: &str) -> String {
+    format!("{tool}{THROUGH_SERVICE}")
+}
+
+/// The tool a pair's side runs: the side without [`THROUGH_SERVICE`].
+#[must_use]
+pub fn side_tool(side: &str) -> &str {
+    side.strip_suffix(THROUGH_SERVICE).unwrap_or(side)
+}
+
+/// Whether a pair's side runs its tool through another service.
+#[must_use]
+pub fn is_through_service(side: &str) -> bool {
+    side.ends_with(THROUGH_SERVICE)
+}
+
+/// The same tool, with another service on one side or both (AJ-E1601).
+/// The conversation moves as a same-tool switch's does, but the model
+/// behind it changes, and whether the service takes a conversation
+/// another provider started is untried: no test with the real tools runs
+/// for it, so it is never proven, and never the one-click switch.
+fn through_service_rows() -> Vec<PairCell> {
+    let mut rows = Vec::new();
+    for tool in REAL_ADAPTERS {
+        for (from, to) in [
+            (tool.to_owned(), through_service(tool)),
+            (through_service(tool), tool.to_owned()),
+            (through_service(tool), through_service(tool)),
+        ] {
+            rows.push(PairCell {
+                from,
+                to,
+                researched_ceiling: FidelityLabel::F3,
+                mechanism: PairMechanism::Transplant,
+                mechanism_green: true,
+                ci_green: false,
+                dogfood: None,
+                notes: vec![
+                    "Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta".to_owned(),
+                ],
+            });
+        }
+    }
+    rows
+}
+
 /// The researched matrix (pass2/02 §10 pairs). `mechanism_green` and
 /// `ci_green` are release facts asserted by the
 /// `validation_matrix` test — this table and that test move together.
@@ -307,6 +359,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
             ],
         });
     }
+    rows.extend(through_service_rows());
     rows
 }
 
@@ -392,8 +445,9 @@ mod tests {
     #[test]
     fn matrix_enumerates_every_researched_pair_exactly_once() {
         let rows = validation_matrix();
-        // 3 same-provider + 6 cross + 2 pack-only.
-        assert_eq!(rows.len(), 11);
+        // 3 same-provider + 6 cross + 2 pack-only + 6 through another
+        // service (AJ-E1601).
+        assert_eq!(rows.len(), 17);
         let mut seen = std::collections::BTreeSet::new();
         for row in &rows {
             assert!(
@@ -415,6 +469,32 @@ mod tests {
             ("claude-code", "opencode"),
         ] {
             assert!(pair_cell(pair.0, pair.1).is_some(), "{pair:?} present");
+        }
+    }
+
+    #[test]
+    fn the_same_tool_through_another_service_is_never_a_proven_switch() {
+        for tool in REAL_ADAPTERS {
+            let side = through_service(tool);
+            assert_eq!(side_tool(&side), tool);
+            assert!(is_through_service(&side) && !is_through_service(tool));
+            for (from, to) in [(tool, side.as_str()), (side.as_str(), tool), (&side, &side)] {
+                let row = with_dogfood(pair_cell(from, to).unwrap(), passing_cell());
+                // Even tried by hand, it stays beta: no real-tool CI row.
+                assert!(!row.ci_green, "{from}→{to}");
+                assert!(!row.validated(), "{from}→{to}");
+                assert!(row.badge().ends_with("· Beta"), "{from}→{to}");
+                assert!(!row.notes.is_empty());
+                // So the fidelity engine caps it below the one-click door.
+                let mut input = crate::fidelity::base_dispositions(from, to);
+                input.flags.validated = row.validated();
+                let scored = crate::fidelity::score_pair(&input);
+                assert!(scored.label <= FidelityLabel::F1, "{from}→{to}");
+                assert!(
+                    scored.caps.iter().any(|cap| cap.cap == "unvalidated-pair"),
+                    "{from}→{to}"
+                );
+            }
         }
     }
 
