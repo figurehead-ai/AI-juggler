@@ -786,7 +786,7 @@ pub fn update_install_impl(
         announced.version,
         juggler_core::model::Timestamp::now().millis()
     ));
-    if let Err(e) = crate::backup::backup_export_impl(state, &dest, &mut |_, _| {}) {
+    if let Err(e) = crate::backup::backup_before_update(state, &dest, &mut |_, _| {}) {
         return Ok(fail(
             state,
             FeedError::new(FailureKind::Disk, e.to_string()),
