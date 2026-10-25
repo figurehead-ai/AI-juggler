@@ -76,6 +76,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },
   // 0.2's first Agent access section (one page of Settings).
   agents: { pane: "agent-access" },
+  // AJ-E1704: whether sessions get the agent tools, and where they're off.
+  "agent-tools": { pane: "agent-access", anchor: "agent-tools" },
 };
 
 /** Where `section` (an older section id, a pane id, or nothing) lands. */

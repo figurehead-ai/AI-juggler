@@ -7,6 +7,10 @@
  * Always in the sidebar on 0.2: every project has its default pool
  * (D-33), whose level applies to that project's sessions too, so what
  * agents may do is within reach whether or not you've made a pool.
+ *
+ * AJ-E1704, D-30: last, whether the sessions AI Juggler starts get its
+ * agent tools at all (the one-time question until it's answered), with
+ * the switches per project and profile behind a fold.
  */
 import { useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
@@ -15,6 +19,7 @@ import { ACTION_WORDS, levelLabel, setPools, usePools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { CardTitle } from "../../components/CardTitle";
 import { PoolAccessPanel } from "../../components/PoolAccess";
+import { AgentToolsSettings } from "../../components/AgentTools";
 import { Card } from "../../components/primitives";
 import { Pane, PaneSection } from "./parts";
 
@@ -36,6 +41,14 @@ export function AgentAccessPane({ anchor }: { anchor?: string }): JSX.Element {
         card
       >
         <AgentRules />
+      </PaneSection>
+      <PaneSection
+        id="agent-tools"
+        title="Agent tools in sessions"
+        footer="Added to each launch only, never written into your setup. Sessions started outside AI Juggler get them once you continue them here."
+        card
+      >
+        <AgentToolsSettings />
       </PaneSection>
     </Pane>
   );

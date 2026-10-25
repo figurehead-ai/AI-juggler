@@ -3,6 +3,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconSessions } from "../components/icons";
 import { PoolAccessPanel } from "../components/PoolAccess";
+import { AgentToolsQuestion } from "../components/AgentTools";
 import { PoolCardRows } from "../components/PoolCards";
 import { SettingSwitch } from "../components/SettingSwitch";
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
@@ -19,7 +20,8 @@ const CARDS_EVERY_MS = 10_000;
  * A pool's page (AJ-E1703): its members' context cards first, then what
  * agents may do in it (D-28) and whether it spans your paired Macs
  * (D-32). Editing the pool itself (name, members, roles) is the pool
- * sheet's, one click away.
+ * sheet's, one click away. Until it's answered, the members' tab opens
+ * with the one-time question about agent tools (D-30).
  */
 export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
   const pools = usePools();
@@ -79,6 +81,8 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
         render={(tab) =>
           tab === "members" ? (
             <div className="flex flex-col gap-2">
+              {/* D-30: asked once, the first time pools are used. */}
+              <AgentToolsQuestion className="mb-2" />
               {error && (
                 <p className="text-xs text-danger" role="alert">
                   {error}

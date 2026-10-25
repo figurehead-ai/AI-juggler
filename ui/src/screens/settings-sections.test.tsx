@@ -70,7 +70,7 @@ describe("AJ-E2110 — Settings panes", () => {
     const { getByTestId, findByTestId, findAllByTestId } = render(<SettingsScreen focusSection="agents" />);
     expect(getByTestId("settings-nav").querySelector("[aria-current='page']")?.textContent).toBe("Agent access");
     const pane = await findByTestId("settings-pane-agent-access");
-    expect(within(pane).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual(["Pools", "Agent access", "Rules you made", "Rules you made"]);
+    expect(within(pane).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual(["Pools", "Agent access", "Rules you made", "Rules you made", "Agent tools in sessions"]);
     expect((await findAllByTestId("agent-access-pool")).length).toBeGreaterThan(0);
     expect((await findByTestId("settings-agent-rules")).textContent).toContain("None yet.");
   });

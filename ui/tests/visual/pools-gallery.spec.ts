@@ -55,6 +55,9 @@ async function open(page: Page, theme: "dark" | "light") {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_POOLS__ = pools;
       w.__AIJ_POOL_ACTIVITY__ = activity;
+      // AJ-E1704: the one-time question answered (its own gallery is
+      // agent-tools-gallery.spec.ts), so these captures stay as they were.
+      w.__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
