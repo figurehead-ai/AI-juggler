@@ -22,7 +22,7 @@ import { ago, agoWords, sessionWhen } from "../lib/time-words";
 import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { sessionsCounts, sessionsPage, type SessionRowInfo, type SessionsCountsInfo, type SessionsQuery } from "../lib/ipc/sessions";
-import { pageOf, usePagedList } from "../lib/paged";
+import { pageOf, usePagedList, type PageRequest } from "../lib/paged";
 import { PagedList } from "../components/PagedList";
 import type { ActionHost } from "../lib/actions";
 
@@ -103,6 +103,12 @@ export function conversationRow(conversation: ConversationInfo, now: number, hos
     outside: true,
     open: () => host.openConversation?.(conversation),
   };
+}
+
+/** A row as the backend's page has it. */
+export function infoOfRow(row: Row): SessionRowInfo {
+  const item = row.item;
+  return { key: row.key, session: item.kind === "conversation" ? null : item.session, conversation: item.kind === "conversation" ? item.conversation : null, snippet: row.snippet ?? null };
 }
 
 /** A row of the backend's page. */
@@ -229,22 +235,20 @@ export function PagedSessions({
 }): JSX.Element {
   const host = useActionHost();
   const live = hasLiveBackend();
+  // Pages hold the backend's rows as they come (what's remembered, or
+  // prefetched after first paint); they're drawn as rows here.
   const fetchPage = useMemo(
-    () =>
-      live
-        ? async (page: Parameters<typeof sessionsPage>[1]) => {
-            const got = await sessionsPage(query, page);
-            return { ...got, items: got.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []) };
-          }
-        : async (page: Parameters<typeof sessionsPage>[1]) => pageOf(local(), page),
+    () => (live ? (page: PageRequest) => sessionsPage(query, page) : async (page: PageRequest) => pageOf(local().map(infoOfRow), page)),
     // The key names the query: a new key is a new fetcher.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [live, listKey],
   );
-  const list = usePagedList<Row>(listKey, fetchPage, {
-    keyOf: (row) => row.key,
-    seed: live ? undefined : (size) => pageOf(local(), { cursor: null, limit: size }),
+  const read = usePagedList<SessionRowInfo>(listKey, fetchPage, {
+    keyOf: (info) => info.key,
+    seed: live ? undefined : (size) => pageOf(local().map(infoOfRow), { cursor: null, limit: size }),
   });
+  const rows = useMemo(() => read.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []), [read.items, onOpenSession, host]);
+  const list = { ...read, items: rows };
   // The heading's counts: the backend's for the whole list.
   const [counts, setCounts] = useState<SessionsCountsInfo | null>(null);
   const scopeKey = `${query.project_id ?? ""}/${query.account_id ?? ""}/${query.text ?? ""}`;

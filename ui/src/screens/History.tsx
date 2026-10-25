@@ -19,6 +19,7 @@ import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
 import { PagedSessions, useSessionRows, type Row } from "../pages/SessionsList";
 import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
 import { refreshPaged } from "../lib/paged";
+import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import {
@@ -275,7 +276,7 @@ export function History({
       </p>
       <ActionHostProvider host={historyHost}>
         <PagedSessions
-          listKey={`history:${list}:${searched}:${version}`}
+          listKey={historyKey(list, searched, version)}
           query={sessionsQuery({ which: list, text: searched || null })}
           local={localRows}
           onOpenSession={openSession}

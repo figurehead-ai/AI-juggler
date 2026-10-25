@@ -5,6 +5,10 @@
  * imports.
  */
 import { lazyNamed } from "./lib/lazy";
+import { prefetchMainScreens } from "./lib/prefetch-data";
+
+// Their first data too, in the same idle queue (after the first paint).
+prefetchMainScreens();
 
 export const ConversationPage = lazyNamed(() => import("./components/ConversationPage"), "ConversationPage");
 export const PortWarningSheet = lazyNamed(() => import("./components/PortMap"), "PortWarningSheet");
