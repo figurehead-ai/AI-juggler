@@ -8,7 +8,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX, ReactNode } from "react";
 import { ActionHostProvider } from "./ItemMenu";
-import { ConversationPage } from "./ConversationPage";
+import { ConversationPage, GONE_MS } from "./ConversationPage";
 import { ConversationRow, railSlice, RECENT_SHOWN, stateWord, withOutsideGroups } from "./OutsideConversations";
 import { GoToPalette } from "./GoToPalette";
 import { ConversationsProvider } from "../lib/conversations";
@@ -192,7 +192,7 @@ describe("AJ-E1529 a conversation's page", () => {
     const host: ActionHost = { continueConversation: vi.fn(), copyConversationResume: vi.fn() };
     render(withFixture([conversation("c")], <ConversationPage accountId="a1" id="c" now={NOW} />, host));
     await waitFor(() => expect(screen.getByTestId("conversation-page")).toBeTruthy());
-    expect(screen.getByTestId("outside-chip").textContent).toBe("outside AI Juggler");
+    expect((await screen.findByTestId("outside-chip")).textContent).toBe("outside AI Juggler");
     expect(screen.getByTestId("conversation-page").textContent).toContain("/w/app");
     fireEvent.click(screen.getByTestId("conversation-continue"));
     fireEvent.click(screen.getByTestId("conversation-copy-resume"));
@@ -212,9 +212,15 @@ describe("AJ-E1529 a conversation's page", () => {
     expect(screen.getByTestId("continue-on").textContent).toContain("It's open in its app now");
   });
 
-  it("a conversation that went away says so", async () => {
+  it("a conversation that went away says so, once it has stayed away", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(withFixture([], <ConversationPage accountId="a1" id="gone" now={NOW} />));
-    expect(await screen.findByTestId("conversation-gone")).toBeTruthy();
+    expect(await screen.findByTestId("conversation-loading")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(GONE_MS + 100);
+    });
+    expect(screen.getByTestId("conversation-gone")).toBeTruthy();
+    vi.useRealTimers();
   });
 });
 

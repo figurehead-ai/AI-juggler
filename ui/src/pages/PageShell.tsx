@@ -44,7 +44,9 @@ export function PageHeader({
   const title = (
     <h2
       tabIndex={-1}
-      className={"min-w-0 truncate tracking-tight outline-none " + (session ? "text-[24px] font-bold leading-tight" : "text-lg font-semibold")}
+      className={"min-w-0 truncate tracking-tight outline-none " + (session ? "text-[22px] font-semibold leading-tight" : "text-lg font-semibold")}
+      // A long name ends in an ellipsis; all of it on hover.
+      title={name}
       data-testid="page-name"
     >
       {name}
@@ -75,7 +77,7 @@ export function PageHeader({
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             {title}
             {!folded && chips && (
-              <div className="flex flex-wrap items-center gap-1.5" data-testid="page-chips">
+              <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="page-chips">
                 {chips}
               </div>
             )}

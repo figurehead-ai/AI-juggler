@@ -1,13 +1,15 @@
 /**
- * AJ-E2108 — a session page's header parts: its app's mark with the
- * profile's badge, the chips (state, where it runs, profile, account,
+ * AJ-E2108 — a session page's header parts: its app's icon with the
+ * profile's badge cut into its corner (the row anatomy's mark, larger),
+ * the chips (its state first, then where it runs, profile, account,
  * folder), and Go to it. One set for every kind of session.
  */
-import { useEffect, type JSX } from "react";
-import { Button, Chip } from "../../components/primitives";
-import { PlaceMark, ProfileBadge, markPlace } from "../../components/PlaceMarks";
+import { useEffect, type JSX, type ReactNode } from "react";
+import { Button, type ChipTone } from "../../components/primitives";
+import { AppIcon, ProfileBadge, markPlace } from "../../components/PlaceMarks";
 import { profileColor } from "../../lib/profile-marks";
 import { IconGoTo } from "../../components/icons-actions";
+import { ToolMark } from "../../components/ToolMark";
 import { shortPath } from "../../screens/AccountManage";
 import { ago, agoWords } from "../../lib/time-words";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
@@ -20,13 +22,39 @@ function profileName(model: SessionModel): string {
   return place?.profile ?? place?.instance ?? model.profileLabel;
 }
 
-/** The app's mark, 52 px, with the profile's badge on its corner: the
- * same mark as the session's rail row and Home's (AJ-E2104). */
-export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
-  const place = markPlace(model.places[0], model.sessionId !== null);
+/** The app's icon in the header: the one place to swap in the app's
+ * real icon (read from the Mac at run time) when it comes. Until then
+ * the app's mark from the place registry, or, not open in any app now,
+ * its tool's own mark (never "An app"). */
+export function SessionAppIcon({ model, size = 48 }: { model: SessionModel; size?: number }): JSX.Element {
+  if (model.places.length === 0 && model.sessionId === null) {
+    return (
+      <span className="inline-flex items-center justify-center rounded-[28%] border border-hairline bg-surface-3 text-ink" style={{ width: size, height: size }} data-testid="session-app-icon">
+        <ToolMark tool={model.tool} size={Math.round(size / 2)} />
+      </span>
+    );
+  }
   return (
-    <span className="relative inline-flex" data-testid="session-mark">
-      <PlaceMark place={place} profile={model.profileLabel} size={52} />
+    <span className="inline-flex" data-testid="session-app-icon">
+      <AppIcon place={markPlace(model.places[0], model.sessionId !== null)} size={size} />
+    </span>
+  );
+}
+
+/** The header's mark: one app icon, the profile's badge (its colour and
+ * monogram, the rail's) beside it, never over it. Decorative: the chips
+ * name both in words. */
+export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
+  const place = model.places[0];
+  const name = place?.profile ?? place?.instance ?? model.profileLabel;
+  return (
+    <span aria-hidden="true" className="inline-flex shrink-0 items-end gap-1.5" data-testid="session-mark">
+      <SessionAppIcon model={model} />
+      {name && (
+        <span data-testid="session-mark-profile" title={name} className="-mb-0.5">
+          <ProfileBadge name={name} size={18} />
+        </span>
+      )}
     </span>
   );
 }
@@ -44,42 +72,63 @@ export function whereWords(model: SessionModel, now: number): string {
   return model.viewedMs !== null ? `${where}${more} · viewed ${agoWords(model.viewedMs, now)}` : `${where}${more}`;
 }
 
+const TONES: Record<ChipTone, string> = {
+  neutral: "border-hairline bg-surface-2 text-ink",
+  success: "border-success/30 bg-success-soft text-success",
+  warning: "border-warning/35 bg-warning-soft text-warning",
+  danger: "border-danger/30 bg-danger-soft text-danger",
+  live: "border-live/30 bg-live-soft text-live",
+  accent: "border-accent/30 bg-accent-soft text-accent-hi",
+};
+
+/** One header chip, 13 px (the readability scale's meta size). */
+function HeadChip({ tone = "neutral", strong = false, title, children, testId }: { tone?: ChipTone; strong?: boolean; title?: string; children: ReactNode; testId: string }): JSX.Element {
+  return (
+    <span
+      data-testid={testId}
+      data-tone={tone}
+      title={title}
+      className={"inline-flex min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] leading-5 " + (strong ? "font-semibold " : "") + TONES[tone]}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function SessionChips({ model, account, now }: { model: SessionModel; account: SubscriptionInfo | undefined; now: number }): JSX.Element {
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
   const line = account ? accountLine(account) : null;
+  const where = whereWords(model, now);
   return (
     <>
-      <span data-testid="session-state-chip" data-tone={model.state.tone}>
-        <Chip tone={model.state.tone} dot={model.live}>
-          {model.state.words}
-          {model.state.asks || model.state.tone === "accent" ? since : ""}
-        </Chip>
-      </span>
-      <span data-testid="session-where-chip">
-        <Chip tone="neutral">{whereWords(model, now)}</Chip>
-      </span>
+      <HeadChip testId="session-state-chip" tone={model.state.tone} strong>
+        {model.live && <span aria-hidden="true" className={"size-2 rounded-full bg-current " + (model.state.working ? "motion-safe:animate-pulse" : "")} />}
+        {model.state.words}
+        {model.state.asks || model.state.tone === "accent" ? since : ""}
+      </HeadChip>
+      <HeadChip testId="session-where-chip" title={where}>
+        <span className="truncate">{where}</span>
+      </HeadChip>
       <span
         data-testid="session-profile-chip"
-        className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium text-ink"
+        className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-medium leading-5 text-ink"
         style={{ borderColor: profileColor(profileName(model)) }}
       >
-        <ProfileBadge name={profileName(model)} size={14} />
+        <ProfileBadge name={profileName(model)} size={16} />
         Profile: {model.profileLabel}
       </span>
       {account && account.state === "signed_in" && (
-        <span data-testid="session-account-chip">
-          <Chip tone="neutral">
+        <HeadChip testId="session-account-chip" title={[accountName(account), line].filter(Boolean).join(" · ")}>
+          <span className="truncate">
             Account: {accountName(account)}
             {line ? ` · ${line}` : ""}
-          </Chip>
-        </span>
+          </span>
+        </HeadChip>
       )}
       {model.cwd && (
-        <span data-testid="session-folder-chip" title={model.cwd}>
-          <Chip tone="neutral">
-            <span className="font-mono">{shortPath(model.cwd)}</span>
-          </Chip>
-        </span>
+        <HeadChip testId="session-folder-chip" title={model.cwd}>
+          <span className="truncate font-mono text-[12.5px]">{shortPath(model.cwd)}</span>
+        </HeadChip>
       )}
     </>
   );
@@ -102,10 +151,10 @@ export function GoToButton({ onGo, why }: { onGo: () => void; why: string | null
     return () => window.removeEventListener("keydown", onKey);
   }, [onGo, why]);
   return (
-    <Button size="sm" variant="primary" disabled={why !== null} title={why ?? "Go to it (↵)"} onClick={onGo} data-testid="session-go-to">
+    <Button size="md" variant="primary" disabled={why !== null} title={why ?? "Go to it (↵)"} onClick={onGo} data-testid="session-go-to">
       Go to it
-      <IconGoTo width={13} height={13} aria-hidden="true" />
-      <kbd aria-hidden="true" className="font-sans text-[10px] opacity-80">
+      <IconGoTo width={14} height={14} aria-hidden="true" />
+      <kbd aria-hidden="true" className="font-sans text-[12px] opacity-80">
         ↵
       </kbd>
     </Button>
