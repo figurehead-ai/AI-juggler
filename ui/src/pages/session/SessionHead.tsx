@@ -6,7 +6,8 @@
  */
 import { useEffect, type JSX, type ReactNode } from "react";
 import { Button, type ChipTone } from "../../components/primitives";
-import { AppIcon, ProfileBadge, markPlace } from "../../components/PlaceMarks";
+import { ProfileBadge, markPlace } from "../../components/PlaceMarks";
+import { AppIconTile } from "../../components/AppIcon";
 import { profileColor } from "../../lib/profile-marks";
 import { IconGoTo } from "../../components/icons-actions";
 import { ToolMark } from "../../components/ToolMark";
@@ -36,7 +37,10 @@ export function SessionAppIcon({ model, size = 48 }: { model: SessionModel; size
   }
   return (
     <span className="inline-flex" data-testid="session-app-icon">
-      <AppIcon place={markPlace(model.places[0], model.sessionId !== null)} size={size} />
+      {(() => {
+        const place = markPlace(model.places[0], model.sessionId !== null);
+        return <AppIconTile appId={place.appId} appPid={place.appPid} name={place.app} size={size} />;
+      })()}
     </span>
   );
 }

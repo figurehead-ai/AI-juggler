@@ -11,16 +11,20 @@
  * Delete is its own confirmed dialog naming what goes and what stays.
  */
 import { showToast } from "../components/Toast";
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ActionHostProvider, useActionHost } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/actions";
 import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
-import { SessionsList, useSessionRows, type Row } from "../pages/SessionsList";
+import { PagedSessions, useSessionRows, type Row } from "../pages/SessionsList";
+import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
+import { refreshPaged } from "../lib/paged";
+import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import {
   errorText,
+  hasLiveBackend,
   instanceArchive,
   instanceUnarchive,
   transcriptSearch,
@@ -100,10 +104,15 @@ export function History({
   projects: ProjectInfo[];
   onChanged: () => void;
 }): JSX.Element {
+  const live = hasLiveBackend();
   const [list, setList] = useState<ListId>("ended");
   const [query, setQuery] = useState("");
+  // The backend's search waits for typing to pause; the preview's is instant.
+  const [searched, setSearched] = useState("");
   const [snippets, setSnippets] = useState<Map<string, string>>(new Map());
   const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<number | null>(null);
+  const [counts, setCounts] = useState<SessionsCountsInfo | null>(null);
   // AJ-E1538: whether outside sessions' words are searched (opt-in).
   const [everyWord, setEveryWord] = useState(false);
   useEffect(() => void outsideSearchStatus().then((info) => setEveryWord(info.enabled), () => null), []);
@@ -113,11 +122,23 @@ export function History({
   const names = new Map(projects.map((project) => [project.id, project.name]));
   const projectName = (id: string | null) => (id ? (names.get(id) ?? "") : "");
   const host = useActionHost();
-  const all = useSessionRows(sessions, {}, (id) => host.openSessionById?.(id), Date.now());
+  const openSession = (id: string) => host.openSessionById?.(id);
+  const all = useSessionRows(live ? [] : sessions, {}, openSession, Date.now());
 
   useEffect(() => searchRef.current?.focus(), []);
-  // Transcript text: debounced, so typing never waits on the index.
   useEffect(() => {
+    const trimmed = query.trim();
+    if (!live) {
+      setSearched(trimmed);
+      return;
+    }
+    setSearching(trimmed.length >= 2);
+    const timer = window.setTimeout(() => setSearched(trimmed), 250);
+    return () => window.clearTimeout(timer);
+  }, [query, live]);
+  // The preview's transcript words (the backend searches them itself).
+  useEffect(() => {
+    if (live) return;
     const trimmed = query.trim();
     if (trimmed.length < 2) {
       setSnippets(new Map());
@@ -135,24 +156,43 @@ export function History({
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, live]);
 
   const archived = (session: InstanceInfo) => session.lifecycle === "archived";
   const sessionOf = (row: Row) => (row.item.kind === "conversation" ? null : row.item.session);
   const snippetOf = (row: Row) =>
-    row.item.kind === "conversation"
+    row.snippet ??
+    (row.item.kind === "conversation"
       ? snippets.get(`${row.item.conversation.account_id}:${row.item.conversation.id}`)
-      : snippets.get(row.item.session.id);
-  const rows = all
-    .filter((row) => !row.live)
-    .filter((row) => {
-      const session = sessionOf(row);
-      // Archiving is AI Juggler's: a conversation started outside it is
-      // only ever under Ended.
-      return list === "archived" ? session !== null && archived(session) : session === null || !archived(session);
-    })
-    .filter((row) => !query.trim() || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), query));
-  const archivedCount = sessions.filter(archived).length;
+      : snippets.get(row.item.session.id));
+  // The design preview's rows (no backend): narrowed here, as before.
+  const localRows = () =>
+    all
+      .filter((row) => !row.live)
+      .filter((row) => {
+        const session = sessionOf(row);
+        // Archiving is AI Juggler's: a conversation started outside it is
+        // only ever under Ended.
+        return list === "archived" ? session !== null && archived(session) : session === null || !archived(session);
+      })
+      .filter((row) => !searched || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), searched))
+      .map((row) => ({ ...row, snippet: snippetOf(row) ?? null }));
+  const archivedCount = live ? (counts?.archived ?? 0) : sessions.filter(archived).length;
+
+  // What the preview pages changes with its inputs; the backend's list is
+  // read again when a session ends, is archived or goes.
+  const version = useMemo(
+    () => (live ? "" : `${sessions.length}:${all.length}:${snippets.size}:${sessions.map((s) => `${s.id}${s.status}${s.lifecycle ?? ""}`).join(",")}`),
+    [live, sessions, all.length, snippets],
+  );
+  const changes = useMemo(() => sessions.map((s) => `${s.id}:${s.status}:${s.lifecycle ?? ""}`).join(","), [sessions]);
+  useEffect(() => {
+    if (live) refreshPaged("history:");
+  }, [live, changes]);
+  const changed = () => {
+    refreshPaged("history:");
+    onChanged();
+  };
 
   // AJ-E1503: archiving answers in a toast, with Undo (the other way).
   const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
@@ -165,11 +205,11 @@ export function History({
         undo: {
           onUndo: async () => {
             await undo();
-            onChanged();
+            changed();
           },
         },
       });
-      onChanged();
+      changed();
     } catch (cause) {
       showToast({ tone: "warning", message: `${label}: ${errorText(cause)}`, seconds: 8 });
     }
@@ -232,12 +272,20 @@ export function History({
         </div>
       </div>
       <p className="sr-only" aria-live="polite" data-testid="history-status">
-        {searching ? "Searching transcripts…" : `${rows.length} found`}
+        {searching ? "Searching transcripts…" : found === null ? "" : `${found} found`}
       </p>
       <ActionHostProvider host={historyHost}>
-        <SessionsList
-          rows={rows}
+        <PagedSessions
+          listKey={historyKey(list, searched, version)}
+          query={sessionsQuery({ which: list, text: searched || null })}
+          local={localRows}
+          onOpenSession={openSession}
           projects={projects}
+          onCounts={setCounts}
+          onTotal={(total) => {
+            setFound(total);
+            if (live) setSearching(false);
+          }}
           empty={
             query.trim()
               ? `Nothing matches “${query.trim()}”${searching ? " yet — still searching transcripts" : ""}.${everyWord ? "" : " Words said in sessions started outside AI Juggler aren't searched (Settings › Privacy)."}`
@@ -269,7 +317,7 @@ export function History({
             setDeleting(null);
             if (deleted) {
               showToast({ message: "Deleted." });
-              onChanged();
+              changed();
             }
           }}
         />

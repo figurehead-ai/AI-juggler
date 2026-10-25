@@ -40,14 +40,17 @@ pub fn instance_mark_reviewed_impl(state: &Arc<AppState>, session_id: &str) -> A
 ///
 /// Returns the typed [`AppError`] per [`instance_mark_reviewed_impl`].
 #[tauri::command]
-pub fn instance_mark_reviewed(
+pub async fn instance_mark_reviewed(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<i64> {
-    let at = instance_mark_reviewed_impl(state.inner(), &session_id)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(at)
+    crate::ipc::blocking(state.inner(), "instance mark reviewed", move |state| {
+        let at = instance_mark_reviewed_impl(state, &session_id)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
 }
 
 /// Core (AJ-E1503): undoes Mark reviewed — an `unreviewed` event, so the
@@ -78,12 +81,15 @@ pub fn instance_unmark_reviewed_impl(state: &Arc<AppState>, session_id: &str) ->
 ///
 /// Returns the typed [`AppError`] per [`instance_unmark_reviewed_impl`].
 #[tauri::command]
-pub fn instance_unmark_reviewed(
+pub async fn instance_unmark_reviewed(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<i64> {
-    let at = instance_unmark_reviewed_impl(state.inner(), &session_id)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(at)
+    crate::ipc::blocking(state.inner(), "instance unmark reviewed", move |state| {
+        let at = instance_unmark_reviewed_impl(state, &session_id)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
 }

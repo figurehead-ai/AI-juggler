@@ -83,6 +83,13 @@ export async function conversationsList(): Promise<ConversationInfo[]> {
   return invoke<ConversationInfo[]>("conversations_list");
 }
 
+/** One conversation by its account and id: one past the working set the
+ * list holds (an old one opened from History). `null` when it's gone. */
+export async function conversationsGet(accountId: string, conversationId: string): Promise<ConversationInfo | null> {
+  if (!hasLiveBackend()) return previewConversations().find((c) => c.account_id === accountId && c.id === conversationId) ?? null;
+  return invoke<ConversationInfo | null>("conversations_get", { accountId, conversationId });
+}
+
 /** The copyable line that resumes a conversation in a terminal. */
 export async function conversationsResumeCommand(accountId: string, conversationId: string): Promise<string> {
   if (!hasLiveBackend()) return `cd ~/work && tool --resume ${conversationId}`;
@@ -121,12 +128,17 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
   return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
 }
 
-/** Called when the backend's list changed (no payload: read it again). */
-export function onConversationsChanged(handler: () => void): () => void {
+/** What changed: `index` the files (new conversations, titles, folders,
+ * counts), `live` only which are open and their states (every few
+ * seconds with many open sessions). */
+export type ConversationsChange = "index" | "live";
+
+/** Called when the backend's list changed (read it again), with what changed. */
+export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {
   if (!hasLiveBackend()) return () => {};
   let stop: (() => void) | null = null;
   let disposed = false;
-  void listen("conversations://changed", () => handler()).then((unlisten) => {
+  void listen<ConversationsChange | null>("conversations://changed", (event) => handler(event.payload === "live" ? "live" : "index")).then((unlisten) => {
     if (disposed) unlisten();
     else stop = unlisten;
   });

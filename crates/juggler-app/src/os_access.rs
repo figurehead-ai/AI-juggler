@@ -315,9 +315,17 @@ pub fn os_access_request_impl(state: &Arc<AppState>, id: &str) -> AppResult<Vec<
 
 /// What this OS needs (the first-run step polls this).
 #[tauri::command]
-#[must_use]
-pub fn os_access_list(state: tauri::State<'_, Arc<AppState>>) -> Vec<OsAccessInfo> {
-    os_access_list_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn os_access_list(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<OsAccessInfo>> {
+    crate::ipc::blocking(state.inner(), "os access list", move |state| {
+        Ok(os_access_list_impl(state))
+    })
+    .await
 }
 
 /// Allow: raises the system prompts for one entry. Runs off the UI
@@ -348,33 +356,36 @@ pub async fn os_access_request(
 /// Returns the typed [`AppError`] when the pane cannot open, or for an id
 /// this platform doesn't list.
 #[tauri::command]
-pub fn os_access_open_settings(
+pub async fn os_access_open_settings(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
 ) -> AppResult<()> {
-    if !os_access_list_impl(state.inner())
-        .iter()
-        .any(|entry| entry.id == id)
-    {
-        return Err(AppError::Validation {
-            subject: "OS access",
-            message: format!("{id:?} isn't needed on this computer"),
-        });
-    }
-    #[cfg(target_os = "macos")]
-    {
-        use tauri_plugin_opener::OpenerExt;
-        app.opener()
-            .open_url(platform::settings_url(&id), None::<&str>)
-            .map_err(|e| AppError::Io {
-                context: "open the system settings",
-                message: e.to_string(),
-            })?;
-    }
-    #[cfg(not(target_os = "macos"))]
-    let _ = app;
-    Ok(())
+    crate::ipc::blocking(state.inner(), "os access open settings", move |state| {
+        if !os_access_list_impl(state)
+            .iter()
+            .any(|entry| entry.id == id)
+        {
+            return Err(AppError::Validation {
+                subject: "OS access",
+                message: format!("{id:?} isn't needed on this computer"),
+            });
+        }
+        #[cfg(target_os = "macos")]
+        {
+            use tauri_plugin_opener::OpenerExt;
+            app.opener()
+                .open_url(platform::settings_url(&id), None::<&str>)
+                .map_err(|e| AppError::Io {
+                    context: "open the system settings",
+                    message: e.to_string(),
+                })?;
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = app;
+        Ok(())
+    })
+    .await
 }
 
 #[cfg(test)]

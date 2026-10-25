@@ -216,7 +216,10 @@ fn real_setup_read_models() {
     );
     report.insert(
         "cost_rollups".into(),
-        serde_json::to_value(commands::cost_rollups(managed.clone(), None)).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::cost_rollups(managed.clone(), None)).unwrap(),
+        )
+        .unwrap(),
     );
 
     // This Mac: the app's 2 s process tick (collector table, then the

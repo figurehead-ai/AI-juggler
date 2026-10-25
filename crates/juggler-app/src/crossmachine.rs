@@ -1436,11 +1436,14 @@ pub const EVENT_FLEET_SWITCH_PROGRESS: &str = "fleet://switch-progress";
 ///
 /// Returns the typed [`AppError`] per [`fleet_switch_targets_impl`].
 #[tauri::command]
-pub fn fleet_switch_targets(
+pub async fn fleet_switch_targets(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Vec<RemoteSwitchTargetInfo>> {
-    fleet_switch_targets_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "fleet switch targets", move |state| {
+        fleet_switch_targets_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E706: runs one confirmed cross-machine switch (progress arrives as
@@ -1475,9 +1478,18 @@ pub async fn fleet_switch_execute(
 
 /// AJ-E706: cancels the push to `machine_id` (within one chunk).
 #[tauri::command]
-#[must_use]
-pub fn fleet_switch_cancel(state: tauri::State<'_, Arc<AppState>>, machine_id: String) -> bool {
-    fleet_switch_cancel_impl(state.inner(), &machine_id)
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_switch_cancel(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "fleet switch cancel", move |state| {
+        Ok(fleet_switch_cancel_impl(state, &machine_id))
+    })
+    .await
 }
 
 pub mod switch_back;

@@ -51,6 +51,7 @@ pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
+pub mod paging;
 pub mod parked;
 pub mod preview;
 pub mod quit;
@@ -156,6 +157,7 @@ macro_rules! app_commands {
             Write crash::crash_ui_error,
             Read  commands::usage_source_health,
             Read  commands::cost_rollups,
+            Read  commands::cost_rows_page,
             Write commands::cost_csv_export,
             Write commands::pricing_override_set,
             Write commands::pricing_override_clear,
@@ -419,6 +421,7 @@ macro_rules! app_commands {
             Write manage::session_rename,
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
+            Read  features::conversations::commands::conversations_get,
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
@@ -430,6 +433,9 @@ macro_rules! app_commands {
             Read  features::subscriptions::commands::subscriptions_list,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
+            Read  features::sessions::commands::sessions_page,
+            Read  features::sessions::commands::sessions_counts,
+            Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.
@@ -1057,7 +1063,10 @@ fn spawn_read_model_ticks(
                 use tauri::Emitter;
                 // QA batch 8: a long first pass tells the UI as it goes.
                 let tell = || {
-                    let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
+                    let _ = conversations_app.emit(
+                        features::conversations::EVENT_CHANGED,
+                        features::conversations::CHANGED_INDEX,
+                    );
                 };
                 if let Ok(true) = features::conversations::tick_with(
                     &conversations_state,
@@ -1082,7 +1091,10 @@ fn spawn_read_model_ticks(
                 loop {
                     use tauri::Emitter;
                     if let Ok(true) = features::conversations::live_tick(&live_state) {
-                        let _ = live_app.emit(features::conversations::EVENT_CHANGED, ());
+                        let _ = live_app.emit(
+                            features::conversations::EVENT_CHANGED,
+                            features::conversations::CHANGED_LIVE,
+                        );
                     }
                     // poll: the live view's cadence (scan::TICK, 2 s).
                     std::thread::sleep(features::conversations::scan::TICK);
