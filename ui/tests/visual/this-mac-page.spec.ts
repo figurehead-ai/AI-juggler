@@ -2,7 +2,9 @@
  * AJ-E1528 gallery and navigation: the This Mac page, reached from Home's
  * panel ("See all"), from More and from the rail's footer line; with
  * many Claude app windows (`?aij_windows=6`) and a heavy session
- * (`?aij_load=heavy`). Both themes and densities; axe 0 critical/serious.
+ * (`?aij_load=heavy`); and the 0.1.4 review's Mac, other apps holding most
+ * of the memory (`?aij_machine=others`). Both themes and densities; axe 0
+ * critical/serious.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
@@ -83,4 +85,29 @@ for (const theme of ["dark", "light"] as const) {
       await axe(page, `This Mac ${theme} ${density}`);
     });
   }
+}
+
+// The 0.1.4 review: "Under memory pressure" beside "AI tools: about 16 GB
+// of 103 GB" read as plenty left. The whole Mac's memory in named parts,
+// pressure explained, and what else uses it, by name, with no control.
+for (const theme of ["dark", "light"] as const) {
+  test(`the page, other apps holding most of the memory — ${theme}`, async ({ page }) => {
+    await open(page, theme, "comfortable", "?aij_machine=others");
+    await goTo(page, "This Mac");
+    const page_ = page.getByTestId("this-mac-page");
+    await expect(page_.getByTestId("this-mac-memory-parts")).toContainText("Other apps and macOS");
+    await expect(page_.getByTestId("this-mac-memory")).toContainText("47 GB kept compressed");
+    const note = page_.getByTestId("this-mac-pressure-note");
+    await note.getByText("What it means").click();
+    await expect(note).toContainText("Pressure can be high while some memory still looks free");
+    const others = page_.getByTestId("this-mac-other-apps");
+    await others.locator("summary").click();
+    await expect(others.getByTestId("this-mac-other-app")).toHaveCount(6);
+    await expect(others.getByTestId("this-mac-other-app").first()).toContainText("next-server");
+    await expect(others.getByRole("button")).toHaveCount(0);
+    await expect(page_.getByTestId("this-mac-alert").first()).toContainText("Other apps are using most of the memory");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `page-other-apps-1280x800-${theme}.png`), fullPage: true });
+    await axe(page, `This Mac, other apps, ${theme}`);
+  });
 }
