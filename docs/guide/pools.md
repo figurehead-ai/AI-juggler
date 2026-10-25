@@ -23,16 +23,20 @@ project · all sessions**.
 2. With no pool of yours yet, name the new one (for example "Checkout
    redesign"). You can keep it to one project: it then takes only that
    project's sessions.
-3. **Make pool**. The session goes in, and the pool opens.
+3. **Make pool**. The session goes in, and the pool's page opens.
 
-Once a pool exists, the list can group by pool (**Filters › Group: Pool**;
-the first pool you make switches to it), Filters gains a **Pool** picker,
-and Home gets one too. A pool's heading in the list opens its page.
+Once a pool of yours exists, the list's **View** (⇧V) offers **Group by ›
+Pool** (greyed until then): Open now shows your sessions under their
+pools, and a pool's **Open** goes to its page. The list keeps the grouping
+you chose; making a pool doesn't change it. Home stays the whole desktop:
+a pool's own view is its page.
 
 ## A pool's page
 
 - **Members**: each session in the pool, as a row like Home's: its name and
-  project, its tool and account label, its role and when it was last active.
+  state (in the list's words: Asks you, Working, Idle, Ended), where it
+  runs (project · app · profile), its tool, its role and when it was last
+  active.
   The arrow on a row shows more:
   - **It says**: the step the agent's own task list has in progress, in its
     words and marked as said by the agent.
@@ -65,7 +69,8 @@ and every pool at once in **Settings › Agent access**):
 Anything above the level becomes a question for you in Needs you, never a
 block: **Allow once**, **Always allow in this pool** (offered the second
 time you allow the same thing) or **Deny**. Every "always allow" is listed
-under the pool, and **Take back** ends it from the next request.
+under the pool and in **Settings › Agent access › Rules you made**, and
+**Take back** ends it from the next request.
 
 **Messages put into sessions** sets how many replies in a row may go back
 and forth before AI Juggler pauses and asks you (5 to start), and stops all

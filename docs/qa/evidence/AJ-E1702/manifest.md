@@ -27,6 +27,18 @@ Gallery: `docs/qa/evidence/_gallery/91-pools/` (both themes, axe 0 critical or s
    - agent access: the level picker, Custom's actions, the hop limit and stop-all, the rules with **Take back**; on each pool's page and in **Settings › Agent access**.
 8. **Docs**: `docs/guide/pools.md`; the CHANGELOG; the Privacy page's new line (pools never act on a session); `docs/RELEASING.md` (0.1.0 = schema 32, 0.2 = 33) and `SCHEMA_RELEASES` (32 → 0.1.0).
 
+## Amended 2026-10-25: pools in the desktop-first redesign
+
+Merging main's desktop-first redesign (E21, D-35 to D-37) into release/0.2 changed item 7 (Req.3 as amended in the task file):
+
+- **The rail**: pools are the **Pool lens** of the View (⇧V › Group by › Pool), greyed until a pool of yours exists, then Open now grouped by pool (`lib/rail-places.ts`, `lib/pools.ts` `railPoolOf`, `PlaceBoard.tsx`); a pool's header **Open** (and its ⌘ digit) opens its page; a session another app runs is under "Not in a pool". No pools section, no pool filter, no **New pool** link, and no auto-switch: making a pool opens its page and the lens stays as you set it. `RailPools.tsx` is gone.
+- **Home**: no pool picker (`HomePoolFilter.tsx` is gone). Home is the whole desktop; a pool's view is its page.
+- **Menus**: **Move to pool…** is in the session menu's Working on it group with its own icon (`pool`), in the split registry (`lib/action-specs.ts`).
+- **Settings**: **Agent access** is its own pane (`screens/settings/AgentAccessPane.tsx`), always in the sidebar (every project's default pool has a level too): every pool's level and details, and **Rules you made** across pools, each with **Take back**.
+- **Cards and member rows** (AJ-E1703): the place is the rows' place line (project · app · profile), the account the profile's label; the state is the rail's one vocabulary (Asks you, Working, Idle, Ended).
+
+Proof: vitest `pools.test.tsx` (the Pool lens greyed then grouping, a header opening its page, the menu item's group and icon, making a pool opening its page), `rail-model.test.ts` (grouping by pool), `item-menu.test.tsx` (the session menu's order), `settings-sections.test.tsx` (the pane, its sections), app `pool_cards` (the place line). The `91-pools` gallery spec follows the new flow; its baselines need re-rendering in the pinned container.
+
 ## Proof
 
 | Requirement | Proof | Result |

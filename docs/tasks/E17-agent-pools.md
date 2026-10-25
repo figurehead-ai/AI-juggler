@@ -67,14 +67,15 @@
    - roles are lead, member and observer, with the user as the implicit owner;
    - permissions are D-28's access levels, rules and audit (see the law above), with UI edits only, behind one decision point (`allowed(pool, action) -> Allow | Ask | Deny`) the bridge and messaging only call; each pool also stores D-29's hop limit and stop-all and D-32's spans-Macs flag.
 2. Each project has its own default pool ("<project> · all sessions"), made when the project first appears, always there, not renamable or deletable, holding every session of that project on any account (D-33); sessions with no project are in "No project · all sessions". Levels, rules, hop limits and stop-all are set per default pool like any other.
-3. UI: create, rename and delete pools (except the default); move sessions between pools; set roles; a pool filter on Home and the rail; the level picker on the pool's page and Settings › Agent access. All reuse the existing rows, headers and folds.
+3. UI: create, rename and delete pools (except the default); move sessions between pools ("Move to pool…" in a session menu's Working on it group); set roles; the rail's Pool lens in the View (offered once you've made a pool; a pool's header opens its page); the level picker on the pool's page and Settings › Agent access. All reuse the existing rows, headers and folds.
+   - *Amended 2026-10-25 (the desktop-first redesign, E21):* no pool filter on Home and no separate pools section or pool filter in the rail. Home is the whole desktop; a pool's view is its page. Making a pool opens its page; the rail's lens stays as you set it.
 4. A guardrail test: pool operations never spawn, stop or type into a session.
-**UI/UX reasoning**: D-25: pools read like the rail's project groups, with the same fold and mark.
+**UI/UX reasoning**: D-25, D-36: pools are one of the rail's lenses (Place, Project, Pool, Account), with the same headers, folds and one state vocabulary.
 **Performance budget**: the rail's budget is unchanged at 50 sessions.
 **Quality gates**: migration tests (with the pre-migration copy, from 0.1.0's schema 32 to 33); role, level, rule and decision-point tests; the guardrails (no path to a session; the hard lines; no quota).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1702/manifest.md`.
-**Visual testing**: pools in the rail, the pool sheet and the filter.
-**Files to touch**: `crates/juggler-core/src/storage/` (pools), `commands.rs`, `WorkflowRail.tsx`, `Home.tsx`.
+**Visual testing**: the rail's Pool lens, the pool sheet and Settings › Agent access.
+**Files to touch**: `crates/juggler-core/src/storage/` (pools), `commands.rs`, `lib/rail-places.ts` (the Pool lens), `PlaceBoard.tsx`, `ViewPopover.tsx`, `screens/settings/AgentAccessPane.tsx`.
 **Research basis**: `pools-messaging-tasks.md` §2.3.
 **Handover note**: The schema bump (v33) needs a downgrade note in 0.2's release notes and a `SCHEMA_RELEASES` entry when 0.2 ships (0.1.0 = 32 is listed).
 
@@ -82,8 +83,8 @@
 **Goal**: Each pool shows what every member is working on.
 **User story**: As a user, I open a pool and see each agent's place, state, task and last activity at a glance.
 **Requirements**:
-1. Cards are built only from what AI Juggler knows: name and place, tool and state, the current task (E19), a line the agent reports itself (marked as said by the agent), last activity and recently touched files.
-2. Missing data says "Unavailable"; of the account, a card shows only its label, never an email, a plan or another detail (D-33).
+1. Cards are built only from what AI Juggler knows: name and place (the rows' place line, project · app · profile, D-36), tool and state (the rail's one state vocabulary), the current task (E19), a line the agent reports itself (marked as said by the agent), last activity and recently touched files.
+2. Missing data says "Unavailable"; of the account, a card shows only its profile's label (D-35), never an email, a plan or another detail (D-33).
 **UI/UX reasoning**: Rows like Home's, with detail behind disclosure.
 **Performance budget**: built within the read model's tick.
 **Quality gates**: honest-field tests (D-06).
