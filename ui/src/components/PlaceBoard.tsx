@@ -79,7 +79,7 @@ function AlsoLine({ also, hidden }: { also: AlsoCounts; hidden: HiddenApp[] }): 
   // 24 px targets (WCAG 2.5.8), the line wrapping when it must.
   const link = "inline-flex min-h-6 items-center rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
-    <p className="flex min-h-[30px] flex-wrap items-center gap-x-1 px-2 text-label text-muted" data-testid="rail-also">
+    <p className="flex min-h-[36px] flex-wrap items-center gap-x-1 px-2 pt-2 text-label text-muted" data-testid="rail-also">
       <span>Also:</span>
       {ALSO.filter((part) => also[part.key] > 0).map((part) => (
         <Fragment key={part.key}>

@@ -695,7 +695,7 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
     .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-surface")).toContainText("Running");
+  await expect(page.getByTestId("desktop-surface")).toContainText("Working");
   await expect(page.getByTestId("desktop-focus")).toBeVisible();
   await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-running-1280x800.png") });

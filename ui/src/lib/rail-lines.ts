@@ -29,7 +29,7 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   header: 32,
   row: 46,
   more: 24,
-  also: 30,
+  also: 36,
   label: 26,
   plain: 42,
 };

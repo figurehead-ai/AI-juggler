@@ -100,7 +100,8 @@ for (const viewport of VIEWPORTS) {
       await seed(page, theme, viewport);
       await openProject(page);
       await page.getByRole("tab", { name: "Sessions" }).click();
-      await expect(page.getByTestId("page-sessions")).toBeVisible();
+      // The Sessions tab's list (Overview's Open sessions pages one too).
+      await expect(page.getByTestId("page-panel-sessions").getByTestId("page-sessions")).toBeVisible();
       await shoot(page, "project-sessions", theme, viewport);
     });
 

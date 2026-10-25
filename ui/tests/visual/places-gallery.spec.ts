@@ -125,7 +125,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`Home, typical: what needs you, your apps, runway by account — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
-    await expect(page.getByTestId("home-heading")).toHaveText("3 things need you");
+    // Counted as the rail counts them (the review of 0.1.4).
+    await expect(page.getByTestId("home-heading")).toHaveText("3 sessions need you");
     await expect(page.getByTestId("home-app-tile")).toHaveCount(4);
     await shoot(page, "home-typical", theme);
   });
