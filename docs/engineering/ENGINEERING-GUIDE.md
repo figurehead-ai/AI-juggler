@@ -112,12 +112,16 @@ impl From<SyncError> for AppError {
 
 ### C.3 Async, threading and state
 
-**T1 MUST: A command that touches the filesystem, SQLite, the network or processes is
-`async`, and its blocking work runs in `spawn_blocking`.** A sync command is allowed
-only for pure, sub-millisecond work, and it carries an `// ipc: main-thread (pure)`
-marker. *Why:* sync commands run on the main thread [S6] (G1). *Enforced:* proposed
-`scripts/ipc_audit.py`, which fails any non-async `#[tauri::command]` without the marker,
-seeded with an allowlist of today's commands that only shrinks.
+**T1 MUST: Every command is `async`, and its blocking work runs in
+`crate::ipc::blocking` (`spawn_blocking`).** *Why:* sync commands run on the main
+thread [S6] (G1); even a quick read there waits on the storage lock whenever a
+background pass holds it, and the window shows the spinning wheel (0.1.5 review:
+opening a page did). A command that must run on the main thread carries
+`// ipc: main-thread (why)` and a `main-thread` line in the allowlist. *Enforced:*
+`scripts/ipc_audit.py` (`just structure`) fails any non-async `#[tauri::command]`,
+a marker without its reason and an unlisted marker; its `sync` and `main-thread`
+lists are empty and only shrink. `tests/page_open_off_main.rs` proves each page's
+commands leave the calling thread at once with the storage lock held.
 
 ```rust
 #[tauri::command]

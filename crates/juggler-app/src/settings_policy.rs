@@ -411,10 +411,13 @@ pub async fn session_prefs_set(
 ///
 /// Returns the typed storage error.
 #[tauri::command]
-pub fn notification_prefs_get(
+pub async fn notification_prefs_get(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<NotificationPrefsInfo> {
-    notification_prefs_get_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "notification prefs get", move |state| {
+        notification_prefs_get_impl(state)
+    })
+    .await
 }
 
 /// Saves Settings › Notifications.
@@ -423,11 +426,14 @@ pub fn notification_prefs_get(
 ///
 /// See [`notification_prefs_set_impl`].
 #[tauri::command]
-pub fn notification_prefs_set(
+pub async fn notification_prefs_set(
     state: tauri::State<'_, Arc<AppState>>,
     prefs: NotificationPrefsInfo,
 ) -> AppResult<NotificationPrefsInfo> {
-    notification_prefs_set_impl(state.inner(), &prefs)
+    crate::ipc::blocking(state.inner(), "notification prefs set", move |state| {
+        notification_prefs_set_impl(state, &prefs)
+    })
+    .await
 }
 
 /// The cleanup default for new Accounts.
@@ -436,8 +442,11 @@ pub fn notification_prefs_set(
 ///
 /// Returns the typed storage error.
 #[tauri::command]
-pub fn cleanup_default_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
-    cleanup_default_get_impl(state.inner())
+pub async fn cleanup_default_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "cleanup default get", move |state| {
+        cleanup_default_get_impl(state)
+    })
+    .await
 }
 
 /// Sets the cleanup default for new Accounts.
@@ -446,8 +455,14 @@ pub fn cleanup_default_get(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 ///
 /// Returns the typed storage error.
 #[tauri::command]
-pub fn cleanup_default_set(state: tauri::State<'_, Arc<AppState>>, on: bool) -> AppResult<bool> {
-    cleanup_default_set_impl(state.inner(), on)
+pub async fn cleanup_default_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
+) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "cleanup default set", move |state| {
+        cleanup_default_set_impl(state, on)
+    })
+    .await
 }
 
 #[cfg(test)]

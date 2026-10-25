@@ -10,13 +10,17 @@ code), then checks:
 - every command the UI invokes is registered (no allowlist: a typo is a
   runtime failure);
 - every registered command has a caller (I3);
-- a command is `async`, or carries `// ipc: main-thread` just above it
-  when its work is pure (T1);
+- a command is `async` (T1): Tauri runs a sync command on the main
+  thread, so any read there (storage, files, processes, a lock another
+  thread holds) freezes the window (0.1.5 review: opening a page showed
+  the spinning wheel). The only way past is `// ipc: main-thread (why)`
+  just above it, with its reason, and a `main-thread` line in the
+  allowlist (today: none);
 - a command body is at most 40 lines (A3: thin commands);
 - a command in `features/<feature>/` is named `<feature>_<verb>`, and every
   command has a verb after its feature (I4).
 
-The last four start from `scripts/ipc_audit.allow`, which only shrinks: a
+The last five start from `scripts/ipc_audit.allow`, which only shrinks: a
 listed command that now passes (or is gone) must leave the list.
 
 Usage: ipc_audit.py [--print] [--selftest]
@@ -31,7 +35,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ALLOW = ROOT / "scripts" / "ipc_audit.allow"
 MAX_BODY = 40
-RULES = ("uncalled", "sync", "long", "name")
+RULES = ("uncalled", "sync", "main-thread", "long", "name")
+MARKER = re.compile(r"ipc: main-thread\s*\(([^)]+)\)")
 COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\])\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
 INVOKE = re.compile(r"""\binvoke\s*(?:<[^>]*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")
@@ -80,11 +85,13 @@ def definitions(src: Path) -> dict[str, dict]:
             rename = RENAME.search(match.group(1) or "")
             fn = match.group(4)
             above = text[max(0, match.start() - 400): match.start()].splitlines()[-3:]
+            marks = [line for line in above + match.group(2).splitlines() if "ipc: main-thread" in line]
             found[rename.group(1) if rename else fn] = {
                 "fn": fn,
                 "file": rel,
                 "async": bool(match.group(3)),
-                "marker": any("ipc: main-thread" in line for line in above) or "ipc: main-thread" in match.group(2),
+                "marker": bool(marks),
+                "reason": next((m.group(1).strip() for line in marks if (m := MARKER.search(line))), ""),
                 "lines": body_lines(text, match.end()),
             }
     return found
@@ -117,6 +124,10 @@ def findings(root: Path) -> tuple[list[str], dict[str, set[str]]]:
             continue
         if not info["async"] and not info["marker"]:
             rules["sync"].add(name)
+        if not info["async"] and info["marker"]:
+            rules["main-thread"].add(name)
+            if not info["reason"]:
+                hard.append(f"`{name}` is marked `// ipc: main-thread` without its reason — `// ipc: main-thread (why)`")
         if info["lines"] > MAX_BODY:
             rules["long"].add(name)
         feature = re.match(r"features/([a-z0-9_]+)/", info["file"])
@@ -127,7 +138,8 @@ def findings(root: Path) -> tuple[list[str], dict[str, set[str]]]:
 
 WORDS = {
     "uncalled": "is registered but nothing in the UI calls it (I3) — call it, remove it, or list it with a date",
-    "sync": "is a sync command — make it async with its work in spawn_blocking, or mark pure work `// ipc: main-thread` (T1)",
+    "sync": "is a sync command, so Tauri runs it on the main thread — make it `async` with its work in `crate::ipc::blocking` (T1)",
+    "main-thread": "runs on the main thread — make it `async`; only a command that must run there may stay, marked `// ipc: main-thread (why)` and listed with its reason",
     "long": f"has a body over {MAX_BODY} lines — move the logic into the feature's service (A3)",
     "name": "isn't named <feature>_<verb> (I4)",
 }
@@ -173,9 +185,11 @@ def selftest() -> int:
         (root / "ui" / "src" / "a.ts").write_text('invoke("tools_catalog"); invoke<number>("old_thing"); invoke("app_pure");\n')
         allow = root / "allow"
         cases = [
-            ("sync old_thing\nlong old_thing\n", 0, "a thin async command, a marked pure one and a listed old one pass"),
-            ("sync old_thing\n", 1, "an unlisted long body fails"),
-            ("sync old_thing\nlong old_thing\nname tools_catalog\n", 1, "a listed command that passes must leave the list"),
+            ("sync old_thing\nlong old_thing\nmain-thread app_pure\n", 0, "a thin async command, a listed marked one and a listed old one pass"),
+            ("sync old_thing\nlong old_thing\n", 1, "a marked command that isn't listed fails"),
+            ("long old_thing\nmain-thread app_pure\n", 1, "an unlisted sync command fails"),
+            ("sync old_thing\nmain-thread app_pure\n", 1, "an unlisted long body fails"),
+            ("sync old_thing\nlong old_thing\nmain-thread app_pure\nname tools_catalog\n", 1, "a listed command that passes must leave the list"),
         ]
         bad = 0
         for text, want, what in cases:
@@ -184,8 +198,19 @@ def selftest() -> int:
             if got != want:
                 print(f"ipc-audit selftest FAILED: {what}: {got} problem(s), wanted {want}: {check(root, allow)}")
                 bad += 1
+        # A marker with no reason is refused, listed or not.
+        (src / "quiet.rs").write_text("// ipc: main-thread\n#[tauri::command]\npub fn app_quiet() -> u8 {\n    1\n}\n")
+        (src / "lib.rs").write_text("tauri::generate_handler![features::tools::commands::tools_catalog, commands::old_thing, commands::app_pure, quiet::app_quiet]")
+        (root / "ui" / "src" / "c.ts").write_text('invoke("app_quiet");\n')
+        allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\nmain-thread app_quiet\n")
+        if not any("without its reason" in problem for problem in check(root, allow)):
+            print("ipc-audit selftest FAILED: a main-thread marker needs its reason")
+            bad += 1
+        (src / "quiet.rs").unlink()
+        (root / "ui" / "src" / "c.ts").unlink()
+        (src / "lib.rs").write_text("tauri::generate_handler![features::tools::commands::tools_catalog, commands::old_thing, commands::app_pure]")
         (root / "ui" / "src" / "b.ts").write_text('invoke("tools_catalgo");\n')
-        allow.write_text("sync old_thing\nlong old_thing\n")
+        allow.write_text("sync old_thing\nlong old_thing\nmain-thread app_pure\n")
         if not any("tools_catalgo" in problem for problem in check(root, allow)):
             print("ipc-audit selftest FAILED: a typo'd invoke must fail")
             bad += 1

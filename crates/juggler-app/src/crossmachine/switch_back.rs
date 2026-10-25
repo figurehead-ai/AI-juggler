@@ -946,18 +946,29 @@ fn record_back(
 ///
 /// Returns the typed [`AppError`] per [`fleet_switch_back_plan_impl`].
 #[tauri::command]
-pub fn fleet_switch_back_plan(
+pub async fn fleet_switch_back_plan(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Option<FleetSwitchBackPlanInfo>> {
-    fleet_switch_back_plan_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "fleet switch back plan", move |state| {
+        fleet_switch_back_plan_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E708: every unresolved divergence.
 #[tauri::command]
-#[must_use]
-pub fn fleet_divergences(state: tauri::State<'_, Arc<AppState>>) -> Vec<DivergenceRecordInfo> {
-    fleet_divergences_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_divergences(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<DivergenceRecordInfo>> {
+    crate::ipc::blocking(state.inner(), "fleet divergences", move |state| {
+        Ok(fleet_divergences_impl(state))
+    })
+    .await
 }
 
 /// AJ-E708: "Keep theirs" for one divergence (nothing is sent).
@@ -966,11 +977,16 @@ pub fn fleet_divergences(state: tauri::State<'_, Arc<AppState>>) -> Vec<Divergen
 ///
 /// Returns the typed [`AppError`] per [`fleet_divergence_keep_theirs_impl`].
 #[tauri::command]
-pub fn fleet_divergence_keep_theirs(
+pub async fn fleet_divergence_keep_theirs(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<()> {
-    fleet_divergence_keep_theirs_impl(state.inner(), &session_id)
+    crate::ipc::blocking(
+        state.inner(),
+        "fleet divergence keep theirs",
+        move |state| fleet_divergence_keep_theirs_impl(state, &session_id),
+    )
+    .await
 }
 
 /// AJ-E706: switches an away Instance back to its original machine.

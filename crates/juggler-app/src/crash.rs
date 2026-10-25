@@ -556,9 +556,15 @@ pub async fn crash_ui_error(
 
 /// AJ-E1107: the crash-report setting and waiting reports.
 #[tauri::command]
-#[must_use]
-pub fn crash_info(state: tauri::State<'_, Arc<AppState>>) -> CrashInfo {
-    crash_info_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn crash_info(state: tauri::State<'_, Arc<AppState>>) -> AppResult<CrashInfo> {
+    crate::ipc::blocking(state.inner(), "crash info", move |state| {
+        Ok(crash_info_impl(state))
+    })
+    .await
 }
 
 /// AJ-E1107: sets the crash-report setting.
@@ -567,8 +573,14 @@ pub fn crash_info(state: tauri::State<'_, Arc<AppState>>) -> CrashInfo {
 ///
 /// Per [`crash_set_impl`].
 #[tauri::command]
-pub fn crash_set(state: tauri::State<'_, Arc<AppState>>, setting: String) -> AppResult<CrashInfo> {
-    crash_set_impl(state.inner(), &setting)
+pub async fn crash_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    setting: String,
+) -> AppResult<CrashInfo> {
+    crate::ipc::blocking(state.inner(), "crash set", move |state| {
+        crash_set_impl(state, &setting)
+    })
+    .await
 }
 
 /// AJ-E1107: answers the next-launch question for one report.
@@ -577,12 +589,15 @@ pub fn crash_set(state: tauri::State<'_, Arc<AppState>>, setting: String) -> App
 ///
 /// Per [`crash_answer_impl`].
 #[tauri::command]
-pub fn crash_answer(
+pub async fn crash_answer(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
     answer: String,
 ) -> AppResult<CrashInfo> {
-    crash_answer_impl(state.inner(), &id, &answer)
+    crate::ipc::blocking(state.inner(), "crash answer", move |state| {
+        crash_answer_impl(state, &id, &answer)
+    })
+    .await
 }
 
 #[cfg(test)]

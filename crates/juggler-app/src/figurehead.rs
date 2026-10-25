@@ -862,10 +862,13 @@ async fn blocking<T: Send + 'static>(
 ///
 /// Returns the typed [`AppError`] when state is unavailable.
 #[tauri::command]
-pub fn figurehead_status(
+pub async fn figurehead_status(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<FigureheadStatusInfo> {
-    status_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "figurehead status", move |state| {
+        status_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1202: starts a browser link and opens the approval page.
@@ -905,11 +908,14 @@ pub async fn figurehead_link_poll(
 ///
 /// Returns the typed [`AppError`] when state is unavailable.
 #[tauri::command]
-pub fn figurehead_link_cancel(
+pub async fn figurehead_link_cancel(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<FigureheadStatusInfo> {
-    link_cancel_impl(state.inner());
-    status_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "figurehead link cancel", move |state| {
+        link_cancel_impl(state);
+        status_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1202: links with a dashboard pairing code.
@@ -972,11 +978,14 @@ pub async fn figurehead_unlink(
 ///
 /// Returns the typed [`AppError`] per [`save_choices_impl`].
 #[tauri::command]
-pub fn figurehead_save_choices(
+pub async fn figurehead_save_choices(
     state: tauri::State<'_, Arc<AppState>>,
     features: std::collections::BTreeMap<String, bool>,
 ) -> AppResult<FigureheadStatusInfo> {
-    save_choices_impl(state.inner(), &features)
+    crate::ipc::blocking(state.inner(), "figurehead save choices", move |state| {
+        save_choices_impl(state, &features)
+    })
+    .await
 }
 
 /// AJ-E1202: dismisses the one-time notice.
@@ -985,10 +994,13 @@ pub fn figurehead_save_choices(
 ///
 /// Returns the typed [`AppError`] on storage failure.
 #[tauri::command]
-pub fn figurehead_dismiss_notice(
+pub async fn figurehead_dismiss_notice(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<FigureheadStatusInfo> {
-    dismiss_notice_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "figurehead dismiss notice", move |state| {
+        dismiss_notice_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1202: opens a Figurehead page (`verify` | `dashboard` | `devices`
@@ -998,20 +1010,23 @@ pub fn figurehead_dismiss_notice(
 ///
 /// Returns [`AppError::Validation`] for an unknown page.
 #[tauri::command]
-pub fn figurehead_open_page(
+pub async fn figurehead_open_page(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     target: String,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    let url = page_url(state.inner(), &target).ok_or(AppError::Validation {
-        subject: "page",
-        message: "That page isn't available.".to_owned(),
-    })?;
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "open Figurehead",
-            message: e.to_string(),
-        })
+    crate::ipc::blocking(state.inner(), "figurehead open page", move |state| {
+        use tauri_plugin_opener::OpenerExt as _;
+        let url = page_url(state, &target).ok_or(AppError::Validation {
+            subject: "page",
+            message: "That page isn't available.".to_owned(),
+        })?;
+        app.opener()
+            .open_url(url, None::<&str>)
+            .map_err(|e| AppError::Io {
+                context: "open Figurehead",
+                message: e.to_string(),
+            })
+    })
+    .await
 }

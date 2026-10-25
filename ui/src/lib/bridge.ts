@@ -9,6 +9,7 @@ import {
   readOnlyBackend,
   saveDialog,
 } from "./ipc/transport";
+import { orderedJoin, orderedLatest } from "./ipc/ordered";
 import type { AppInfo } from "../types/generated/AppInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
@@ -2071,18 +2072,14 @@ export async function terminalAttach(id: string): Promise<TerminalInfo> {
   return invoke<TerminalInfo>("terminal_attach", { id });
 }
 
-/** Sends keystrokes to a terminal. */
-export async function terminalWrite(id: string, data: string): Promise<void> {
-  return invoke<void>("terminal_write", { id, data });
-}
+/** Sends keystrokes to a terminal, in the order they were typed. */
+export const terminalWrite = orderedJoin((id, data) => invoke<void>("terminal_write", { id, data }));
 
-/** Resizes a terminal's PTY. */
-export async function terminalResize(
-  id: string,
-  cols: number,
-  rows: number,
-): Promise<void> {
-  return invoke<void>("terminal_resize", { id, cols, rows });
+const resizeTerminal = orderedLatest<{ cols: number; rows: number }>((id, size) => invoke<void>("terminal_resize", { id, ...size }));
+
+/** Resizes a terminal's PTY (the newest size wins). */
+export async function terminalResize(id: string, cols: number, rows: number): Promise<void> {
+  return resizeTerminal(id, { cols, rows });
 }
 
 /** Stops a terminal's process (graceful ladder). */

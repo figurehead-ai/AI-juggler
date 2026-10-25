@@ -283,11 +283,14 @@ pub fn account_forget_identity_impl(state: &Arc<AppState>, account_id: &str) -> 
 ///
 /// Returns the typed [`AppError`] per [`identity_check_impl`].
 #[tauri::command]
-pub fn identity_check(
+pub async fn identity_check(
     state: tauri::State<'_, Arc<AppState>>,
     recipe_id: String,
 ) -> AppResult<IdentityCheckInfo> {
-    identity_check_impl(state.inner(), &recipe_id)
+    crate::ipc::blocking(state.inner(), "identity check", move |state| {
+        identity_check_impl(state, &recipe_id)
+    })
+    .await
 }
 
 /// AJ-E1001: forgets an Account's remembered identity.
@@ -296,11 +299,14 @@ pub fn identity_check(
 ///
 /// Returns the typed [`AppError`] per [`account_forget_identity_impl`].
 #[tauri::command]
-pub fn account_forget_identity(
+pub async fn account_forget_identity(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<()> {
-    account_forget_identity_impl(state.inner(), &account_id)
+    crate::ipc::blocking(state.inner(), "account forget identity", move |state| {
+        account_forget_identity_impl(state, &account_id)
+    })
+    .await
 }
 
 #[cfg(test)]

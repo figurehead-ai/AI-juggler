@@ -998,14 +998,17 @@ pub fn retention_apply_impl(
 ///
 /// Per [`instance_archive_impl`].
 #[tauri::command]
-pub fn instance_archive(
+pub async fn instance_archive(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<i64> {
-    let at = instance_archive_impl(state.inner(), &session_id)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(at)
+    crate::ipc::blocking(state.inner(), "instance archive", move |state| {
+        let at = instance_archive_impl(state, &session_id)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
 }
 
 /// AJ-E1007: unarchives an Instance.
@@ -1014,14 +1017,17 @@ pub fn instance_archive(
 ///
 /// Per [`instance_unarchive_impl`].
 #[tauri::command]
-pub fn instance_unarchive(
+pub async fn instance_unarchive(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<i64> {
-    let at = instance_unarchive_impl(state.inner(), &session_id)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(at)
+    crate::ipc::blocking(state.inner(), "instance unarchive", move |state| {
+        let at = instance_unarchive_impl(state, &session_id)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(at)
+    })
+    .await
 }
 
 /// AJ-E1007: what deleting an Instance would remove and keep.
@@ -1030,11 +1036,14 @@ pub fn instance_unarchive(
 ///
 /// Per [`instance_delete_preview_impl`].
 #[tauri::command]
-pub fn instance_delete_preview(
+pub async fn instance_delete_preview(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<DeletePreviewInfo> {
-    instance_delete_preview_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "instance delete preview", move |state| {
+        instance_delete_preview_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E1007: deletes an Instance's AI Juggler records (with its
@@ -1044,15 +1053,18 @@ pub fn instance_delete_preview(
 ///
 /// Per [`instance_delete_impl`].
 #[tauri::command]
-pub fn instance_delete(
+pub async fn instance_delete(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     token: String,
 ) -> AppResult<()> {
-    instance_delete_impl(state.inner(), &session_id, &token)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(())
+    crate::ipc::blocking(state.inner(), "instance delete", move |state| {
+        instance_delete_impl(state, &session_id, &token)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E1007: transcript text search.
@@ -1061,11 +1073,14 @@ pub fn instance_delete(
 ///
 /// Per [`transcript_search_impl`].
 #[tauri::command]
-pub fn transcript_search(
+pub async fn transcript_search(
     state: tauri::State<'_, Arc<AppState>>,
     query: String,
 ) -> AppResult<Vec<TranscriptHitInfo>> {
-    transcript_search_impl(state.inner(), &query)
+    crate::ipc::blocking(state.inner(), "transcript search", move |state| {
+        transcript_search_impl(state, &query)
+    })
+    .await
 }
 
 /// AJ-E1007: the read-only replay of an ended or archived Instance.
@@ -1074,11 +1089,14 @@ pub fn transcript_search(
 ///
 /// Per [`instance_replay_impl`].
 #[tauri::command]
-pub fn instance_replay(
+pub async fn instance_replay(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<ReplayInfo> {
-    instance_replay_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "instance replay", move |state| {
+        instance_replay_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E1007: every Account's retention and storage used.
@@ -1087,10 +1105,13 @@ pub fn instance_replay(
 ///
 /// Per [`account_storage_impl`].
 #[tauri::command]
-pub fn account_storage(
+pub async fn account_storage(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<AccountStorageInfo>> {
-    account_storage_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "account storage", move |state| {
+        account_storage_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1007: sets an Account's retention.
@@ -1099,12 +1120,15 @@ pub fn account_storage(
 ///
 /// Per [`retention_set_impl`].
 #[tauri::command]
-pub fn retention_set(
+pub async fn retention_set(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     days: Option<u32>,
 ) -> AppResult<()> {
-    retention_set_impl(state.inner(), &account_id, days)
+    crate::ipc::blocking(state.inner(), "retention set", move |state| {
+        retention_set_impl(state, &account_id, days)
+    })
+    .await
 }
 
 /// AJ-E1007: the retention dry run.
@@ -1113,11 +1137,14 @@ pub fn retention_set(
 ///
 /// Per [`retention_preview_impl`].
 #[tauri::command]
-pub fn retention_preview(
+pub async fn retention_preview(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<RetentionPreviewInfo> {
-    retention_preview_impl(state.inner(), &account_id)
+    crate::ipc::blocking(state.inner(), "retention preview", move |state| {
+        retention_preview_impl(state, &account_id)
+    })
+    .await
 }
 
 /// AJ-E1007: applies the retention cleanup (with its dry run's token).
@@ -1126,13 +1153,16 @@ pub fn retention_preview(
 ///
 /// Per [`retention_apply_impl`].
 #[tauri::command]
-pub fn retention_apply(
+pub async fn retention_apply(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     token: String,
 ) -> AppResult<u32> {
-    let deleted = retention_apply_impl(state.inner(), &account_id, &token)?;
-    crate::commands::emit_sessions(&app, state.inner())?;
-    Ok(deleted)
+    crate::ipc::blocking(state.inner(), "retention apply", move |state| {
+        let deleted = retention_apply_impl(state, &account_id, &token)?;
+        crate::commands::emit_sessions(&app, state)?;
+        Ok(deleted)
+    })
+    .await
 }
