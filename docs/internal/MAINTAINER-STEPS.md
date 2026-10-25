@@ -480,3 +480,44 @@ hand it to the agent.
 - [ ] Untick "Look for new versions of your tools once a day", restart AI
       Juggler, and after 15 minutes check with Little Snitch or `nettop`
       that it made no request to registry.npmjs.org.
+
+---
+
+## Part 8 — Pools and the agent bridge
+
+### 17. The agent bridge spike on spare accounts (AJ-E1701 Req.2; about 30 min)
+
+**Why:** AJ-E1704 built the bridge to the vendors' documented behaviour,
+and its tests run on the fake tool only. Three things only a real run
+can show, and the evidence marks them **unverified** until you've done
+this. Use spare accounts, a throwaway lab project, and AI Juggler Dev
+(`just dev`, which builds `juggler-agent` beside it). Allow nothing,
+sign in to nothing new.
+
+- [ ] In AI Juggler Dev, open any pool's page and answer **Yes, let them**
+      to "Let agents in your projects see each other and work together?".
+- [ ] **Claude Code.** Start a session on a spare Claude Code account in
+      the lab project. Ask it: "Call the juggler whoami tool."
+  - [ ] Does it run **without asking you to approve** the server or the
+        tool? (`--mcp-config` + `--allowedTools`; record any prompt
+        word for word.)
+  - [ ] The answer names this session and the project's pool.
+  - [ ] `/mcp` lists `juggler` as connected, and your own MCP servers
+        are still there (no `--strict-mcp-config`).
+- [ ] **Codex.** The same on a spare Codex account: "Call the juggler
+      whoami tool."
+  - [ ] Does the key reach the server (`env_vars`)? A key that didn't
+        arrive answers "This session wasn't started by AI Juggler with
+        its agent tools, so it has no key".
+  - [ ] Does it run **without an approval prompt**
+        (`tools.<tool>.approval_mode="approve"`)? Record any prompt.
+- [ ] Both: ask each to `set_status` "spike", then open the pool's page:
+      both cards say it. Ask one for `pool_roster`: it lists the other.
+- [ ] Optional: which MCP version each sent (Claude Code's `--debug`
+      output or Codex's log names it); the bridge answers both lines.
+- [ ] Put the captures in `docs/research/evidence/` (redacted with the
+      fail-closed tool) and tick AJ-E1701 Req.2 and the three
+      "unverified" lines in `docs/qa/evidence/AJ-E1704/manifest.md`.
+
+If a prompt appears, say which: the fix is in the adapter's
+`claude_bridge.rs` or `codex_bridge.rs` only.

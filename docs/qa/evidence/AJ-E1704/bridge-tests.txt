@@ -1,0 +1,29 @@
+running 10 tests
+test cli::tests::serving_answers_each_request_on_its_own_line ... ok
+test cli::tests::the_command_line_has_no_way_to_pass_a_key ... ok
+test client::tests::the_key_goes_only_to_a_socket_in_a_closed_folder ... ok
+test mcp::tests::calls_go_to_the_app_and_refusals_come_back_as_the_tools_error ... ok
+test mcp::tests::nonsense_gets_json_rpc_errors_never_a_crash ... ok
+test mcp::tests::the_handshake_echoes_a_known_version_and_offers_the_latest_otherwise ... ok
+test mcp::tests::three_tools_and_one_resource_and_only_set_status_writes ... ok
+test wire::tests::a_request_round_trips_and_refuses_strangers ... ok
+test wire::tests::a_status_is_one_short_line ... ok
+test wire::tests::only_the_three_tools_name_calls ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 11 tests
+test a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch ... ok
+test a_new_epoch_gets_a_new_key_and_the_old_one_stops ... ok
+test agents_see_account_labels_never_emails_or_plans ... ok
+test calls_answer_in_under_50_ms ... slowest call over the socket: 2.673667ms
+test each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited ... ok
+test nothing_is_added_before_the_question_is_answered ... ok
+test the_command_line_reads_the_key_from_its_environment_only ... ok
+test the_key_is_in_the_environment_only_and_nothing_lands_in_the_account_folder ... ok
+test the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up ... ok
+test the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys ... ok
+test what_agents_reach_has_no_path_to_a_session_a_setting_or_a_secret ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
