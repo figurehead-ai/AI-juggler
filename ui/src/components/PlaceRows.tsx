@@ -276,7 +276,9 @@ export function PlaceHeader({
               <span className="truncate">{place.profile}</span>
             </span>
           )}
-          {folded !== null && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+          {/* Folded, its summary ("4 idle"), unless the amber chip needs
+              the room (the profile's name keeps it). */}
+          {folded !== null && needs === 0 && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
           {/* What the amber count is, on the chip itself (the review of
               0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
           {needs > 0 && (

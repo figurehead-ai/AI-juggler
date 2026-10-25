@@ -367,7 +367,7 @@ function SessionRowBody({
           <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
         </span>
         {badge}
-        <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-muted">{row.when}</span>
+        <span className="w-24 shrink-0 whitespace-nowrap text-right text-meta tabular-nums text-muted">{row.when}</span>
       </button>
       {below}
       {menu.button({ label: `Actions for ${row.title}`, className: "absolute right-2 top-2" })}

@@ -40,7 +40,7 @@ function PortRow({ row }: { row: PortRowInfo }) {
     >
       <div className="flex items-center gap-2">
         <span className="font-mono text-meta font-medium text-ink">:{row.port}</span>
-        <span className="font-mono text-label text-muted">PID {row.pid}</span>
+        <span className="text-label tabular-nums text-muted">PID {row.pid}</span>
         <span
           className={`ml-auto inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] text-label ${
             notManaged

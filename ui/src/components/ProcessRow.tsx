@@ -151,7 +151,7 @@ export function ProcessRow(props: {
             </span>
           )}
           <span className="truncate font-mono text-label text-ink">{row.cmdline}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-label text-muted">
+          <span className="ml-auto flex shrink-0 items-center gap-2 text-label tabular-nums text-muted">
             <span>PID {row.pid}</span>
             {row.pgid !== null && <span>PGID {row.pgid}</span>}
             <span>{ageText(row.age_ms)}</span>

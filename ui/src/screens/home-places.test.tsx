@@ -72,7 +72,7 @@ describe("Home, desktop first", () => {
     expect(tiles.map((tile) => tile.dataset.place)).toEqual(["ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]);
     const work = tiles[2]!;
     expect(work.textContent).toContain("Work Max · 2 sessions");
-    expect(within(work).getByText("1")).toBeTruthy();
+    expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     cleanup();
     // Eight places: six tiles, then "+2".

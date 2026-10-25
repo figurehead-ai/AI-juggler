@@ -26,6 +26,7 @@
  * action. The ledger-degraded banner moved here from Overview.
  */
 import { ProjectMark } from "../components/ProjectMark";
+import { untitled } from "../lib/project-words";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
@@ -367,7 +368,7 @@ export function HomeScreen({
   // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
   if (loading && accounts.length === 0 && sessions.length === 0) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home-loading">
+      <div className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home-loading">
         <span className="block h-7 w-64 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="home" rows={3} label="Loading Home" />
       </div>
@@ -418,15 +419,15 @@ export function HomeScreen({
         const index = rowIndexOf(event.target as Element);
         if (index >= 0) lastRow.current = index;
       }}
-      className="mx-auto flex w-full max-w-5xl flex-col gap-7 py-2" data-testid="home">
+      className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home">
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="home-heading">{headline}</h1>
+          <h1 className="text-title text-ink" data-testid="home-heading">{headline}</h1>
           {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
         </div>
         {counts.length > 0 && (
-          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted" data-testid="home-counts">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-muted" data-testid="home-counts">
             {counts.map((part, index) => (
               <span key={part.key} className="flex items-center gap-1.5">
                 {index > 0 && <span aria-hidden="true">·</span>}
@@ -452,12 +453,11 @@ export function HomeScreen({
 
       {/* AJ-E1006: what changed while you were away — only when something did. */}
       <MorningSummary onOpenSession={onOpenSession} />
-      <SmootherCard variant="reminder" />
 
       {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
-          <h2 className="text-lg font-semibold">Start your first session</h2>
-          <p className="max-w-xl text-sm leading-relaxed text-muted">
+          <h2 className="text-section font-semibold text-ink">Start your first session</h2>
+          <p className="max-w-xl text-body text-muted">
             Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
           </p>
           <Button variant="primary" onClick={onNewSession}>New session</Button>
@@ -466,8 +466,8 @@ export function HomeScreen({
 
       <HomeApps items={items} runwayOf={runwayFor} />
 
-      <div className="flex flex-wrap gap-6">
-        <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
           {allNeeds.length + capNeeds.caps.length > 0 && (
           <HomeNeeds
             needs={allNeeds}
@@ -480,7 +480,7 @@ export function HomeScreen({
               onOpenCleanup,
             }}
           >
-            {signingIn && <p className="text-xs text-muted" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
+            {signingIn && <p className="text-meta text-muted" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
             <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
           </HomeNeeds>
           )}
@@ -496,11 +496,11 @@ export function HomeScreen({
                       <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
                       <ProjectMark projectId={session.project_id} size={16} />
                       <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="truncate text-sm text-ink">
+                        <span className="truncate text-body text-ink">
                           {place.title}
                           {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
                         </span>
-                        <span className="truncate text-xs text-muted" title={words.long}>
+                        <span className="truncate text-meta text-muted" title={words.long}>
                           {session.account_label} · {words.short.replace(/^Parked · /, "")}
                         </span>
                       </span>
@@ -523,59 +523,63 @@ export function HomeScreen({
             </section>
           )}
         </div>
-        <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <HomeRunway accounts={accounts} quota={quota} sessions={sessions} advice={advice.words} />
+        {recent.length > 0 && (
+          <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
+            <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
+            <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
+              {recent.map((session) => {
+                const place = placeOf(session, projects);
+                // The review of 0.1.4: two cards both said "payments-api".
+                // Each says what it was, then where and on which profile.
+                const title = session.label ?? session.title ?? untitled(session.git_branch, place.title);
+                const where = [title.endsWith(` · ${place.title}`) ? null : place.title, session.git_branch && session.git_branch !== title ? session.git_branch : null, session.account_label]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <li key={session.id} data-home-item className="flex items-center gap-3 border-t border-hairline/60 px-4 py-3 first:border-t-0 hover:bg-surface-2/60" data-testid="home-recent-item">
+                    <ProjectMark projectId={session.project_id} size={16} />
+                    <button type="button" data-home-row className="flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => onOpenSession(session.id)}>
+                      <span className="w-full truncate text-body font-medium text-ink">{title}</span>
+                      <span className="w-full truncate text-meta text-muted">
+                        {where} · {minutes(session.last_activity_ms ?? session.started_at_ms, now)} ago
+                      </span>
+                    </button>
+                    {/* AJ-E1005 Req.4: it leaves this list only when you say so. */}
+                    <button
+                      type="button"
+                      data-home-action
+                      aria-keyshortcuts="A"
+                      disabled={busy === session.id}
+                      onClick={() => void act(session, "reviewed")}
+                      className="shrink-0 rounded px-1.5 py-1 text-meta text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+                    >
+                      Mark reviewed<span className="sr-only"> — {title}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {review.length > RECENT_SHOWN && (
+              <button
+                type="button"
+                className="self-start text-meta text-muted hover:text-ink hover:underline"
+                aria-expanded={showAll}
+                onClick={() => setShowAll((open) => !open)}
+                data-testid="home-recent-all"
+              >
+                {showAll ? "Show fewer" : `Show all ${review.length}`}
+              </button>
+            )}
+          </section>
+        )}
         </div>
       </div>
 
-      {recent.length > 0 && (
-        <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
-          <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-            {recent.map((session) => {
-              const place = placeOf(session, projects);
-              return (
-                <li key={session.id} data-home-item className="flex flex-col rounded-xl border border-hairline bg-surface hover:border-accent/40" data-testid="home-recent-item">
-                  <button
-                    type="button"
-                    data-home-row
-                    className="flex w-full flex-col items-start gap-1.5 rounded-t-xl px-4 pb-1.5 pt-3 text-left"
-                    onClick={() => onOpenSession(session.id)}
-                  >
-                    <span className="w-full truncate text-sm font-medium text-ink">{place.title}</span>
-                    <span className="w-full truncate text-xs text-muted">
-                      {place.detail} · {minutes(session.last_activity_ms ?? session.started_at_ms, now)} ago
-                    </span>
-                    <span className="text-xs text-accent-hi">Open →</span>
-                  </button>
-                  {/* AJ-E1005 Req.4: it leaves this list only when you say so. */}
-                  <button
-                    type="button"
-                    data-home-action
-                    aria-keyshortcuts="A"
-                    disabled={busy === session.id}
-                    onClick={() => void act(session, "reviewed")}
-                    className="self-end px-4 pb-2.5 text-label text-muted hover:text-ink hover:underline disabled:opacity-60"
-                  >
-                    Mark reviewed<span className="sr-only"> — {place.title}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {review.length > RECENT_SHOWN && (
-            <button
-              type="button"
-              className="self-start text-xs text-muted hover:text-ink hover:underline"
-              aria-expanded={showAll}
-              onClick={() => setShowAll((open) => !open)}
-              data-testid="home-recent-all"
-            >
-              {showAll ? "Show fewer" : `Show all ${review.length}`}
-            </button>
-          )}
-        </section>
-      )}
+      {/* The optional access, once and quietly at the foot (the review of
+          0.1.4: it took the top of Home until answered). */}
+      <SmootherCard variant="reminder" />
 
       {allNeeds.length + parked.length + recent.length > 0 && (
         <p className="text-label text-muted" data-testid="home-keys">

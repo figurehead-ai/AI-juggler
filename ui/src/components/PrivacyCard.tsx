@@ -236,7 +236,7 @@ export function PrivacyCard(): JSX.Element {
                           <td className="truncate py-0.5 pr-2 text-muted" title={row.dims || undefined}>
                             {row.dims || "—"}
                           </td>
-                          <td className="w-16 py-0.5 text-right font-mono text-ink">{row.value}</td>
+                          <td className="w-16 py-0.5 text-right tabular-nums text-ink">{row.value}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -256,7 +256,7 @@ export function PrivacyCard(): JSX.Element {
                   data-testid="privacy-report"
                   data-status={row.status}
                 >
-                  <span className="w-20 shrink-0 font-mono text-ink">{row.week}</span>
+                  <span className="w-20 shrink-0 tabular-nums text-ink">{row.week}</span>
                   <span className="w-28 shrink-0 text-ink">
                     {row.synced ? "Synced to your account" : (STATUS_LABEL[row.status] ?? row.status)}
                   </span>

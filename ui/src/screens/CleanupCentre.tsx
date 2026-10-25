@@ -160,7 +160,7 @@ function GroupBlock(props: {
             {group.account !== null ? ` · ${group.account}` : ""}
             {group.project !== null ? ` · ${group.project}` : ""}
           </span>
-          <span className="font-mono text-label text-muted">
+          <span className="text-label tabular-nums text-muted">
             {group.machine} · {group.rows.length}{" "}
             {group.rows.length === 1 ? "process" : "processes"}
           </span>
@@ -726,13 +726,13 @@ function HistoryList(props: { history: CleanupHistoryData }) {
               {row.automatic ? "automatic" : "you"}
             </span>
             <span className="truncate font-mono text-label text-ink">{row.cmdline_trunc}</span>
-            <span className="font-mono text-label text-muted">PID {row.pid}</span>
+            <span className="text-label tabular-nums text-muted">PID {row.pid}</span>
             <span className="ml-auto whitespace-nowrap text-label text-muted">
               {row.outcome}
               {row.ports_before !== null && row.ports_after === null ? "" : ""}
             </span>
-            <span className="whitespace-nowrap font-mono text-label text-muted">
-              {new Date(row.at_ms).toISOString().slice(5, 16).replace("T", " ")}
+            <span className="whitespace-nowrap text-label tabular-nums text-muted">
+              {new Date(row.at_ms).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
             </span>
           </li>
         ))}

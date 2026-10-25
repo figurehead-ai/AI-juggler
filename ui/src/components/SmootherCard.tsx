@@ -14,6 +14,33 @@ import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc
 import { Button } from "./primitives";
 
 const DISMISSED_KEY = "aij.smoother.dismissed";
+/** Permissions Home's reminder has been shown for, in an earlier run. */
+const SHOWN_KEY = "aij.smoother.shown";
+/** This run's marker: the reminder stays up for the run it first shows in. */
+const RUN_KEY = "aij.smoother.run";
+
+/** Home's reminder shows in one run only (the review of 0.1.4: a quiet,
+ * one-time spot); afterwards the permission waits in Settings. */
+function shownBefore(id: string): boolean {
+  try {
+    const shown = JSON.parse(localStorage.getItem(SHOWN_KEY) ?? "[]") as unknown;
+    const thisRun = sessionStorage.getItem(RUN_KEY) === id;
+    return Array.isArray(shown) && shown.includes(id) && !thisRun;
+  } catch {
+    return false;
+  }
+}
+
+function markShown(id: string): void {
+  try {
+    const shown = JSON.parse(localStorage.getItem(SHOWN_KEY) ?? "[]") as unknown;
+    const next = [...new Set([...(Array.isArray(shown) ? shown.filter((x): x is string => typeof x === "string") : []), id])];
+    localStorage.setItem(SHOWN_KEY, JSON.stringify(next));
+    sessionStorage.setItem(RUN_KEY, id);
+  } catch {
+    /* a private window: shown again next time */
+  }
+}
 
 /** What "Not now" put away: "all" (the welcome's card) or permission ids. */
 function readDismissed(): string[] {
@@ -96,8 +123,12 @@ export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): 
     );
   }
   // The welcome's "Not now" puts Home's reminder away too.
-  const first = dismissed.includes("all") ? undefined : missing.find((entry) => !dismissed.includes(entry.id));
-  if (!first) return null;
+  const first = dismissed.includes("all") ? undefined : missing.find((entry) => !dismissed.includes(entry.id) && !shownBefore(entry.id));
+  return first ? <Reminder key={first.id} first={first} setEntries={setEntries} setDismissed={setDismissed} /> : null;
+}
+
+function Reminder({ first, setEntries, setDismissed }: { first: OsAccessInfo; setEntries: (update: (current: OsAccessInfo[]) => OsAccessInfo[]) => void; setDismissed: (next: string[]) => void }): JSX.Element {
+  useEffect(() => markShown(first.id), [first.id]);
   return (
     <div data-testid="smoother-reminder">
       <OsAccessRows

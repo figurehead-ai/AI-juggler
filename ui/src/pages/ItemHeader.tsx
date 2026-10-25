@@ -48,7 +48,7 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
 function SessionResources({ session }: { session: InstanceInfo }) {
   const heavy = useHeavyNote(session.id);
   return (
-    <span className={"font-mono text-label " + (heavy ? "text-warning" : "text-muted")} data-testid="session-resources">
+    <span className={"text-meta tabular-nums " + (heavy ? "text-warning" : "text-muted")} data-testid="session-resources">
       {resourceLine(session.cpu_pct, session.rss_bytes, session.child_count)}
       {heavy && <span className="font-sans"> — working your Mac hard</span>}
     </span>

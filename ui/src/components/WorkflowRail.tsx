@@ -873,7 +873,7 @@ export function RailRow({
               app
             </span>
           )}
-          {density === "compact" && <span className="ml-auto shrink-0 font-mono text-label text-muted">{when}</span>}
+          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
         </span>
         {density === "comfortable" && (
           <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
@@ -902,7 +902,7 @@ export function RailRow({
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
       </span>
-      {density === "compact" && low && <span className="shrink-0 font-mono text-label text-warning">{low}</span>}
+      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-warning">{low}</span>}
       {density === "compact" && !low && heavy && (
         <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-warning">
           {heavy}

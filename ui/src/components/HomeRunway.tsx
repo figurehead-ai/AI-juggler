@@ -74,7 +74,7 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                     {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
                   </span>
                 </span>
-                <span className={"shrink-0 font-mono text-xs " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
+                <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
                   {row.left !== null ? `${row.left}% left` : "—"}
                 </span>
               </div>

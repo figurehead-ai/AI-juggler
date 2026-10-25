@@ -141,7 +141,7 @@ export function ConversationRow({
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className={"min-w-0 truncate text-meta font-medium " + (conversation.live ? "text-ink" : "text-muted")}>{title}</span>
-            {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-label text-muted">{when}</span>}
+            {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
           </span>
           {density === "comfortable" && (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
@@ -246,7 +246,7 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
               <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}
-            <span className="w-14 text-right font-mono text-xs text-muted" title="Last activity">
+            <span className="w-14 text-right text-label tabular-nums text-muted" title="Last activity">
               {conversation.last_activity_ms === null ? "" : ago(conversation.last_activity_ms, now)}
             </span>
           </button>
