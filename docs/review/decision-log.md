@@ -798,8 +798,42 @@
   rate limits are documented); the Privacy and terms pages name the
   runtime.
 
+### D-41 Processes of sessions other apps run: remembered, and stoppable by the user — SETTLED (2026-10-25)
+
+- Decision: the maintainer, 2026-10-25: "Yes to both: (a) a local 7-day
+  names-only record of processes in sessions other apps run, and (b)
+  user-chosen, verified stop of their leftovers after the session ended,
+  never automatic, never the app or the session's own process. Build the
+  Processes view in 0.2."
+  - (a) Sightings. For a session another app runs (the Claude app, the
+    Codex app, a terminal `claude`), AI Juggler keeps a local record of
+    its processes: pid, start time, program name, the session it belongs
+    to, first and last seen, and a hash of its command line. Never the
+    environment, never the command line itself, nothing sent anywhere.
+    Kept 7 days. It lets a helper that outlives its session show as "left
+    behind by <session>".
+  - (b) User-chosen stop. A leftover of such a session may be stopped only
+    by the user's own click, only after the session's own process has
+    ended, through the same identity check (against the sighting: pid,
+    start time, program, boot), the same verify sheet and the same audit
+    (`actor = user:observed`). Never automatically, at any tier; never the
+    app itself or a session's own process.
+- Amends: D-08 (unowned processes untouchable): now "never by AI Juggler
+  on its own; the user may stop a verified leftover of another app's
+  ended session". AJ-E1402 Req.3 ("the ledger is never written for
+  them"): the ledger still isn't; sightings are their own record.
+- Why: on the maintainer's Mac every live session runs in the Claude app
+  or ChatGPT, with ~110 child processes and 16 orphans up to 3 days old
+  that AI Juggler could neither show per session nor act on (the
+  processes gap analysis, 2026-10-25).
+- Consequences: the 0.2 Processes view (app → session → process →
+  subprocess, one model for Cleanup, a session's Processes tab and This
+  Mac); a sightings store with guardrail tests (no environment, no command
+  line, 7-day expiry); the collateral suite extended to observed
+  processes; Privacy page lines.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-40 on 2026-10-25 (D-38 and D-39 on main). All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-40 and D-41 on 2026-10-25 (D-38 and D-39 on main). All follow the same law.
