@@ -654,6 +654,37 @@
 - Consequences: a user who keeps Work and Personal apart does it with
   their own pools or by project. A test keeps emails and plans off cards.
 
+### D-34 Keys for accounts through another service live in the Keychain — SETTLED (2026-10-24)
+
+- Decision: an account that runs Claude Code or Codex through another
+  service (OpenCode Go, Kimi: their published Claude- or
+  Codex-compatible address) keeps its key in the macOS Keychain, held
+  by AI Juggler. The user pastes it once in Add account; AI Juggler
+  hands it only to that account's sessions, as the environment variable
+  the tool expects, and never writes it to a file, a log, the search
+  index or a backup, never shows it again, and sends it nowhere else.
+  Removing the account removes the key. Kimi usage may be read from
+  Kimi's own local server (`kimi web`) only when the user switches it
+  on for that account and only while that server runs: AI Juggler reads
+  its token into memory, calls only its usage address, and keeps
+  nothing. The daily check for newer tool versions (npm's registry)
+  starts on. The maintainer chose each of these on 2026-10-24, with the
+  options set out in full. (Brand marks for OpenCode, Kimi and Grok
+  were not ruled; they stay letter marks, as every unapproved mark does.)
+- Amends: E16's law and AJ-E1601 Req.2 ("AI Juggler never reads,
+  copies or stores" the key), and the Privacy page's "no-proxy" line:
+  still no proxy, and a provider address is set only for an account
+  added "through another service", to the address that service
+  publishes. The Privacy page names the Keychain key and the opt-in
+  Kimi usage read.
+- Rejected: the key in the account's settings file (plain text; Codex
+  takes only an environment variable); in the user's shell profile
+  (plain text, every terminal); not building it.
+- Consequences: AJ-E1601 builds it, with guardrail tests (no key in
+  argv, files, logs, the index or backups); the "never read the
+  environment" rule (D-37) gains a test that AI Juggler's own key reaches
+  only the launch it starts.
+
 ### D-35 Profiles are not accounts — SETTLED (2026-10-24)
 
 - Decision: a **profile** is the setup an app runs on: a Claude Code
@@ -674,7 +705,7 @@
 - Rejected: keeping "account" for a folder (the maintainer's
   complaint).
 - Consequences: AJ-E2109; the terminology lint learns the new meaning.
-  (D-28 to D-33 are above; D-34 is still to be recorded.)
+  (D-28 to D-34 are above.)
 
 ### D-36 Desktop first: the rail shows what is open, in every app — SETTLED (2026-10-24)
 
@@ -716,4 +747,4 @@
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-28..D-33 and D-35..D-37 on 2026-10-24; D-34 is still to be recorded. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-28..D-37 on 2026-10-24. All follow the same law.
