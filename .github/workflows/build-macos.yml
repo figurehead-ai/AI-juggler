@@ -190,6 +190,20 @@ jobs:
           fi
           cargo tauri icon "$source" --output "$RUNNER_TEMP/icons"
 
+      - name: The agent bridge, unsigned (universal)
+        # AJ-E1704: `juggler-agent` ships beside the app's executable in
+        # Contents/MacOS (Tauri's externalBin), so the sign job signs and
+        # notarizes it with the app. Tauri looks for it by its target's name.
+        run: |
+          set -euo pipefail
+          for arch in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
+          done
+          mkdir -p crates/juggler-app/binaries
+          lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
+            target/aarch64-apple-darwin/release/juggler-agent target/x86_64-apple-darwin/release/juggler-agent
+          lipo -info crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
+
       - name: Build the app, unsigned (universal)
         env:
           # Public: baked into the app as the key its updater verifies.
@@ -208,6 +222,9 @@ jobs:
             # The updater archive is made from the signed, stapled app in
             # the sign job; nothing here can sign it.
             "createUpdaterArtifacts": False,
+            # AJ-E1704: the agent bridge, built in the step above
+            # (binaries/juggler-agent-universal-apple-darwin).
+            "externalBin": ["binaries/juggler-agent"],
             "icon": [icons + "/icon.icns", icons + "/icon.png"],
             # Apple Events for "jump to a session's window" (hardened
             # runtime): passed to codesign with the app's signature.
@@ -223,6 +240,8 @@ jobs:
           bundle=target/universal-apple-darwin/release/bundle/macos
           out="$RUNNER_TEMP/unsigned" && mkdir -p "$out"
           # A tar keeps the bundle's modes and links (an artifact wouldn't).
+          # The bridge is inside, beside the app's executable.
+          test -x "$bundle"/*.app/Contents/MacOS/juggler-agent
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | head -3
 
