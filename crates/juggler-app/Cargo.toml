@@ -133,3 +133,15 @@ trash = { version = "5.2.9", default-features = false }
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# 0.1.5: the activation live check runs the main thread's loop while it
+# waits, so macOS can tell it which app is in front.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSRunLoop", "NSDate"] }
+
+# 0.1.5: the activation live check. AppKit wants the main thread, which the
+# test harness keeps for itself, so this test has its own `main`; it runs
+# only with `-- --ignored` (see the file).
+[[test]]
+name = "activation_real"
+harness = false
