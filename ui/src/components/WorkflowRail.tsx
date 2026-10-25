@@ -924,7 +924,7 @@ function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean
 function ListSection({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="px-3 pb-0.5 pt-1 text-label font-medium uppercase tracking-[0.08em] text-muted">
+      <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">
         {label}
       </p>
       {children}

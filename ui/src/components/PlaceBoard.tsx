@@ -55,9 +55,9 @@ function Chevron({ open }: { open: boolean }): JSX.Element {
 function SectionHead({ id, count, open, onToggle }: { id: "needs" | "open"; count: number; open: boolean; onToggle: () => void }): JSX.Element {
   const { label, tone, Icon } = SECTION[id];
   return (
-    <h3 className={"flex h-[28px] items-end px-0.5 text-label font-semibold uppercase tracking-[0.08em] " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
-      <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 uppercase outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-        <Icon width={12} height={12} aria-hidden="true" />
+    <h3 className={"flex h-[30px] items-end px-0.5 text-meta font-semibold " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
+      <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <Icon width={13} height={13} aria-hidden="true" />
         {label}
         <span className="tabular-nums">{count}</span>
         <Chevron open={open} />
@@ -286,9 +286,9 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <AlsoLine also={built.also} hidden={hidden} />;
       case "label":
         return (
-          <h3 className="flex h-[26px] items-end px-0.5 text-label font-semibold uppercase tracking-[0.08em] text-muted" data-testid={`rail-also-view-${line.id}`}>
+          <h3 className="flex h-[26px] items-end px-0.5 text-meta font-semibold text-muted" data-testid={`rail-also-view-${line.id}`}>
             {/* Folds it away again (the Also line's part turns it on). */}
-            <button type="button" aria-expanded="true" data-rail-nav onClick={() => showInRail(line.id, false)} className="flex min-h-6 w-full items-center gap-1 rounded-md px-1.5 uppercase outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+            <button type="button" aria-expanded="true" data-rail-nav onClick={() => showInRail(line.id, false)} className="flex min-h-6 w-full items-center gap-1 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
               {line.id === "ended" ? "Ended today" : "Inactive"} <span className="tabular-nums">{line.count}</span>
               <Chevron open />
             </button>

@@ -26,6 +26,7 @@ import { AppIcon } from "./AppIcon";
 import { PinMark } from "./RailProjectRows";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
+import { IconAlert } from "./icons";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
 import { STATE_TONE, goToWhere, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
@@ -148,24 +149,21 @@ export function NeedRow(props: RowProps): JSX.Element {
   const word = needWord(item);
   const where = whereWords(item);
   return (
-    <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] gap-2.5 py-1.5 pl-2">
-      <span aria-hidden="true" className="flex shrink-0">
+    <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2 pt-2">
+      <span aria-hidden="true" className="mt-0.5 flex shrink-0">
         <PlaceMark place={item.place} profile={item.accountLabel} size={24} />
       </span>
+      {/* Three lines, each its own width (the review of 0.1.4: the state
+          beside the place cut both to "ai-jug… · T…"): what, why it
+          needs you, where. */}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span aria-hidden="true" className="truncate text-meta font-semibold text-ink">
+        <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
           {item.title}
         </span>
-        {/* Why it needs you, under the title: the title keeps the width
-            beside the row's ↗. */}
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 flex-1">
-            <RowProject item={item} rest={[item.place.app, item.place.profile].filter(Boolean).join(" · ")} />
-          </span>
-          <span aria-hidden="true" className="shrink-0 text-label font-semibold text-warning" data-testid="need-word">
-            {word}
-          </span>
+        <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
+          {word}
         </span>
+        <RowProject item={item} rest={[item.place.app, item.place.profile].filter(Boolean).join(" · ")} />
       </span>
     </RowShell>
   );
@@ -197,27 +195,29 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
       label={[word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ")}
       indent
       shape="rounded-r-lg"
-      className="h-[40px] gap-2 border-l-2 py-1 pl-2.5"
+      className="h-[44px] gap-2 border-l-2 py-1 pl-2.5"
       style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}
     >
       <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
-      <span className="flex min-w-0 flex-1 flex-col">
+      {/* The title has its line to itself; its state ends the line under
+          it, after the project and the time (the review of 0.1.4). */}
+      <span className="flex min-w-0 flex-1 flex-col gap-px">
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <span className="truncate text-meta font-semibold text-ink">{item.title}</span>
           {pinned && <PinMark />}
+          {low && <span className="ml-auto shrink-0 text-label text-warning">{low}</span>}
+          {!low && heavy && <span className="ml-auto shrink-0 text-label text-warning" data-testid="rail-heavy">{heavy}</span>}
         </span>
-        <span className="flex min-w-0 items-center text-label text-muted">
-          <RowProject item={item} rest={when} />
-          {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
-          {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
+        <span className="flex min-w-0 items-center gap-2 text-label text-muted">
+          <span className="flex min-w-0 flex-1 items-center">
+            <RowProject item={item} rest={when} />
+            {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
+            {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
+          </span>
+          <span aria-hidden="true" className={"shrink-0 text-label font-medium leading-[14px] " + tone.text} data-testid="state-word">
+            {word}
+          </span>
         </span>
-      </span>
-      <span aria-hidden="true" className="flex shrink-0 flex-col items-end">
-        <span className={"text-label font-medium " + tone.text} data-testid="state-word">
-          {word}
-        </span>
-        {low && <span className="text-label text-warning">{low}</span>}
-        {!low && heavy && <span className="text-label text-warning" data-testid="rail-heavy">{heavy}</span>}
       </span>
     </RowShell>
   );
@@ -277,8 +277,15 @@ export function PlaceHeader({
             </span>
           )}
           {folded !== null && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-          {needs > 0 && <span className="shrink-0 rounded-full bg-warning-soft px-1 text-label font-semibold text-warning">{needs}</span>}
-          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted">{count}</span>}
+          {/* What the amber count is, on the chip itself (the review of
+              0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
+          {needs > 0 && (
+            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
+              <IconAlert width={10} height={10} aria-hidden="true" />
+              {needs}
+            </span>
+          )}
+          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
         </span>
       </button>
       {onOpen && (

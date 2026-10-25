@@ -73,7 +73,7 @@ export function alsoParts(all: ConversationInfo[], now: number): Record<AlsoView
 /** A section's label; with `onToggle`, a click folds the section in
  * place and unfolds it (Needs you, Open now). */
 function SectionLabel({ children, testId, open, onToggle }: { children: ReactNode; testId?: string; open?: boolean; onToggle?: () => void }): JSX.Element {
-  const words = "text-label font-medium uppercase tracking-[0.08em] text-muted";
+  const words = "text-meta font-semibold text-muted";
   if (!onToggle) {
     return (
       <p className={"px-3 pb-0.5 pt-1.5 " + words} data-testid={testId}>

@@ -41,7 +41,7 @@ function RemoteBoardSection({
         : "○ offline · last known";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="board-machine" data-machine={machine.machine_id}>
-      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-label font-medium uppercase tracking-[0.08em] text-muted">
+      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">
         <span className="truncate normal-case tracking-normal">{machine.label}</span>
         <span className="shrink-0 font-normal normal-case tracking-normal">{state}</span>
       </p>
