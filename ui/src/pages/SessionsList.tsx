@@ -9,7 +9,8 @@ import { AccountAvatar } from "../components/Avatar";
 import { useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
 import { STATE_TONE, conversationItem, sessionState, stateWord, type RailState } from "../lib/rail-items";
-import { ToolMark } from "../components/ToolMark";
+import { AppIcon } from "../components/AppIcon";
+import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import { ProjectMark } from "../components/ProjectMark";
 import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
@@ -47,6 +48,11 @@ export type Row = {
   outside: boolean;
   open: () => void;
 };
+
+/** D-38: the app a row shows: where it is open, else its tool's app. */
+export function appOfRow(row: Pick<Row, "item">): AppRef {
+  return row.item.kind === "conversation" ? appOfConversation(row.item.conversation) : appOfSession(row.item.session);
+}
 
 /** Every session of a project (or an account), live first. */
 export function useSessionRows(
@@ -188,7 +194,7 @@ function SessionListRow({
           data-state-dot={row.railState}
           className={"size-2 shrink-0 rounded-full " + STATE_TONE[row.railState].dot + (row.railState === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
         />
-        <ToolMark tool={row.tool} size={14} className="shrink-0 text-muted" />
+        <AppIcon {...appOfRow(row)} size={16} />
         <span className="min-w-0 flex-1 truncate text-sm text-ink">
           {row.title}
           {row.detail && <span className="text-faint"> · {row.detail}</span>}

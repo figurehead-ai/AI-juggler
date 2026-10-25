@@ -1,15 +1,15 @@
 /**
  * AJ-E2104 — the new rail's rows and place headers.
  *
- * - A **Needs you** row: the app's icon with the profile's badge, the
+ * - A **Needs you** row: the app's icon (D-38) with the profile's dot, the
  *   title in bold, then "project · app · profile" and why it needs you
  *   in amber; its ↗ always shows.
  * - An **Open now** row, under its place: indented, with a left edge in
  *   the profile's colour, a state dot, the title, "project · viewed N min
  *   ago", and the state word in its colour. Runway shows only when low.
  * - A **place header**: a fold chevron, the app's icon and name, the
- *   profile chip and a count (a click opens the profile's page here), and
- *   Open, which brings the running app forward (never launches it).
+ *   profile's badge and name, and a count (a click opens the profile's page here), and
+ *   its ↗ (Open), which brings the running app forward (never launches it).
  *
  * The maintainer's review of 0.1.4: everything here is a way into AI
  * Juggler. A row's click or ↩ opens the session's page; its project's
@@ -20,7 +20,9 @@
  */
 import type { JSX, ReactNode } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { PlaceMark, AppIcon, ProfileChip } from "./PlaceMarks";
+import { PlaceMark } from "./PlaceMarks";
+import { ProfileBadge } from "./ProfileBadge";
+import { AppIcon } from "./AppIcon";
 import { PinMark } from "./RailProjectRows";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
@@ -148,7 +150,7 @@ export function NeedRow(props: RowProps): JSX.Element {
   return (
     <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] gap-2.5 py-1.5 pl-2">
       <span aria-hidden="true" className="flex shrink-0">
-        <PlaceMark place={item.place} profile={item.accountLabel} size={22} />
+        <PlaceMark place={item.place} profile={item.accountLabel} size={24} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span aria-hidden="true" className="truncate text-[12.5px] font-semibold text-ink">
@@ -263,11 +265,18 @@ export function PlaceHeader({
         className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
-          {children ?? (place && <AppIcon place={place} size={16} />)}
-          <span className="shrink-0 truncate text-[11.5px] font-semibold text-ink">{label}</span>
-          {place?.profile && <ProfileChip name={place.profile} />}
-          {folded !== null && <span className="min-w-0 truncate text-[10.5px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
+          {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
+          <span className="ml-0.5 shrink-0 truncate text-[12px] font-semibold text-ink">{label}</span>
+          {/* The profile: its dot and name, beside the icon (D-38). The
+              folded summary gives way first. */}
+          {place?.profile && (
+            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-[12px] font-medium text-ink/80" data-testid="place-profile">
+              <ProfileBadge name={place.profile} size={6} />
+              <span className="truncate">{place.profile}</span>
+            </span>
+          )}
+          {folded !== null && <span className="min-w-0 shrink-[8] truncate text-[10.5px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
           {needs > 0 && <span className="shrink-0 rounded-full bg-warning-soft px-1 text-[10px] font-semibold text-warning">{needs}</span>}
           {folded === null && <span className="shrink-0 text-[10px] tabular-nums text-faint">{count}</span>}
         </span>
@@ -279,10 +288,11 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `Bring it forward (⌘${shortcut})` : "Bring it forward"}
           data-testid="place-open"
-          className="flex shrink-0 items-center gap-0.5 rounded-md border border-hairline px-1.5 py-0.5 text-[10.5px] font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-ink/80 outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
-          Open
-          <IconUpRight width={11} height={11} />
+          {/* Its ↗, as a row's: the way out to the app. The words are its
+              name; the room goes to the place's app and profile. */}
+          <IconUpRight width={12} height={12} />
         </button>
       )}
     </div>

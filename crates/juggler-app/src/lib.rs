@@ -445,6 +445,8 @@ macro_rules! app_commands {
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
+            // D-38: an app's icon, read from its bundle on this Mac.
+            Read  features::app_icons::app_icons_read,
             Write features::projects::mark::projects_mark_set,
             Read  features::project_sync::commands::project_sync_rules,
             Read  features::project_sync::commands::project_sync_diff,

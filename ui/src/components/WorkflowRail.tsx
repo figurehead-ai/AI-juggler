@@ -1,6 +1,7 @@
 import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
-import { ToolMark } from "./ToolMark";
+import { AppIcon } from "./AppIcon";
+import { appOfSession } from "../lib/app-of";
 import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
@@ -907,9 +908,9 @@ export function RailRow({
           {heavy}
         </span>
       )}
-      {/* AJ-E1532: the tool, and the account serving it now (its avatar
+      {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
-      <ToolMark tool={session.provider} size={12} className="shrink-0 text-muted" />
+      <AppIcon {...appOfSession(session)} size={16} />
       <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
     </button>
   );

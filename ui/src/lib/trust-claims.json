@@ -61,6 +61,17 @@
           ]
         },
         {
+          "id": "app-icons",
+          "text": "To show apps' icons, AI Juggler reads the icon from each app installed on your Mac; nothing is sent or copied elsewhere. It reads only inside the app itself, and keeps a small copy in its own folder until the app changes.",
+          "tests": [
+            "crates/juggler-app/src/features/app_icons/tests.rs::only_an_app_folder_that_is_not_a_link_is_read",
+            "crates/juggler-app/src/features/app_icons/tests.rs::a_bundle_whose_icon_or_plist_links_out_of_it_is_refused",
+            "crates/juggler-app/src/features/app_icons/tests.rs::an_app_is_found_by_its_place_its_id_or_its_folder_and_never_otherwise",
+            "crates/juggler-app/src/features/app_icons/tests.rs::an_icon_is_kept_until_the_app_changes_then_read_again",
+            "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
+          ]
+        },
+        {
           "id": "this-mac-other-apps",
           "text": "To show what else is using memory, This Mac names the biggest other apps by their app or program name, with their memory. It never shows their folders or the options they started with, and it can't stop them.",
           "tests": [

@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip } from "./primitives";
+import { Button, Card } from "./primitives";
 import type { InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
 import { ActionIcon } from "./ActionIcon";
+import { AppIcon, OWN_APP_ID } from "./AppIcon";
+import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
+import { OWN_APP } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
 import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
 export { paletteSelection } from "./PaletteActions";
@@ -274,7 +277,11 @@ export function GoToPalette({
                   </>
                 ) : (
                 <>
-                {entry.desktop ? <Chip tone="accent">app</Chip> : <Chip tone="neutral">term</Chip>}
+                {/* D-38: the app it is in, by its own icon (AI Juggler's
+                    for a session in its terminal); the words at the end
+                    say what choosing it does. */}
+                <AppIcon {...paletteApp(entry)} size={16} />
+                <span className="sr-only">{entry.desktop ? "app" : "terminal"}</span>
                 {entry.where === "outside" ? (
                   <>
                     <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
@@ -336,6 +343,13 @@ type PaletteRow =
   | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
   | { where: "outside"; conversation: ConversationInfo; id: string; desktop: false }
   | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean };
+
+/** D-38: the app a session row shows. */
+function paletteApp(entry: Extract<PaletteRow, { where: "local" | "outside" | "remote" }>): AppRef {
+  if (entry.where === "outside") return appOfConversation(entry.conversation);
+  if (entry.where === "local" && !entry.desktop) return { appId: OWN_APP_ID, appPid: null, name: OWN_APP };
+  return appOfSession(entry.row);
+}
 
 /** AJ-E2106: the palette's sections — the selected item's actions, then
  * sessions, then projects. */
