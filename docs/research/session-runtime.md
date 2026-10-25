@@ -442,3 +442,48 @@ Rules that go with it:
 - **The Feb 2026 OpenAI post "Unlocking the Codex harness":** https://openai.com/index/unlocking-the-codex-harness returned 403. Its backward-compatibility claim is known only from an unofficial summary, so it is **U**.
 - **Codex approval routing with two subscribers:** app-server page and generated schema read. Nothing states it. **U**.
 - **Captures:** the raw page captures from this research are in the session scratchpad only, not committed. A spike that relies on a quote should capture it under `docs/research/evidence/` per the evidence standard.
+
+---
+
+## Lab, 2026-10-25
+
+This lab ran live on the maintainer's lab accounts, with the maintainer's permission of 2026-10-25: one Claude Code profile and the default Codex home, in a throwaway git repo. One real tool process ran at a time, with tiny prompts. There were no sign-ins and no "Allow". Credentials, the Keychain and process environments were not read. Each account folder was snapshotted before and after each run (paths, sizes and times only).
+
+Versions: Claude Code 2.1.302 and codex-cli 0.163.0. Everything below was seen live and is **VP (lab)** unless it is marked otherwise. Ids, emails and paths are left out.
+
+The bridge results (MCP versions, `--mcp-config`, Codex `env_vars` and per-tool approval) are in `docs/qa/evidence/AJ-E1704/lab-2026-10-25.md`.
+
+### Claude Code, headless on a profile whose sessions normally run in the Claude app
+
+| Finding | Detail |
+|---|---|
+| `claude -p` works on such a profile with only `CLAUDE_CONFIG_DIR` set | `-p "Reply with the single word: ok" --output-format json --no-session-persistence` in a clean environment gave `result: "ok"`, model `claude-opus-5-5`, 1 turn in about 4.7 s, and `total_cost_usd` 0.068 as the list-price equivalent. In stream-json the init event says `apiKeySource: "none"`: the run used the subscription sign-in. Nothing asked for a sign-in |
+| `stream-json` with `-p` needs `--verbose` | Without it: `Error: When using --print, --output-format=stream-json requires --verbose` (exit 1, no model call). AI Juggler's `LaunchMode::Headless` for Claude omits it today. A driven runtime (§6.3) must pass it |
+| `rate_limit_event` appears in a headless stream | `rate_limit_info {status, rateLimitType: "five_hour", resetsAt, unifiedWindows: {five_hour: {utilization, resetsAt}}, isUsingOverage, overageStatus, overageDisabledReason}`, once per run here. It covers only the window in force, not both |
+| What a `-p` start writes in the profile, with persistence off too | Claude Code itself rewrites `.claude.json` (and rotates a backup). It also refreshes `remote-settings.json` and `policy-limits.json`, syncs `skills/synced/…` and `plugins/synced/…` from the server, and touches `cache/model-catalog/…` and `.last-cleanup`. It creates `projects/<cwd slug>/memory/` (empty). With persistence on, the transcript lands in `projects/<cwd slug>/<id>.jsonl` |
+| D-39 option A, `claude -p /usage --no-session-persistence --strict-mcp-config --settings '{"disableAllHooks":true}'` from an empty folder | Works: exit 0, about 5 s, no model call and no cost. It prints text, not JSON: "Current session: N% used · resets …", "Current week (<model family>): N% used · resets …", then a "What's contributing" breakdown. `cachedUsageUtilization.fetchedAtMs` in `.claude.json` moved from a reading about 7 days old to the run's own time, with `utilization.five_hour` and `utilization.seven_day` both present. Correction to D-39's "nothing is left behind": Claude Code creates an empty `projects/<folder slug>/memory/` for the probe's folder (one, as long as the folder stays the same) |
+
+### Codex app-server (D-40), first look
+
+| Finding | Detail |
+|---|---|
+| Transports | `--listen stdio://` speaks newline-delimited JSON-RPC, as documented. **`--listen unix://PATH` does not speak newline JSON:** a JSON line got no reply in 10 s. Over the same socket an HTTP `Upgrade: websocket` got `101 Switching Protocols`, and JSON-RPC in WebSocket text frames then worked. So AI Juggler's unix-socket client must speak WebSocket over the socket (§6.2) |
+| Where the unix socket is | `PATH` is created as a **symlink** to `/private/tmp/codex-daemon-<uid>/<64-hex>`, a `0600` socket with a `.lock` beside it. It also creates `~/.codex/app-server-control/app-server-startup.lock` |
+| Clean-up | After SIGTERM with no client connected, the symlink and socket were removed. After SIGTERM while a connection that hadn't upgraded was still open, the socket, its lock and the symlink were **left behind**. AI Juggler should close its connection first, and sweep its own stale symlink |
+| `initialize` (`clientInfo.name = "AI Juggler lab"`) | Result keys: `userAgent`, `codexHome` (an absolute path), `platformFamily`, `platformOs`. Notifications that follow without being asked for: `remoteControl/status/changed`, `account/updated` |
+| `account/read {refreshToken: false}` | `{account: {type: "chatgpt", email, planType}, requiresOpenaiAuth, workspaceRouting: {chatgptAccountId, backendOrigin, accountRoutingOverride}}`. `workspaceRouting` isn't in the generated stable schema. It holds an email and an account id: read it only for the sign-in check, and keep neither (D-33's rule) |
+| `account/rateLimits/read` | `{ordinaryUsageAllowed, rateLimits, rateLimitsByLimitId: {codex: {limitId, limitName, normalModelSlug, primary, secondary, credits {hasCredits, unlimited, balance}, individualLimit, spendControlReached, planType, rateLimitReachedType}}, rateLimitResetCredits {availableCount, credits[{id, resetType, status, grantedAt, expiresAt, title, description}]}, accountId, rateLimitUpsell}`. On this account `primary` was `{usedPercent, windowDurationMins: 10080, resetsAt}`, the **weekly** window, and `secondary` was `null`. **No 5-hour window was reported.** AI Juggler must place a window by `windowDurationMins`, never by primary/secondary, and must show "no 5-hour limit reported" honestly |
+| Live limits during a turn | `account/rateLimits/updated` came twice in one short turn |
+| `thread/start {cwd, approvalPolicy: "untrusted", sandbox: "read-only", ephemeral: true}` | The result has keys `thread`, `approvalPolicy`, `approvalsReviewer`, `activePermissionProfile`, `cwd`, `sandbox`, `model`, `modelProvider`, `reasoningEffort`, `serviceTier`, `multiAgentMode`, `runtimeWorkspaceRoots`, `instructionSources`, `disabledPluginIds`. `thread` carries `id`, `sessionId`, `status`, `ephemeral`, `path`, `source`, `originator`, `turns` and more. An ephemeral thread wrote **no rollout** in `~/.codex/sessions` |
+| Events of one turn ("Run `ls` in this folder, then reply with the single word: ok") | `thread/started`, `mcpServer/startupStatus/updated` ×6 (the configured MCP servers starting, **I**), `thread/status/changed` ×4, `turn/started`, `item/started`/`item/completed` ×5 (userMessage, reasoning, commandExecution, agentMessage), `item/agentMessage/delta` ×11, `thread/tokenUsage/updated` ×2, `account/rateLimits/updated` ×2, `turn/completed` (`completed`) |
+| The approval flow | `ls` asked for approval even under `untrusted` with a read-only sandbox. Codex sent the server request `item/commandExecution/requestApproval {threadId, turnId, itemId, kind: "command", command, cwd, commandActions: [{type: "listFiles", …}], availableDecisions (three, one of them `acceptWithExecpolicyAmendment`), proposedExecpolicyAmendment, environmentId, startedAtMs}`. The lab answered `{decision: "decline"}`. Then `serverRequest/resolved` arrived, the item completed with `status: "declined"`, the server logged `exec_command failed: … rejected by user`, and the agent still replied "ok". Each approval maps to one typed request with the vendor's own choices, which is the shape §6.2 assumed |
+| Shutdown | Closing stdin, then SIGTERM: exit 0, the process gone (checked with `ps -p`) |
+| What a start writes in `~/.codex` | The same as any Codex start: `skills/.system/…` re-extracted, the remote plugin markers, the apps and model caches, the shared SQLite files and `tmp/arg0-macos`. `config.toml` got new modification times, each time with the same size, both during a lab `codex exec` run and while only the maintainer's own Codex sessions ran. Codex rewrites it on its own, so AI Juggler must never treat a change in its modification time as a user edit |
+
+**What this changes for the D-40 build:**
+- The unix-socket transport is WebSocket, not newline JSON.
+- The socket path is a symlink into `/private/tmp/codex-daemon-<uid>/`.
+- Windows are told apart by `windowDurationMins`, and an account may report only the weekly window.
+- An ephemeral thread leaves no rollout. A driven Codex session must therefore not be `ephemeral` if switching and resume are to work.
+- Approvals arrive as the typed requests §3.2 lists.
+- Not yet tested: `codex --remote` attach, two clients on one thread, and non-ephemeral resume.
