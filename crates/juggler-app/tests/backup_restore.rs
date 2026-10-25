@@ -535,6 +535,56 @@ fn something_that_looks_like_a_secret_stops_the_export() {
     assert!(!archive.exists(), "nothing was written");
 }
 
+/// 0.1.1 → 0.1.3: a project folder named "…-task-c…kday" stopped every
+/// update ("sk-" inside "task-"). A word that contains "sk-" is no key.
+#[test]
+fn a_word_with_sk_in_it_never_stops_an_export() {
+    let work = tempfile::tempdir().unwrap();
+    let mac_a = work.path().join("mac-a");
+    let a = app_state(&mac_a);
+    seed(&a, &mac_a);
+    for name in [
+        "team-task-checkoutday",
+        "desk-lamp-scheduler",
+        "risk-assessment-notes",
+        "mask-generator2025",
+    ] {
+        a.storage
+            .lock()
+            .unwrap()
+            .projects()
+            .touch(Path::new(&format!("/work/{name}")), None)
+            .unwrap();
+    }
+    let archive = work.path().join("words.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+    assert!(archive.exists());
+}
+
+/// The backup before an update stays in AI Juggler's own folder: a key's
+/// look-alike never stops an update (an export still refuses it, above).
+#[test]
+fn the_backup_before_an_update_never_stops_on_a_look_alike() {
+    let work = tempfile::tempdir().unwrap();
+    let mac_a = work.path().join("mac-a");
+    let a = app_state(&mac_a);
+    seed(&a, &mac_a);
+    a.storage
+        .lock()
+        .unwrap()
+        .projects()
+        .touch(Path::new(&format!("/work/{SEEDED_KEY}")), None)
+        .unwrap();
+    let archive = work.path().join("before-update.ajbackup");
+    backup::backup_before_update(&a, &archive, &mut |_, _| {}).unwrap();
+    assert!(archive.exists(), "the update's backup is written");
+    let export = work.path().join("export.ajbackup");
+    assert!(
+        backup::backup_export_impl(&a, &export, &mut |_, _| {}).is_err(),
+        "an export still refuses it"
+    );
+}
+
 #[test]
 fn export_throughput_keeps_a_gigabyte_inside_a_minute() {
     let work = tempfile::tempdir().unwrap();

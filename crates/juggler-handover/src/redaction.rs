@@ -141,6 +141,12 @@ fn scan_sk(text: &str, out: &mut Vec<Detection>) {
     while let Some(found) = text[at..].find("sk-") {
         let prefix = at + found;
         at = prefix + 3;
+        // A key starts a word: "task-…", "desk-…" or "mask-…" is a
+        // word that happens to contain "sk-" (a project named
+        // "…-task-…" stopped every update, 2026-10-25).
+        if prefix > 0 && bytes[prefix - 1].is_ascii_alphanumeric() {
+            continue;
+        }
         let end = token_end(bytes, at);
         if end - at >= 8 {
             out.push(Detection {
@@ -454,6 +460,34 @@ pub fn redacted_pack(
 
 #[cfg(test)]
 mod tests {
+    /// "sk-" inside a word is no key (a project "…-task-…" stopped every
+    /// update, 2026-10-25); one that starts a word, a quote or a value is.
+    #[test]
+    fn sk_counts_only_where_a_word_starts() {
+        for word in [
+            "team-task-checkoutday",
+            "desk-lamp-scheduler",
+            "risk-assessment-notes",
+            "mask-generator2025",
+            "whisk-everything-together",
+        ] {
+            let mut out = Vec::new();
+            scan_sk(word, &mut out);
+            assert!(out.is_empty(), "{word} is a word, not a key");
+        }
+        for text in [
+            "sk-abcdefgh12345",
+            "key=sk-abcdefgh12345",
+            "(sk-abcdefgh12345)",
+            "\"sk-abcdefgh12345\"",
+            "token: sk-abcdefgh12345",
+        ] {
+            let mut out = Vec::new();
+            scan_sk(text, &mut out);
+            assert_eq!(out.len(), 1, "a key in: {}", text.len());
+        }
+    }
+
     use super::*;
 
     #[test]

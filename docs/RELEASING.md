@@ -242,14 +242,28 @@ fails on one of them, re-run its failed jobs from the run page.
      features as beta, and never call switching lossless.
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
-4. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
+4. **The update on a real setup.** Updates are where real data and real
+   signing meet, and two updates in a row failed there and nowhere else
+   (0.1.0: a signature without its version; 0.1.3: a project name read as
+   a key by the backup before the update). On the Mac with the real setup,
+   copy AI Juggler's database (it only reads the original) and run the
+   update's own backup step on the copy:
+   ```sh
+   C=$(mktemp -d) && sqlite3 "file:$HOME/Library/Application Support/AI Juggler/juggler.sqlite?mode=ro" ".backup '$C/juggler.sqlite'"
+   cargo test -p juggler-app --test qa_real_readonly --no-run
+   AIJ_QA_APP_DATA_COPY=$C <the test binary> --ignored --nocapture update_preflight
+   rm -rf "$C"
+   ```
+   It must pass. The signature check (`scripts/updater_sig_check.py`, in the
+   sign job) covers the other half.
+5. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
    open `blocker`), runs the accessibility gate on the exact commit
    (`just a11y-gate`, AJ-E804; pull requests that change the interface
    already ran it in CI), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
-5. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
+6. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.
 
 **Promoting a version to stable** works the same way, with channel
