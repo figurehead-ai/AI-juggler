@@ -604,6 +604,19 @@ impl HarnessAdapter for CodexAdapter {
         codex_login_state(state_dir)
     }
 
+    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
+        Some(juggler_adapter::endpoint::WireApi::Responses)
+    }
+
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        crate::codex_endpoint::configure(state_dir, endpoint, model)
+    }
+
     /// AJ-E1303: watches `<home>/sessions`; the native id is the thread
     /// UUID `codex resume` takes (from the rollout's name).
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {

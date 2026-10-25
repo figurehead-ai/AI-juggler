@@ -604,6 +604,36 @@ pub trait HarnessAdapter: Send + Sync {
         let _ = conversation_id;
         None
     }
+
+    /// AJ-E1601: the protocol this tool speaks when it runs through
+    /// another service's published address (D-34); `None` when it can't.
+    #[must_use]
+    fn endpoint_wire(&self) -> Option<crate::endpoint::WireApi> {
+        None
+    }
+
+    /// AJ-E1601: points the profile in `state_dir` — a folder AI Juggler
+    /// made and marked as its own, never a user's setup — at `endpoint`
+    /// with `model`. The key is never written: AI Juggler hands it to each
+    /// session at launch, as [`crate::endpoint::ServiceEndpoint::key_env`].
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when the tool can't run through
+    /// another service, or `endpoint` speaks another protocol;
+    /// [`AdapterError::AccountDir`] when the folder isn't AI Juggler's own
+    /// or can't be written.
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &crate::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        let _ = (state_dir, endpoint, model);
+        Err(AdapterError::Unsupported(
+            "this tool can't run through another service".into(),
+        ))
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

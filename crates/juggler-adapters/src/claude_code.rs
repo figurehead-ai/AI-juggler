@@ -527,6 +527,19 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         self.resolve_bin()
     }
 
+    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
+        Some(juggler_adapter::endpoint::WireApi::Anthropic)
+    }
+
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        crate::claude_endpoint::configure(state_dir, endpoint, model)
+    }
+
     fn launch_spec(
         &self,
         account: &Account,
