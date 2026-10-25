@@ -3,7 +3,8 @@
  * captures, never the app): made-up test images drawn here as `data:`
  * URIs, plain shapes on colour, nobody's logo. No app's real icon is in
  * the repository; the app reads each one from its bundle at run time.
- * Loaded only when there is no backend to ask and no test seam set.
+ * Used only when there is no backend to ask and no test seam set (a few
+ * hundred bytes: drawn at once, so two captures of a screen match).
  */
 
 /** A test icon: a macOS-shaped square in `from`→`to`, with `glyph` (SVG

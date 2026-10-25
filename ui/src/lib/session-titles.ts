@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from "react";
 import { conversationsLastMessages } from "./ipc/conversations";
+import { hasLiveBackend } from "./bridge";
 import { dayWords } from "./time-words";
 import { tellingBranch } from "./project-words";
 
@@ -98,7 +99,10 @@ export function useAskedWords(rows: { profileId: string; conversationId: string 
     const start = () => {
       void Promise.all(todo.map((row) => read(row.profileId, row.conversationId))).then(() => alive && setTick((tick) => tick + 1));
     };
-    if (w.requestIdleCallback) w.requestIdleCallback(start, { timeout: 1500 });
+    // The preview has nothing to read from disk: at once, so a capture
+    // shows the words the first time as the second.
+    if (!hasLiveBackend()) start();
+    else if (w.requestIdleCallback) w.requestIdleCallback(start, { timeout: 1500 });
     else setTimeout(start, 50);
     return () => {
       alive = false;

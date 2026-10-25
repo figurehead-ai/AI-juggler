@@ -10,6 +10,7 @@
  */
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import { PREVIEW_APP_ICONS } from "../../preview/app-icons";
 
 /** The pixel sizes the backend renders. */
 export type AppIconPixels = 32 | 64 | 128;
@@ -32,7 +33,7 @@ export async function appIconRead(ask: AppIconAsk, px: AppIconPixels): Promise<s
     // The dev preview and the gallery: the made-up test icons, so every
     // capture shows the intended look (unit tests keep the letters).
     if (import.meta.env.MODE === "test") return null;
-    return (await import("../../preview/app-icons")).PREVIEW_APP_ICONS[ask.appId] ?? null;
+    return PREVIEW_APP_ICONS[ask.appId] ?? null;
   }
   if (ask.appId === null && ask.appPid === null) return null;
   return invoke<string | null>("app_icons_read", { appId: ask.appId, process: ask.appPid, px });
