@@ -331,6 +331,17 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// What the tail of an open session's transcript (`tail`: at most its
+    /// last 64 KB, cut at a line start) says of its last turn: running,
+    /// waiting on the user, or ended. For a session whose tool records no
+    /// state for it (the Codex app's threads, its CLI in a terminal).
+    /// `None` when the tail doesn't say. Default: nothing.
+    #[must_use]
+    fn tail_turn(&self, tail: &str) -> Option<crate::live::TailTurn> {
+        let _ = tail;
+        None
+    }
+
     /// AJ-E2102 (ADR-0019): the tool's own apps, as data: how each is
     /// recognised in a parent chain, its instances, and its links.
     /// Default: none.

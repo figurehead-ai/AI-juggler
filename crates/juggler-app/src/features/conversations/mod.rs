@@ -382,20 +382,25 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         .clone();
     let all = state.conversations.all()?;
     let mut now = live::live_entries(&all, &model);
-    // AJ-E2107: a terminal session's tail can say it waits on the user.
+    // AJ-E2107: a terminal session's tail can say it waits on the user;
+    // a session its tool records no state for takes its tail's last turn.
     {
         let mut tails = state
             .conversations
             .tails
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
-        let ask_of = |tool: &str, tail: &str| {
+        let say = |tool: &str, tail: &str| {
             state
                 .registry
                 .get(&juggler_core::model::HarnessId::new(tool.to_owned()))
-                .and_then(|adapter| adapter.pending_ask(tail))
+                .map(|adapter| asks::Said {
+                    ask: adapter.pending_ask(tail),
+                    turn: adapter.tail_turn(tail),
+                })
+                .unwrap_or_default()
         };
-        asks::apply(&mut now, &all, &mut tails, &ask_of, SystemTime::now());
+        asks::apply(&mut now, &all, &mut tails, &say, SystemTime::now());
     }
     let idle = live::inactive_ids(&all, &model);
     let changed = {
