@@ -89,7 +89,7 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-muted">
                 {row.words}
-                {row.words === "Not measured yet" && <button
+                {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && <button
                   type="button"
                   onClick={() => host.openAccount?.(first)}
                   className="self-start rounded text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
