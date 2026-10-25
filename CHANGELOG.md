@@ -202,6 +202,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Claude accounts used in the Claude app show their limits. They used to
+  read "Not measured yet" for both windows, because Claude Code reports
+  limits only to a status line, and the Claude app never runs one.
+  AI Juggler now reads Claude's own records on your Mac, with nothing to
+  set up:
+  - the Claude app's meter, about every 15 minutes while the app is open
+    on that profile;
+  - Claude Code's record of a limit hit, with when it resets;
+  - Claude Code's last `/usage`.
+
+  Each reading names its source and age ("60% left · from the Claude app,
+  12 min ago"). A 5-hour reading older than five hours shows as history,
+  never as now. A team plan with no weekly limit says so. The status-line
+  option now says it covers terminal sessions only.
 - Quota warnings come back in the next window: after an account's first
   warning, later windows never warned again. A window with no known reset
   time still warns once.
