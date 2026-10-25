@@ -453,7 +453,9 @@ test("inspector — Account Overview rings + forecast", gate("08-inspector-aggre
   await goTo(page, "Accounts");
   await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
-  await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+  // 0.1.5: the profile page's Limits are gauges of what's left (68% used).
+  await expect(page.getByTestId("window-gauge").first()).toBeVisible();
+  await expect(page.getByTestId("account-rings")).toContainText("32%");
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
 });
 
@@ -2096,8 +2098,10 @@ for (const theme of THEMES) {
             (window as never as { __AIJ_COST_ROLLUPS__: unknown }).__AIJ_COST_ROLLUPS__ = rollups;
             (window as never as { __AIJ_COST_CSV__: unknown }).__AIJ_COST_CSV__ =
               "/tmp/ai-juggler-costs.csv";
+            // Prices and details shows once an account is in.
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = {
-              accounts: [], recipes: [], sessions: [], projects: [],
+              accounts: [{ id: "claude-work", provider: "claude-code", label: "Work Max", plan: "max-20x", login_state: "logged_in" }],
+              recipes: [], sessions: [], projects: [],
             };
             localStorage.setItem("aij.theme", themeName);
             localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -2109,8 +2113,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        // The matrix lives on the Usage screen.
+        // The matrix is Usage's Prices and details (0.1.5: its rows paged).
         await goTo(page, "Usage");
+        await page.getByTestId("usage-prices-open").click();
         await expect(
           page.getByText("USD is Estimated — list pricing, not your subscription fee."),
         ).toBeVisible();

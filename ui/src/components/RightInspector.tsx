@@ -38,6 +38,8 @@ import { quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackS
 import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
+import { useCached } from "../lib/usage/cached";
+import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
 import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
@@ -184,6 +186,7 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
+  const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
@@ -203,7 +206,7 @@ export function RightInspector({
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
-    hasUsage: data.project ? projectHasUsage(data.project.id, sessions, conversations) : false,
+    hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
         outside(conversations).some((c) => c.account_id === data.account!.id)
@@ -289,8 +292,23 @@ export function RightInspector({
 /** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
 type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-/** A project has usage to show when any of its sessions measured some. */
-function projectHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
+/** A project has usage to show when the usage history holds any of it,
+ * at any time (0.1.5: its summaries, not the sessions the app holds
+ * now); until that answer comes, what the working set says, so the tab
+ * doesn't blink. */
+function useProjectHasUsage(projectId: string | null, meanwhile: boolean): boolean {
+  const result = useCached<UsageHistoryInfo>(
+    projectId ? `project-has-usage:${projectId}` : null,
+    () => usageHistory({ edges_ms: [0, Date.now()], group_by: "profile", profile: null, project: projectId, top: 0 }),
+    60_000,
+  );
+  if (!projectId) return false;
+  const summary = result.current ? result.data : null;
+  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
+}
+
+/** What the sessions the app holds now say: any measured some. */
+function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
   const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
   return (
     sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||

@@ -125,7 +125,7 @@ export function ProjectOverviewView({
             <Donut items={who} unit="tokens" label={`Tokens on ${project.name} by profile`} centre={{ value: short(io, "tokens"), words: "tokens" }} />
           </ChartBody>
         </Section>
-        <OpenSessions rows={rows} onAll={onAllSessions} className="@min-[1400px]:col-span-2" />
+        <OpenSessions projectId={project.id} rows={rows} onAll={onAllSessions} onOpenSession={onOpenSession} className="@min-[1400px]:col-span-2" />
         <CheckoutCallout project={project} sharedBy={sharedBy} />
         {accounts}
         <Travelled project={project} data={data} cut={cut} onOpenSession={onOpenSession} />
