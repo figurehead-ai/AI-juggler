@@ -101,7 +101,7 @@ function HeadChip({ tone = "neutral", strong = false, title, children, testId, c
   );
 }
 
-/** The chips a narrow header folds away (account, folder), behind "…":
+/** The chips a narrow header folds away (account, folder), behind "+2":
  * named on hover, listed in a small panel on a click or Enter. */
 function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element | null {
   const [open, setOpen] = useState(false);
@@ -146,11 +146,8 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
         data-testid="session-more-chips"
         className="inline-flex h-6 shrink-0 items-center rounded-full border border-hairline bg-surface-2 px-2 text-meta leading-5 text-ink outline-none transition-colors hover:bg-surface-3 focus-visible:ring-1 focus-visible:ring-accent/60 @[60rem]:hidden"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="5" cy="12" r="1.8" />
-          <circle cx="12" cy="12" r="1.8" />
-          <circle cx="19" cy="12" r="1.8" />
-        </svg>
+        {/* "+2": how many more, unlike the page's own ⋯ menu beside it. */}
+        <span aria-hidden="true" className="tabular-nums">+{rows.length}</span>
       </button>
       {open &&
         place &&
@@ -179,7 +176,7 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
 
 /** The header's chips, on one line at any width: its state, where it
  * runs and its profile always; its account and folder too where the
- * header has room (60 rem), else behind "…" (and in Where it runs). */
+ * header has room (60 rem), else behind "+2" (and in Where it runs). */
 export function SessionChips({ model, account, now }: { model: SessionModel; account: SubscriptionInfo | undefined; now: number }): JSX.Element {
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
   const line = account ? accountLine(account) : null;
