@@ -181,12 +181,22 @@ pub struct ReleaseOutcome {
 
 /// What an adapter adds for driven sessions (ADR-0022 decision 1).
 pub trait DrivenRuntime: Send + Sync {
+    /// How a driven session of this tool runs, in a few words for the
+    /// session page ("Codex's app-server").
+    fn label(&self) -> &'static str;
+
     /// The runtime this tool's sessions start in when the user hasn't
     /// chosen (data, not a branch: Codex says Driven, Claude Terminal).
     fn default_runtime(&self) -> Runtime;
 
     /// Whether driven is settled or a Beta.
     fn maturity(&self) -> Maturity;
+
+    /// Whether its sessions take more input into a running turn
+    /// ([`DrivenSession::steer`]). Default: no.
+    fn steers(&self) -> bool {
+        false
+    }
 
     /// Why driven sessions can't run with the tool installed now (too old,
     /// a protocol AI Juggler hasn't pinned), in words; `None` when they

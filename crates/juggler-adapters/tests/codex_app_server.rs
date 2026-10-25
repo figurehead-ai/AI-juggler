@@ -20,7 +20,6 @@
 
 use std::collections::BTreeMap;
 use std::io::BufReader;
-use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -199,6 +198,19 @@ fn recorded_messages_make_the_right_events_and_answers() {
     assert_eq!(limits.windows.len(), 2);
     assert_eq!(limits.windows[0].window_mins, Some(300));
     assert_eq!(limits.windows[0].resets_at_ms, Some(1_761_397_200_000));
+    // The lab's shape: only the weekly window, as `primary`. No 5-hour
+    // window is made up.
+    let weekly_only = events
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            RuntimeEvent::LimitsUpdated { limits } => Some(limits.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(weekly_only.windows.len(), 1);
+    assert_eq!(weekly_only.windows[0].id, "seven_day");
+    assert_eq!(weekly_only.windows[0].window_mins, Some(10_080));
     assert_eq!(limits.plan.as_deref(), Some("plus"));
     assert!(
         events
@@ -394,31 +406,25 @@ fn start(
     Result<Box<dyn DrivenSession>, juggler_adapter::AdapterError>,
 ) {
     let driven = adapter.driven().expect("Codex is driven");
-    let socket = world
-        .base
-        .join(format!("rt-{}.sock", resume.map_or(0, str::len)));
     let launch = DrivenLaunch {
-        socket: socket.clone(),
+        socket: world.base.join("unused.sock"),
         resume: resume.map(str::to_owned),
         fresh_id: "unused".into(),
     };
     let spec = driven
         .driven_spec(&world.account, &world.profile, &world.cwd, &launch)
         .unwrap();
-    assert_eq!(spec.transport, Transport::Socket(socket.clone()));
     assert_eq!(
-        spec.launch.args,
-        [
-            "app-server",
-            "--listen",
-            &format!("unix://{}", socket.display())
-        ]
+        spec.transport,
+        Transport::Stdio,
+        "one server per session, over stdio"
     );
+    assert_eq!(spec.launch.args, ["app-server", "--listen", "stdio://"]);
     assert_eq!(
         spec.launch.env.get("CODEX_HOME").map(PathBuf::from),
         Some(world.account.state_dir.clone())
     );
-    let child = Command::new(&spec.launch.program)
+    let mut child = Command::new(&spec.launch.program)
         .args(&spec.launch.args)
         .envs(
             spec.launch
@@ -427,22 +433,16 @@ fn start(
                 .filter(|(_, v)| *v != juggler_adapter::launch::ENV_UNSET),
         )
         .current_dir(&spec.launch.cwd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    let server = Server(child);
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while !socket.exists() {
-        assert!(Instant::now() < deadline, "the socket never appeared");
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    let stream = UnixStream::connect(&socket).unwrap();
     let io = Connection {
-        reader: Box::new(BufReader::new(stream.try_clone().unwrap())),
-        writer: Box::new(stream),
+        reader: Box::new(BufReader::new(child.stdout.take().unwrap())),
+        writer: Box::new(child.stdin.take().unwrap()),
     };
+    let server = Server(child);
     (server, driven.connect(io, &spec, &world.account))
 }
 
@@ -495,6 +495,9 @@ fn a_codex_session_is_driven_end_to_end_through_its_app_server() {
     let RuntimeEvent::LimitsUpdated { limits } = events.last().unwrap() else {
         unreachable!()
     };
+    // Named by length, shortest first, whatever primary/secondary held.
+    assert_eq!(limits.windows[0].id, "five_hour");
+    assert_eq!(limits.windows[1].id, "seven_day");
     assert_eq!(limits.windows[1].window_mins, Some(10_080));
     assert!(limits.windows[0].resets_at_ms.is_some());
 
@@ -689,10 +692,9 @@ fn a_codex_session_is_driven_end_to_end_through_its_app_server() {
 }
 
 #[test]
-fn the_tui_attaches_to_the_same_server_and_thread() {
+fn the_tui_takes_over_the_same_thread_at_a_turn_boundary() {
     let world = world();
     let adapter = CodexAdapter::with_bin(env!("CARGO_BIN_EXE_fake-codex")).with_home(&world.base);
-    let socket = world.base.join("s.sock");
     let view = adapter
         .driven()
         .unwrap()
@@ -702,42 +704,25 @@ fn the_tui_attaches_to_the_same_server_and_thread() {
             &world.cwd,
             &ViewOf {
                 native_id: "0199aa00-0000-7000-8000-000000000001".into(),
-                socket: Some(socket.clone()),
+                socket: Some(world.base.join("ignored.sock")),
             },
         )
         .unwrap();
-    let TerminalView::Attach(spec) = view else {
-        panic!("a live server is attached to")
+    // Over stdio there is no socket to attach to: the terminal resumes the
+    // thread once the driver let go (ADR-0022, the lab of 2026-10-25).
+    let TerminalView::AfterRelease(spec) = view else {
+        panic!("a hand-over, never two writers")
     };
-    assert_eq!(
-        spec.args,
-        [
-            "--remote",
-            &format!("unix://{}", socket.display()),
-            "resume",
-            "0199aa00-0000-7000-8000-000000000001"
-        ]
+    assert!(spec.args.contains(&"resume".to_owned()));
+    assert!(
+        spec.args
+            .contains(&"0199aa00-0000-7000-8000-000000000001".to_owned())
     );
+    assert!(spec.args.contains(&"--no-daemon".to_owned()));
     assert!(spec.needs_pty);
     assert_eq!(
         spec.env.get("CODEX_HOME").map(PathBuf::from),
         Some(world.account.state_dir.clone())
-    );
-    let after = adapter
-        .driven()
-        .unwrap()
-        .terminal_view(
-            &world.account,
-            &world.profile,
-            &world.cwd,
-            &ViewOf {
-                native_id: "0199aa00-0000-7000-8000-000000000001".into(),
-                socket: None,
-            },
-        )
-        .unwrap();
-    assert!(
-        matches!(after, TerminalView::AfterRelease(spec) if spec.args.contains(&"--no-daemon".to_owned()))
     );
 }
 

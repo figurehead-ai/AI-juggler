@@ -2,20 +2,26 @@
 //! own `codex app-server`, the default runtime for the Codex sessions AI
 //! Juggler starts.
 //!
-//! - **One server per session**, `codex app-server --listen unix://<socket>`
-//!   with the profile's `CODEX_HOME` and `CODEX_SQLITE_HOME` (the terminal
-//!   launch's own environment), on a socket in AI Juggler's runtime folder.
-//!   The app spawns it under its supervisor (a child in the spawn ledger)
-//!   and stops it with the session; AI Juggler never attaches to Codex's
-//!   own daemon.
+//! - **One server per session, over stdio**: `codex app-server --listen
+//!   stdio://` with the profile's `CODEX_HOME` and `CODEX_SQLITE_HOME` (the
+//!   terminal launch's own environment), newline-delimited JSON-RPC on its
+//!   stdin and stdout. The app spawns it under its supervisor (a child in
+//!   the spawn ledger) and it ends when its stdin closes; AI Juggler never
+//!   attaches to Codex's own daemon. (The lab of 2026-10-25 found that
+//!   `--listen unix://PATH` speaks WebSocket and puts the socket under
+//!   `/private/tmp/codex-daemon-<uid>/` behind a symlink: stdio needs no
+//!   socket at all, ADR-0022.)
 //! - **Honest client**: `clientInfo { name: "ai_juggler", title: "AI
 //!   Juggler" }`; a server whose `codexHome` isn't the profile's is refused.
 //!   Stable methods only ([`surface`]).
 //! - **Pinned protocol**: from [`surface::DRIVEN_FROM`]; a newer Codex is
 //!   driven only while its own generated schema has every method AI
 //!   Juggler uses. Anything else starts in the terminal, with the reason.
-//! - **The real TUI on the same thread**: `codex --remote unix://<socket>
-//!   resume <thread>` ([`DrivenRuntime::terminal_view`]).
+//! - **The real TUI on the same thread**, by hand-over at a turn boundary:
+//!   the driver lets go, the server ends, and `codex resume <thread>` runs
+//!   in AI Juggler's terminal ([`DrivenRuntime::terminal_view`]); never two
+//!   writers. A live `--remote` attach waits for a listener in AI Juggler's
+//!   own folder (ADR-0022, the lab's open point).
 //! - **Answers are the user's**: approvals and questions become asks with
 //!   Codex's own options ([`asks`]); nothing here answers one by itself.
 
@@ -41,12 +47,6 @@ use crate::codex::CodexAdapter;
 pub const CLIENT_NAME: &str = "ai_juggler";
 /// `clientInfo.title`.
 pub const CLIENT_TITLE: &str = "AI Juggler";
-
-/// The app-server's address for a socket path.
-#[must_use]
-pub fn socket_url(socket: &Path) -> String {
-    format!("unix://{}", socket.to_string_lossy())
-}
 
 /// The variables a schema check removes (an API key never reaches it).
 const SCHEMA_UNSET: &[&str] = &["CODEX_API_KEY", "OPENAI_API_KEY"];
@@ -128,6 +128,10 @@ impl CodexAdapter {
 }
 
 impl DrivenRuntime for CodexAdapter {
+    fn label(&self) -> &'static str {
+        "Codex's app-server"
+    }
+
     fn default_runtime(&self) -> Runtime {
         Runtime::Driven
     }
@@ -136,12 +140,17 @@ impl DrivenRuntime for CodexAdapter {
         Maturity::Stable
     }
 
+    /// `turn/steer`.
+    fn steers(&self) -> bool {
+        true
+    }
+
     fn unavailable(&self) -> Option<String> {
         self.driven_check()
     }
 
     /// The terminal launch's binary, environment and folder, serving
-    /// app-server on `launch.socket` instead of the TUI.
+    /// app-server on its stdin and stdout instead of the TUI.
     fn driven_spec(
         &self,
         account: &Account,
@@ -163,12 +172,12 @@ impl DrivenRuntime for CodexAdapter {
         spec.args = vec![
             "app-server".to_owned(),
             "--listen".to_owned(),
-            socket_url(&launch.socket),
+            "stdio://".to_owned(),
         ];
         spec.needs_pty = false;
         Ok(DrivenSpec {
             launch: spec,
-            transport: Transport::Socket(launch.socket.clone()),
+            transport: Transport::Stdio,
             native_id: launch.resume.clone(),
             model: profile.settings_overlay.model.clone(),
         })
@@ -190,8 +199,8 @@ impl DrivenRuntime for CodexAdapter {
         Ok(Box::new(session))
     }
 
-    /// Attached live with `--remote` while the server runs; after it, the
-    /// terminal resume.
+    /// The terminal resume (`codex resume <thread> --no-daemon`), after the
+    /// driver lets go at a turn boundary: one writer at a time.
     fn terminal_view(
         &self,
         account: &Account,
@@ -204,17 +213,8 @@ impl DrivenRuntime for CodexAdapter {
             session_id: of.native_id.clone(),
             delta_prompt: None,
         };
-        let mut spec = self.launch_spec(account, profile, cwd, &mode)?;
-        let Some(socket) = &of.socket else {
-            return Ok(TerminalView::AfterRelease(spec));
-        };
-        spec.args = vec![
-            "--remote".to_owned(),
-            socket_url(socket),
-            "resume".to_owned(),
-            of.native_id.clone(),
-        ];
-        Ok(TerminalView::Attach(spec))
+        self.launch_spec(account, profile, cwd, &mode)
+            .map(TerminalView::AfterRelease)
     }
 }
 

@@ -87,13 +87,28 @@ fn usage_of(breakdown: &Value, window: Option<u64>) -> TurnUsage {
     }
 }
 
-/// A `RateLimitSnapshot` as the windows it reports.
+/// A window's name by its length (never by Codex's `primary`/`secondary`,
+/// which name no particular window: the lab of 2026-10-25 saw the weekly
+/// window as `primary`, with no 5-hour one).
+#[must_use]
+pub fn window_id(mins: Option<u64>) -> String {
+    match mins {
+        Some(300) => "five_hour".to_owned(),
+        Some(10_080) => "seven_day".to_owned(),
+        Some(mins) => format!("{mins}_minutes"),
+        None => "unnamed".to_owned(),
+    }
+}
+
+/// A `RateLimitSnapshot` as the windows it reports, shortest first, each
+/// named by its own length.
 #[must_use]
 pub fn limits_of(snapshot: &Value) -> LimitsSnapshot {
     let window = |key: &str| {
         let w = snapshot.get(key).filter(|w| !w.is_null())?;
+        let mins = w.get("windowDurationMins").and_then(Value::as_u64);
         Some(LimitWindow {
-            id: key.to_owned(),
+            id: window_id(mins),
             window_mins: w
                 .get("windowDurationMins")
                 .and_then(Value::as_u64)
@@ -110,11 +125,13 @@ pub fn limits_of(snapshot: &Value) -> LimitsSnapshot {
                 .map(|s| s.saturating_mul(1000)),
         })
     };
+    let mut windows: Vec<LimitWindow> = ["primary", "secondary"]
+        .iter()
+        .filter_map(|key| window(key))
+        .collect();
+    windows.sort_by_key(|w| w.window_mins.unwrap_or(u32::MAX));
     LimitsSnapshot {
-        windows: ["primary", "secondary"]
-            .iter()
-            .filter_map(|key| window(key))
-            .collect(),
+        windows,
         plan: text(snapshot, "/planType"),
         reached: snapshot
             .get("rateLimitReachedType")
@@ -243,13 +260,14 @@ impl Codec {
         if let Some(model) = model {
             params["model"] = json!(model);
         }
-        match resume {
-            Some(id) => {
-                params["threadId"] = json!(id);
-                self.request("thread/resume", params, Sent::Thread)
-            }
-            None => self.request("thread/start", params, Sent::Thread),
+        if let Some(id) = resume {
+            params["threadId"] = json!(id);
+            return self.request("thread/resume", params, Sent::Thread);
         }
+        // Never ephemeral: an ephemeral thread writes no rollout, and
+        // switching and resume need one (the lab, 2026-10-25).
+        params["ephemeral"] = json!(false);
+        self.request("thread/start", params, Sent::Thread)
     }
 
     fn thread_id(&self) -> Result<String, AdapterError> {

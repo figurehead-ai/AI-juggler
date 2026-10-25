@@ -1,15 +1,10 @@
 //! The fake app-server's protocol (see `fake_codex.rs`).
 
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use juggler_adapters::codex_appserver::surface::{Kind, SURFACE};
 use serde_json::{Value, json};
-
-/// How long the fake waits with no client before it exits.
-const IDLE: Duration = Duration::from_secs(120);
 
 /// Writes the method lists `generate-json-schema` would, without
 /// `FAKE_CODEX_DROP`.
@@ -43,7 +38,7 @@ enum Pending {
 }
 
 struct Conn {
-    out: UnixStream,
+    out: Box<dyn Write>,
     thread: Option<String>,
     rollout: Option<PathBuf>,
     turn: Option<String>,
@@ -331,48 +326,28 @@ impl Conn {
     }
 }
 
+/// As the lab saw it (2026-10-25): `primary` is not the 5-hour window.
 fn limits(used: u32) -> Value {
     json!({"limitId": "codex", "planType": "plus",
-        "primary": {"usedPercent": used, "windowDurationMins": 300, "resetsAt": 4_102_444_800_i64},
-        "secondary": {"usedPercent": 40, "windowDurationMins": 10_080, "resetsAt": 4_102_444_800_i64}})
+        "primary": {"usedPercent": 40, "windowDurationMins": 10_080, "resetsAt": 4_102_444_800_i64},
+        "secondary": {"usedPercent": used, "windowDurationMins": 300, "resetsAt": 4_102_444_800_i64}})
 }
 
-/// Serves the socket until no client has come for [`IDLE`].
-pub fn serve(path: &Path) -> std::io::Result<()> {
-    let _ = std::fs::remove_file(path);
-    let listener = UnixListener::bind(path)?;
-    listener.set_nonblocking(true)?;
-    let mut last = Instant::now();
-    let mut count = 0;
-    loop {
-        match listener.accept() {
-            Ok((stream, _)) => {
-                stream.set_nonblocking(false)?;
-                let mut conn = Conn {
-                    out: stream.try_clone()?,
-                    thread: None,
-                    rollout: None,
-                    turn: None,
-                    pending: None,
-                    count,
-                };
-                for line in BufReader::new(stream).lines() {
-                    let Ok(line) = line else { break };
-                    if let Ok(message) = serde_json::from_str::<Value>(&line) {
-                        conn.handle(&message);
-                    }
-                }
-                count = conn.count;
-                last = Instant::now();
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                if last.elapsed() > IDLE {
-                    let _ = std::fs::remove_file(path);
-                    return Ok(());
-                }
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Err(error) => return Err(error),
+/// Serves the protocol on stdin and stdout until stdin closes (the
+/// session's driver let go), as `codex app-server --listen stdio://` does.
+pub fn serve_stdio() {
+    let mut conn = Conn {
+        out: Box::new(std::io::stdout()),
+        thread: None,
+        rollout: None,
+        turn: None,
+        pending: None,
+        count: 0,
+    };
+    for line in BufReader::new(std::io::stdin()).lines() {
+        let Ok(line) = line else { break };
+        if let Ok(message) = serde_json::from_str::<Value>(&line) {
+            conn.handle(&message);
         }
     }
 }

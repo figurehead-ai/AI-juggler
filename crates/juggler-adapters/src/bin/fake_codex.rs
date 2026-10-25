@@ -5,7 +5,7 @@
 //! ```text
 //! fake-codex --version                                   codex-cli 0.163.0
 //! fake-codex app-server generate-json-schema --out DIR   the method lists
-//! fake-codex app-server --listen unix://PATH             the protocol
+//! fake-codex app-server [--listen stdio://]               the protocol, on stdio
 //! ```
 //!
 //! `FAKE_CODEX_VERSION` changes the version it reports; `FAKE_CODEX_DROP`
@@ -19,8 +19,9 @@
 //! text holds `ask:` asks to run a command; `question:` asks the user;
 //! `file:` asks to change files; `fail:` fails with a usage limit. Threads
 //! are written as rollouts under `CODEX_HOME/sessions/`, so the readers
-//! find them like any other. It exits when no client has been connected
-//! for two minutes, so a leaked fixture never lingers.
+//! find them like any other. It exits when its stdin closes, so a leaked
+//! fixture never lingers. (Only stdio is faked: the real `--listen
+//! unix://` speaks WebSocket, and AI Juggler doesn't use it.)
 
 #[path = "support/app_server.rs"]
 mod app_server;
@@ -46,22 +47,9 @@ fn main() -> ExitCode {
                 }
             }
         }
-        ["app-server", rest @ ..] => {
-            let listen = rest
-                .windows(2)
-                .find(|pair| pair[0] == "--listen")
-                .and_then(|pair| pair[1].strip_prefix("unix://"));
-            let Some(path) = listen else {
-                eprintln!("fake-codex: only --listen unix://PATH is faked");
-                return ExitCode::from(2);
-            };
-            match app_server::serve(std::path::Path::new(path)) {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(error) => {
-                    eprintln!("fake-codex: {error}");
-                    ExitCode::FAILURE
-                }
-            }
+        ["app-server"] | ["app-server", "--listen", "stdio://"] => {
+            app_server::serve_stdio();
+            ExitCode::SUCCESS
         }
         _ => {
             eprintln!("fake-codex: {words:?} isn't faked");

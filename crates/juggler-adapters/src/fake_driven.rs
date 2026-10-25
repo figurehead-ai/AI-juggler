@@ -22,6 +22,9 @@ use serde_json::{Value, json};
 use crate::fake::FakeHarnessAdapter;
 
 impl DrivenRuntime for FakeHarnessAdapter {
+    fn label(&self) -> &'static str {
+        "the fake tool's protocol"
+    }
     fn default_runtime(&self) -> Runtime {
         Runtime::Terminal
     }

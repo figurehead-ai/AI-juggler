@@ -131,10 +131,37 @@ fn command_ask(id: &AskId, params: &Value) -> (RuntimeEvent, Answering) {
         options.push(option(&format!("network:{index}"), &label, effect));
     }
     options.extend(denials("Deny and stop"));
+    only_available(params, &mut options);
     (
         approval(id, params, ApprovalKind::Command, &summary, options),
         Answering::Command { amendment, network },
     )
+}
+
+/// Codex may say which decisions a request takes (`availableDecisions`,
+/// seen live on 0.163.0 though not in its stable schema): then only those
+/// are offered, never one it didn't list.
+fn only_available(params: &Value, options: &mut Vec<AskOption>) {
+    let Some(available) = params.get("availableDecisions").and_then(Value::as_array) else {
+        return;
+    };
+    let names: Vec<String> = available
+        .iter()
+        .filter_map(|decision| {
+            decision
+                .as_str()
+                .map(str::to_owned)
+                .or_else(|| decision.as_object()?.keys().next().cloned())
+        })
+        .collect();
+    options.retain(|option| {
+        let name = if option.id.starts_with("network:") {
+            "applyNetworkPolicyAmendment"
+        } else {
+            option.id.as_str()
+        };
+        names.iter().any(|known| known == name)
+    });
 }
 
 /// `item/fileChange/requestApproval`.
@@ -382,6 +409,18 @@ mod tests {
             )
             .unwrap(),
             json!({"decision": "cancel"})
+        );
+    }
+
+    #[test]
+    fn only_the_decisions_codex_lists_are_offered() {
+        let params = json!({"threadId": "t", "turnId": "u", "itemId": "i", "startedAtMs": 1,
+            "command": "ls", "proposedExecpolicyAmendment": ["ls"],
+            "availableDecisions": ["accept", {"acceptWithExecpolicyAmendment": {"execpolicy_amendment": ["ls"]}}, "cancel"]});
+        let (event, _) = ask_of(&id(), "item/commandExecution/requestApproval", &params).unwrap();
+        assert_eq!(
+            options(&event),
+            ["accept", "acceptWithExecpolicyAmendment", "cancel"]
         );
     }
 
