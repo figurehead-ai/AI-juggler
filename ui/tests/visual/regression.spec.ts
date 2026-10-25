@@ -153,8 +153,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
-        // AJ-E1533: a session's page opens on its body, the Terminal tab.
-        await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
+        // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
+        await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
         // The terminal loads on first use (#173): a slow runner shot its
         // empty pane (#175).
         await expect(page.getByTestId("terminal-toolbar")).toBeVisible();

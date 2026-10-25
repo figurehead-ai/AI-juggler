@@ -171,9 +171,9 @@ export function InspectorHeader({
   ) : kind === "provider" && data.provider ? (
     <ToolMark tool={data.provider.id} size={18} />
   ) : kind === "account" && account ? (
-    <AccountAvatar accountId={account.id} label={account.label} size={20} />
+    <AccountAvatar accountId={account.id} label={account.label} size={28} />
   ) : kind === "project" && data.project ? (
-      <ProjectMark projectId={data.project.id} />
+      <ProjectMark projectId={data.project.id} size={28} />
     ) : (
       <KindIcon kind={kind} />
     );

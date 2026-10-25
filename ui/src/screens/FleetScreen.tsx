@@ -107,9 +107,13 @@ export function FleetScreen({
     }
   };
 
+  // Nothing paired yet: one centred column (the review of 0.1.5: a wide
+  // window was mostly empty), the picture of pairing first.
+  const unpaired = peers.length === 0 && remote.length === 0 && self?.trust !== "broken";
   return (
     <Page
       title="Fleet"
+      width={unpaired ? "reading" : "wide"}
       badge={<Chip tone="accent">Beta</Chip>}
       subtitle="Your other Macs in one place, paired by a code and connected directly over your network. Your sign‑ins never leave a Mac."
       testId="fleet-screen"
@@ -144,7 +148,7 @@ export function FleetScreen({
           {error}
         </Card>
       )}
-      <div className="grid items-start gap-grid xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className={unpaired ? "flex flex-col gap-grid" : "grid items-start gap-grid xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"} data-layout={unpaired ? "unpaired" : "paired"}>
       <div className="flex min-w-0 flex-col gap-grid">
       <Card className="flex flex-wrap items-center gap-3 p-card" data-testid="fleet-link">
         <button
@@ -222,7 +226,7 @@ export function FleetScreen({
           <h3 className="text-section font-semibold text-ink">Paired machines</h3>
         </div>
         {peers.length === 0 ? (
-          <FleetPeersEmpty onOpenHome={onOpenHome} />
+          <FleetPeersEmpty onOpenHome={onOpenHome} selfLabel={self?.label} linkOn={link?.enabled ?? false} />
         ) : (
           <>
           {peers

@@ -183,7 +183,7 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     const { container } = processesShell(instance("tree"));
     await waitFor(() => expect(container.querySelector('[data-testid="processes-orphans"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe(
-      "Orphaned - left behind (2)",
+      "Left behind (2)",
     );
     expect(container.querySelector('[data-testid="orphan-row-39871"]')!.textContent).toContain("node dev-server");
     expect(container.querySelector('[data-testid="orphan-row-39871"]')!.textContent).toContain("parent: claude");
@@ -238,11 +238,11 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     expect(e410.verifyCalls.length).toBeGreaterThan(0);
   });
 
-  it("good empty states: No subprocesses / No orphaned processes", async () => {
+  it("good empty states: No subprocesses / Nothing left behind", async () => {
     const { container } = processesShell(instance("clean"));
     await waitFor(() => expect(container.querySelector('[data-testid="processes-empty"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="processes-empty"]')!.textContent).toBe("No subprocesses");
-    expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe("No orphaned processes");
+    expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe("Nothing left behind");
     // Plain words under it, not a design note (0.0.11 walk).
     const orphans = container.querySelector('[data-testid="processes-orphans"]')!.textContent ?? "";
     expect(orphans).toContain("Nothing this session started is still running after it.");

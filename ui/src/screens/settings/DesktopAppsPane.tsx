@@ -14,7 +14,7 @@ import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
-import { AppKindIcon } from "./pane-icons";
+import { AppIcon } from "../../components/AppIcon";
 import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
@@ -37,7 +37,8 @@ function ShowSessionsFrom(): JSX.Element {
           key={entry.app.id}
           title={entry.app.name}
           description={foundWords(entry)}
-          icon={<AppKindIcon kind={entry.app.kind} />}
+          // D-38: the app's own icon, as everywhere an app is named.
+          icon={<AppIcon appId={entry.app.id} name={entry.app.name} size={24} />}
           checked={!hidden.has(entry.app.id)}
           testId={`desktop-app-${entry.app.id}`}
           onChange={(on) => {

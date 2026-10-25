@@ -92,8 +92,8 @@ function ToolGroup({
         <FoldChevron />
         <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-body font-medium text-ink">
           {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
-          <span className="truncate">{group.label}</span>
-          <span className="shrink-0 text-meta font-normal text-muted">
+          <span className="shrink-0">{group.label}</span>
+          <span className="min-w-0 truncate text-meta font-normal text-muted">
             {trees.length === 1 ? "1" : trees.length} {group.ours ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
             {group.ours ? "" : " · not started by AI Juggler"}
           </span>

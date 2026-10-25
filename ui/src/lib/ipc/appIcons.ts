@@ -5,10 +5,12 @@
  * id, or the process of a place), and serves it as a PNG `data:` URL.
  * Nothing is shipped in the repository: in the preview and the tests,
  * icons come only from the seam `__AIJ_APP_ICONS__` (by app id), which
- * the specs fill with made-up test images.
+ * the specs fill with made-up test images, else from the preview's own
+ * made-up set (`preview/app-icons`).
  */
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import { PREVIEW_APP_ICONS } from "../../preview/app-icons";
 
 /** The pixel sizes the backend renders. */
 export type AppIconPixels = 32 | 64 | 128;
@@ -25,8 +27,13 @@ export interface AppIconAsk {
  * installed, no icon, or nothing to ask for). */
 export async function appIconRead(ask: AppIconAsk, px: AppIconPixels): Promise<string | null> {
   if (!hasLiveBackend()) {
+    if (!ask.appId) return null;
     const seams = window as unknown as { __AIJ_APP_ICONS__?: Record<string, string> };
-    return ask.appId ? (seams.__AIJ_APP_ICONS__?.[ask.appId] ?? null) : null;
+    if (seams.__AIJ_APP_ICONS__) return seams.__AIJ_APP_ICONS__[ask.appId] ?? null;
+    // The dev preview and the gallery: the made-up test icons, so every
+    // capture shows the intended look (unit tests keep the letters).
+    if (import.meta.env.MODE === "test") return null;
+    return PREVIEW_APP_ICONS[ask.appId] ?? null;
   }
   if (ask.appId === null && ask.appPid === null) return null;
   return invoke<string | null>("app_icons_read", { appId: ask.appId, process: ask.appPid, px });

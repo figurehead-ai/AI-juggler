@@ -2542,6 +2542,22 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     suggested: false,
   },
   {
+    recipe_id: "recipe-codex",
+    account_id: "acct-codex",
+    account_label: "Codex",
+    badge: "Full story, fresh start · Beta",
+    validated: false,
+    cross_provider: true,
+    drops: ["subagent state", "todo list"],
+    score: 0.48,
+    top_factors: ["53% headroom", "another tool's limits"],
+    factors: [["53% headroom", 0.24], ["another tool's limits", 0.12], ["starts fresh from the story", 0.04]],
+    confidence: "Computed",
+    tte_min: 180,
+    filtered_reason: null,
+    suggested: false,
+  },
+  {
     recipe_id: "recipe-lab",
     account_id: "acct-lab",
     account_label: "Lab",
@@ -2559,14 +2575,21 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
 ];
 
+/** The preview's targets for one session: never its own account (the
+ * backend never offers where it already is), the best open row the
+ * suggestion. */
+function previewSwitchTargets(sessionId: string): SwitchTargetData[] {
+  const own = MOCK_SESSIONS.find((session) => session.id === sessionId)?.account_label;
+  const rows = DEFAULT_SWITCH_TARGETS.filter((row) => row.account_label !== own);
+  const best = rows.filter((row) => row.filtered_reason === null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+  return rows.map((row) => ({ ...row, suggested: row === best }));
+}
+
 /** AJ-E209 Req.1/3: the ranked + badged destinations for one source
  * session. Read-only — ranking suggests, the user clicks. */
 export async function switchTargets(sessionId: string): Promise<SwitchTargetData[]> {
   if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] })
-        .__AIJ_SWITCH_TARGETS__ ?? DEFAULT_SWITCH_TARGETS
-    );
+    return (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewSwitchTargets(sessionId);
   }
   return invoke<SwitchTargetData[]>("switch_targets", { sessionId });
 }

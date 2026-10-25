@@ -8,17 +8,13 @@
  * (`PagedSessions`: the backend's `sessions_page`, drawn by `PagedList`);
  * `SessionsList` stays for short lists the UI already holds.
  */
-import { providerDisplayName } from "../lib/providers";
-import { AccountAvatar } from "../components/Avatar";
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
 import { STATE_TONE, conversationItem, sessionState, stateWord, type RailState } from "../lib/rail-items";
-import { AppIcon } from "../components/AppIcon";
-import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
-import { ProjectMark } from "../components/ProjectMark";
 import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
-import { useActionHost, useItemMenu } from "../components/ItemMenu";
+import { useActionHost } from "../components/ItemMenu";
+import { SessionRowBody } from "./SessionRow";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
 export { dayWords } from "../lib/time-words";
 import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
@@ -60,10 +56,7 @@ export type Row = {
   open: () => void;
 };
 
-/** D-38: the app a row shows: where it is open, else its tool's app. */
-export function appOfRow(row: Pick<Row, "item">): AppRef {
-  return row.item.kind === "conversation" ? appOfConversation(row.item.conversation) : appOfSession(row.item.session);
-}
+export { appOfRow } from "./SessionRow";
 
 /** One of AI Juggler's sessions as a row. */
 export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (id: string) => void): Row {
@@ -225,6 +218,7 @@ export function PagedSessions({
   onCounts,
   onTotal,
   groupOf,
+  counted = false,
 }: {
   /** Names the list and everything that shapes it (its memory's key). */
   listKey: string;
@@ -242,6 +236,8 @@ export function PagedSessions({
   onCounts?: (counts: SessionsCountsInfo) => void;
   /** How many rows the list holds, once its first page is read. */
   onTotal?: (total: number) => void;
+  /** Its section's title says how many already: no count line of its own. */
+  counted?: boolean;
 }): JSX.Element {
   const host = useActionHost();
   const live = hasLiveBackend();
@@ -288,7 +284,7 @@ export function PagedSessions({
   const open = !live ? list.items.filter((row) => row.live).length : query.which === "ended" || query.which === "archived" ? 0 : (counts?.open ?? 0);
   return (
     <div className="flex flex-col gap-2" data-testid="page-sessions">
-      {!list.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
+      {!counted && !list.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
       <PagedList
         list={list}
         keyOf={(row) => row.key}
@@ -320,81 +316,4 @@ export function PagedSessions({
       />
     </div>
   );
-}
-
-/** One row: it opens its page; right-click, ⋯ or Shift+F10 opens its menu
- * (AJ-E1537), the same menu as everywhere else for what it is. In a
- * short list it's the list's `li`; in a paged one, the content of
- * `PagedList`'s. */
-function SessionRowBody({
-  row,
-  project,
-  below,
-  badge,
-  as,
-}: {
-  row: Row;
-  project: { id: string; name: string | null } | null;
-  below?: ReactNode;
-  badge?: ReactNode;
-  as: "li" | "div";
-}): JSX.Element {
-  const menu = useRowMenu(row);
-  const Box = as;
-  return (
-    <Box
-      className={"group relative " + (as === "li" ? "border-t border-hairline/60 first:border-t-0" : "")}
-      data-testid="page-session-item"
-      data-key={row.key}
-      {...menu.triggerProps}
-    >
-      <button
-        type="button"
-        data-testid="page-session-row"
-        data-outside={row.outside ? "true" : undefined}
-        data-live={row.live ? "true" : undefined}
-        className="flex w-full items-center gap-3.5 px-4 py-2.5 pr-11 text-left hover:bg-surface-2"
-        onClick={row.open}
-      >
-        <span className="relative flex shrink-0">
-          <AppIcon {...appOfRow(row)} size={24} />
-          <span
-            aria-hidden="true"
-            data-state-dot={row.railState}
-            className={"absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface " + STATE_TONE[row.railState].dot}
-          />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-body font-medium text-ink">{project && row.title.startsWith("Untitled session · ") ? "Untitled session" : row.title}</span>
-          <span className="truncate text-meta text-muted">
-            <span className={row.tone} data-testid="page-session-state">{row.state}</span>
-            {row.detail && row.detail !== row.title && <> · {row.detail}</>}
-            {row.outside && ` · in ${appOfRow(row).name}`}
-          </span>
-        </span>
-        {project && (
-          <span className="hidden w-44 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted md:flex" data-testid="page-session-project">
-            <ProjectMark projectId={project.id} size={16} />
-            <span className="truncate">{project.name ?? "a moved project"}</span>
-          </span>
-        )}
-        <span className="flex w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted">
-          <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
-          <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
-          <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
-        </span>
-        {badge}
-        <span className="w-24 shrink-0 whitespace-nowrap text-right text-meta tabular-nums text-muted">{row.when}</span>
-      </button>
-      {below}
-      {menu.button({ label: `Actions for ${row.title}`, className: "absolute right-2 top-1/2 -translate-y-1/2" })}
-      {menu.element}
-    </Box>
-  );
-}
-
-/** A row's menu, for what it is (its kind decides its items). */
-function useRowMenu(row: Row) {
-  const item = row.item;
-  return useItemMenu(item.kind, (item.kind === "conversation" ? item.conversation : item.session) as never, row.title);
 }

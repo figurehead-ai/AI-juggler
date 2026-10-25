@@ -63,6 +63,30 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
   return <Gauge name={name} left={100 - window.percentage} resets={resets} resetsIn={until} note={window.state === "stale" ? "last known" : null} testId="window-gauge" />;
 }
 
+/** Whether a window has no reading at all (never read, not being read). */
+function unread(window: WindowDisplay | null | undefined): boolean {
+  if (!window) return true;
+  if (window.state === "learning" || window.state === "reset" || window.state === "exhausted") return false;
+  return !measured(window);
+}
+
+/** Neither window read: one gauge for both, with the tokens used, so
+ * "Not measured yet" is said once (the review of 0.1.5), not per window. */
+export function BothUnread({ display }: { display: QuotaDisplayData | undefined }): JSX.Element {
+  const week = display?.weekly?.burned_tokens ?? 0;
+  const five = display?.five_hour?.burned_tokens ?? 0;
+  const omitted = [display?.five_hour_omitted_reason, display?.weekly_omitted_reason].filter(Boolean);
+  const note =
+    week > 0
+      ? `${tokenWords(week)} tokens used this week`
+      : five > 0
+        ? `${tokenWords(five)} tokens used in this 5-hour window`
+        : omitted.length > 0 && omitted.every((reason) => reason === omitted[0])
+          ? omitted[0]!
+          : null;
+  return <Gauge name="5-hour window and this week" left={null} state="unmeasured" note={note} testId="window-gauge" />;
+}
+
 /** The newest reading's age, for the line under both gauges. */
 export function readingLine(display: QuotaDisplayData | undefined, now: number): string | null {
   const windows = [display?.five_hour, display?.weekly].filter((window): window is WindowDisplay => window != null && window.measured_at_ms != null);
@@ -110,10 +134,14 @@ export function RunwayPanel({
   }
   return (
     <div className="flex flex-col gap-3.5" data-testid="account-runway">
-      <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
-        <WindowGauge name="5-hour window" window={display?.five_hour} omitted={display?.five_hour_omitted_reason} now={now} />
-        <WindowGauge name="This week" window={display?.weekly} omitted={display?.weekly_omitted_reason} now={now} />
-      </div>
+      {unread(display?.five_hour) && unread(display?.weekly) ? (
+        <BothUnread display={display} />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
+          <WindowGauge name="5-hour window" window={display?.five_hour} omitted={display?.five_hour_omitted_reason} now={now} />
+          <WindowGauge name="This week" window={display?.weekly} omitted={display?.weekly_omitted_reason} now={now} />
+        </div>
+      )}
       {readingLine(display, now) && <p className="-mt-1 text-label text-muted">{readingLine(display, now)}</p>}
       {hasHistory && !compact ? (
         <div className="flex flex-col gap-1.5">

@@ -1,7 +1,7 @@
 /**
  * AJ-E2104 — a desktop with several places open, for the preview and the
  * rail's and Home's specs: the Claude app's Work and Personal profiles,
- * Terminal, the Codex app; sessions asking, working, idle and done; one
+ * Terminal, ChatGPT (Codex); sessions asking, working, idle and done; one
  * ended, one inactive, one background run. `extra` adds that many more
  * open sessions spread over the places (the 40-session rail).
  *

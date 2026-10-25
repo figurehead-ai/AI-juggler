@@ -84,7 +84,7 @@ for (const viewport of VIEWPORTS) {
     test(`a session's page: its terminal — ${at}`, gate("79-pages"), async ({ page }) => {
       await seed(page, theme, viewport);
       await openSession(page);
-      await page.getByRole("tab", { name: "Terminal" }).click();
+      await page.getByTestId("page-tab-terminal").click();
       await shoot(page, "session-terminal", theme, viewport);
     });
 

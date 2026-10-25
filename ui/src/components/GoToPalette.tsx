@@ -3,7 +3,8 @@ import { Button, Card } from "./primitives";
 import type { InstanceInfo, ProjectInfo, RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { errorText } from "../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../lib/hotkey";
-import { ActionIcon } from "./ActionIcon";
+import { ProjectMark } from "./ProjectMark";
+import { homeRelative } from "../lib/project-words";
 import { AppIcon, OWN_APP_ID } from "./AppIcon";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import { OWN_APP } from "../lib/rail-items";
@@ -276,9 +277,10 @@ export function GoToPalette({
                   <ActionOption action={entry.action} />
                 ) : entry.where === "project" ? (
                   <>
-                    <ActionIcon name="project" className="text-muted" />
+                    {/* The project's own mark, its folder under your home (P24). */}
+                    <ProjectMark projectId={entry.project.id} size={16} />
                     <span className="min-w-0 shrink truncate">{entry.project.name}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.project.root}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{homeRelative(entry.project.root)}</span>
                     <span className="ml-auto shrink-0 text-muted">open</span>
                   </>
                 ) : (

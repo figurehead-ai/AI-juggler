@@ -114,7 +114,8 @@ for (const viewport of VIEWPORTS) {
       await seed(page, theme, viewport);
       await openProfile(page);
       await settled(page, "account-usage-dashboard");
-      await expect(page.getByTestId("account-limits").getByTestId("window-gauge")).toHaveCount(2);
+      // A gauge per window once read; one for both while neither is.
+      await expect(page.getByTestId("account-limits").getByTestId("window-gauge").first()).toBeVisible();
       await shoot(page, "profile", theme, viewport);
     });
 
@@ -150,12 +151,11 @@ test.describe("200 % zoom", () => {
   }
 });
 
-/** Clicks Usage in the More menu from inside the page and times, from
- * that click, the frame (the figures' tiles) and the first figures. */
+/** Clicks Usage in the top bar (0.1.5: no longer under More) from inside
+ * the page and times, from that click, the frame (the figures' tiles)
+ * and the first figures. */
 async function timeOpen(page: Page): Promise<{ frame: number; content: number }> {
-  const main = page.getByRole("navigation", { name: "Main" });
-  await main.getByRole("button", { name: "More", exact: true }).click();
-  const button = page.locator("#nav-more").getByRole("button", { name: /^Usage\b/ });
+  const button = page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Usage", exact: true });
   await button.waitFor();
   await button.evaluate((node) => {
     const w = window as unknown as { __open?: { at: number; frame?: number; content?: number } };

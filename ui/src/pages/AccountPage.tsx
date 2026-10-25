@@ -118,6 +118,7 @@ function AccountRunning(props: AccountPanelProps) {
         empty="Nothing running on this profile now."
         onOpenSession={props.onOpenSession}
         onTotal={setOpen}
+        counted
       />
     </Section>
   );

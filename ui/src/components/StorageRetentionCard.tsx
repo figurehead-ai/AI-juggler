@@ -49,8 +49,8 @@ export function StorageRetentionCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-storage">
       <CardTitle>Storage &amp; retention</CardTitle>
       <p className="text-label text-muted">
-        What AI Juggler keeps for each Account. Retention only ever removes AI Juggler's own records, and only after you
-        review the list. The Provider's transcripts are theirs and stay where they are.
+        What AI Juggler keeps for each account. Retention only ever removes AI Juggler's own records, and only after you
+        review the list. The tools' own transcripts are theirs and stay where they are.
       </p>
       {error && (
         <p role="alert" className="text-label text-ink">

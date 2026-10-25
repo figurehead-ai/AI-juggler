@@ -102,7 +102,8 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
                 <label key={group.id} className={"flex items-baseline gap-2 rounded px-1 py-0.5 " + (group.id === "pool" ? "text-muted" : "hover:bg-surface-2")}>
                   <input
                     type="radio"
-                    className="accent-accent"
+                    // Not offered yet: a faint empty ring, never one that looks chosen.
+                    className="accent-accent disabled:opacity-40"
                     name={`${panelId}-group`}
                     checked={view.group === group.id}
                     disabled={group.id === "pool"}

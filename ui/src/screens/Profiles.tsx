@@ -330,7 +330,7 @@ function NewProfileModal({
   return (
     <Modal
       title={`Launch settings · ${account.label}`}
-      subtitle="Launch settings applied when this Account starts (model, environment)."
+      subtitle="Launch settings applied when this account starts (model, environment)."
       onClose={onClose}
     >
       <div className="flex flex-col gap-4">

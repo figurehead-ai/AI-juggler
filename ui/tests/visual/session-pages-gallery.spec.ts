@@ -255,11 +255,14 @@ for (const theme of ["dark", "light"] as const) {
   test(`AI Juggler's own session on its Overview — ${theme}`, async ({ page }) => {
     await seed(page, PAGE_FIXTURE, theme);
     await page.getByTestId("rail").getByRole("button", { name: "Working, feat/read-model, ai-juggler · 1 h ago" }).click();
-    await page.getByTestId("page-tab-overview").click();
-    await expect(page.getByTestId("session-overview")).toBeVisible();
-    await expect(page.getByTestId("last-turn").first()).toBeVisible();
-    await expect(page.getByTestId("continue-target")).toHaveCount(1);
-    await expect(page.getByTestId("continue-no-room")).toHaveText("Work 2 shares this account, so it gives no new room.");
+    // Its terminal is its Overview (the conversation), the side column beside it.
+    await expect(page.getByTestId("page-tab-terminal")).toHaveText("Overview");
+    await page.getByTestId("page-tab-terminal").click();
+    await expect(page.getByTestId("own-session-overview")).toBeVisible();
+    await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+    await expect(page.getByTestId("where-it-runs")).toContainText("AI Juggler's terminal");
+    await expect(page.getByTestId("session-runway")).toBeVisible();
+    await expect(page.getByTestId("handover-teaser")).toBeVisible();
     await shoot(page, PAGES, "own-overview", theme);
   });
 

@@ -17,15 +17,16 @@ export interface DesktopApp {
   id: string;
   name: string;
   kind: DesktopAppKind;
-  /** Its name in the Dock, when that differs. */
-  dock?: string;
+  /** What else runs in it, said while nothing is open there. */
+  hosts?: string;
 }
 
 /** The apps Settings lists from the start, in this order. */
 export const COMMON_APPS: readonly DesktopApp[] = [
   { id: "claude-app", name: "Claude app", kind: "desktop" },
   { id: "terminal", name: "Terminal", kind: "terminal" },
-  { id: "codex-app", name: "Codex app", kind: "desktop", dock: "ChatGPT" },
+  // The host registry's name for it, as the rail and Home say it.
+  { id: "codex-app", name: "ChatGPT", kind: "desktop", hosts: "Codex" },
   { id: "cursor", name: "Cursor", kind: "editor" },
 ];
 
@@ -67,7 +68,7 @@ export function appsFound(conversations: readonly ConversationInfo[]): AppFound[
 
 /** "2 open · Work, Personal", or that nothing is open there now. */
 export function foundWords(found: AppFound): string {
-  if (found.open === 0) return found.app.dock ? `Nothing open now. In the Dock it's ${found.app.dock}.` : "Nothing open now.";
+  if (found.open === 0) return found.app.hosts ? `Nothing open now. ${found.app.hosts} sessions run in it.` : "Nothing open now.";
   const count = `${found.open} open`;
   return found.profiles.length > 0 ? `${count} · ${found.profiles.join(", ")}` : count;
 }

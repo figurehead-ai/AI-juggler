@@ -28,6 +28,17 @@ import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { PREVIEW_TOOLS } from "../preview/tools";
 import { ACTION_ICONS } from "./ActionIcon";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
+import { menuEdge } from "./RowMenu";
+
+describe("a menu keeps a corner at the pointer", () => {
+  it("opens after the point when it fits, else ends at it, else as far in as the window allows", () => {
+    expect(menuEdge(100, 300, 800)).toBe(100);
+    // Opened low (the rail's row at 563 px, a 347 px menu, 800 px tall):
+    // above the pointer, its bottom at it, not pushed against the edge.
+    expect(menuEdge(563, 347, 800)).toBe(216);
+    expect(menuEdge(300, 700, 800)).toBe(96);
+  });
+});
 
 afterEach(cleanup);
 

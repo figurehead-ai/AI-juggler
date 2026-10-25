@@ -19,7 +19,7 @@ const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; on: string }[] = [
   { id: "waiting", label: "A session waits for you", hint: "It asked a question or wants your approval.", on: "waits for you" },
   { id: "stuck", label: "A session looks stuck", hint: "No output for a while, with its work unfinished.", on: "looks stuck" },
-  { id: "limit", label: "A session hits its usage limit", hint: "Its Account ran out until the limit resets.", on: "hits its usage limit" },
+  { id: "limit", label: "A session hits its usage limit", hint: "Its account ran out until the limit resets.", on: "hits its usage limit" },
   { id: "finished", label: "A session finishes", hint: "It ended on its own, not stopped by you.", on: "finishes" },
   { id: "this_mac", label: "This Mac is getting tight", hint: "Memory, disk or heat near its limit, as This Mac shows it.", on: "" },
 ];
@@ -94,7 +94,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
       <div>
         <CardTitle>Notifications</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          In AI Juggler, alerts you can act on, such as an Account about to run out or a parked session ready to
+          In AI Juggler, alerts you can act on, such as an account about to run out or a parked session ready to
           resume, show once each time; everything else waits for an hourly digest. Outside it, macOS shows only what
           you choose below.
         </p>

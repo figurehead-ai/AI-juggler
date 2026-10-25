@@ -14,25 +14,18 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, scan, test } from "./axe-gallery";
 import { placesConversations } from "../../src/preview/places";
+import { PREVIEW_APP_ICONS, testIcon } from "../../src/preview/app-icons";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/95-app-icons");
 const T0 = new Date(2026, 9, 25, 15, 0, 0).getTime();
 
-/** A test icon: a macOS-shaped square in `from`→`to`, with `glyph` (SVG
- * markup on a 100-unit grid) in white. */
-function testIcon(from: string, to: string, glyph: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect x="9" y="9" width="82" height="82" rx="19" fill="url(#g)"/><rect x="9.5" y="9.5" width="81" height="81" rx="18.5" fill="none" stroke="#000" stroke-opacity=".12"/>${glyph}</svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
+// The preview's made-up icons (src/preview/app-icons), with ChatGPT's
+// ("codex-app") left out so its letters stand in, and a test icon for AI
+// Juggler's own place.
 const ICONS: Record<string, string> = {
-  // A desktop app: a ring and a dot.
-  "claude-app": testIcon("#7a8cff", "#4b5bd6", '<circle cx="50" cy="50" r="20" fill="none" stroke="#fff" stroke-width="8"/><circle cx="50" cy="50" r="6" fill="#fff"/>'),
-  // A terminal: a prompt.
-  terminal: testIcon("#3a4152", "#1b1f29", '<path d="M30 38l14 12-14 12" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M50 64h20" stroke="#fff" stroke-width="7" stroke-linecap="round"/>'),
-  // AI Juggler's own place.
+  "claude-app": PREVIEW_APP_ICONS["claude-app"]!,
+  terminal: PREVIEW_APP_ICONS.terminal!,
   "ai-juggler": testIcon("#2fb7c9", "#167a8a", '<circle cx="34" cy="58" r="8" fill="#fff"/><circle cx="50" cy="40" r="8" fill="#fff"/><circle cx="66" cy="58" r="8" fill="#fff"/>'),
-  // ChatGPT ("codex-app") is left out: its letters stand in.
 };
 
 const ACCOUNTS = [
