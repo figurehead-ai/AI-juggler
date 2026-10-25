@@ -26,7 +26,6 @@
  * action. The ledger-degraded banner moved here from Overview.
  */
 import { ProjectMark } from "../components/ProjectMark";
-import { untitled } from "../lib/project-words";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
@@ -40,9 +39,9 @@ import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
 import { SmootherCard } from "../components/SmootherCard";
-import { minutes } from "../lib/time-words";
 import { ownSignIn } from "../lib/providers";
 import { HomeApps } from "../components/HomeApps";
+import { HomeRecent } from "../components/HomeRecent";
 import { HomeNeeds } from "../components/HomeNeeds";
 import { HomeRunway } from "../components/HomeRunway";
 import { homeNeeds, isSessionNeed, needsHeading } from "../lib/home-needs";
@@ -525,55 +524,7 @@ export function HomeScreen({
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <HomeRunway accounts={accounts} quota={quota} sessions={sessions} advice={advice.words} />
-        {recent.length > 0 && (
-          <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
-            <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
-            <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
-              {recent.map((session) => {
-                const place = placeOf(session, projects);
-                // The review of 0.1.4: two cards both said "payments-api".
-                // Each says what it was, then where and on which profile.
-                const title = session.label ?? session.title ?? untitled(session.git_branch, place.title);
-                const where = [title.endsWith(` · ${place.title}`) ? null : place.title, session.git_branch && session.git_branch !== title ? session.git_branch : null, session.account_label]
-                  .filter(Boolean)
-                  .join(" · ");
-                return (
-                  <li key={session.id} data-home-item className="flex items-center gap-3 border-t border-hairline/60 px-4 py-3 first:border-t-0 hover:bg-surface-2/60" data-testid="home-recent-item">
-                    <ProjectMark projectId={session.project_id} size={16} />
-                    <button type="button" data-home-row className="flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => onOpenSession(session.id)}>
-                      <span className="w-full truncate text-body font-medium text-ink">{title}</span>
-                      <span className="w-full truncate text-meta text-muted">
-                        {where} · {minutes(session.last_activity_ms ?? session.started_at_ms, now)} ago
-                      </span>
-                    </button>
-                    {/* AJ-E1005 Req.4: it leaves this list only when you say so. */}
-                    <button
-                      type="button"
-                      data-home-action
-                      aria-keyshortcuts="A"
-                      disabled={busy === session.id}
-                      onClick={() => void act(session, "reviewed")}
-                      className="shrink-0 rounded px-1.5 py-1 text-meta text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
-                    >
-                      Mark reviewed<span className="sr-only"> — {title}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {review.length > RECENT_SHOWN && (
-              <button
-                type="button"
-                className="self-start text-meta text-muted hover:text-ink hover:underline"
-                aria-expanded={showAll}
-                onClick={() => setShowAll((open) => !open)}
-                data-testid="home-recent-all"
-              >
-                {showAll ? "Show fewer" : `Show all ${review.length}`}
-              </button>
-            )}
-          </section>
-        )}
+        <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
         </div>
       </div>
 

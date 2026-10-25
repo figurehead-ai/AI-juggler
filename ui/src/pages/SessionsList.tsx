@@ -20,28 +20,13 @@ import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import { useActionHost, useItemMenu } from "../components/ItemMenu";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
+export { dayWords } from "../lib/time-words";
 import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { sessionsCounts, sessionsPage, type SessionRowInfo, type SessionsCountsInfo, type SessionsQuery } from "../lib/ipc/sessions";
 import { pageOf, usePagedList, type PageRequest } from "../lib/paged";
 import { PagedList } from "../components/PagedList";
 import type { ActionHost } from "../lib/actions";
-
-/** A row's day in words: Today, Yesterday, else "Thursday 23 October"
- * (with its year when not this one). */
-export function dayWords(ms: number, now: number): string {
-  const start = (at: number) => {
-    const day = new Date(at);
-    day.setHours(0, 0, 0, 0);
-    return day.getTime();
-  };
-  const days = Math.round((start(now) - start(ms)) / 86_400_000);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
-  const at = new Date(ms);
-  const sameYear = at.getFullYear() === new Date(now).getFullYear();
-  return at.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", ...(sameYear ? {} : { year: "numeric" }) });
-}
 
 /** How many rows show before "Show all". */
 export const LIST_SHOWN = 30;

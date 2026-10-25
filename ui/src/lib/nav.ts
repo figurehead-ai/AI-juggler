@@ -2,6 +2,7 @@
  * The app's destinations: the header's (D-25), the ones under More, and
  * every global screen's id. Moved out of App.tsx (its size budget).
  */
+import { useEffect } from "react";
 
 export const GLOBAL_NAV = [
   // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
@@ -31,6 +32,26 @@ export function globalId(id: unknown): GlobalId | null {
 
 /** The screens that are a Settings pane: their id opens it there. */
 export const IN_SETTINGS: Partial<Record<GlobalId, string>> = { privacy: "privacy" };
+
+/** One place for Privacy (the review of 0.1.4): its screen id opens
+ * Settings' pane, however it's asked for (More, a link, an event). The
+ * tool page folded into Settings › Accounts: the returned call opens it
+ * there (a session's tool chip, Open tool). */
+export function useSettingsLinks(global: GlobalId | null, setGlobal: (id: GlobalId) => void, setSection: (section: string) => void, beforeOpen: () => void): () => void {
+  useEffect(() => {
+    const pane = global ? IN_SETTINGS[global] : undefined;
+    if (!pane) return;
+    beforeOpen();
+    setSection(pane);
+    setGlobal("settings");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [global]);
+  return () => {
+    beforeOpen();
+    setSection("tools");
+    setGlobal("settings");
+  };
+}
 
 /** D-25: the header's destinations; the rest are one click away
  * under More (Fleet joins the header once a Mac is paired; Cleanup shows

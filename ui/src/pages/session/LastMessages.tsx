@@ -297,9 +297,11 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
   if (!model.live) return null;
   const place = model.places[0];
   const app = appWords(place, model.tool);
+  // "Answer it" only while it asks (the backlog: a working session's
+  // page said "Answer it in ChatGPT" with nothing to answer).
   const answer = app ? (
     <p className={META} data-testid="last-messages-answer">
-      Answer it in {app}. Go to it brings {place?.label || app} to the front
+      {model.state.asks ? `Answer it in ${app}. ` : ""}Go to it brings {place?.label || app} to the front
       {isDesktopApp(place, model.tool) ? "; if another session is showing there, pick this one in its sidebar." : "."}
     </p>
   ) : null;

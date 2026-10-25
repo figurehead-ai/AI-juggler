@@ -18,7 +18,7 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, IN_SETTINGS, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
+import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -244,22 +244,7 @@ export default function App() {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
-  // One place for Privacy (the review of 0.1.4): its screen is Settings'
-  // pane, whichever way it's asked for (More, a link, an event).
-  useEffect(() => {
-    const pane = global ? IN_SETTINGS[global] : undefined;
-    if (!pane) return;
-    setSettingsFocusCloud(false);
-    setSettingsSection(pane);
-    setGlobal("settings");
-  }, [global]);
-  // The tool page folds into Settings › Accounts (its install and
-  // accounts) — the review found it added nothing Accounts didn't show.
-  const openToolInSettings = () => {
-    setSettingsFocusCloud(false);
-    setSettingsSection("tools");
-    setGlobal("settings");
-  };
+  const openToolInSettings = useSettingsLinks(global, setGlobal, setSettingsSection, () => setSettingsFocusCloud(false));
   // AJ-E1010: the update notice's Review lands on Settings.
   useEffect(() => {
     const open = (event: Event) => {
