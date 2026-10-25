@@ -100,6 +100,12 @@ impl Subject for Claude {
     fn sandboxed_default(&self) -> bool {
         false // its default folder is the real ~/.claude; never touched here
     }
+
+    /// Claude Code 2.1.302: "When using --print, --output-format=stream-json
+    /// requires --verbose" (the lab of 2026-10-25).
+    fn flag_rules(&self) -> &'static [(&'static str, &'static str)] {
+        &[("stream-json", "--verbose")]
+    }
 }
 
 struct ClaudeUsage;

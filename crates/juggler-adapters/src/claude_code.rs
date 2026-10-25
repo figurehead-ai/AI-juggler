@@ -599,12 +599,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 }
                 (args, true)
             }
+            // With `-p`, stream-json needs `--verbose`: without it Claude
+            // Code 2.1.302 refuses to start ("--output-format=stream-json
+            // requires --verbose"; the lab of 2026-10-25).
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),
                     prompt.clone(),
                     "--output-format".into(),
                     "stream-json".into(),
+                    "--verbose".into(),
                 ],
                 false,
             ),

@@ -41,6 +41,11 @@
 //!    the path AI Juggler gave it; refuses option-like ids; and its
 //!    terminal view keeps the same rules. A Beta runtime is never a
 //!    tool's default.
+//! 9. **The tool's own option rules** (the lab of 2026-10-25) — every
+//!    launch, of either runtime and in every mode, keeps the rules the
+//!    tool states for its options (Claude Code: `--output-format
+//!    stream-json` with `-p` needs `--verbose`), so none is refused at
+//!    start.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -90,6 +95,13 @@ pub trait Subject {
     /// Whether the tool's own default folder lives in the sandbox home
     /// (the kit then checks it runs with every pinned variable unset).
     fn sandboxed_default(&self) -> bool;
+
+    /// The tool's own rules for its options, as it states them when one is
+    /// broken: `(a, b)` means a launch holding the word `a` must hold the
+    /// word `b` too (check 9). Default: none recorded.
+    fn flag_rules(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
 }
 
 /// How one adapter's usage is read.
@@ -1060,6 +1072,58 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
     assert!(spec.needs_pty, "{name}: the terminal view has no terminal");
 }
 
+// ---------------------------------------------------------------------------
+// 9. The tool's own option rules
+
+pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
+    use juggler_adapter::runtime::{DrivenLaunch, TerminalView, ViewOf};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let recipe = profile(&account, BTreeMap::new());
+    let mut launches: Vec<(String, Vec<String>)> = Vec::new();
+    for mode in all_modes("kit-session-1") {
+        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+            launches.push((format!("{mode:?}"), spec.args));
+        }
+    }
+    if let Some(driven) = adapter.driven() {
+        for resume in [None, Some("kit-session-1".to_owned())] {
+            let launch = DrivenLaunch {
+                socket: sandbox.accounts.join("kit.sock"),
+                resume,
+                fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+            };
+            if let Ok(spec) = driven.driven_spec(&account, &recipe, &sandbox.project, &launch) {
+                launches.push(("the driven launch".into(), spec.launch.args));
+            }
+        }
+        let of = ViewOf {
+            native_id: "kit-session-1".into(),
+            socket: None,
+        };
+        if let Ok(TerminalView::Attach(spec) | TerminalView::AfterRelease(spec)) =
+            driven.terminal_view(&account, &recipe, &sandbox.project, &of)
+        {
+            launches.push(("the terminal view".into(), spec.args));
+        }
+    }
+    assert!(!launches.is_empty(), "{name}: no launch to check");
+    for (what, args) in &launches {
+        for (needs, also) in subject.flag_rules() {
+            if args.iter().any(|arg| arg == needs) {
+                assert!(
+                    args.iter().any(|arg| arg == also),
+                    "{name}: {what} has {needs} without {also}, which the tool refuses: {args:?}"
+                );
+            }
+        }
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -1105,6 +1169,11 @@ macro_rules! conformance {
             #[test]
             fn runs_both_runtimes_honestly() {
                 conformance::runs_both_runtimes_honestly(&$subject);
+            }
+
+            #[test]
+            fn keeps_the_tools_own_option_rules() {
+                conformance::keeps_the_tools_own_option_rules(&$subject);
             }
         }
     };
