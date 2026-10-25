@@ -131,6 +131,20 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     expect(groups.map((group) => [group.label, group.items.length])).toEqual([["Claude Max", 2], ["Own", 1]]);
   });
 
+  it("by pool (AJ-E1702): your pools by name, a session another app runs in no pool, last", () => {
+    const all = itemsOf({ sessions: [own("s1"), own("s2")], conversations: [talk("c1")], projects: [], seen: {} });
+    const poolOf = (item: { session: InstanceInfo | null }) =>
+      item.session === null ? null : item.session.id === "s1" ? { id: "p-team", label: "Team" } : { id: "p-default", label: "app · all sessions" };
+    const groups = groupItems(all, "pool", none, poolOf);
+    expect(groups.map((group) => [group.label, group.poolId, group.items.length])).toEqual([
+      ["app · all sessions", "p-default", 1],
+      ["Team", "p-team", 1],
+      ["Not in a pool", null, 1],
+    ]);
+    // A pool's header is the pool, never a place to bring forward.
+    expect(groups.every((group) => group.place === null)).toBe(true);
+  });
+
   it("open in two places is one row that says so", () => {
     const both = items().find((item) => item.key === "c:a1/both")!;
     expect(both.alsoIn).toEqual(["Terminal · Work"]);
@@ -169,10 +183,12 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
 });
 
 describe("the View and its words (AJ-E2104 Req.5)", () => {
-  it("is read guarded: junk, a wrong shape or Pool (not yet) is the defaults", () => {
+  it("is read guarded: junk or a wrong shape is the defaults; Pool is kept as picked", () => {
     expect(parseView(null)).toEqual(DEFAULT_VIEW);
     expect(parseView("{not json")).toEqual(DEFAULT_VIEW);
-    expect(parseView(JSON.stringify({ group: "pool" })).group).toBe("place");
+    expect(parseView(JSON.stringify({ group: "lanes" })).group).toBe("place");
+    // AJ-E1702: the rail shows places until a pool of yours exists.
+    expect(parseView(JSON.stringify({ group: "pool" })).group).toBe("pool");
     expect(parseView(JSON.stringify({ group: "project", show: { ended: true, quiet: "yes" }, only: { app: "Claude", mac: 3 } }))).toEqual({
       group: "project",
       show: { ...DEFAULT_VIEW.show, ended: true },

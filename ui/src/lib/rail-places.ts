@@ -1,8 +1,9 @@
 /**
  * AJ-E2104 — Open now's groups. By place (app + profile, the default), by
  * project, or by account (the subscription a profile is signed in to,
- * AJ-E2109; a profile no account lists stands for itself); pools once
- * they exist (a hook: none on 0.1.x).
+ * AJ-E2109; a profile no account lists stands for itself), or by pool
+ * (AJ-E1702: offered once you've made one; a session another app runs is
+ * in no pool).
  *
  * The order is stable (⌘1–9 go to places, so a place never moves because
  * a row changed): AI Juggler's own place first, then by app and profile.
@@ -22,6 +23,8 @@ export interface RailGroup {
   place: RailPlace | null;
   /** Its account (grouped by account). */
   accountId: string | null;
+  /** Its pool (grouped by pool): the header opens the pool's page. */
+  poolId: string | null;
   items: RailItem[];
 }
 
@@ -31,13 +34,22 @@ export const RECENT_SHOWN = 3;
 /** The account a profile is signed in to: its key and name. */
 export type AccountOf = (profileId: string | null) => { key: string; label: string } | null;
 
-function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf): { key: string; label: string } {
+/** The pool an item is in: its id and name (`null`: in none). */
+export type PoolOf = (item: RailItem) => { id: string; label: string } | null;
+
+/** The group of the items in no pool (sessions other apps run). */
+export const NO_POOL = "pool:none";
+
+function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf, poolOf: PoolOf): { key: string; label: string } {
   switch (by) {
     case "project":
       return { key: item.projectId ?? "none", label: item.project ?? "No project" };
     case "account":
       return accountOf(item.accountId) ?? { key: item.accountId ?? item.accountLabel, label: item.accountLabel };
-    case "pool": // Pools don't exist on 0.1.x; the lens waits for them.
+    case "pool": {
+      const pool = poolOf(item);
+      return pool ? { key: `pool:${pool.id}`, label: pool.label } : { key: NO_POOL, label: "Not in a pool" };
+    }
     case "place":
       return { key: item.place.key, label: item.place.app };
   }
@@ -45,18 +57,20 @@ function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf): { key: stri
 
 /** Groups in a stable order: AI Juggler's place first, then by label and
  * the profile under it. */
-export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf = () => null): RailGroup[] {
+export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf = () => null, poolOf: PoolOf = () => null): RailGroup[] {
   const groups = new Map<string, RailGroup>();
   for (const item of items) {
-    const { key, label } = groupOf(item, by, accountOf);
+    const { key, label } = groupOf(item, by, accountOf, poolOf);
     let group = groups.get(key);
     if (!group) {
-      group = { key, label, place: by === "place" || by === "pool" ? item.place : null, accountId: by === "account" ? item.accountId : null, items: [] };
+      const poolId = by === "pool" && key !== NO_POOL ? key.slice("pool:".length) : null;
+      group = { key, label, place: by === "place" ? item.place : null, accountId: by === "account" ? item.accountId : null, poolId, items: [] };
       groups.set(key, group);
     }
     group.items.push(item);
   }
-  const rank = (group: RailGroup) => (group.key === OWN_PLACE ? 0 : 1);
+  // AI Juggler's own place leads; the items in no pool come last.
+  const rank = (group: RailGroup) => (group.key === OWN_PLACE ? 0 : group.key === NO_POOL ? 2 : 1);
   return [...groups.values()].sort(
     (a, b) =>
       rank(a) - rank(b) ||

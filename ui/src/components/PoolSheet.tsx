@@ -6,6 +6,7 @@ import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolById, poolIdOf, setPo
 import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal, Select } from "./form";
 import { PoolEditor } from "./PoolEditor";
+import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
 
 /**
@@ -68,6 +69,7 @@ function CreatePool({
   projects: ProjectInfo[];
   onClose: () => void;
 }): JSX.Element {
+  const host = useActionHost();
   const [name, setName] = useState("");
   const [project, setProject] = useState<string>(projectId ?? "");
   const [busy, setBusy] = useState(false);
@@ -87,7 +89,10 @@ function CreatePool({
             const made = info.pools.find((pool) => !pools.pools.some((old) => old.id === pool.id)) ?? null;
             if (made && session) info = await poolMove(session.id, made.id);
             setPools(info);
-            openPoolSheet(made ? { mode: "pool", poolId: made.id } : null);
+            // The new pool's page opens (the rail stays as you set it; its
+            // View offers Group by Pool from now on).
+            openPoolSheet(null);
+            if (made) host.openPool?.(made.id);
           } catch (cause) {
             setError(errorText(cause));
             setBusy(false);

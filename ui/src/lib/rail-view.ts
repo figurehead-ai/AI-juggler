@@ -51,7 +51,8 @@ export function parseView(raw: string | null): RailView {
   if (!raw) return DEFAULT_VIEW;
   try {
     const value = JSON.parse(raw) as Partial<RailView>;
-    const group = GROUPS.includes(value.group as GroupBy) && value.group !== "pool" ? (value.group as GroupBy) : "place";
+    // Pool is kept as picked; with no pool of yours, the rail shows places.
+    const group = GROUPS.includes(value.group as GroupBy) ? (value.group as GroupBy) : "place";
     const show = { ...DEFAULT_VIEW.show };
     for (const key of SHOW_KEYS) if (value.show?.[key] === true) show[key] = true;
     const only: RailView["only"] = {};

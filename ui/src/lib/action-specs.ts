@@ -42,6 +42,8 @@ export const SESSION: ActionSpec<"session">[] = [
     run: (row, h) => h.continueSession!(row),
   },
   { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 30, applies: (_, h) => has(h.renameSession), run: (row, h) => h.renameSession!(row) },
+  // AJ-E1702: its pool (the pool sheet; with no pool of yours yet, it makes one).
+  { id: "pool", label: "Move to pool…", icon: "pool", group: "work", rank: 35, applies: (_, h) => has(h.moveSessionToPool), run: (row, h) => h.moveSessionToPool!(row) },
   // Shows instead of the snoozes, where they would be.
   {
     id: "unsnooze",

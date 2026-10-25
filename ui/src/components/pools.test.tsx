@@ -2,11 +2,11 @@
  * AJ-E1702 / AJ-E1703 vitest — pools in the rail, Home and the sheets,
  * agent access (D-28/D-29/D-32), and the pool page's cards.
  *
- * - The rail: Group: Pool and the pool filter appear once you've made a
- *   pool; pool groups keep a place for an empty pool; a pool's header
- *   opens its page.
- * - A session's menu: "Move to pool…" opens the move sheet.
- * - The sheets: make a pool (the session goes in), move a session, rename
+ * - The rail: the View's Pool lens waits, greyed, until you've made a
+ *   pool; then Open now groups by pool and a pool's header opens its
+ *   page. There is no separate pools section.
+ * - A session's menu: "Move to pool…" in Working on it, with its icon.
+ * - The sheets: make a pool (the session goes in, its page opens), move a session, rename
  *   (a taken name refused in words), a project's default pool can't be renamed or
  *   deleted, deleting says what happens first.
  * - Agent access: the level picker, Custom's actions (never delivery),
@@ -14,16 +14,15 @@
  *   pool.
  * - Cards: rows like Home's, the rest behind a disclosure; unknown fields
  *   say Unavailable; the agent's words are marked as its own.
- * - Home: one pool's sessions only, remembered.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
 import { actionSpecs } from "../lib/actions";
 import { defaultPoolIdOf, poolsList, resetPreviewPools, type ContextCard, type PoolsInfo } from "../lib/ipc/pools";
-import { openPoolSheet, refreshPools, resetPools, setPools } from "../lib/pools";
-import { groupSessions } from "../lib/railview";
-import { useHomePool } from "./HomePoolFilter";
+import { openPoolSheet, refreshPools, resetPools } from "../lib/pools";
+import { ConversationsProvider } from "../lib/conversations";
+import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { ActionHostProvider } from "./ItemMenu";
 import { AgentAccessCard, PoolAccessPanel } from "./PoolAccess";
 import { PoolCardRows } from "./PoolCards";
@@ -38,6 +37,8 @@ const [first, second, third] = MOCK_SESSIONS as [InstanceInfo, InstanceInfo, Ins
 beforeEach(() => {
   resetPreviewPools();
   resetPools();
+  resetRailViewCache();
+  setRailView(DEFAULT_VIEW);
   delete seams().__AIJ_POOLS__;
   delete seams().__AIJ_POOL_CALLS__;
   delete seams().__AIJ_POOL_ACTIVITY__;
@@ -45,6 +46,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  resetRailViewCache();
 });
 
 function seedCheckout(): void {
@@ -67,85 +69,83 @@ async function loaded(): Promise<PoolsInfo> {
   return poolsList();
 }
 
-describe("pools in the rail", () => {
+describe("pools in the rail: the Pool lens", () => {
   const board = (host = {}) =>
     render(
-      <ActionHostProvider host={host}>
-        <InstanceBoard
-          sessions={MOCK_SESSIONS}
-          loginTerminals={[]}
-          selectedId={null}
-          onSelect={() => {}}
-          density="compact"
-          freshness={{}}
-          now={Date.now()}
-          projects={MOCK_PROJECTS}
-          snooze={{}}
-          onSnooze={() => {}}
-        />
-      </ActionHostProvider>,
+      <ConversationsProvider>
+        <ActionHostProvider host={host}>
+          <InstanceBoard
+            sessions={MOCK_SESSIONS}
+            loginTerminals={[]}
+            selectedId={null}
+            onSelect={() => {}}
+            density="compact"
+            freshness={{}}
+            now={Date.now()}
+            projects={MOCK_PROJECTS}
+            snooze={{}}
+            onSnooze={() => {}}
+          />
+        </ActionHostProvider>
+      </ConversationsProvider>,
     );
+  const poolRadio = async (view: ReturnType<typeof board>) => {
+    act(() => void window.dispatchEvent(new Event("aij:rail-view")));
+    const panel = await view.findByRole("dialog", { name: "View" });
+    return within(panel).getByRole("radio", { name: /Pool/ }) as HTMLInputElement;
+  };
 
-  it("stays out of sight until a pool exists", async () => {
-    const { container, queryByLabelText } = board();
+  it("waits, greyed, until a pool of yours exists; the rail shows places meanwhile", async () => {
+    act(() => setRailView({ ...DEFAULT_VIEW, group: "pool" }));
+    const view = board();
     await loaded();
-    expect(queryByLabelText("Filter by pool")).toBeNull();
-    expect([...container.querySelectorAll("select[aria-label='Group by'] option")].map((o) => o.textContent)).not.toContain("Group: Pool");
+    expect((await poolRadio(view)).disabled).toBe(true);
+    expect(view.getAllByTestId("place-header").some((header) => header.textContent?.includes("AI Juggler"))).toBe(true);
   });
 
-  it("groups by pool, keeps a place for an empty pool and opens a pool's page", async () => {
+  it("groups Open now by pool, and a pool's header opens its page", async () => {
     seedCheckout();
     const opened: string[] = [];
-    const { getByLabelText, getAllByTestId, getByText } = board({ openPool: (id: string) => opened.push(id) });
+    const view = board({ openPool: (id: string) => opened.push(id) });
     await loaded();
-    fireEvent.click(getByLabelText(/^Filters/));
-    fireEvent.change(getByLabelText("Group by"), { target: { value: "pool" } });
-    const headers = getAllByTestId("rail-pool").map((header) => header.textContent ?? "");
-    expect(headers.some((text) => text.startsWith("Checkout redesign"))).toBe(true);
-    expect(headers.some((text) => text.startsWith("Docs") && text.endsWith("0"))).toBe(true);
-    // D-33: each project's own default pool holds the rest.
-    expect(headers.some((text) => text.startsWith("payments-api · all sessions"))).toBe(true);
-    fireEvent.click(getAllByTestId("rail-pool").find((header) => header.textContent?.startsWith("Checkout"))!);
+    const radio = await poolRadio(view);
+    expect(radio.disabled).toBe(false);
+    fireEvent.click(radio);
+    expect(railView().group).toBe("pool");
+    const open = await view.findByRole("button", { name: /^Open Checkout redesign/ });
+    const names = view.getAllByTestId("place-header").map((header) => header.textContent ?? "");
+    expect(names.some((text) => text.startsWith("Checkout redesign"))).toBe(true);
+    // No separate pools section: an empty pool isn't in Open now.
+    expect(names.some((text) => text.startsWith("Docs"))).toBe(false);
+    fireEvent.click(open);
     expect(opened).toEqual(["pool-checkout"]);
-    expect(getByText("New pool")).toBeTruthy();
   });
 
-  it("filters to one pool", async () => {
-    seedCheckout();
-    const { getByLabelText, container } = board();
-    await loaded();
-    fireEvent.click(getByLabelText(/^Filters/));
-    fireEvent.change(getByLabelText("Filter by pool"), { target: { value: "pool-checkout" } });
-    const ids = [...container.querySelectorAll("[data-instance-id]")].map((row) => row.getAttribute("data-instance-id"));
-    expect(new Set(ids)).toEqual(new Set([first.id, second.id]));
-    expect(getByLabelText("Filters (some on)")).toBeTruthy();
-  });
-
-  it("groups pure: the order rows bring, empty pools after", async () => {
-    seedCheckout();
-    const info = await poolsList();
-    const groups = groupSessions([third, first, second], "pool", MOCK_PROJECTS, info);
-    expect(groups.map((group) => group.label)).toEqual(["payments-api · all sessions", "Checkout redesign", "Docs"]);
-    expect(groups[1]!.rows.map((row) => row.id)).toEqual([first.id, second.id]);
-    expect(groups[2]!.rows).toEqual([]);
-  });
-
-  it("offers Move to pool… on a session's menu when the app can", () => {
+  it("offers Move to pool… on a session's menu, in Working on it, with its own icon", () => {
     const spec = actionSpecs("session").find((entry) => entry.id === "pool")!;
     expect(spec.label).toBe("Move to pool…");
+    expect(spec.group).toBe("work");
+    expect(spec.icon).toBe("pool");
     expect(spec.applies(first, {})).toBe(false);
     expect(spec.applies(first, { moveSessionToPool: () => {} })).toBe(true);
   });
 });
 
 describe("the pool sheets", () => {
-  it("makes a pool with the session in it, then opens it", async () => {
+  it("makes a pool with the session in it, then opens its page (the rail's lens stays as you set it)", async () => {
     const pools = await poolsList();
-    const { getByTestId } = render(<PoolSheet target={{ mode: "create", sessionId: first.id }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
+    const opened: string[] = [];
+    const { getByTestId } = render(
+      <ActionHostProvider host={{ openPool: (id: string) => opened.push(id) }}>
+        <PoolSheet target={{ mode: "create", sessionId: first.id }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
+      </ActionHostProvider>,
+    );
     expect(getByTestId("pool-create-session").textContent).toContain("goes in it");
     fireEvent.change(getByTestId("pool-create-name"), { target: { value: "  Checkout redesign " } });
     fireEvent.click(getByTestId("pool-create-save"));
     await waitFor(() => expect(calls()).toEqual(["create:Checkout redesign", `move:${first.id}:pool-preview-1`]));
+    await waitFor(() => expect(opened).toEqual(["pool-preview-1"]));
+    expect(railView().group).toBe("place");
   });
 
   it("refuses a taken name in words", async () => {
@@ -293,33 +293,5 @@ describe("context cards", () => {
   it("says so when a pool is empty", () => {
     const { getByTestId } = render(<PoolCardRows cards={[]} sessions={[]} now={Date.now()} />);
     expect(getByTestId("pool-cards-empty")).toBeTruthy();
-  });
-});
-
-describe("Home's pool filter", () => {
-  function Probe({ all }: { all: InstanceInfo[] }) {
-    const { sessions, picker } = useHomePool(all);
-    return (
-      <div>
-        {picker}
-        <output data-testid="shown">{sessions.map((row) => row.id).join(",")}</output>
-      </div>
-    );
-  }
-
-  it("shows one pool's sessions, remembered", async () => {
-    seedCheckout();
-    const { findByTestId, getByTestId } = render(<Probe all={MOCK_SESSIONS} />);
-    await loaded();
-    fireEvent.change(await findByTestId("home-pool-filter"), { target: { value: "pool-checkout" } });
-    expect(getByTestId("shown").textContent).toBe(`${first.id},${second.id}`);
-    expect(localStorage.getItem("aij.home.pool")).toBe("pool-checkout");
-  });
-
-  it("isn't there without a pool of yours", async () => {
-    const { queryByTestId } = render(<Probe all={MOCK_SESSIONS} />);
-    await loaded();
-    act(() => setPools({ pools: [], members: [] }));
-    expect(queryByTestId("home-pool-filter")).toBeNull();
   });
 });

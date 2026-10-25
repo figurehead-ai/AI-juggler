@@ -1,7 +1,7 @@
 /**
  * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app
- * and profile; or by account), the "Also:" line, then the views turned
- * on. The lines come from `lib/rail-lines.ts`; this draws them, only the
+ * and profile; or by account, or by pool once you've made one), the
+ * "Also:" line, then the views turned on. The lines come from `lib/rail-lines.ts`; this draws them, only the
  * ones in view past about 30 rows, keeps rows still while the pointer or
  * focus is in the list, moves through them with ↑ and ↓, and takes ⌘1–9
  * to bring a place's app forward (stable: places never re-sort).
@@ -22,6 +22,8 @@ import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useSeen } from "../lib/seen";
 import { accountName, useSubscriptions } from "../lib/subscriptions";
+import { railPoolOf, usePools } from "../lib/pools";
+import { useActionHost } from "./ItemMenu";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 interface BoardProps {
@@ -118,7 +120,12 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const byProfile = new Map((subscriptions ?? []).flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
     return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
   }, [subscriptions]);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf });
+  // AJ-E1702: the Pool lens, once a pool of yours exists (places before).
+  const pools = usePools();
+  const poolOf = useMemo(() => railPoolOf(pools), [pools]);
+  const lens = view.group === "pool" && !poolOf ? "place" : view.group;
+  const host = useActionHost();
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf });
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });
@@ -130,6 +137,11 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   };
 
   const openPlace = (group: RailGroup) => {
+    // A pool's header (and its ⌘ digit) opens the pool's page.
+    if (group.poolId !== null) {
+      host.openPool?.(group.poolId);
+      return;
+    }
     if (group.key === OWN_PLACE) {
       const first = group.items.find((item) => item.session);
       if (first?.session) onSelect(first.session.id);
@@ -186,19 +198,23 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "header": {
         const group = line.group;
         const own = group.key === OWN_PLACE;
-        const opens = view.group !== "account" && (own ? group.items.some((item) => item.session) : group.place?.appPid !== null && group.place?.appPid !== undefined);
+        const opens =
+          lens === "pool"
+            ? group.poolId !== null && host.openPool !== undefined
+            : lens !== "account" && (own ? group.items.some((item) => item.session) : group.place?.appPid !== null && group.place?.appPid !== undefined);
         return (
           <PlaceHeader
-            place={view.group === "account" ? null : group.place}
+            place={lens === "account" || lens === "pool" ? null : group.place}
             label={group.label}
             count={group.items.length}
             needs={line.needs}
             folded={line.folded}
             onToggle={() => toggle(group.key)}
             onOpen={opens ? () => openPlace(group) : undefined}
+            openWords={lens === "pool" ? "Open its page" : undefined}
             shortcut={line.digit ?? undefined}
           >
-            {view.group === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
+            {lens === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
           </PlaceHeader>
         );
       }

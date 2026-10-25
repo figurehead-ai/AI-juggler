@@ -10,7 +10,7 @@
  * "Also:" line.
  */
 import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
-import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords, type AccountOf, type GroupBy, type RailGroup } from "./rail-places";
+import { foldGroup, frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 
 export type Line =
@@ -65,9 +65,11 @@ export interface LineInputs {
   frozen: Map<string, string[]> | null;
   /** The Account lens's subscriptions, by profile. */
   accountOf?: AccountOf;
+  /** The Pool lens's pools (AJ-E1702), once you've made one. */
+  poolOf?: PoolOf;
 }
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf }: LineInputs): Lines {
   const searching = isSearching(query);
   const shown = items.filter((item) => matches(item, view.only, query));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
@@ -78,8 +80,17 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
   const inactive = shown.filter((item) => item.inactive && item.need === null).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
-  const by: GroupBy = view.group === "account" ? "account" : "place";
-  const groups = groupItems(open, by, accountOf);
+  // The Project lens is the project board's; the Pool lens waits for a pool.
+  const by: GroupBy = view.group === "account" ? "account" : view.group === "pool" && poolOf ? "pool" : "place";
+  const groups = groupItems(open, by, accountOf, poolOf);
+  const groupKey = (item: RailItem): string => {
+    if (by === "place") return item.place.key;
+    if (by === "pool") {
+      const pool = poolOf?.(item);
+      return pool ? `pool:${pool.id}` : NO_POOL;
+    }
+    return accountOf?.(item.accountId)?.key ?? item.accountId ?? item.accountLabel;
+  };
   const lines: Line[] = [];
   let rows = 0;
   if (needs.length > 0) {
@@ -89,7 +100,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   }
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: open.length });
   groups.forEach((group, index) => {
-    const needsHere = needs.filter((item) => (by === "place" ? item.place.key : (accountOf?.(item.accountId)?.key ?? item.accountId ?? item.accountLabel)) === group.key).length;
+    const needsHere = needs.filter((item) => groupKey(item) === group.key).length;
     const digit = index < 9 ? index + 1 : null;
     // A quiet place folds to its header, unless the user opened it, quiet
     // ones are shown, or a search is on.

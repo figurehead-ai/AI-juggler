@@ -9,11 +9,12 @@ import { IconView } from "./icons-places";
 import { Select } from "./RailControls";
 import { DEFAULT_VIEW, isDefaultView, ONLY_KEYS, setRailView, SHOW_KEYS, SHOW_LABELS, useRailView, type OnlyKey } from "../lib/rail-view";
 import type { GroupBy } from "../lib/rail-places";
+import { hasUserPools, usePools } from "../lib/pools";
 
 const GROUPS: { id: GroupBy; label: string; note?: string }[] = [
   { id: "place", label: "Place", note: "the app and profile" },
   { id: "project", label: "Project" },
-  // Pools come with 0.2; the lens is here so the order stays put.
+  // AJ-E1702: offered once you've made a pool (greyed until then).
   { id: "pool", label: "Pool", note: "once you make a pool" },
   // The subscription its profiles are signed in to (AJ-E2109).
   { id: "account", label: "Account", note: "its profiles together" },
@@ -23,6 +24,9 @@ const ONLY_LABELS: Record<OnlyKey, string> = { app: "App", profile: "Profile", a
 
 export function ViewPopover({ options }: { options: Record<OnlyKey, { value: string; label: string }[]> }): JSX.Element {
   const view = useRailView();
+  const withPools = hasUserPools(usePools());
+  // Pool kept as picked, with no pool of yours: the rail shows places.
+  const grouped = view.group === "pool" && !withPools ? "place" : view.group;
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -98,20 +102,23 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
           >
             <fieldset className="flex flex-col gap-0.5">
               <legend className={legend}>Group by</legend>
-              {GROUPS.map((group) => (
-                <label key={group.id} className={"flex items-baseline gap-2 rounded px-1 py-0.5 " + (group.id === "pool" ? "text-muted" : "hover:bg-surface-2")}>
+              {GROUPS.map((group) => {
+                const waits = group.id === "pool" && !withPools;
+                return (
+                <label key={group.id} className={"flex items-baseline gap-2 rounded px-1 py-0.5 " + (waits ? "text-muted" : "hover:bg-surface-2")}>
                   <input
                     type="radio"
                     className="accent-accent"
                     name={`${panelId}-group`}
-                    checked={view.group === group.id}
-                    disabled={group.id === "pool"}
+                    checked={grouped === group.id}
+                    disabled={waits}
                     onChange={() => setRailView((current) => ({ ...current, group: group.id }))}
                   />
                   <span>{group.label}</span>
-                  {group.note && <span className="text-[10.5px] text-muted">{group.note}</span>}
+                  {group.note && (group.id !== "pool" || waits) && <span className="text-[10.5px] text-muted">{group.note}</span>}
                 </label>
-              ))}
+                );
+              })}
             </fieldset>
             <fieldset className="flex flex-col gap-0.5">
               <legend className={legend}>Show</legend>

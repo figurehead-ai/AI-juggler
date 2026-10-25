@@ -1,5 +1,5 @@
 /**
- * Pools (AJ-E1702): the words and lookups the rail, Home, the pool page
+ * Pools (AJ-E1702): the words and lookups the rail's Pool lens, the pool page
  * and the pool sheet share, and the one copy of the pools they all read
  * ({@link usePools}). The user owns every pool; nothing here reaches a
  * session.
@@ -80,9 +80,19 @@ export function sessionsIn(pools: PoolsInfo | null, poolId: string, sessions: In
   return sessions.filter((session) => poolIdOf(pools, session) === poolId);
 }
 
-/** Only the sessions in one pool (`null`: every pool). */
-export function filterByPool(rows: InstanceInfo[], pool: string | null, pools: PoolsInfo | null): InstanceInfo[] {
-  return pool === null ? rows : rows.filter((row) => poolIdOf(pools, row) === pool);
+/**
+ * The rail's Pool lens (AJ-E1702, AJ-E2104): each item's pool, once you've
+ * made one (`undefined` before: the lens waits and the rail shows places).
+ * Only AI Juggler's own sessions are in pools; a session another app runs
+ * is in none.
+ */
+export function railPoolOf(pools: PoolsInfo | null): ((item: { session: InstanceInfo | null }) => { id: string; label: string } | null) | undefined {
+  if (!hasUserPools(pools)) return undefined;
+  return (item) => {
+    if (item.session === null) return null;
+    const id = poolIdOf(pools, item.session);
+    return { id, label: poolById(pools, id)?.name ?? "Its project's pool" };
+  };
 }
 
 /** One line on what a pool of yours covers, when it mixes projects (D-33:

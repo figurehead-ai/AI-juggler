@@ -170,6 +170,7 @@ export function PlaceHeader({
   folded,
   onToggle,
   onOpen,
+  openWords = "Bring it forward",
   shortcut,
   children,
 }: {
@@ -180,6 +181,8 @@ export function PlaceHeader({
   folded: string | null;
   onToggle: () => void;
   onOpen?: () => void;
+  /** What Open does, when it isn't bringing an app forward (a pool's page). */
+  openWords?: string;
   /** Its ⌘ digit, when it has one. */
   shortcut?: number;
   /** A header of another lens (an account's avatar). */
@@ -211,7 +214,7 @@ export function PlaceHeader({
           type="button"
           onClick={onOpen}
           aria-label={`Open ${name}`}
-          title={shortcut ? `Bring it forward (⌘${shortcut})` : "Bring it forward"}
+          title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
           data-testid="place-open"
           className="flex shrink-0 items-center gap-0.5 rounded-md border border-hairline px-1.5 py-0.5 text-[10.5px] font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
