@@ -18,8 +18,18 @@ pub mod procs;
 pub mod scan;
 
 /// Emitted when the conversations or which are live changed (the rail
-/// reads them again).
+/// reads them again). Its payload says which: [`CHANGED_INDEX`] or
+/// [`CHANGED_LIVE`].
 pub const EVENT_CHANGED: &str = "conversations://changed";
+
+/// The files changed (new conversations, titles, folders, counts): the
+/// app's own lists (projects, sessions) are read again too.
+pub const CHANGED_INDEX: &str = "index";
+
+/// Only which are open, and their states, changed: just the
+/// conversations are read again (with many open sessions this is every
+/// few seconds).
+pub const CHANGED_LIVE: &str = "live";
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -128,21 +138,42 @@ fn store(
             path: path.to_path_buf(),
         }
     });
-    state
+    let mut files = state
         .conversations
         .files
         .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .insert(
-            path.to_path_buf(),
-            Entry {
-                len,
-                modified,
-                conversation,
-                complete,
-            },
-        );
+        .map_err(|_| AppError::StatePoisoned)?;
+    let conversation =
+        conversation.map(|conversation| carry_tokens(conversation, complete, files.get(path)));
+    files.insert(
+        path.to_path_buf(),
+        Entry {
+            len,
+            modified,
+            conversation,
+            complete,
+        },
+    );
     Ok(())
+}
+
+/// A quick read (a changed file's start and end) counts no tokens: until
+/// the whole file is read again, it keeps the count its last read had, so
+/// a live session's usage never flips to "not measured" and back on every
+/// pass (a transcript only grows, so the last count is a floor).
+fn carry_tokens(
+    mut conversation: Conversation,
+    complete: bool,
+    before: Option<&Entry>,
+) -> Conversation {
+    let counted = juggler_core::model::TokenCounts::default();
+    if !complete
+        && conversation.summary.tokens == counted
+        && let Some(before) = before.and_then(|entry| entry.conversation.as_ref())
+    {
+        conversation.summary.tokens = before.summary.tokens;
+    }
+    conversation
 }
 
 /// The in-memory index (one per app).
@@ -382,20 +413,25 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         .clone();
     let all = state.conversations.all()?;
     let mut now = live::live_entries(&all, &model);
-    // AJ-E2107: a terminal session's tail can say it waits on the user.
+    // AJ-E2107: a terminal session's tail can say it waits on the user;
+    // a session its tool records no state for takes its tail's last turn.
     {
         let mut tails = state
             .conversations
             .tails
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
-        let ask_of = |tool: &str, tail: &str| {
+        let say = |tool: &str, tail: &str| {
             state
                 .registry
                 .get(&juggler_core::model::HarnessId::new(tool.to_owned()))
-                .and_then(|adapter| adapter.pending_ask(tail))
+                .map(|adapter| asks::Said {
+                    ask: adapter.pending_ask(tail),
+                    turn: adapter.tail_turn(tail),
+                })
+                .unwrap_or_default()
         };
-        asks::apply(&mut now, &all, &mut tails, &ask_of, SystemTime::now());
+        asks::apply(&mut now, &all, &mut tails, &say, SystemTime::now());
     }
     let idle = live::inactive_ids(&all, &model);
     let changed = {
@@ -977,5 +1013,40 @@ mod tests {
         );
         // The resumed file repeats its parent's rows: the most, never the sum.
         assert_eq!(thread.summary.tokens.input, 80);
+    }
+
+    fn entry(conversation: Conversation, complete: bool) -> Entry {
+        Entry {
+            len: 1,
+            modified: None,
+            conversation: Some(conversation),
+            complete,
+        }
+    }
+
+    #[test]
+    fn a_quick_read_keeps_the_last_count_until_the_whole_read() {
+        let before = entry(file("live.jsonl", "live", 100, 200, 500), true);
+        // A live session's file changed: its quick read counts nothing.
+        let quick = carry_tokens(
+            file("live.jsonl", "live", 100, 300, 0),
+            false,
+            Some(&before),
+        );
+        assert_eq!(
+            quick.summary.tokens.input, 500,
+            "never back to not measured"
+        );
+        assert_eq!(
+            quick.summary.last_ms,
+            Some(300),
+            "the rest is the new read's"
+        );
+        // The whole read's count is the one kept, even a smaller one.
+        let whole = carry_tokens(file("live.jsonl", "live", 100, 300, 0), true, Some(&before));
+        assert_eq!(whole.summary.tokens.input, 0);
+        // A new file has nothing to keep.
+        let new = carry_tokens(file("new.jsonl", "new", 100, 300, 0), false, None);
+        assert_eq!(new.summary.tokens.input, 0);
     }
 }

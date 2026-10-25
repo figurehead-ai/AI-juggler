@@ -78,6 +78,10 @@ pub struct ToolSpecInfo {
     pub same_as: String,
     /// The desktop app that can hold the same setup open.
     pub desktop_app: Option<String>,
+    /// D-38: the host registry's id for the tool's own app (the first of
+    /// its adapter's host apps), whose icon stands for the tool.
+    #[ts(optional = nullable)]
+    pub host_app: Option<String>,
     /// `cli` and/or `desktop`.
     pub kinds: Vec<String>,
     /// The project rules files it reads.

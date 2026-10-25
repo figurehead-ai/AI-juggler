@@ -99,8 +99,10 @@ export function runwayOf(
   if (windows.some((entry) => entry.window?.state === "learning")) {
     return { left: null, words: "Measuring — shows after a little use", resets: null };
   }
-  if (windows.some((entry) => entry.window?.state === "reset")) {
-    return { left: null, words: "Not measured since the reset", resets: null };
+  const reset = windows.find((entry) => entry.window?.state === "reset");
+  if (reset) {
+    // The last reading, as history ("Last reading 13 h ago: 40% used; …").
+    return { left: null, words: windowView(reset.window).words, resets: null };
   }
   const used = windows.reduce((most, entry) => Math.max(most, entry.window?.burned_tokens ?? 0), 0);
   return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };

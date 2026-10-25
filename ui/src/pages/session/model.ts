@@ -23,8 +23,9 @@ export type SessionModel = {
   sessionId: string | null;
   /** Open now: a live process runs it. */
   live: boolean;
-  /** The state in E21's words, its chip's tone and since when. */
-  state: { words: string; tone: ChipTone; asks: boolean; since: number | null };
+  /** The state in E21's words, its chip's tone and since when; whether
+   * it waits on you, and whether it is running a turn now. */
+  state: { words: string; tone: ChipTone; asks: boolean; working: boolean; since: number | null };
   /** Where it's open, one place per process. */
   places: PlaceInfo[];
   /** When the user last had it in front, as its app recorded it. */
@@ -48,6 +49,7 @@ export function fromConversation(c: ConversationInfo): SessionModel {
       words: stateWord(c),
       tone: (c.state ? TONE[c.state] : undefined) ?? (c.live ? "live" : "neutral"),
       asks: c.live && c.state === "asks_you",
+      working: c.live && c.state === "working",
       since: c.last_activity_ms,
     },
     places: c.places ?? [],
@@ -69,7 +71,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     conversationId: s.conversation_id,
     sessionId: s.id,
     live,
-    state: { words: tone.label, tone: tone.tone, asks: s.status === "waiting_user", since: s.last_activity_ms ?? s.started_at_ms },
+    state: { words: tone.label, tone: tone.tone, asks: s.status === "waiting_user", working: s.status === "running", since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,

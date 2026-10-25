@@ -1,5 +1,5 @@
-//! Go to it over a scripted Mac: each outcome, and no prompt without the
-//! setting.
+//! Go to it over a scripted Mac: each outcome, no prompt without the
+//! setting, and "forward" only once the app is frontmost.
 
 use std::sync::Mutex;
 
@@ -12,6 +12,11 @@ struct FakeMac {
     gone: bool,
     refused: bool,
     restarted: bool,
+    /// macOS takes the request, and another app stays in front.
+    behind: bool,
+    /// AI Juggler wasn't the active app when it asked.
+    not_in_front: bool,
+    front: Mutex<Option<u32>>,
     windows: Option<(usize, usize)>,
     log: Mutex<Vec<String>>,
 }
@@ -22,18 +27,31 @@ impl FakeMac {
     }
 }
 
+impl Front for FakeMac {
+    fn request(&self, pid: u32) -> Request {
+        self.log.lock().unwrap().push(format!("activate {pid}"));
+        if self.refused {
+            return Request::Refused;
+        }
+        if !self.behind {
+            *self.front.lock().unwrap() = Some(pid);
+        }
+        Request::Asked {
+            in_front: !self.not_in_front,
+        }
+    }
+
+    fn frontmost(&self) -> Option<u32> {
+        // AI Juggler (pid 1) until the target comes forward.
+        Some(self.front.lock().unwrap().unwrap_or(1))
+    }
+
+    fn pause(&self, _span: Duration) {}
+}
+
 impl Desktop for FakeMac {
     fn start_of(&self, pid: u32) -> Option<i64> {
         (!self.gone).then_some(i64::from(pid) + if self.restarted { 999 } else { 0 })
-    }
-
-    fn activate(&self, pid: u32) -> Activation {
-        self.log.lock().unwrap().push(format!("activate {pid}"));
-        if self.refused {
-            Activation::Refused
-        } else {
-            Activation::Done
-        }
     }
 
     fn open_link(&self, link: &str) -> bool {
@@ -317,7 +335,87 @@ fn a_places_open_brings_its_running_app_forward_and_never_a_reused_pid() {
     assert!(
         bring_forward(&host, &refused)
             .outcome
-            .contains("click it in the Dock")
+            .contains("Click it in the Dock")
+    );
+    // Asked, and another app stayed in front: never "Brought … forward".
+    let behind = FakeMac {
+        behind: true,
+        ..FakeMac::default()
+    };
+    let said = bring_forward(&host, &behind);
+    assert_eq!(
+        said.outcome,
+        "macOS didn't bring Claude · b-work forward. Click it in the Dock"
+    );
+    assert_eq!(said.reached, "none");
+}
+
+#[test]
+fn an_app_that_stays_behind_is_never_said_to_be_forward() {
+    let behind = FakeMac {
+        behind: true,
+        ..FakeMac::default()
+    };
+    let said = go(&claude(), &hosts(), &behind, Gates::default());
+    assert_eq!(
+        said.outcome,
+        "macOS didn't bring Claude · Work forward. Click it in the Dock"
+    );
+    assert_eq!(said.reached, "none");
+    // The reason, when it's known: AI Juggler had nothing to hand over.
+    let not_in_front = FakeMac {
+        behind: true,
+        not_in_front: true,
+        ..FakeMac::default()
+    };
+    assert_eq!(
+        go(&claude(), &hosts(), &not_in_front, Gates::default()).outcome,
+        "macOS didn't bring Claude · Work forward: AI Juggler wasn't in front. Click it in the Dock"
+    );
+    // A request that came forward anyway is forward, with or without it.
+    let lucky = FakeMac {
+        not_in_front: true,
+        ..FakeMac::default()
+    };
+    assert_eq!(
+        go(&claude(), &hosts(), &lucky, Gates::default()).outcome,
+        "Brought Claude · Work forward; pick the session in its sidebar"
+    );
+}
+
+#[test]
+fn a_codex_thread_that_opened_behind_says_both() {
+    let behind = FakeMac {
+        behind: true,
+        ..FakeMac::default()
+    };
+    let said = go(
+        &target(Some("codex-app"), "ChatGPT", Some(HostKind::Desktop), None),
+        &hosts(),
+        &behind,
+        Gates::default(),
+    );
+    assert_eq!(
+        said.outcome,
+        "Opened the thread in ChatGPT, but macOS didn't bring it forward. Click it in the Dock"
+    );
+    assert_eq!(said.reached, "thread");
+    // A terminal's tab: selected, and the terminal still behind.
+    let tab = go(
+        &target(Some("terminal"), "Terminal", Some(HostKind::Terminal), None),
+        &hosts(),
+        &FakeMac {
+            behind: true,
+            ..FakeMac::default()
+        },
+        Gates {
+            windows: false,
+            tabs: true,
+        },
+    );
+    assert_eq!(
+        tab.outcome,
+        "Selected its tab in Terminal, but macOS didn't bring it forward. Click it in the Dock"
     );
 }
 

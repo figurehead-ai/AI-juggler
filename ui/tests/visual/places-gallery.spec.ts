@@ -83,7 +83,25 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("rail-needs-you")).toContainText("3");
     await expect(page.getByTestId("place-header")).toHaveCount(5);
     await expect(page.getByTestId("rail-also")).toContainText("History");
+    // The maintainer's review of 0.1.4: each Needs you row shows its ↗,
+    // named for its app and profile (another app runs all three here).
+    const needRows = page.getByTestId("place-board").locator("[data-rail-row]").filter({ has: page.getByTestId("need-word") });
+    await expect(needRows.getByRole("button", { name: /^Go to it in / })).toHaveCount(3);
     await shoot(page, "rail-8", theme, "rail");
+  });
+
+  test(`a row opens its page here; its ↗ goes to its app, saying so — ${theme}`, async ({ page }) => {
+    await seed(page, "eight", theme);
+    const asks = page.locator("[data-rail-row]", { has: page.locator('[data-conversation-id="outside-3"]') });
+    await asks.locator("[data-rail-item]").click({ position: { x: 60, y: 10 } });
+    await expect(page.getByTestId("conversation-page")).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /forward|Going to it/ })).toHaveCount(0);
+    await asks.getByRole("button", { name: "Go to it in Claude · Work Max" }).click();
+    await expect(page.getByText(/Going to it|forward|Couldn't go to it/).first()).toBeVisible();
+    // ⌘↩ on the row does the same; ↩ opens its page.
+    await asks.locator("[data-rail-item]").focus();
+    await page.keyboard.press("Meta+Enter");
+    await expect(page.getByText(/Going to it|forward|Couldn't go to it/).first()).toBeVisible();
   });
 
   test(`the rail with 40 open sessions, drawn as it scrolls — ${theme}`, async ({ page }) => {

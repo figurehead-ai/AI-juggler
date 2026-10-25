@@ -1,6 +1,7 @@
 import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
-import { ToolMark } from "./ToolMark";
+import { AppIcon } from "./AppIcon";
+import { appOfSession } from "../lib/app-of";
 import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
@@ -43,13 +44,13 @@ import { Button } from "./primitives";
 import { sessionTitle, useProjectManage, useSessionManage } from "./ManageWork";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
-import { AlsoLine, NeedsYouSection, OpenNowLabel, openGroups, railOrder } from "./RailSections";
+import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { RailToolbar } from "./RailToolbar";
 import { PlaceBoard } from "./PlaceBoard";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { parseQuery, useRailView } from "../lib/rail-view";
-import { sessionState } from "../lib/rail-items";
+import { goToWhere, sessionItem, sessionState } from "../lib/rail-items";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
@@ -69,7 +70,6 @@ import { ariaSummary } from "./row-details";
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
-
 
 const WIDTH_MIN = 208;
 const WIDTH_MAX = 360;
@@ -194,7 +194,6 @@ export function WorkflowRail({
       window.removeEventListener("pointerup", onUp);
     };
   }, [dragging]);
-
 
   return (
     <aside
@@ -585,7 +584,7 @@ export function InstanceBoard({
             </p>
           </div>
         ) : (
-          [order && groups.length > 0 && <OpenNowLabel key="open-now" />, ...groups.map((entry) => (
+          [order && groups.length > 0 && <OpenNowLabel key="open-now" open={!folded.has(OPEN_NOW)} onToggle={() => toggleFold(OPEN_NOW)} />, ...(order && folded.has(OPEN_NOW) ? [] : groups).map((entry) => (
             <div key={entry.id} className="mb-1 flex flex-col gap-0.5">
               {entry.label !== "" && (
                 <div className="flex min-w-0 items-center gap-0.5 pt-1.5">
@@ -757,6 +756,8 @@ function BoardRow({
   const caption = snoozeCaption(row, snooze, now);
   // AJ-E1537: right-click, ⋯ or Shift+F10 — the session's one menu.
   const menu = useItemMenu("session", row, sessionTitle(row));
+  // Its ↗ while it runs in another app's window (always shown when it needs you).
+  const where = goToWhere(sessionItem(row, () => null, false)), needs = row.needs_attention !== null && !isSnoozed(row, snooze, now);
   return (
     <div className="group relative" {...menu.triggerProps}>
       {caption && (
@@ -764,7 +765,8 @@ function BoardRow({
           {caption}
         </span>
       )}
-      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} />
+      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
+      {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
       {/* I-03: a model that drifted from its launch settings is worth a
           glance (cost and behaviour differ) — beside the row, focusable,
           clear of the tool's mark and the avatar. Compact rows
@@ -788,8 +790,6 @@ function BoardRow({
   );
 }
 
-
-
 /**
  * D-25 — the rail row: a state shape, what it is (the branch, else the
  * folder), one line of state and time, and the Account's colour. Quota
@@ -805,7 +805,10 @@ export function RailRow({
   density,
   now,
   freshness = {},
+  trailing = false,
 }: {
+  /** Room for an always-shown ↗ at its end. */
+  trailing?: boolean;
   session: InstanceInfo;
   showProject?: boolean;
   selected: boolean;
@@ -848,7 +851,7 @@ export function RailRow({
       data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
-        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
         (selected ? "bg-surface" : "hover:bg-surface/60") +
         // Ended rows are quieter by their title colour, never by opacity:
@@ -905,14 +908,13 @@ export function RailRow({
           {heavy}
         </span>
       )}
-      {/* AJ-E1532: the tool, and the account serving it now (its avatar
+      {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
-      <ToolMark tool={session.provider} size={12} className="shrink-0 text-muted" />
+      <AppIcon {...appOfSession(session)} size={16} />
       <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
     </button>
   );
 }
-
 
 /** D-25: the plain project view — no filter, no search. */
 function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean {
@@ -929,7 +931,6 @@ function ListSection({ label, children }: { label: string; children: ReactNode }
     </div>
   );
 }
-
 
 /**
  * Minimal density (AJ-E403 Req.2): the 36 px icon column — avatar disc +
@@ -1024,5 +1025,4 @@ export function MinimalInstanceColumn({
     </div>
   );
 }
-
 

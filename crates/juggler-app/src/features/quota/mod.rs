@@ -7,6 +7,9 @@
 #![allow(clippy::wildcard_imports)]
 
 pub mod capture;
+pub mod probe;
+pub(crate) mod records;
+pub mod sources;
 
 use crate::commands::*;
 
@@ -49,6 +52,14 @@ pub struct WindowDisplay {
     /// readings of this window and the account's typical session. Absent
     /// without a Measured reading of a window that hasn't reset.
     pub runway: Option<RunwayDisplay>,
+    /// Where the reading behind this window came from (`statusline`,
+    /// `rollout`, `desktop_app`, `usage_cache`, `api_retry`), when known.
+    pub source: Option<String>,
+    /// That source in words, from the tool's spec ("the Claude app").
+    pub source_words: Option<String>,
+    /// In `reset` only: what the last reading said, as history ("40%
+    /// used, 13 h ago; that window has reset since"), never as now.
+    pub last_used_pct: Option<f64>,
 }
 
 /// AJ-E1512: a window's runway on the wire (`juggler_core::quota_runway`).
@@ -249,15 +260,22 @@ pub fn quota_display_inner(
         .ok()
         .flatten()
         .and_then(|raw| raw.parse::<i64>().ok());
-    let samples_five_hour = usage
-        .samples_for_account(account_id, juggler_core::quota::WindowKind::FiveHour)
+    // Each sample with where it came from (the reading's source in words).
+    let sourced_five_hour = usage
+        .sourced_samples_for_account(account_id, juggler_core::quota::WindowKind::FiveHour)
         .unwrap_or_default();
-    let samples_weekly = usage
-        .samples_for_account(
+    let sourced_weekly = usage
+        .sourced_samples_for_account(
             account_id,
             juggler_core::quota::WindowKind::Weekly { anchor_ms: anchor },
         )
         .unwrap_or_default();
+    let samples_five_hour: Vec<_> = sourced_five_hour
+        .iter()
+        .map(|(sample, _)| *sample)
+        .collect();
+    let samples_weekly: Vec<_> = sourced_weekly.iter().map(|(sample, _)| *sample).collect();
+    let spec = adapter_spec(account.harness.as_str());
     let cap = |kind: WindowKind| -> QuotaCap {
         settings
             .get(&juggler_core::storage::cap_settings_key(account_id, kind))
@@ -307,6 +325,9 @@ pub fn quota_display_inner(
                           cap: QuotaCap,
                           runway: &Option<RunwayDisplay>| WindowDisplay {
         runway: runway.clone(),
+        source: None,
+        source_words: None,
+        last_used_pct: reading.last_used_pct,
         state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
         badge: reading
@@ -481,6 +502,21 @@ pub fn quota_display_inner(
                 (!weekly_reported).then(|| reason("weekly")),
             )
         }
+        // A plan whose own records leave the week out (a team seat) has
+        // none: said, never shown as "not measured".
+        _ if sources::week_not_reported(&sourced_five_hour, &sourced_weekly, now_ms) => (
+            Some(window_display(
+                &evaluation.five_hour,
+                cap(WindowKind::FiveHour),
+                &runway_five_hour,
+            )),
+            None,
+            None,
+            Some(format!(
+                "{} reports no weekly limit for this account",
+                provider_name(provider)
+            )),
+        ),
         _ => (
             Some(window_display(
                 &evaluation.five_hour,
@@ -496,6 +532,23 @@ pub fn quota_display_inner(
             None,
         ),
     };
+    // The reading behind each window, named with its source.
+    let named = |window: Option<WindowDisplay>,
+                 sourced: &[(
+        juggler_core::quota::QuotaSample,
+        Option<juggler_core::quota::UsageSource>,
+    )]| {
+        window.map(|mut window| {
+            let source = sources::reading_source(sourced, window.measured_at_ms);
+            window.source = source.map(|source| source.as_str().to_owned());
+            window.source_words = source
+                .zip(spec.as_ref())
+                .and_then(|(source, spec)| sources::source_words(spec, source));
+            window
+        })
+    };
+    let five_hour = named(five_hour, &sourced_five_hour);
+    let weekly = named(weekly, &sourced_weekly);
     QuotaDisplayInfo {
         account: account_id.to_owned(),
         five_hour,
@@ -526,6 +579,25 @@ fn adapter_capabilities(harness: &str) -> Option<juggler_adapter::Capabilities> 
     })
     .get(harness)
     .copied()
+}
+
+/// A built-in adapter's spec, by tool id (`None` for a tool with no
+/// adapter here): the words a reading's source is named with.
+fn adapter_spec(harness: &str) -> Option<juggler_adapter::ToolSpec> {
+    static SPECS: std::sync::OnceLock<
+        std::collections::BTreeMap<String, juggler_adapter::ToolSpec>,
+    > = std::sync::OnceLock::new();
+    SPECS
+        .get_or_init(|| {
+            let registry = crate::state::default_registry();
+            registry
+                .ids()
+                .into_iter()
+                .filter_map(|id| Some((id.to_string(), registry.get(&id)?.spec())))
+                .collect()
+        })
+        .get(harness)
+        .cloned()
 }
 
 /// True when `harness`'s adapter declares `capability`.

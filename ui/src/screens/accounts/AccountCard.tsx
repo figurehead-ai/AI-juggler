@@ -35,6 +35,18 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
   return { count: own.length + elsewhere.length, apps: [...apps] };
 }
 
+/** Why an account has no reading now, and where one comes from: its
+ * tool's own records (the desktop app's meter while it runs, a limit hit),
+ * never a dead end (the maintainer's third report). */
+export function unmeasuredWords(tool: string): string {
+  const spec = toolSpec(tool);
+  const app = spec.desktop_app ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
+  const name = providerDisplayName(tool);
+  return app
+    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
+    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
+}
+
 export type AccountCardProps = {
   subscription: SubscriptionInfo;
   profiles: AccountInfo[];
@@ -106,16 +118,28 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
       {!signedOut && (
         <div className="flex flex-col gap-2 px-5 py-4">
           {props.reportsLimits(sub.tool) ? (
-            <RunwayPanel
-              display={display}
-              limitsProfile={display && !unmeasured ? display.account : null}
-              usage={week.values(profiles.map((p) => p.id))}
-              usageTotal={week.total(profiles.map((p) => p.id))}
-              color={accountKeyColor(sub)}
-              name={accountName(sub)}
-              now={props.now}
-              compact
-            />
+            <>
+              <RunwayPanel
+                display={display}
+                limitsProfile={display && !unmeasured ? display.account : null}
+                usage={week.values(profiles.map((p) => p.id))}
+                usageTotal={week.total(profiles.map((p) => p.id))}
+                color={accountKeyColor(sub)}
+                name={accountName(sub)}
+                now={props.now}
+                compact
+              />
+              {unmeasured && ownSessions.length === 0 && (
+                <p className="text-meta text-muted" data-testid="account-unmeasured">
+                  {unmeasuredWords(sub.tool)}{" "}
+                  {profiles[0] && props.onInspect && (
+                    <button type="button" onClick={() => props.onInspect!(profiles[0]!.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
+                      Measure its limits…
+                    </button>
+                  )}
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-meta text-muted" data-testid="account-no-limits">
               {noLimitsWords(sub.tool)}.

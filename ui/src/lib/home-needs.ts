@@ -1,6 +1,6 @@
 /**
  * AJ-E2105 — Home's Needs you: every kind of thing that waits on the user,
- * in one list, each with its own primary. A session asking (Go to it), a
+ * in one list, each with its own primary. A session asking (its page), a
  * limit reached (Continue elsewhere, or Wait), a sign-in, a Mac working
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
@@ -76,7 +76,7 @@ export function needsHeading(count: number, calm: { runOut: string[]; running: b
 export function primaryWords(need: HomeNeed): string {
   switch (need.kind) {
     case "session":
-      return "Go to it";
+      return "Open its page";
     case "limit":
       return "Continue elsewhere";
     case "failed":

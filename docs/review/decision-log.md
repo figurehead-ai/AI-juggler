@@ -602,8 +602,146 @@
 - Consequences: AJ-E2101, AJ-E2102; guardrail tests; the Privacy page
   names the new reads.
 
+### D-38 Apps' icons come from the apps installed on the Mac — SETTLED (2026-10-25)
+
+- Decision: wherever AI Juggler names an app a session runs in (the
+  Claude app, ChatGPT, Terminal, iTerm, an editor, AI Juggler itself),
+  it shows that app's own icon, read at run time from the app as it is
+  installed on the user's Mac. The maintainer, 2026-10-25: "Yes: show
+  each app's icon as installed on my Mac, read at run time; nothing
+  shipped in the repo."
+  - The icon comes from the app's bundle on this Mac, through macOS
+    (`NSWorkspace`), only for an app AI Juggler already knows: one a
+    session is open in, or one in the host registry. Only a folder
+    ending in `.app` is read, never a link, and nothing outside it.
+  - Nothing is committed to the repository: no app's icon, no copy of
+    one in a test or a preview (those draw a made-up test image).
+  - A small copy is kept in AI Juggler's own folder (`icons/`), redone
+    when the app's bundle changes. Nothing is sent anywhere.
+  - When the app isn't installed or its icon can't be read, a clean
+    one- or two-letter mark stands in, never cut off.
+  - The profile shows as its own badge beside the icon, never over it;
+    one app's profiles share its icon.
+- Amends: nothing. The marks of tools and companies (`ToolMark`,
+  AJ-E1526: Claude Code, Codex, Anthropic, OpenAI) stay under their old
+  rule: drawn only with their owner's permission, otherwise AI
+  Juggler's own letter mark.
+- Rejected: bundling the apps' icons (the owners' artwork in a public
+  repo); fetching them from the network.
+- Consequences: the `app_icons` feature module, `AppIcon` and
+  `ProfileBadge` in the UI, a Privacy line; ships in 0.1.5.
+
+### D-39 Fresh Claude limits when the Claude app's meter is old — NEEDS THE MAINTAINER'S RULING (2026-10-25)
+
+**The problem.** The maintainer reported it three times: every Claude
+account read "Not measured yet" for both windows. Claude Code reports its
+limits to a status line, and only the terminal UI runs a status line. The
+Claude app runs Claude Code headless (`entrypoint: "claude-desktop"`), so
+the status line never runs there. On the maintainer's Mac, every
+transcript of the last 7 days came from the Claude app (813) or the SDK
+(82), none from a terminal. The AJ-E1530 capture could never have measured
+these accounts, even with consent.
+
+**What already ships, with no permission and no setting changed** (this
+branch). All of it is read-only, on the Mac, and named on the Privacy page:
+
+1. **The Claude app's own meter.** Each app instance (each
+   `--user-data-dir`) keeps `plan-usage-history.json`: 5-hour and weekly
+   percent used, about every 15 minutes while the app is open, by
+   organisation. It is matched to a profile through the instance's
+   `claude-code-sessions/<account>/<org>/` folder names. On the
+   maintainer's Mac every instance maps to exactly one profile. This is
+   the main source. It has no reset times.
+2. **Limit hits in transcripts.** Claude Code writes `error: "rate_limit"`
+   with `quotaLimits {rateLimitType, resetsAt}`. That gives "Hit its limit
+   at 14:02 · resets 19:00", with the vendor's own reset time.
+3. **Claude Code's last `/usage`.** `.claude.json` keeps
+   `cachedUsageUtilization`: both windows with their resets. It is written
+   only when `/usage` runs, or when an app asks Claude Code for usage.
+
+The question is what to do when the app isn't open on a profile, so its
+meter goes old. A 5-hour reading older than 5 hours is shown only as
+history. Each option below says what the user sees, what macOS asks, what
+it costs, what leaves the Mac, and how to undo it.
+
+**Option A: ask Claude Code itself (recommended).** AI Juggler runs
+`claude -p /usage --no-session-persistence --strict-mcp-config --settings
+'{"disableAllHooks":true}'` with the profile's `CLAUDE_CONFIG_DIR`, from an
+empty folder of AI Juggler's own.
+- What the user sees: per profile, on its page, "Ask Claude Code for its
+  limits", off. Turning it on opens one sheet that says what runs. While
+  on, it runs at most every 15 minutes, only when the profile was used in
+  the last hour and its newest reading is older than 15 minutes. There is
+  also "Measure now".
+- macOS: nothing. Claude Code reads its own Keychain item, the same as
+  every time it starts. AI Juggler never touches the Keychain or the
+  token.
+- Cost: no quota. `/usage` is a local command (`supportsNonInteractive`
+  in Claude Code 2.1.302's command table), so no message goes to Claude.
+  It costs one short process per run (about a second), no transcript, no
+  MCP servers and no hooks.
+- What leaves the Mac: AI Juggler sends nothing. Claude Code makes the
+  same request to Anthropic that `/usage` makes when the user types it.
+  The trust page's promise ("It makes no requests to … any AI provider.
+  Your tools talk to their providers themselves") still holds.
+- What changes: Claude Code updates `cachedUsageUtilization` in that
+  profile's `.claude.json`. That is its own file, written by Claude Code
+  the same way it writes it when the user types `/usage`. AI Juggler
+  writes nothing there.
+- Undo: Turn off in the same place. Nothing runs after that, and nothing
+  is left behind.
+- Not yet verified live: the maintainer's rule forbids running `/usage`
+  on the real accounts outside the switching lab. The flags and the
+  command table were checked in the 2.1.302 binary. A stand-in `claude`
+  proves the exact command line and folder.
+- Built behind the setting `limits_probe_allowed`, which is off, so the
+  UI offers nothing until it is ruled. Tests: `claude_limits_records`
+  (`asking_claude_code_is_refused_until_it_is_ruled_on`,
+  `once_ruled_on_the_probe_runs_claude_codes_usage_in_the_profile_and_keeps_no_output`)
+  and vitest `claude-limits-states`. Shipping it means setting that
+  default to on.
+
+**Option B: AI Juggler calls Anthropic's usage endpoint itself.**
+- What the user sees: the same numbers, a little faster.
+- macOS: a Keychain prompt per profile: "AI Juggler wants to use your
+  confidential information stored in 'Claude Code-credentials…'". "Always
+  Allow" would give AI Juggler lasting access to each account's sign-in
+  token.
+- Cost: no quota, but AI Juggler would hold an OAuth token in memory. The
+  endpoint is undocumented, and the token's refresh can't be handled
+  without writing to the vendor's item.
+- What leaves the Mac: AI Juggler itself would make requests to
+  Anthropic. That breaks two Privacy-page lines: "never reads … the tools'
+  Keychain items" and "makes no requests to … any AI provider".
+- Undo: revoke in Keychain Access, per item.
+- Not recommended. Not built.
+
+**Option C: the status-line capture (AJ-E1530, already built, opt-in).**
+- It covers only `claude` run in a terminal. Claude's docs say the status
+  line gets `rate_limits` "only for claude.ai Pro and Max subscribers",
+  not Team seats.
+- It changes `settings.json` with consent. It is refused for profiles
+  without a `settings.json`, which three of the maintainer's profiles
+  lack.
+- Kept as it is, re-worded as "Also measure terminal sessions…". It is
+  never offered as the fix for app sessions.
+
+**Option D: nothing more.** The app's meter, limit hits and any `/usage`
+the user runs are shown with their age. A profile whose app isn't open
+shows "Last reading 13 h ago: 40% used; that window has reset since".
+
+- Recommendation: **A**. It is the only fresh source that needs no macOS
+  prompt, never handles a token, sends nothing from AI Juggler and costs
+  no quota. It is off per profile until its owner turns it on.
+- Also needs a ruling: whether reading the Claude app's
+  `plan-usage-history.json` is acceptable. It is built and shipping on
+  this branch: no chat content, no token, read-only, named on the Privacy
+  page. It is not the chat cache D-37 rejected.
+
 ## Unresolved (in discussion order)
 
-- None. D-01..D-15 were marked Final on maintainer instruction
+- D-39 (Claude limits when the app's meter is old): needs the
+  maintainer's ruling; option A is built and off.
+- D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-35..D-37 on 2026-10-24 (D-28..D-34 on release/0.2); all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24 and D-38 on 2026-10-25 (D-28..D-34 on release/0.2); all follow the same law.

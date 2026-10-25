@@ -43,8 +43,8 @@ export interface Shortcut {
   /** A ⌘ shortcut a text field has its own use for: not while typing. */
   fieldOwnsIt?: boolean;
   /** Who handles it: App's one listener, Home, the inspector, the
-   * terminal, each sheet, or the system-wide hotkey. */
-  owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "system";
+   * terminal, each sheet, a session's row, or the system-wide hotkey. */
+  owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "rows" | "system";
 }
 
 /** ⌘ (or Ctrl) + `key`, with exactly these other modifiers. */
@@ -102,6 +102,10 @@ export const SHORTCUTS = [
   { id: "close", owner: "sheets", area: "Anywhere", keys: ["Esc"], label: "Close a sheet, menu or search" },
   // AJ-E1537: a focused row's menu, the same one a right-click opens.
   { id: "row-menu", owner: "sheets", area: "Anywhere", keys: ["⇧F10"], label: "Open a row's menu" },
+  // A session's row (the list, Home's Needs you): ↩ opens its page here,
+  // ⌘↩ goes to it in its app (the row's ↗). The maintainer's review of 0.1.4.
+  { id: "row-open", owner: "rows", area: "Anywhere", keys: ["↩"], label: "Open a session's page (on its row)" },
+  { id: "row-go-to", owner: "rows", area: "Anywhere", keys: ["⌘↩"], label: "Go to a session in its app (on its row)", match: cmd("enter") },
   // AJ-E2104: ⌘1–9 go to the places in the list (their apps forward), in
   // the list's stable order; the View is ⇧V.
   { id: "go-place", owner: "app", area: "Anywhere", keys: ["⌘1 … ⌘9"], label: "Go to a place in the list (its app forward)", match: cmdDigit([1, 2, 3, 4, 5, 6, 7, 8, 9]) },

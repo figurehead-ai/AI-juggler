@@ -51,7 +51,7 @@ describe("AJ-E1504 the ? sheet", () => {
     expect(new Set(SHORTCUTS.map((entry) => entry.id)).size).toBe(SHORTCUTS.length);
     for (const area of SHORTCUT_AREAS) expect(SHORTCUTS.some((entry) => entry.area === area)).toBe(true);
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
-    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal", "row-menu"]);
+    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the
@@ -115,6 +115,8 @@ describe("AJ-E1504 the typing rule", () => {
       "terminal-smaller": { key: "_", code: "Minus", shiftKey: true },
       "terminal-reset": { key: ")", code: "Digit0", shiftKey: true },
       "terminal-maximize": { key: "Enter", shiftKey: true },
+      // A session row's ⌘↩: Go to it.
+      "row-go-to": { key: "Enter" },
     };
     const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "rail-view"]);
     for (const entry of SHORTCUTS) {

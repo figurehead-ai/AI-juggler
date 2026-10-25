@@ -254,9 +254,18 @@ pub fn vault_save_code_impl(
 
 /// AJ-E1204: where the vault stands.
 #[tauri::command]
-#[must_use]
-pub fn vault_status(state: tauri::State<'_, Arc<AppState>>) -> VaultStatusInfo {
-    vault_status_impl(state.inner(), &crate::edition::current().vault_keychain())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn vault_status(state: tauri::State<'_, Arc<AppState>>) -> AppResult<VaultStatusInfo> {
+    crate::ipc::blocking(state.inner(), "vault status", move |state| {
+        Ok(vault_status_impl(
+            state,
+            &crate::edition::current().vault_keychain(),
+        ))
+    })
+    .await
 }
 
 /// AJ-E1204: makes the vault key (first time) and returns the recovery
@@ -266,8 +275,11 @@ pub fn vault_status(state: tauri::State<'_, Arc<AppState>>) -> VaultStatusInfo {
 ///
 /// Per [`vault_setup_impl`].
 #[tauri::command]
-pub fn vault_setup(state: tauri::State<'_, Arc<AppState>>) -> AppResult<RecoveryCodeInfo> {
-    vault_setup_impl(state.inner(), &crate::edition::current().vault_keychain())
+pub async fn vault_setup(state: tauri::State<'_, Arc<AppState>>) -> AppResult<RecoveryCodeInfo> {
+    crate::ipc::blocking(state.inner(), "vault setup", move |state| {
+        vault_setup_impl(state, &crate::edition::current().vault_keychain())
+    })
+    .await
 }
 
 /// AJ-E1204: "I've saved my recovery code".
@@ -276,8 +288,13 @@ pub fn vault_setup(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Recovery
 ///
 /// Per [`vault_confirm_saved_impl`].
 #[tauri::command]
-pub fn vault_confirm_saved(state: tauri::State<'_, Arc<AppState>>) -> AppResult<VaultStatusInfo> {
-    vault_confirm_saved_impl(state.inner(), &crate::edition::current().vault_keychain())
+pub async fn vault_confirm_saved(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<VaultStatusInfo> {
+    crate::ipc::blocking(state.inner(), "vault confirm saved", move |state| {
+        vault_confirm_saved_impl(state, &crate::edition::current().vault_keychain())
+    })
+    .await
 }
 
 /// AJ-E1204: saves the recovery code to a file the user chose.
@@ -286,12 +303,18 @@ pub fn vault_confirm_saved(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 ///
 /// Per [`vault_save_code_impl`].
 #[tauri::command]
-pub fn vault_save_code(state: tauri::State<'_, Arc<AppState>>, dest: String) -> AppResult<()> {
-    vault_save_code_impl(
-        state.inner(),
-        &crate::edition::current().vault_keychain(),
-        Path::new(&dest),
-    )
+pub async fn vault_save_code(
+    state: tauri::State<'_, Arc<AppState>>,
+    dest: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "vault save code", move |state| {
+        vault_save_code_impl(
+            state,
+            &crate::edition::current().vault_keychain(),
+            Path::new(&dest),
+        )
+    })
+    .await
 }
 
 /// AJ-E1204: enters a recovery code on a new Mac.
@@ -300,13 +323,12 @@ pub fn vault_save_code(state: tauri::State<'_, Arc<AppState>>, dest: String) -> 
 ///
 /// Per [`vault_enter_code_impl`].
 #[tauri::command]
-pub fn vault_enter_code(
+pub async fn vault_enter_code(
     state: tauri::State<'_, Arc<AppState>>,
     code: String,
 ) -> AppResult<VaultStatusInfo> {
-    vault_enter_code_impl(
-        state.inner(),
-        &crate::edition::current().vault_keychain(),
-        &code,
-    )
+    crate::ipc::blocking(state.inner(), "vault enter code", move |state| {
+        vault_enter_code_impl(state, &crate::edition::current().vault_keychain(), &code)
+    })
+    .await
 }

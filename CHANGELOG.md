@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Apps show their own icons (0.1.5, D-38): the rail's rows and place
+  headers, Home's apps and Needs you, History, a project's sessions and
+  the palette show each app's icon as it is installed on your Mac (the
+  Claude app, ChatGPT, Terminal, an editor, AI Juggler), read from the
+  app at run time and kept in AI Juggler's own folder until the app
+  changes. Nothing is sent anywhere, and no app's icon is in AI Juggler's
+  repository. An app that isn't installed shows a clean letter mark. The
+  profile is a dot beside the icon or at its corner, never over it. A
+  Codex session started from Claude Code inside the Claude app now shows
+  in that app's place, not under a place named after Claude Code.
 - Switching to another tool (Claude Code ↔ Codex) hands over through a
   file: AI Juggler writes the handover (the conversation, redacted; what
   each tool call did; where the work stands) in its own folder, readable
@@ -202,6 +212,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Claude accounts used in the Claude app show their limits. They used to
+  read "Not measured yet" for both windows, because Claude Code reports
+  limits only to a status line, and the Claude app never runs one.
+  AI Juggler now reads Claude's own records on your Mac, with nothing to
+  set up:
+  - the Claude app's meter, about every 15 minutes while the app is open
+    on that profile;
+  - Claude Code's record of a limit hit, with when it resets;
+  - Claude Code's last `/usage`.
+
+  Each reading names its source and age ("60% left · from the Claude app,
+  12 min ago"). A 5-hour reading older than five hours shows as history,
+  never as now. A team plan with no weekly limit says so. The status-line
+  option now says it covers terminal sessions only.
 - Quota warnings come back in the next window: after an account's first
   warning, later windows never warned again. A window with no known reset
   time still warns once.

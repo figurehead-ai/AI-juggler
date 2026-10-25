@@ -31,6 +31,11 @@ memory_total: number,
  */
 memory_used: number | null, 
 /**
+ * Of `memory_used`, what macOS keeps compressed to make room, bytes;
+ * `null` where it isn't read.
+ */
+memory_compressed: number | null, 
+/**
  * What `memory_used` measures: `app_wired_compressed` (macOS: app
  * memory + wired + the compressor's data — close to Activity Monitor's
  * "Memory Used", a few percent lower) | `total_minus_available`

@@ -112,12 +112,16 @@ impl From<SyncError> for AppError {
 
 ### C.3 Async, threading and state
 
-**T1 MUST: A command that touches the filesystem, SQLite, the network or processes is
-`async`, and its blocking work runs in `spawn_blocking`.** A sync command is allowed
-only for pure, sub-millisecond work, and it carries an `// ipc: main-thread (pure)`
-marker. *Why:* sync commands run on the main thread [S6] (G1). *Enforced:* proposed
-`scripts/ipc_audit.py`, which fails any non-async `#[tauri::command]` without the marker,
-seeded with an allowlist of today's commands that only shrinks.
+**T1 MUST: Every command is `async`, and its blocking work runs in
+`crate::ipc::blocking` (`spawn_blocking`).** *Why:* sync commands run on the main
+thread [S6] (G1); even a quick read there waits on the storage lock whenever a
+background pass holds it, and the window shows the spinning wheel (0.1.5 review:
+opening a page did). A command that must run on the main thread carries
+`// ipc: main-thread (why)` and a `main-thread` line in the allowlist. *Enforced:*
+`scripts/ipc_audit.py` (`just structure`) fails any non-async `#[tauri::command]`,
+a marker without its reason and an unlisted marker; its `sync` and `main-thread`
+lists are empty and only shrink. `tests/page_open_off_main.rs` proves each page's
+commands leave the calling thread at once with the storage lock held.
 
 ```rust
 #[tauri::command]
@@ -171,6 +175,18 @@ with a removal version in its doc comment.** *Why:* names are global [S6]. *Enfo
 
 **I5 SHOULD: When a second webview appears (menu bar, mini window), restrict app
 commands per window** with `AppManifest::commands` and capabilities [S25].
+
+**I6 MUST: A list that can grow is read a page at a time.** The command takes a
+`PageRequest` and answers a `Page { items, next_cursor, total }` (`paging.rs`:
+50 rows unless asked, never over 200, keyset cursors, so a row added meanwhile never
+shifts or repeats one shown). The UI reads it with `usePagedList` (`lib/paged.ts`:
+remembered by key, shown at once when opened again and read again behind it) and
+draws it with `PagedList` (a skeleton in the first render, only the rows in view).
+The window's own lists hold a working set (what's open, pinned, the recent ones),
+never the whole history. *Why:* 0.1.5 review: Usage and History read hundreds of
+rows at once and stayed blank for seconds. *Enforced:* `ipc_audit.py` fails a
+command whose return type holds a `Vec` or map (itself or in its struct) unless it
+answers a `Page` or is listed under `unbounded` with why it stays small.
 
 ```ts
 // ui/src/lib/ipc/sync.ts — one file per feature, thin and typed (generated later)

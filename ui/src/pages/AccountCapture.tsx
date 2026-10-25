@@ -1,15 +1,19 @@
 /**
  * AJ-E1530 Req.1 (ADR-0018 amendment, the maintainer's "Offer it,
- * opt-in"): measuring limits for an account's sessions started outside
- * AI Juggler. Off unless the user turns it on, after seeing the exact
- * change; removable from the same place. Shown only for an account used
- * where it is, of a tool that needs it.
+ * opt-in"): measuring limits for an account's terminal sessions (`claude`
+ * run in a terminal) through its status line. The Claude app never runs a
+ * status line (it runs Claude Code headless), so its sessions are measured
+ * from the app's own meter instead, with no setup. Off unless the user
+ * turns it on, after seeing the exact change; removable from the same
+ * place. Shown only for an account used where it is, of a tool that needs
+ * it. Below it, D-39's "ask Claude Code", offered only once ruled.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "../components/primitives";
 import { Modal } from "../components/form";
 import { showToast } from "../components/Toast";
 import { errorText } from "../lib/bridge";
+import { AccountProbe } from "./AccountProbe";
 import {
   captureStatus,
   capturePreview,
@@ -26,7 +30,17 @@ const OFF_WORDS: Record<string, string> = {
   theirs: "Turned off: your status line had changed since, so AI Juggler left it as you set it.",
 };
 
-export function AccountCapture({ accountId }: { accountId: string }): JSX.Element | null {
+/** The profile's opt-in ways to measure its limits. */
+export function AccountCapture({ accountId }: { accountId: string }): JSX.Element {
+  return (
+    <>
+      <TerminalCapture accountId={accountId} />
+      <AccountProbe accountId={accountId} />
+    </>
+  );
+}
+
+function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | null {
   const [status, setStatus] = useState<CaptureStatusInfo | null>(null);
   const [preview, setPreview] = useState<CapturePreviewInfo | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -49,7 +63,7 @@ export function AccountCapture({ accountId }: { accountId: string }): JSX.Elemen
     try {
       await captureTurnOn(accountId, preview.fingerprint);
       setPreview(null);
-      showToast({ message: "Turned on: sessions started elsewhere report their limits too." });
+      showToast({ message: "Turned on: sessions you start with claude in a terminal report their limits too." });
       load();
     } catch (cause) {
       setProblem(errorText(cause));
@@ -72,21 +86,22 @@ export function AccountCapture({ accountId }: { accountId: string }): JSX.Elemen
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-capture">
-      <p className="text-[11px] uppercase tracking-wider text-muted">Limits for sessions started elsewhere</p>
+      <p className="text-[11px] uppercase tracking-wider text-muted">Limits for terminal sessions</p>
       {status.state === "on" ? (
         <p className="text-[12px] text-ink" data-testid="account-capture-words">
-          On: sessions you start in the Claude app or a terminal report their limits to AI Juggler too. Your own status
-          line still shows as before.
+          On: sessions you start with claude in a terminal report their limits to AI Juggler too. Your own status line
+          still shows as before. The Claude app's sessions are measured from the app's own meter.
         </p>
       ) : status.state === "changed" ? (
         <p className="text-[12px] text-ink" data-testid="account-capture-words">
-          Your status line changed since you turned this on, so those sessions aren't measured any more. AI Juggler
+          Your status line changed since you turned this on, so terminal sessions aren't measured any more. AI Juggler
           left your change as it is.
         </p>
       ) : (
         <p className="text-[12px] text-muted" data-testid="account-capture-words">
-          Claude reports its limits only to its status line, so sessions you start outside AI Juggler aren't measured.
-          AI Juggler can add its capture to this account's status line, with your consent; your own still shows.
+          For sessions you start with claude in a terminal: Claude Code reports their limits only to its status line.
+          AI Juggler can add its capture to this profile's status line, with your consent; your own still shows. The
+          Claude app's sessions don't need this: they're measured from the app's own meter.
         </p>
       )}
       {problem && (
@@ -97,7 +112,7 @@ export function AccountCapture({ accountId }: { accountId: string }): JSX.Elemen
       <div>
         {status.state === "off" ? (
           <Button size="sm" variant="secondary" onClick={() => void open()} data-testid="account-capture-open">
-            Measure limits for sessions started elsewhere…
+            Also measure terminal sessions…
           </Button>
         ) : (
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => void turnOff()} data-testid="account-capture-off">
@@ -107,7 +122,7 @@ export function AccountCapture({ accountId }: { accountId: string }): JSX.Elemen
       </div>
       {preview && (
         <Modal
-          title="Measure limits for sessions started elsewhere"
+          title="Measure limits for terminal sessions"
           onClose={() => setPreview(null)}
           wide
           testId="account-capture-preview"

@@ -439,6 +439,13 @@ describe("AJ-E1537 the native menu builder", () => {
     expect(made.find((entry) => entry.text === "Stop this session")?.accelerator).toBe("CmdOrCtrl+.");
     expect(made.find((entry) => entry.text === "Continue on another account…")?.accelerator).toBe("CmdOrCtrl+Shift+H");
     expect(accelerator("Enter")).toBeUndefined();
+    // A row's keys, as the menus, ⌘K and the ? sheet show them: Go to it
+    // ⌘↩, Open its page ↩ (the maintainer's review of 0.1.4).
+    expect(made.find((entry) => entry.text === "Go to it")?.accelerator).toBe("CmdOrCtrl+Enter");
+    const keys = Object.fromEntries(actions.map((action) => [action.label, action.shortcut]));
+    expect([keys["Go to it"], keys["Open its page"]]).toEqual(["⌘↩", "↩"]);
+    const talk = resolveActions("conversation", { id: "c", live: true } as never, { goToConversation: () => {}, openConversation: () => {} });
+    expect(talk.slice(0, 2).map((action) => [action.label, action.shortcut])).toEqual([["Go to it", "⌘↩"], ["Open its page", "↩"]]);
     vi.doUnmock("@tauri-apps/api/menu");
     vi.doUnmock("@tauri-apps/api/dpi");
   });

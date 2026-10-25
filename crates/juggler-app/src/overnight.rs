@@ -220,11 +220,14 @@ pub fn overnight_summary_seen_impl(state: &Arc<AppState>) -> AppResult<()> {
 /// Returns the typed [`AppError`](crate::error::AppError) per
 /// [`overnight_summary_impl`].
 #[tauri::command]
-pub fn overnight_summary(
+pub async fn overnight_summary(
     state: tauri::State<'_, Arc<AppState>>,
     since_ms: Option<i64>,
 ) -> AppResult<OvernightSummaryInfo> {
-    overnight_summary_impl(state.inner(), since_ms)
+    crate::ipc::blocking(state.inner(), "overnight summary", move |state| {
+        overnight_summary_impl(state, since_ms)
+    })
+    .await
 }
 
 /// AJ-E1004: marks the summary seen.
@@ -234,8 +237,11 @@ pub fn overnight_summary(
 /// Returns the typed [`AppError`](crate::error::AppError) per
 /// [`overnight_summary_seen_impl`].
 #[tauri::command]
-pub fn overnight_summary_seen(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
-    overnight_summary_seen_impl(state.inner())
+pub async fn overnight_summary_seen(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "overnight summary seen", move |state| {
+        overnight_summary_seen_impl(state)
+    })
+    .await
 }
 
 #[cfg(test)]

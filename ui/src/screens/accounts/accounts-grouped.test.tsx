@@ -102,9 +102,11 @@ describe("AJ-E2109 the Accounts screen", () => {
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     const runway = await screen.findByTestId("account-runway");
     expect(runway.textContent).toContain("Not measured yet");
-    // 0.1.5: no dead-end "Measure its limits…" on the card; its usage shows either way.
-    expect(screen.queryByTestId("account-measure")).toBeNull();
+    // Its usage shows either way, and where limits come from, with the way to its page.
     expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
+    const note = await screen.findByTestId("account-unmeasured");
+    expect(note.textContent).toContain("No current reading.");
+    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });
 
