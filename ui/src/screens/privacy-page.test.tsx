@@ -49,6 +49,20 @@ describe("AJ-E1518 the Privacy page", () => {
     expect(opened()).toEqual([{ kind: "source", id: claim.tests[0]!.split("::")[0] }]);
   });
 
+  it("says what the agent tools expose, per pool level, each line with its tests", () => {
+    const view = render(<PrivacyScreen />);
+    const section = view.getByTestId("privacy-changes");
+    for (const id of ["agent-tools", "agent-tools-sees"]) {
+      const claim = claims.groups.flatMap((group) => group.claims).find((entry) => entry.id === id)!;
+      const row = within(section).getAllByTestId("privacy-claim").find((entry) => entry.textContent?.startsWith(claim.text));
+      expect(row, id).toBeTruthy();
+      expect(claim.tests.some((reference) => reference.startsWith("crates/juggler-agentbridge/tests/bridge.rs::"))).toBe(true);
+    }
+    const sees = claims.groups.flatMap((group) => group.claims).find((entry) => entry.id === "agent-tools-sees")!.text;
+    for (const level of ["Read", "Work together", "Full"]) expect(sees).toContain(level);
+    expect(sees).toContain("never an email or a plan");
+  });
+
   it("every claim names at least one test", () => {
     for (const claim of claims.groups.flatMap((group) => group.claims)) {
       expect(claim.tests.length, claim.id).toBeGreaterThan(0);
