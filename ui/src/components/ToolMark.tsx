@@ -57,7 +57,12 @@ export function ToolMark({
     );
   }
   const spec = toolSpec(tool);
-  const name = of === "vendor" && spec.vendor ? spec.vendor : spec.display_name;
+  return <LetterMark name={of === "vendor" && spec.vendor ? spec.vendor : spec.display_name} size={size} className={className} />;
+}
+
+/** AI Juggler's own neutral letter mark for `name` (a tool, or a service
+ * an account runs through, AJ-E1601: unapproved marks stay letters, D-34). */
+export function LetterMark({ name, size = 16, className = "" }: { name: string; size?: number; className?: string }): JSX.Element {
   // The letters are drawn from `data-letters` by CSS, not written as text:
   // a picture beside the name, so they never count as the control's
   // visible label (WCAG 2.5.3) or as text of their own.
