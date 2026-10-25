@@ -55,7 +55,10 @@ export function LastMessages({
   const speaker = speakerName(model.tool);
   const following = chat.state === "shown" && model.live && visible;
   return (
-    <Card className="flex h-full min-h-[22rem] flex-col overflow-hidden" data-testid="last-messages">
+    // Sized to what it holds, at most the column's height (then its
+    // messages scroll): a short conversation has its question card right
+    // under its last message, never a void between them.
+    <Card className="flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline px-5 py-3.5">
         <h3 className="text-section font-semibold text-ink">Conversation</h3>
         {following && (
