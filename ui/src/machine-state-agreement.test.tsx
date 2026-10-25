@@ -50,6 +50,7 @@ const PRESSURE_ALERT: OverloadAlertInfo = {
   subject_estimate: true,
   subject_cpu: null,
   subject_windows: 3,
+  other_apps: [],
   since_ms: NOW - 60_000,
 };
 
@@ -89,6 +90,8 @@ describe("every surface says the same state", () => {
     expect(screen.getByTestId("machine-status").textContent).toBe(`This Mac · ${words}`);
     expect(screen.getByTestId("machine-status-dot").getAttribute("title")).toBe(`This Mac · ${words}`);
     expect(screen.getByTestId("machine-status").getAttribute("data-level")).toBe(info.machine.summary.level);
+    // Memory pressure is explained where macOS reports it, and only there.
+    expect(screen.getByTestId("machine-status").getAttribute("title")?.startsWith("Memory pressure is macOS's own measure") ?? false).toBe(info.machine.pressure !== "normal");
     // "All clear" only while the Mac is calm.
     expect(screen.queryByTestId("rail-all-clear") !== null).toBe(info.machine.summary.level === "plenty");
     // Nobody says "healthy" while it isn't.

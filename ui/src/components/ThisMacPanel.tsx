@@ -10,7 +10,8 @@
  */
 import { useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { AwakeLine, MachineState, MemoryMeter, TreeRow } from "./this-mac-parts";
+import { AwakeLine, MachineState, TreeRow } from "./this-mac-parts";
+import { MemoryMeter } from "./this-mac-memory";
 import { machineStatus, type ThisMacInfo } from "../lib/machine";
 
 

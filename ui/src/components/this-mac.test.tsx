@@ -83,6 +83,7 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     top: trees.slice(0, 3),
     others: trees.slice(3),
     heavy: trees.filter((t) => t.heavy_note),
+    other_apps: [],
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
     alerts: [],
@@ -108,7 +109,10 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect((screen.getByRole("status"))!.textContent).toContain("Nothing running — your Mac has room");
     expect(screen.queryByTestId("this-mac-reasons")).toBeNull();
     expect(screen.queryByTestId("this-mac-leftovers")).toBeNull();
-    expect((screen.getByTestId("this-mac-memory"))!.textContent).toContain("Memory: 22 GB of 32 GB in use");
+    expect((screen.getByTestId("this-mac-memory"))!.textContent).toBe("In use: 22 GB of 32 GB · 2.4 GB kept compressed");
+    // Nothing running: no AI tools part, and no word of pressure.
+    expect(screen.getByTestId("this-mac-memory-parts").textContent).toBe("Apps and macOS 22 GBAvailable 10 GB");
+    expect(screen.queryByTestId("this-mac-pressure-note")).toBeNull();
   });
 
   it("names the state, its reasons, and splits ours from the tools we didn't start", () => {
@@ -143,7 +147,18 @@ describe("This Mac panel (AJ-E1404)", () => {
     // Its memory is summed over helpers that share pages: an estimate.
     expect(theirs!.textContent).toContain("about 1.6 GB");
     expect(ours!.textContent).not.toContain("about");
-    expect(screen.getByTestId("this-mac-memory").textContent).toContain("AI tools: about 4.8 GB");
+    // The whole Mac's memory, in named parts: the AI tools, the rest, and
+    // what's left (the 0.1.4 review).
+    const parts = screen.getByTestId("this-mac-memory-parts");
+    expect([...parts.querySelectorAll("li")].map((part) => part.textContent)).toEqual([
+      "AI tools about 4.8 GB",
+      "Other apps and macOS 25 GB",
+      "Available 2.6 GB",
+    ]);
+    expect(screen.getByTestId("this-mac-memory").textContent).toContain("In use: 29 GB of 32 GB · 5.1 GB kept compressed");
+    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain("AI tools about 4.8 GB, Other apps and macOS 25 GB, Available 2.6 GB");
+    // macOS reports pressure: said in plain words beside the figures.
+    expect(screen.getByTestId("this-mac-pressure-note").textContent).toContain("Memory pressure is macOS's own measure of how hard it is working to make room.");
   });
 
   it("names what memory in use counts, and shows nothing when it couldn't be read", () => {
@@ -158,6 +173,7 @@ describe("This Mac panel (AJ-E1404)", () => {
     render(<ThisMacPanel info={unread} nameOf={nameOf} onOpenSession={vi.fn()} />);
     expect(screen.queryByRole("meter")).toBeNull();
     expect(screen.getByTestId("this-mac-memory").textContent).toBe("Memory: 32 GB");
+    expect(screen.queryByTestId("this-mac-memory-parts")).toBeNull();
   });
 
   // AJ-E1526: a tool line carries its tool's mark beside the name, and a
@@ -296,6 +312,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     subject_estimate: false,
     subject_cpu: null,
     subject_windows: null,
+    other_apps: [] as import("../lib/machine-memory").OtherAppInfo[],
     since_ms: NOW,
     ...overrides,
   });
@@ -333,6 +350,26 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
       "The Claude app is using about 16 GB across 3 windows",
     );
     expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.2 GB");
+  });
+
+  it("names the other apps, and no AI tool, when they hold most of the memory (0.1.4 review)", async () => {
+    const { alertSubject, alertWords } = await import("../lib/machine");
+    const others = alert({
+      session_id: null,
+      place: null,
+      subject_bytes: null,
+      other_apps: [
+        { name: "next-server", rss_bytes: 6_400_000_000, processes: 1 },
+        { name: "Docker", rss_bytes: 4_000_000_000, processes: 3 },
+        { name: "fseventsd", rss_bytes: 1_500_000_000, processes: 1 },
+      ],
+    });
+    expect(alertSubject(others, () => null)).toBe("Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB");
+    const words = alertWords([others, { ...others, key: "swap", kind: "swap", detail: "swap is growing — 3004 MB a minute" }], () => null)!;
+    expect(words.detail).toBe(
+      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB",
+    );
+    expect(words.detail).not.toContain("Claude");
   });
 
   it("tells a fresh alert once in the notification region, and dismisses it", async () => {

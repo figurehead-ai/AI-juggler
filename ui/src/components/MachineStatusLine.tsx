@@ -7,9 +7,13 @@
  */
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
+import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
 
 export function MachineStatusLine({ minimal, onOpen }: { minimal: boolean; onOpen?: () => void }): JSX.Element {
-  const status = machineStatus(useContext(ThisMacContext));
+  const info = useContext(ThisMacContext);
+  const status = machineStatus(info);
+  // Memory pressure, in one line, where the words alone don't say it.
+  const why = status && info && underPressure(info.machine) ? PRESSURE_SHORT : undefined;
   // Before the first sample: the Mac's name only, a neutral dot.
   const words = status ? `This Mac · ${status.words}` : "This Mac";
   const dot = status ? status.dot : "bg-faint";
@@ -33,11 +37,11 @@ export function MachineStatusLine({ minimal, onOpen }: { minimal: boolean; onOpe
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (
-    <span className="flex min-w-0 shrink items-center gap-2" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <span className="flex min-w-0 shrink items-center gap-2" title={why} data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </span>
   );

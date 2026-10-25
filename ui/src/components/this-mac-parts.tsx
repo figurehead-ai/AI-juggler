@@ -1,6 +1,6 @@
 /**
- * E14 — This Mac's shared parts: the Mac's state in words, the memory
- * meter and a process tree's row. Home's panel (a summary) and the This
+ * E14 — This Mac's shared parts: the Mac's state in words and a process
+ * tree's row (the memory meter is in this-mac-memory.tsx). Home's panel (a summary) and the This
  * Mac page (AJ-E1528, the detail) draw them the same way (D-25).
  */
 import type { JSX } from "react";
@@ -110,50 +110,6 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
           )}
         </div>
 
-  );
-}
-
-/** Memory: what's in use (on its stated basis), the AI tools' share. */
-export function MemoryMeter({ info }: { info: ThisMacInfo }): JSX.Element | null {
-  const machine = info.machine;
-  const total = machine.memory_total;
-  const toolsShare = total > 0 ? Math.min(100, (info.tools.rss_bytes / total) * 100) : 0;
-  // Memory in use only when it was read, on its stated basis — never a
-  // different measure under the same name.
-  const used = machine.memory_used;
-  const basis = memoryBasisWords(machine.memory_basis);
-  const usedShare = total > 0 && used !== null ? Math.min(100, (used / total) * 100) : 0;
-  const otherShare = Math.max(0, usedShare - toolsShare);
-  const nothing = info.tools.count === 0;
-  if (total <= 0) return null;
-  return (
-          <div className="flex flex-col gap-1.5">
-            {used !== null && (
-            <div
-              className="flex h-1.5 overflow-hidden rounded-full bg-surface-3"
-              role="meter"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(usedShare)}
-              aria-label={`Memory: ${bytesWords(used)} of ${bytesWords(total)} in use (${basis}), ${bytesWords(info.tools.rss_bytes)} by AI tools`}
-              title={`In use: ${basis}`}
-            >
-              {/* The tools' share keeps its own colour: the Mac's state is
-                  the status line's to say, not a blame on this segment. */}
-              <div className="h-full bg-accent" style={{ width: `${toolsShare}%` }} />
-              <div className="h-full bg-faint/40" style={{ width: `${otherShare}%` }} />
-            </div>
-            )}
-            <span className="text-[11px] text-muted" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
-              {nothing
-                ? used !== null
-                  ? `Memory: ${bytesWords(used)} of ${bytesWords(total)} in use`
-                  : `Memory: ${bytesWords(total)}`
-                : `AI tools: ${info.tools.memory_estimate ? "about " : ""}${bytesWords(info.tools.rss_bytes)} of ${bytesWords(total)} memory · ${
-                    info.tools.cpu_pct === null ? "CPU —" : `${Math.round(info.tools.cpu_pct)}% of all CPU cores`
-                  }`}
-            </span>
-          </div>
   );
 }
 

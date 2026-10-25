@@ -49,6 +49,7 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     top: trees.slice(0, 3),
     others: trees.slice(3),
     heavy: trees.filter((t) => t.heavy_note),
+    other_apps: [],
     leftover_processes: 0,
     leftover_ports: 0,
     alerts: [],
@@ -116,6 +117,47 @@ describe("the This Mac page", () => {
     expect(clean).toHaveBeenCalledOnce();
   });
 
+  // The 0.1.4 review: "Under memory pressure" beside "AI tools: about 16
+  // GB of 103 GB" read as plenty left.
+  it("shows the whole Mac's memory, explains pressure, and lists what else uses it by name, read-only", () => {
+    const windows = [4_100_000_000, 3_600_000_000, 2_900_000_000, 2_300_000_000, 1_800_000_000, 1_300_000_000].map((rss, at) =>
+      tree({ root_pid: 700 + at, rss_bytes: rss }),
+    );
+    const other_apps = [
+      { name: "next-server", rss_bytes: 6_400_000_000, processes: 1 },
+      { name: "Docker", rss_bytes: 4_000_000_000, processes: 3 },
+      { name: "fseventsd", rss_bytes: 1_500_000_000, processes: 1 },
+    ];
+    renderPage(info(windows, { machine: mockMachineHealth("others", NOW), other_apps }));
+    const state = screen.getByTestId("this-mac-state");
+    const parts = [...within(state).getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
+    expect(parts).toEqual(["AI tools about 16 GB", "Other apps and macOS 75 GB", "Available 12 GB"]);
+    expect(within(state).getByTestId("this-mac-memory").textContent).toContain("In use: 91 GB of 103 GB · 47 GB kept compressed");
+    expect(screen.getByTestId("this-mac-figures").textContent).toContain("21 GB of 22 GB moved to disk");
+    // A free figure under pressure never stands alone: the line, and the
+    // rest behind "What it means".
+    const note = within(state).getByTestId("this-mac-pressure-note");
+    expect(note.textContent).toContain("Memory pressure is macOS's own measure of how hard it is working to make room.");
+    const more = note.querySelector("details")!;
+    expect(more.hasAttribute("open")).toBe(false);
+    expect(more.textContent).toContain("Pressure can be high while some memory still looks free");
+    // What else: folded, by name, its figure the rest of what's in use.
+    const group = screen.getByTestId("this-mac-other-apps");
+    expect(group.hasAttribute("open")).toBe(false);
+    expect(group.querySelector("summary")!.textContent).toContain("Other apps and macOS");
+    expect(group.querySelector("summary")!.textContent).toContain("75 GB");
+    const rows = within(group).getAllByTestId("this-mac-other-app");
+    expect(rows.map((row) => row.textContent)).toEqual(["next-server6.4 GB", "Dockerabout 4.0 GB3 processes", "fseventsd1.5 GB"]);
+    // D-08: another app is never offered anything.
+    expect(within(group).queryByRole("button")).toBeNull();
+  });
+
+  it("says no word of pressure while macOS reports none", () => {
+    renderPage(info([ours("a")], { machine: mockMachineHealth("plenty", NOW) }));
+    expect(screen.queryByTestId("this-mac-pressure-note")).toBeNull();
+    expect(screen.getByTestId("this-mac-other-apps")).toBeTruthy();
+  });
+
   it("says each alert with its subject in the one function's words, and the advice", () => {
     const alert: OverloadAlertInfo = {
       key: "pressure:a",
@@ -128,6 +170,7 @@ describe("the This Mac page", () => {
       subject_estimate: false,
       subject_cpu: null,
       subject_windows: null,
+      other_apps: [],
       since_ms: NOW - 60_000,
     } as OverloadAlertInfo;
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));

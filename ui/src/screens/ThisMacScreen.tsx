@@ -12,7 +12,8 @@ import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { SectionTitle } from "../components/SectionTitle";
 import { ToolMark } from "../components/ToolMark";
-import { AwakeLine, MachineState, MemoryMeter, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
+import { AwakeLine, MachineState, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
+import { FoldChevron, MemoryMeter, OtherAppsGroup } from "../components/this-mac-memory";
 import { RowPlaceholders } from "../components/Placeholder";
 import { alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
@@ -50,10 +51,7 @@ function ToolGroup({
   return (
     <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"} open={group.ours}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-2.5 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-        {/* The rail's fold chevron: one look for every disclosure. */}
-        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="shrink-0 text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none">
-          <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <FoldChevron />
         <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-sm font-medium text-ink">
           {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
           <span className="truncate">{group.label}</span>
@@ -104,7 +102,7 @@ export function ThisMacScreen({
         <>
           <Section id="this-mac-state" title="Now">
             <MachineState info={info} reasonsShown={machine.summary.reasons.length} />
-            <MemoryMeter info={info} />
+            <MemoryMeter info={info} more />
             <AwakeLine info={info} />
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs" data-testid="this-mac-figures">
               <dt className="text-muted">CPU</dt>
@@ -113,7 +111,7 @@ export function ThisMacScreen({
                 <>
                   <dt className="text-muted">Swap</dt>
                   <dd className="font-mono text-ink">
-                    {bytesWords(machine.swap_used)} of {bytesWords(machine.swap_total)}
+                    {bytesWords(machine.swap_used)} of {bytesWords(machine.swap_total)} <span className="font-sans text-muted">moved to disk</span>
                   </dd>
                 </>
               )}
@@ -122,15 +120,14 @@ export function ThisMacScreen({
           </Section>
 
           <Section id="this-mac-using" title="What's using it">
-            {info.by_tool.length === 0 ? (
-              <p className="text-sm text-muted">No AI tools are running.</p>
-            ) : (
-              <div className="flex flex-col">
-                {info.by_tool.map((group) => (
-                  <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />
-                ))}
-              </div>
-            )}
+            {info.by_tool.length === 0 && <p className="text-sm text-muted">No AI tools are running.</p>}
+            <div className="flex flex-col">
+              {info.by_tool.map((group) => (
+                <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />
+              ))}
+              {/* The 0.1.4 review: what else is using the memory, folded. */}
+              <OtherAppsGroup info={info} />
+            </div>
           </Section>
 
           {info.heavy.length > 0 && (
