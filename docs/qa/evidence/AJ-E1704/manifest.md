@@ -1,7 +1,7 @@
 # Evidence manifest — AJ-E1704
 
 Task: `docs/tasks/E17-agent-pools.md` AJ-E1704, the agent bridge, read-only (P0).
-Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR), with the spike's three live points **UNPROVEN** until the maintainer's run on spare accounts (AJ-E1701 Req.2, `docs/internal/MAINTAINER-STEPS.md` §17). 2026-10-25, claude-opus.
+Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). On 2026-10-25 the spike's three live points were run headless on the maintainer's lab accounts ([lab-2026-10-25.md](docs/qa/evidence/AJ-E1704/lab-2026-10-25.md)), and all three PASS. The interactive TUI's own screens are still left for `docs/internal/MAINTAINER-STEPS.md` §17. 2026-10-25, claude-opus.
 
 Design: `docs/adr/0020-agent-bridge.md` (with its STRIDE table). Test output: [bridge-tests.txt](docs/qa/evidence/AJ-E1704/bridge-tests.txt), [conformance.txt](docs/qa/evidence/AJ-E1704/conformance.txt).
 
@@ -44,9 +44,10 @@ Design: `docs/adr/0020-agent-bridge.md` (with its STRIDE table). Test output: [b
 | Performance: a call answers in < 50 ms | `bridge.rs::calls_answer_in_under_50_ms` (slowest of 5 over the socket: 2.7 ms, 8 sessions); the fake tool's `tools/call` and `resources/read` each < 50 ms through the binary | PASS |
 | Privacy page: the bridge's lines, with tests | `trust.rs::every_trust_claim_names_tests_that_exist`; vitest `privacy-page.test.tsx` "says what the agent tools expose, per pool level…" | PASS |
 | Visual: the opt-in question; the Settings switch | `ui/tests/visual/agent-tools-gallery.spec.ts` (both themes, axe 0 critical/serious, keyboard) | UNPROVEN (written; the Docker gate wasn't run, as asked: baselines below) |
-| Spike: `--mcp-config` loads in Claude Code without an approval prompt | MAINTAINER-STEPS §17 | UNPROVEN |
-| Spike: Codex's `env_vars` passes the key; the per-tool approval pre-allows | MAINTAINER-STEPS §17 | UNPROVEN |
-| Spike: which MCP revision each tool sends | MAINTAINER-STEPS §17 (both lines answered meanwhile) | UNPROVEN |
+| Spike: `--mcp-config` loads in Claude Code without an approval prompt | [lab-2026-10-25.md](docs/qa/evidence/AJ-E1704/lab-2026-10-25.md) (a): a real Claude Code 2.1.302 launch through `agent_bridge::prepare`; `juggler` `connected` in the init event, all three tools called, `permission_denials: []` | PASS (headless `-p`; the TUI screen is left for §17) |
+| Spike: Codex's `env_vars` passes the key; the per-tool approval pre-allows | [lab-2026-10-25.md](docs/qa/evidence/AJ-E1704/lab-2026-10-25.md) (d): `whoami` answered using the key from `env_vars`, and all three calls completed. Control without the per-tool `approve`: "MCP tool call requires approval, but approval policy is never" | PASS (`codex exec`; the TUI prompt is inferred) |
+| Spike: which MCP revision each tool sends | [lab-2026-10-25.md](docs/qa/evidence/AJ-E1704/lab-2026-10-25.md) (c), (d): Claude Code 2.1.302 sends `server/discover` with `2026-07-28` and no `initialize`; Codex 0.163.0 sends `initialize` with `2025-06-18`. The bridge answered both | PASS |
+| Spike: two tools in one pool see each other | [lab-2026-10-25.md](docs/qa/evidence/AJ-E1704/lab-2026-10-25.md): Codex's `pool_roster` listed Claude Code's session with its "says" line, and the pool's cards showed both lines | PASS |
 
 ## Baselines to make (Docker visual gate, not run here)
 
@@ -56,6 +57,7 @@ Design: `docs/adr/0020-agent-bridge.md` (with its STRIDE table). Test output: [b
 
 ## Not covered here
 
+- Found by the lab (not a bridge fault): for Claude Code, `LaunchMode::Headless` passes `--output-format stream-json` without `--verbose`, and Claude Code 2.1.302 refuses that (see "A bug found on the way" in the lab file). The fix belongs in the adapter.
 - Pending asks agents can wait on (Needs you): E18. Until then an ask is a refusal in words.
 - A hook notice at turn boundaries (research §2.3): not in the read-only bridge.
 - A release build made with `just app` has no `juggler-agent` beside it (only the release workflow bundles it): Settings says "This build of AI Juggler doesn't include them."
