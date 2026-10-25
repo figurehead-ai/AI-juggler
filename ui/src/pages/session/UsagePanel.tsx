@@ -8,6 +8,8 @@
 import type { JSX } from "react";
 import { accountDisplay, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { SessionUsage } from "../session-usage/SessionUsage";
+import { useCached } from "../../lib/usage/cached";
+import { usageSession } from "../../lib/ipc/usageHistory";
 import { useRunways } from "./data";
 import type { SessionModel } from "./model";
 import { Runway } from "./Runway";
@@ -16,7 +18,12 @@ import { SessionUsageTab, useTranscriptModels, type TokenKinds } from "./UsageTa
 export function UsagePanel({ model, visible, tokens, account }: { model: SessionModel; visible: boolean; tokens: TokenKinds | null; account: SubscriptionInfo | undefined }): JSX.Element {
   const displays = useRunways();
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
-  const known = model.conversationId !== null;
+  // The same read SessionUsage makes (one key, one answer): a session the
+  // usage history has no turns for shows its own counts instead of a page
+  // of empty charts.
+  const history = useCached(model.conversationId !== null && visible ? `session-usage:${model.profileId}:${model.conversationId}` : null, () => usageSession(model.profileId, model.conversationId!), 30_000);
+  const empty = history.data !== null && history.current && history.data.totals.messages === 0;
+  const known = model.conversationId !== null && !empty;
   const { models, why } = useTranscriptModels(model.profileId, model.conversationId, visible && !known, model.model);
   const accountTitle = account && account.state === "signed_in" ? accountName(account) : null;
   if (known) {
