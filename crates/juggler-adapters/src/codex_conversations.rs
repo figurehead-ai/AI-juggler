@@ -132,10 +132,9 @@ struct Summary {
     started_ms: Option<i64>,
     last_ms: Option<i64>,
     git_branch: Option<String>,
-    /// The thread pursues a goal (`thread_goal_updated`), and its latest
-    /// objective.
-    goal: bool,
-    objective: Option<String>,
+    /// The thread pursues a goal (`thread_goal_updated`): its latest
+    /// objective, empty when it has none.
+    goal: Option<String>,
 }
 
 impl Summary {
@@ -160,13 +159,10 @@ impl Summary {
         if value.pointer("/payload/type").and_then(serde_json::Value::as_str)
             == Some("thread_goal_updated")
         {
-            self.goal = true;
-            if let Some(objective) = value
+            let objective = value
                 .pointer("/payload/goal/objective")
-                .and_then(serde_json::Value::as_str)
-            {
-                self.objective = Some(objective.to_owned());
-            }
+                .and_then(serde_json::Value::as_str);
+            self.goal = Some(objective.unwrap_or_default().to_owned());
         }
         if value.get("type").and_then(serde_json::Value::as_str) == Some("session_meta") {
             let field = |pointer: &str| {
@@ -204,8 +200,8 @@ impl Summary {
         let cwd = self.cwd.map(PathBuf::from);
         let title = crate::codex_titles::from_rollout(&crate::codex_titles::Parts {
             first_ask: parser.first_ask(),
-            goal: self.goal,
-            objective: self.objective.as_deref(),
+            goal: self.goal.is_some(),
+            objective: self.goal.as_deref(),
             cwd: cwd.as_deref(),
         });
         Some(ConversationSummary {
