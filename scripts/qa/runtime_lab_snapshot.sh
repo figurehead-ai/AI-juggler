@@ -6,6 +6,12 @@
 #
 #   scripts/qa/runtime_lab_snapshot.sh take NAME DIR...   writes <out>/NAME.tsv
 #   scripts/qa/runtime_lab_snapshot.sh diff BEFORE AFTER  what changed, grouped
+#   scripts/qa/runtime_lab_snapshot.sh procs [PATTERN]    the lab's processes
+#
+# Processes are printed as pid and program name only (`ps -o pid=,comm=`),
+# never a command line: a full listing once showed another process's
+# environment text (D-37). The pattern only selects pids (`pgrep -f`
+# prints nothing else).
 #
 # The output folder is $AJ_LAB_OUT (default: /tmp/aj-runtime-lab). Nothing
 # under the folders is written.
@@ -13,6 +19,19 @@ set -euo pipefail
 out="${AJ_LAB_OUT:-/tmp/aj-runtime-lab}"
 mkdir -p "$out"
 chmod 700 "$out"
+
+# What the lab starts: AI Juggler's app-servers, headless claude, the
+# bridge, AI Juggler Dev itself.
+LAB_PATTERN='app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent|target/debug/juggler-app'
+
+# The processes matching $1 (default: the lab's), as "pid program", leaving
+# out the apps' own (the Codex app's server lives inside /Applications).
+procs() {
+  local pattern="${1:-$LAB_PATTERN}" pid
+  for pid in $(pgrep -f "$pattern" || true); do
+    ps -o pid=,comm= -p "$pid" 2>/dev/null || true
+  done | grep -v ' /Applications/' || true
+}
 
 take() {
   local name="$1"; shift
@@ -26,11 +45,7 @@ take() {
   done
   sort -o "$file" "$file"
   echo "$(wc -l < "$file" | tr -d ' ') files -> $file"
-  # What the lab starts: AI Juggler's app-servers, headless claude, the
-  # bridge. The Codex app's own server (inside /Applications) is not the
-  # lab's, though it runs `app-server --listen stdio://` too.
-  { pgrep -fl 'app-server --listen stdio://|claude -p --input-format stream-json|juggler-agent' || true; } |
-    grep -v '/Applications/' > "$out/$name.processes" || true
+  procs > "$out/$name.processes"
   echo "processes -> $out/$name.processes ($(wc -l < "$out/$name.processes" | tr -d ' '))"
 }
 
@@ -50,5 +65,6 @@ diff_snapshots() {
 case "${1:-}" in
   take) shift; [ $# -ge 2 ] || { echo "usage: take NAME DIR..." >&2; exit 2; }; take "$@" ;;
   diff) shift; [ $# -eq 2 ] || { echo "usage: diff BEFORE AFTER" >&2; exit 2; }; diff_snapshots "$@" ;;
-  *) sed -n '2,12p' "$0"; exit 2 ;;
+  procs) shift; procs "$@" ;;
+  *) sed -n '2,18p' "$0"; exit 2 ;;
 esac

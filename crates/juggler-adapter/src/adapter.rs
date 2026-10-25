@@ -671,6 +671,31 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// Lab 2 (D-40): the question this tool asks before it works in a
+    /// folder, whose answer it would save to the user's own config. AI
+    /// Juggler asks it instead and passes the answer in memory
+    /// ([`Self::apply_folder_trust`]). `None` (the default): the tool asks
+    /// nothing AI Juggler needs to.
+    #[must_use]
+    fn folder_trust(&self) -> Option<crate::folder_trust::FolderTrust> {
+        None
+    }
+
+    /// Whether the tool's own setup for `account` already decides `cwd`'s
+    /// trust (the user chose in the tool): then AI Juggler passes nothing.
+    /// Only reads.
+    #[must_use]
+    fn folder_trust_decided(&self, account: &crate::model::Account, cwd: &std::path::Path) -> bool {
+        let _ = (account, cwd);
+        false
+    }
+
+    /// Passes the user's trust choice for `cwd` to a launch of this tool
+    /// (`args`, the terminal's or the driven one's), in memory only.
+    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &std::path::Path, trusted: bool) {
+        let _ = (args, cwd, trusted);
+    }
+
     /// AJ-E2302 (D-40, ADR-0022): the tool's own protocol, for sessions
     /// AI Juggler drives instead of running its terminal UI. `None` (the
     /// default): the terminal is this tool's only runtime. An adapter that

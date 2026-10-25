@@ -482,9 +482,7 @@ fn switching_away_from_a_driven_session_releases_it_first() {
         assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
         runtime::send_impl(&state, &session, prompt).unwrap();
         if freeze == "finish-turn" {
-            wait_for("the turn's end", || {
-                row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
-            });
+            replied(&state, &session);
         } else {
             wait_for("the ask", || !runtime::asks_impl(&state, 0, 10).is_empty());
         }
@@ -850,4 +848,128 @@ fn a_cut_off_session_can_be_ended_and_a_stopped_one_never_comes_back() {
     assert!(state.runtime.driver(&stopped).is_none());
     assert_ne!(status_of(&state, &stopped), "starting");
     assert!(state.runtime.info(&stopped).is_none());
+}
+
+// ---------------------------------------------------------------------
+// Lab 2: Codex's folder trust is the user's choice in AI Juggler, passed
+// in memory; Codex's own config is never written.
+
+/// The launches `fake-codex` saw (one line each) that contain `word`.
+fn launches_with(log: &Path, word: &str) -> Vec<String> {
+    std::fs::read_to_string(log)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| line.contains(word))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    use juggler_app::features::runtime::trust;
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("codex-args.log");
+    let state = app_state(
+        work.path(),
+        Some(codex_with(
+            work.path(),
+            &format!("FAKE_CODEX_ARGS_LOG={}", log.display()),
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let folder = work.path().canonicalize().unwrap();
+    let override_of = |level: &str| {
+        format!(
+            "-c projects={{\"{}\"={{trust_level=\"{level}\"}}}}",
+            folder.display()
+        )
+    };
+
+    // Codex's own question, not answered yet.
+    let asked = trust::trust_impl(&state, &profile, None).unwrap().unwrap();
+    assert_eq!(
+        (
+            asked.question.as_str(),
+            asked.trust.as_str(),
+            asked.restrict.as_str()
+        ),
+        (
+            "Trust this folder?",
+            "Trust and continue",
+            "Open restricted"
+        )
+    );
+    assert!(asked.choice.is_none());
+
+    // Not answered: restricted, in memory (Codex's trust screen would
+    // have saved an answer to its config).
+    let first = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the launch", || !launches_with(&log, "--listen").is_empty());
+    assert!(launches_with(&log, "--listen")[0].starts_with(&override_of("untrusted")));
+    stop(&state, &first);
+
+    // The user's answer, kept and passed to each launch.
+    let answered = trust::trust_choose_impl(&state, &profile, None, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(answered.choice.as_deref(), Some("trusted"));
+    let session = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the second launch", || {
+        launches_with(&log, "--listen").len() == 2
+    });
+    assert!(launches_with(&log, "--listen")[1].starts_with(&override_of("trusted")));
+
+    // Open in terminal carries it too.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    wait_for("the terminal", || {
+        !launches_with(&log, " resume ").is_empty()
+    });
+    assert!(launches_with(&log, " resume ")[0].starts_with(&override_of("trusted")));
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str()))
+    });
+
+    // Codex's own config was never written.
+    let home = state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|a| a.harness.as_str() == CODEX_ID)
+        .unwrap()
+        .state_dir;
+    assert!(!home.join("config.toml").exists());
+
+    // A folder the user decided in Codex itself is left to Codex.
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::write(
+        home.join("config.toml"),
+        format!(
+            "[projects.\"{}\"]\ntrust_level = \"untrusted\"\n",
+            folder.display()
+        ),
+    )
+    .unwrap();
+    let decided = trust::trust_impl(&state, &profile, None).unwrap().unwrap();
+    assert_eq!(decided.choice.as_deref(), Some("in_tool"));
+    let third = commands::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("the third launch", || {
+        launches_with(&log, "--listen").len() == 3
+    });
+    assert!(!launches_with(&log, "--listen")[2].contains("-c projects="));
+    stop(&state, &third);
 }

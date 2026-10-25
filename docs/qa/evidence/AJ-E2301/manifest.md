@@ -16,6 +16,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2301, The runtime lab on real tool
 | Req.4 headless → terminal → headless keeps one transcript | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), "the round trip" | one transcript | one file, one `sessionId`, entry points sdk-cli → cli → sdk-cli in order; the last turn recalled the terminal's "hello again" | PASS | 2414a4bd | 2026-10-25 | agent |
 | From AI Juggler Dev: the session page, Needs you, the audit, the Beta switch | docs/qa/runtime-lab.md steps 1–4 in the app | seen in the app | BLOCKED: 21–23 GB free (< 25 GB for cargo), so `release/0.2` wasn't built; no desktop control | UNPROVEN | — | 2026-10-25 | agent |
 | The claude.ai usage page shows no "extra usage" note | the account's usage page | looked at | BLOCKED (no browser sign-in); the stream said `isUsingOverage: false`, `apiKeySource: none` | UNPROVEN | — | 2026-10-25 | agent |
+| Lab 2 item 5: process listings print pid and program name only; `DISABLE_AUTOUPDATER=1` for the lab's terminal runs | `scripts/qa/runtime_lab_snapshot.sh procs`; `docs/qa/runtime-lab.md` (Fill in first) | no command line printed | written | PASS | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 

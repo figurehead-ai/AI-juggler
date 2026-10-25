@@ -333,6 +333,8 @@ macro_rules! app_commands {
             Write features::runtime::commands::runtime_handover,
             Write features::runtime::pickup::runtime_resume,
             Write features::runtime::pickup::runtime_end,
+            Read  features::runtime::trust::runtime_trust,
+            Write features::runtime::trust::runtime_trust_choose,
             Read  features::runtime::commands::runtime_choices,
             Write features::runtime::commands::runtime_choose,
             Write features::runtime::commands::runtime_beta,

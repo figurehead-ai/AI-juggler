@@ -16,6 +16,7 @@ import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
 import { errorText, type InstanceInfo } from "../../lib/bridge";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
+import { useFolderTrust } from "../../components/FolderTrustAsk";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -40,6 +41,8 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Lab 2: the tool's folder-trust question before its terminal opens.
+  const trust = useFolderTrust();
   const act = (what: string, run: () => Promise<unknown>) => {
     setBusy(what);
     setError(null);
@@ -82,7 +85,11 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
               title="Waits for the turn to end, then continues this conversation in its own terminal."
               data-testid="open-in-terminal"
               onClick={() =>
-                act("handover", () => runtimeHandover(session.id, "terminal").then((next) => onOpenSession?.(next.session_id)))
+                act("handover", async () => {
+                  if (!(await trust.confirm(session.launch_recipe_id, session.cwd))) return;
+                  const next = await runtimeHandover(session.id, "terminal");
+                  onOpenSession?.(next.session_id);
+                })
               }
             >
               {busy === "handover" ? "Waiting for the turn to end…" : "Open in terminal"}
@@ -150,6 +157,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </form>
       )}
       {runtime?.error && <p className="text-[11px] text-warning">{runtime.error}</p>}
+      {trust.element}
       {error && (
         <p role="alert" className="text-[11px] text-danger">
           {error}

@@ -22,6 +22,7 @@ pub mod endpoint;
 pub mod environment;
 pub mod error;
 pub mod file_trust;
+pub mod folder_trust;
 pub mod handover;
 pub mod identity;
 pub mod inventory;

@@ -78,6 +78,22 @@ fn approval(
     }
 }
 
+/// What a command approval runs, in the tool's own parsed words: every
+/// `commandActions[].command`, joined. Codex 0.163.0 wraps `command` in the
+/// user's shell (`/bin/zsh -lc ls`, lab 2, 2026-10-25), so that is only
+/// the fallback.
+fn actions_words(params: &Value) -> Option<String> {
+    let commands: Vec<String> = params
+        .get("commandActions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|action| text(action, "command"))
+        .filter(|command| !command.trim().is_empty())
+        .collect();
+    (!commands.is_empty()).then(|| commands.join(" · "))
+}
+
 /// `item/commandExecution/requestApproval`: Allow once, for the session,
 /// the rules Codex proposed (a command prefix, network hosts), Deny.
 fn command_ask(id: &AskId, params: &Value) -> (RuntimeEvent, Answering) {
@@ -90,12 +106,14 @@ fn command_ask(id: &AskId, params: &Value) -> (RuntimeEvent, Answering) {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let summary = text(params, "command").unwrap_or_else(|| {
-        network.first().and_then(|n| text(n, "host")).map_or_else(
-            || "Run a command".to_owned(),
-            |host| format!("Reach {host}"),
-        )
-    });
+    let summary = actions_words(params)
+        .or_else(|| text(params, "command"))
+        .unwrap_or_else(|| {
+            network.first().and_then(|n| text(n, "host")).map_or_else(
+                || "Run a command".to_owned(),
+                |host| format!("Reach {host}"),
+            )
+        });
     let mut options = vec![
         option("accept", "Allow once", OptionEffect::AllowOnce),
         option(

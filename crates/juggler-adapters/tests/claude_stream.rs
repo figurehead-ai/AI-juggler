@@ -83,6 +83,8 @@ fn recorded_messages_make_the_right_events() {
         [
             "Allow once",
             "Always allow Bash(npm test:*), in this project (your local settings)",
+            // Lab 2: a folder suggestion names its folder.
+            "Allow edits in /kit/project for this session",
             "Deny",
             "Deny and stop"
         ]

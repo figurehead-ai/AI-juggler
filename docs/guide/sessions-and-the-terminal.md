@@ -97,6 +97,16 @@ says "Its turn was cut off when AI Juggler stopped" and waits for you:
 ends it. AI Juggler keeps only which conversation each session is on, so
 it can find it again, never what was said.
 
+**A folder Codex hasn't been told to trust.** Codex's own terminal would
+ask "Trust this folder?" and save your answer to its `config.toml`.
+AI Juggler asks the same question itself, once per folder, the first time
+you start a Codex session there or open one in its terminal: **Trust and
+continue** or **Open restricted** (Codex asks before it edits or runs
+things). AI Juggler keeps your answer and passes it to each Codex session
+in that folder, so Codex's `config.toml` is never changed. A folder you
+already decided in Codex itself is left to Codex. **Cancel** starts
+nothing.
+
 To choose per profile, go to Settings › Sessions › **How sessions run**: a
 profile can always start in a terminal. **New session** has **How it runs**
 for just that session.

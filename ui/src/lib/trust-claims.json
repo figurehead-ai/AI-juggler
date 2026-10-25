@@ -322,6 +322,15 @@
           ]
         },
         {
+          "id": "no-folder-trust-write",
+          "text": "It never answers a tool's \"Trust this folder?\" for you, and never lets the tool save the answer to its own config: it asks you once per folder, keeps your answer, and passes it to each session in memory.",
+          "tests": [
+            "crates/juggler-app/tests/runtime.rs::codex_gets_the_folders_trust_in_memory_and_its_config_is_never_written",
+            "crates/juggler-adapters/src/codex_trust.rs::the_choice_goes_in_front_in_memory_and_quoted",
+            "ui/src/components/folder-trust.test.tsx::Open restricted keeps that; Cancel stops the launch and keeps nothing"
+          ]
+        },
+        {
           "id": "no-auto-switch",
           "text": "It never moves your work to another account by itself. Every switch starts from a click, on this Mac or on a Mac you paired.",
           "tests": [

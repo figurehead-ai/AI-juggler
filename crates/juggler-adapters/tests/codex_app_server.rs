@@ -219,6 +219,20 @@ fn recorded_messages_make_the_right_events_and_answers() {
         if approval.summary == "npm test"
             && approval.options.iter().any(|o| o.label == "Always allow `npm test`")))
     );
+    // Lab 2: the live shape wraps the command in the shell; the ask shows
+    // Codex's own parsed commands, all of them, and only its decisions.
+    let wrapped = events
+        .iter()
+        .find_map(|e| match e {
+            RuntimeEvent::ApprovalRequested { approval } if approval.id.0 == "4" => {
+                Some(approval.clone())
+            }
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(wrapped.summary, "ls · pwd");
+    let ids: Vec<&str> = wrapped.options.iter().map(|o| o.id.as_str()).collect();
+    assert_eq!(ids, ["accept", "acceptWithExecpolicyAmendment", "cancel"]);
     assert!(
         events
             .iter()

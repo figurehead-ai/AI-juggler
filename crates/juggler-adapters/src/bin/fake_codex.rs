@@ -30,7 +30,23 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let words: Vec<&str> = args.iter().map(String::as_str).collect();
+    // The tests read what each launch passed (`FAKE_CODEX_ARGS_LOG`, one
+    // line a launch).
+    if let Some(log) = std::env::var_os("FAKE_CODEX_ARGS_LOG") {
+        use std::io::Write as _;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log)
+        {
+            let _ = writeln!(file, "{}", args.join(" "));
+        }
+    }
+    // Root options in front (`-c key=value`), as Codex takes them.
+    let mut words: Vec<&str> = args.iter().map(String::as_str).collect();
+    while words.first() == Some(&"-c") && words.len() >= 2 {
+        words.drain(..2);
+    }
     match words.as_slice() {
         ["--version" | "-V"] => {
             let version =

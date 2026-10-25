@@ -115,7 +115,8 @@
 **Requirements**:
 1. "Open in terminal" hands the thread over at a turn boundary: the driver lets go when the turn ends, the server ends, and `codex resume <thread> --no-daemon` runs in AI Juggler's terminal as the session's continuation (the old session is marked handed over). "Run in AI Juggler" does the reverse once the terminal has ended. Never two writers. *(Amended 2026-10-25: first a live `codex --remote` attach, which needs Codex's WebSocket socket; ADR-0022 records the trade-off.)*
 2. "Start in terminal" is a per-session choice at launch and a per-profile setting: the PTY with `--no-daemon`, exactly as before E23.
-3. The terminal is used automatically, with the reason, when the binary is older than the pinned range, its schema lacks a method AI Juggler uses, or the server fails to start, answer, or runs on another `codexHome`.
+3. *(Added 2026-10-25 by lab 2.)* Codex's folder trust is asked in AI Juggler, once per folder, in Codex's words ("Trust this folder?": Trust and continue, Open restricted). The answer is kept in AI Juggler's data and passed to every launch in memory (`-c projects=…`), driven, in the terminal and at a hand-over. Codex's `config.toml` is never written; unanswered means "not trusted" in memory, and a folder decided in Codex is left to it.
+4. The terminal is used automatically, with the reason, when the binary is older than the pinned range, its schema lacks a method AI Juggler uses, or the server fails to start, answer, or runs on another `codexHome`.
 **UI/UX reasoning**: The choice sits with the profile's launch settings; the session page names the runtime in one line.
 **Performance budget**: n/a.
 **Quality gates**: each fallback reason tested; the attach spec tested.
@@ -171,7 +172,7 @@
 2. `juggler-agent hook` reads only the fields it needs from its stdin (event, the tool's session id, tool name, a bounded summary of what it asks, notification type, stop reason), sends one line to the app's socket with the launch's report key, prints nothing (so it never decides a permission) and always exits 0 within 2 s.
 3. The report key is AI Juggler's own, per launch, in the launch's environment only, separate from the agent tools' key (it can report state, nothing else).
 4. Results: Asks you (with what it asks), Working, Idle, ended, exact, for every session AI Juggler starts; limits from the status line for the account.
-5. Hooks from `--settings` merge with the user's own per Claude Code's docs; the design keeps both running either way, and the spike confirms it (AJ-E2301 Req.2).
+5. Hooks from `--settings` merge with the user's own per Claude Code's docs; the design keeps both running either way, and the spike confirms it (AJ-E2301 Req.2). *(Amended 2026-10-25 by lab 2: Claude Code applies only the last `--settings`, so a launch gets exactly one, AI Juggler's, with any `--settings` the launch had folded in and their hooks combined; one that could carry a secret is never copied, and that launch keeps its own.)*
 6. D-37: nothing reads an environment; the hook reads its own.
 **UI/UX reasoning**: The state words lose "probably" for these sessions.
 **Performance budget**: a hook round trip < 50 ms; a missing app costs the tool at most the hook's 2 s.

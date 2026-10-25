@@ -22,6 +22,7 @@ pub mod launch;
 pub mod pickup;
 pub mod reports;
 pub mod settings;
+pub mod trust;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

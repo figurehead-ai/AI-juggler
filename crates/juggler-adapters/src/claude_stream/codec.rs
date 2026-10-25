@@ -147,6 +147,48 @@ fn kind_of(tool: &str) -> ApprovalKind {
     }
 }
 
+/// A folder in a few words: under the home folder `~/…/<name>` (or
+/// `~/<name>`), else the path as it is.
+fn folder_words(path: &str, home: Option<&std::path::Path>) -> String {
+    let path = std::path::Path::new(path);
+    let Some(rest) = home.and_then(|home| path.strip_prefix(home).ok()) else {
+        return path.display().to_string();
+    };
+    let parts: Vec<_> = rest.components().collect();
+    match parts.as_slice() {
+        [] => "~".to_owned(),
+        [one] => format!("~/{}", one.as_os_str().to_string_lossy()),
+        [.., last] => format!("~/…/{}", last.as_os_str().to_string_lossy()),
+    }
+}
+
+/// A suggestion as the option's label and the rule it keeps. Lab 2
+/// (2026-10-25): an `addDirectories` suggestion (no `rules`, no `mode`)
+/// names its folders, as Claude Code's own dialog does.
+fn suggestion_words(suggestion: &Value, home: Option<&std::path::Path>) -> (String, String) {
+    if text(suggestion, "/type").as_deref() == Some("addDirectories") {
+        let folders: Vec<String> = suggestion
+            .get("directories")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(|folder| folder_words(folder, home))
+            .collect();
+        let place = match text(suggestion, "/destination").as_deref() {
+            Some("session") => " for this session",
+            Some("localSettings") => " in this project (your local settings)",
+            Some("projectSettings") => " in this project",
+            Some("userSettings") => " everywhere",
+            _ => "",
+        };
+        let rule = format!("edits in {}{place}", folders.join(", "));
+        return (format!("Allow {rule}"), rule);
+    }
+    let rule = rule_words(suggestion);
+    (format!("Always allow {rule}"), rule)
+}
+
 /// A suggested rule in words (`Bash(npm test:*)`, and where it is kept).
 fn rule_words(suggestion: &Value) -> String {
     let rules: Vec<String> = suggestion
@@ -322,11 +364,12 @@ impl Codec {
             "Allow once".into(),
             OptionEffect::AllowOnce,
         )];
+        let home = crate::inventory_files::user_home();
         for (index, suggestion) in suggestions.iter().enumerate() {
-            let rule = rule_words(suggestion);
+            let (label, rule) = suggestion_words(suggestion, home.as_deref());
             options.push(option(
                 format!("rule:{index}"),
-                format!("Always allow {rule}"),
+                label,
                 OptionEffect::AllowRule { rule },
             ));
         }
@@ -557,5 +600,34 @@ impl Codec {
             }
         }
         (events, Vec::new())
+    }
+}
+
+#[cfg(test)]
+mod words {
+    use super::{folder_words, suggestion_words};
+    use serde_json::json;
+    use std::path::Path;
+
+    #[test]
+    fn a_folder_suggestion_names_its_folder() {
+        let home = Path::new("/Users/me");
+        assert_eq!(folder_words("/Users/me/lab", Some(home)), "~/lab");
+        assert_eq!(folder_words("/Users/me/work/lab", Some(home)), "~/…/lab");
+        assert_eq!(folder_words("/kit/project", Some(home)), "/kit/project");
+        let live = json!({"type": "addDirectories", "directories": ["/Users/me/work/lab"], "destination": "session"});
+        assert_eq!(
+            suggestion_words(&live, Some(home)),
+            (
+                "Allow edits in ~/…/lab for this session".to_owned(),
+                "edits in ~/…/lab for this session".to_owned()
+            )
+        );
+        let rule = json!({"type": "addRules", "destination": "localSettings",
+            "rules": [{"toolName": "Bash", "ruleContent": "echo lab *"}]});
+        assert_eq!(
+            suggestion_words(&rule, Some(home)).0,
+            "Always allow Bash(echo lab *), in this project (your local settings)"
+        );
     }
 }

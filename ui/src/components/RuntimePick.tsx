@@ -4,14 +4,23 @@
  * Settings › Sessions › Run without a terminal (Beta) on, "Run without a
  * terminal: answer from AI Juggler (Beta)". The backend decides what each
  * tool can do; a tool without a protocol always runs in its terminal.
+ *
+ * Lab 2: `confirm` asks a tool's folder-trust question before the launch,
+ * when it hasn't been answered for that folder (FolderTrustAsk).
  */
 import { useEffect, useState, type JSX } from "react";
 import { runtimeChoices } from "../lib/ipc/runtime";
+import { useFolderTrust } from "./FolderTrustAsk";
 
 export type RuntimeChoice = "terminal" | "driven" | undefined;
 
-export function useRuntimePick(): { runtime: RuntimeChoice; element: JSX.Element } {
+export function useRuntimePick(): {
+  runtime: RuntimeChoice;
+  element: JSX.Element;
+  confirm: (profileId: string, cwd: string | null) => Promise<boolean>;
+} {
   const [runtime, setRuntime] = useState<RuntimeChoice>(undefined);
+  const trust = useFolderTrust();
   const [beta, setBeta] = useState(false);
   useEffect(() => {
     void runtimeChoices().then((choices) => setBeta(choices.beta_on), () => setBeta(false));
@@ -28,7 +37,8 @@ export function useRuntimePick(): { runtime: RuntimeChoice; element: JSX.Element
         <option value="terminal">Start in terminal</option>
         {beta && <option value="driven">Run without a terminal: answer from AI Juggler (Beta)</option>}
       </select>
+      {trust.element}
     </label>
   );
-  return { runtime, element };
+  return { runtime, element, confirm: trust.confirm };
 }

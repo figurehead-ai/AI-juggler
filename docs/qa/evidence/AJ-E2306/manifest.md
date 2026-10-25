@@ -16,6 +16,7 @@ Task: `docs/tasks/E23-session-runtime.md` AJ-E2306, Claude terminal sessions wit
 | Req.5 hooks merge with the project's; PermissionRequest timing | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), "Claude Code in the terminal" | both run; the dialog doesn't wait | both `UserPromptSubmit` hooks ran; the dialog was drawn 53 ms before the 3 s hook started; SessionStart didn't run on a first start trusted after launch (ran next time); `/hooks` lists only the project's | PASS | 2414a4bd | 2026-10-25 | agent |
 | Req.5 a launch that carries the user's own `--settings` | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md), bug 1 | both apply | Claude Code applies only the last `--settings`; `injection` puts the overlay first, so its hooks are lost | FAIL | 2414a4bd | 2026-10-25 | agent |
 | Req.5 merge with the account's own hooks and status line | [lab 2](docs/qa/evidence/AJ-E2301/lab-2-2026-10-25.md) | both run | not observable: the lab profile has no `settings.json` (key names checked) | UNPROVEN | — | 2026-10-25 | agent |
+| Lab 2 bug 1: Claude Code applies only the last `--settings`; the user's own is folded into AI Juggler's one file (hooks combined), one that could carry a secret is never copied | `cargo test -p juggler-adapters --lib claude_hooks` (`a_users_own_settings_are_folded_into_the_one_file`, `a_users_settings_with_a_secret_or_unreadable_are_left_alone`) | one `--settings`; theirs and ours both in it | pass | PASS | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)
 

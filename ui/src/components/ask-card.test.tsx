@@ -168,6 +168,27 @@ describe("a driven session's page", () => {
     expect(opened).toBe("sess-1");
   });
 
+  // Lab 2: in a folder whose trust isn't answered yet, Open in terminal
+  // asks the tool's own question first (its terminal would save the answer
+  // to the tool's config).
+  it("asks the folder's trust before Open in terminal, then hands over", async () => {
+    seams().__AIJ_RUNTIME__ = { "sess-1": view([]) };
+    (window as unknown as { __AIJ_TRUST__?: unknown }).__AIJ_TRUST__ = {
+      folder: "/Users/me/lab", question: "Trust this folder?", trust: "Trust and continue", restrict: "Open restricted", note: "", choice: null,
+    };
+    try {
+      const session = { id: "sess-1", launch_recipe_id: "p1", cwd: "/Users/me/lab", runtime: view([]).runtime } as unknown as InstanceInfo;
+      const { findByTestId, getByTestId } = render(<DrivenPanel session={session} />);
+      await act(async () => fireEvent.click(await findByTestId("open-in-terminal")));
+      expect(getByTestId("folder-trust").textContent).toContain("Trust this folder?");
+      expect(calls()).toEqual([]);
+      await act(async () => fireEvent.click(getByTestId("folder-trust-restrict")));
+      expect(calls()).toEqual(["trust:p1:untrusted", "handover:sess-1:terminal"]);
+    } finally {
+      delete (window as unknown as { __AIJ_TRUST__?: unknown }).__AIJ_TRUST__;
+    }
+  });
+
   // AJ-E2310: AI Juggler stopped during its turn.
   it("whose turn was cut off says so, sends nothing, and offers Resume and End", async () => {
     const runtime = { ...view([]).runtime, state: null, limits: [], cut_off: "Its turn was cut off when AI Juggler stopped" };
