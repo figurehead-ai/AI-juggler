@@ -32,16 +32,17 @@ export function MachineStatusLine({ minimal, onOpen }: { minimal: boolean; onOpe
   }
   const line = (
     <>
-      <span aria-hidden="true" className={`dot-live size-1.5 shrink-0 rounded-full ${dot}`} />
-      <span className="min-w-0 shrink truncate text-[11px]">{words}</span>
+      <span aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
+      {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
+      <span className="min-w-0 shrink truncate text-[13px]">{words}</span>
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-ink/80 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (
-    <span className="flex min-w-0 shrink items-center gap-2" title={why} data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <span className="flex min-w-0 shrink items-center gap-2 text-ink/80" title={why} data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </span>
   );

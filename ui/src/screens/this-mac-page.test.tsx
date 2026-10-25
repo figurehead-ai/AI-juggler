@@ -84,8 +84,10 @@ describe("the This Mac page", () => {
     renderPage(info([ours("a")]));
     const state = screen.getByTestId("this-mac-state");
     expect(within(state).getByRole("status").textContent).toContain("Getting tight");
-    expect(within(state).getByRole("meter")).toBeTruthy();
-    expect(screen.getByTestId("this-mac-figures").textContent).toMatch(/CPU\d+% of all \d+ cores/);
+    expect(within(state).getAllByRole("meter").length).toBeGreaterThan(0);
+    // The Mac's figures, each a card sized to its content.
+    expect(screen.getByTestId("this-mac-cpu").textContent).toMatch(/Processor\d+% of all \d+ cores/);
+    expect(screen.getByTestId("this-mac-memory-card").textContent).toContain("in use of 32 GB");
   });
 
   it("groups what's using it by tool, then session or window; another tool's windows are marked and have no controls", () => {
@@ -131,9 +133,9 @@ describe("the This Mac page", () => {
     renderPage(info(windows, { machine: mockMachineHealth("others", NOW), other_apps }));
     const state = screen.getByTestId("this-mac-state");
     const parts = [...within(state).getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
-    expect(parts).toEqual(["AI tools about 16 GB", "Other apps and macOS 75 GB", "Available 12 GB"]);
-    expect(within(state).getByTestId("this-mac-memory").textContent).toContain("In use: 91 GB of 103 GB · 47 GB kept compressed");
-    expect(screen.getByTestId("this-mac-figures").textContent).toContain("21 GB of 22 GB moved to disk");
+    expect(parts).toEqual(["AI tools about 16 GB", "Other apps and macOS 28 GB", "Kept compressed 47 GB", "Available 12 GB"]);
+    expect(within(state).getByTestId("this-mac-memory").textContent).toBe("91 GB in use of 103 GB");
+    expect(screen.getByTestId("this-mac-swap").textContent).toContain("21 GB of 22 GB moved to disk");
     // A free figure under pressure never stands alone: the line, and the
     // rest behind "What it means".
     const note = within(state).getByTestId("this-mac-pressure-note");
@@ -145,7 +147,8 @@ describe("the This Mac page", () => {
     const group = screen.getByTestId("this-mac-other-apps");
     expect(group.hasAttribute("open")).toBe(false);
     expect(group.querySelector("summary")!.textContent).toContain("Other apps and macOS");
-    expect(group.querySelector("summary")!.textContent).toContain("75 GB");
+    expect(group.querySelector("summary")!.textContent).toContain("28 GB");
+    expect(group.textContent).toContain("macOS keeps 47 GB more compressed for every app, AI tools too");
     const rows = within(group).getAllByTestId("this-mac-other-app");
     expect(rows.map((row) => row.textContent)).toEqual(["next-server6.4 GB", "Dockerabout 4.0 GB3 processes", "fseventsd1.5 GB"]);
     // D-08: another app is never offered anything.

@@ -96,7 +96,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "This Mac");
     const page_ = page.getByTestId("this-mac-page");
     await expect(page_.getByTestId("this-mac-memory-parts")).toContainText("Other apps and macOS");
-    await expect(page_.getByTestId("this-mac-memory")).toContainText("47 GB kept compressed");
+    await expect(page_.getByTestId("this-mac-memory-parts")).toContainText("Kept compressed 47 GB");
     const note = page_.getByTestId("this-mac-pressure-note");
     await note.getByText("What it means").click();
     await expect(note).toContainText("Pressure can be high while some memory still looks free");

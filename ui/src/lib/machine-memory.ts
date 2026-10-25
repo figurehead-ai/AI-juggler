@@ -27,18 +27,29 @@ export function underPressure(machine: MachineHealthInfo): boolean {
   return machine.pressure === "warning" || machine.pressure === "critical";
 }
 
-/** The Mac's memory in parts: in use (the AI tools, then everything
- * else) and what's left. The AI tools' figure is a sum over helpers, so
- * it's capped at what's in use. `used` is `null` when it wasn't read. */
-export function memoryParts(info: ThisMacInfo): { total: number; used: number | null; tools: number; other: number; available: number } {
+/** The Mac's memory in parts: in use (the AI tools, what macOS keeps
+ * compressed, everything else) and what's left. The AI tools' figure is
+ * a sum over helpers, so it's capped at what's in use; compressed memory
+ * belongs to every app, so it's its own part. `used` is `null` when it
+ * wasn't read. */
+export function memoryParts(info: ThisMacInfo): {
+  total: number;
+  used: number | null;
+  tools: number;
+  compressed: number;
+  other: number;
+  available: number;
+} {
   const machine = info.machine;
   const used = machine.memory_used;
   const tools = used === null ? info.tools.rss_bytes : Math.min(info.tools.rss_bytes, used);
+  const compressed = used === null ? 0 : Math.min(machine.memory_compressed ?? 0, used - tools);
   return {
     total: machine.memory_total,
     used,
     tools,
-    other: used === null ? 0 : used - tools,
+    compressed,
+    other: used === null ? 0 : used - tools - compressed,
     available: used === null ? machine.memory_available : Math.max(0, machine.memory_total - used),
   };
 }

@@ -109,9 +109,10 @@ describe("This Mac panel (AJ-E1404)", () => {
     expect((screen.getByRole("status"))!.textContent).toContain("Nothing running — your Mac has room");
     expect(screen.queryByTestId("this-mac-reasons")).toBeNull();
     expect(screen.queryByTestId("this-mac-leftovers")).toBeNull();
-    expect((screen.getByTestId("this-mac-memory"))!.textContent).toBe("In use: 22 GB of 32 GB · 2.4 GB kept compressed");
+    expect((screen.getByTestId("this-mac-memory"))!.textContent).toBe("22 GB in use of 32 GB");
     // Nothing running: no AI tools part, and no word of pressure.
-    expect(screen.getByTestId("this-mac-memory-parts").textContent).toBe("Apps and macOS 22 GBAvailable 10 GB");
+    const parts = [...screen.getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
+    expect(parts).toEqual(["Apps and macOS 20 GB", "Kept compressed 2.4 GB", "Available 10 GB"]);
     expect(screen.queryByTestId("this-mac-pressure-note")).toBeNull();
   });
 
@@ -152,11 +153,16 @@ describe("This Mac panel (AJ-E1404)", () => {
     const parts = screen.getByTestId("this-mac-memory-parts");
     expect([...parts.querySelectorAll("li")].map((part) => part.textContent)).toEqual([
       "AI tools about 4.8 GB",
-      "Other apps and macOS 25 GB",
+      "Other apps and macOS 20 GB",
+      "Kept compressed 5.1 GB",
       "Available 2.6 GB",
     ]);
-    expect(screen.getByTestId("this-mac-memory").textContent).toContain("In use: 29 GB of 32 GB · 5.1 GB kept compressed");
-    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain("AI tools about 4.8 GB, Other apps and macOS 25 GB, Available 2.6 GB");
+    // Compressed memory is told by stripes too, never by colour alone.
+    expect(parts.querySelector('[data-part="compressed"] span')!.className).toContain("repeating-linear-gradient");
+    expect(screen.getByTestId("this-mac-memory").textContent).toBe("29 GB in use of 32 GB");
+    expect(screen.getByRole("meter").getAttribute("aria-label")).toContain(
+      "AI tools about 4.8 GB, Other apps and macOS 20 GB, Kept compressed 5.1 GB, Available 2.6 GB",
+    );
     // macOS reports pressure: said in plain words beside the figures.
     expect(screen.getByTestId("this-mac-pressure-note").textContent).toContain("Memory pressure is macOS's own measure of how hard it is working to make room.");
   });
