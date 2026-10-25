@@ -69,6 +69,8 @@ it("CostMatrix renders null fields: no crash, words for the unpriced model, neve
 it("Usage renders with the same payload (the screen the maintainer clicked)", async () => {
   const view = render(<UsageScreen accounts={ACCOUNTS} sessions={[]} onAddAccounts={() => null} />);
   expect(await view.findByTestId("usage-screen")).toBeTruthy();
+  // 0.1.5: the per-model price table sits behind Prices and details.
+  view.getByRole("button", { name: "Prices and details" }).click();
   await view.findByText("No price for gpt-5-codex yet");
 });
 

@@ -1,23 +1,28 @@
 /**
- * D-25 — Usage: every account's runway first (what's left, when it
- * resets), then what your sessions used, by model and day. With nothing
- * set up it says what will appear, and how to get there — never a blank.
+ * D-25, 0.1.5 — Usage: a dashboard of what your sessions used. The range
+ * first (24 hours to all), then the figures with their change on the
+ * period before, usage over time split by account, profile, tool, model
+ * or project, who and what used it, each account's limits and their last
+ * week, when you work, and the top projects and sessions, each opening its
+ * page. The frame draws at once and the last summary shows from memory.
+ * With nothing set up it says what will appear, and how to get there.
  */
-import { accountColor } from "../lib/palette";
-import { ToolMark } from "../components/ToolMark";
+import { useState, type JSX } from "react";
 import { WelcomePointer } from "../components/Welcome";
-import { useEffect, useState, type JSX } from "react";
-import { AccountRunway } from "../components/AccountRunway";
-import { BurnDowns } from "../components/BurnDown";
-import { MachineUsageCard } from "../components/MachineUsage";
 import { BudgetCaps } from "../components/BudgetCaps";
 import { CostMatrix } from "../components/CostMatrix";
+import { MachineUsageCard } from "../components/MachineUsage";
+import { Modal } from "../components/form";
 import { Button, Card } from "../components/primitives";
-import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../lib/bridge";
+import { SPAN, UsageDashboard } from "../components/usage/Dashboard";
+import { RunwayCards } from "../components/usage/RunwayCards";
+import { Segmented } from "../components/usage/controls";
+import { useRange } from "../components/usage/useUsage";
+import { RANGES } from "../lib/usage/range";
+import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 export function UsageScreen({
   accounts,
-  sessions,
   projects = [],
   onAddAccounts,
   onOpenHome,
@@ -30,31 +35,36 @@ export function UsageScreen({
   /** AJ-E1524: back to the welcome while no account is in. */
   onOpenHome?: () => void;
 }): JSX.Element {
-  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
-  useEffect(() => {
-    let alive = true;
-    const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-
+  const [range, setRange] = useRange("usage");
+  const [prices, setPrices] = useState(false);
+  const profiles = accounts.length;
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6" data-testid="usage-screen">
-      <header>
-        <h2 className="text-lg font-semibold tracking-tight">Usage</h2>
-        <p className="text-xs text-muted">How much each account has left, and what your sessions used — measured on this Mac.</p>
+    <div className="mx-auto flex w-full max-w-content flex-col gap-5 pb-8" data-testid="usage-screen">
+      <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="min-w-[16rem] flex-1">
+          <h2 className="text-title text-ink">Usage</h2>
+          <p className="mt-1 max-w-[70ch] text-meta text-muted">
+            {profiles === 0
+              ? "What your sessions use, measured on this Mac."
+              : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this Mac from each session's own files.`}
+          </p>
+        </div>
+        {profiles > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setPrices(true)}>
+              Prices and details
+            </Button>
+            <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="usage-range" />
+          </div>
+        )}
       </header>
 
-      {accounts.length === 0 ? (
-        <Card className="flex flex-col items-start gap-3 p-5" data-testid="usage-no-accounts">
-          <p className="text-sm font-medium">Nothing to measure yet</p>
-          <p className="max-w-xl text-xs leading-relaxed text-muted">
-            Once your accounts are in, this shows each one's 5-hour and weekly windows — what's left and when they reset —
-            and what every session cost, by model and day.
+      {profiles === 0 ? (
+        <Card className="flex flex-col items-start gap-3 p-card" data-testid="usage-no-accounts">
+          <p className="text-section text-ink">Nothing to measure yet</p>
+          <p className="max-w-xl text-body text-muted">
+            Once your accounts are in, this shows what every session used over time, by account, tool, model and project, each account's 5-hour and weekly
+            windows with their history, and when you work.
           </p>
           <Button size="sm" variant="primary" onClick={onAddAccounts}>
             Find my accounts
@@ -62,41 +72,21 @@ export function UsageScreen({
           {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
         </Card>
       ) : (
-        <section aria-labelledby="usage-runway" className="flex flex-col gap-2.5">
-          <h3 id="usage-runway" className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-            Runway
-          </h3>
-          <ul className="grid gap-3 md:grid-cols-2">
-            {accounts.map((account) => (
-              <li key={account.id}>
-                <Card className="flex h-full flex-col gap-3 p-4" data-testid="usage-account">
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <span aria-hidden="true" className="size-2 rounded-full" style={{ background: accountColor(account.id) }} />
-                    <ToolMark tool={account.provider} size={14} className="text-muted" />
-                    {account.label}
-                  </span>
-                  <AccountRunway
-                    display={displays.find((d) => d.account === account.id)}
-                    sessions={sessions.filter((s) => s.account_id === account.id)}
-                  />
-                  <BurnDowns display={displays.find((d) => d.account === account.id)} />
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <UsageDashboard kind="all" scope={{}} range={range} accounts={accounts} runway={<RunwayCards accounts={accounts} className={SPAN.full} />} />
       )}
 
-      <MachineUsageCard />
+      <div className="grid grid-cols-1 gap-grid xl:grid-cols-2">
+        {profiles > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
+        <MachineUsageCard />
+      </div>
 
-      {accounts.length > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
-
-      <section aria-labelledby="usage-costs" className="flex flex-col gap-2.5">
-        <h3 id="usage-costs" className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-          What sessions used
-        </h3>
-        <CostMatrix />
-      </section>
+      {prices && (
+        <Modal title="Prices and details" subtitle="What each model cost at list prices, by day" wide onClose={() => setPrices(false)} testId="usage-prices">
+          <div className="max-h-[65vh] overflow-y-auto">
+            <CostMatrix />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
