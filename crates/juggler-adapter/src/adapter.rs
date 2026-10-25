@@ -215,6 +215,18 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// D-38 (needs the maintainer's ruling; AI Juggler keeps it off until
+    /// then): a short headless run of the tool's own usage command for the
+    /// profile at `state_dir`. The tool asks its vendor with its own
+    /// sign-in, which AI Juggler never sees, and keeps the answer where
+    /// the tool's limit records are read. No model turn, no transcript.
+    /// `None`: the tool has no such command, or isn't installed.
+    #[must_use]
+    fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
+        let _ = state_dir;
+        None
+    }
+
     /// QA batch 10: a quick read of a large conversation file, from its
     /// start and end only (`conversation::file_ends`): its id, folder,
     /// branch, first and last activity and, when the start has it, its
