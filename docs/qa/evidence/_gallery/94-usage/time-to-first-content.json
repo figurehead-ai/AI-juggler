@@ -1,7 +1,7 @@
 {
   "note": "From the click on Usage, in the preview (synthetic data in the page): the frame's first frame, and the first figures. A second open shows them from memory.",
-  "first_open_frame_ms": 341,
-  "first_open_content_ms": 341,
+  "first_open_frame_ms": 317,
+  "first_open_content_ms": 343,
   "reopen_frame_ms": 20,
   "reopen_content_ms": 20
 }

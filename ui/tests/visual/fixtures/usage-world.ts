@@ -105,6 +105,8 @@ const window = (state: string, percentage: number | null, resetsInMin: number | 
   reset_basis: resetsInMin === null ? null : "measured",
   measured_at_ms: readMinAgo === null ? null : T0 - readMinAgo * 60_000,
   burned_tokens: burned,
+  source: readMinAgo === null ? null : "desktop_app",
+  source_words: readMinAgo === null ? null : "the Claude app",
   burned_credits: null,
   headroom_tokens: null,
 });
@@ -124,7 +126,7 @@ const display = (id: string, five: unknown, weekly: unknown) => ({
  * Pro's last reading is from before a reset. Lab is never measured. */
 export const QUOTA_DISPLAY = [
   display("claude-work", window("tracking", 38, 40, 12), window("tracking", 41, 3 * 24 * 60, 12)),
-  display("codex-main", window("tracking", 22, 180, 5), window("tracking", 47, 6 * 24 * 60, 5)),
+  display("codex-main", { ...window("tracking", 22, 180, 5), source: "rollout", source_words: "Codex" }, { ...window("tracking", 47, 6 * 24 * 60, 5), source: "rollout", source_words: "Codex" }),
   display("claude-client-a", window("exhausted", 100, 4 * 60 + 20, 38), window("tracking", 64, 2 * 24 * 60, 38)),
   display("claude-personal", window("reset", 40, null, 13 * 60), window("tracking", 12, 5 * 24 * 60, 13 * 60)),
   display("claude-lab", window("unmeasured", null, null, null, 2_400_000), window("unmeasured", null, null, null, 9_100_000)),

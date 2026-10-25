@@ -6,7 +6,9 @@
  */
 import { useState, type JSX } from "react";
 import { AccountAvatar } from "../Avatar";
+import { AppIcon } from "../AppIcon";
 import { Modal } from "../form";
+import { appOfConversation, appOfTool } from "../../lib/app-of";
 import { PagedList } from "../PagedList";
 import { useActionHost } from "../ItemMenu";
 import { useConversations } from "../../lib/conversations";
@@ -133,7 +135,9 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
   const where = [row.project_id ? projects.get(row.project_id) : null, whenWords(row.last_ms)].filter(Boolean).join(" · ");
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
-      <span className="min-w-0">
+      <span className="flex min-w-0 items-center gap-2.5">
+        <AppIcon {...(conversation ? appOfConversation(conversation) : appOfTool(row.tool))} size={20} />
+        <span className="min-w-0 flex-1">
         {open ? (
           <button type="button" onClick={open} className="block max-w-full truncate text-left text-body font-semibold text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60" title={name}>
             {name}
@@ -144,6 +148,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
           </span>
         )}
         <span className="block truncate text-meta text-muted">{where}</span>
+        </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
         <AccountAvatar accountId={row.profile} label={profile} size={20} />

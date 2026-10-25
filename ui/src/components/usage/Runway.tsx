@@ -47,7 +47,8 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
   if (window.state === "learning") return <Gauge name={name} left={null} state="measuring" testId="window-gauge" />;
   if (window.state === "reset") {
     const when = window.measured_at_ms != null ? `, ${readWords(window.measured_at_ms, now)}` : "";
-    const last = window.percentage != null ? `Last read ${Math.round(window.percentage)}% used${when}; it has reset since` : "It has reset since the last reading";
+    const used = window.last_used_pct ?? window.percentage;
+    const last = used != null ? `Last read ${Math.round(used)}% used${when}; it has reset since` : "It has reset since the last reading";
     return <Gauge name={name} left={null} state="stale" note={last} testId="window-gauge" />;
   }
   const resets = window.resets_at_ms != null ? resetShort(window.resets_at_ms, now) : null;
@@ -64,8 +65,11 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
 
 /** The newest reading's age, for the line under both gauges. */
 export function readingLine(display: QuotaDisplayData | undefined, now: number): string | null {
-  const at = Math.max(display?.five_hour?.measured_at_ms ?? 0, display?.weekly?.measured_at_ms ?? 0);
-  return at > 0 ? `Limits read ${readWords(at, now)}` : null;
+  const windows = [display?.five_hour, display?.weekly].filter((window): window is WindowDisplay => window != null && window.measured_at_ms != null);
+  const newest = windows.sort((a, b) => (b.measured_at_ms ?? 0) - (a.measured_at_ms ?? 0))[0];
+  if (!newest) return null;
+  const from = newest.source_words ? ` from ${newest.source_words}` : "";
+  return `Limits read${from} ${readWords(newest.measured_at_ms!, now)}`;
 }
 
 /** The limits and usage of one account (or one profile). */

@@ -5,6 +5,8 @@
  * its limits, rename, default, remove). Its launch settings unfold under
  * it on demand.
  */
+import { AppIcon } from "../../components/AppIcon";
+import type { AppRef } from "../../lib/app-of";
 import { useState, type JSX } from "react";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Chip } from "../../components/primitives";
@@ -34,8 +36,8 @@ export type ProfileRowProps = {
   recipes: LaunchRecipeInfo[];
   /** Sessions open on it now (AI Juggler's and other apps'). */
   openNow: number;
-  /** The apps those sessions run in ("Claude app, Terminal"). */
-  apps: string[];
+  /** The apps those sessions run in, each with its icon's ref. */
+  apps: AppRef[];
   /** Its folder, `~`-relative, when known. */
   folder: string | null;
   canUseInPlace: boolean;
@@ -72,7 +74,7 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     renewal ? renewal.text : null,
     differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
   ].filter(Boolean);
-  const where = [props.apps.length > 0 ? props.apps.join(", ") : providerDisplayName(account.provider), ...perProfile].join(" · ");
+  const where = [props.apps.length > 0 ? props.apps.map((app) => app.name).join(", ") : providerDisplayName(account.provider), ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
       <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
@@ -89,6 +91,13 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
             )}
           </span>
           <span className="flex min-w-0 items-center gap-2 text-meta text-muted">
+            {props.apps.length > 0 && (
+              <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+                {props.apps.slice(0, 4).map((app) => (
+                  <AppIcon key={app.name} {...app} size={16} />
+                ))}
+              </span>
+            )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
             {props.folder && (
               <span className="truncate font-mono text-label text-muted" title={props.folder} data-testid="profile-folder">

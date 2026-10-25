@@ -6,8 +6,9 @@
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
-import { AccountAvatar } from "../../components/Avatar";
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { ProfileBadge } from "../../components/ProfileBadge";
+import { appOfConversation, appOfSession } from "../../lib/app-of";
 import { useActionHost } from "../../components/ItemMenu";
 import { PROJECT_SYNC_EVENT, ProjectSyncSheet } from "../../components/ProjectSyncSheet";
 import { Section } from "../../components/charts/ChartCard";
@@ -170,10 +171,8 @@ export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onA
                   data-testid="project-open-session"
                 >
                   <span className="flex shrink-0 items-center gap-1.5">
-                    <span className="flex size-8 items-center justify-center rounded-lg bg-surface-3 text-ink">
-                      <ToolMark tool={row.tool} size={18} />
-                    </span>
-                    <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={18} />
+                    <AppIcon {...(row.item.kind === "conversation" ? appOfConversation(row.item.conversation) : appOfSession(row.item.session))} size={24} />
+                    <ProfileBadge name={row.accountLabel} />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-body font-semibold text-ink">{row.title}</span>

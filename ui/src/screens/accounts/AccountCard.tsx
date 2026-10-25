@@ -18,21 +18,29 @@ import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { ProfileRow } from "./ProfileRow";
+import { OWN_APP_ID } from "../../components/AppIcon";
+import { appOfSession, type AppRef } from "../../lib/app-of";
 
 const LIVE = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
 
-/** How many sessions are open on a profile, and in which apps. */
-export function openOn(profileId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): { count: number; apps: string[] } {
+/** How many sessions are open on a profile, and in which apps (each with
+ * what its icon is read by, D-38). */
+export function openOn(profileId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): { count: number; apps: AppRef[] } {
   const own = sessions.filter((s) => s.account_id === profileId && LIVE.includes(s.status));
   const elsewhere = conversations.filter((c) => c.account_id === profileId && c.live && c.session_id === null);
-  const apps = new Set<string>();
-  for (const s of own) apps.add(s.kind === "desktop" ? `${toolSpec(s.provider).desktop_app ?? providerDisplayName(s.provider)} app` : "AI Juggler");
+  const apps = new Map<string, AppRef>();
+  for (const s of own) {
+    const app = s.kind === "desktop" ? { ...appOfSession(s), name: `${toolSpec(s.provider).desktop_app ?? providerDisplayName(s.provider)} app` } : { appId: OWN_APP_ID, appPid: null, name: "AI Juggler" };
+    apps.set(app.name, app);
+  }
   for (const c of elsewhere) {
     for (const place of c.places ?? []) {
-      if (place.app) apps.add(toolSpec(c.tool).desktop_app === place.app ? `${place.app} app` : place.app);
+      if (!place.app) continue;
+      const name = toolSpec(c.tool).desktop_app === place.app ? `${place.app} app` : place.app;
+      apps.set(name, { appId: place.app_id ?? null, appPid: place.app_pid ?? null, name });
     }
   }
-  return { count: own.length + elsewhere.length, apps: [...apps] };
+  return { count: own.length + elsewhere.length, apps: [...apps.values()] };
 }
 
 /** Why an account has no reading now, and where one comes from: its
