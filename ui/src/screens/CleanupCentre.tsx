@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Page } from "../components/Page";
 import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
@@ -348,15 +349,15 @@ export function CleanupCentre(props: {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="cleanup-centre">
+    <Page testId="cleanup-centre">
       {/* D-25: the title and one plain line; the switches sit behind ⋯
-          (the per-account tiers live in Settings › Cleanup). */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-col">
-          <h2 className="text-lg font-semibold tracking-tight">Cleanup</h2>
-          <p className="text-xs text-muted" data-testid="cleanup-summary">
-            What your sessions left running. You choose what to stop; automatic cleanup is off unless you
-            turned it on.
+          (the per-account tiers live in Settings › Cleanup). The shared
+          page frame (0.1.5): the same width and title as its neighbours. */}
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex min-w-[16rem] flex-1 flex-col gap-1">
+          <h2 className="text-title text-ink">Cleanup</h2>
+          <p className="max-w-[72ch] text-body text-muted" data-testid="cleanup-summary">
+            What your sessions left running after they closed. Nothing is stopped unless you choose it, or turned automatic cleanup on.
           </p>
         </div>
         {/* ⌘F lands here (2.1.1/2.4.7 keyboard-complete + visible). */}
@@ -364,7 +365,7 @@ export function CleanupCentre(props: {
           ref={filterRef}
           role="radiogroup"
           aria-label="Cleanup filter"
-          className="ml-auto flex items-center rounded-lg border border-hairline bg-surface/60 p-0.5"
+          className="flex items-center rounded-lg border border-hairline bg-surface p-0.5"
         >
           {CLEANUP_FILTERS.map((entry) => (
             <button
@@ -374,7 +375,7 @@ export function CleanupCentre(props: {
               aria-checked={filter === entry.id}
               onClick={() => setFilter(entry.id)}
               className={
-                "rounded-md px-2 py-1 text-label font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                "rounded-md px-2.5 py-1 text-meta font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (filter === entry.id
                   ? "bg-accent-soft text-accent-hi"
                   : "text-muted hover:bg-surface hover:text-ink")
@@ -430,7 +431,7 @@ export function CleanupCentre(props: {
                   className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
                   data-testid="cleanup-pause-toggle"
                 >
-                  <span className="text-xs font-medium text-ink">Pause automatic cleanup</span>
+                  <span className="text-body font-medium text-ink">Pause automatic cleanup</span>
                   <span className="text-label text-muted">For every account, until you resume it</span>
                 </button>
               )}
@@ -444,7 +445,7 @@ export function CleanupCentre(props: {
                 className="flex flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2"
                 data-testid="cleanup-open-settings"
               >
-                <span className="text-xs font-medium text-ink">Cleanup settings…</span>
+                <span className="text-body font-medium text-ink">Cleanup settings…</span>
                 <span className="text-label text-muted">What each account may clean up by itself</span>
               </button>
             </div>
@@ -610,13 +611,13 @@ export function CleanupCentre(props: {
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-grid">
         {(() => {
           const history = data?.history ?? null;
           return history !== null ? <HistoryList history={history} /> : null;
         })()}
         {data !== null && visibleGroups.length === 0 && error === null && (data?.history ?? null) === null && (
-          <CleanupEmpty cleanInstances={data.clean_instances} />
+          <CleanupEmpty cleanInstances={data.clean_instances} onHistory={filter === "history" ? undefined : () => setFilter("history")} />
         )}
         <div className="flex flex-col gap-2">
           {visibleGroups.map((group) => (
@@ -656,11 +657,7 @@ export function CleanupCentre(props: {
         />
       )}
 
-      <p className="text-label text-muted" data-testid="cleanup-glossary">
-        An <dfn>orphan</dfn> is a process still running after its session closed; a{" "}
-        <dfn>helper</dfn> is any process a session spawned (dev server, watcher…).
-      </p>
-    </div>
+    </Page>
   );
 }
 

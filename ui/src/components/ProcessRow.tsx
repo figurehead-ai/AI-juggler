@@ -109,13 +109,13 @@ export function ProcessRow(props: {
   const killable = killableRow(row) && props.onKill !== undefined;
   return (
     <li className="border-t border-hairline" data-testid={`cleanup-row-${row.pid}`}>
-      <div className="flex items-center gap-2 py-1.5 text-label">
+      <div className="flex items-center gap-2 py-2 text-meta">
         <button
           type="button"
           onClick={() => setExpanded((open) => !open)}
           aria-expanded={expanded}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-          title="Why does Juggler think this is mine?"
+          title="Why AI Juggler counts it as your session's"
         >
           <span aria-hidden="true" className="w-3 text-center text-label text-muted">
             {expanded ? "▾" : "▸"}
@@ -147,7 +147,7 @@ export function ProcessRow(props: {
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/50 px-1.5 py-[1px] text-label text-warning"
               title={row.hog_rules.join("; ")}
             >
-              <span aria-hidden="true">▲</span>hog
+              <span aria-hidden="true">▲</span>heavy
             </span>
           )}
           <span className="truncate font-mono text-label text-ink">{row.cmdline}</span>
@@ -179,7 +179,7 @@ export function ProcessRow(props: {
           className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface/40 p-2.5 text-label text-muted"
           data-testid={`cleanup-evidence-${row.pid}`}
         >
-          <p className="font-medium text-ink">Why does Juggler think this is mine?</p>
+          <p className="font-medium text-ink">Why AI Juggler counts it as your session's</p>
           <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
             <dt className="text-muted">Spawned by</dt>
             <dd>
@@ -216,13 +216,29 @@ export function ProcessRow(props: {
   );
 }
 
-/** The empty success state — copy EXACT (Req.5). */
-export function CleanupEmpty(props: { cleanInstances: number }) {
+/** The empty success state — copy EXACT (Req.5), as a designed card
+ * (the review of 0.1.4: one grey line on an empty page). */
+export function CleanupEmpty(props: { cleanInstances: number; onHistory?: () => void }) {
   return (
-    <p className="text-label text-muted" data-testid="cleanup-empty">
-      {props.cleanInstances === 0
-        ? "Nothing left behind."
-        : `Nothing left behind — ${props.cleanInstances} ${props.cleanInstances === 1 ? "session" : "sessions"} running clean.`}
-    </p>
+    <div className="flex flex-col items-center gap-3 rounded-card border border-hairline bg-surface px-6 py-12 text-center shadow-card" data-testid="cleanup-empty-card">
+      <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-full bg-success-soft text-success">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </span>
+      <p className="text-section font-semibold text-ink" data-testid="cleanup-empty">
+        {props.cleanInstances === 0
+          ? "Nothing left behind."
+          : `Nothing left behind — ${props.cleanInstances} ${props.cleanInstances === 1 ? "session" : "sessions"} running clean.`}
+      </p>
+      <p className="max-w-[52ch] text-body text-muted">
+        When a session closes and something it started keeps running, such as a dev server or a file watcher, it shows here for you to stop.
+      </p>
+      {props.onHistory && (
+        <button type="button" onClick={props.onHistory} className="text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">
+          See what was cleaned up in the last 7 days
+        </button>
+      )}
+    </div>
   );
 }

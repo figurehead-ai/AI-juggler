@@ -13,6 +13,7 @@
  * words in ink at 80 % (7:1 or better); figures in tabular numbers; the
  * Mac's figures as cards sized to their content, in a grid.
  */
+import { Page } from "../components/Page";
 import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { ToolMark } from "../components/ToolMark";
@@ -128,21 +129,20 @@ export function ThisMacScreen({
   const info = useContext(ThisMacContext);
   const machine = info?.machine;
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 py-2" data-testid="this-mac-page">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-title font-semibold tracking-tight text-ink">This Mac</h1>
-        <p className="text-body text-muted">What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere.</p>
-      </header>
+    <Page title="This Mac" subtitle="What your AI tools use on this Mac, measured where they run. Nothing here is sent anywhere." testId="this-mac-page" headingLevel={1}>
       {!info || !machine ? (
         <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
       ) : (
-        <>
+        // Two columns on a wide window: the Mac's figures, and what's
+        // using it (the shared page frame, 0.1.5).
+        <div className="grid items-start gap-x-8 gap-y-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-state" title="Now" bare>
             <MachineState info={info} reasonsShown={machine.summary.reasons.length} />
             {/* The Mac's figures as cards sized to their content: memory,
                 the tallest, beside the processor, swap and AI Juggler. */}
-            <div className="grid items-start gap-3 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" data-testid="this-mac-figures">
-              <Card title="Memory" testId="this-mac-memory-card" className="md:row-span-3">
+            <div className="grid items-start gap-3 md:grid-cols-2" data-testid="this-mac-figures">
+              <Card title="Memory" testId="this-mac-memory-card" className="md:col-span-2">
                 <MemoryMeter info={info} more />
               </Card>
               <Card title="Processor" testId="this-mac-cpu">
@@ -173,7 +173,9 @@ export function ThisMacScreen({
               </Card>
             </div>
           </Section>
+          </div>
 
+          <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-using" title="What's using it">
             {info.by_tool.length === 0 && <p className="text-body text-muted">No AI tools are running.</p>}
             <div className="flex flex-col">
@@ -233,8 +235,9 @@ export function ThisMacScreen({
               </div>
             </Section>
           )}
-        </>
+          </div>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

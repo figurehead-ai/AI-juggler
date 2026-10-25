@@ -773,11 +773,9 @@ export default function App() {
          * recovery summary) dismiss and return focus to the board. */}
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
-            <div className="h-full">
-              <ScreenBoundary key="cleanup" screen="cleanup" label="Cleanup">
-                <CleanupCentre />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="cleanup" screen="cleanup" label="Cleanup">
+              <CleanupCentre />
+            </ScrollingScreen>
           ) : global === "accounts" ? (
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
               <ProfilesScreen
