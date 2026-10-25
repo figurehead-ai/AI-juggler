@@ -62,7 +62,7 @@
         },
         {
           "id": "last-messages",
-          "text": "A session's last messages are read from the end of its transcript on your Mac when you open its page, and kept nowhere. One switch in Settings › Desktop apps turns them off.",
+          "text": "A session's last messages are read from the end of its transcript on your Mac while its page is open, and kept nowhere. One switch in Settings › Desktop apps turns them off.",
           "tests": [
             "ui/src/screens/settings/desktop-apps.test.tsx::Last messages are on until you turn them off, and only off is kept",
             "ui/src/pages/session/last-messages.test.tsx::are read only once the page is shown, and once",

@@ -14,6 +14,7 @@ import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, ty
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { accountDisplay, accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { SessionModel } from "./model";
+import { CardTitle } from "./CardTitle";
 
 /** A target profile, as the page shows it. */
 export type Target = { profileId: string; label: string; recipeId: string | null; blocked: string | null };
@@ -117,18 +118,18 @@ export function ContinueOn({
 
   const label = (target: Target) => (own ? target.label : (labels.get(target.profileId) ?? target.profileId));
   return (
-    <Card className="flex flex-col gap-3 p-4" data-testid="continue-on">
-      <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">Continue on another account</h3>
+    <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
+      <CardTitle>Continue on another account</CardTitle>
       {switchBack && onSwitchBack && (
-        <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-2 text-left text-[11.5px] text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-[13px] text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
           <span className="block">{switchBack.copy}</span>
-          <span className="text-muted">Go back to where it came from ▸</span>
+          <span className="text-ink/80">Go back to where it came from ▸</span>
         </button>
       )}
       {rows === null ? (
-        <p className="text-[11.5px] text-muted" role="status">Looking for room…</p>
+        <p className="text-[13px] text-ink/80" role="status">Looking for room…</p>
       ) : others.length === 0 ? (
-        <p className="text-[11.5px] text-muted" data-testid="continue-none">No other account to continue on.</p>
+        <p className="text-[13px] text-ink/80" data-testid="continue-none">No other account to continue on.</p>
       ) : (
         <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
           {others.map((group) => {
@@ -136,16 +137,16 @@ export function ContinueOn({
             const left = runwayOf(display).left;
             return (
               <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account">
-                <span className="flex items-baseline justify-between gap-2 text-[11.5px]">
+                <span className="flex items-baseline justify-between gap-2 text-[13px]">
                   <span className="truncate font-medium text-ink">{group.account ? accountName(group.account) : label(group.targets[0]!)}</span>
-                  <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-muted")}>{left === null ? "not measured" : `${left}% left`}</span>
+                  <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-ink/80")}>{left === null ? "not measured" : `${left}% left`}</span>
                 </span>
                 {group.targets.map((target) => {
                   const words = target.recipeId && target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
                   return (
                     <div key={target.profileId + (target.recipeId ?? "")} className="flex flex-col gap-0.5">
                       <Button
-                        size="sm"
+                        size="md"
                         variant="secondary"
                         className="justify-start"
                         disabled={!own || target.blocked !== null}
@@ -155,10 +156,10 @@ export function ContinueOn({
                       >
                         <AccountAvatar accountId={target.profileId} label={label(target)} size={14} />
                         <span className="truncate">{label(target)}</span>
-                        {left !== null && <span className="ml-auto tabular-nums text-muted">{left}% left</span>}
+                        {left !== null && <span className="ml-auto tabular-nums text-ink/80">{left}% left</span>}
                       </Button>
                       {(target.blocked || words) && (
-                        <span className="pl-1 text-[10.5px] text-muted" data-testid="continue-check">
+                        <span className="pl-1 text-[12px] text-ink/80" data-testid="continue-check">
                           {target.blocked ?? words}
                         </span>
                       )}
@@ -171,19 +172,19 @@ export function ContinueOn({
         </ul>
       )}
       {sameAccount.map((target) => (
-        <p key={target.profileId} className="text-[11px] text-muted" data-testid="continue-no-room">
+        <p key={target.profileId} className="text-[12px] text-ink/80" data-testid="continue-no-room">
           {label(target)} shares this account, so it gives no new room.
         </p>
       ))}
       {!own && (
-        <div className="flex flex-col gap-1.5 border-t border-hairline/60 pt-2.5">
-          <p className="text-[11px] text-muted">
+        <div className="flex flex-col gap-2 border-t border-hairline pt-3">
+          <p className="text-[13px] leading-[1.5] text-ink/80">
             {model.live
               ? "It's open in its app now. Close it there, continue it in AI Juggler, then move it from there."
               : "To move it, continue it in AI Juggler first; its page then offers these accounts."}
           </p>
           {onCarryIn && (
-            <Button size="sm" variant="secondary" disabled={model.live} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+            <Button size="md" variant="secondary" disabled={model.live} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
               Continue in AI Juggler
             </Button>
           )}

@@ -1,17 +1,21 @@
 /**
- * AJ-E2108 — a session page's Overview: its last messages (two columns),
- * and beside them where it runs, its account's runway and where it could
+ * AJ-E2108 — a session page's Overview: its conversation, filling the
+ * height under the header and scrolling inside itself, and beside it a
+ * fixed column: where it runs, its account's runway and where it could
  * continue. The same for a session AI Juggler runs and one another app
- * runs. Loaded with the page, never at start.
+ * runs. Loaded with the page, never at start; the runways and the
+ * profiles' names come from one shared read (data.ts), not one per page.
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useMemo, type JSX } from "react";
 import { Card } from "../../components/primitives";
-import { AccountRunway } from "../../components/AccountRunway";
-import { accountsList, quotaDisplayAll, type AccountInfo, type QuotaDisplayData, type SwitchBackSuggestionData } from "../../lib/bridge";
+import type { SwitchBackSuggestionData } from "../../lib/bridge";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { shortPath } from "../../screens/AccountManage";
+import { CardTitle } from "./CardTitle";
 import { LastMessages } from "./LastMessages";
 import { ContinueOn } from "./ContinueOn";
+import { Runway } from "./Runway";
+import { useProfiles, useRunways } from "./data";
 import { appWords, type SessionModel } from "./model";
 
 export type OverviewProps = {
@@ -20,6 +24,9 @@ export type OverviewProps = {
   visible: boolean;
   /** A paired Mac's session: its messages stay there. */
   remoteMac?: string | null;
+  /** Started outside AI Juggler: said once, quietly, under where it runs. */
+  outside?: boolean;
+  onGoTo?: () => void;
   onPick?: (recipeId: string, label: string) => void;
   onCarryIn?: () => void;
   switchBack?: SwitchBackSuggestionData | null;
@@ -29,30 +36,20 @@ export type OverviewProps = {
 export function SessionOverview(props: OverviewProps): JSX.Element {
   const { model } = props;
   const accounts = useSubscriptions();
-  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
-  const [profiles, setProfiles] = useState<AccountInfo[]>([]);
-  useEffect(() => {
-    let alive = true;
-    void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
-    void accountsList().then((rows) => alive && setProfiles(rows), () => null);
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const displays = useRunways();
+  const profiles = useProfiles();
   const labels = useMemo(() => new Map(profiles.map((p) => [p.id, p.label])), [profiles]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
+  const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
   return (
-    <div className="@container" data-testid="session-overview">
-      <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-3 @3xl:col-span-2">
-          <LastMessages model={model} visible={props.visible} remoteMac={props.remoteMac} />
+    <div className="@container flex min-h-0 flex-1 flex-col" data-testid="session-overview">
+      <div className="mx-auto grid w-full max-w-[1440px] min-h-0 flex-1 grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,1fr)_340px] @4xl:grid-rows-[minmax(0,1fr)]">
+        <div className="flex min-h-[28rem] min-w-0 flex-col @4xl:min-h-0">
+          <LastMessages model={model} visible={props.visible} remoteMac={props.remoteMac} onGoTo={props.onGoTo} />
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          <WhereItRuns model={model} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null} />
-          <Card className="flex flex-col gap-2.5 p-4" data-testid="session-runway">
-            <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">Runway{account && account.state === "signed_in" ? ` · ${accountName(account)}` : ""}</h3>
-            <AccountRunway display={account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId)} />
-          </Card>
+        <div className="flex min-w-0 flex-col gap-4 rounded-card outline-none focus-visible:ring-1 focus-visible:ring-accent/60 @4xl:min-h-0 @4xl:overflow-y-auto" data-testid="session-side" tabIndex={0} role="region" aria-label="About this session">
+          <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null} />
+          <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} />
           {!props.remoteMac && (
             <ContinueOn
               model={model}
@@ -72,7 +69,7 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
 }
 
 /** App, window, profile, account and model: only the ones it knows. */
-function WhereItRuns({ model, accountWords }: { model: SessionModel; accountWords: string | null }): JSX.Element {
+function WhereItRuns({ model, accountWords, outside }: { model: SessionModel; accountWords: string | null; outside: boolean }): JSX.Element {
   const place = model.places[0];
   const app = appWords(place, model.tool) ?? (model.sessionId && model.live ? "AI Juggler's terminal" : null);
   const rows: [string, string, boolean?][] = [
@@ -84,21 +81,26 @@ function WhereItRuns({ model, accountWords }: { model: SessionModel; accountWord
     ...(model.cwd ? ([["Folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
   ];
   return (
-    <Card className="flex flex-col gap-2.5 p-4" data-testid="where-it-runs">
-      <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">Where it runs</h3>
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[12px]">
+    <Card className="flex flex-col gap-3 p-5" data-testid="where-it-runs">
+      <CardTitle>Where it runs</CardTitle>
+      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px]">
         {rows.map(([label, value, mono]) => (
           <div key={label} className="contents">
-            <dt className="text-muted">{label}</dt>
-            <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-[11.5px]" : "")} title={value}>
+            <dt className="text-ink/80">{label}</dt>
+            <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-[12.5px]" : "")} title={value}>
               {value}
             </dd>
           </div>
         ))}
       </dl>
       {model.places.length > 1 && (
-        <p className="text-[11px] text-muted" data-testid="where-also">
+        <p className="text-[13px] text-ink/80" data-testid="where-also">
           Also open in {model.places.slice(1).map((p) => p.label || p.app).join(", ")}.
+        </p>
+      )}
+      {outside && (
+        <p className="border-t border-hairline pt-3 text-[12px] leading-[1.5] text-ink/80" data-testid="where-outside">
+          Started <span data-testid="outside-chip">outside AI Juggler</span>: shown here to read and follow. AI Juggler never stops or changes it.
         </p>
       )}
     </Card>

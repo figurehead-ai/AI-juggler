@@ -11,10 +11,11 @@ import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { PlaceInfo } from "../../types/generated/PlaceInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
+import type { TurnBlockInfo } from "../../types/generated/TurnBlockInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { placesConversations } from "../../preview/places";
 
-export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo };
+export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo, TurnBlockInfo };
 
 const NOW = Date.now();
 
@@ -135,30 +136,63 @@ export function onConversationsChanged(handler: () => void): () => void {
   };
 }
 
-/** The preview's last messages: the fixture's per conversation id, else a
- * short exchange ending in a question (a key in it shows redacted). */
-function previewLastMessages(conversationId: string): LastMessagesInfo {
-  const w = window as unknown as { __AIJ_FIXTURE__?: { last_messages?: Record<string, LastMessagesInfo> }; __AIJ_APP_SETTINGS__?: Record<string, string> };
-  // Off in Settings: nothing is read.
-  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return { state: "off", turns: [], redacted: 0 };
-  const fixture = w.__AIJ_FIXTURE__;
-  const seeded = fixture?.last_messages?.[conversationId];
-  if (seeded) return seeded;
-  if (fixture?.last_messages) return { state: "none", turns: [], redacted: 0 };
-  return {
-    state: "shown",
-    redacted: 1,
-    turns: [
-      { speaker: "assistant", text: "Seven panes are in, and every setting has a home. Two rows had no footer, so I wrote one for each." },
-      { speaker: "you", text: "Good. Keep the old shortcuts working; the test key is •••" },
-      { speaker: "assistant", text: "Should the Privacy pane stay last, or go after Notifications as in the design?" },
-    ],
+/** What a page asks for (AJ-E2108): the last turns, the ones `before` a
+ * page's start, or everything `from` one; `known` is the stamp it shows. */
+export type LastMessagesAsk = { known?: string | null; before?: number | null; from?: number | null; max?: number };
+
+/** A fixture's turn: the backend's shape, or speaker and text only. */
+type SeededTurn = Partial<LastTurnInfo> & { speaker: string; text?: string };
+const none = (state: string): LastMessagesInfo => ({ state, turns: [], redacted: 0, earlier: null, stamp: null });
+
+/** The preview's last messages: the fixture's per conversation id (paged
+ * by turn index, as the backend pages by offset), else a short exchange
+ * ending in a question (a key in it shows redacted). */
+function previewLastMessages(conversationId: string, ask: LastMessagesAsk): LastMessagesInfo {
+  const w = window as unknown as {
+    __AIJ_FIXTURE__?: { last_messages?: Record<string, { state: string; redacted: number; turns: SeededTurn[] }> };
+    __AIJ_APP_SETTINGS__?: Record<string, string>;
   };
+  // Off in Settings: nothing is read.
+  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return none("off");
+  const fixture = w.__AIJ_FIXTURE__;
+  const seeded = fixture?.last_messages?.[conversationId] ?? (fixture?.last_messages ? null : PREVIEW_TURNS);
+  if (!seeded) return none("none");
+  if (seeded.state !== "shown") return none(seeded.state);
+  const all: LastTurnInfo[] = seeded.turns.map((turn) => ({
+    speaker: turn.speaker,
+    blocks: turn.blocks ?? [{ kind: "text", text: turn.text ?? "", steps: [], hidden: 0 }],
+    at_ms: turn.at_ms ?? null,
+    model: turn.model ?? null,
+  }));
+  const stamp = `preview:${all.length}`;
+  if (ask.before == null && ask.known === stamp) return { ...none("unchanged"), stamp };
+  const max = Math.min(Math.max(ask.max ?? 30, 1), 60);
+  const end = ask.before != null ? Math.min(ask.before, all.length) : all.length;
+  const start = ask.before == null && ask.from != null ? Math.min(ask.from, end) : Math.max(0, end - max);
+  return { state: "shown", redacted: seeded.redacted, turns: all.slice(start, end), earlier: start > 0 ? start : null, stamp };
 }
 
-/** AJ-E2108: a session's last 2–3 messages, read from the end of its
- * transcript now (when its page opens), redacted; kept nowhere. */
-export async function conversationsLastMessages(accountId: string, conversationId: string): Promise<LastMessagesInfo> {
-  if (!hasLiveBackend()) return previewLastMessages(conversationId);
-  return invoke<LastMessagesInfo>("conversations_last_messages", { accountId, conversationId });
+const PREVIEW_TURNS: { state: string; redacted: number; turns: SeededTurn[] } = {
+  state: "shown",
+  redacted: 1,
+  turns: [
+    { speaker: "assistant", text: "Seven panes are in, and every setting has a home. Two rows had no footer, so I wrote one for each." },
+    { speaker: "you", text: "Good. Keep the old shortcuts working; the test key is •••" },
+    { speaker: "assistant", text: "Should the Privacy pane stay last, or go after Notifications as in the design?" },
+  ],
+};
+
+/** AJ-E2108: a session's last messages (up to 30 turns), read from the
+ * end of its transcript now, redacted; kept nowhere. `before` pages back,
+ * `from` follows along, and `known` answers "unchanged" without a read. */
+export async function conversationsLastMessages(accountId: string, conversationId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
+  if (!hasLiveBackend()) return previewLastMessages(conversationId, ask);
+  return invoke<LastMessagesInfo>("conversations_last_messages", {
+    accountId,
+    conversationId,
+    known: ask.known ?? null,
+    before: ask.before ?? null,
+    from: ask.from ?? null,
+    max: ask.max ?? null,
+  });
 }
