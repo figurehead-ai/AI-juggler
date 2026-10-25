@@ -6,19 +6,19 @@ import type { InstanceInfo } from "./InstanceInfo";
  * One row: one of AI Juggler's sessions, or a conversation started
  * outside it.
  */
-export type SessionRowInfo = {
+export type SessionRowInfo = { 
 /**
  * `s/<session>` or `c/<account>/<conversation>`: unique in the list.
  */
-key: string,
+key: string, 
 /**
  * AI Juggler's session.
  */
-session: InstanceInfo | null,
+session: InstanceInfo | null, 
 /**
  * A conversation started outside AI Juggler.
  */
-conversation: ConversationInfo | null,
+conversation: ConversationInfo | null, 
 /**
  * The search's words in context, when its transcript matched.
  */

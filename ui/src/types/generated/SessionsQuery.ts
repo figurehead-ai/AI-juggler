@@ -3,24 +3,24 @@
 /**
  * What a list of sessions shows.
  */
-export type SessionsQuery = {
+export type SessionsQuery = { 
 /**
  * One project's sessions.
  */
-project_id: string | null,
+project_id: string | null, 
 /**
  * One account's sessions.
  */
-account_id: string | null,
+account_id: string | null, 
 /**
  * `all` (the default), `open`, `ended` (not archived) or `archived`.
  */
-which: string | null,
+which: string | null, 
 /**
  * Words that must each match the row (its title, project, account,
  * tool, model, branch, local dates) or its transcript.
  */
-text: string | null,
+text: string | null, 
 /**
  * The UI's minutes east of UTC, for dates in words.
  */

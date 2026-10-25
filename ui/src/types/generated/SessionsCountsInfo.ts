@@ -3,19 +3,19 @@
 /**
  * How many sessions a query's list holds, by kind.
  */
-export type SessionsCountsInfo = {
+export type SessionsCountsInfo = { 
 /**
  * Every row the list holds (open, ended and archived).
  */
-all: number,
+all: number, 
 /**
  * Open now.
  */
-open: number,
+open: number, 
 /**
  * Ended, not archived.
  */
-ended: number,
+ended: number, 
 /**
  * Archived (AI Juggler's sessions only).
  */
