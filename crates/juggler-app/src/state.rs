@@ -124,6 +124,9 @@ pub struct AppState {
     pub watchdog: std::sync::Mutex<Option<std::process::Child>>,
     /// AJ-E1510: system notifications — what is due, and where a click goes.
     pub notifier: crate::features::notifications::Notifier,
+    /// AJ-E1601 (D-34): where the keys of accounts through another service
+    /// are kept (the Keychain, installed at startup).
+    pub service_keys: crate::features::service_accounts::ServiceKeys,
 }
 
 impl Drop for AppState {
@@ -316,6 +319,7 @@ impl AppState {
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
+            service_keys: crate::features::service_accounts::ServiceKeys::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,

@@ -93,10 +93,11 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
 
-    // The read side: 11 rows, one real-CI row, everything honestly
-    // unvalidated with open beta debt.
+    // The read side: 17 rows (6 of them the same tool through another
+    // service, AJ-E1601), everything honestly unvalidated with open beta
+    // debt.
     let rows = commands::validation_matrix_impl(&state).unwrap();
-    assert_eq!(rows.len(), 11);
+    assert_eq!(rows.len(), 17);
     let claude = rows
         .iter()
         .find(|row| row.from == "claude-code" && row.to == "claude-code")

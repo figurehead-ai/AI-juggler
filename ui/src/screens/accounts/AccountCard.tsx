@@ -4,13 +4,15 @@
  * plan, the renewal and the fee; its profiles share them. Profiles that
  * aren't signed in to anything sit last, under "Not signed in".
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import { Card, Chip } from "../../components/primitives";
 import { AccountRunway, runwayOf } from "../../components/AccountRunway";
 import { providerMark } from "../../components/indicator";
+import { LetterMark } from "../../components/ToolMark";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
-import { accountDisplay, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountDisplay, accountName, serviceLine, type SubscriptionInfo } from "../../lib/subscriptions";
+import { ReplaceKeyModal, ServiceUsage } from "./ServiceParts";
 import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
@@ -58,23 +60,26 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const ownSessions = props.sessions.filter((s) => profiles.some((p) => p.id === s.account_id));
   const unmeasured = runwayOf(display, ownSessions).left === null;
   const renewal = renewalLabel(sub.renewal_date, props.now);
+  // AJ-E1601: through another service, the service names the account.
+  const service = sub.service ?? null;
+  const [newKey, setNewKey] = useState(false);
   const line = [
-    sub.email,
-    sub.organisation && sub.plan ? sub.plan : null,
+    service ? serviceLine(sub) : sub.email,
+    !service && sub.organisation && sub.plan ? sub.plan : null,
     renewal && renewal.tier === "date" ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
   const first = profiles[0];
   return (
-    <Card className="overflow-hidden" data-testid="account-card" data-state={sub.state}>
+    <Card className="overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-3.5">
         <span
           className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi"
-          title={providerDisplayName(sub.tool)}
+          title={service?.name ?? providerDisplayName(sub.tool)}
           data-testid="account-tool-mark"
           data-provider={sub.tool}
         >
-          <mark.Icon width={16} height={16} aria-hidden="true" />
+          {service ? <LetterMark name={service.name} size={18} /> : <mark.Icon width={16} height={16} aria-hidden="true" />}
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold" data-testid="account-name">
@@ -83,7 +88,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           <p className="truncate text-[11px] text-muted" data-testid="account-line">
             {signedOut
               ? `${profiles.length === 1 ? "This profile isn't" : "These profiles aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
-              : sub.state === "unverified"
+              : sub.state === "unverified" && !service
                 ? `${providerDisplayName(sub.tool)} · ${sub.reason ?? "its sign-in can't be read"}`
                 : line.join(" · ") || providerDisplayName(sub.tool)}
           </p>
@@ -98,10 +103,20 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             {profiles.length} profiles share this account
           </span>
         )}
+        {service && first && (
+          <button type="button" className="text-[11px] text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setNewKey(true)} data-testid="account-new-key">
+            {sub.state === "signed_in" ? "Replace key…" : "Add its key…"}
+          </button>
+        )}
       </div>
+      {newKey && service && first && (
+        <ReplaceKeyModal profileId={first.id} service={service} onClose={() => setNewKey(false)} onDone={() => (setNewKey(false), void props.onRechecked())} />
+      )}
       {!signedOut && (
         <div className="flex flex-col gap-2 px-5 py-3.5">
-          {props.reportsLimits(sub.tool) ? (
+          {service ? (
+            <ServiceUsage sub={sub} service={service} displays={props.displays} />
+          ) : props.reportsLimits(sub.tool) ? (
             <>
               <AccountRunway display={display} sessions={ownSessions} />
               {unmeasured && ownSessions.length === 0 && (
@@ -135,7 +150,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               apps={open.apps}
               folder={sub.profiles.find((p) => p.id === profile.id)?.folder ?? null}
               canUseInPlace={props.canUseInPlace(profile.provider)}
-              reportsLimits={props.reportsLimits(profile.provider)}
+              reportsLimits={!service && props.reportsLimits(profile.provider)}
               now={props.now}
               onLaunch={props.onLaunch}
               onDeleteRecipe={props.onDeleteRecipe}

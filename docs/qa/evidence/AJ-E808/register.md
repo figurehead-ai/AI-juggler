@@ -7,7 +7,7 @@ fake-harness runs never decide a cell. A Provider upgrade resets its cells by it
 app compares each cell's recorded versions with the installed ones. A pair shows
 "Validated" only when its CI row is green, a live cell passed, and every area below is PASS.
 
-**Beta-exit (Req.5):** 54 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
+**Beta-exit (Req.5):** 102 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
 
 ## Matrix
 
@@ -24,6 +24,12 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | zcode→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→gemini-cli | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→opencode | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code→claude-code+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code+service→claude-code | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code+service→claude-code+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| codex→codex+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| codex+service→codex | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| codex+service→codex+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 
 ## Decided cells
 

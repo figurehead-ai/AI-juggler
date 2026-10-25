@@ -435,6 +435,11 @@ macro_rules! app_commands {
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
+            // AJ-E1601: the services' published facts; no key, no secret.
+            Read  features::service_accounts::commands::service_accounts_catalog,
+            // Takes a key into the Keychain: never over the bridge.
+            Write features::service_accounts::commands::service_accounts_add,
+            Write features::service_accounts::commands::service_accounts_set_key,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::app::login_item::app_login_item_get,
@@ -555,6 +560,11 @@ pub fn run() {
         }
     });
 
+    // AJ-E1601 (D-34): the keys of accounts through another service live
+    // in this edition's own Keychain items (tests keep them in memory).
+    app_state
+        .service_keys
+        .install(Arc::new(edition::current().service_keys()));
     // D-20: the chosen update channel, for reports built without state.
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.

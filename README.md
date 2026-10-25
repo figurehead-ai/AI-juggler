@@ -130,6 +130,7 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its usage isn't read yet |
 | **Claude app** (desktop) | Its open sessions are shown under each of its profiles, with Go to it; This Mac measures its memory and CPU |
 | **Codex app** (desktop) | Its open threads are shown, with Go to it |
+| **Through another service**: OpenCode Go and Kimi, on Claude Code and Codex | Beta, not yet checked live: an account whose key you paste once (kept in the macOS Keychain), with a Claude Code or Codex profile pointed at the address the service publishes. Its usage is an estimate (OpenCode Go) or unknown (Kimi), and switching to it is never a proven one-click switch |
 
 AI Juggler finds each tool through your shell's `PATH`, the way your terminal
 does, even when you open the app from Finder.
@@ -157,8 +158,11 @@ does, even when you open the app from Finder.
   changing them, for which repository each of their worktrees belongs to and
   which config folders their profiles use. Nothing else they keep.
 
-It checks only whether a sign-in exists. It never reads your passwords,
-tokens or API keys, and never opens the tools' Keychain items.
+It checks only whether a sign-in exists. It never reads the passwords,
+tokens or API keys your tools keep, and never opens the tools' Keychain
+items. The one key it holds is one you give it: for an account added
+through another service, kept in AI Juggler's own Keychain item and handed
+only to that account's sessions when they start.
 
 **Writes:**
 
@@ -204,7 +208,10 @@ tokens or API keys, and never opens the tools' Keychain items.
   crash reports on, it also looks through macOS's own crash reports for AI
   Juggler's, and keeps only what failed and where.
 
-AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
+AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider,
+and sets no proxy for your tools. It points a tool at another address only
+for an account you add through another service, and only at the address
+that service publishes.
 
 [What AI Juggler touches](./docs/guide/trust.md) has the full list, and
 names the tests that check each line. The same list is in the app, under

@@ -468,6 +468,49 @@ Subscription account (or an xAI API key with a small balance).
 Save the output to `docs/research/evidence/grok-build/<version>/` and
 hand it to the agent.
 
+#### Through another service: OpenCode Go and Kimi (AJ-E1601; about 30 min)
+
+Built from the services' published guides (`docs/research/opencode.md`
+§5, `docs/research/kimi.md` §9) and fixtures only. Use a spare OpenCode
+Go key and a spare Kimi membership's Kimi Code key, a throwaway project,
+and AI Juggler Dev (its Keychain items are its own).
+
+- [ ] **Added.** Accounts › Add account › More › Through another service
+      › OpenCode Go: paste the key, tick Claude Code and Codex (type a
+      model Go serves for Codex). One card, "OpenCode Go", with "Go" and
+      "Go Codex" beneath. Keychain Access shows one item under
+      `ai.figurehead.juggler.dev.service-keys`, and no access prompt
+      appeared.
+- [ ] **Claude Code through Go.** Start a session on "Go" and send a
+      message: it answers. `/status` shows the Go address. Your own
+      `~/.claude/settings.json` is unchanged. Note whether Claude Code
+      showed its login screen or any prompt.
+- [ ] **Codex through Go.** Start a session on "Go Codex": it answers.
+      Note whether Codex asked to sign in, and what it said about the
+      model (no `models.json` catalog is written).
+- [ ] **Kimi on Claude Code.** Add Kimi with Claude Code (`k3-256k`) and
+      start a session: it answers. Its guide names `ANTHROPIC_API_KEY`:
+      note whether Claude Code asked "use this API key?" and, if it did,
+      whether it then wrote part of the key into the profile's
+      `.claude.json` (`customApiKeyResponses`) — Claude Code's own doing,
+      which the guardrail tests can't see.
+- [ ] **Kimi on Codex.** Same, on Codex (`k3-256k`).
+- [ ] **The key goes nowhere else.** With sessions running, search the
+      data folder for a recognisable part of each key
+      (`grep -rl <part> ~/Library/Application\ Support/AI\ Juggler\ Dev`):
+      no file. Export a backup and search it the same way.
+- [ ] **Switching.** Switch a Claude Code session from a normal profile
+      to "Go": the switch says it's in beta and isn't the one-click move.
+      Note whether the conversation continues on Go's model.
+- [ ] **Usage.** The Go card says "estimate" and the tokens its sessions
+      used; the Kimi card says "usage unknown". Note what each service's
+      own page shows after the runs.
+- [ ] **Removed.** Remove both Go profiles: the Keychain item goes with
+      the second.
+
+Save the output to `docs/research/evidence/service-accounts/` and hand it
+to the agent.
+
 #### New tool versions (AJ-E1611; 5 min, on an installed build)
 
 - [ ] About 10 minutes after AI Juggler starts, each tool's page (More ›

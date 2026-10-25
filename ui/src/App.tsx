@@ -3,6 +3,7 @@ import { AppActions } from "./components/AppActions";
 import { useAppKeys } from "./lib/app-keys";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
+import { servicesList } from "./lib/ipc/services";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
@@ -271,11 +272,13 @@ export default function App() {
   const [chooseTool, setChooseTool] = useState(false);
   const startAddAccount = useCallback((fresh = false) => {
     setAddFresh(fresh);
-    void providersDiscover().then(
-      (rows) => {
+    void Promise.all([providersDiscover(), fresh ? [] : servicesList().catch(() => [])]).then(
+      ([rows, services]) => {
         // Found counts, even when its version couldn't be read (0.0.11).
         const ready = rows.filter(toolFound);
-        if (ready.length > 1) setChooseTool(true);
+        // AJ-E1601: the chooser's More offers a service a found tool runs through.
+        const more = services.some((row) => row.tools.some((tool) => ready.some((found) => found.provider === tool.tool)));
+        if (ready.length > 1 || more) setChooseTool(true);
         else setAddAccounts(ready[0]?.provider ?? primaryToolId() ?? "");
       },
       () => setAddAccounts(primaryToolId() ?? ""),
@@ -1069,6 +1072,7 @@ export default function App() {
             setChooseTool(false);
             setAddAccounts(provider);
           }}
+          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), void refresh())}
         />
       )}
 

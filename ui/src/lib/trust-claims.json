@@ -7,7 +7,7 @@
       "claims": [
         {
           "id": "no-credentials",
-          "text": "It never reads your passwords, tokens or API keys, or the tools' Keychain items. It reads only whether you're signed in, and as which account: its email and organisation.",
+          "text": "It never reads the passwords, tokens or API keys your tools keep, or the tools' Keychain items. It reads only whether you're signed in, and as which account: its email and organisation.",
           "tests": [
             "crates/juggler-app/tests/no_bare_tools.rs::no_sign_in_file_is_read",
             "crates/juggler-adapters/tests/claude_code_adapter.rs::login_state_is_metadata_only",
@@ -132,6 +132,18 @@
           ]
         },
         {
+          "id": "service-key",
+          "text": "The key you paste for an account added through another service, such as OpenCode Go or Kimi, is kept in AI Juggler's own Keychain item. Only that account's sessions get it, when they start, in the setting their tool reads. It's never written to a file, a log, the search index or a backup, never shown again, and removing the account removes it.",
+          "tests": [
+            "crates/juggler-app/tests/service_accounts.rs::an_account_through_another_service_keeps_its_key_only_in_the_keychain",
+            "crates/juggler-app/tests/service_accounts.rs::the_key_reaches_only_that_accounts_launch_and_never_its_arguments",
+            "crates/juggler-app/tests/service_accounts.rs::every_session_starts_through_the_one_spawn_path",
+            "crates/juggler-app/tests/service_accounts.rs::removing_the_last_profile_removes_the_key",
+            "crates/juggler-app/tests/backup_restore.rs::a_service_accounts_key_never_reaches_a_backup",
+            "crates/juggler-app/src/edition.rs::editions_share_nothing"
+          ]
+        },
+        {
           "id": "uninstall",
           "text": "Before you uninstall, it can take out the one setting it may have added to a Claude account, and keep any edits you made since.",
           "tests": [
@@ -156,9 +168,10 @@
         },
         {
           "id": "no-proxy",
-          "text": "It never sits between your tools and their providers: it sets no proxy or provider address for them.",
+          "text": "It never sits between your tools and their providers: it sets no proxy for them. It sets a provider address only for an account you add through another service, and only the address that service publishes.",
           "tests": [
-            "crates/juggler-app/tests/trust.rs::ai_juggler_never_points_a_tool_at_another_address"
+            "crates/juggler-app/tests/trust.rs::ai_juggler_never_points_a_tool_at_another_address",
+            "crates/juggler-app/tests/trust.rs::a_provider_address_is_only_ever_one_a_service_publishes"
           ]
         },
         {

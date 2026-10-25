@@ -609,10 +609,10 @@ mod tests {
         // worktree edges and switch-back; claude→codex rules; codex→claude
         // transcript, todos, rules and switch-back. Lab 11 (2026-10-23):
         // codex→codex transcript and todos. Every other shipped cell is
-        // open.
+        // open, the six through-another-service pairs' too (AJ-E1601).
         assert_eq!(
             open.len(),
-            9 * AREAS.len() - 18,
+            (9 + 6) * AREAS.len() - 18,
             "only the labs' eighteen PASS cells are closed"
         );
     }

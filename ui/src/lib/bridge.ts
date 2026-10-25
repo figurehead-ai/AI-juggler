@@ -2692,6 +2692,12 @@ export interface DogfoodCellSummaryData {
 export interface ValidationCellData {
   from: string;
   to: string;
+  /** The tools on each side, and (AJ-E1601) whether a side runs its tool
+   * through another service. */
+  from_tool?: string;
+  to_tool?: string;
+  from_service?: boolean;
+  to_service?: boolean;
   mechanism: string;
   researched_ceiling: string;
   advertised: string;

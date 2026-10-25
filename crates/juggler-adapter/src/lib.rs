@@ -17,6 +17,7 @@ pub mod adapter;
 pub mod capabilities;
 pub mod conversation;
 pub mod discovery;
+pub mod endpoint;
 pub mod environment;
 pub mod error;
 pub mod file_trust;

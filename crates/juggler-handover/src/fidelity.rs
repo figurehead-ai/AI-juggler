@@ -459,7 +459,12 @@ pub fn base_dispositions(from: &str, to: &str) -> FidelityInput {
     // yet, so it isn't a byte copy.
     let todos_drop = (ArtifactKind::Todos, Disposition::Regenerate);
 
-    let dispositions = match (from, to) {
+    // AJ-E1601: through another service the tool's files carry as they do
+    // for the tool itself; the pair's validation cell is its own.
+    let dispositions = match (
+        crate::validation::side_tool(from),
+        crate::validation::side_tool(to),
+    ) {
         ("claude-code", "claude-code") => copy_all(&[todos_drop]),
         ("codex", "codex") => copy_all(&[
             todos_drop,

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "opencode-go",
+    "name": "OpenCode Go",
+    "short_name": "Go",
+    "vendor": "Anomaly",
+    "plans": ["Go", "Go Plus"],
+    "usage": "estimate",
+    "usage_words": "Its limits are dollars per model: every 5 hours allows a fifth of the month's amount, and every week half. OpenCode doesn't tell other tools what's left, so AI Juggler can only estimate it from what its sessions used.",
+    "console_url": "https://opencode.ai/go",
+    "key_name": "OpenCode Go API key",
+    "endpoints": [
+      {
+        "wire": "anthropic",
+        "base_url": "https://opencode.ai/inference/go/anthropic",
+        "key_env": "ANTHROPIC_AUTH_TOKEN",
+        "provider_id": "opencode-go",
+        "models": ["minimax-m3", "claude-haiku-5-5"],
+        "guide": "https://opencode.ai/v2/docs/console/harnesses/claude-code/"
+      },
+      {
+        "wire": "responses",
+        "base_url": "https://opencode.ai/inference/go/openai/v1",
+        "key_env": "OPENCODE_API_KEY",
+        "provider_id": "opencode-go",
+        "models": [],
+        "guide": "https://opencode.ai/v2/docs/console/harnesses/codex/"
+      }
+    ],
+    "checked": "2026-10-21"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "short_name": "Kimi",
+    "vendor": "Moonshot AI",
+    "plans": ["Plus", "Pro", "Max", "Ultra"],
+    "usage": "unknown",
+    "usage_words": "Kimi counts a 5-hour window and a monthly total, shared with its own apps. It doesn't tell other tools what's left, so the limits are unknown here; Kimi's own pages show them.",
+    "console_url": "https://www.kimi.com/code/docs/en/kimi-code/membership.html",
+    "key_name": "Kimi Code API key",
+    "interactive_only": "Kimi's membership is for interactive use only",
+    "endpoints": [
+      {
+        "wire": "anthropic",
+        "base_url": "https://api.kimi.ai/coding/",
+        "key_env": "ANTHROPIC_API_KEY",
+        "provider_id": "kimi",
+        "models": ["k3-256k", "k3[1m]"],
+        "guide": "https://www.kimi.com/code/docs/en/third-party-tools/claude-code.html"
+      },
+      {
+        "wire": "responses",
+        "base_url": "https://api.kimi.ai/coding/v1",
+        "key_env": "KIMI_API_KEY",
+        "provider_id": "kimi",
+        "models": ["k3-256k", "k3"],
+        "guide": "https://www.kimi.com/code/docs/en/third-party-tools/codex.html"
+      }
+    ],
+    "checked": "2026-10-21"
+  }
+]

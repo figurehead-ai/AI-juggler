@@ -53,6 +53,8 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
 
 /** An account's name: its team's, else its tool and plan ("Claude Max"). */
 export function accountName(row: SubscriptionInfo): string {
+  // AJ-E1601: an account through another service is named for it.
+  if (row.service) return row.service.name;
   if (row.state === "signed_out") return "Not signed in";
   if (row.organisation) return row.organisation;
   const tool = toolSpec(row.tool).short_name || toolSpec(row.tool).display_name;
@@ -61,9 +63,22 @@ export function accountName(row: SubscriptionInfo): string {
 
 /** Its sign-in and plan, in one line ("o…@work.com · Max"). */
 export function accountLine(row: SubscriptionInfo): string | null {
+  if (row.service) return serviceLine(row);
   const parts = [row.email, row.organisation && row.plan ? row.plan : null].filter(Boolean);
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** AJ-E1601: an account through another service in one line — its plan
+ * and how honest its usage is ("Go Plus · estimate"), or why its key
+ * can't be used. */
+export function serviceLine(row: SubscriptionInfo): string {
+  if (row.state === "unverified") {
+    const reason = row.reason ?? "its key isn't here";
+    return reason.charAt(0).toUpperCase() + reason.slice(1);
+  }
+  const usage = row.service?.usage === "estimate" ? "estimate" : "usage unknown";
+  return [row.plan, usage].filter(Boolean).join(" · ");
 }
 
 /** The account's runway: one for all its profiles, from whichever of

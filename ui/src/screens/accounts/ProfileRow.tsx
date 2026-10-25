@@ -7,6 +7,7 @@
  */
 import { useState, type JSX } from "react";
 import { AccountAvatar } from "../../components/Avatar";
+import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
 import { useItemMenu } from "../../components/ItemMenu";
 import { IconTerminal } from "../../components/icons";
@@ -47,11 +48,14 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   const [useOriginal, setUseOriginal] = useState(false);
   const [envFor, setEnvFor] = useState<string | null>(null);
   const loggedIn = signedIn(account.login_state);
+  // AJ-E1601: through another service it starts with its account's key,
+  // never a sign-in of its own.
+  const service = account.service ?? null;
   const menu = useItemMenu("account", account, account.label, {
     openAccount: props.onInspect ? () => props.onInspect!() : undefined,
     startSessionOn: () => props.onLaunch(recipes[0]!),
-    startBlockedWhy: () => (!loggedIn ? "Sign in first" : recipes.length === 0 ? "Add launch settings first" : null),
-    signIn: loggedIn ? undefined : props.onLogin,
+    startBlockedWhy: () => (!loggedIn ? (service ? "Add its account's key first" : "Sign in first") : recipes.length === 0 ? "Add launch settings first" : null),
+    signIn: loggedIn || service ? undefined : props.onLogin,
     editLaunchSettings: () => setSettingsOpen(true),
     measureLimits: props.reportsLimits && props.onInspect ? () => props.onInspect!() : undefined,
   });
@@ -64,13 +68,15 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     renewal ? renewal.text : null,
     differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
   ].filter(Boolean);
-  const where = [props.apps.length > 0 ? props.apps.join(", ") : providerDisplayName(account.provider), ...perProfile].join(" · ");
+  const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
+  const where = [props.apps.length > 0 ? props.apps.join(", ") : tool, ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
       <div className="group flex flex-wrap items-center gap-3 px-5 py-2.5" {...menu.triggerProps}>
         <AccountAvatar accountId={account.id} label={account.label} size={28} live={props.openNow > 0} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
+            {service && <ToolMark tool={account.provider} size={13} className="text-muted" />}
             <button type="button" onClick={props.onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-[13px] font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
               {account.label}
             </button>
@@ -106,6 +112,10 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
           {loggedIn ? (
             <span className="text-[11px] text-muted" data-testid="account-activity">
               {props.openNow > 0 ? `${props.openNow} open now` : "Nothing open"}
+            </span>
+          ) : service ? (
+            <span className="text-[11px] text-warning" data-testid="profile-key-missing">
+              Its key isn't here
             </span>
           ) : (
             <>

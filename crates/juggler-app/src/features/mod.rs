@@ -15,6 +15,7 @@ pub mod pools;
 pub mod project_sync;
 pub mod projects;
 pub mod quota;
+pub mod service_accounts;
 pub mod sessions;
 pub mod staging;
 pub mod subscriptions;

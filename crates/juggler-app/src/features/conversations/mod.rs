@@ -928,10 +928,12 @@ pub fn continue_impl(
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
+    let spawned = crate::features::sessions::spawn::spawn_account_session(
+        state,
         &session,
         &spec,
-        &crate::commands::ledger_ctx(state, &account, Some(project.id.to_string())),
+        &account,
+        Some(project.id.to_string()),
     )?;
     {
         let machine = crate::commands::local_machine_id(state);
