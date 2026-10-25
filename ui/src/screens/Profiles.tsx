@@ -163,17 +163,17 @@ export function ProfilesScreen({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-content flex-col gap-5">
       <header className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold tracking-tight">Accounts</h2>
-          <p className="max-w-2xl text-xs leading-relaxed text-muted" data-testid="accounts-definition">
+          <h2 className="text-title text-ink">Accounts</h2>
+          <p className="max-w-[70ch] text-meta text-muted" data-testid="accounts-definition">
             An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. A{" "}
             <strong className="font-semibold text-ink">profile</strong> is a setup an app runs on: a Claude app profile or a Claude Code folder.
             One account can have several profiles.
           </p>
           {newWorkAdvice(accounts, displays, sessions).words && (
-            <p className="text-xs text-muted" data-testid="accounts-summary">
+            <p className="text-meta text-ink" data-testid="accounts-summary">
               {newWorkAdvice(accounts, displays, sessions).words}
             </p>
           )}
@@ -195,7 +195,7 @@ export function ProfilesScreen({
         <EmptyAccounts onAdd={onAddAccounts} />
       ) : (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 items-start gap-grid 2xl:grid-cols-2">
             {grouped.map(({ sub, rows }) => (
               <AccountCard
                 key={sub.key}

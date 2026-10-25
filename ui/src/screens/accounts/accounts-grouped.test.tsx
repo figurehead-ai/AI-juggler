@@ -96,13 +96,15 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("One account can have several profiles.");
   });
 
-  it("one profile: one account; nothing measured says how to measure it", async () => {
+  it("one profile: one account; nothing measured says so and still shows its usage", async () => {
     vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
-    const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toContain("Its sessions run outside AI Juggler, so limits aren't measured yet.");
-    expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
+    const runway = await screen.findByTestId("account-runway");
+    expect(runway.textContent).toContain("Not measured yet");
+    // 0.1.5: no dead-end "Measure its limits…" on the card; its usage shows either way.
+    expect(screen.queryByTestId("account-measure")).toBeNull();
+    expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });
 

@@ -256,14 +256,15 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     ];
     const { container } = shell("account", "claude-work");
     const rings = container.querySelector('[data-testid="account-rings"]')!;
+    // 0.1.5: a gauge per window, what's left in words and in its ring.
     await waitFor(() =>
-      expect(rings.querySelectorAll("[role='img']").length).toBe(2),
+      expect(container.querySelectorAll("[data-testid='window-gauge']").length).toBe(2),
     );
-    expect(rings.textContent).toContain("55%");
-    expect(rings.textContent).toContain("Start a session to measure");
-    const fiveHourAria = rings.querySelector('[role="img"]')!.getAttribute("aria-label")!;
-    expect(fiveHourAria).toContain("55% used");
-    expect(fiveHourAria).toContain("Measured");
+    expect(rings.textContent).toContain("45%");
+    expect(rings.textContent).toContain("Not measured yet");
+    const fiveHourAria = rings.querySelector('[data-testid="window-gauge"]')!.getAttribute("aria-label")!;
+    expect(fiveHourAria).toContain("45% left");
+    expect(fiveHourAria).toContain("in 1 h");
     expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("1h0m");
     expect(container.querySelector('[data-testid="account-renewal"]')?.textContent).toContain("Expiry: unknown");
     expect(container.querySelector('[data-testid="account-affinity"]')?.textContent).toContain("ai-juggler");
