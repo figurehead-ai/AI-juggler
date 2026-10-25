@@ -74,7 +74,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs }: { account: 
           <div className="flex flex-col gap-1.5">
             <dt className="text-meta font-semibold text-ink">Its newest session</dt>
             <dd data-testid="account-reset" className="text-meta text-muted">
-              reset:{" "}
+              Its limit resets{" "}
               {resetsAtMs ? (
                 <span className="text-ink">{formatCountdown(resetsAtMs, now)}</span>
               ) : (

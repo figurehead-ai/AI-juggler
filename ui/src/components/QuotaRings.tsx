@@ -164,8 +164,7 @@ export function RenewalLine({
         ? "text-warning"
         : "text-muted";
   return (
-    <p className={`text-xs ${tone}`} data-testid="renewal-line" data-state={renewal.state}>
-      <span aria-hidden="true">📅 </span>
+    <p className={`text-meta ${tone}`} data-testid="renewal-line" data-state={renewal.state}>
       {renewal.label}
       {renewal.state === "none" && onAddDate && (
         <button type="button" className="ml-2 py-1 underline focus:outline-none focus:ring-2 focus:ring-accent" onClick={onAddDate}>

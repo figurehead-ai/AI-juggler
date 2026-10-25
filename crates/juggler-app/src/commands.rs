@@ -8479,7 +8479,7 @@ pub fn launch_port_warning_inner(
             );
             let age_ms = row.listener_age_ms.unwrap_or_default();
             let message = format!(
-                ":{} is already held by an orphan from {instance} ({}).",
+                ":{} is already held by a process left running from {instance} ({}).",
                 row_port,
                 human_age(age_ms)
             );

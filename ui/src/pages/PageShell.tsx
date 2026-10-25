@@ -67,7 +67,7 @@ export function PageHeader({
             <span aria-hidden="true">›</span>
           </span>
         ))}
-        <span className="font-medium uppercase tracking-wider" data-testid="page-type">
+        <span className="font-medium" data-testid="page-type">
           {PAGE_LABELS[kind]}
         </span>
       </nav>

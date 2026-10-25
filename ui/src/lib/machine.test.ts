@@ -59,7 +59,7 @@ describe("This Mac (AJ-E1403)", () => {
   it("words a heavy tree and a session's resources", () => {
     expect(mockHeavyNote(40, 1e9)).toBeNull();
     expect(mockHeavyNote(95, 1e9)).toBe("CPU 95%");
-    expect(resourceLine(12.4, 1_100_000_000, 3)).toBe("CPU 12% · 1.1 GB · 3 helpers");
-    expect(resourceLine(null, null, 1)).toBe("CPU — · memory — · 1 helper");
+    expect(resourceLine(12.4, 1_100_000_000, 3)).toBe("CPU 12% · 1.1 GB · 3 more processes");
+    expect(resourceLine(null, null, 1)).toBe("CPU — · memory — · 1 more process");
   });
 });

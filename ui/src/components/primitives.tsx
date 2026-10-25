@@ -225,15 +225,16 @@ export function QuotaBar({
   );
 }
 
-/** Compact reset countdown (`2h10m`, `45m`, `17:00` when <1h). */
+/** A reset countdown in words: "in 45 min", "in 2 h 10 min", "in 1 d 3 h"
+ * (the review of 0.1.4: "reset: 2h0m"). */
 export function formatCountdown(resetsAtMs: number, nowMs: number = Date.now()): string {
   const ms = resetsAtMs - nowMs;
   if (ms <= 0) return "now";
   const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `in ${minutes} min`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h${String(minutes % 60).padStart(1, "0")}m`;
-  return `${Math.floor(hours / 24)}d${hours % 24}h`;
+  if (hours < 24) return minutes % 60 === 0 ? `in ${hours} h` : `in ${hours} h ${minutes % 60} min`;
+  return hours % 24 === 0 ? `in ${Math.floor(hours / 24)} d` : `in ${Math.floor(hours / 24)} d ${hours % 24} h`;
 }
 
 /**

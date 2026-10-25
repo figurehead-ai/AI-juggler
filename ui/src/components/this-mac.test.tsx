@@ -115,7 +115,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
     expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
     const item = screen.getByTestId("home-need-heavy");
     expect((item)!.textContent).toContain("Working your Mac hard — 3.2 GB");
-    expect((item)!.textContent).toContain("heavy-one · Work Max · 5 helpers");
+    expect((item)!.textContent).toContain("heavy-one · Work Max · 5 more processes");
     fireEvent.click(within(item).getByRole("button", { name: /Take a look/ }));
     expect(open).toHaveBeenCalledWith("heavy-one");
     expect(screen.getAllByTestId("home-need-heavy")).toHaveLength(1);

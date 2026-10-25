@@ -528,7 +528,7 @@ export function InstanceBoard({
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
         {hasRemote && showLocal && (
-          <p className="px-3 pb-0.5 pt-1 text-label font-medium uppercase tracking-[0.08em] text-muted" data-testid="board-machine-local">
+          <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted" data-testid="board-machine-local">
             This Mac
           </p>
         )}
@@ -869,7 +869,7 @@ export function RailRow({
           <span className={"min-w-0 truncate text-meta font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
-            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 text-label font-medium uppercase tracking-wide text-muted">
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
               app
             </span>
           )}

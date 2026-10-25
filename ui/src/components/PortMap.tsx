@@ -14,10 +14,10 @@ import { errorText } from "../lib/bridge";
  */
 
 const CLASS_LABELS: Record<string, string> = {
-  "managed-orphan": "Managed orphan",
-  "managed-running": "Managed running",
+  "managed-orphan": "Left running",
+  "managed-running": "Running in a session",
   "re-adopted": "Picked up after restart",
-  "not-managed": "Not managed by Juggler",
+  "not-managed": "Not from AI Juggler",
 };
 
 function ageText(ms: number | null): string {

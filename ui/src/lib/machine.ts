@@ -261,7 +261,7 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
   const parts = [
     `CPU ${cpu !== null ? `${Math.round(cpu)}%` : "—"}`,
     rss !== null ? bytesWords(rss) : "memory —",
-    helpers === null ? "helpers —" : helpers === 1 ? "1 helper" : `${helpers} helpers`,
+    helpers === null ? "more processes —" : helpers === 1 ? "1 more process" : `${helpers} more processes`,
   ];
   return parts.join(" · ");
 }

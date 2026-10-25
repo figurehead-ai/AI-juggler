@@ -387,7 +387,7 @@ export function HomeScreen({
     mac: macNeed,
     heavy: heavy.map((tree) => {
       const place = placeOf(sessions.find((s) => s.id === tree.session_id)!, projects);
-      const helpers = tree.helpers > 0 ? (tree.helpers === 1 ? "1 helper" : `${tree.helpers} helpers`) : null;
+      const helpers = tree.helpers > 0 ? (tree.helpers === 1 ? "1 more process" : `${tree.helpers} more processes`) : null;
       return { sessionId: tree.session_id, title: tree.heavy_note ?? "a lot of memory or CPU", detail: [place.title, place.detail, helpers].filter(Boolean).join(" · ") };
     }),
     leftovers: thisMac?.leftover_processes ?? 0,

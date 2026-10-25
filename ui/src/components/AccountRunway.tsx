@@ -39,7 +39,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
   const left = Math.max(0, Math.round(100 - reading.used_percentage));
   return [
     {
-      label: "From the latest session",
+      label: "Last read in a session",
       left,
       words: `${left}% left${reading.resets_at_ms ? ` · resets ${resetClock(reading.resets_at_ms)}` : ""}`,
       tone: left === 0 ? "out" : left <= 25 ? "low" : "ok",

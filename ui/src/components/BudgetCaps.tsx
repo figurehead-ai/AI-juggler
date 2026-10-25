@@ -159,7 +159,7 @@ export function BudgetSheet({
           <Input inputMode="decimal" value={amount} placeholder="300" onChange={(event) => setAmount(event.target.value)} data-testid="cap-amount" />
         </Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-label uppercase tracking-[0.14em] text-muted">Counts</legend>
+          <legend className="mb-1.5 text-meta font-semibold text-ink">Counts</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} className="accent-[var(--color-accent)]" />
             One account

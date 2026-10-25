@@ -46,7 +46,7 @@ describe("D-25 runway words", () => {
   it("with no account reading, the newest session's own line stands in, named as such", () => {
     const lines = runwayLines(undefined, [session("a", "running", "work", 30), session("b", "finished", "work", 90)]);
     expect(lines).toHaveLength(1);
-    expect(lines[0]!.label).toBe("From the latest session");
+    expect(lines[0]!.label).toBe("Last read in a session");
     expect(lines[0]!.words).toBe("70% left");
     expect(runwayLines(undefined, [])).toHaveLength(2);
   });

@@ -1119,8 +1119,8 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await page.getByRole("tab", { name: "Processes" }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
-      await expect(page.getByTestId("port-row-5173")).toContainText("Managed orphan");
-      await expect(page.getByTestId("port-row-8000")).toContainText("Not managed by Juggler");
+      await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
+      await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
       await page.screenshot({ path: resolve(GALLERY, `18-ports/inventory-${vp.name}-${theme}.png`) });
     });
   }

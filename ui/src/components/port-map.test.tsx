@@ -69,11 +69,11 @@ describe("PortInventoryList (AJ-E505)", () => {
     const bridge: PortsBridge = { load: () => Promise.resolve(inventoryFixture()) };
     render(<PortInventoryList bridge={bridge} />);
     await waitFor(() => expect(screen.getByTestId("port-inventory")).toBeTruthy());
-    expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("Managed orphan");
+    expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("Left running");
     expect(screen.getByTestId("port-class-5173").textContent ?? "").toMatch(/⚑/);
-    expect((screen.getByTestId("port-row-3000")).textContent ?? "").toContain("Managed running");
+    expect((screen.getByTestId("port-row-3000")).textContent ?? "").toContain("Running in a session");
     expect((screen.getByTestId("port-row-8080")).textContent ?? "").toContain("Picked up after restart");
-    expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain("Not managed by Juggler");
+    expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain("Not from AI Juggler");
     // Unmanaged rows say WHY they are muted — icon+text, not colour.
     expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain(
       "listener outside Juggler's ledger",
@@ -125,7 +125,7 @@ describe("PortWarningSheet (AJ-E505 Req.4)", () => {
     pid: 8123,
     instance: "claude-code (sess-a1b2)",
     age_ms: 9_000_000,
-    message: ":5173 is already held by an orphan from claude-code (sess-a1b2) (2h).",
+    message: ":5173 is already held by a process left running from claude-code (sess-a1b2) (2h).",
   };
 
   it("renders the copy-exact message with both actions", () => {
