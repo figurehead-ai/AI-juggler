@@ -4,6 +4,7 @@
 
 pub mod account_settings;
 pub mod app;
+pub mod app_icons;
 pub mod budgets;
 pub mod conversations;
 pub mod fleet;

@@ -10,7 +10,8 @@
 import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
-import { ToolMark } from "./ToolMark";
+import { AppIcon } from "./AppIcon";
+import { appOfConversation } from "../lib/app-of";
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { stateChip } from "./indicator";
@@ -161,7 +162,7 @@ export function ConversationRow({
             {where && `, open in ${where}`}
           </span>
         </span>
-        <ToolMark tool={conversation.tool} size={12} className="shrink-0 text-muted" />
+        <AppIcon {...appOfConversation(conversation)} size={16} />
         <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
       </button>
       {goTo}
@@ -240,7 +241,7 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
               <span className="text-faint"> · outside AI Juggler</span>
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted">
-              <ToolMark tool={conversation.tool} size={12} className="shrink-0" />
+              <AppIcon {...appOfConversation(conversation)} size={16} />
               <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
               <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>

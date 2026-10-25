@@ -247,6 +247,7 @@ read_routes! {
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
     "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);
+    "app_icons_read" => async_result features::app_icons::app_icons_read(state; app_id: Option<String>, process: Option<u32>, px: u32);
     "editor_choices" => async_result manage::editor_choices(state);
     "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
     "notifications_get" => async_result features::notifications::prefs::notifications_get(state);

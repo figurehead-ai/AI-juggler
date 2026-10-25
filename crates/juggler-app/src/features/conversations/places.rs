@@ -104,15 +104,32 @@ pub fn arg_value(args: &[String], flag: &str) -> Option<String> {
 }
 
 /// The host of the session running as `pid`: the first ancestor inside an
-/// app bundle, then the outermost process of that bundle on the chain.
-/// `home` places an app's default instance folder.
+/// app bundle the registry knows (else the outermost app bundle on the
+/// chain), then the outermost process of that bundle on the chain. `home` places
+/// an app's default instance folder.
+///
+/// A known app wins over a nearer unknown bundle: a tool's own command
+/// line can come as a bundle (the Claude app runs Claude Code from a
+/// `claude.app` of its own), and a session it starts (Codex's server for
+/// Claude Code's Codex plugin) runs in the app that runs that tool, never
+/// in a place named after the tool. With no known app, the outermost
+/// bundle is the app the user sees (a terminal, not a tool inside it).
 #[must_use]
 pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Option<Host> {
     let chain = ancestors(table, pid);
-    let (at, bundle_dir, bundle) = chain.iter().enumerate().find_map(|(at, process)| {
-        let (dir, name) = outer_bundle(process.exe.as_deref()?)?;
-        Some((at, dir, name))
-    })?;
+    let bundled: Vec<(usize, PathBuf, String)> = chain
+        .iter()
+        .enumerate()
+        .filter_map(|(at, process)| {
+            let (dir, name) = outer_bundle(process.exe.as_deref()?)?;
+            Some((at, dir, name))
+        })
+        .collect();
+    let (at, bundle_dir, bundle) = bundled
+        .iter()
+        .find(|(_, _, name)| hosts.by_bundle(name).is_some())
+        .or_else(|| bundled.last())
+        .cloned()?;
     // Up the chain while still inside the same bundle: the app's own
     // process, not a helper of it.
     let main = chain[at..]
@@ -301,6 +318,52 @@ mod tests {
         );
         let instances = running_instances(&table, &hosts(), home);
         assert_eq!(instances.len(), 2);
+    }
+
+    /// D-38: a Codex server that Claude Code's Codex plugin started under
+    /// a Claude app session is in that Claude instance, never in a place
+    /// named after Claude Code's own `claude.app` (which drew Claude
+    /// Code's mark on a Codex session).
+    #[test]
+    fn a_session_a_tool_starts_is_in_the_app_running_that_tool() {
+        let home = Path::new("/Users/you");
+        let profile = "/Users/you/Library/Application Support/ClaudeProfiles/b-work";
+        let cli = format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+        let table: Table = [
+            proc(1, 0, "/sbin/launchd", &[]),
+            proc(
+                10,
+                1,
+                CLAUDE_APP,
+                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
+            ),
+            proc(
+                11,
+                10,
+                "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                &["disclaimer"],
+            ),
+            proc(12, 11, &cli, &["claude", "--resume=s-1"]),
+            proc(13, 12, "/opt/homebrew/bin/codex", &["codex", "app-server"]),
+            // A terminal nobody knows still names its place, not the tool
+            // bundled inside it.
+            proc(20, 1, "/Applications/Some Term.app/Contents/MacOS/st", &[]),
+            proc(21, 20, &cli, &["claude"]),
+            proc(22, 21, "/opt/homebrew/bin/codex", &["codex"]),
+        ]
+        .into_iter()
+        .collect();
+        let host = host_of(13, &table, &hosts(), home).unwrap();
+        assert_eq!(host.app_id.as_deref(), Some("claude-app"));
+        assert_eq!(host.pid, 10);
+        assert_eq!(host.instance.as_deref(), Some("b-work"));
+        let unknown = host_of(22, &table, &hosts(), home).unwrap();
+        assert_eq!(unknown.app_id, None);
+        assert_eq!(
+            unknown.name, "Some Term",
+            "the outermost bundle, when none is known"
+        );
+        assert_eq!(unknown.pid, 20);
     }
 
     #[test]

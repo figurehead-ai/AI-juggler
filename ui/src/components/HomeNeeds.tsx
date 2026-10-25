@@ -28,7 +28,7 @@ export interface NeedHandlers {
 }
 
 function Mark({ need, size }: { need: HomeNeed; size: number }): JSX.Element {
-  if (need.item) return <PlaceMark place={need.item.place} profile={need.item.accountLabel} size={size} />;
+  if (need.item) return <PlaceMark place={need.item.place} profile={need.item.accountLabel} size={size} ring="var(--color-surface)" />;
   const glyph = need.kind === "signin" ? "→" : need.severe ? "■" : "▲";
   return (
     <span aria-hidden="true" style={{ width: size, height: size }} className={"flex shrink-0 items-center justify-center rounded-lg text-xs font-bold " + (need.kind === "signin" ? "bg-accent-soft text-accent-hi" : need.severe ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")}>
@@ -157,7 +157,7 @@ export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNe
               <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}` }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
                 {(goTo) => (
                 <>
-                <Mark need={need} size={22} />
+                <Mark need={need} size={24} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[13px] font-medium text-ink">{need.title}</span>
                   <span className="truncate text-[11px] text-muted">{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>

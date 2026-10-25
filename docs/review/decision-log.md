@@ -602,8 +602,37 @@
 - Consequences: AJ-E2101, AJ-E2102; guardrail tests; the Privacy page
   names the new reads.
 
+### D-38 Apps' icons come from the apps installed on the Mac — SETTLED (2026-10-25)
+
+- Decision: wherever AI Juggler names an app a session runs in (the
+  Claude app, ChatGPT, Terminal, iTerm, an editor, AI Juggler itself),
+  it shows that app's own icon, read at run time from the app as it is
+  installed on the user's Mac. The maintainer, 2026-10-25: "Yes: show
+  each app's icon as installed on my Mac, read at run time; nothing
+  shipped in the repo."
+  - The icon comes from the app's bundle on this Mac, through macOS
+    (`NSWorkspace`), only for an app AI Juggler already knows: one a
+    session is open in, or one in the host registry. Only a folder
+    ending in `.app` is read, never a link, and nothing outside it.
+  - Nothing is committed to the repository: no app's icon, no copy of
+    one in a test or a preview (those draw a made-up test image).
+  - A small copy is kept in AI Juggler's own folder (`icons/`), redone
+    when the app's bundle changes. Nothing is sent anywhere.
+  - When the app isn't installed or its icon can't be read, a clean
+    one- or two-letter mark stands in, never cut off.
+  - The profile shows as its own badge beside the icon, never over it;
+    one app's profiles share its icon.
+- Amends: nothing. The marks of tools and companies (`ToolMark`,
+  AJ-E1526: Claude Code, Codex, Anthropic, OpenAI) stay under their old
+  rule: drawn only with their owner's permission, otherwise AI
+  Juggler's own letter mark.
+- Rejected: bundling the apps' icons (the owners' artwork in a public
+  repo); fetching them from the network.
+- Consequences: the `app_icons` feature module, `AppIcon` and
+  `ProfileBadge` in the UI, a Privacy line; ships in 0.1.5.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23 and D-35..D-37 on 2026-10-24 (D-28..D-34 on release/0.2); all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24 and D-38 on 2026-10-25 (D-28..D-34 on release/0.2); all follow the same law.

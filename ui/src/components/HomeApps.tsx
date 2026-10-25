@@ -1,17 +1,17 @@
 /**
  * AJ-E2105 — Home's "Your apps": one tile per running app and profile
- * (a place), with how many sessions are open there, a needs-you badge,
+ * (a place): the app's own icon (D-38) and the profile's badge, with how many sessions are open there, a needs-you badge,
  * the runway of the account it runs on, and Open (the app forward, never
  * launched). At most six, then "+n".
  */
 import { useState, type JSX } from "react";
-import { PlaceMark } from "./PlaceMarks";
+import { AppIcon } from "./AppIcon";
+import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { OWN_PLACE, type RailItem } from "../lib/rail-items";
-import { profileColor } from "../lib/profile-marks";
 
 /** Tiles shown before "+n". */
 export const TILES_SHOWN = 6;
@@ -48,19 +48,20 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-xl border border-hairline bg-surface p-3" data-testid="home-app-tile" data-place={place.key}>
       <div className="flex min-w-0 items-start gap-2.5">
-        <PlaceMark place={place} size={34} />
+        <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13px] font-semibold text-ink">{place.app}</span>
-          <span className="truncate text-[11px] text-muted">
-            {/* The profile's colour on a mark (its text stays 4.5:1 in both themes). */}
+          {/* The profile's badge beside its name, never on the icon
+              (D-38); the count moves under it rather than being cut. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] leading-[17px] text-ink/80">
             {place.profile && (
-              <span className="font-semibold text-ink">
-                <span aria-hidden="true" className="mr-1 inline-block size-2 rounded-[3px] align-middle" style={{ background: profileColor(place.profile) }} />
-                {place.profile}
+              <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
+                <ProfileBadge name={place.profile} />
+                <span className="truncate">{place.profile}</span>
               </span>
             )}
             {place.profile ? " · " : ""}
-            {count === 1 ? "1 session" : `${count} sessions`}
+            <span className="whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
           </span>
         </div>
         {needs > 0 && (

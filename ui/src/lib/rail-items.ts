@@ -28,6 +28,9 @@ export interface RailPlace {
   /** App and profile (or the app's instance): one place. */
   key: string;
   app: string;
+  /** D-38: the host registry's id for the app (its icon), `OWN_PLACE`
+   * for AI Juggler's own; `null` when the registry doesn't know it. */
+  appId: string | null;
   /** `desktop`, `terminal`, `editor`, `own` (AI Juggler), or unknown. */
   kind: string | null;
   /** The profile it runs in, in words. */
@@ -129,7 +132,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     title: row.label ?? row.git_branch ?? (folderOf(row.cwd) || row.account_label),
     projectId: row.project_id,
     project: projectName(row.project_id),
-    place: { key: OWN_PLACE, app: OWN_APP, kind: "own", profile: null, appPid: null },
+    place: { key: OWN_PLACE, app: OWN_APP, appId: OWN_PLACE, kind: "own", profile: null, appPid: null },
     alsoIn: [],
     accountId: row.account_id,
     accountLabel: row.account_label,
@@ -197,8 +200,8 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     projectId: c.project_id,
     project: projectName(c.project_id) ?? (folderOf(c.cwd) || null),
     place: first
-      ? { key: placeKey(app, first.instance, first.profile), app, kind: first.kind ?? null, profile: first.profile ?? first.instance, appPid: first.app_pid ?? null }
-      : { key: placeKey(app, null, c.account_label), app, kind: null, profile: c.account_label, appPid: null },
+      ? { key: placeKey(app, first.instance, first.profile), app, appId: first.app_id ?? null, kind: first.kind ?? null, profile: first.profile ?? first.instance, appPid: first.app_pid ?? null }
+      : { key: placeKey(app, null, c.account_label), app, appId: null, kind: null, profile: c.account_label, appPid: null },
     alsoIn: places.slice(1).map((place) => place.label || place.app),
     accountId: c.account_id,
     accountLabel: c.account_label,
