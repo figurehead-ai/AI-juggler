@@ -39,7 +39,8 @@ describe("Show sessions from", () => {
     const claude = await screen.findByTestId("desktop-app-claude-app");
     await waitFor(() => expect(claude.textContent).toContain("1 open · Work Max"));
     expect(screen.getByTestId("desktop-app-terminal").textContent).toContain("Nothing open now.");
-    expect(screen.getByTestId("desktop-app-codex-app").textContent).toContain("In the Dock it's ChatGPT");
+    // One name for it everywhere: ChatGPT, the host registry's.
+    expect(screen.getByTestId("desktop-app-codex-app").textContent).toContain("ChatGPT");
     expect(screen.getByTestId("desktop-app-cursor")).toBeTruthy();
     const section = claude.closest("section")!;
     expect(section.textContent).toContain("It never types into them.");
