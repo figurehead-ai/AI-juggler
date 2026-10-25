@@ -139,6 +139,9 @@ unbounded update_install  # bounded: a fixed set (settings, checks, choices or t
 unbounded update_set_channel  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded update_set_check_on_launch  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded update_status  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded usage_history_limits  # bounded: at most 400 readings and one peak per window in the range asked
+unbounded usage_history_session  # bounded: the newest 2,000 turns, a few models, two windows
+unbounded usage_history_summary  # bounded: at most 400 buckets, 8 series, 50 top sessions, 200 projects (the rest are paged: usage_history_sessions)
 unbounded usage_source_health  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded usage_stats_overview  # bounded: this week's metrics (a fixed schema)
 unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)

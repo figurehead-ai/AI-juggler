@@ -23,3 +23,4 @@ pub mod switch_setup;
 pub mod terminal;
 pub mod tools;
 pub mod trust;
+pub mod usage_history;
