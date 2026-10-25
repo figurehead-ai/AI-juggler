@@ -654,6 +654,8 @@ export default function App() {
             <button
               type="button"
               title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
+              aria-label={minimal ? "Show the list" : "Show icons only"}
+              aria-keyshortcuts="Meta+B"
               onClick={toggleRail}
               className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
             >

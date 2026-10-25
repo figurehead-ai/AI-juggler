@@ -244,8 +244,9 @@ export function WorkflowRail({
           type="button"
           onClick={onNewSession}
           title={minimal ? "New session" : undefined}
+          aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
-          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-label font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-meta font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
