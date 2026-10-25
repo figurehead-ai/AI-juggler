@@ -27,8 +27,6 @@ import { CheckoutCallout, OpenSessions } from "./Callouts";
 export function ProjectOverviewView({
   project,
   rows,
-  sessionsEver,
-  outsideCount,
   now,
   sharedBy,
   accounts,
@@ -38,8 +36,6 @@ export function ProjectOverviewView({
 }: {
   project: ProjectInfo;
   rows: Row[];
-  sessionsEver: number;
-  outsideCount: number;
   now: number;
   /** The most live sessions sharing one checkout. */
   sharedBy: number;
@@ -53,6 +49,9 @@ export function ProjectOverviewView({
   const [split, setSplit] = useState<"profile" | "tool" | "model">("profile");
   const month = useUsageHistory("30d", split, { project: project.id }, 0);
   const week = useUsageHistory("7d", "profile", { project: project.id }, 0);
+  // History-wide numbers come from the summaries, never from the app's
+  // working set of sessions (it holds the open and the newest only).
+  const ever = useUsageHistory("all", "profile", { project: project.id }, 0);
   const data = month.data;
   const cut = month.cut;
   const series = useMemo(() => (data && data.edges_ms.length === cut.edges.length ? chartSeries(data, split, "tokens") : []), [data, split, cut.edges.length]);
@@ -79,7 +78,7 @@ export function ProjectOverviewView({
           period="last week"
           note={
             <span data-testid="project-sessions-ever">
-              {sessionsEver} in all{outsideCount > 0 ? ` · ${outsideCount} outside AI Juggler` : ""}
+              {ever.data ? `${ever.data.session_count} with usage in all` : "Counting…"}
             </span>
           }
           testId="tile-week-sessions"

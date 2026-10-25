@@ -64,7 +64,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
     <tr key={share.key} className="group border-t border-hairline/60 hover:bg-surface-2" data-testid="top-project">
       <td className="px-2.5 py-2">
         {share.key ? (
-          <button type="button" className="text-left text-body font-semibold text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => host.openProjectById?.(share.key)}>
+          <button type="button" className="block max-w-full truncate text-left text-body font-semibold text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => host.openProjectById?.(share.key)}>
             {share.label}
           </button>
         ) : (
@@ -80,13 +80,19 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
       <td className="px-2.5 py-2 text-right text-body tabular-nums" title={share.usd == null ? "No list price" : exact(share.usd, "usd")}>
         {share.usd == null ? "—" : usdWords(share.usd)}
       </td>
-      <td className="w-[34%] px-2.5 py-2">
+      <td className="px-2.5 py-2">
         <ShareBar parts={profileParts(share, labels)} total={total} scale={rows[0]?.io} unit="tokens" label={share.label} />
       </td>
     </tr>
   );
   const table = (shown: UsageShareInfo[]) => (
-    <table className="w-full border-collapse">
+    <table className="w-full table-fixed border-collapse">
+      <colgroup>
+        <col />
+        <col className="w-20" />
+        <col className="w-20" />
+        <col className="w-[32%]" />
+      </colgroup>
       <thead>
         <tr>
           <th scope="col" className={TH + " text-left"}>Project</th>

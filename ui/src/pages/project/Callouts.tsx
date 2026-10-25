@@ -90,7 +90,17 @@ export function CheckoutCallout({ project, sharedBy, className = "" }: { project
               icon={<IconGit width={15} height={15} />}
               title={`${uncommitted.toLocaleString()} ${uncommitted === 1 ? "file" : "files"} not committed`}
               words={[`${git.changed} changed, ${git.untracked} new`, upstream].filter(Boolean).join(" · ")}
-              action={host.openProjectIn ? <button type="button" className={BUTTON} onClick={() => void host.openProjectIn!(project, "editor")}>Open in editor</button> : undefined}
+              action={
+                host.openProjectIn ? (
+                  <button type="button" className={BUTTON} onClick={() => void host.openProjectIn!(project, "editor")}>
+                    Open in editor
+                  </button>
+                ) : (
+                  <button type="button" className={BUTTON} onClick={() => void (host.copyProjectPath ? host.copyProjectPath(project) : navigator.clipboard?.writeText(project.root))}>
+                    Copy its path
+                  </button>
+                )
+              }
               testId="project-uncommitted-callout"
             />
           ) : (
@@ -119,7 +129,14 @@ export function CheckoutCallout({ project, sharedBy, className = "" }: { project
   );
 }
 
-const TONE: Record<string, string> = { "text-warning": "var(--color-warning)", "text-live": "var(--color-live)", "text-success": "var(--color-success)", "text-danger": "var(--color-danger)" };
+/** A state's chip: its tone's text on its tone's soft fill (the tokens keep both AA). */
+const CHIP: Record<string, string> = {
+  "text-warning": "text-warning bg-warning-soft",
+  "text-live": "text-live bg-live-soft",
+  "text-success": "text-success bg-success-soft",
+  "text-danger": "text-danger bg-danger-soft",
+};
+const DOT: Record<string, string> = { "text-warning": "bg-warning", "text-live": "bg-live", "text-success": "bg-success", "text-danger": "bg-danger" };
 
 /** The sessions open in the project now, each opening its page. */
 export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onAll: () => void; className?: string }): JSX.Element {
@@ -144,7 +161,6 @@ export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onA
       ) : (
         <ul className="flex flex-col gap-2">
           {live.slice(0, 6).map((row) => {
-            const color = TONE[row.tone] ?? "var(--color-muted)";
             return (
               <li key={row.key}>
                 <button
@@ -163,8 +179,8 @@ export function OpenSessions({ rows, onAll, className = "" }: { rows: Row[]; onA
                     <span className="truncate text-body font-semibold text-ink">{row.title}</span>
                     <span className="truncate text-meta text-muted">{[row.accountLabel, row.detail, row.when].filter(Boolean).join(" · ")}</span>
                   </span>
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-label font-semibold" style={{ color, background: `color-mix(in oklab, ${color} 13%, transparent)` }}>
-                    <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: color }} />
+                  <span className={"inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-label font-semibold " + (CHIP[row.tone] ?? "bg-surface-3 text-muted")}>
+                    <span aria-hidden="true" className={"size-1.5 rounded-full " + (DOT[row.tone] ?? "bg-faint")} />
                     {row.state}
                   </span>
                 </button>

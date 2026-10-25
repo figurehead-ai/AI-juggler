@@ -114,7 +114,7 @@ export function ShareBar({ parts, total, scale, unit, label }: { parts: SharePar
   const share = total > 0 ? sum / total : 0;
   const pct = share * 100;
   return (
-    <span className="flex min-w-[120px] items-center gap-2" data-testid="share-bar">
+    <span className="flex min-w-[72px] items-center gap-2" data-testid="share-bar">
       <span
         className="flex h-2.5 flex-1 gap-[2px] overflow-hidden rounded-full bg-surface-3"
         role="img"

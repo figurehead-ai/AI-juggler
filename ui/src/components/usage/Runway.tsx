@@ -106,7 +106,7 @@ export function RunwayPanel({
   }
   return (
     <div className="flex flex-col gap-3.5" data-testid="account-runway">
-      <div className="grid grid-cols-1 gap-3 @min-[420px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
         <WindowGauge name="5-hour window" window={display?.five_hour} omitted={display?.five_hour_omitted_reason} now={now} />
         <WindowGauge name="This week" window={display?.weekly} omitted={display?.weekly_omitted_reason} now={now} />
       </div>

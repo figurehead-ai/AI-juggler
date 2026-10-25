@@ -266,8 +266,6 @@ export function ProjectOverview(props: ProjectPanelProps) {
       <ProjectOverviewView
         project={project}
         rows={sessionRows}
-        sessionsEver={rows.length + theirs.length}
-        outsideCount={theirs.length}
         now={props.now}
         sharedBy={sharedBy}
         accounts={accountsCard}

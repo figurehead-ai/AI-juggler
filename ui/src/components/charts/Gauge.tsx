@@ -79,7 +79,9 @@ export function Gauge({
           <span className="text-label text-muted">{status}</span>
         ) : (
           <>
-            {resets && <span className="text-label text-muted">resets {resets}</span>}
+            <span className="text-label text-ink">
+              {Math.round(left!)}% left{resets && <span className="text-muted"> · resets {resets}</span>}
+            </span>
             {resetsIn && <span className="text-label text-muted">{resetsIn}</span>}
           </>
         )}

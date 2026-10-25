@@ -34,8 +34,8 @@ const SPLITS: Record<DashboardKind, { id: Split; label: string }[]> = {
     { id: "project", label: "Project" },
   ],
   project: [
-    { id: "account", label: "Account" },
     { id: "profile", label: "Profile" },
+    { id: "account", label: "Account" },
     { id: "tool", label: "Tool" },
     { id: "model", label: "Model" },
   ],

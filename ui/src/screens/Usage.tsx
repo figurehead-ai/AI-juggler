@@ -6,13 +6,12 @@
  * week, when you work, and the top projects and sessions, each opening its
  * page. The frame draws at once and the last summary shows from memory.
  * With nothing set up it says what will appear, and how to get there.
+ * Every number here is from the backend's summaries, never a sum of rows.
  */
-import { useState, type JSX } from "react";
+import type { JSX } from "react";
 import { WelcomePointer } from "../components/Welcome";
 import { BudgetCaps } from "../components/BudgetCaps";
-import { CostMatrix } from "../components/CostMatrix";
 import { MachineUsageCard } from "../components/MachineUsage";
-import { Modal } from "../components/form";
 import { Button, Card } from "../components/primitives";
 import { SPAN, UsageDashboard } from "../components/usage/Dashboard";
 import { RunwayCards } from "../components/usage/RunwayCards";
@@ -36,7 +35,6 @@ export function UsageScreen({
   onOpenHome?: () => void;
 }): JSX.Element {
   const [range, setRange] = useRange("usage");
-  const [prices, setPrices] = useState(false);
   const profiles = accounts.length;
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5 pb-8" data-testid="usage-screen">
@@ -51,9 +49,6 @@ export function UsageScreen({
         </div>
         {profiles > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setPrices(true)}>
-              Prices and details
-            </Button>
             <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="usage-range" />
           </div>
         )}
@@ -80,13 +75,6 @@ export function UsageScreen({
         <MachineUsageCard />
       </div>
 
-      {prices && (
-        <Modal title="Prices and details" subtitle="What each model cost at list prices, by day" wide onClose={() => setPrices(false)} testId="usage-prices">
-          <div className="max-h-[65vh] overflow-y-auto">
-            <CostMatrix />
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
