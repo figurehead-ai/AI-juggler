@@ -65,6 +65,42 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::TRANSCRIPT_EXPORT
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::FORK
+            | Capabilities::AGENT_BRIDGE
+    }
+
+    /// AJ-E1704: like a tool that reads MCP servers from a file named on
+    /// its command line (`--mcp-config`, `${NAME}` filled from its own
+    /// environment): the fake then calls them as an MCP client.
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        let env: serde_json::Map<String, serde_json::Value> = bridge
+            .env_names
+            .iter()
+            .map(|name| (name.clone(), format!("${{{name}}}").into()))
+            .collect();
+        let config = serde_json::json!({"mcpServers": {bridge.server.clone(): {
+            "command": bridge.program.to_string_lossy(),
+            "args": ["--mcp"],
+            "env": env,
+        }}});
+        Some(juggler_adapter::BridgeInjection {
+            at: args.len(),
+            args: vec![
+                "--mcp-config".to_owned(),
+                bridge
+                    .dir
+                    .join("fake-mcp.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            ],
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-mcp.json".to_owned(),
+                contents: config.to_string(),
+            }],
+        })
     }
 
     fn verified_against(&self) -> &'static [&'static str] {

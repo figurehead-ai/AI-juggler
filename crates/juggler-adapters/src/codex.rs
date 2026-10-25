@@ -460,6 +460,15 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::LIMIT_WINDOWS_REPORTED
             // Its usage keys start with the thread they belong to.
             | Capabilities::USAGE_KEYS_PER_SESSION
+            | Capabilities::AGENT_BRIDGE
+    }
+
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::codex_bridge::injection(bridge, args))
     }
 
     fn verified_against(&self) -> &'static [&'static str] {

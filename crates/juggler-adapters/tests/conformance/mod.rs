@@ -25,6 +25,13 @@
 //! 6. **Usage labelled honestly** — usage is claimed only with a reader;
 //!    every event is keyed for de-duplication, carries its time, and
 //!    never calls a computed or estimated number measured.
+//! 7. **The agent bridge, honestly** (AJ-E1704, D-30) — an adapter that
+//!    declares `AGENT_BRIDGE` adds the bridge to every launch it offers,
+//!    and one that doesn't adds nothing. What it adds keeps the launch's
+//!    own arguments in order, names the key's variable but never a value
+//!    from the environment, writes files only by plain name into AI
+//!    Juggler's launch folder (never the account's), points at the bridge
+//!    program, and allows no tool by wildcard.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -812,6 +819,99 @@ pub fn labels_usage_honestly(subject: &dyn Subject) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 7. The agent bridge, honestly
+
+/// A value no adapter may copy into what it adds: it is only in the
+/// launch's environment, where the key lives.
+pub const KEY_CANARY: &str = "aj-e1704-key-canary";
+
+pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
+    use juggler_adapter::agent_bridge::BridgeLaunch;
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let launch_dir = sandbox
+        .accounts
+        .parent()
+        .unwrap()
+        .join("overlays/agent/kit-session");
+    let bridge = BridgeLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        server: "juggler".into(),
+        tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
+        env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
+        dir: launch_dir.clone(),
+    };
+    let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
+    let home = dir.to_string_lossy().into_owned();
+    for mode in all_modes("kit-session-1") {
+        // A tool may refuse a mode (it says so); the rest must hold.
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        let injection = adapter.agent_bridge(&bridge, &spec.args);
+        assert_eq!(
+            injection.is_some(),
+            declares,
+            "{name}: AGENT_BRIDGE is declared {declares} but the injection is {injection:?} ({mode:?})"
+        );
+        let Some(injection) = injection else { continue };
+        let applied = injection.applied(&spec.args);
+        let mut rest = applied.iter();
+        assert!(
+            spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {applied:?}"
+        );
+        let mut added: Vec<String> = injection.args.clone();
+        added.extend(injection.files.iter().map(|file| file.contents.clone()));
+        let all = added.join("\n");
+        assert!(
+            !all.contains(KEY_CANARY),
+            "{name}: a value from the environment was copied: {all}"
+        );
+        assert!(
+            !all.contains(&home),
+            "{name}: it points into the account's folder: {all}"
+        );
+        assert!(
+            !all.contains('*'),
+            "{name}: a wildcard allows more than AI Juggler's tools: {all}"
+        );
+        assert!(
+            all.contains(&bridge.program.to_string_lossy().into_owned()),
+            "{name}: it doesn't start the bridge program: {all}"
+        );
+        assert!(
+            all.contains("JUGGLER_AGENT_TOKEN"),
+            "{name}: the key's variable isn't passed on: {all}"
+        );
+        for file in &injection.files {
+            assert!(
+                !file.name.is_empty()
+                    && !file.name.contains(['/', '\\'])
+                    && !file.name.starts_with('.'),
+                "{name}: a file outside the launch's folder: {:?}",
+                file.name
+            );
+        }
+        for arg in &injection.args {
+            if arg.starts_with('/') && !arg.starts_with(&*bridge.program.to_string_lossy()) {
+                assert!(
+                    Path::new(arg).starts_with(&launch_dir),
+                    "{name}: a path outside AI Juggler's launch folder: {arg}"
+                );
+            }
+        }
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -847,6 +947,11 @@ macro_rules! conformance {
             #[test]
             fn labels_usage_honestly() {
                 conformance::labels_usage_honestly(&$subject);
+            }
+
+            #[test]
+            fn adds_the_agent_bridge_honestly() {
+                conformance::adds_the_agent_bridge_honestly(&$subject);
             }
         }
     };
