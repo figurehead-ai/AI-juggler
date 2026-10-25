@@ -76,3 +76,29 @@ pub async fn sessions_counts(
     })
     .await
 }
+
+/// These sessions, as the app's list has them: a page opened for a
+/// session past the working set (an old one, from History). At most
+/// [`crate::paging::MAX_LIMIT`] ids.
+///
+/// # Errors
+///
+/// Storage errors.
+#[tauri::command]
+pub async fn sessions_get(
+    state: tauri::State<'_, Arc<AppState>>,
+    ids: Vec<String>,
+) -> AppResult<Vec<super::dto::InstanceInfo>> {
+    crate::ipc::blocking(state.inner(), "the sessions asked for", move |state| {
+        let ids: Vec<juggler_core::model::SessionId> = ids
+            .iter()
+            .take(crate::paging::MAX_LIMIT)
+            .map(|id| juggler_core::model::SessionId::new(id.as_str()))
+            .collect();
+        let records = crate::commands::lock_storage_arc(state)?
+            .sessions()
+            .get_many(&ids)?;
+        crate::commands::instances_of(state, records)
+    })
+    .await
+}

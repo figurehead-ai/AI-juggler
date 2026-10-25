@@ -398,3 +398,29 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     let one = commands::cost_rows_page_impl(state, Some("acc-1"), &PageRequest::default()).unwrap();
     assert!(one.total.unwrap() < whole.rows.len() as u64);
 }
+
+#[test]
+fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
+    let fx = fixture();
+    let state = &fx.state;
+    let (rows, took) = timed("now: the app's list of sessions (the working set)", || {
+        commands::instances_shared_snapshot(state).unwrap()
+    });
+    let open = rows.iter().filter(|row| row.status == "running").count();
+    assert_eq!(open, 100, "every open session is in it");
+    assert!(
+        rows.len() <= open + commands::RECENT_ENDED,
+        "{} rows: open, pinned and the newest ended only",
+        rows.len()
+    );
+    assert!(took < Duration::from_secs(1), "{took:?}");
+    // A session past it is read by its id (an old one opened from History).
+    let old = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get_many(&[SessionId::new("s-00001"), SessionId::new("gone")])
+        .unwrap();
+    assert_eq!(old.len(), 1);
+}

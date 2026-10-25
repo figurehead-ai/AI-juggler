@@ -1945,15 +1945,14 @@ export async function dashboardStats(): Promise<StatsInfo> {
   return invoke<StatsInfo>("dashboard_stats");
 }
 
-export function onSessionsUpdated(
-  handler: (sessions: InstanceInfo[]) => void,
-): () => void {
+/** The sessions changed (no payload: read the lists again). */
+export function onSessionsUpdated(handler: () => void): () => void {
   if (!hasBackend) {
     return () => {};
   }
   let unlisten: (() => void) | null = null;
   let disposed = false;
-  listen<InstanceInfo[]>(EVENTS.sessionsUpdated, (event) => handler(event.payload))
+  listen<null>(EVENTS.sessionsUpdated, () => handler())
     .then((stop) => {
       if (disposed) {
         stop();

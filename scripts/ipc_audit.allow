@@ -80,7 +80,7 @@ unbounded instance_delete_preview  # bounded: a fixed set (settings, checks, cho
 unbounded instance_processes  # TO PAGE: one session's process tree
 unbounded instance_quality  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded instance_replay  # bounded: the transcript is cut at its size limit (truncated)
-unbounded instances_list  # TO PAGE: every session; the rail's working set (open + recent) next, History/Sessions already page
+unbounded instances_list  # bounded: the working set (open, pinned, the newest 200 ended this week); History and the Sessions tabs page the rest
 unbounded isolation_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded isolation_offer  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded kill_execute  # bounded: a fixed set (settings, checks, choices or tools)
@@ -116,7 +116,8 @@ unbounded ranking_rows  # bounded: one row per account, tool, launch setting or 
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded reset_queue_list  # bounded: one per queued resume
 unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
-unbounded sessions_list_alias  # TO PAGE: legacy alias of instances_list
+unbounded sessions_get  # bounded: the ids asked for, at most 200
+unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subscriptions_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded subtasks_list  # TO PAGE: a session's subtasks

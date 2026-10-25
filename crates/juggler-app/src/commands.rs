@@ -3642,7 +3642,8 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
         let labels = desktop_isolation_labels(&state.registry);
         let adopted = state.supervisor.alive_adopted_sessions();
         let storage = lock_storage_arc(state)?;
-        let rows = session_infos(&storage, &live, &labels, &adopted)?;
+        let records = working_records(&storage)?;
+        let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
         drop(storage);
         let rows = crate::features::subtasks::counted(state, rows);
         crate::features::conversations::titled(state, rows)
@@ -3658,7 +3659,7 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<InstanceInfo>> {
-    let records = lock_storage_arc(state)?.sessions().list(None)?;
+    let records = working_records(&*lock_storage_arc(state)?)?;
     instances_of(state, records)
 }
 
@@ -4277,27 +4278,35 @@ pub fn instance_quality_impl(
     })
 }
 
-/// Emits the refreshed session list to the UI.
+/// Tells the UI the sessions changed; it reads its lists again (0.1.5
+/// review: this sent every session ever run, built twice, on each change).
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message on failure.
+/// Never fails; the result type matches its callers'.
 pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
-    let live = live_stats_of(state);
-    let sessions = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        session_infos(
-            &storage,
-            &live,
-            &desktop_isolation_labels(&state.registry),
-            &state.supervisor.alive_adopted_sessions(),
-        )?
-    };
-    let sessions = crate::features::subtasks::counted(state, sessions);
-    let sessions = crate::features::conversations::titled(state, sessions)?;
-    let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, sessions);
+    let _ = state;
+    let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, ());
     Ok(())
+}
+
+/// The working set's ended sessions: the newest this many of the last
+/// [`RECENT_ENDED_MS`] (the rail shows today's; History pages the rest).
+pub const RECENT_ENDED: usize = 200;
+/// How far back the working set's ended sessions go.
+pub const RECENT_ENDED_MS: i64 = 7 * 24 * 3_600_000;
+
+/// The sessions the app's lists hold: every open or pinned one and the
+/// recent ended ones ([`RECENT_ENDED`]), never the whole history.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn working_records(storage: &Storage) -> AppResult<Vec<SessionRecord>> {
+    Ok(storage
+        .sessions()
+        .working_set(now_millis() - RECENT_ENDED_MS, RECENT_ENDED)?)
 }
 
 /// One batched sample of live process stats for every supervised session

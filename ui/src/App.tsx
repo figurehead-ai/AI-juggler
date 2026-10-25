@@ -71,6 +71,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { ProfilesScreen } from "./screens/Profiles";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
+import { useWithSelected } from "./lib/session-lookup";
 import {
   accountsList,
   providersDiscover,
@@ -255,10 +256,11 @@ export default function App() {
   }, []);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
-  const [sessions, setSessions] = useState<InstanceInfo[]>([]);
-  // AJ-E1007: archived Instances leave the rail (History keeps them).
-  // AJ-E1502: a forgotten project, and its (ended) sessions, leave the
-  // rail and New session until it is used again; History keeps them.
+  // The working set; a session past it joins while selected (session-lookup).
+  const [workingSessions, setSessions] = useState<InstanceInfo[]>([]);
+  const sessions = useWithSelected(workingSessions, selection.kind === "session" ? selection.id : null);
+  // AJ-E1007/E1502: archived Instances, and a forgotten project and its (ended)
+  // sessions, leave the rail and New session until it's used again; History keeps them.
   const shownProjects = useMemo(() => projects.filter((project) => !project.forgotten), [projects]);
   const railSessions = useMemo(() => {
     const forgotten = new Set(projects.filter((project) => project.forgotten).map((project) => project.id));
@@ -392,10 +394,8 @@ export default function App() {
     }
   }), [baselineFreshness]);
 
-  // Golden path day one: surface the user's REAL project history from
-  // imported transcripts (idempotent backend scan). AJ-E1529: the backend
-  // backfills again when the files change (an import, a new folder) and
-  // says so; the lists are read again then (not when only which are open changed).
+  // Day one: the REAL project history from imported transcripts (an idempotent
+  // scan); AJ-E1529: again when the files change (not when only what's open did).
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
     return onConversationsChanged((change) => change === "index" && void refresh());

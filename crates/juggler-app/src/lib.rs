@@ -428,6 +428,7 @@ macro_rules! app_commands {
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::sessions::commands::sessions_page,
             Read  features::sessions::commands::sessions_counts,
+            Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.

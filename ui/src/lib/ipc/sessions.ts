@@ -2,7 +2,7 @@
  * AJ-E1537 — the sessions feature's calls (ENGINEERING-GUIDE U3).
  */
 import { invoke } from "./transport";
-import { hasLiveBackend } from "../bridge";
+import { hasLiveBackend, type InstanceInfo } from "../bridge";
 import type { Page, PageRequest } from "../paged";
 import type { SessionRowInfo } from "../../types/generated/SessionRowInfo";
 import type { SessionsCountsInfo } from "../../types/generated/SessionsCountsInfo";
@@ -42,4 +42,11 @@ export async function sessionsCounts(query: SessionsQuery): Promise<SessionsCoun
 /** A query with only what's given set (the rest `null`, as serde sends). */
 export function sessionsQuery(over: Partial<SessionsQuery> = {}): SessionsQuery {
   return { project_id: null, account_id: null, which: null, text: null, utc_offset_min: -new Date().getTimezoneOffset(), ...over };
+}
+
+/** These sessions as the app's list has them (one past the working set:
+ * an old one opened from History). */
+export async function sessionsGet(ids: string[]): Promise<InstanceInfo[]> {
+  if (!hasLiveBackend() || ids.length === 0) return [];
+  return invoke<InstanceInfo[]>("sessions_get", { ids });
 }
