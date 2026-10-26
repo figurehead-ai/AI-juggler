@@ -1,0 +1,14 @@
+test a_claude_style_terminal_session_hears_a_facts_only_note_once_per_change ... ok
+test a_message_asking_to_change_grants_changes_nothing_and_says_who_wrote_it ... ok
+test a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast ... send 2.474583ms, read 982.25µs
+test a_ping_pong_between_two_fake_agents_stops_at_the_cap ... ok
+test a_thousand_messages_open_quickly_and_page ... the pool's messages opened in 10.417459ms
+test above_the_level_a_message_is_held_for_the_users_ok ... ok
+test at_full_it_goes_in_between_turns_never_at_a_permission_prompt_or_over_typing ... ok
+test cross_pool_messages_need_a_link_the_user_made ... ok
+test delivery_waits_for_the_users_click_at_work_together ... ok
+test shared_docs_are_redacted_content_addressed_and_only_the_pools ... ok
+test the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it ... ok
+test the_size_cap_the_rate_duplicates_and_the_breaker ... ok
+test the_user_writes_with_deliver_and_a_terminal_session_is_never_typed_into ... ok
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.93s

@@ -800,6 +800,71 @@
 
 ## Unresolved (in discussion order)
 
-- None. D-01..D-15 were marked Final on maintainer instruction
+- D-42 below, proposed with E18 (2026-10-25) and built as recommended so
+  it can be tried; each point is the maintainer's to keep or change.
+  D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
   on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-40 on 2026-10-25 (D-38 and D-39 on main). All follow the same law.
+
+### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — PROPOSED (2026-10-25)
+
+Context: E18 (`docs/tasks/E18-agent-messaging.md`) built on D-28 and D-29.
+Six choices weren't ruled by them. Each is built as recommended here and
+covered by tests, so changing one is a small, local change.
+
+1. **Secrets in messages and shared docs follow the packs' choice (D-14).**
+   - What the user sees: a message or doc with a key in it shows "1 secret
+     withheld, as you chose for packs" and `•••` in place of the key; with
+     **Keep** chosen in Settings › Privacy, the key stays (on this Mac).
+   - Options: (a) always strip, whatever the choice; (b) the packs' choice,
+     with Ask each time and "not chosen yet" stripping (no one is there to
+     ask when an agent writes); (c) a separate setting for messages.
+   - Cost and risk: (a) overrides the user's choice, against D-14's "always
+     the user's choice"; (c) is one more setting to explain. (b) means a user
+     who chose Keep lets agents pass keys to each other, on this Mac only.
+   - Recommendation: **(b)** (built).
+2. **Reading its own messages is part of Read.** A new catalog action,
+   `read_messages` ("Read their messages and the shared docs"), in Read and
+   every level above.
+   - What the user sees: one more line in a Custom level's list; a pool at
+     Read can still hear from the user, and answers only with the user's OK.
+   - Risk: none new (reading never sends). Alternative: put it under Work
+     together, so a pool at Read can't even read what the user wrote to it.
+   - Recommendation: **in Read** (built).
+3. **No separate Inbox screen.** E18's "Inbox pane" is each pool's
+   **Messages** tab, each session's **Messages** tab (shown once it has
+   any) and Home's **Needs you** for what waits on the user, following
+   E21's desktop-first ruling (no separate pools section).
+   - Cost: no single list of every pool's threads; a user with many pools
+     goes pool by pool, while Needs you gathers what needs them.
+   - Recommendation: **keep it so for 0.2**; add an all-pools list only if
+     the lab or the maintainer's use asks for it.
+4. **Claude Code's own messages between sessions are not used in v1.**
+   D-29 says to use the vendor's route where one exists. Claude Code's
+   cross-session messages need `crossSessionInbound`, which AI Juggler must
+   not change without the user, and reach only Claude sessions. v1 delivers
+   through the driven runtime (`send_turn`) for every tool, and a Claude
+   session in a terminal reads its inbox when told by its hooks.
+   - Recommendation: **revisit after the messaging lab**
+     (`docs/qa/messaging-lab.md`), when the route's behaviour is seen live.
+5. **The turn note also comes after each tool call** (`PostToolUse`), not
+   only when a turn starts, so a busy agent hears about a message during a
+   long turn. It is said once per change and never carries a message's
+   words.
+   - Risk: a little more context per change; an agent may stop to read.
+   - Recommendation: **keep** (built); drop `PostToolUse` if the lab finds
+     it distracting.
+6. **Smaller points, built as stated:** a thread takes at most 6 agent
+   messages in a row (E18), and the pool's hop limit (5 by default, D-29)
+   counts the hops already taken before a delivery, so 5 automatic wakes
+   pass and the next pauses and asks; the user's compose has **Deliver to
+   their sessions** on by default (the user is the one writing); linking
+   two pools is the user's, on a pool's Agent access tab, both ways at
+   once; E18's guardrail "no message reaches a session's input without a UI
+   command" is read as D-29 ruled it: without the user's click, a pool at
+   Full, or the user's rule.
+   - Note: E17's **Include my paired Macs** says "Message and task content
+     will travel to your other Macs", but AJ-E1705 (pools across Macs)
+     isn't built, so nothing travels yet; a guardrail test proves messages
+     never reach the Fleet link. Recommendation: say "will travel once pools
+     across Macs ship" until AJ-E1705 lands.

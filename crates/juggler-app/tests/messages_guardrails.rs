@@ -349,9 +349,8 @@ fn the_caps_hold() {
         juggler_core::messaging::DOC_MAX
     );
     // A whole doc fits a request, escaped (a compile-time check).
-    const _: () = assert!(
-        juggler_agentbridge::wire::MAX_REQUEST > juggler_core::messaging::DOC_MAX * 2
-    );
+    const _: () =
+        assert!(juggler_agentbridge::wire::MAX_REQUEST > juggler_core::messaging::DOC_MAX * 2);
 }
 
 #[test]

@@ -1,0 +1,8 @@
+test no_routing_reads_quota ... ok
+test nothing_about_messages_leaves_the_mac ... ok
+test provenance_is_on_every_message_an_agent_reads_and_every_delivery ... ok
+test grants_cant_change_through_the_bridge ... ok
+test cross_pool_messages_need_an_approved_link ... ok
+test the_caps_hold ... ok
+test a_message_reaches_a_sessions_input_only_through_its_turn_and_only_with_permission ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s

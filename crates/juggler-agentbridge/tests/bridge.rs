@@ -493,6 +493,26 @@ fn calls_answer_in_under_50_ms() {
         juggler_agentbridge::client::call(&target, call, wire::Args::default()).unwrap();
         slowest = slowest.max(started.elapsed());
     }
+    // E18 (AJ-E1801): a send and a read, over the socket, under 50 ms too.
+    for n in 0..3 {
+        let send = wire::Args {
+            send: Some(wire::SendArgs {
+                to: "s-1".into(),
+                body: format!("Start on step {n}"),
+                ..wire::SendArgs::default()
+            }),
+            ..wire::Args::default()
+        };
+        let read = wire::Args {
+            inbox: Some(wire::InboxArgs::default()),
+            ..wire::Args::default()
+        };
+        for (call, args) in [(Call::SendMessage, send), (Call::ReadInbox, read)] {
+            let started = Instant::now();
+            juggler_agentbridge::client::call(&target, call, args).unwrap();
+            slowest = slowest.max(started.elapsed());
+        }
+    }
     println!("slowest call over the socket: {slowest:?}");
     assert!(slowest < Duration::from_millis(50), "{slowest:?}");
 }
