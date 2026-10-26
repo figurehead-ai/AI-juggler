@@ -20,6 +20,8 @@ Design: `crates/juggler-app/src/features/messages/docs.rs`, `ui/src/pages/messag
 | Req.2 listed per pool, openable by members and the user | the same test (members read it, another pool's agent is refused); vitest "shared docs say what was withheld, as packs do, and open read-only" | PASS |
 | Gate: the secret-redaction corpus | the same test's corpus: an `env-value` key, a `bearer` header, a private key block, through the packs' detector; none of the three values remain | PASS |
 | Performance: redaction within the pack budget | 64 KiB through the same pass the packs use (`pack_load.rs` holds that pass's budget) | PASS |
+| Live: a real agent shares a doc with a key | `docs/qa/messaging-lab.md` step 6, 2026-10-26 ([lab-2026-10-26.md](docs/qa/evidence/AJ-E1803/lab-2026-10-26.md)): Claude Code's `share_doc` of `API_KEY=sk-lab-…`; read back `API_KEY=•••`; one file named by its hash, `0600` in `0700` | PASS |
+| Live: what was withheld is counted once | the same step: one key gave `secrets_found: 2`, "1 secret values" and "1 API keys" (two detectors, one span) | FAIL (the lab's finding 6) |
 | Visual: the pool's docs | `_gallery/93-messages/pool-docs-{1280x800,1680x1050,2000x1250}-{dark,light}.png` | PASS |
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

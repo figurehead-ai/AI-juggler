@@ -26,10 +26,11 @@ Design: `crates/juggler-core/src/messaging.rs` (the rules), `crates/juggler-core
 | Gate: an injection has no effect; the provenance tag is present | `messages.rs::a_message_asking_to_change_grants_changes_nothing_and_says_who_wrote_it`; `messages_guardrails.rs::grants_cant_change_through_the_bridge` | PASS |
 | Gate: the size cap | `the_size_cap_…`; `mcp::tests::a_tools_arguments_have_one_shape` (a doc over 64 KiB never reaches the app) | PASS |
 | Performance: a send or read < 50 ms | `bridge.rs::calls_answer_in_under_50_ms` (sends and reads over the socket, slowest 3.4 ms with 8 sessions); in process: send 2.5 ms, read 1.0 ms | PASS |
-| Live: real tools call the tools without a prompt | `docs/qa/messaging-lab.md` steps 2 and 5 | UNPROVEN (the coordinator's lab) |
+| Live: real tools call the tools without a prompt | `docs/qa/messaging-lab.md` steps 2 and 5, run 2026-10-26 with Claude Code 2.1.310 in its terminal and Codex 0.163.0 driven, through AI Juggler's backend ([lab-2026-10-26.md](docs/qa/evidence/AJ-E1803/lab-2026-10-26.md)): `pool_roster`, `send_message`, `read_inbox` and `ack` with no prompt; Codex's own juggler calls with no approval | PASS (the window's views: BLOCKED, for the maintainer) |
+| Live: the hop-limit answer an agent gets | the same lab, step 4: the answer says "the chain reached the hop limit" next to `hop_cap: 6` (the thread's cap); the agent took the two for a contradiction | FAIL (wording: the lab's finding 3) |
 
 ## Not covered here
 
 - Parallel branch: `e24-processes` also takes schema v34 (`sightings`). Whichever merges second renumbers its migration to v35 (for E18: `const V34` → `V35` in `storage/mod.rs`, and the 34s in `busy_timeout.rs`, `storage_roundtrip.rs`, `messages_storage.rs`).
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

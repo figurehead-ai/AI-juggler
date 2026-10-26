@@ -186,3 +186,32 @@
 **Files to touch**: `ui/src/lib/trust-claims.json`, `docs/guide/trust.md`, `docs/guide/processes.md`, `docs/guide/this-mac.md`, `docs/qa/processes-lab.md`.
 **Research basis**: D-41; D-37.
 **Handover note**: —
+
+## Lab, 2026-10-26
+
+The first live run of `docs/qa/processes-lab.md`, on the lab Claude Code profile, through AI Juggler's backend: there was no desktop control, so the window's checks are BLOCKED. Only processes the lab started were stopped. The full record is `docs/qa/evidence/AJ-E2406/lab-1-2026-10-26.md`.
+
+**What works live:**
+- the session's tree;
+- "Started by Bash: …" on the shell the tool ran;
+- the server's port and role;
+- AI Juggler's own tools hidden;
+- Left behind within 36 s (4 s for another app's session);
+- the counts agreeing with This Mac;
+- Keep and Remind;
+- Stop with "exited on TERM" and "needed KILL";
+- the history;
+- Include other apps;
+- the sightings holding names and hashes only.
+
+**What fails:**
+- Each left-behind and ended process is listed twice.
+- A real zombie never reaches the graph.
+- D-41b refuses Homebrew's `python3`: it runs from inside `Python.app`, so it counts as "part of an app".
+- This Mac doesn't list another app's Claude Code session.
+- "This PID now belongs to a different program" is said for a process that simply exited.
+
+**What the checklist and the rules must allow for:**
+- Claude Code 2.1.310 stops its own background tasks on Stop and on `/exit`, even ones that ignore TERM or start their own process group. A leftover of a Claude session comes only from a crash; the lab used SIGKILL on its own `claude`.
+- Claude Code runs each background task in its own process group, so neither automatic rule ever tidies one ("It left its session's group").
+- A server started with `nohup … &` leaves the session's tree before the tick sees it, and is never shown. This is the real coverage gap.

@@ -18,6 +18,9 @@ Design: `plugins/claude-code/` (a marketplace listing one plugin, `ai-juggler`: 
 | Req.1 published with the app's releases | the release workflow doesn't package it yet | UNPROVEN (waits on D-43 point 6) |
 | Req.2 works only while AI Juggler is running, and says so otherwise | `plugin.rs::installed_in_a_fixture_home_it_runs_the_bridge_and_says_why_not` (the real `juggler-agent`: the tools and why not outside AI Juggler's launches; nothing listed twice inside them; no AI Juggler: says so); `plugin::tests` (2) | PASS |
 | Goal: "even outside AI Juggler's launches" | ADR-0020 gives a session its identity only with a launch; D-30 says sessions started elsewhere can't call the tools | UNPROVEN (a ruling: D-43 point 6) |
+| Live: the plugin in a real Claude Code session outside AI Juggler | 2026-10-26, `claude -p --plugin-dir plugins/claude-code/ai-juggler` (session-only, nothing installed) on the lab profile, the server pointed at this branch's `juggler-agent` ([AJ-E1902/lab-2026-10-26.md](docs/qa/evidence/AJ-E1902/lab-2026-10-26.md), D-43 point 6): connected; all 14 tools listed and the skill `ai-juggler:pool-tasks`; `tasks_list` answered "This session wasn't started by AI Juggler with its agent tools, so it has no key. Continue it in AI Juggler to use them."; nothing of the plugin's written to the profile | PASS (as built) |
 | Gate: a plugin install test in a fixture home | `installed_in_a_fixture_home_…` (copied as Claude Code's plugin cache keeps it, run as its `.mcp.json` says) | PASS |
 
-Last updated: 2026-10-25.
+The labs' recommendation for D-43 point 6 (in that file): don't publish. AI Juggler's own Claude launches load a skill-only copy with `--plugin-dir`, which installs nothing. If a published plugin is still wanted, its server should list no tools when there is no key.
+
+Last updated: 2026-10-26.

@@ -14,7 +14,8 @@ Task: `docs/tasks/E24-processes.md` AJ-E2402, Sightings of other apps' sessions'
 | Req.2 written once, then once a minute; waits for its own command line | `cargo test -p juggler-app --lib processes::sightings::tests::a_sighting_waits_for_its_own_command_line_and_is_written_once_a_minute` | as asserted | pass | PASS | — | 2026-10-25 | agent |
 | Req.3 a helper alive after its session ended is left behind; a reused pid never | `cargo test -p juggler-app --lib processes::sightings::tests::a_helper_alive_after_its_session_ended_is_left_behind` | as asserted | pass | PASS | — | 2026-10-25 | agent |
 | Req.5 v35 migrates once, after E18's v34 | `cargo test -p juggler-core --test busy_timeout --test storage_roundtrip` | pass | pass | PASS | — | 2026-10-25 | agent |
-| Live: another app's session's leftover named by its session | `docs/qa/processes-lab.md` step 7 | as written there | not run yet | UNPROVEN | — | 2026-10-25 | agent |
+| Live: another app's session's leftover named by its session | `docs/qa/processes-lab.md` step 7, 2026-10-26 ([lab-1-2026-10-26.md](docs/qa/evidence/AJ-E2406/lab-1-2026-10-26.md)) | as written there | Claude Code outside AI Juggler (under the Claude app): Claude → its session → `claude` → `zsh`, `Python` :8766, "In a session Claude runs", no Stop while it ran. After its `claude` ended (SIGKILL, the crash route; `/exit` stops Claude's own background tasks), the server was Left behind under the ended session in 4 s. The session's title was empty | PASS (backend; the window: BLOCKED) | — | 2026-10-26 | agent |
+| Live: the sightings hold no command line, folder or environment | the same lab, step 11 (`pragma table_info(process_sightings)`) | names and 32-character hashes only | `pid, start_time, boot_id, exe_name, cmd_hash, tool, session_id, app, session_root, parent_pid, first_seen, last_seen`; `length(cmd_hash)` 32 | PASS | — | 2026-10-26 | agent |
 
 ## Redaction checklist (tick before commit)
 
