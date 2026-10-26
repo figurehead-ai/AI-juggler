@@ -276,7 +276,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     view2.unmount();
   });
 
-  it("announces filter changes politely and exposes exactly the four filters", async () => {
+  it("announces filter changes politely and exposes exactly the five views", async () => {
     const bridge: CleanupBridge = { load: () => Promise.resolve(data()) };
     const view = render(<CleanupCentre bridge={bridge} />);
     await waitFor(() =>
@@ -286,7 +286,7 @@ describe("CleanupCentre (AJ-E506)", () => {
     const labels = within(group)
       .getAllByRole("radio")
       .map((radio) => radio.textContent);
-    expect(labels).toEqual(["Needs attention", "All managed", "Picked up after restart", "History (7 days)"]);
+    expect(labels).toEqual(["Needs attention", "All managed", "Picked up after restart", "History (7 days)", "Ports"]);
     expect(view.getByTestId("cleanup-filter-announcement").textContent ?? "").toContain(
       "Needs attention",
     );

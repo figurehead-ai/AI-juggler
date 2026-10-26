@@ -1,3 +1,4 @@
+import { toolSpec } from "../lib/tools";
 import { useEffect, useState } from "react";
 import type { PortInventoryInfo, PortRowInfo } from "../lib/bridge";
 import { Button } from "./primitives";
@@ -59,12 +60,12 @@ function PortRow({ row }: { row: PortRowInfo }) {
       <div className="flex items-center gap-2 text-label text-muted">
         {row.provider !== null ? (
           <span className="truncate">
-            {row.provider}
+            {toolSpec(row.provider).display_name}
             {row.account !== null ? ` · ${row.account}` : ""}
             {row.project !== null ? ` · ${row.project}` : ""}
           </span>
         ) : (
-          <span>listener outside Juggler's ledger — display only</span>
+          <span>Not started by AI Juggler, so it is only shown</span>
         )}
         <span className="ml-auto whitespace-nowrap">
           {ageText(row.listener_age_ms)}

@@ -4,6 +4,7 @@ import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty } from "../components/ProcessRow";
 import { GroupBlock, groupTitle, machineWords, type CleanupGroupInfo } from "../components/CleanupGroup";
+import { PortInventoryList } from "../components/PortMap";
 import { errorText, statsEvent, type InstanceInfo } from "../lib/bridge";
 
 /**
@@ -59,6 +60,7 @@ export const CLEANUP_FILTERS = [
   { id: "all-managed", label: "All managed" },
   { id: "re-adopted", label: "Picked up after restart" },
   { id: "history", label: "History (7 days)" },
+  { id: "ports", label: "Ports" },
 ] as const;
 
 export type CleanupFilterId = (typeof CLEANUP_FILTERS)[number]["id"];
@@ -241,6 +243,8 @@ export function CleanupCentre(props: {
   }, [status?.tier2_pending.length, statusBridge]);
 
   useEffect(() => {
+    // Ports: the machine-wide port map (AJ-E505), its own read.
+    if (filter === "ports") return;
     let alive = true;
     bridge
       .load(filter, machineScope)
@@ -553,6 +557,12 @@ export function CleanupCentre(props: {
         </p>
       )}
 
+      {filter === "ports" ? (
+        <section className="flex flex-col gap-2" aria-label="Ports on this Mac" data-testid="cleanup-ports">
+          <p className="text-meta text-muted">Every port open on this Mac: what each is, and whether a session left it running.</p>
+          <PortInventoryList />
+        </section>
+      ) : (
       <div className="flex flex-col gap-grid">
         {(() => {
           const history = data?.history ?? null;
@@ -593,6 +603,7 @@ export function CleanupCentre(props: {
         {/* AJ-E707: paired machines, under "All machines" only. */}
         {machineScope === "all" && <RemoteCleanup />}
       </div>
+      )}
 
       {killTarget !== null && (
         <KillSheet

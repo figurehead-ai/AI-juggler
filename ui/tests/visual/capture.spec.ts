@@ -1124,8 +1124,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
-      await page.getByRole("tab", { name: "Processes" }).click();
+      // 0.1.5: the machine-wide port map lives in Cleanup › Ports, not in
+      // each session's Processes tab.
+      await goTo(page, "Cleanup");
+      await page.getByRole("radio", { name: "Ports", exact: true }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
       await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
       await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
