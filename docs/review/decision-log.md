@@ -979,16 +979,19 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
 
 ## Unresolved (in discussion order)
 
-- D-42 below, proposed with E18 (2026-10-25) and built as recommended so
-  it can be tried; each point is the maintainer's to keep or change.
-- D-43 below, proposed with E19 (2026-10-25), the same way. Point 6 (the
-  Claude Code plugin outside AI Juggler's launches) is the one that needs
-  a ruling before the plugin is worth publishing.
-  D-01..D-15 were marked Final on maintainer instruction
+- D-43 points 4 (a task's brief as a session's first prompt) and 6 (the
+  Claude Code plugin outside AI Juggler's launches): approved as built,
+  to be revisited with the maintainer after the messaging and tasks labs.
+  The plugin stays unpublished until then.
+- D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-38..D-41 on 2026-10-25. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25 and D-42..D-43 on 2026-10-26. All follow the same law.
 
-### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — PROPOSED (2026-10-25)
+### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
+
+**Ruling.** The maintainer, 2026-10-26: "Approve D-42 and D-43 as built;
+revisit D-43 point 4 (task brief as first prompt) and point 6 (plugin)
+after the labs."
 
 Context: E18 (`docs/tasks/E18-agent-messaging.md`) built on D-28 and D-29.
 Six choices weren't ruled by them. Each is built as recommended here and
@@ -1051,7 +1054,11 @@ covered by tests, so changing one is a small, local change.
      never reach the Fleet link. Recommendation: say "will travel once pools
      across Macs ship" until AJ-E1705 lands.
 
-### D-43 Tasks shared by pools: held changes, honest states, a session for a task, issue titles, and the plugin — PROPOSED (2026-10-25)
+### D-43 Tasks shared by pools: held changes, honest states, a session for a task, issue titles, and the plugin — SETTLED (2026-10-26; points 4 and 6 revisited after the labs)
+
+**Ruling.** The maintainer, 2026-10-26: "Approve D-42 and D-43 as built;
+revisit D-43 point 4 (task brief as first prompt) and point 6 (plugin)
+after the labs."
 
 Context: E19 (`docs/tasks/E19-agent-tasks.md`) built on D-28 and D-31.
 Seven choices weren't ruled by them. Each is built as recommended here and
