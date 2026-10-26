@@ -283,6 +283,13 @@ read_routes! {
     "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
     "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
     "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);
+    // AJ-E2401/E2405: the Processes view's rows, counts, history and
+    // rules (reads only; nothing is stopped or marked).
+    "processes_page" => async_result features::processes::commands::processes_page(state; input: features::processes::dto::ProcessQueryInput);
+    "processes_counts" => async_result features::processes::commands::processes_counts(state);
+    "processes_history" => async_result features::processes::commands::processes_history(state; session_id: Option<String>, project_id: Option<String>, cursor: Option<String>, limit: Option<u32>);
+    "processes_dry_run" => async_result features::processes::commands::processes_dry_run(state; account_id: String, tier: u8);
+    "processes_policy" => async_result features::processes::commands::processes_policy(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other
@@ -337,6 +344,14 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     ),
     ("commands::funnel_export", "an export the user saves"),
     ("commands::cleanup_audit_export", "an export the user saves"),
+    (
+        "features::processes::commands::processes_snapshot",
+        "an export the user saves",
+    ),
+    (
+        "features::processes::commands::processes_observed_verify",
+        "the check made just before the user stops another app's process; the bridge stops nothing",
+    ),
     (
         "commands::launch_port_warning",
         "checked just before a launch",
