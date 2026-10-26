@@ -14,7 +14,7 @@
  * clicked, the user switched.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { SwitchFreezeChoice } from "./SwitchFreezeChoice";
+import { outsideWords, SwitchFreezeChoice } from "./SwitchFreezeChoice";
 import { SwitchSetupList, SwitchSetupResults } from "./SwitchSetupList";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
@@ -37,7 +37,7 @@ type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number }
-  | { kind: "done"; sessionId: string }
+  | { kind: "done"; sessionId: string; preflight: PreflightInfoData }
   | { kind: "failed"; message: string };
 
 const STAGES = [
@@ -330,7 +330,10 @@ export function SwitchFlow({
   const execute = async () => {
     if (phase.kind !== "confirm" || started.current) return;
     started.current = true;
-    const oneClick = phase.preflight.door === "one-click";
+    const preflight = phase.preflight;
+    // AJ-E2108: a session another app runs has nothing here to undo to
+    // (it stayed as it was): the done step says so instead of the toast.
+    const oneClick = preflight.door === "one-click" && !preflight.source_outside;
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {
       // AJ-E1542: what the user picked is set up first, so the target
@@ -349,7 +352,7 @@ export function SwitchFlow({
         onSwitched(result.session_id, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: result.session_id });
+      setPhase({ kind: "done", sessionId: result.session_id, preflight });
     } catch (cause) {
       setPhase({ kind: "failed", message: errorText(cause) });
     }
@@ -407,6 +410,7 @@ export function SwitchFlow({
             <SwitchFreezeChoice
               sourceLive={phase.preflight.source_live}
               keepsRunning={phase.preflight.source_keeps_running}
+              outside={phase.preflight.source_outside ? { app: phase.preflight.source_app ?? null, target: targetLabel } : null}
               value={freeze}
               onChange={setFreeze}
             />
@@ -491,6 +495,11 @@ export function SwitchFlow({
                     ? "The usual account for this project — suggested first."
                     : "A suggestion only — you pick the target; nothing moves until you confirm."}
                 </p>
+                {phase.preflight.source_outside && (
+                  <p className="text-label text-muted" data-testid="switch-outside-target">
+                    {outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)}
+                  </p>
+                )}
               </div>
             )}
 
@@ -591,6 +600,7 @@ export function SwitchFlow({
                 <SwitchFreezeChoice
                   sourceLive={phase.preflight.source_live}
                   keepsRunning={phase.preflight.source_keeps_running}
+                  outside={phase.preflight.source_outside ? { app: phase.preflight.source_app ?? null, target: targetLabel } : null}
                   value={freeze}
                   onChange={setFreeze}
                 />
@@ -660,9 +670,12 @@ export function SwitchFlow({
         {phase.kind === "done" && (
           <div className="flex flex-col gap-3" data-testid="switch-done">
             <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
-            <p className="text-label text-muted">
-              {targetLabel} is picking up the conversation. The original has stopped, and you can
-              switch back to it any time.
+            <p className="text-label text-muted" data-testid="switch-done-words">
+              {phase.preflight.source_outside
+                ? outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)
+                : phase.preflight.source_keeps_running
+                  ? `${targetLabel} is picking up the conversation. The original keeps going in its app.`
+                  : `${targetLabel} is picking up the conversation. The original has stopped, and you can switch back to it any time.`}
             </p>
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">

@@ -3,8 +3,10 @@
  * AI Juggler's index found in the tools' files): where it runs, its
  * conversation, and Go to it. D-08: AI Juggler never stops or tidies what
  * isn't its own; "Continue in AI Juggler" resumes it as a session of its
- * own on the same profile, on the user's click. AJ-E1533: the same page
- * as every session's, its project as the crumb.
+ * own on the same profile, on the user's click, and Continue on another
+ * account opens the switch screen from it (AJ-E2108: it stays as it is,
+ * and continues as a new session here). AJ-E1533: the same page as every
+ * session's, its project as the crumb.
  *
  * Steady while the list refreshes under it: its tabs are always the same
  * two (Usage says when nothing is measured, it never comes and goes), the
@@ -52,7 +54,23 @@ function useSteadyRow(all: ConversationInfo[], accountId: string, id: string): {
   return { row: found ?? last.current?.row ?? null, gone: missing && gone === key };
 }
 
-export function ConversationPage({ accountId, id, now, projects = [] }: { accountId: string; id: string; now: number; projects?: ProjectInfo[] }): JSX.Element {
+/** Opens the switch screen from a session (its id, or the key of one
+ * another app runs) to a profile's launch settings. */
+export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string) => void;
+
+export function ConversationPage({
+  accountId,
+  id,
+  now,
+  projects = [],
+  onSwitch,
+}: {
+  accountId: string;
+  id: string;
+  now: number;
+  projects?: ProjectInfo[];
+  onSwitch?: OpenSwitch;
+}): JSX.Element {
   const { all } = useConversations();
   const { row, gone } = useSteadyRow(all, accountId, id);
   if (gone) {
@@ -70,7 +88,7 @@ export function ConversationPage({ accountId, id, now, projects = [] }: { accoun
       </div>
     );
   }
-  return <ConversationView conversation={row} now={now} projects={projects} />;
+  return <ConversationView conversation={row} now={now} projects={projects} onSwitch={onSwitch} />;
 }
 
 /** The page's model, the same object while nothing it shows has changed
@@ -82,7 +100,17 @@ function useStableModel(conversation: ConversationInfo): SessionModel {
   return useMemo(() => next, [json]);
 }
 
-function ConversationView({ conversation, now, projects }: { conversation: ConversationInfo; now: number; projects: ProjectInfo[] }): JSX.Element {
+function ConversationView({
+  conversation,
+  now,
+  projects,
+  onSwitch,
+}: {
+  conversation: ConversationInfo;
+  now: number;
+  projects: ProjectInfo[];
+  onSwitch?: OpenSwitch;
+}): JSX.Element {
   const host = useActionHost();
   const title = conversationTitle(conversation);
   // On its own page: no "Open".
@@ -150,6 +178,7 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
               visible={visible}
               outside
               onGoTo={conversation.live && host.goToConversation ? goTo : undefined}
+              onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
             />
           )

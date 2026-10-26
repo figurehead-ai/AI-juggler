@@ -497,10 +497,11 @@ fn name_rows(
     let (labels, projects, homes) = {
         let storage = lock_storage_arc(state)?;
         // The user's labels: only labelled sessions, a few rows.
-        let labels: HashMap<String, String> = storage
+        let labels: HashMap<(String, String), String> = storage
             .sessions()
             .conversation_labels()?
             .into_iter()
+            .map(|(account, conversation, label)| ((account, conversation), label))
             .collect();
         let projects: HashMap<std::path::PathBuf, String> = storage
             .projects()
@@ -519,9 +520,11 @@ fn name_rows(
         items.iter().filter_map(|row| key(&row.session)).collect();
     let facts = state.conversations.facts_of(&wanted);
     for row in items {
-        let fact = key(&row.session).and_then(|key| facts.get(&key));
-        row.title = labels
-            .get(&row.session)
+        let account_key = key(&row.session);
+        let fact = account_key.as_ref().and_then(|key| facts.get(key));
+        row.title = account_key
+            .as_ref()
+            .and_then(|key| labels.get(key))
             .cloned()
             .or_else(|| fact.and_then(|(title, _)| title.clone()))
             .filter(|title| !title.trim().is_empty());

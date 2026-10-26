@@ -4,9 +4,9 @@
  * fixed column: where it runs, its account's runway and where it could
  * continue. The same for a session AI Juggler runs and one another app
  * runs. Loaded with the page, never at start; the runways and the
- * profiles' names come from one shared read (data.ts), not one per page.
+ * profiles come from one shared read (data.ts), not one per page.
  */
-import { useMemo, type JSX } from "react";
+import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/bridge";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { LastMessages } from "./LastMessages";
@@ -26,6 +26,8 @@ export type OverviewProps = {
   /** Started outside AI Juggler: said once, quietly, under where it runs. */
   outside?: boolean;
   onGoTo?: () => void;
+  /** Opens the switch screen from this session (AI Juggler's or another
+   * app's alike, AJ-E2108). */
   onPick?: (recipeId: string, label: string) => void;
   onCarryIn?: () => void;
   switchBack?: SwitchBackSuggestionData | null;
@@ -37,7 +39,6 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
   const accounts = useSubscriptions();
   const displays = useRunways();
   const profiles = useProfiles();
-  const labels = useMemo(() => new Map(profiles.map((p) => [p.id, p.label])), [profiles]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
   return (
@@ -51,7 +52,6 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
             <ContinueOn
               model={model}
               accounts={accounts ?? []}
-              labels={labels}
               displays={displays}
               onPick={props.onPick}
               onCarryIn={props.onCarryIn}

@@ -390,32 +390,41 @@ impl SessionsRepo<'_> {
     }
 
     /// 0.1.7: the user's label of each session that has one and knows
-    /// its conversation, `(conversation, label)` (the cost table names a
-    /// session as the rail does). Only labelled sessions: a few rows.
+    /// its conversation, `(account, conversation, label)` (the cost table
+    /// names a session as the rail does). By account too: a switch to
+    /// another account of the same tool keeps the conversation's id there
+    /// (see [`Self::conversation_links`]). Only labelled sessions: a few
+    /// rows.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn conversation_labels(&self) -> Result<Vec<(String, String)>, CoreError> {
+    pub fn conversation_labels(&self) -> Result<Vec<(String, String, String)>, CoreError> {
         let mut stmt = self.conn.prepare(
-            "SELECT conversation_id, label FROM instances
-              WHERE conversation_id IS NOT NULL AND label IS NOT NULL",
+            "SELECT r.account_id, i.conversation_id, i.label FROM instances i \
+             JOIN launch_recipes r ON r.id = i.launch_recipe_id \
+             WHERE i.conversation_id IS NOT NULL AND i.label IS NOT NULL",
         )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
-    /// Each session's conversation, `(conversation, session)`: one cheap
-    /// read for the conversations list (never the sessions' whole rows).
+    /// Each session's conversation, `(account, conversation, session)`,
+    /// oldest session first: one cheap read for the conversations list
+    /// (never the sessions' whole rows). The account tells one copy of a
+    /// conversation from another: a switch to another account of the same
+    /// tool continues the conversation under the same id there.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn conversation_links(&self) -> Result<Vec<(String, String)>, CoreError> {
+    pub fn conversation_links(&self) -> Result<Vec<(String, String, String)>, CoreError> {
         let mut stmt = self.conn.prepare(
-            "SELECT conversation_id, id FROM instances WHERE conversation_id IS NOT NULL",
+            "SELECT r.account_id, i.conversation_id, i.id FROM instances i \
+             JOIN launch_recipes r ON r.id = i.launch_recipe_id \
+             WHERE i.conversation_id IS NOT NULL ORDER BY i.started_at, i.id",
         )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 

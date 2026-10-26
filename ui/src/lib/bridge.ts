@@ -2145,6 +2145,11 @@ export interface PreflightInfoData {
   source_live: boolean;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
+  /** AJ-E2108: a session another app runs: only read, left as it is, and
+   * continued as a new session here. */
+  source_outside?: boolean;
+  /** The app it's open in now ("Claude", "Terminal"), when known. */
+  source_app?: string | null;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -2252,16 +2257,18 @@ export async function switchPreflight(
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Partial<PreflightInfoData> })
       .__AIJ_SWITCH_PREFLIGHT__;
+    // AJ-E2108: a session another app runs (its key) is only read.
+    const base = sessionId.startsWith("conversation:") ? { ...DEFAULT_PREFLIGHT, source_outside: true } : DEFAULT_PREFLIGHT;
     // Merge over the default so fixtures that predate a field keep
     // working (the seam overrides only what it defines).
     if (seam) {
       return {
-        ...DEFAULT_PREFLIGHT,
+        ...base,
         ...seam,
-        redaction: { ...DEFAULT_PREFLIGHT.redaction, ...seam.redaction },
+        redaction: { ...base.redaction, ...seam.redaction },
       } as PreflightInfoData;
     }
-    return DEFAULT_PREFLIGHT;
+    return base;
   }
   return invoke<PreflightInfoData>("switch_preflight", { sessionId, targetProfileId });
 }
