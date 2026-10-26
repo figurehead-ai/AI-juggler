@@ -293,7 +293,10 @@ impl Snapshot {
                 self.asks.clear();
                 true
             }
+            // ItemStarted: the Processes page names what a command
+            // started; the conversation shows the command once it ends.
             RuntimeEvent::ToolDelta { .. }
+            | RuntimeEvent::ItemStarted { .. }
             | RuntimeEvent::Usage { .. }
             | RuntimeEvent::Compacted
             | RuntimeEvent::Transcript { .. }
@@ -540,9 +543,11 @@ fn execute(driven: &mut dyn DrivenSession, command: Command) -> Option<Command> 
 /// AJ-E2401: a command the tool ran names what it started on the
 /// Processes page (held in memory only).
 fn note_command(state: &Arc<AppState>, session: &SessionId, event: &RuntimeEvent) {
-    if let RuntimeEvent::Item { item } = event
-        && item.kind == ItemKind::Command
-    {
+    let (RuntimeEvent::ItemStarted { summary: item, .. } | RuntimeEvent::Item { item }) = event
+    else {
+        return;
+    };
+    if item.kind == ItemKind::Command {
         state.processes.note_label(
             session.as_str(),
             &format!("a command: {}", item.text),

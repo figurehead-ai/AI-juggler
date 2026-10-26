@@ -128,6 +128,12 @@ fn fixture() -> Inputs {
     }
     inputs.live.get_mut(&100).unwrap().cpu_pct = Some(12.0);
     inputs.ports.insert(102, vec![5173]);
+    // What started a process, from the tool's own events (a Codex command
+    // item when it starts, a Claude hook): matched to its command line.
+    inputs.labels.insert(
+        "s-ok".into(),
+        vec![(1_000_000, "a command: npm run dev".into())],
+    );
     inputs.ours.push(OursInput {
         session_id: "s-ok".into(),
         tool: "tool-a".into(),
@@ -378,6 +384,11 @@ fn whose_and_how_each_may_be_stopped() {
     assert_eq!(node(&graph, 202).role.words(), "watcher");
     assert_eq!(node(&graph, 100).role.words(), "the session itself");
     assert_eq!(node(&graph, 102).name, "node (vite)");
+    assert_eq!(
+        node(&graph, 101).label.as_deref(),
+        Some("Started by a command: npm run dev")
+    );
+    assert_eq!(node(&graph, 102).label, None, "not its command line");
 }
 
 #[test]
