@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   onProcessesChanged,
   processesPage,
+  processesStatus,
   type ProcessCountsInfo,
   type ProcessGraphRowInfo,
   type ProcessQueryInput,
@@ -20,7 +21,7 @@ import {
 /** Rows a page asks for (the backend's most). */
 export const PAGE_ROWS = 200;
 
-type Kept = { rows: ProcessGraphRowInfo[]; total: number; counts: ProcessCountsInfo | null; next: string | null };
+type Kept = { rows: ProcessGraphRowInfo[]; total: number; counts: ProcessCountsInfo | null; next: string | null; degraded: boolean };
 
 /** The last rows of each view, by its query (in memory only). */
 const kept = new Map<string, Kept>();
@@ -32,13 +33,15 @@ export function forgetProcessRows(): void {
 }
 
 function keyOf(query: ProcessQueryInput): string {
-  return JSON.stringify({ ...query, cursor: null, limit: null });
+  return JSON.stringify(query);
 }
 
 export interface ProcessRows {
   rows: ProcessGraphRowInfo[];
   total: number;
   counts: ProcessCountsInfo | null;
+  /** The ledger can't record: nothing of AI Juggler's can be stopped. */
+  degraded: boolean;
   /** The first read hasn't answered yet (and nothing was kept). */
   loading: boolean;
   error: string | null;
@@ -69,14 +72,17 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
       let cursor: string | null = null;
       let total = 0;
       let counts: ProcessCountsInfo | null = null;
+      let degraded = false;
+      const status = await processesStatus();
+      counts = status.counts;
+      degraded = status.ledger_degraded;
       do {
-        const page = await processesPage({ ...readQuery, cursor, limit: PAGE_ROWS });
+        const page = await processesPage(readQuery, { cursor, limit: PAGE_ROWS });
         rows.push(...page.items);
         cursor = page.next_cursor;
-        total = page.total;
-        counts = page.counts;
+        total = page.total ?? rows.length;
       } while (cursor !== null && rows.length < want);
-      const next: Kept = { rows, total, counts, next: cursor };
+      const next: Kept = { rows, total, counts, next: cursor, degraded };
       kept.delete(readKey);
       kept.set(readKey, next);
       while (kept.size > KEPT_VIEWS) kept.delete(kept.keys().next().value as string);
@@ -115,6 +121,7 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
     rows: state?.rows ?? [],
     total: state?.total ?? 0,
     counts: state?.counts ?? null,
+    degraded: state?.degraded ?? false,
     loading: state === null && error === null,
     error,
     hasMore: Boolean(state?.next),

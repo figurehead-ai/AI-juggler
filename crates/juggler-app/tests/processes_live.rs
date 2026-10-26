@@ -27,6 +27,7 @@ use juggler_app::commands;
 use juggler_app::features::processes::{
     self, commands as pc, dto::ProcessQueryInput, model::ProcState,
 };
+use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId, ProfileId,
@@ -232,6 +233,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
             view: "attention".into(),
             ..ProcessQueryInput::default()
         },
+        &PageRequest::first(50),
     )
     .unwrap();
     assert!(
@@ -239,7 +241,10 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
             .iter()
             .any(|row| row.process.as_ref().is_some_and(|p| p.pid == child))
     );
-    assert_eq!(page.counts.to_clean, graph.counts.to_clean);
+    assert_eq!(
+        pc::status_impl(&state).counts.to_clean,
+        graph.counts.to_clean
+    );
     // 3. Keep takes it out of what to clean, and the sweep honours it.
     let start = state
         .processes
@@ -281,6 +286,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
                 view: "ended".into(),
                 ..ProcessQueryInput::default()
             },
+            &PageRequest::first(50),
         )
         .unwrap();
         ended
@@ -289,6 +295,12 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
             .any(|row| row.process.as_ref().is_some_and(|p| p.pid == child))
     });
     // 5. The history names it, for this session.
-    let history = pc::history_impl(&state, Some(session.as_str()), None, None, None).unwrap();
+    let history = pc::history_impl(
+        &state,
+        Some(session.as_str()),
+        None,
+        &PageRequest::first(50),
+    )
+    .unwrap();
     assert!(history.items.iter().any(|event| event.pid == child));
 }

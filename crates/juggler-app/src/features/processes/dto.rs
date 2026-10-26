@@ -234,24 +234,13 @@ pub struct ProcessQueryInput {
     pub expanded: Vec<String>,
     /// Sessions folded by the user (keys).
     pub collapsed: Vec<String>,
-    /// The `next_cursor` of the page before.
-    pub cursor: Option<String>,
-    /// Rows in the page (at most 200).
-    pub limit: Option<u32>,
 }
 
-/// One page of rows.
+/// The view's state beside its rows: the graph's version and counts.
 #[derive(Clone, Debug, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct ProcessPageInfo {
-    /// The rows, in tree order.
-    pub items: Vec<ProcessGraphRowInfo>,
-    /// Where the next page starts; none on the last.
-    pub next_cursor: Option<String>,
-    /// How many rows the whole list holds.
-    #[ts(type = "number")]
-    pub total: u64,
-    /// The graph's version the page is of.
+pub struct ProcessStatusInfo {
+    /// The graph's version the rows are of.
     #[ts(type = "number")]
     pub version: u64,
     /// The counts now.
@@ -259,6 +248,9 @@ pub struct ProcessPageInfo {
     /// When the graph was built, epoch ms (0: not yet).
     #[ts(type = "number")]
     pub built_ms: i64,
+    /// The ledger can't be written: what AI Juggler started can be shown
+    /// but not stopped until it restarts.
+    pub ledger_degraded: bool,
 }
 
 /// One cleanup in the audit, for the Cleanup history view.
@@ -294,16 +286,6 @@ pub struct CleanupEventInfo {
     pub ports_before: Option<String>,
     /// Ports still held after.
     pub ports_after: Option<String>,
-}
-
-/// One page of cleanups.
-#[derive(Clone, Debug, PartialEq, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct CleanupHistoryPageInfo {
-    /// The cleanups, newest first.
-    pub items: Vec<CleanupEventInfo>,
-    /// Where the next page starts; none on the last.
-    pub next_cursor: Option<String>,
 }
 
 /// What an automatic rule would do now (the dry run).

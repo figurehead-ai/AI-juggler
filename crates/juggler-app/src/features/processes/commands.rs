@@ -8,11 +8,12 @@ use std::sync::Arc;
 use juggler_core::storage::{MarkKind, ProcessMark};
 
 use super::dto::{
-    CleanupEventInfo, CleanupHistoryPageInfo, CleanupPolicyInfo, ProcessCountsInfo,
-    ProcessGraphRowInfo, ProcessPageInfo, ProcessQueryInput, ProcessSnapshotInfo, RulePreviewInfo,
+    CleanupEventInfo, CleanupPolicyInfo, ProcessCountsInfo, ProcessGraphRowInfo, ProcessQueryInput,
+    ProcessSnapshotInfo, ProcessStatusInfo, RulePreviewInfo,
 };
 use crate::commands::{KillExecuteInfo, KillVerifyInfo};
 use crate::error::{AppError, AppResult};
+use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
 
 /// What Ended and Cleanup history look back over.
@@ -20,37 +21,47 @@ pub const KEPT_MS: i64 = 7 * 24 * 3_600_000;
 /// The longest Remind me later, minutes (a day).
 pub const SNOOZE_MAX_MINUTES: u32 = 24 * 60;
 
-/// One page of the view the input asks for.
+/// One page of the view the input asks for (`page`: the cursor of the
+/// page before and how many rows).
 ///
 /// # Errors
 ///
 /// None today (an unreadable store reads as an empty Ended view).
-pub fn page_impl(state: &Arc<AppState>, input: &ProcessQueryInput) -> AppResult<ProcessPageInfo> {
-    let graph = state.processes.graph();
-    let counts = ProcessCountsInfo::of(&graph.counts);
-    let version = state.processes.version();
+pub fn page_impl(
+    state: &Arc<AppState>,
+    input: &ProcessQueryInput,
+    page: &PageRequest,
+) -> AppResult<Page<ProcessGraphRowInfo>> {
+    let limit = u32::try_from(page.limit()).ok();
     if input.view == "ended" {
-        let (items, next_cursor) = ended_page(state, input);
-        return Ok(ProcessPageInfo {
-            total: items.len() as u64,
+        let (items, next_cursor) = ended_page(state, page.cursor.as_deref(), limit);
+        return Ok(Page {
+            total: None,
             items,
             next_cursor,
-            version,
-            counts,
-            built_ms: graph.built_ms,
         });
     }
+    let graph = state.processes.graph();
     let rows = super::query::rows(&graph, input);
-    let (items, next_cursor, total) =
-        super::query::page(rows, input.cursor.as_deref(), input.limit);
-    Ok(ProcessPageInfo {
+    let (items, next_cursor, total) = super::query::page(rows, page.cursor.as_deref(), limit);
+    Ok(Page {
         items,
         next_cursor,
-        total,
-        version,
-        counts,
-        built_ms: graph.built_ms,
+        total: Some(total),
     })
+}
+
+/// The view's state: the graph's version and counts, and whether the
+/// ledger records.
+#[must_use]
+pub fn status_impl(state: &Arc<AppState>) -> ProcessStatusInfo {
+    let graph = state.processes.graph();
+    ProcessStatusInfo {
+        version: state.processes.version(),
+        counts: ProcessCountsInfo::of(&graph.counts),
+        built_ms: graph.built_ms,
+        ledger_degraded: state.supervisor.ledger_degraded(),
+    }
 }
 
 /// Ended (7 days): the ledger's ended processes and the other apps'
@@ -58,16 +69,16 @@ pub fn page_impl(state: &Arc<AppState>, input: &ProcessQueryInput) -> AppResult<
 /// `(last_seen, pid)`.
 fn ended_page(
     state: &Arc<AppState>,
-    input: &ProcessQueryInput,
+    cursor: Option<&str>,
+    limit: Option<u32>,
 ) -> (Vec<ProcessGraphRowInfo>, Option<String>) {
     let now = crate::commands::now_millis();
     let since = now - KEPT_MS;
-    let limit = input
-        .limit
+    let limit = limit
         .and_then(|limit| usize::try_from(limit).ok())
         .unwrap_or(super::query::DEFAULT_LIMIT)
         .clamp(1, super::query::MAX_LIMIT);
-    let after = input.cursor.as_deref().and_then(|cursor| {
+    let after = cursor.and_then(|cursor| {
         let (seen, pid) = cursor.split_once(':')?;
         Some((seen.parse::<i64>().ok()?, pid.parse::<u32>().ok()?))
     });
@@ -122,9 +133,25 @@ fn ended_page(
 pub async fn processes_page(
     state: tauri::State<'_, Arc<AppState>>,
     input: ProcessQueryInput,
-) -> AppResult<ProcessPageInfo> {
+    page: PageRequest,
+) -> AppResult<Page<ProcessGraphRowInfo>> {
     crate::ipc::blocking(state.inner(), "the processes", move |state| {
-        page_impl(state, &input)
+        page_impl(state, &input, &page)
+    })
+    .await
+}
+
+/// The view's state (its version, counts, and whether the ledger records).
+///
+/// # Errors
+///
+/// None today.
+#[tauri::command]
+pub async fn processes_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<ProcessStatusInfo> {
+    crate::ipc::blocking(state.inner(), "the processes' state", |state| {
+        Ok(status_impl(state))
     })
     .await
 }
@@ -258,15 +285,11 @@ pub fn history_impl(
     state: &Arc<AppState>,
     session_id: Option<&str>,
     project_id: Option<&str>,
-    cursor: Option<&str>,
-    limit: Option<u32>,
-) -> AppResult<CleanupHistoryPageInfo> {
+    page: &PageRequest,
+) -> AppResult<Page<CleanupEventInfo>> {
     let now = crate::commands::now_millis();
-    let limit = limit
-        .and_then(|limit| usize::try_from(limit).ok())
-        .unwrap_or(super::query::DEFAULT_LIMIT)
-        .clamp(1, super::query::MAX_LIMIT);
-    let after = cursor.and_then(|cursor| {
+    let limit = page.limit();
+    let after = page.cursor.as_deref().and_then(|cursor| {
         let (at, id) = cursor.split_once(':')?;
         Some((at.parse().ok()?, id.parse().ok()?))
     });
@@ -297,9 +320,10 @@ pub fn history_impl(
             }
         })
         .collect();
-    Ok(CleanupHistoryPageInfo {
+    Ok(Page {
         items,
         next_cursor: next,
+        total: None,
     })
 }
 
@@ -313,17 +337,10 @@ pub async fn processes_history(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: Option<String>,
     project_id: Option<String>,
-    cursor: Option<String>,
-    limit: Option<u32>,
-) -> AppResult<CleanupHistoryPageInfo> {
+    page: PageRequest,
+) -> AppResult<Page<CleanupEventInfo>> {
     crate::ipc::blocking(state.inner(), "the cleanup history", move |state| {
-        history_impl(
-            state,
-            session_id.as_deref(),
-            project_id.as_deref(),
-            cursor.as_deref(),
-            limit,
-        )
+        history_impl(state, session_id.as_deref(), project_id.as_deref(), &page)
     })
     .await
 }

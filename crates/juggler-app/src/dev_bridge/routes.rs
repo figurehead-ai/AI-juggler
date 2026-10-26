@@ -199,7 +199,6 @@ read_routes! {
     "launch_recipes_list" => async_result commands::profiles_list(state);
     "instances_list" => async_result commands::sessions_list(state);
     "instance_quality" => async_result commands::instance_quality(state; session_id: String);
-    "instance_processes" => async_result commands::instance_processes(state; session_id: String);
     "instance_replay" => async_result history::instance_replay(state; session_id: String);
     "transcript_search" => async_result history::transcript_search(state; query: String);
     "projects_list" => async_result commands::projects_list(state);
@@ -228,7 +227,6 @@ read_routes! {
     "machine_health" => async_result machine_health::machine_health(state);
     "machine_advice" => async_result machine_health::machine_advice(state);
     "port_inventory" => async_result commands::port_inventory(state);
-    "cleanup_inventory" => async_result commands::cleanup_inventory(state; filter: String, machine_scope: Option<String>);
     "cleanup_status" => async_result commands::cleanup_status(state);
     "cleanup_tiers_get" => async_result commands::cleanup_tiers_get(state; account_id: String);
     "recovery_summary_get" => async_result commands::recovery_summary_get(state);
@@ -300,9 +298,10 @@ read_routes! {
     "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
     // AJ-E2401/E2405: the Processes view's rows, counts, history and
     // rules (reads only; nothing is stopped or marked).
-    "processes_page" => async_result features::processes::commands::processes_page(state; input: features::processes::dto::ProcessQueryInput);
+    "processes_page" => async_result features::processes::commands::processes_page(state; input: features::processes::dto::ProcessQueryInput, page: crate::paging::PageRequest);
+    "processes_status" => async_result features::processes::commands::processes_status(state);
     "processes_counts" => async_result features::processes::commands::processes_counts(state);
-    "processes_history" => async_result features::processes::commands::processes_history(state; session_id: Option<String>, project_id: Option<String>, cursor: Option<String>, limit: Option<u32>);
+    "processes_history" => async_result features::processes::commands::processes_history(state; session_id: Option<String>, project_id: Option<String>, page: crate::paging::PageRequest);
     "processes_dry_run" => async_result features::processes::commands::processes_dry_run(state; account_id: String, tier: u8);
     "processes_policy" => async_result features::processes::commands::processes_policy(state);
 }

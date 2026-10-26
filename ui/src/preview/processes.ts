@@ -7,11 +7,13 @@
  * `?aij_processes=large`.
  */
 import type { ProcessQueryInput } from "../types/generated/ProcessQueryInput";
-import type { ProcessPageInfo } from "../types/generated/ProcessPageInfo";
+import type { ProcessStatusInfo } from "../types/generated/ProcessStatusInfo";
+import type { Page } from "../types/generated/Page";
+import type { PageRequest } from "../types/generated/PageRequest";
 import type { ProcessCountsInfo } from "../types/generated/ProcessCountsInfo";
 import type { ProcessGraphRowInfo } from "../types/generated/ProcessGraphRowInfo";
 import type { RollupInfo } from "../types/generated/RollupInfo";
-import type { CleanupHistoryPageInfo } from "../types/generated/CleanupHistoryPageInfo";
+import type { CleanupEventInfo } from "../types/generated/CleanupEventInfo";
 import type { RulePreviewInfo } from "../types/generated/RulePreviewInfo";
 import type { CleanupPolicyInfo } from "../types/generated/CleanupPolicyInfo";
 import type { ProcessSnapshotInfo } from "../types/generated/ProcessSnapshotInfo";
@@ -236,27 +238,26 @@ export function previewCounts(source: PreviewMac = mac()): ProcessCountsInfo {
 }
 
 /** One page, as the backend's. */
-export function previewPage(input: ProcessQueryInput): ProcessPageInfo {
+export function previewPage(input: ProcessQueryInput, page: PageRequest): Page<ProcessGraphRowInfo> {
   const source = mac();
   const rows = input.view === "ended" ? source.ended : previewRows(source, input);
-  const limit = Math.min(Math.max(input.limit ?? 100, 1), 200);
+  const limit = Math.min(Math.max(page.limit ?? 50, 1), 200);
   let start = 0;
-  if (input.cursor) {
-    const at = input.cursor.indexOf(":");
-    const key = input.cursor.slice(at + 1);
+  if (page.cursor) {
+    const at = page.cursor.indexOf(":");
+    const key = page.cursor.slice(at + 1);
     const found = rows.findIndex((row) => row.key === key);
-    start = found >= 0 ? found + 1 : Number(input.cursor.slice(0, at)) || 0;
+    start = found >= 0 ? found + 1 : Number(page.cursor.slice(0, at)) || 0;
   }
   const items = rows.slice(start, start + limit);
   const end = start + items.length;
-  return {
-    items,
-    next_cursor: end < rows.length ? `${end}:${rows[end - 1]!.key}` : null,
-    total: rows.length,
-    version: source.version,
-    counts: previewCounts(source),
-    built_ms: source.now,
-  };
+  return { items, next_cursor: end < rows.length ? `${end}:${rows[end - 1]!.key}` : null, total: rows.length };
+}
+
+/** The view's state, as the backend's. */
+export function previewStatus(): ProcessStatusInfo {
+  const source = mac();
+  return { version: source.version, counts: previewCounts(source), built_ms: source.now, ledger_degraded: false };
 }
 
 /** Keep / Remind me later in the preview: held in the seeded Mac. */
@@ -303,11 +304,11 @@ export function previewObservedStop(pid: number): KillExecuteData {
   return { refusal: null, members: [{ pid, outcome: "exited on TERM" }], cancelled: false, all_succeeded: true, still_holding: [], reoffer_pid: null };
 }
 
-export function previewHistory(sessionId: string | null, projectId: string | null, _cursor: string | null): CleanupHistoryPageInfo {
+export function previewHistory(sessionId: string | null, projectId: string | null, _cursor: string | null): Page<CleanupEventInfo> {
   const items = mac().history.filter(
     (event) => (!sessionId || event.session_id === sessionId) && (!projectId || event.project_id === projectId),
   );
-  return { items, next_cursor: null };
+  return { items, next_cursor: null, total: items.length };
 }
 
 export function previewDryRun(accountId: string, tier: 1 | 2): RulePreviewInfo {

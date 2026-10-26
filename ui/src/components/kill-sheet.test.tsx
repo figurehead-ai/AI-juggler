@@ -7,7 +7,6 @@ import {
   type KillExecuteData,
   type KillVerifyData,
 } from "./KillSheet";
-import type { CleanupRowInfo } from "./ProcessRow";
 
 /**
  * AJ-E507: the verify-before-kill sheet — the three steps, the
@@ -277,4 +276,3 @@ describe("KillSheet (AJ-E507)", () => {
 
 // The row DTO type rides along for the affordance test (same file
 // keeps the fixture shape honest).
-export type { CleanupRowInfo };

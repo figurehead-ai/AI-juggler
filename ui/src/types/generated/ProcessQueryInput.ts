@@ -51,12 +51,4 @@ expanded: Array<string>,
 /**
  * Sessions folded by the user (keys).
  */
-collapsed: Array<string>, 
-/**
- * The `next_cursor` of the page before.
- */
-cursor: string | null, 
-/**
- * Rows in the page (at most 200).
- */
-limit: number | null, };
+collapsed: Array<string>, };

@@ -70,6 +70,8 @@ export type TabFacts = {
   hasSessions?: boolean;
   /** E18: a session with messages to or from it. */
   hasMessages?: boolean;
+  /** AJ-E2404: another app's session, open now (its processes show). */
+  live?: boolean;
 };
 
 /** Where an Overview's numbers come from, by page (P21: never one
@@ -106,7 +108,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":
-      return [TAB.overview, ...when(facts.hasUsage, "usage")];
+      return [TAB.overview, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
     case "tool":
       return [TAB.overview];
     case "machine":

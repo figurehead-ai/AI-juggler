@@ -12,12 +12,13 @@ import { invoke, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
 import type { ProcessQueryInput } from "../../types/generated/ProcessQueryInput";
-import type { ProcessPageInfo } from "../../types/generated/ProcessPageInfo";
+import type { ProcessStatusInfo } from "../../types/generated/ProcessStatusInfo";
+import type { Page } from "../../types/generated/Page";
+import type { PageRequest } from "../../types/generated/PageRequest";
 import type { ProcessCountsInfo } from "../../types/generated/ProcessCountsInfo";
 import type { ProcessGraphRowInfo } from "../../types/generated/ProcessGraphRowInfo";
 import type { ProcRowInfo } from "../../types/generated/ProcRowInfo";
 import type { RollupInfo } from "../../types/generated/RollupInfo";
-import type { CleanupHistoryPageInfo } from "../../types/generated/CleanupHistoryPageInfo";
 import type { CleanupEventInfo } from "../../types/generated/CleanupEventInfo";
 import type { RulePreviewInfo } from "../../types/generated/RulePreviewInfo";
 import type { CleanupPolicyInfo } from "../../types/generated/CleanupPolicyInfo";
@@ -26,13 +27,13 @@ import type { ProcessGraphChangedInfo } from "../../types/generated/ProcessGraph
 
 export type {
   CleanupEventInfo,
-  CleanupHistoryPageInfo,
   CleanupPolicyInfo,
+  Page,
   ProcessCountsInfo,
   ProcessGraphChangedInfo,
   ProcessGraphRowInfo,
-  ProcessPageInfo,
   ProcessQueryInput,
+  ProcessStatusInfo,
   ProcessSnapshotInfo,
   ProcRowInfo,
   RollupInfo,
@@ -57,8 +58,6 @@ export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQuer
     search: "",
     expanded: [],
     collapsed: [],
-    cursor: null,
-    limit: null,
     ...over,
   };
 }
@@ -66,10 +65,17 @@ export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQuer
 /** The preview's answers (loaded only without a backend). */
 const preview = () => import("../../preview/processes");
 
-/** One page of the Processes view. */
-export async function processesPage(input: ProcessQueryInput): Promise<ProcessPageInfo> {
-  if (!hasLiveBackend()) return (await preview()).previewPage(input);
-  return invoke<ProcessPageInfo>("processes_page", { input });
+/** One page of the Processes view (`page`: the cursor of the page before
+ * and how many rows, at most 200). */
+export async function processesPage(input: ProcessQueryInput, page: PageRequest): Promise<Page<ProcessGraphRowInfo>> {
+  if (!hasLiveBackend()) return (await preview()).previewPage(input, page);
+  return invoke<Page<ProcessGraphRowInfo>>("processes_page", { input, page });
+}
+
+/** The view's state: its version, counts, and whether the ledger records. */
+export async function processesStatus(): Promise<ProcessStatusInfo> {
+  if (!hasLiveBackend()) return (await preview()).previewStatus();
+  return invoke<ProcessStatusInfo>("processes_status");
 }
 
 /** The counts now (the top bar's and This Mac's "to clean up"). */
@@ -109,16 +115,10 @@ export async function processesObservedStop(
 export async function processesHistory(
   sessionId: string | null,
   projectId: string | null,
-  cursor: string | null,
-  limit?: number,
-): Promise<CleanupHistoryPageInfo> {
-  if (!hasLiveBackend()) return (await preview()).previewHistory(sessionId, projectId, cursor);
-  return invoke<CleanupHistoryPageInfo>("processes_history", {
-    sessionId,
-    projectId,
-    cursor,
-    limit: limit ?? null,
-  });
+  page: PageRequest,
+): Promise<Page<CleanupEventInfo>> {
+  if (!hasLiveBackend()) return (await preview()).previewHistory(sessionId, projectId, page.cursor);
+  return invoke<Page<CleanupEventInfo>>("processes_history", { sessionId, projectId, page });
 }
 
 /** What an account's automatic rule would tidy now (nothing is stopped). */

@@ -339,10 +339,19 @@ fn every_page_opens_without_holding_the_main_thread() {
         "the whole transcript was read: {}",
         quality.error_label
     );
+    // AJ-E2407: a session's Processes tab reads the one graph.
     let _ = off_main(
-        "instance_processes",
+        "processes_page",
         state,
-        commands::instance_processes(managed(), sid.clone()),
+        juggler_app::features::processes::commands::processes_page(
+            managed(),
+            juggler_app::features::processes::dto::ProcessQueryInput {
+                view: "running".into(),
+                session_id: Some(sid.clone()),
+                ..Default::default()
+            },
+            juggler_app::paging::PageRequest::first(50),
+        ),
     );
     let _ = off_main(
         "fleet_switch_targets",

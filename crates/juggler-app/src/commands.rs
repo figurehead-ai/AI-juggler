@@ -7459,24 +7459,6 @@ pub struct ProcessesInfo {
     pub unavailable_reason: Option<String>,
 }
 
-/// The live Processes tab payload for one Instance (rows + spark;
-/// what it left behind is the shared Cleanup inventory's); rollups above Instance level aggregate several of these
-/// read-only in the UI (Req.2).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message when the Instance is unknown.
-#[tauri::command]
-pub async fn instance_processes(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-) -> AppResult<ProcessesInfo> {
-    crate::ipc::blocking(state.inner(), "instance processes", move |state| {
-        instance_processes_arc(state, &session_id)
-    })
-    .await
-}
-
 /// The Arc-based core (tests call this directly).
 ///
 /// # Errors
@@ -7949,28 +7931,6 @@ pub fn cleanup_state_label(state: &str) -> &'static str {
         "starting" => "Starting",
         _ => "Unknown",
     }
-}
-
-/// The read-only Cleanup Centre inventory (Tier 0 — zero signalling:
-/// this command registers no kill surface and its DTOs carry none).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub async fn cleanup_inventory(
-    state: tauri::State<'_, Arc<AppState>>,
-    filter: String,
-    machine_scope: Option<String>,
-) -> AppResult<CleanupInventoryInfo> {
-    crate::ipc::blocking(state.inner(), "cleanup inventory", move |state| {
-        Ok(cleanup_inventory_inner(
-            state,
-            &filter,
-            machine_scope.as_deref() == Some("all"),
-        ))
-    })
-    .await
 }
 
 /// `cleanup_inventory` sans-Tauri (tests + dogfood evidence).

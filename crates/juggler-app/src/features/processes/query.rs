@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use super::dto::{
-    AppRowInfo, ProcRowInfo, ProcessGraphRowInfo, ProcessQueryInput, RollupInfo, ProcessSessionInfo,
+    AppRowInfo, ProcRowInfo, ProcessGraphRowInfo, ProcessQueryInput, ProcessSessionInfo, RollupInfo,
 };
 use super::model::{AppNode, Graph, Origin, ProcNode, ProcState, Rollup, SessionNode, StopPath};
 
