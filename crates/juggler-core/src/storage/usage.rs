@@ -14,7 +14,7 @@ use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
 mod cost_pages;
-pub use cost_pages::{CostBucket, bucket_key};
+pub use cost_pages::CostDay;
 
 /// Append-only usage store over an open connection (single writer,
 /// like every storage repo).

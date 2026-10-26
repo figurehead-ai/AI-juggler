@@ -243,6 +243,42 @@ impl ConversationIndex {
             .map(|c| c.path.clone())
     }
 
+    /// 0.1.7: the title and folder of each `(account, id)` asked for, as
+    /// the conversation list folds them (the newest file's folder, the
+    /// newest title its files have), without copying the index: the cost
+    /// table names one page of sessions at a time.
+    #[must_use]
+    pub fn facts_of(
+        &self,
+        wanted: &std::collections::HashSet<(String, String)>,
+    ) -> HashMap<(String, String), (Option<String>, Option<PathBuf>)> {
+        let Ok(files) = self.files.lock() else {
+            return HashMap::new();
+        };
+        let mut matches: Vec<&Conversation> = files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+            .filter(|c| wanted.contains(&(c.account_id.clone(), c.summary.id.clone())))
+            .collect();
+        // Newest file first: it gives the folder, and the title unless
+        // it has none.
+        matches.sort_by_key(|c| std::cmp::Reverse(c.summary.last_ms));
+        let mut found: HashMap<(String, String), (Option<String>, Option<PathBuf>)> =
+            HashMap::new();
+        for conversation in matches {
+            let kept = found
+                .entry((
+                    conversation.account_id.clone(),
+                    conversation.summary.id.clone(),
+                ))
+                .or_insert_with(|| (None, conversation.folder.clone()));
+            if kept.0.is_none() {
+                kept.0.clone_from(&conversation.summary.title);
+            }
+        }
+        found
+    }
+
     /// Whether a running session is on `account`'s `(tool, id)`.
     #[must_use]
     pub fn is_live(&self, account: &str, tool: &str, id: &str) -> bool {

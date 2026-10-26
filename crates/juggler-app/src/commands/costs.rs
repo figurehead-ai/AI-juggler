@@ -25,10 +25,115 @@ pub struct CostRollupsInfo {
     pub pricing_stale: bool,
     /// The bundled table's `last synced`, epoch ms.
     pub pricing_last_synced_ms: Option<i64>,
-    /// The grand-total row (ALL bucket) for the scope.
+    /// The scope's USD at list prices: every model that has a list price,
+    /// summed; `None` when none has one. Models without one are in
+    /// `unpriced_models`, never counted as $0.
     pub total_usd: Option<f64>,
+    /// The models the scope used that have no list price, by name
+    /// (`None` for usage whose model wasn't recorded), sorted.
+    pub unpriced_models: Vec<Option<String>>,
     /// The scope the query ran over (account id or `ALL`).
     pub scope: String,
+}
+
+/// The scope's total at list prices and the models it leaves out: the
+/// priced buckets summed (the ALL rollup is still one bucket per model
+/// and day), each unpriced model named once.
+#[must_use]
+pub fn priced_total(
+    rows: &[juggler_core::cost_ledger::CostRollup],
+) -> (Option<f64>, Vec<Option<String>>) {
+    let mut total: Option<f64> = None;
+    let mut unpriced = std::collections::BTreeSet::new();
+    for row in rows {
+        match row.usd.usd {
+            Some(usd) => total = Some(total.unwrap_or(0.0) + usd),
+            None => {
+                unpriced.insert(row.model.clone());
+            }
+        }
+    }
+    (total, unpriced.into_iter().collect())
+}
+
+/// One row of the cost table (0.1.7): one session's UTC day, its models
+/// folded together and named as the rest of the app names a session.
+/// Each model's own part rides along for the row's breakdown.
+#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+pub struct CostRowInfo {
+    /// The tool's id for the session (`""` when the usage names none).
+    /// The row never shows it; its tooltip and the CSV carry it.
+    pub session: String,
+    /// What the session is called: the user's label, else its
+    /// conversation's title; `None` when it has neither.
+    pub title: Option<String>,
+    /// Its project's name, when AI Juggler knows it.
+    pub project: Option<String>,
+    /// The UTC day, `YYYY-MM-DD`.
+    pub day: String,
+    /// Its tokens, every model together.
+    pub tokens: juggler_core::model::TokenCounts,
+    /// USD at list prices of the models that have one, summed; `None`
+    /// when none has. Which models have none: `models` with no USD.
+    pub usd: Option<f64>,
+    /// Vendor credits, never converted.
+    pub credits: Option<f64>,
+    /// The lowest confidence among its models.
+    pub confidence: juggler_core::model::Confidence,
+    /// Each model's part, most tokens first.
+    pub models: Vec<juggler_core::cost_ledger::CostRollup>,
+}
+
+impl CostRowInfo {
+    /// One session day from its models' rollup rows (at least one).
+    fn of(
+        session: String,
+        day: String,
+        mut models: Vec<juggler_core::cost_ledger::CostRollup>,
+    ) -> Self {
+        use juggler_core::model::{Confidence, TokenCounts};
+        let io = |row: &juggler_core::cost_ledger::CostRollup| row.tokens.input + row.tokens.output;
+        models.sort_by(|a, b| io(b).cmp(&io(a)).then_with(|| a.model.cmp(&b.model)));
+        let mut tokens = TokenCounts::default();
+        let mut usd: Option<f64> = None;
+        let mut credits: Option<f64> = None;
+        let mut confidence: Option<Confidence> = None;
+        for row in &models {
+            tokens.input = tokens.input.saturating_add(row.tokens.input);
+            tokens.output = tokens.output.saturating_add(row.tokens.output);
+            tokens.cache_read = tokens.cache_read.saturating_add(row.tokens.cache_read);
+            tokens.cache_write = tokens.cache_write.saturating_add(row.tokens.cache_write);
+            tokens.reasoning = tokens.reasoning.saturating_add(row.tokens.reasoning);
+            if let Some(value) = row.usd.usd {
+                usd = Some(usd.unwrap_or(0.0) + value);
+            }
+            if let Some(value) = row.credits {
+                credits = Some(credits.unwrap_or(0.0) + value);
+            }
+            // Measured > worked out > estimated: the row is as sure as
+            // its least sure model.
+            let rank = |c: Confidence| match c {
+                Confidence::Estimated => 0,
+                Confidence::Computed => 1,
+                Confidence::Measured => 2,
+            };
+            confidence = Some(match confidence {
+                Some(kept) if rank(kept) <= rank(row.confidence) => kept,
+                _ => row.confidence,
+            });
+        }
+        Self {
+            session,
+            title: None,
+            project: None,
+            day,
+            tokens,
+            usd,
+            credits,
+            confidence: confidence.unwrap_or_default(),
+            models,
+        }
+    }
 }
 
 /// The catalog as loaded: bundled seed + user overrides + staleness.
@@ -110,7 +215,9 @@ pub fn cost_rollups_impl(state: &Arc<AppState>, account: Option<&str>) -> CostRo
         &catalog,
         juggler_core::cost_ledger::RollupDimension::All,
     );
-    let total_usd = all.first().and_then(|row| row.usd.usd);
+    // 0.1.7: the total was the first ALL bucket only (one model's one
+    // day), and none at all once any model had no list price.
+    let (total_usd, unpriced_models) = priced_total(&all);
     let view = juggler_core::cost_ledger::subscription_view(total_usd, fee);
     let now = juggler_core::model::Timestamp::now().millis();
     CostRollupsInfo {
@@ -119,6 +226,7 @@ pub fn cost_rollups_impl(state: &Arc<AppState>, account: Option<&str>) -> CostRo
         pricing_stale: catalog.is_stale(now),
         pricing_last_synced_ms: catalog.last_synced_ms,
         total_usd,
+        unpriced_models,
         scope,
     }
 }
@@ -133,6 +241,7 @@ impl CostRollupsInfo {
             pricing_stale: false,
             pricing_last_synced_ms: None,
             total_usd: None,
+            unpriced_models: Vec::new(),
             scope: String::new(),
         }
     }
@@ -271,12 +380,13 @@ pub async fn pricing_catalog_info(
     .await
 }
 
-/// The cost table (session × model × UTC day), a page at a time: newest
-/// day first, then by session and model. Each row is one of
-/// [`cost_rollups`]'s rows (the same rollup, so the two reconcile); the
-/// totals, the subscription view and the pricing flags stay there. The
-/// whole table is never read: a page reads its buckets, then only the
-/// events of the days they're in.
+/// The cost table (one row per session and UTC day, its models folded
+/// together), a page at a time: newest day first, then by session. Each
+/// row's models are [`cost_rollups`]' rows (the same rollup, so the two
+/// reconcile); the totals, the subscription view and the pricing flags
+/// stay there. The whole table is never read: a page reads its session
+/// days, then only the events of the days they're in, and names only
+/// its own sessions.
 ///
 /// # Errors
 ///
@@ -287,7 +397,7 @@ pub async fn cost_rows_page(
     state: tauri::State<'_, Arc<AppState>>,
     account: Option<String>,
     page: crate::paging::PageRequest,
-) -> AppResult<crate::paging::Page<juggler_core::cost_ledger::CostRollup>> {
+) -> AppResult<crate::paging::Page<CostRowInfo>> {
     crate::ipc::blocking(state.inner(), "the cost table", move |state| {
         cost_rows_page_impl(state, account.as_deref(), &page)
     })
@@ -303,64 +413,118 @@ pub fn cost_rows_page_impl(
     state: &Arc<AppState>,
     account: Option<&str>,
     request: &crate::paging::PageRequest,
-) -> AppResult<crate::paging::Page<juggler_core::cost_ledger::CostRollup>> {
+) -> AppResult<crate::paging::Page<CostRowInfo>> {
     use crate::paging::{Page, SortKey};
-    use juggler_core::cost_ledger::{RollupDimension, day_of, rollup};
+    use juggler_core::cost_ledger::{CostRollup, RollupDimension, day_of, rollup};
+    use std::collections::HashMap;
     const DAY_MS: i64 = 86_400_000;
 
     let limit = request.limit();
-    // Newest day first: a bucket's rank is its day, negated.
+    // Newest day first: a row's rank is its day, negated.
     let after = request
         .start_after()?
         .map(|key| (-key.ranks.first().copied().unwrap_or_default(), key.id));
-    let (buckets, total, events, catalog) = {
+    let (days, more, total, events, catalog) = {
         let storage = lock_storage_arc(state)?;
         let usage = storage.usage();
-        let mut buckets = usage.cost_buckets_page(
+        let mut days = usage.cost_days_page(
             account,
-            after.as_ref().map(|(day, key)| (*day, key.as_str())),
+            after
+                .as_ref()
+                .map(|(day, session)| (*day, session.as_str())),
             limit + 1,
         )?;
         // The one past the page only says another page follows.
-        let more = buckets.len() > limit;
-        buckets.truncate(limit);
-        let first = buckets.iter().map(|bucket| bucket.day).min();
-        let last = buckets.iter().map(|bucket| bucket.day).max();
+        let more = days.len() > limit;
+        days.truncate(limit);
+        let first = days.iter().map(|row| row.day).min();
+        let last = days.iter().map(|row| row.day).max();
         let events = match (first, last) {
             (Some(first), Some(last)) => usage.events_in_days(account, first, last)?,
             _ => Vec::new(),
         };
-        let total = usage.cost_bucket_count(account).ok();
-        ((buckets, more), total, events, pricing_catalog(&storage))
+        let total = usage.cost_day_count(account).ok();
+        (days, more, total, events, pricing_catalog(&storage))
     };
-    let (buckets, more) = buckets;
-    let mut rows: std::collections::HashMap<(String, String, Option<String>), _> =
-        rollup(&events, &catalog, RollupDimension::Session)
-            .into_iter()
-            .map(|row| {
-                (
-                    (
-                        row.day.clone().unwrap_or_default(),
-                        row.key.clone(),
-                        row.model.clone(),
-                    ),
-                    row,
-                )
-            })
-            .collect();
-    let next_cursor = buckets
+
+    let mut models: HashMap<(String, String), Vec<CostRollup>> = HashMap::new();
+    for row in rollup(&events, &catalog, RollupDimension::Session) {
+        let day = row.day.clone().unwrap_or_default();
+        models.entry((day, row.key.clone())).or_default().push(row);
+    }
+    let next_cursor = days
         .last()
         .filter(|_| more)
-        .map(|bucket| SortKey::new([-bucket.day], bucket.key()).cursor());
-    let items = buckets
+        .map(|row| SortKey::new([-row.day], row.session.clone()).cursor());
+    let mut items: Vec<CostRowInfo> = days
         .into_iter()
-        .filter_map(|bucket| {
-            rows.remove(&(day_of(bucket.day * DAY_MS), bucket.session, bucket.model))
+        .filter_map(|row| {
+            let day = day_of(row.day * DAY_MS);
+            let parts = models.remove(&(day.clone(), row.session.clone()))?;
+            Some(CostRowInfo::of(row.session, day, parts))
         })
         .collect();
+    if !items.is_empty() {
+        // Each session's account, from its own usage (a conversation is
+        // known by both).
+        let accounts: HashMap<&str, &str> = events
+            .iter()
+            .filter_map(|event| Some((event.session.as_deref()?, event.account.as_str())))
+            .collect();
+        name_rows(state, &mut items, &accounts)?;
+    }
     Ok(Page {
         items,
         next_cursor,
         total,
     })
+}
+
+/// Names a page's sessions as the rail and History do: the user's label,
+/// else the conversation's title, with its project. The conversation
+/// index is the warm one Usage already read; a session it doesn't know
+/// yet has no title (the row says "Untitled session").
+fn name_rows(
+    state: &Arc<AppState>,
+    items: &mut [CostRowInfo],
+    accounts: &std::collections::HashMap<&str, &str>,
+) -> AppResult<()> {
+    use std::collections::{HashMap, HashSet};
+    let (labels, projects, homes) = {
+        let storage = lock_storage_arc(state)?;
+        // The user's labels: only labelled sessions, a few rows.
+        let labels: HashMap<String, String> = storage
+            .sessions()
+            .conversation_labels()?
+            .into_iter()
+            .collect();
+        let projects: HashMap<std::path::PathBuf, String> = storage
+            .projects()
+            .list()?
+            .into_iter()
+            .map(|project| (project.root, project.name))
+            .collect();
+        (labels, projects, storage.projects().worktree_homes()?)
+    };
+    let key = |session: &str| {
+        accounts
+            .get(session)
+            .map(|account| ((*account).to_owned(), session.to_owned()))
+    };
+    let wanted: HashSet<(String, String)> =
+        items.iter().filter_map(|row| key(&row.session)).collect();
+    let facts = state.conversations.facts_of(&wanted);
+    for row in items {
+        let fact = key(&row.session).and_then(|key| facts.get(&key));
+        row.title = labels
+            .get(&row.session)
+            .cloned()
+            .or_else(|| fact.and_then(|(title, _)| title.clone()))
+            .filter(|title| !title.trim().is_empty());
+        row.project = fact
+            .and_then(|(_, folder)| folder.as_deref())
+            .map(|folder| juggler_core::storage::project_root_with(folder, &homes))
+            .and_then(|root| projects.get(&root).cloned());
+    }
+    Ok(())
 }

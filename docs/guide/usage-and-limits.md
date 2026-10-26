@@ -16,7 +16,26 @@ and Codex's session logs. It doesn't ask any provider for anything.
 - A conversation that was resumed counts its earlier messages once, under
   the session where they first happened.
 - Costs use the providers' published prices. A model without a published
-  price says "No price for this model yet" instead of $0.
+  price says "No list price" instead of $0.
+
+### Prices and details
+
+**Usage** › **Prices and details** shows what your use would cost at the
+providers' API list prices.
+
+- At the top: the total at list prices, what you pay (when you've set
+  your plan's fee), and the models with no list price. Those models are
+  named and left out of the total, never counted as $0.
+- Below, one row per session and day: the session's title and project,
+  its model, the estimate in US dollars, and its tokens in and out. A
+  session that used several models that day shows the main one and
+  "+1" (or more); click it to see each model's part. "≥ $0.42" means one
+  of those models has no list price, so the real figure is at least that.
+- The total stays under the table as you scroll. **Export CSV** writes
+  every session, model and day, with the session's id.
+- The dollar figures are estimates at list prices, not your subscription
+  fee. Credits, where a tool counts in credits, get their own column and
+  are never converted to dollars.
 
 ### Monthly caps
 
