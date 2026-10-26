@@ -5186,6 +5186,8 @@ for (const theme of THEMES) {
       await page.getByTestId("page-session-item").first().click({ button: "right" });
       await page.getByTestId("action-replay").click();
       await expect(page.getByTestId("replay-process-list")).toContainText("root 48211");
+      // The transcript is drawn (xterm parses its writes asynchronously).
+      await expect(page.locator('[aria-label="Transcript, read-only"][data-ready]')).toBeAttached();
       await page.screenshot({ path: resolve(GALLERY, `56-history/replay-${vp.name}-${theme}.png`) });
       await page.getByTestId("replay-close").click();
       await page.getByTestId("history-tab-ended").click();

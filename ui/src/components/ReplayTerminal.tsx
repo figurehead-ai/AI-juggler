@@ -40,12 +40,16 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
     term.loadAddon(fit);
     term.open(host);
     fit.fit();
+    host.removeAttribute("data-ready");
     for (const entry of entries) {
       const colour = ROLE_COLOUR[entry.role] ?? "\x1b[90m";
       term.writeln(`${colour}${entry.role}\x1b[0m`);
       term.writeln(entry.text);
       term.writeln("");
     }
+    // xterm parses writes asynchronously: mark the transcript drawn only
+    // once the last write has been processed and a frame has painted it.
+    term.write("", () => requestAnimationFrame(() => host.setAttribute("data-ready", "")));
     const resize = new ResizeObserver(() => fit.fit());
     resize.observe(host);
     return () => {
