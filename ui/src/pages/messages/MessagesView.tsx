@@ -126,7 +126,7 @@ export function MessagesView({
   const shown = found ? threads.filter((t) => found.some((m) => m.thread_id === t.id)) : threads;
   const paused = page?.paused ?? null;
   return (
-    <div className="flex min-w-0 flex-col gap-4" data-testid="messages-view">
+    <div className="flex w-full min-w-0 max-w-[1440px] flex-col gap-4" data-testid="messages-view">
       {paused && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/35 bg-warning-soft/60 px-4 py-3" role="status" data-testid="messages-paused">
           <p className="min-w-0 flex-1 text-[14px] text-ink">

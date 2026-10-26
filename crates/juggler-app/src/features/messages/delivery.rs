@@ -103,6 +103,17 @@ pub(crate) fn decide(
         Decision::Ask { .. } if pool_delivers(state, &message.pool_id) => {
             if let Ok(storage) = state.storage.lock() {
                 let repo = storage.messages();
+                let to = repo
+                    .recipients(&message.id)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .find(|r| {
+                        super::live_session_of(&storage, &r.recipient_ref).as_ref() == Some(session)
+                    })
+                    .map_or_else(
+                        || "another session".to_owned(),
+                        |r| format!("«{}»", r.recipient_name),
+                    );
                 let _ = repo.set_thread_state(
                     &message.thread_id,
                     ThreadState::Paused,
@@ -117,7 +128,7 @@ pub(crate) fn decide(
                     action: AgentAction::DeliverToSession.as_str().to_owned(),
                     object_ref: message.id.clone(),
                     summary: format!(
-                        "«{}»'s message would start another session's turn: the chain reached the hop limit",
+                        "«{}»'s message would start {to}'s next turn",
                         message.sender_name
                     ),
                     created_at: Timestamp::now().millis(),

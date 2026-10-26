@@ -11,7 +11,7 @@ import { SharedDocs } from "./SharedDocs";
 
 export function PoolMessages({ poolId, members, now }: { poolId: string; members: Member[]; now: number }): JSX.Element {
   return (
-    <div className="flex min-w-0 flex-col gap-6" data-testid="pool-messages">
+    <div className="flex w-full min-w-0 max-w-[1440px] flex-col gap-6" data-testid="pool-messages">
       <MessagesView poolId={poolId} members={members} now={now} />
       <SharedDocs poolId={poolId} now={now} />
     </div>

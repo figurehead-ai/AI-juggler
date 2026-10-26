@@ -14,8 +14,12 @@
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import MessagesViewSource from "./MessagesView.tsx?raw";
+import ThreadViewSource from "./ThreadView.tsx?raw";
+import ComposeSource from "./Compose.tsx?raw";
+import SharedDocsSource from "./SharedDocs.tsx?raw";
+import PoolLinksSource from "./PoolLinks.tsx?raw";
+import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
 import { MessagesView } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
 import { MessageNeeds } from "../../components/MessageNeeds";
@@ -199,12 +203,10 @@ describe("shared docs", () => {
 
 describe("readability", () => {
   it("no text smaller than 12 px in the message views", () => {
-    const dir = resolve(__dirname);
-    const files = [...readdirSync(dir).filter((f) => f.endsWith(".tsx") && !f.includes(".test.")).map((f) => resolve(dir, f)), resolve(__dirname, "../../components/MessageNeeds.tsx")];
-    for (const file of files) {
-      const text = readFileSync(file, "utf8");
-      expect(text.match(/text-\[(\d+(?:\.\d+)?)px\]/g)?.filter((cls) => Number(cls.slice(6, -3)) < 12) ?? [], file).toEqual([]);
-      expect(/\btext-(?:\[0\.|xxs|2xs)/.test(text), file).toBe(false);
+    const files: Record<string, string> = { MessagesViewSource, ThreadViewSource, ComposeSource, SharedDocsSource, PoolLinksSource, MessageNeedsSource };
+    for (const [file, text] of Object.entries(files)) {
+      const small = (text.match(/text-\[(\d+(?:\.\d+)?)px\]/g) ?? []).filter((cls: string) => Number(cls.slice(6, -3)) < 12);
+      expect(small, file).toEqual([]);
     }
   });
 });

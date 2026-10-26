@@ -63,10 +63,13 @@ function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: 
           .filter((r) => !(you && r.name === "You"))
           .map((recipient) => (
             <li key={recipient.id} className="flex flex-wrap items-center gap-2 text-[12px] text-muted" data-testid="message-recipient" data-state={recipient.state}>
-              <span>
-                {message.to_all ? "" : "To "}
-                <span className="text-ink">{recipient.name}</span> · {recipientWords(recipient.state, recipient.name)}
-              </span>
+              {recipient.name === "You" ? (
+                <span className={recipient.state === "unread" ? "font-medium text-warning" : ""}>{recipientWords(recipient.state, recipient.name)}</span>
+              ) : (
+                <span>
+                  To <span className="text-ink">{recipient.name}</span> · {recipientWords(recipient.state, recipient.name)}
+                </span>
+              )}
               {recipient.deliverable && (
                 <Button size="sm" variant="secondary" disabled={busy} title={recipient.how} onClick={() => onDeliver(recipient.id)} data-testid="message-deliver">
                   Deliver
