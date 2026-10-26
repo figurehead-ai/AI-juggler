@@ -147,6 +147,10 @@
 | AJ-E2308 | FAIL1 PASS7 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2308/manifest.md) |
 | AJ-E2309 | PASS6 | 2026-10-25 | [manifest](AJ-E2309/manifest.md) |
 | AJ-E2310 | PASS7 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2310/manifest.md) |
+| AJ-E2401 | PASS8 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2401/manifest.md) |
+| AJ-E2402 | PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2402/manifest.md) |
+| AJ-E2403 | PASS4 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2403/manifest.md) |
+| AJ-E2405 | PASS4 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2405/manifest.md) |
 | AJ-E301 | PASS11 | 2026-10-16 | [manifest](AJ-E301/manifest.md) |
 | AJ-E302 | PASS12 | 2026-10-17 | [manifest](AJ-E302/manifest.md) |
 | AJ-E303 | PASS10 | 2026-10-17 | [manifest](AJ-E303/manifest.md) |
