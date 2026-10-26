@@ -133,8 +133,8 @@ describe("the This Mac page", () => {
     renderPage(info(windows, { machine: mockMachineHealth("others", NOW), other_apps }));
     const state = screen.getByTestId("this-mac-state");
     const parts = [...within(state).getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
-    expect(parts).toEqual(["AI tools about 16 GB", "Other apps and macOS 28 GB", "Kept compressed 47 GB", "Available 12 GB"]);
-    expect(within(state).getByTestId("this-mac-memory").textContent).toBe("91 GB in use of 103 GB");
+    expect(parts).toEqual(["AI tools about 15 GB", "Other apps and macOS 22 GB", "Kept compressed 47 GB", "Available 12 GB"]);
+    expect(within(state).getByTestId("this-mac-memory").textContent).toBe("84 GB in use of 96 GB");
     expect(screen.getByTestId("this-mac-swap").textContent).toContain("21 GB of 22 GB moved to disk");
     // A free figure under pressure never stands alone: the line, and the
     // rest behind "What it means".
@@ -147,10 +147,10 @@ describe("the This Mac page", () => {
     const group = screen.getByTestId("this-mac-other-apps");
     expect(group.hasAttribute("open")).toBe(false);
     expect(group.querySelector("summary")!.textContent).toContain("Other apps and macOS");
-    expect(group.querySelector("summary")!.textContent).toContain("28 GB");
+    expect(group.querySelector("summary")!.textContent).toContain("22 GB");
     expect(group.textContent).toContain("macOS keeps 47 GB more compressed for every app, AI tools too");
     const rows = within(group).getAllByTestId("this-mac-other-app");
-    expect(rows.map((row) => row.textContent)).toEqual(["next-server6.4 GB", "Dockerabout 4.0 GB3 processes", "fseventsd1.5 GB"]);
+    expect(rows.map((row) => row.textContent)).toEqual(["next-server6.0 GB", "Dockerabout 3.7 GB3 processes", "fseventsd1.4 GB"]);
     // D-08: another app is never offered anything.
     expect(within(group).queryByRole("button")).toBeNull();
   });
@@ -177,7 +177,7 @@ describe("the This Mac page", () => {
       since_ms: NOW - 60_000,
     } as OverloadAlertInfo;
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));
-    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.2 GB");
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
   });
 });

@@ -14,7 +14,9 @@ export const PREVIEW_OBSERVED: ToolTreeInfo[] = [
   { root_pid: 501, session_id: null, place: "desktop", tool: PREVIEW_TOOLS[0]!.id, group: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
-const GB = 1_000_000_000;
+// Memory, as macOS counts it (`lib/compact`'s memorySize): a 32 GB Mac
+// has 32 × 1024³ bytes.
+const GB = 1024 ** 3;
 
 /** The other apps on a working Mac (This Mac's folded list). */
 export const PREVIEW_OTHER_APPS: OtherAppInfo[] = [
@@ -41,10 +43,10 @@ export function othersFillIt(base: MachineHealthInfo): MachineHealthInfo {
     ...base,
     cores: 30,
     cpu_pct: 93,
-    memory_total: 103 * GB,
+    memory_total: 96 * GB,
     // As on that Mac: 47 GB compressed and swap nearly full, yet about
     // 12 GB still reads as available — the state the explanation is for.
-    memory_used: 91 * GB,
+    memory_used: 84 * GB,
     memory_compressed: 47 * GB,
     memory_available: 12 * GB,
     pressure: "warning",

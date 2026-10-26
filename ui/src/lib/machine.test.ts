@@ -20,9 +20,10 @@ describe("machine health (AJ-E1401)", () => {
   });
 
   it("words bytes like the backend", () => {
-    expect(bytesWords(3_200_000_000)).toBe("3.2 GB");
-    expect(bytesWords(24_000_000_000)).toBe("24 GB");
-    expect(bytesWords(640_000_000)).toBe("640 MB");
+    // The same inputs as `memory_words`' test in juggler-supervisor.
+    expect(bytesWords(103_079_215_104)).toBe("96 GB");
+    expect(bytesWords(8 * 1024 ** 3)).toBe("8.0 GB");
+    expect(bytesWords(640 * 1024 ** 2)).toBe("640 MB");
     expect(bytesWords(123_456)).toBe("under 1 MB");
   });
 });
@@ -46,7 +47,7 @@ describe("This Mac (AJ-E1403)", () => {
     expect(info.ours.count).toBe(2);
     expect(info.theirs.count).toBe(1);
     expect(info.top.map((tree) => tree.session_id)).toEqual(["b", null, "a"]);
-    expect(info.heavy.map((tree) => tree.heavy_note)).toEqual(["CPU 96% · 3.2 GB"]);
+    expect(info.heavy.map((tree) => tree.heavy_note)).toEqual(["CPU 96% · 3.0 GB"]);
     // (12 + 96 + 14) % of one core over 10 cores.
     expect(info.tools.cpu_pct).toBeCloseTo(12.2);
   });
@@ -59,7 +60,7 @@ describe("This Mac (AJ-E1403)", () => {
   it("words a heavy tree and a session's resources", () => {
     expect(mockHeavyNote(40, 1e9)).toBeNull();
     expect(mockHeavyNote(95, 1e9)).toBe("CPU 95%");
-    expect(resourceLine(12.4, 1_100_000_000, 3)).toBe("CPU 12% · 1.1 GB · 3 more processes");
+    expect(resourceLine(12.4, 1_100_000_000, 3)).toBe("CPU 12% · 1.0 GB · 3 more processes");
     expect(resourceLine(null, null, 1)).toBe("CPU — · memory — · 1 more process");
   });
 });

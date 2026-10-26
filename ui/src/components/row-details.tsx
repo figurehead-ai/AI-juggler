@@ -10,7 +10,6 @@ import {
   attentionBadge,
   attentionSuffix,
   attentionTooltip,
-  formatBytes,
   gitWords,
   isActiveStatus,
   providerMark,
@@ -19,6 +18,7 @@ import {
 import { quotaTierTag } from "./primitives";
 import { sessionState } from "../lib/rail-items";
 import { subagentsRunning } from "../lib/subagents";
+import { memorySize } from "../lib/compact";
 
 /** Full field text for `aria-label`: every number reachable as text. */
 export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): string {
@@ -36,7 +36,7 @@ export function ariaSummary(session: InstanceInfo, nowMs: number = Date.now()): 
   const tokens = tokenSummary(session.tokens);
   if (tokens) parts.push(tokens);
   if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
+    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${memorySize(session.rss_bytes)}`);
   }
   if (session.child_count) parts.push(`${session.child_count} children`);
   if (session.subtask_count) parts.push(subagentsRunning(session.subtask_count));
@@ -69,7 +69,7 @@ export function ariaDetails(session: InstanceInfo, nowMs: number = Date.now()): 
   const tokens = tokenSummary(session.tokens);
   if (tokens) parts.push(tokens);
   if (session.cpu_pct !== null && session.rss_bytes !== null) {
-    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${formatBytes(session.rss_bytes)}`);
+    parts.push(`cpu ${Math.round(session.cpu_pct)}%, ram ${memorySize(session.rss_bytes)}`);
   }
   if (session.child_count) parts.push(`${session.child_count} children`);
   if (session.subtask_count) parts.push(subagentsRunning(session.subtask_count));

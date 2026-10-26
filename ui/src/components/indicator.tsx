@@ -228,13 +228,6 @@ export function rememberResourceSample(
   return resourceHistory.get(id) ?? { cpu: [], ram: [] };
 }
 
-/** `1.1 GB` / `890 MB` byte formatting. */
-export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
-}
 
 // --- small shared renderers ---------------------------------------------------
 

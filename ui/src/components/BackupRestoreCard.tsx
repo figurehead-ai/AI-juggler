@@ -22,6 +22,7 @@ import {
   type RestoreResultInfo,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { byteSize } from "../lib/compact";
 
 type Phase =
   | { kind: "idle" }
@@ -32,12 +33,6 @@ type Phase =
   | { kind: "restoring"; plan: RestorePlanInfo }
   | { kind: "restored"; result: RestoreResultInfo }
   | { kind: "failed"; title: string; message: string };
-
-function size(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
 
 const COUNT_WORDS: Record<string, string> = {
   accounts: "Accounts",
@@ -162,7 +157,7 @@ export function BackupRestoreCard(): JSX.Element {
         {phase.kind === "exported" && (
           <div className="flex flex-col gap-1 text-ink" data-testid="backup-done">
             <p>
-              <span aria-hidden="true">✓ </span>Backed up — {size(phase.info.bytes)}, every file checksummed.
+              <span aria-hidden="true">✓ </span>Backed up — {byteSize(phase.info.bytes)}, every file checksummed.
             </p>
             <p className="break-all font-mono text-label text-muted">{phase.info.path}</p>
             <p className="text-muted">{countLine(phase.info.manifest.counts)}</p>

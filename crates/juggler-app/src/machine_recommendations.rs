@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use juggler_supervisor::machine::bytes_words;
+use juggler_supervisor::machine::memory_words;
 
 use crate::machine_health::{MIN_FOOTPRINTS, MachineHealthInfo, ThisMacInfo};
 use crate::state::AppState;
@@ -78,13 +78,13 @@ pub fn recommendations<S: std::hash::BuildHasher>(
         out.push(if fits == 0 {
             format!(
                 "With what else is open, this Mac is short of room for even one session (about {} each, from your last {sessions})",
-                bytes_words(typical as u64)
+                memory_words(typical as u64)
             )
         } else {
             format!(
                 "This Mac comfortably runs about {fits} session{} at once (about {} each, from your last {sessions})",
                 if fits == 1 { "" } else { "s" },
-                bytes_words(typical as u64)
+                memory_words(typical as u64)
             )
         });
     }
@@ -101,7 +101,7 @@ pub fn recommendations<S: std::hash::BuildHasher>(
                 .unwrap_or_else(|| "One launch setting".into());
             out.push(format!(
                 "{name} is the heaviest launch setting — about {} a session",
-                bytes_words(heaviest.median_peak_rss)
+                memory_words(heaviest.median_peak_rss)
             ));
         }
     }

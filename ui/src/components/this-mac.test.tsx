@@ -220,7 +220,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under memory pressure");
     expect(screen.getAllByText("Your Mac is under memory pressure")).toHaveLength(1);
-    expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.2 GB");
+    expect(item.textContent).toContain("macOS reports memory pressure. busy-one is using 3.0 GB");
     // A tight Mac with a sustained alert is amber, not red.
     expect(item.textContent).toContain("▲");
   });
@@ -228,12 +228,12 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
   it("says a tool we didn't start uses about its memory, since that sum is an estimate", async () => {
     const { alertSubject } = await import("../lib/machine");
     const theirs = alert({ session_id: null, place: "desktop", subject_bytes: 2_000_000_000, subject_estimate: true });
-    expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 2.0 GB");
+    expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 1.9 GB");
     // The app as a whole: its windows' total, and how many (0.0.12).
     expect(alertSubject({ ...theirs, subject_bytes: 16_100_000_000, subject_windows: 3 }, () => null)).toBe(
-      "The Claude app is using about 16 GB across 3 windows",
+      "The Claude app is using about 15 GB across 3 windows",
     );
-    expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.2 GB");
+    expect(alertSubject(alert({}), (id) => id)).toBe("busy-one is using 3.0 GB");
   });
 
   it("names the other apps, and no AI tool, when they hold most of the memory (0.1.4 review)", async () => {
@@ -248,10 +248,10 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
         { name: "fseventsd", rss_bytes: 1_500_000_000, processes: 1 },
       ],
     });
-    expect(alertSubject(others, () => null)).toBe("Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB");
+    expect(alertSubject(others, () => null)).toBe("Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB");
     const words = alertWords([others, { ...others, key: "swap", kind: "swap", detail: "swap is growing — 3004 MB a minute" }], () => null)!;
     expect(words.detail).toBe(
-      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB",
+      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB",
     );
     expect(words.detail).not.toContain("Claude");
   });
@@ -286,7 +286,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     const { alertSubject } = await import("../lib/machine");
     const heavy = alert({ key: "heavy:busy-one", kind: "heavy", title: "A session is working your Mac hard", detail: "CPU 96%", subject_bytes: null, subject_cpu: 96 });
     expect(alertSubject(heavy, (id) => id)).toBe("busy-one is using CPU 96%");
-    expect(alertSubject({ ...heavy, detail: "CPU 96% · 3.2 GB", subject_bytes: 3_200_000_000 }, (id) => id)).toBe("busy-one is using CPU 96% and 3.2 GB");
+    expect(alertSubject({ ...heavy, detail: "CPU 96% · 3.2 GB", subject_bytes: 3_200_000_000 }, (id) => id)).toBe("busy-one is using CPU 96% and 3.0 GB");
   });
 
   it("keeps the newest notice per kind, and lets one go once its condition ends", () => {

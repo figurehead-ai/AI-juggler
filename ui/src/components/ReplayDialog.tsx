@@ -12,15 +12,10 @@ import { lazyNamed } from "../lib/lazy";
 const ReplayTerminal = lazyNamed(() => import("./ReplayTerminal"), "ReplayTerminal");
 import { errorText, instanceReplay, type ReplayInfo } from "../lib/bridge";
 import { toolSpec } from "../lib/tools";
+import { byteSize } from "../lib/compact";
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-}
-
-function size(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClose: () => void }): JSX.Element {
@@ -56,7 +51,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
           {replay && (
             <span className="min-w-0 truncate text-label text-muted" data-testid="replay-proof">
               {replay.transcript_path
-                ? `${size(replay.bytes)} · sha256 ${replay.sha256?.slice(0, 12) ?? "unavailable"}…`
+                ? `${byteSize(replay.bytes)} · sha256 ${replay.sha256?.slice(0, 12) ?? "unavailable"}…`
                 : "No transcript recorded"}
               {replay.truncated ? " · showing the last 16 MB" : ""}
             </span>

@@ -9,6 +9,7 @@ import {
   type RemoteInstanceInfo,
   type RemoteMachineInfo,
 } from "../lib/bridge";
+import { memorySize } from "../lib/compact";
 
 /** A remote selection: the machine, and the Instance on it (or none
  * when the machine itself is selected). */
@@ -149,11 +150,6 @@ function Field({
   );
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  return `${Math.round(bytes / 1024 ** 2)} MB`;
-}
-
 function InstanceOverview({
   machine,
   instance,
@@ -248,7 +244,7 @@ function InstanceProcesses({
         />
         <Field
           label="Memory"
-          value={instance.rss_bytes === null ? null : formatBytes(instance.rss_bytes)}
+          value={instance.rss_bytes === null ? null : memorySize(instance.rss_bytes)}
           source={source}
         />
       </dl>
@@ -395,7 +391,7 @@ function MachineOverview({
             label="Memory"
             value={
               resources
-                ? `${formatBytes(resources.memory_used_bytes)} of ${formatBytes(resources.memory_total_bytes)}`
+                ? `${memorySize(resources.memory_used_bytes)} of ${memorySize(resources.memory_total_bytes)}`
                 : null
             }
             source={source}
@@ -447,7 +443,7 @@ function MachineProcesses({ machine, now }: { machine: RemoteMachineInfo; now: n
               <span className="text-muted">
                 {row.process_count} process{row.process_count === 1 ? "" : "es"}
                 {row.cpu_percent !== null ? ` · ${row.cpu_percent.toFixed(1)} % CPU` : ""}
-                {row.rss_bytes !== null ? ` · ${formatBytes(row.rss_bytes)}` : ""}
+                {row.rss_bytes !== null ? ` · ${memorySize(row.rss_bytes)}` : ""}
               </span>
               <span className="flex-1" />
               <span className="text-label text-muted">measured {ago(row.measured_at_ms, now)}</span>

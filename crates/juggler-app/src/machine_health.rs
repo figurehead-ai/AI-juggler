@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use juggler_supervisor::machine::{
     MachineSampler, MachineSnapshot, MemoryBasis, PowerState, PressureLevel, RoomLevel,
-    RoomThresholds, ThermalState, bytes_words, summarize, swap_growth_mb_per_min,
+    RoomThresholds, ThermalState, memory_words, summarize, swap_growth_mb_per_min,
 };
 use juggler_supervisor::{LiveProcessStats, TreeSample};
 
@@ -454,7 +454,10 @@ pub fn advise(
         _ => {}
     }
     if machine.sampled && machine.memory_total > 0 {
-        let left = format!("it would leave about {} of memory free", bytes_words(after));
+        let left = format!(
+            "it would leave about {} of memory free",
+            memory_words(after)
+        );
         if after_share < 0.05 {
             no.push(left);
         } else if after_share < 0.15 {
@@ -1014,7 +1017,7 @@ pub fn heavy_note(tree: &TreeInput) -> Option<String> {
         parts.push(format!("CPU {cpu:.0}%"));
     }
     if rss_heavy {
-        parts.push(bytes_words(tree.stats.rss_bytes));
+        parts.push(memory_words(tree.stats.rss_bytes));
     }
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
@@ -1540,7 +1543,7 @@ mod tests {
         assert_eq!(tight.verdict, "tight");
         assert_eq!(
             tight.reasons,
-            ["it would leave about 4.0 GB of memory free"]
+            ["it would leave about 3.7 GB of memory free"]
         );
         assert_eq!(tight.relief_session_id.as_deref(), Some("s-heavy"));
         assert_eq!(tight.relief_bytes, Some(3 * G));
@@ -1620,7 +1623,7 @@ mod tests {
         assert_eq!(
             one,
             [
-                "This Mac comfortably runs about 5 sessions at once (about 2.0 GB each, from your last 4)"
+                "This Mac comfortably runs about 5 sessions at once (about 1.9 GB each, from your last 4)"
             ]
         );
         let two = recommendations(
@@ -1636,7 +1639,7 @@ mod tests {
         assert_eq!(two.len(), 2);
         assert_eq!(
             two[1],
-            "“Deep work” (Work Max) is the heaviest launch setting — about 3.0 GB a session"
+            "“Deep work” (Work Max) is the heaviest launch setting — about 2.8 GB a session"
         );
         // A deleted launch setting (no name) doesn't count.
         let gone = recommendations(
@@ -1651,7 +1654,7 @@ mod tests {
         assert_eq!(
             gone,
             [
-                "This Mac comfortably runs about 5 sessions at once (about 2.0 GB each, from your last 4)"
+                "This Mac comfortably runs about 5 sessions at once (about 1.9 GB each, from your last 4)"
             ]
         );
         // Close weights name no heaviest one.
@@ -1710,11 +1713,11 @@ mod tests {
         );
         assert_eq!(
             heavy_note(&tree(Some("a"), 20.0, 3_200_000_000, 60)).as_deref(),
-            Some("3.2 GB")
+            Some("3.0 GB")
         );
         assert_eq!(
             heavy_note(&tree(Some("a"), 120.0, 3_200_000_000, 60)).as_deref(),
-            Some("CPU 120% · 3.2 GB")
+            Some("CPU 120% · 3.0 GB")
         );
         // Twenty seconds of it is a spike, not a heavy session.
         assert_eq!(heavy_note(&tree(Some("a"), 99.0, 5 * G, 20)), None);
@@ -1723,7 +1726,7 @@ mod tests {
         // An AJ-E512 hog rule counts on its own.
         let mut hog = tree(Some("a"), 40.0, 2_500_000_000, 10);
         hog.hog_rules = vec!["tree-rss>p95(provider)".into()];
-        assert_eq!(heavy_note(&hog).as_deref(), Some("2.5 GB"));
+        assert_eq!(heavy_note(&hog).as_deref(), Some("2.3 GB"));
     }
 
     /// A ring from (seconds, cpu) legs, one sample every 2 s, capped as the
@@ -1861,7 +1864,7 @@ mod tests {
         assert_eq!(info.heavy.len(), 1);
         assert_eq!(
             info.heavy[0].heavy_note.as_deref(),
-            Some("CPU 95% · 3.0 GB")
+            Some("CPU 95% · 2.8 GB")
         );
         assert_eq!((info.leftover_processes, info.leftover_ports), (2, 1));
     }
@@ -2015,7 +2018,7 @@ mod live {
                 "{place}: {} trees, {} helpers, CPU {cpu:.0}% of one core, {}",
                 trees.len(),
                 helpers,
-                juggler_supervisor::machine::bytes_words(rss)
+                juggler_supervisor::machine::memory_words(rss)
             );
         }
     }

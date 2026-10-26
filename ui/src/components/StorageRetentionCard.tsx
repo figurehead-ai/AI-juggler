@@ -19,6 +19,7 @@ import {
   type RetentionPreviewInfo,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { byteSize } from "../lib/compact";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -27,12 +28,6 @@ const CHOICES: Array<{ value: string; label: string }> = [
   { value: "90", label: "90 days" },
   { value: "30", label: "30 days" },
 ];
-
-function size(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
 
 export function StorageRetentionCard(): JSX.Element {
   const [rows, setRows] = useState<AccountStorageInfo[] | null>(null);
@@ -68,7 +63,7 @@ export function StorageRetentionCard(): JSX.Element {
             <span className="min-w-0 flex-1 truncate font-medium text-ink">{row.label}</span>
             <span className="order-last w-full text-muted" data-testid="storage-usage">
               {row.instances} {row.instances === 1 ? "session" : "sessions"} · {row.history_events} history events ·{" "}
-              {row.index_lines.toLocaleString()} indexed lines · transcripts {size(row.transcript_bytes)}
+              {row.index_lines.toLocaleString()} indexed lines · transcripts {byteSize(row.transcript_bytes)}
             </span>
             <label className="flex items-center gap-1.5 text-muted">
               Keep

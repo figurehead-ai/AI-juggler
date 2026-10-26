@@ -224,7 +224,7 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     expect(table.textContent).toContain("claude");
     expect(table.textContent).toContain("node (mcp)");
     expect(table.textContent).toContain("rg (search)");
-    expect(table.textContent).toContain("890 MB"); // RSS formatted
+    expect(table.textContent).toContain("849 MB"); // RSS formatted
     expect(table.textContent).toContain("42m");
     expect(table.textContent).toContain("measuring…"); // null CPU: honest, never 0%
     // Tree depth: the rg row carries the indent glyph.
