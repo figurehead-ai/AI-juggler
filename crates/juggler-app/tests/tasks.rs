@@ -377,14 +377,16 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
         "the history names the member"
     );
     assert!(
-        !history
-            .iter()
-            .any(|e| e.what.contains(builder_id.as_str())),
+        !history.iter().any(|e| e.what.contains(builder_id.as_str())),
         "no session id in the history"
     );
     let stranger = assign(&lab, &lead, &id, "s-nobody-here");
     assert_eq!(stranger.refused, Some(Refusal::Deny), "not in the pool");
-    assert_eq!(needs::needs(&lab.state).unwrap().len(), 1, "nothing more held");
+    assert_eq!(
+        needs::needs(&lab.state).unwrap().len(),
+        1,
+        "nothing more held"
+    );
     needs::answer(&lab.state, &ask.id, "once").unwrap();
     let mine = list(
         &lab,

@@ -96,7 +96,13 @@ pub fn executable_trust(path: &Path, me: u32) -> Result<PathBuf, Untrusted> {
             return Err(Untrusted::Owner(entry.to_path_buf()));
         }
         let is_link = meta.file_type().is_symlink();
-        if !entry_trusted(meta.uid(), meta.gid(), meta.permissions().mode(), is_link, me) {
+        if !entry_trusted(
+            meta.uid(),
+            meta.gid(),
+            meta.permissions().mode(),
+            is_link,
+            me,
+        ) {
             return Err(Untrusted::Writable(entry.to_path_buf()));
         }
     }
@@ -162,15 +168,24 @@ mod rule {
         assert!(entry_trusted(0, 0, 0o755, false, me));
         assert!(entry_trusted(me, STAFF, 0o755, false, me));
         assert!(entry_trusted(me, STAFF, 0o700, false, me));
-        assert!(!entry_trusted(502, STAFF, 0o755, false, me), "another user's");
-        assert!(!entry_trusted(0, STAFF, 0o775, false, me), "staff can write");
+        assert!(
+            !entry_trusted(502, STAFF, 0o755, false, me),
+            "another user's"
+        );
+        assert!(
+            !entry_trusted(0, STAFF, 0o775, false, me),
+            "staff can write"
+        );
         assert!(!entry_trusted(0, 0, 0o757, false, me), "anyone can write");
         assert!(!entry_trusted(0, 0, 0o1777, false, me), "a shared /tmp");
         assert!(
             entry_trusted(0, STAFF, 0o777, true, me),
             "a link's own mode means nothing"
         );
-        assert!(!entry_trusted(502, 0, 0o777, true, me), "but its owner does");
+        assert!(
+            !entry_trusted(502, 0, 0o777, true, me),
+            "but its owner does"
+        );
     }
 
     /// Lab 2026-10-26 (tasks, bug 3): Homebrew's folders are the user's,
@@ -181,12 +196,24 @@ mod rule {
     fn homebrews_admin_group_folders_are_trusted() {
         const ADMIN: u32 = 80;
         let me = 501;
-        assert!(entry_trusted(me, ADMIN, 0o775, false, me), "/opt/homebrew/bin");
+        assert!(
+            entry_trusted(me, ADMIN, 0o775, false, me),
+            "/opt/homebrew/bin"
+        );
         assert!(entry_trusted(0, 0, 0o775, false, me), "wheel");
-        assert!(!entry_trusted(me, STAFF, 0o775, false, me), "staff is everyone");
+        assert!(
+            !entry_trusted(me, STAFF, 0o775, false, me),
+            "staff is everyone"
+        );
         assert!(!entry_trusted(me, 12, 0o775, false, me), "another group");
-        assert!(!entry_trusted(me, ADMIN, 0o777, false, me), "anyone can write");
-        assert!(!entry_trusted(502, ADMIN, 0o775, false, me), "another user's");
+        assert!(
+            !entry_trusted(me, ADMIN, 0o777, false, me),
+            "anyone can write"
+        );
+        assert!(
+            !entry_trusted(502, ADMIN, 0o775, false, me),
+            "another user's"
+        );
     }
 }
 
