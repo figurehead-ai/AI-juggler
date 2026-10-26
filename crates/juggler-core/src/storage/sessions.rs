@@ -19,6 +19,18 @@ fn json_err(e: serde_json::Error) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
 }
 
+/// What a count or a page's order needs of a session, without its row:
+/// [`SessionsRepo::briefs`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionBrief {
+    /// The session.
+    pub id: SessionId,
+    /// Its project, when it has one.
+    pub project: Option<ProjectId>,
+    /// When it was last active (else started), epoch ms.
+    pub last_ms: i64,
+}
+
 /// Typed read/write access to the `sessions` table.
 #[derive(Debug)]
 pub struct SessionsRepo<'a> {
@@ -386,6 +398,28 @@ impl SessionsRepo<'_> {
             ],
             map_session,
         )?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// Every session's id, project and last activity: one narrow pass for
+    /// what counts sessions or orders a page of them (a pool's members,
+    /// AJ-E1702), never their whole rows; a page reads its own rows by id
+    /// ([`SessionsRepo::get_many`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn briefs(&self) -> Result<Vec<SessionBrief>, CoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, project, COALESCE(last_activity, started_at) FROM instances")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(SessionBrief {
+                id: SessionId::new(row.get::<_, String>(0)?),
+                project: row.get::<_, Option<String>>(1)?.map(ProjectId::new),
+                last_ms: row.get(2)?,
+            })
+        })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 

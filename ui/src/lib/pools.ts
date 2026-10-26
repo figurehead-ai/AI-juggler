@@ -3,11 +3,17 @@
  * and the pool sheet share, and the one copy of the pools they all read
  * ({@link usePools}). The user owns every pool; nothing here reaches a
  * session.
+ *
+ * Instant and paged (I6): the pools' answer holds the pools with their
+ * counts and the working set's places that aren't a project's default; a
+ * session past the working set is read alone ({@link usePoolPlace}), and
+ * a pool's members come a page at a time ({@link usePoolMembers}).
  */
 import { useEffect, useSyncExternalStore } from "react";
 
 import { onSessionsUpdated, type InstanceInfo } from "./bridge";
-import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolsList, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { refreshPaged, usePagedList, type PagedList } from "./paged";
 
 export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
@@ -56,14 +62,20 @@ export function roleLabel(role: string): string {
   return ROLES.find((entry) => entry.id === role)?.label ?? "Member";
 }
 
-/** The pool a session is in (its project's default pool when the list is
- * behind). */
+/** A session's place when the pools name it (one set apart from its
+ * project's default, or read alone). */
+function placed(pools: PoolsInfo | null, sessionId: string): PoolMemberInfo | undefined {
+  return pools?.placements.find((row) => row.session_id === sessionId);
+}
+
+/** The pool a session is in: the place the pools name, else its
+ * project's default pool. */
 export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string {
-  return pools?.members.find((row) => row.session_id === session.id)?.pool_id ?? defaultPoolIdOf(session.project_id);
+  return placed(pools, session.id)?.pool_id ?? defaultPoolIdOf(session.project_id);
 }
 
 export function roleOf(pools: PoolsInfo | null, sessionId: string): PoolRole {
-  const role = pools?.members.find((row) => row.session_id === sessionId)?.role;
+  const role = placed(pools, sessionId)?.role;
   return role === "lead" || role === "observer" ? role : "member";
 }
 
@@ -74,11 +86,6 @@ export function hasUserPools(pools: PoolsInfo | null): boolean {
 
 export function poolById(pools: PoolsInfo | null, id: string): PoolInfo | undefined {
   return pools?.pools.find((pool) => pool.id === id);
-}
-
-/** The sessions in a pool, in the order given. */
-export function sessionsIn(pools: PoolsInfo | null, poolId: string, sessions: InstanceInfo[]): InstanceInfo[] {
-  return sessions.filter((session) => poolIdOf(pools, session) === poolId);
 }
 
 /**
@@ -105,6 +112,13 @@ export function scopeWords(pool: PoolInfo): string | null {
 
 // --- The one copy of the pools ------------------------------------------------
 
+/** The backend's last answer. */
+let answered: PoolsInfo | null = null;
+/** Places read alone, by session (sessions past the working set), the
+ * newest last; a few at most. */
+const alone = new Map<string, PoolMemberInfo>();
+const ALONE_KEPT = 16;
+/** The answer with the places read alone: what every screen reads. */
 let current: PoolsInfo | null = null;
 const listeners = new Set<() => void>();
 let watching: (() => void) | null = null;
@@ -116,25 +130,59 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-/** A change went through: everyone reading the pools sees it. */
-export function setPools(info: PoolsInfo): void {
-  current = info;
+function publish(): void {
+  if (answered === null) current = null;
+  else {
+    const named = new Set(answered.placements.map((row) => row.session_id));
+    const extra = [...alone.values()].filter((row) => !named.has(row.session_id));
+    current = extra.length === 0 ? answered : { ...answered, placements: [...answered.placements, ...extra] };
+  }
   for (const listener of listeners) listener();
+}
+
+/** Reads one session's place alone and keeps it (a failed read keeps
+ * what was there). */
+async function readAlone(sessionId: string): Promise<void> {
+  try {
+    const place = await poolPlace(sessionId);
+    alone.delete(sessionId);
+    alone.set(sessionId, place);
+    while (alone.size > ALONE_KEPT) alone.delete(alone.keys().next().value as string);
+    publish();
+  } catch {
+    // Its project's default stands in until the next read.
+  }
+}
+
+/** A new answer: everyone reading the pools sees it, and the places read
+ * alone are read again (a move may have changed them). */
+function answer(info: PoolsInfo): void {
+  answered = info;
+  publish();
+  for (const sessionId of [...alone.keys()]) void readAlone(sessionId);
+}
+
+/** A change went through: everyone reading the pools sees it, and every
+ * pool's member list shown reads again. */
+export function setPools(info: PoolsInfo): void {
+  answer(info);
+  refreshPaged(POOL_MEMBERS);
 }
 
 /** Reads the pools again (a failed read keeps the last answer). */
 export async function refreshPools(): Promise<void> {
   try {
-    setPools(await poolsList());
+    answer(await poolsList());
   } catch {
     // Keep what was there: a pool list a moment old is still true enough.
   }
 }
 
 /**
- * The pools and every session's place, read once for every screen that
- * shows them, and again when the sessions change (a new session has a
- * place; a switched one keeps its own). `null` until the first answer.
+ * The pools and the places of the sessions the app holds, read once for
+ * every screen that shows them, and again when the sessions change (a new
+ * session has a place; a switched one keeps its own). `null` until the
+ * first answer.
  */
 export function usePools(): PoolsInfo | null {
   const info = useSyncExternalStore(subscribe, () => current);
@@ -149,11 +197,36 @@ export function usePools(): PoolsInfo | null {
   return info;
 }
 
+/**
+ * One session's pool and role, any session: read alone when it's shown
+ * (one opened from History is past the working set the pools' answer
+ * covers), and kept with the pools, so the rail's Pool lens has it too.
+ * `null` until known.
+ */
+export function usePoolPlace(sessionId: string | null): PoolMemberInfo | null {
+  const pools = usePools();
+  useEffect(() => {
+    if (sessionId) void readAlone(sessionId);
+  }, [sessionId]);
+  return sessionId ? (placed(pools, sessionId) ?? null) : null;
+}
+
+/** The key prefix of every pool's member list (`refreshPaged`). */
+export const POOL_MEMBERS = "pool-members:";
+
+/** A pool's members, a page at a time: its lead first, then the most
+ * recently active. The pool page and the pool sheet share it. */
+export function usePoolMembers(poolId: string | null): PagedList<PoolMemberRow> {
+  return usePagedList(poolId === null ? null : `${POOL_MEMBERS}${poolId}`, (page) => poolMembers(poolId!, page), { keyOf: (row) => row.session.id });
+}
+
 /** Tests: forget the pools read so far. */
 export function resetPools(): void {
   watching?.();
   watching = null;
+  answered = null;
   current = null;
+  alone.clear();
   sheet = null;
 }
 

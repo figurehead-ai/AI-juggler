@@ -190,35 +190,24 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
             format!("AI Juggler's agent tools are off here: {why}."),
         ));
     }
-    let info = pools::pools_info(&storage)
-        .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pools."))?;
-    let row = info
-        .members
-        .into_iter()
-        .find(|row| row.session_id == session.as_str())
-        .ok_or_else(|| Response::refused(Refusal::Deny, "This session isn't in a pool."))?;
-    let pool = info
-        .pools
-        .into_iter()
-        .find(|pool| pool.id == row.pool_id)
-        .ok_or_else(|| {
-            Response::refused(Refusal::Deny, "This session's pool isn't there any more.")
-        })?;
-    let works = storage
-        .switch_graph()
-        .works_by_session()
-        .unwrap_or_default();
-    let mut may = pool.access.actions.clone();
-    may.extend(pool.rules.iter().map(|rule| rule.action.clone()));
+    let unread = |_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pools.");
+    let memberships = pools::members::memberships(&storage).map_err(unread)?;
+    let (pool_id, role) = memberships.place(session, record.project.as_ref());
+    let (_, pool_name) = pools::named_pool(&storage, &pool_id).map_err(|_| {
+        Response::refused(Refusal::Deny, "This session's pool isn't there any more.")
+    })?;
+    let (access, rules) = pools::access::info(&storage, &pool_id).map_err(unread)?;
+    let mut may = access.actions;
+    may.extend(rules.into_iter().map(|rule| rule.action));
     may.sort();
     may.dedup();
     Ok(Place {
-        pool_id: pool.id,
-        pool_name: pool.name,
-        level: pool.access.level,
+        member: MemberRef::of_session(session, memberships.work_of(session)).to_wire(),
+        pool_id,
+        pool_name,
+        level: access.level,
         may,
-        role: row.role,
-        member: MemberRef::of_session(session, works.get(session)).to_wire(),
+        role: role.as_str().to_owned(),
     })
 }
 

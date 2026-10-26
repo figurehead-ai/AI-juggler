@@ -39,4 +39,9 @@ spans_macs: boolean,
  * holds one (D-33); in a user pool more than one means the user put
  * different projects' work together.
  */
-scopes: number, };
+scopes: number, 
+/**
+ * How many sessions are in it, archived ones aside: its member
+ * list's length (`pools_members`).
+ */
+members: number, };

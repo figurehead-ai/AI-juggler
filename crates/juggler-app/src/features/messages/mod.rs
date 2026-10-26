@@ -41,7 +41,7 @@ use juggler_core::model::{SessionId, SessionStatus};
 use juggler_core::storage::{MemberRef, SENDER_USER, Storage};
 use sha2::{Digest, Sha256};
 
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::state::AppState;
 
 /// Event: messages changed (payload: the pools' ids).
@@ -233,10 +233,5 @@ pub(crate) fn live_session_of(storage: &Storage, member_ref: &str) -> Option<Ses
 
 /// A pool's name as the app shows it.
 pub(crate) fn pool_name(storage: &Storage, pool_id: &str) -> AppResult<String> {
-    crate::features::pools::pools_info(storage)?
-        .pools
-        .into_iter()
-        .find(|pool| pool.id == pool_id)
-        .map(|pool| pool.name)
-        .ok_or_else(|| AppError::Refused("That pool isn't there any more".to_owned()))
+    crate::features::pools::named_pool(storage, pool_id).map(|(_, name)| name)
 }

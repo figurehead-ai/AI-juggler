@@ -5,12 +5,13 @@
  */
 import { useEffect, useState } from "react";
 import { messagesThreads, onMessagesChanged } from "../../lib/ipc/messages";
-import { usePools } from "../../lib/pools";
+import { usePoolPlace } from "../../lib/pools";
 
 /** The session's pool id when it has messages; `null` otherwise. */
 export function useSessionMessages(sessionId: string | null): string | null {
-  const pools = usePools();
-  const poolId = sessionId ? (pools?.members.find((row) => row.session_id === sessionId)?.pool_id ?? null) : null;
+  // Read alone: the session may be past the working set (opened from
+  // History); the rail's Pool lens gets its place from this read too.
+  const poolId = usePoolPlace(sessionId)?.pool_id ?? null;
   const [has, setHas] = useState(false);
   useEffect(() => {
     if (!sessionId) return;

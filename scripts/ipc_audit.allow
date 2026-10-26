@@ -114,17 +114,16 @@ unbounded overnight_summary  # TO PAGE: what happened while away (grows with ses
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
-unbounded pools_cards  # bounded: one card per member of one pool
-unbounded pools_create  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_delete  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_list  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_move  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_rename  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_revoke_rule  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_set_access  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_set_delivery  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_set_role  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
-unbounded pools_set_spans_macs  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
+unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_delete  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_list  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_move  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_rename  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_revoke_rule  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_access  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_delivery  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_role  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_spans_macs  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded port_inventory  # TO PAGE: every listening port
 unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded processes_dry_run  # bounded: one account's left-behind processes

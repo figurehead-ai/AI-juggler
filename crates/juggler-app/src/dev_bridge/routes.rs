@@ -282,9 +282,11 @@ read_routes! {
     "app_quit_plan" => async_result quit::app_quit_plan(state);
     "fleet_launch_options" => async_result features::fleet::fleet_launch_options(state);
     "fleet_usage_by_machine" => async_result features::fleet::fleet_usage_by_machine(state);
-    // AJ-E1702/E1703: the pools and a pool's cards (reads only).
+    // AJ-E1702/E1703: the pools, a pool's members a page at a time, and
+    // one session's place (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
-    "pools_cards" => async_result features::pools::commands::pools_cards(state; pool_id: String);
+    "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
+    "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
     // E18: messages' lists (reads only; opening a thread marks it read).
     "messages_threads" => async_result features::messages::commands::messages_threads(state; pool_id: Option<String>, session_id: Option<String>, cursor: Option<String>);
     "messages_needs" => async_result features::messages::commands::messages_needs(state);

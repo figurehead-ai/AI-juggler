@@ -423,20 +423,16 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         commands::switch_execute_impl(&state, &planner, &profile_b.id, "stop-now", None, &[])
             .unwrap();
 
-    let info = pools::pools_list_impl(&state).unwrap();
     let place = |id: &str| {
-        let row = info
-            .members
-            .iter()
-            .find(|row| row.session_id == id)
-            .unwrap();
-        (row.pool_id.clone(), row.role.clone())
+        let row = pools::members::place_impl(&state, id).unwrap();
+        (row.pool_id, row.role)
     };
     assert_eq!(
         place(&planner_next.session_id),
         (checkout.clone(), "lead".to_owned())
     );
     assert_eq!(place(&planner), (checkout.clone(), "lead".to_owned()));
+    let (loner_next_pool, loner_pool) = (place(&loner_next.session_id).0, place(&loner).0);
     let storage = state.storage.lock().unwrap();
     let project = storage
         .projects()
@@ -445,8 +441,8 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
         .unwrap();
     // The loner stays in its project's default pool (D-33).
     let own = juggler_core::storage::default_pool_id(Some(&project.id));
-    assert_eq!(place(&loner_next.session_id).0, own);
-    assert_eq!(place(&loner).0, own);
+    assert_eq!(loner_next_pool, own);
+    assert_eq!(loner_pool, own);
     assert_eq!(
         storage
             .switch_graph()

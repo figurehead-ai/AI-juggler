@@ -57,7 +57,7 @@ pub use messages::{
     RecipientState, SENDER_USER, Thread, ThreadState,
 };
 pub use pools::{
-    MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
+    MemberRef, Memberships, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
     default_pool_id, default_pool_name, resolve_memberships,
 };
 pub use process_ledger::{
@@ -67,7 +67,7 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
-pub use sessions::{SessionMarks, SessionsRepo};
+pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
     MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,

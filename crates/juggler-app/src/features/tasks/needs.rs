@@ -34,11 +34,11 @@ const EACH: u32 = 40;
 /// Storage failures.
 pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
     let storage = lock_storage_arc(state)?;
-    let pools = crate::features::pools::pools_info(&storage)?.pools;
+    let pools = crate::features::pools::shown_pools(&storage)?;
     let repo = storage.tasks();
     let mut out = Vec::new();
     for need in repo.open_needs(0, EACH)? {
-        let pool = pools.iter().find(|p| p.id == need.pool_id);
+        let pool = pools.iter().find(|(p, _)| p.id == need.pool_id);
         let task = need
             .task_id
             .as_deref()
@@ -58,14 +58,14 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
             ),
             _ => format!(
                 "{} · above what the pool lets agents do",
-                pool.map_or("", |p| p.name.as_str())
+                pool.map_or("", |(_, name)| name.as_str())
             ),
         };
         out.push(TaskNeedInfo {
             id: need.id,
             kind: need.kind,
-            pool_name: pool.map(|p| p.name.clone()).unwrap_or_default(),
-            project_id: pool.and_then(|p| p.project_id.clone()),
+            pool_name: pool.map(|(_, name)| name.clone()).unwrap_or_default(),
+            project_id: pool.and_then(|(p, _)| p.project.as_ref().map(|id| id.as_str().to_owned())),
             pool_id: need.pool_id,
             task_title: task.as_ref().map(|t| t.title.clone()),
             task_id: need.task_id,
@@ -95,13 +95,8 @@ fn actor_of(state: &Arc<AppState>, need: &TaskNeed) -> Actor {
         .or_else(|| need.actor_ref.strip_prefix("session:").map(SessionId::new));
     if let Some(session) = &session {
         actor.refs = crate::features::messages::refs_of(&storage, session);
-        if let Ok(info) = crate::features::pools::pools_info(&storage)
-            && let Some(row) = info
-                .members
-                .into_iter()
-                .find(|row| row.session_id == session.as_str())
-        {
-            actor.role = super::role_of(&row.role);
+        if let Ok(Some((_, role))) = crate::features::pools::members::place_of(&storage, session) {
+            actor.role = super::role_of(role.as_str());
         }
     }
     actor.session = session;

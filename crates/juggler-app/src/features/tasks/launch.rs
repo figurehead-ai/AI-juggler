@@ -28,15 +28,13 @@ use crate::state::AppState;
 /// where the task's writer worked, else the launch settings' own.
 fn folder_of(state: &Arc<AppState>, pool_id: &str, writer: &str) -> AppResult<Option<String>> {
     let storage = lock_storage_arc(state)?;
-    let project = crate::features::pools::pools_info(&storage)?
-        .pools
-        .into_iter()
-        .find(|p| p.id == pool_id)
-        .and_then(|p| p.project_id);
+    let project = storage
+        .pools()
+        .get(pool_id)
+        .ok()
+        .and_then(|pool| pool.project);
     if let Some(project) = project
-        && let Ok(record) = storage
-            .projects()
-            .get(&juggler_core::model::ProjectId::new(project))
+        && let Ok(record) = storage.projects().get(&project)
     {
         return Ok(Some(record.root.to_string_lossy().into_owned()));
     }
@@ -110,10 +108,8 @@ pub fn start(
         crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(brief.clone()))?;
     let session = SessionId::new(launched.session_id.as_str());
     // The new session joins the task's pool (the user's click moves it).
-    let in_pool = crate::features::pools::pools_info(&*lock_storage_arc(state)?)?
-        .members
-        .into_iter()
-        .any(|row| row.session_id == session.as_str() && row.pool_id == task.pool_id);
+    let in_pool = crate::features::pools::members::place_of(&*lock_storage_arc(state)?, &session)?
+        .is_some_and(|(pool_id, _)| pool_id == task.pool_id);
     if !in_pool {
         crate::features::pools::pool_move_impl(state, session.as_str(), &task.pool_id)?;
     }

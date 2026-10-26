@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { Button, Card, Chip } from "../components/primitives";
 import { IconSessions } from "../components/icons";
@@ -7,8 +7,8 @@ import { AgentToolsQuestion } from "../components/AgentTools";
 import { PoolCardRows } from "../components/PoolCards";
 import { SettingSwitch } from "../components/SettingSwitch";
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
-import { poolCards, poolSetSpansMacs, type ContextCard } from "../lib/ipc/pools";
-import { levelLabel, openPoolSheet, poolById, setPools, usePools } from "../lib/pools";
+import { poolSetSpansMacs } from "../lib/ipc/pools";
+import { levelLabel, openPoolSheet, poolById, setPools, usePoolMembers, usePools } from "../lib/pools";
 import { PageHeader, PageShell } from "./PageShell";
 import { pageTabs } from "./registry";
 import { lazyNamed } from "../lib/lazy";
@@ -40,25 +40,25 @@ const CARDS_EVERY_MS = 10_000;
 export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
   const pools = usePools();
   const pool = poolById(pools, poolId);
-  const [cards, setCards] = useState<ContextCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tasksShown, setTasksShown] = useState(false);
-  const members = pools?.members.filter((row) => row.pool_id === poolId).length ?? 0;
-
+  const members = pool?.members ?? 0;
+  // Its members a page at a time (remembered: shown at once when opened
+  // again, read again behind them).
+  const list = usePoolMembers(poolId);
+  const refresh = list.refresh;
   useEffect(() => {
-    let alive = true;
-    const read = () =>
-      void poolCards(poolId).then(
-        (result) => alive && (setCards(result.cards), setError(null)),
-        (cause) => alive && setError(errorText(cause)),
-      );
-    read();
-    const timer = window.setInterval(read, CARDS_EVERY_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [poolId, members]);
+    const timer = window.setInterval(refresh, CARDS_EVERY_MS);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+  // A session came or left (the count says so): read them again.
+  const counted = useRef(members);
+  useEffect(() => {
+    if (counted.current === members) return;
+    counted.current = members;
+    refresh();
+  }, [members, refresh]);
+  const named = list.items.map((row) => ({ session_id: row.card.session_id, name: row.card.name }));
 
   if (pools !== null && !pool) {
     return (
@@ -97,21 +97,16 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
           tab === "tasks" ? (
             visible || tasksShown ? (
               <TasksOnce onShown={() => setTasksShown(true)}>
-                <PoolTasks poolId={poolId} members={(cards ?? []).map((card) => ({ session_id: card.session_id, name: card.name }))} sessions={sessions} projects={projects} now={now} />
+                <PoolTasks poolId={poolId} members={named} sessions={sessions} projects={projects} now={now} />
               </TasksOnce>
             ) : null
           ) : tab === "messages" ? (
-            <PoolMessages poolId={poolId} members={(cards ?? []).map((card) => ({ session_id: card.session_id, name: card.name }))} now={now} />
+            <PoolMessages poolId={poolId} members={named} now={now} />
           ) : tab === "members" ? (
             <div className="flex flex-col gap-2">
               {/* D-30: asked once, the first time pools are used. */}
               <AgentToolsQuestion className="mb-2" />
-              {error && (
-                <p className="text-xs text-danger" role="alert">
-                  {error}
-                </p>
-              )}
-              {cards === null ? <p className="text-xs text-muted">Loading…</p> : <PoolCardRows cards={cards} sessions={sessions} now={now} />}
+              <PoolCardRows list={list} sessions={sessions} now={now} />
             </div>
           ) : pool ? (
             <Card className="flex flex-col gap-4 p-5">

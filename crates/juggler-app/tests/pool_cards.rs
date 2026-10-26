@@ -200,7 +200,7 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     assert_eq!(planner.said.value, None);
     assert_eq!(
         planner.said.unavailable.as_deref(),
-        Some("Unavailable — read only while it runs in AI Juggler")
+        Some("Unavailable — its transcript hasn't been read yet")
     );
     assert_eq!(planner.files, Vec::<String>::new());
     assert!(
@@ -310,6 +310,96 @@ fn a_card_carries_the_account_label_and_never_an_email_or_plan() {
     assert!(result.cards.iter().all(|card| card.account.is_none()));
     let json = serde_json::to_string(&result).unwrap();
     assert!(!json.contains('@'), "{json}");
+}
+
+/// 0.2 lab: a session running in AI Juggler whose tool never named its
+/// file (a headless Claude Code session names only its conversation; a
+/// terminal one, only through its hooks) said "read only while it runs in
+/// AI Juggler". The tick finds the file its tool made, as a switch does,
+/// links it and reads it; an ended session still says why it can't.
+#[test]
+fn a_live_session_whose_tool_never_named_its_file_is_found_and_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::FakeHarnessAdapter::new(
+        dir.path().join("fake-harness"),
+    )));
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), registry).unwrap());
+    account(&state);
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root);
+    let builder = session(
+        &state,
+        "s-builder",
+        &shop,
+        &root,
+        None,
+        SessionStatus::Running,
+    );
+    // Ended, in another folder (one in the same folder would make the
+    // builder's file ambiguous: it could be either's).
+    let elsewhere = root.join("docs");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    let ended = session(
+        &state,
+        "s-ended",
+        &shop,
+        &elsewhere,
+        None,
+        SessionStatus::Finished,
+    );
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let pool = info.pools[0].id.clone();
+    pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
+    pools::pool_move_impl(&state, ended.as_str(), &pool).unwrap();
+    // Its tool's file, made after it started, naming its folder.
+    let folder = state.accounts_dir().join("acc-work").join("transcripts");
+    std::fs::create_dir_all(&folder).unwrap();
+    let file = folder.join("conv-builder.jsonl");
+    let head = format!(
+        "{{\"cwd\":{}}}\n",
+        serde_json::json!(root.to_string_lossy())
+    );
+    std::fs::write(
+        &file,
+        head + &call("Edit", r#"{"file_path":"/w/shop/src/cart.ts"}"#),
+    )
+    .unwrap();
+
+    let before = cards::cards_impl(&state, &pool).unwrap();
+    assert_eq!(
+        card(&before.cards, "s-builder").said.unavailable.as_deref(),
+        Some("Unavailable — its transcript hasn't been read yet"),
+        "running here: not read yet, never 'only while it runs'"
+    );
+    assert_eq!(
+        card(&before.cards, "s-ended").said.unavailable.as_deref(),
+        Some("Unavailable — read only while it runs in AI Juggler")
+    );
+
+    cards::tick(&state);
+    let after = cards::cards_impl(&state, &pool).unwrap();
+    let builder_card = card(&after.cards, "s-builder");
+    assert_eq!(
+        builder_card.files_unavailable, None,
+        "its transcript was read"
+    );
+    assert_eq!(builder_card.files, ["src/cart.ts"]);
+    let linked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&builder)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path);
+    assert_eq!(
+        linked.map(|path| path.canonicalize().unwrap()),
+        Some(file.canonicalize().unwrap()),
+        "linked, so every reader has it"
+    );
 }
 
 #[test]

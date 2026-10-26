@@ -2,7 +2,7 @@
 import type { ContextCard } from "./ContextCard";
 
 /**
- * A pool's cards, its lead first.
+ * A pool's cards, its lead first (what an agent is shown, AJ-E1704).
  */
 export type PoolCards = { 
 /**

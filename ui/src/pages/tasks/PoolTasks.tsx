@@ -11,7 +11,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { refreshPaged, usePagedList } from "../../lib/paged";
-import { usePools } from "../../lib/pools";
+import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";
 import { useActionHost } from "../../components/ItemMenu";
 import { focusTask, onTasksChanged, takeFocusedTask, tasksCounts, tasksList, tasksOfSession, tasksPlan, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
@@ -182,7 +182,7 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
  * time; each opens in its pool's Tasks tab. */
 export function SessionTasks({ session, now }: { session: InstanceInfo; now: number }): JSX.Element {
   const host = useActionHost();
-  const poolId = usePools()?.members.find((row) => row.session_id === session.id)?.pool_id;
+  const poolId = usePoolPlace(session.id)?.pool_id;
   useTasksRefresh();
   const tasks = usePagedList(`tasks-session:${session.id}`, (page) => tasksOfSession(session.id, page), { keyOf: (task) => task.id });
   const open = (task: TaskInfo) => {

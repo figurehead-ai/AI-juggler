@@ -2,7 +2,7 @@ import { useState, type JSX } from "react";
 
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { poolDelete, poolMove, poolRename, poolSetRole, type PoolInfo, type PoolsInfo } from "../lib/ipc/pools";
-import { ROLES, defaultPoolIdOf, levelLabel, roleOf, scopeWords, sessionsIn, setPools, type PoolRole } from "../lib/pools";
+import { ROLES, defaultPoolIdOf, levelLabel, poolIdOf, scopeWords, setPools, usePoolMembers, type PoolRole } from "../lib/pools";
 import { PoolAccessPanel } from "./PoolAccess";
 import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal } from "./form";
@@ -32,10 +32,12 @@ export function PoolEditor({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const members = sessionsIn(pools, pool.id, sessions);
+  // Its members a page at a time (the pool page's list, remembered).
+  const list = usePoolMembers(pool.id);
+  const members = list.items;
   const forProject = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
   const addable = sessions.filter(
-    (session) => !members.includes(session) && (pool.project_id === null || session.project_id === pool.project_id),
+    (session) => poolIdOf(pools, session) !== pool.id && (pool.project_id === null || session.project_id === pool.project_id),
   );
   const scope = scopeWords(pool);
 
@@ -52,7 +54,7 @@ export function PoolEditor({
     }
   };
 
-  const count = `${members.length} ${members.length === 1 ? "session" : "sessions"}`;
+  const count = `${pool.members} ${pool.members === 1 ? "session" : "sessions"}`;
   const subtitle = isDefault ? "Every session of its project that isn't in another pool." : [count, forProject ? `for ${forProject.name}` : null].filter(Boolean).join(" · ");
 
   return (
@@ -81,13 +83,15 @@ export function PoolEditor({
 
         <section aria-label="Sessions" className="flex flex-col gap-1.5">
           <p className="text-label uppercase tracking-[0.14em] text-faint">Sessions</p>
-          {members.length === 0 ? (
+          {list.loading ? (
+            <span className="h-11 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Loading its sessions" />
+          ) : members.length === 0 ? (
             <p className="text-xs text-muted" data-testid="pool-empty">
-              {isDefault ? "Every session of its project is in another pool." : "No sessions yet. Add one below, or from a session's menu."}
+              {list.error ? "Its sessions couldn't be read." : isDefault ? "Every session of its project is in another pool." : "No sessions yet. Add one below, or from a session's menu."}
             </p>
           ) : (
             <ul className="flex flex-col gap-1" data-testid="pool-members">
-              {members.map((session) => {
+              {members.map(({ session, card }) => {
                 const where = placeOf(session, projects);
                 const named = [where.title, where.detail].filter(Boolean).join(" · ");
                 return (
@@ -98,7 +102,7 @@ export function PoolEditor({
                     </span>
                     <select
                       aria-label={`Role for ${named}`}
-                      value={roleOf(pools, session.id)}
+                      value={card.role}
                       disabled={busy}
                       onChange={(event) => void run(() => poolSetRole(session.id, event.target.value as PoolRole))}
                       className="h-7 shrink-0 rounded-lg border border-hairline bg-surface-2 px-1.5 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
@@ -127,6 +131,11 @@ export function PoolEditor({
                 );
               })}
             </ul>
+          )}
+          {list.hasMore && (
+            <Button size="sm" variant="ghost" className="self-start" onClick={list.loadMore} disabled={list.loadingMore} data-testid="pool-members-more">
+              {list.loadingMore ? "Reading more sessions…" : `Show more sessions (${pool.members - members.length} more)`}
+            </Button>
           )}
           {!isDefault && addable.length > 0 && (
             <select
@@ -180,8 +189,8 @@ export function PoolEditor({
           ) : confirmDelete ? (
             <span className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted" data-testid="pool-delete-confirm">
               <span>
-                {members.length > 0
-                  ? `Its ${members.length === 1 ? "session goes" : `${members.length} sessions go`} back to their projects' pools; nothing else changes.`
+                {pool.members > 0
+                  ? `Its ${pool.members === 1 ? "session goes" : `${pool.members} sessions go`} back to their projects' pools; nothing else changes.`
                   : "Nothing else changes."}
               </span>
               <Button size="sm" variant="danger" disabled={busy} onClick={() => void run(() => poolDelete(pool.id), true)} data-testid="pool-delete-yes">

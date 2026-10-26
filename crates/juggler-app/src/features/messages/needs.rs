@@ -51,12 +51,7 @@ fn preview(text: &str) -> String {
 pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
     let storage = lock_storage_arc(state)?;
     let repo = storage.messages();
-    let names: std::collections::HashMap<String, String> =
-        crate::features::pools::pools_info(&storage)?
-            .pools
-            .into_iter()
-            .map(|pool| (pool.id, pool.name))
-            .collect();
+    let names = crate::features::pools::pool_names(&storage)?;
     let name_of = |pool: &str| names.get(pool).cloned().unwrap_or_default();
     let mut out = Vec::new();
     let mut asked_threads = Vec::new();

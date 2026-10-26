@@ -4,7 +4,7 @@
  */
 import type { JSX } from "react";
 import type { InstanceInfo } from "../../lib/bridge";
-import { usePools } from "../../lib/pools";
+import { usePoolPlace } from "../../lib/pools";
 import type { Member } from "./Compose";
 import { MessagesView } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
@@ -20,8 +20,7 @@ export function PoolMessages({ poolId, members, now }: { poolId: string; members
 
 /** A session's Messages tab: its threads, in its pool, written to it. */
 export function SessionMessages({ session, now }: { session: InstanceInfo; now: number }): JSX.Element | null {
-  const pools = usePools();
-  const poolId = pools?.members.find((row) => row.session_id === session.id)?.pool_id;
+  const poolId = usePoolPlace(session.id)?.pool_id;
   if (!poolId) return null;
   const name = session.label ?? session.title ?? session.account_label;
   return <MessagesView poolId={poolId} sessionId={session.id} members={[{ session_id: session.id, name }]} composeTo={session.id} now={now} />;

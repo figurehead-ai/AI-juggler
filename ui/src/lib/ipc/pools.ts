@@ -4,6 +4,11 @@
  * only change pools, members, roles, access levels and rules, never a
  * session.
  *
+ * The pools' answer never grows with the history (I6): the pools with
+ * their counts, and the working set's places that aren't a project's
+ * default. A pool's members come a page at a time (`poolMembers`); a
+ * session past the working set is read alone (`poolPlace`).
+ *
  * The preview keeps its own pools, seeded by `__AIJ_POOLS__` (pools and
  * members, levels and rules) and `__AIJ_POOL_ACTIVITY__` (what each session's transcript
  * said, by session id), and records the calls that change them in
@@ -11,18 +16,19 @@
  */
 import { invoke } from "./transport";
 import { hasLiveBackend, MOCK_PROJECTS, MOCK_SESSIONS, refused, type InstanceInfo } from "../bridge";
+import { pageOf, type Page, type PageRequest } from "../paged";
 import { providerDisplayName } from "../providers";
 import { previewHeldBy } from "./tasks";
 import type { PoolsInfo } from "../../types/generated/PoolsInfo";
 import type { PoolInfo } from "../../types/generated/PoolInfo";
 import type { PoolMemberInfo } from "../../types/generated/PoolMemberInfo";
+import type { PoolMemberRow } from "../../types/generated/PoolMemberRow";
 import type { AccessInfo } from "../../types/generated/AccessInfo";
 import type { AgentRuleInfo } from "../../types/generated/AgentRuleInfo";
-import type { PoolCards } from "../../types/generated/PoolCards";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import type { CardField } from "../../types/generated/CardField";
 
-export type { PoolsInfo, PoolInfo, PoolMemberInfo, AccessInfo, AgentRuleInfo, PoolCards, ContextCard, CardField };
+export type { PoolsInfo, PoolInfo, PoolMemberInfo, PoolMemberRow, AccessInfo, AgentRuleInfo, ContextCard, CardField };
 export type PoolRole = "lead" | "member" | "observer";
 
 /** D-33: the default pool of sessions with no project. */
@@ -77,7 +83,9 @@ interface Seams {
 const seams = () => window as unknown as Seams;
 const record = (call: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(call);
 
-let store: PoolsInfo | null = null;
+/** The preview's own pools and every preview session's place. */
+type Store = { pools: PoolInfo[]; places: PoolMemberInfo[] };
+let store: Store | null = null;
 let counter = 0;
 
 const defaultPool = (projectId: string | null, name: string | null): PoolInfo => ({
@@ -89,13 +97,12 @@ const defaultPool = (projectId: string | null, name: string | null): PoolInfo =>
   rules: [],
   spans_macs: false,
   scopes: 1,
+  members: 0,
 });
 
-/** The preview's pools, as the backend answers: yours first, then each
- * project's default pool by name, "No project" last; every preview
- * session has a place (its project's default pool unless seeded
- * otherwise). */
-function preview(): PoolsInfo {
+/** The preview's store: every preview session has a place (its project's
+ * default pool unless seeded otherwise). */
+function previewStore(): Store {
   if (store === null) {
     const seeded = seams().__AIJ_POOLS__;
     const pools: PoolInfo[] = [
@@ -110,31 +117,48 @@ function preview(): PoolsInfo {
           rules: pool.rules ?? [],
           spans_macs: pool.spans_macs ?? false,
           scopes: 1,
+          members: 0,
         })),
       ...[...MOCK_PROJECTS].sort((a, b) => a.name.localeCompare(b.name)).map((project) => defaultPool(project.id, project.name)),
       defaultPool(null, null),
     ];
-    store = { pools, members: [...(seeded?.members ?? [])] };
+    store = { pools, places: [...(seeded?.members ?? [])] };
   }
-  const state = store;
   for (const session of MOCK_SESSIONS) {
-    if (!state.members.some((row) => row.session_id === session.id)) {
-      state.members.push({ session_id: session.id, pool_id: defaultPoolIdOf(session.project_id), role: "member" });
+    if (!store.places.some((row) => row.session_id === session.id)) {
+      store.places.push({ session_id: session.id, pool_id: defaultPoolIdOf(session.project_id), role: "member" });
     }
   }
+  return store;
+}
+
+const sessionOf = (id: string) => MOCK_SESSIONS.find((session) => session.id === id);
+
+/** The preview's pools, as the backend answers: yours first, then each
+ * project's default pool by name, "No project" last, each with how many
+ * sessions it holds (archived ones aside); the places that aren't a
+ * project's default, as a member. */
+function preview(): PoolsInfo {
+  const state = previewStore();
+  const placed = state.places.filter((row) => sessionOf(row.session_id) !== undefined);
   // D-33: a pool's scopes are its projects, whatever the account.
-  const sessionOf = (id: string) => MOCK_SESSIONS.find((session) => session.id === id);
-  const scopesOf = (poolId: string) =>
-    new Set(
-      state.members
-        .filter((row) => row.pool_id === poolId)
-        .map((row) => sessionOf(row.session_id))
-        .filter((session): session is InstanceInfo => session !== undefined)
-        .map((session) => session.project_id ?? ""),
-    ).size;
+  const inPool = (poolId: string) =>
+    placed
+      .filter((row) => row.pool_id === poolId)
+      .map((row) => sessionOf(row.session_id))
+      .filter((session): session is InstanceInfo => session !== undefined);
   return {
-    pools: state.pools.map((pool) => ({ ...pool, scopes: scopesOf(pool.id), access: { ...pool.access }, rules: pool.rules.map((rule) => ({ ...rule })) })),
-    members: state.members.filter((row) => sessionOf(row.session_id) !== undefined).map((row) => ({ ...row })),
+    pools: state.pools.map((pool) => ({
+      ...pool,
+      scopes: new Set(inPool(pool.id).map((session) => session.project_id ?? "")).size,
+      members: inPool(pool.id).filter((session) => session.lifecycle !== "archived").length,
+      access: { ...pool.access },
+      rules: pool.rules.map((rule) => ({ ...rule })),
+    })),
+    placements: placed
+      .filter((row) => row.role !== "member" || row.pool_id !== defaultPoolIdOf(sessionOf(row.session_id)?.project_id))
+      .map((row) => ({ ...row }))
+      .sort((a, b) => a.session_id.localeCompare(b.session_id)),
   };
 }
 
@@ -148,16 +172,44 @@ function checkedName(name: string, except: string | null): string {
 }
 
 function livePool(poolId: string): PoolInfo {
-  preview();
-  const pool = store!.pools.find((row) => row.id === poolId);
+  const pool = previewStore().pools.find((row) => row.id === poolId);
   if (!pool) throw refused("That pool isn't there any more");
   return pool;
 }
 
-/** Every pool and every session's place. */
+/** Every pool, and the working set's places. */
 export async function poolsList(): Promise<PoolsInfo> {
   if (!hasLiveBackend()) return preview();
   return invoke<PoolsInfo>("pools_list");
+}
+
+const rank = (role: string) => (role === "lead" ? 0 : role === "member" ? 1 : 2);
+
+/** One page of a pool's members (archived sessions aside): its lead
+ * first, then the most recently active. */
+export async function poolMembers(poolId: string, page: PageRequest): Promise<Page<PoolMemberRow>> {
+  if (!hasLiveBackend()) {
+    livePool(poolId);
+    const rows = previewStore()
+      .places.filter((row) => row.pool_id === poolId)
+      .map((row) => ({ session: sessionOf(row.session_id), role: row.role }))
+      .filter((row): row is { session: InstanceInfo; role: string } => row.session !== undefined && row.session.lifecycle !== "archived")
+      .sort((a, b) => rank(a.role) - rank(b.role) || (b.session.last_activity_ms ?? 0) - (a.session.last_activity_ms ?? 0) || a.session.id.localeCompare(b.session.id))
+      .map(({ session, role }) => ({ session, card: previewCard(session, role) }));
+    return pageOf(rows, page);
+  }
+  return invoke<Page<PoolMemberRow>>("pools_members", { poolId, page });
+}
+
+/** One session's pool and role: any session, one past the working set
+ * too (opened from History). */
+export async function poolPlace(sessionId: string): Promise<PoolMemberInfo> {
+  if (!hasLiveBackend()) {
+    const place = previewStore().places.find((row) => row.session_id === sessionId);
+    if (!place) throw refused("That session isn't there any more");
+    return { ...place };
+  }
+  return invoke<PoolMemberInfo>("pools_place", { sessionId });
 }
 
 /** Makes a pool, optionally for one project. */
@@ -167,7 +219,7 @@ export async function poolCreate(name: string, projectId: string | null): Promis
     record(`create:${clean}`);
     counter += 1;
     const mine = store!.pools.filter((pool) => pool.kind === "user").length;
-    store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0 });
+    store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0, members: 0 });
     return preview();
   }
   return invoke<PoolsInfo>("pools_create", { name, projectId });
@@ -192,7 +244,7 @@ export async function poolDelete(poolId: string): Promise<PoolsInfo> {
     if (pool.kind === "default") throw refused(`«${pool.name}» can't be deleted — it holds every session of its project that isn't in another pool`);
     record(`delete:${poolId}`);
     store!.pools = store!.pools.filter((row) => row.id !== poolId);
-    for (const row of store!.members) {
+    for (const row of store!.places) {
       const session = MOCK_SESSIONS.find((entry) => entry.id === row.session_id);
       if (row.pool_id === poolId) Object.assign(row, { pool_id: defaultPoolIdOf(session?.project_id), role: "member" });
     }
@@ -215,7 +267,7 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
       throw refused("«No project · all sessions» is for sessions with no project — this one has one");
     }
     record(`move:${sessionId}:${poolId}`);
-    Object.assign(store!.members.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });
+    Object.assign(store!.places.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });
     return preview();
   }
   return invoke<PoolsInfo>("pools_move", { sessionId, poolId });
@@ -225,7 +277,7 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
 export async function poolSetRole(sessionId: string, role: PoolRole): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     preview();
-    const row = store!.members.find((entry) => entry.session_id === sessionId);
+    const row = store!.places.find((entry) => entry.session_id === sessionId);
     if (!row) throw refused("That session isn't there any more");
     record(`role:${sessionId}:${role}`);
     row.role = role;
@@ -283,27 +335,17 @@ export async function agentRuleRevoke(ruleId: number): Promise<PoolsInfo> {
 
 const unavailable = (why: string): CardField => ({ value: null, unavailable: `Unavailable — ${why}` });
 
-/** One pool's context cards, its lead first. */
-export async function poolCards(poolId: string): Promise<PoolCards> {
-  if (!hasLiveBackend()) {
-    const info = preview();
-    if (!info.pools.some((pool) => pool.id === poolId)) throw refused("That pool isn't there any more");
-    const rank = (role: string) => (role === "lead" ? 0 : role === "member" ? 1 : 2);
-    const cards = info.members
-      .filter((row) => row.pool_id === poolId)
-      .map((row) => previewCard(MOCK_SESSIONS.find((session) => session.id === row.session_id)!, row.role))
-      .sort((a, b) => rank(a.role) - rank(b.role) || (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0));
-    return { pool_id: poolId, cards };
-  }
-  return invoke<PoolCards>("pools_cards", { poolId });
-}
-
+/** A preview member's card, as the backend builds it. */
 function previewCard(session: InstanceInfo, role: string): ContextCard {
   const folder = (session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || "its folder";
   const project = MOCK_PROJECTS.find((row) => row.id === session.project_id)?.name ?? folder;
   const activity = seams().__AIJ_POOL_ACTIVITY__?.[session.id];
   // D-33, D-35: the profile's label, never an email.
   const profile = session.account_label && !session.account_label.includes("@") ? session.account_label : null;
+  // A live session is read on the tick once its transcript is found; an
+  // ended one was read only while it ran.
+  const live = ["starting", "running", "waiting_user", "stuck"].includes(session.status);
+  const why = live ? "its transcript hasn't been read yet" : "read only while it runs in AI Juggler";
   return {
     session_id: session.id,
     name: session.label ?? session.title ?? session.git_branch ?? folder,
@@ -318,10 +360,10 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
       ? activity.said
         ? { value: activity.said, unavailable: null }
         : unavailable("it hasn't said")
-      : unavailable("read only while it runs in AI Juggler"),
+      : unavailable(why),
     last_activity_ms: session.last_activity_ms,
     files: activity?.files ?? [],
-    files_unavailable: activity ? null : "Unavailable — read only while it runs in AI Juggler",
+    files_unavailable: activity ? null : `Unavailable — ${why}`,
   };
 }
 
