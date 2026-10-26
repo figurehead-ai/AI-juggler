@@ -135,7 +135,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     expect(container.querySelector('[data-testid="instance-native-id"]')?.textContent).toContain("822e4125-e07d");
     expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("60% left");
     expect(container.querySelector('[data-testid="instance-tokens"]')?.textContent).toContain("19,134");
-    expect(container.querySelector('[data-testid="instance-resources"]')?.textContent).toContain("helpers 3");
+    expect(container.querySelector('[data-testid="instance-resources"]')?.textContent).toContain("more processes 3");
     expect(container.querySelector('[data-testid="handover-section"]')).not.toBeNull();
     // Lineage: OMITTED while the Switch Graph does not exist (empty rule).
     expect(container.textContent).not.toContain("lineage");
@@ -173,7 +173,7 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
   it("names the tool, not its id, and the state in the rail's words", () => {
     const { container } = shell(mk({ status: "quota_blocked" }));
     expect(container.textContent).not.toContain("claude-code");
-    expect(container.textContent).toContain("Hit its limit");
+    expect(container.textContent).toContain("Limit reached");
     expect(container.textContent).not.toContain("quota_blocked");
   });
 });

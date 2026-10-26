@@ -10,7 +10,8 @@
 import { providerDisplayName } from "../lib/providers";
 import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
-import { ToolMark } from "./ToolMark";
+import { AppIcon } from "./AppIcon";
+import { appOfConversation } from "../lib/app-of";
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { stateChip } from "./indicator";
@@ -19,7 +20,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
-import { STATE_TONE, conversationItem, stateWord as railStateWord } from "../lib/rail-items";
+import { STATE_TONE, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
 
 /** Ended outside conversations shown per project under the Ended filter. */
 export const RECENT_SHOWN = 3;
@@ -108,9 +109,11 @@ export function ConversationRow({
   const when = conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now);
   const state = stateWord(conversation);
   const menu = useItemMenu("conversation", conversation, title);
-  // AJ-E2102: an open one's primary (click, Enter) is Go to it.
-  const host = useActionHost();
-  const primary = conversation.live && host.goToConversation ? () => void host.goToConversation!(conversation) : () => onOpen(conversation);
+  // Its click and ↩ open its page here; ↗ and ⌘↩ go to it in its app
+  // (the maintainer's review of 0.1.4), always shown while it asks you.
+  const primary = () => onOpen(conversation);
+  const asking = asksYou(conversation);
+  const goTo = menu.goTo({ where: goToWhere(conversationItem(conversation, () => null, null)) ?? conversation.account_label, shown: asking, className: "absolute right-1 top-1/2 -translate-y-1/2" });
   // AJ-E2103: open in two places is one row that says so.
   // (A fixture or an older backend may send none.)
   const places = conversation.places ?? [];
@@ -125,7 +128,8 @@ export function ConversationRow({
         data-rail-selected={selected ? "true" : undefined}
         onClick={primary}
         className={
-          "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          (goTo && asking ? "pr-9 " : "pr-2 ") +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
           (selected ? "bg-surface" : "hover:bg-surface/60")
         }
@@ -136,11 +140,11 @@ export function ConversationRow({
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-[12.5px] font-medium " + (conversation.live ? "text-ink" : "text-muted")}>{title}</span>
-            {density === "compact" && when && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted">{when}</span>}
+            <span className={"min-w-0 truncate text-meta font-medium " + (conversation.live ? "text-ink" : "text-muted")}>{title}</span>
+            {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
           </span>
           {density === "comfortable" && (
-            <span className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-muted">
+            <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
               <span className={"shrink-0 whitespace-nowrap " + stateTone(conversation)} data-testid="rail-state-word">{state}</span>
               <span className="shrink-0 whitespace-nowrap" data-testid="outside-mark">
                 · outside AI Juggler
@@ -158,9 +162,10 @@ export function ConversationRow({
             {where && `, open in ${where}`}
           </span>
         </span>
-        <ToolMark tool={conversation.tool} size={12} className="shrink-0 text-muted" />
+        <AppIcon {...appOfConversation(conversation)} size={16} />
         <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
       </button>
+      {goTo}
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}
       {menu.element}
     </div>
@@ -204,7 +209,7 @@ export function OutsideRows({
           type="button"
           onClick={onMore}
           data-testid="rail-outside-more"
-          className="self-start rounded-md py-1 pl-7 pr-2 text-[11px] text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="self-start rounded-md py-1 pl-7 pr-2 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           {more} more outside AI Juggler
         </button>
@@ -233,15 +238,15 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
             <ProjectMark projectId={conversation.project_id} size={16} />
             <span className="min-w-0 flex-1 truncate text-sm text-ink">
               {conversationTitle(conversation)}
-              <span className="text-faint"> · outside AI Juggler</span>
+              <span className="text-muted"> · outside AI Juggler</span>
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted">
-              <ToolMark tool={conversation.tool} size={12} className="shrink-0" />
+              <AppIcon {...appOfConversation(conversation)} size={16} />
               <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
               <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}
-            <span className="w-14 text-right font-mono text-xs text-faint" title="Last activity">
+            <span className="w-14 text-right text-label tabular-nums text-muted" title="Last activity">
               {conversation.last_activity_ms === null ? "" : ago(conversation.last_activity_ms, now)}
             </span>
           </button>

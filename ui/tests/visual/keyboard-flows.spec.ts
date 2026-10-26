@@ -135,11 +135,11 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   stops.push(await focused(page));
   expect(stops.at(-1)!.name).not.toContain("Terminal input");
   // AJ-E1533: a session's page shows only its own tabs, its body first;
-  // AJ-E2108 gave it an Overview (where it runs, its last messages).
-  await tabTo(page, stops, /^tab: Terminal/, { back: true });
+  // a terminal's session: its terminal is its Overview (0.1.5).
+  await tabTo(page, stops, /^tab: Overview/, { back: true });
   const tablist = page.getByRole("tablist", { name: "Session tabs" });
   const names = await tablist.getByRole("tab").allInnerTexts();
-  expect(names).toEqual(["Terminal", "Overview", "Usage", "Processes"]);
+  expect(names).toEqual(["Overview", "Usage", "Processes"]);
   for (const name of [...names.slice(1), names[0]!]) {
     await page.keyboard.press("ArrowRight");
     const stop = await focused(page);

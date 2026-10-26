@@ -25,7 +25,7 @@ function Tool({ label, title, pressed, onClick, children, testId }: { label: str
       onClick={onClick}
       title={title}
       aria-pressed={pressed}
-      className="rounded-md px-2 py-1 text-[11px] text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 aria-pressed:bg-surface-2 aria-pressed:text-ink"
+      className="rounded-md px-2 py-1 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 aria-pressed:bg-surface-2 aria-pressed:text-ink"
       data-testid={testId}
     >
       {children ?? label}
@@ -61,11 +61,11 @@ export function TerminalToolbar({
   const pill = PILL[connection];
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-hairline bg-surface px-2 py-1" data-testid="terminal-toolbar">
-      <span className={`flex items-center gap-1.5 px-1.5 text-[11px] font-medium ${pill.tone}`} data-testid="terminal-connection" data-connection={connection}>
+      <span className={`flex items-center gap-1.5 px-1.5 text-label font-medium ${pill.tone}`} data-testid="terminal-connection" data-connection={connection}>
         <span aria-hidden="true" className={`size-1.5 rounded-full ${pill.dot}`} />
         {pill.words}
       </span>
-      <span className="min-w-0 flex-1 truncate px-1 text-[11px] text-muted" role="status" data-testid="terminal-note">
+      <span className="min-w-0 flex-1 truncate px-1 text-label text-muted" role="status" data-testid="terminal-note">
         {note}
       </span>
       <Tool label="Find" title={`Find in the terminal (${keyName("F")})`} pressed={searchOpen} onClick={onFind} testId="terminal-find" />

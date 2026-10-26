@@ -13,6 +13,7 @@
  */
 import { Fragment, createContext, useContext, useId, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { menuEntries, resolveActions, type ActionHost, type ActionIconName, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
+import { matches } from "../lib/shortcuts";
 import { ActionIcon } from "./ActionIcon";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint } from "./RowMenu";
 
@@ -43,6 +44,12 @@ export interface ItemMenu {
   element: JSX.Element | null;
   /** The items, as every trigger shows them. */
   actions: ResolvedAction[];
+  /** The row's ↗, its Go to it (the maintainer's review of 0.1.4): its app
+   * and profile in front, as ⌘↩ on the row does. A row's click opens its
+   * page here; this is the way to the app. Nothing while it has nowhere
+   * to go (ended). `where` names the app and profile; `shown` keeps it
+   * visible (a row that needs you), else it shows on hover and focus. */
+  goTo: (options: { where: string; shown?: boolean; className?: string }) => JSX.Element | null;
 }
 
 /** The menu of `item`, a `kind`. `heading` names it on top; `local` adds
@@ -60,6 +67,7 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
     const box = element.getBoundingClientRect();
     return { x: box.left + 8, y: box.bottom + 4 };
   };
+  const goTo = actions.find((action) => action.shortcutId === "row-go-to" && !action.reason);
   const run = (action: ResolvedAction) => () => {
     setAt(null);
     if (!action.reason) void action.run();
@@ -86,6 +94,12 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         open(fromKeys ? below(event.currentTarget) : { x: event.clientX, y: event.clientY });
       },
       onKeyDown: (event) => {
+        if (goTo && matches("row-go-to", event)) {
+          event.preventDefault();
+          event.stopPropagation();
+          void goTo.run();
+          return;
+        }
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
           event.preventDefault();
           event.stopPropagation();
@@ -105,14 +119,36 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
         className={
           "z-10 flex size-6 shrink-0 items-center justify-center rounded outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 disabled:hidden " +
           (shown
-            ? "text-[12px] text-muted hover:bg-surface-2 hover:text-ink "
-            : "text-[10px] text-faint opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ") +
+            ? "text-label text-muted hover:bg-surface-2 hover:text-ink "
+            : "text-label text-muted opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ") +
           className
         }
       >
         ⋯
       </button>
     ),
+    goTo: ({ where, shown = false, className = "" }) =>
+      goTo ? (
+        <button
+          type="button"
+          aria-label={`Go to it in ${where}`}
+          aria-keyshortcuts="Meta+Enter"
+          title={`Go to it in ${where} (⌘↩)`}
+          data-testid="row-go-to"
+          onClick={(event) => {
+            event.stopPropagation();
+            void goTo.run();
+          }}
+          className={
+            "z-10 flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none transition-colors hover:bg-surface-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
+            // Shown on hover or focus, it sits over the row's end: a solid chip.
+            (shown ? "" : "border border-hairline bg-surface opacity-0 transition-opacity focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 ") +
+            className
+          }
+        >
+          <ActionIcon name="go-to" size={13} />
+        </button>
+      ) : null,
   };
 }
 
@@ -125,12 +161,12 @@ function Line({ icon, label, keys, more }: { icon: ActionIconName; label: string
         {label}
       </span>
       {keys && (
-        <span aria-hidden="true" className="shrink-0 font-mono text-[10px] text-faint">
+        <span aria-hidden="true" className="shrink-0 font-mono text-label text-muted">
           {keys}
         </span>
       )}
       {more && (
-        <span aria-hidden="true" className="shrink-0 text-faint">
+        <span aria-hidden="true" className="shrink-0 text-muted">
           ›
         </span>
       )}
@@ -155,7 +191,7 @@ function ItemMenuLine({ action, onRun }: { action: ResolvedAction; onRun: () => 
         <Line icon={action.icon} label={action.label} keys={action.shortcut} />
       </MenuItem>
       {action.reason && (
-        <span id={why} aria-hidden="true" className="-mt-0.5 block pb-1 pl-[30px] pr-2 text-[10px] leading-snug text-faint">
+        <span id={why} aria-hidden="true" className="-mt-0.5 block pb-1 pl-[30px] pr-2 text-label leading-snug text-muted">
           {action.reason}
         </span>
       )}

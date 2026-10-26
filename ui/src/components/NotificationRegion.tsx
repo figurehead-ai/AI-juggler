@@ -222,7 +222,7 @@ export function NotificationRegion({
         <p
           key={`${event.at_ms}-${event.account}-${event.kind}`}
           data-testid={`alert-${event.kind}`}
-          className={`rounded border px-2 py-1 text-[11px] ${
+          className={`rounded border px-2 py-1 text-label ${
             event.kind === "exhausted" || event.kind === "actionable"
               ? "border-warning/50 text-warning"
               : event.kind === "digest"
@@ -238,7 +238,7 @@ export function NotificationRegion({
         <p
           key={alert.key}
           data-testid="machine-alert"
-          className="flex flex-wrap items-center gap-2 rounded border border-warning/50 px-2 py-1 text-[11px] text-warning"
+          className="flex flex-wrap items-center gap-2 rounded border border-warning/50 px-2 py-1 text-label text-warning"
         >
           <span className="min-w-0 flex-1">{alert.text}.</span>
           <button
@@ -257,7 +257,7 @@ export function NotificationRegion({
         <p
           key={key}
           data-testid={`remote-alert-${alert.kind}`}
-          className={`flex flex-wrap items-center gap-2 rounded border px-2 py-1 text-[11px] ${
+          className={`flex flex-wrap items-center gap-2 rounded border px-2 py-1 text-label ${
             alert.kind === "exhausted" || alert.kind === "actionable" || alert.kind === "peer-offline"
               ? "border-warning/50 text-warning"
               : "border-hairline text-muted"
@@ -293,7 +293,7 @@ export function NotificationRegion({
       {update && (
         <div
           data-testid="update-notice"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
         >
           <span className="min-w-0 flex-1">
             AI Juggler {update.version} is available. Nothing is installed until you choose.
@@ -328,7 +328,7 @@ export function NotificationRegion({
       {ready && (
         <div
           data-testid="update-ready"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
         >
           <span className="min-w-0 flex-1">
             AI Juggler {ready.version} is installed. Restart when you're ready — nothing restarts by itself.
@@ -364,7 +364,7 @@ export function NotificationRegion({
         <div
           key={`parked-${offer.session_id}`}
           data-testid="parked-offer"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-[11px] text-ink"
+          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
         >
           <span className="min-w-0 flex-1">{offer.text}</span>
           <button
@@ -394,7 +394,7 @@ export function NotificationRegion({
         </div>
       ))}
       {queue.map((row) => (
-        <p key={row.id} data-testid={`queue-${row.state}`} className="flex items-center gap-2 rounded border border-hairline px-2 py-1 text-[11px]">
+        <p key={row.id} data-testid={`queue-${row.state}`} className="flex items-center gap-2 rounded border border-hairline px-2 py-1 text-label">
           <span>
             {row.state === "ready"
               ? `reset reached — ${row.account} ready to resume`

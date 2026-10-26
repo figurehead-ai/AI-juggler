@@ -36,6 +36,8 @@ juggler-login-item = { version = "0.1.0", path = "../juggler-login-item" }
 base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"
+# D-38: apps' icons are kept as PNGs (already in the tree through tauri).
+png = "0.18"
 juggler-adapter = { version = "0.1.0", path = "../juggler-adapter" }
 juggler-account = { version = "0.1.0", path = "../juggler-account" }
 juggler-adapters = { version = "0.1.0", path = "../juggler-adapters" }
@@ -128,6 +130,23 @@ trash = { version = "5.2.9", default-features = false }
 # a MainThreadMarker; already in the tree through rfd and tao.
 # AJ-E2102: `libc` adds NSRunningApplication's lookup by pid (Go to it
 # brings one app instance forward by its process, never by bundle id).
+# 0.1.5: `NSWorkspace` reads the frontmost app, so Go to it says it
+# brought an app forward only once it really is in front.
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView"] }
+# D-38: an app's icon from its bundle (`NSWorkspace::iconForFile`),
+# rendered to a bitmap and read back pixel by pixel: safe calls only
+# (src/features/app_icons/render.rs says why each).
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSData", "NSGeometry", "NSBundle", "NSURL"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSResponder", "NSRunningApplication", "NSView", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSColor", "NSColorSpace"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# 0.1.5: the activation live check runs the main thread's loop while it
+# waits, so macOS can tell it which app is in front.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSRunLoop", "NSDate"] }
+
+# 0.1.5: the activation live check. AppKit wants the main thread, which the
+# test harness keeps for itself, so this test has its own `main`; it runs
+# only with `-- --ignored` (see the file).
+[[test]]
+name = "activation_real"
+harness = false

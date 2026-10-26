@@ -1,6 +1,7 @@
 //! AJ-E410 app-level integration: the Processes command surface, the
-//! orphan allow-list guardrail, and the opted-in Tier-1 auto-cleanup —
-//! all against real fake-harness processes and real storage.
+//! left-behind detection, the one verified stop path, and the opted-in
+//! Tier-1 auto-cleanup — all against real fake-harness processes and
+//! real storage.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
@@ -138,7 +139,7 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
                 ],
                 dir,
             ),
-            &ctx(),
+            &ctx(state),
         )
         .unwrap();
 
@@ -173,18 +174,18 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
     (session, child_pid)
 }
 
-fn ctx() -> juggler_supervisor::tree::SpawnContext {
+fn ctx(state: &Arc<AppState>) -> juggler_supervisor::tree::SpawnContext {
     juggler_supervisor::tree::SpawnContext {
         provider: "fake-harness".into(),
         account_id: Some("acc-fake".into()),
         project_id: Some("proj-fake".into()),
-        machine: juggler_core::model::MachineId::new("machine-test"),
+        machine: commands::local_machine_id(state),
         role: "root",
     }
 }
 
 #[test]
-fn processes_command_reports_tree_orphans_and_stops() {
+fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
     let dir = tempfile::tempdir().unwrap();
     let state = seeded_state(dir.path(), false);
     let state_ref = &state;
@@ -204,30 +205,41 @@ fn processes_command_reports_tree_orphans_and_stops() {
     });
     assert_eq!(confirmed.len(), 1);
     assert_eq!(confirmed[0].pid, child_pid);
-    let info = commands::instance_processes_arc(state_ref, &session.to_string()).unwrap();
-    assert_eq!(info.orphans.len(), 1);
-    assert_eq!(info.orphans[0].pid, child_pid);
-    assert!(info.orphans[0].age_since_parent_exit_ms > 0);
-
-    // Stop process → gone, and the row state carries it.
-    let outcome = commands::orphan_stop_inner(state_ref, &session, child_pid).unwrap();
-    assert_eq!(outcome.state, "gone");
-    let info = commands::instance_processes_arc(state_ref, &session.to_string()).unwrap();
+    // Stopping it is the verified sheet's job (the tracker only
+    // detects): verify, then the audited ladder.
+    let verify = commands::kill_verify_inner(state_ref, session.as_str(), child_pid).unwrap();
     assert!(
-        info.orphans.is_empty(),
-        "gone orphan drops off the live list"
+        verify.verified,
+        "the left-behind child verifies: {verify:?}"
     );
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let outcome = commands::kill_execute_audited(
+        state_ref,
+        state.audit.as_ref(),
+        session.as_str(),
+        child_pid,
+        "pid",
+        &cancel,
+        None,
+    )
+    .unwrap();
+    assert!(outcome.refusal.is_none());
+    assert!(outcome.all_succeeded, "the child went: {outcome:?}");
+    // Gone, so the tracker stops watching it on its next poll.
+    state
+        .orphans
+        .poll(now_ms(), juggler_supervisor::process_alive);
+    assert!(state.orphans.all_orphans().is_empty(), "gone orphan drops");
 
-    // The audit trail: a manual kill line in the journal.
-    let journal =
-        std::fs::read_to_string(state.supervisor.journal_ref().expect("journal open").path())
-            .unwrap();
-    assert!(journal.contains("\"killed\""));
-    assert!(journal.contains("\"manual\""));
+    // The audit trail: the intent and its outcome, by hand.
+    let rows = state.audit.history(0).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].pid, child_pid);
+    assert_eq!(rows[0].actor, "user:kill_sheet");
 }
 
 #[test]
-fn orphan_stop_refuses_a_pid_the_journal_never_recorded() {
+fn the_sheet_refuses_a_pid_the_ledger_never_recorded() {
     let dir = tempfile::tempdir().unwrap();
     let state = seeded_state(dir.path(), false);
     let state_ref = &state;
@@ -238,20 +250,29 @@ fn orphan_stop_refuses_a_pid_the_journal_never_recorded() {
         .arg("120")
         .spawn()
         .unwrap();
-    let outcome = commands::orphan_stop_inner(state_ref, &session, bystander.id()).unwrap();
-    assert_eq!(outcome.state, "refused - not a recorded descendant");
+    let pid = bystander.id();
     assert!(
-        juggler_supervisor::process_alive(bystander.id()).is_some(),
+        commands::kill_verify_inner(state_ref, session.as_str(), pid).is_err(),
+        "no ledger row, nothing to verify"
+    );
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let refused = commands::kill_execute_audited(
+        state_ref,
+        state.audit.as_ref(),
+        session.as_str(),
+        pid,
+        "pid",
+        &cancel,
+        None,
+    );
+    assert!(refused.is_err(), "no ledger row, no kill");
+    assert!(
+        juggler_supervisor::process_alive(pid).is_some(),
         "the bystander must survive the refused stop"
     );
     // Refused stops are not audit-logged as kills (nothing was killed).
-    let journal =
-        std::fs::read_to_string(state.supervisor.journal_ref().expect("journal open").path())
-            .unwrap();
-    assert!(!journal.contains(&format!("\"pid\":{}", bystander.id())));
-    let _ = juggler_supervisor::stop_pid_ladder(bystander.id(), Duration::from_secs(2), |pid| {
-        juggler_supervisor::process_alive(pid).is_some()
-    });
+    assert!(state.audit.history(0).unwrap().is_empty());
+    let _ = bystander.kill();
     let _ = bystander.wait();
 }
 

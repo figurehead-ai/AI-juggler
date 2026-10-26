@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 use crate::machine_health::{ThisMacInfo, ToolTreeInfo};
+use crate::machine_memory::{OTHER_APPS_NAMED, OtherAppInfo, tools_a_small_share};
 
 /// One alert, as the UI shows it.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
@@ -46,6 +47,11 @@ pub struct OverloadAlertInfo {
     /// figure sums — "the Claude app is using about 16 GB across 3
     /// windows" (the 0.0.12 report: one window's figure read as the app's).
     pub subject_windows: Option<u32>,
+    /// A memory alert while the AI tools hold under a third of the memory
+    /// in use: the biggest other apps, by name, and no AI tool is named
+    /// (the 0.1.4 review: the Claude app was blamed while other apps held
+    /// most of it). Empty otherwise.
+    pub other_apps: Vec<OtherAppInfo>,
     /// When the condition started, epoch ms.
     #[ts(type = "number")]
     pub since_ms: i64,
@@ -89,6 +95,8 @@ struct Condition {
     /// memory isn't what's high).
     tell_cpu: bool,
     tell_memory: bool,
+    /// The other apps to name instead of a subject (memory alerts only).
+    other_apps: Vec<OtherAppInfo>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -129,6 +137,18 @@ fn by_memory(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
     candidates(mac)
         .into_iter()
         .max_by(|a, b| weight(a).total_cmp(&weight(b)))
+}
+
+/// Who a memory alert names: the AI tool holding the most, only while the
+/// AI tools hold a third or more of what's in use; else the biggest other
+/// apps, and no AI tool.
+fn memory_cause(mac: &ThisMacInfo) -> (Option<ToolTreeInfo>, Vec<OtherAppInfo>) {
+    if tools_a_small_share(mac) {
+        let named = mac.other_apps.iter().take(OTHER_APPS_NAMED).cloned();
+        (None, named.collect())
+    } else {
+        (by_memory(mac), Vec::new())
+    }
 }
 
 fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
@@ -222,6 +242,7 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
         .as_deref()
         .filter(|level| matches!(*level, "warning" | "critical"))
     {
+        let (subject, other_apps) = memory_cause(mac);
         out.push(Condition {
             key: "memory_pressure".into(),
             kind: "memory_pressure",
@@ -232,9 +253,10 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             } else {
                 "macOS reports memory pressure".into()
             },
-            subject: by_memory(mac),
+            subject,
             tell_cpu: false,
             tell_memory: true,
+            other_apps,
         });
     }
     let swap_level = if on.contains("swap") {
@@ -246,15 +268,17 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
         .swap_growth_mb_per_min
         .filter(|rate| *rate > swap_level)
     {
+        let (subject, other_apps) = memory_cause(mac);
         out.push(Condition {
             key: "swap".into(),
             kind: "swap",
             hold_ms: SWAP_HOLD_MS,
             title: "Your Mac is swapping hard".into(),
             detail: format!("swap is growing — {rate:.0} MB a minute"),
-            subject: by_memory(mac),
+            subject,
             tell_cpu: false,
             tell_memory: true,
+            other_apps,
         });
     }
     let cpu = cpu_sustained(mac, CPU_BUSY_PCT, CPU_WINDOW_MS).or_else(|| {
@@ -273,6 +297,7 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             subject: by_cpu(mac),
             tell_cpu: true,
             tell_memory: false,
+            other_apps: Vec::new(),
         });
     }
     if let Some(state) = machine
@@ -293,6 +318,7 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             subject: by_cpu(mac),
             tell_cpu: true,
             tell_memory: false,
+            other_apps: Vec::new(),
         });
     }
     disk_conditions(mac, &mut out);
@@ -326,6 +352,7 @@ fn disk_conditions(mac: &ThisMacInfo, out: &mut Vec<Condition>) {
             subject: None,
             tell_cpu: false,
             tell_memory: false,
+            other_apps: Vec::new(),
         });
     }
 }
@@ -347,6 +374,7 @@ fn heavy_conditions(mac: &ThisMacInfo, out: &mut Vec<Condition>) {
             // The note says what's high: "CPU 96%", "3.2 GB", or both.
             tell_cpu: note.split(" · ").any(|part| part.starts_with("CPU ")),
             tell_memory: note.split(" · ").any(|part| !part.starts_with("CPU ")),
+            other_apps: Vec::new(),
         });
     }
 }
@@ -426,6 +454,7 @@ impl AlertEngine {
                             .find(|group| !group.ours && group.tool == place)
                     })
                     .map(|group| group.totals.count),
+                other_apps: condition.other_apps,
                 since_ms: since,
             };
             if !track.active {
@@ -504,6 +533,7 @@ mod tests {
                 cpu_pct: Some(20.0),
                 memory_total: 32 * G,
                 memory_used: Some(20 * G),
+                memory_compressed: Some(2 * G),
                 memory_basis: Some("app_wired_compressed".into()),
                 memory_available: 12 * G,
                 pressure: Some("normal".into()),
@@ -530,7 +560,14 @@ mod tests {
                     })
                     .collect(),
             },
-            tools: ToolTotalsInfo::default(),
+            // The AI tools hold most of what's in use (8 of 20 GB, over a
+            // third): an alert may name one of them.
+            tools: ToolTotalsInfo {
+                count: 2,
+                memory_estimate: true,
+                cpu_pct: Some(17.0),
+                rss_bytes: 8 * G,
+            },
             ours: ToolTotalsInfo::default(),
             theirs: ToolTotalsInfo::default(),
             by_tool: vec![app(1, 2 * G, 140.0)],
@@ -540,6 +577,10 @@ mod tests {
             ],
             others: Vec::new(),
             heavy: Vec::new(),
+            other_apps: vec![
+                other("next-server", 6_400_000_000, 1),
+                other("Docker", 4 * G, 3),
+            ],
             leftover_processes: 0,
             leftover_ports: 0,
             alerts: Vec::new(),
@@ -547,6 +588,91 @@ mod tests {
             awake: crate::features::app::awake::AwakeInfo::default(),
             own: crate::features::app::own::OwnInfo::default(),
         }
+    }
+
+    fn other(name: &str, rss: u64, processes: u32) -> OtherAppInfo {
+        OtherAppInfo {
+            name: name.into(),
+            rss_bytes: rss,
+            processes,
+        }
+    }
+
+    /// The 0.1.4 review's Mac: 91 of 103 GB in use (47 GB of it kept
+    /// compressed), the Claude app about 16 GB of it across 6 windows,
+    /// other apps the rest.
+    fn others_fill_it() -> ThisMacInfo {
+        let mut mac = calm();
+        mac.machine.memory_total = 103 * G;
+        mac.machine.memory_used = Some(91 * G);
+        mac.machine.memory_available = 12 * G;
+        mac.machine.memory_compressed = Some(47 * G);
+        mac.tools.rss_bytes = 16 * G;
+        mac.top = vec![tree(None, Some("desktop"), 4 * G, 3.0, None)];
+        mac.by_tool = vec![app(6, 16 * G, 9.0)];
+        mac.other_apps = vec![
+            other("next-server", 6_400_000_000, 1),
+            other("Docker", 4 * G, 3),
+            other("fseventsd", 1_500_000_000, 1),
+            other("ffmpeg", 1_200_000_000, 2),
+        ];
+        mac
+    }
+
+    #[test]
+    fn other_apps_are_named_when_the_ai_tools_are_a_small_share() {
+        let mut mac = others_fill_it();
+        mac.machine.pressure = Some("warning".into());
+        mac.machine.swap_growth_mb_per_min = Some(3004.0);
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        let kinds: Vec<&str> = told.iter().map(|alert| alert.kind.as_str()).collect();
+        assert_eq!(kinds, ["memory_pressure", "swap"]);
+        for alert in &told {
+            assert_eq!(alert.place, None, "the Claude app isn't the cause");
+            assert_eq!(alert.session_id, None);
+            assert_eq!(alert.subject_bytes, None);
+            assert_eq!(alert.subject_windows, None);
+            let names: Vec<&str> = alert
+                .other_apps
+                .iter()
+                .map(|app| app.name.as_str())
+                .collect();
+            assert_eq!(
+                names,
+                ["next-server", "Docker", "fseventsd"],
+                "the three biggest"
+            );
+        }
+        // The AI tools holding a third or more: the Claude app is named,
+        // and no other app.
+        mac.tools.rss_bytes = 40 * G;
+        mac.by_tool = vec![app(6, 40 * G, 9.0)];
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(told[0].subject_bytes, Some(40 * G));
+        assert!(told[0].other_apps.is_empty());
+    }
+
+    #[test]
+    fn without_a_reading_of_memory_in_use_the_biggest_ai_tool_is_named() {
+        let mut mac = others_fill_it();
+        mac.machine.pressure = Some("warning".into());
+        mac.machine.memory_used = None;
+        let told = run(&mut AlertEngine::default(), &mac, 0, 60);
+        assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert!(told[0].other_apps.is_empty());
+    }
+
+    #[test]
+    fn other_alerts_never_name_other_apps() {
+        let mut mac = others_fill_it();
+        for point in &mut mac.machine.series {
+            point.cpu_pct = Some(97.0);
+        }
+        mac.machine.thermal = Some("serious".into());
+        let told = run(&mut AlertEngine::default(), &mac, 0, 0);
+        assert!(!told.is_empty());
+        assert!(told.iter().all(|alert| alert.other_apps.is_empty()));
     }
 
     fn tree(

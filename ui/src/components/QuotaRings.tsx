@@ -129,7 +129,7 @@ export function WindowRing({
           x="18"
           y="21"
           textAnchor="middle"
-          className="fill-ink text-[9px] font-medium"
+          className="fill-ink text-label font-medium"
         >
           {ringText}
         </text>
@@ -138,11 +138,11 @@ export function WindowRing({
         <span className="text-xs">
           {label} · {badgeText(window.badge)}
         </span>
-        <span className="text-[10px] text-muted">
+        <span className="text-label text-muted">
           {[reset, stale].filter(Boolean).join(" · ") || `${window.burned_tokens.toLocaleString()} tokens`}
         </span>
         {exhausted && (
-          <span className="text-[10px] text-danger">blocked — resets {reset || "unknown"}</span>
+          <span className="text-label text-danger">blocked — resets {reset || "unknown"}</span>
         )}
       </div>
     </div>
@@ -164,8 +164,7 @@ export function RenewalLine({
         ? "text-warning"
         : "text-muted";
   return (
-    <p className={`text-xs ${tone}`} data-testid="renewal-line" data-state={renewal.state}>
-      <span aria-hidden="true">📅 </span>
+    <p className={`text-meta ${tone}`} data-testid="renewal-line" data-state={renewal.state}>
       {renewal.label}
       {renewal.state === "none" && onAddDate && (
         <button type="button" className="ml-2 py-1 underline focus:outline-none focus:ring-2 focus:ring-accent" onClick={onAddDate}>
@@ -220,7 +219,7 @@ export function ForecastPill({
                 : `, ${badge}`)
             : "exhausts soon";
   return (
-    <p className="text-[11px] text-muted" data-testid="forecast-pill" data-state={forecast.state}>
+    <p className="text-label text-muted" data-testid="forecast-pill" data-state={forecast.state}>
       {text}
     </p>
   );
@@ -231,23 +230,23 @@ export function ForecastPill({
 export function QuotaChip({ display }: { display?: QuotaDisplayData }): JSX.Element | null {
   if (!display) return null;
   if (display.unavailable_reason) {
-    return <span className="text-[10px] text-faint">quota unavailable</span>;
+    return <span className="text-label text-muted">quota unavailable</span>;
   }
   const window = display.five_hour ?? display.weekly;
   if (!window || window.state === "unknown") {
-    return <span className="text-[10px] text-faint">no quota data</span>;
+    return <span className="text-label text-muted">no quota data</span>;
   }
   if (window.state === "learning") {
-    return <span className="text-[10px] text-faint">learning</span>;
+    return <span className="text-label text-muted">learning</span>;
   }
   if (measured(window)) {
     return (
-      <span className="text-[10px]">
+      <span className="text-label">
         <span className="tabular-nums">{Math.round(window.percentage)}%</span>{" "}
-        <span className="text-faint">{badgeText(window.badge)}</span>
+        <span className="text-muted">{badgeText(window.badge)}</span>
       </span>
     );
   }
-  if (window.state === "exhausted") return <span className="text-[10px] text-danger">blocked</span>;
-  return <span className="text-[10px] text-faint">not measured yet</span>;
+  if (window.state === "exhausted") return <span className="text-label text-danger">blocked</span>;
+  return <span className="text-label text-muted">not measured yet</span>;
 }

@@ -22,6 +22,9 @@ export function attentionWords(rule: string | null | undefined): string {
       return "crashed 3 times in 10 minutes, so it wasn't restarted";
     case "app_quit_unexpectedly":
       return "ended when AI Juggler quit unexpectedly";
+    // A session whose process never started (the reason is its input).
+    case "launch_failed":
+      return "couldn't start";
     default:
       return "needs attention";
   }

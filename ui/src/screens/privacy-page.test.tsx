@@ -5,11 +5,10 @@
  * several accounts, linked, on the page and while accounts are added.
  */
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PrivacyScreen } from "./PrivacyScreen";
 import { FirstRun } from "./FirstRun";
 import { TermsLine } from "./FirstRunSteps";
-import { PrivacyCard } from "../components/PrivacyCard";
 import claims from "../lib/trust-claims.json";
 import { PREVIEW_TOOLS } from "../preview/tools";
 import { setToolsForTests } from "../lib/tools";
@@ -85,14 +84,12 @@ describe("AJ-E1518 the Privacy page", () => {
     }
   });
 
-  it("Settings' Privacy card opens the page", async () => {
-    const opened = vi.fn();
-    window.addEventListener("aij:open-screen", opened);
-    const view = render(<PrivacyCard />);
-    fireEvent.click(await view.findByTestId("privacy-open-page"));
-    window.removeEventListener("aij:open-screen", opened);
-    expect(opened).toHaveBeenCalledTimes(1);
-    expect((opened.mock.calls[0]![0] as CustomEvent).detail).toEqual({ id: "privacy" });
+  it("Settings › Privacy holds every line, in one place (0.1.5)", async () => {
+    const { PrivacyPane } = await import("./settings/PrivacyPane");
+    const view = render(<PrivacyPane />);
+    expect(view.getByTestId("privacy-page")).toBeTruthy();
+    expect(view.getAllByTestId("privacy-claim").length).toBe(claims.groups.flatMap((group) => group.claims).length);
+    expect(view.queryByTestId("privacy-open-page")).toBeNull();
   });
 });
 

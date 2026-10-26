@@ -16,6 +16,10 @@ use std::sync::Arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+// The commands (each off the main thread) are their own module.
+mod commands;
+pub use commands::*;
+
 /// The setting key.
 pub const SETTING_KEY: &str = "usage_stats";
 /// The consent text's version (bump it to ask again — AJ-E1105).
@@ -1523,74 +1527,6 @@ pub fn usage_stats_set_sync_impl(state: &Arc<AppState>, on: bool) -> AppResult<U
     usage_stats_overview_impl(state)
 }
 
-/// AJ-E1109: turns the personal stats sync on or off.
-///
-/// # Errors
-///
-/// Per [`usage_stats_set_sync_impl`].
-#[tauri::command]
-pub fn usage_stats_set_sync(
-    state: tauri::State<'_, Arc<AppState>>,
-    on: bool,
-) -> AppResult<UsageStatsOverview> {
-    usage_stats_set_sync_impl(state.inner(), on)
-}
-
-/// AJ-E1105: opens the public list of every metric (a fixed address;
-/// the interface passes none).
-///
-/// # Errors
-///
-/// Returns [`AppError::Io`] when the browser can't be opened.
-#[tauri::command]
-pub fn usage_stats_open_docs(app: tauri::AppHandle) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(METRICS_DOC_URL, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "usage stats",
-            message: e.to_string(),
-        })
-}
-
-/// AJ-E1105: what Settings ▸ Privacy shows.
-///
-/// # Errors
-///
-/// Per [`usage_stats_overview_impl`].
-#[tauri::command]
-pub fn usage_stats_overview(
-    state: tauri::State<'_, Arc<AppState>>,
-) -> AppResult<UsageStatsOverview> {
-    usage_stats_overview_impl(state.inner())
-}
-
-/// AJ-E1105: one report's exact JSON.
-///
-/// # Errors
-///
-/// Per [`usage_stats_report_impl`].
-#[tauri::command]
-pub fn usage_stats_report(
-    state: tauri::State<'_, Arc<AppState>>,
-    status: String,
-    week: String,
-) -> AppResult<String> {
-    usage_stats_report_impl(state.inner(), &status, &week)
-}
-
-/// AJ-E1105: "Delete local stats".
-///
-/// # Errors
-///
-/// Per [`usage_stats_delete_local_impl`].
-#[tauri::command]
-pub fn usage_stats_delete_local(
-    state: tauri::State<'_, Arc<AppState>>,
-) -> AppResult<UsageStatsSetResult> {
-    usage_stats_delete_local_impl(state.inner())
-}
-
 /// Core: the current choice and what applies.
 #[must_use]
 pub fn usage_stats_info_impl(state: &Arc<AppState>) -> UsageStatsInfo {
@@ -1884,22 +1820,10 @@ pub const SITES: &[(&str, Site)] = &[
         "leftover.detected",
         Site::Backend("the orphan tracker's confirmations"),
     ),
-    (
-        "leftover.cleaned",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "leftover.verify_refused",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "cleanup.memory_freed_mb",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "cleanup.ports_freed",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
+    ("leftover.cleaned", Site::Backend("kill_execute_as")),
+    ("leftover.verify_refused", Site::Backend("kill_execute_as")),
+    ("cleanup.memory_freed_mb", Site::Backend("kill_execute_as")),
+    ("cleanup.ports_freed", Site::Backend("kill_execute_as")),
     (
         "resource.alert",
         Site::Both("cleanup_alerts_inner (shown); Cleanup Centre (acted)"),
@@ -2047,43 +1971,6 @@ pub fn usage_stats_ui_gauge_impl(metric: &str, value: &str) {
     }
     #[cfg(not(feature = "stats"))]
     let _ = (metric, value);
-}
-
-/// AJ-E1103: counts one interface event (ignored unless stats are on and
-/// it is an interface metric with schema values).
-#[tauri::command]
-pub fn usage_stats_ui_event(
-    metric: String,
-    dims: std::collections::BTreeMap<String, String>,
-    value: Option<f64>,
-) {
-    usage_stats_ui_event_impl(&metric, &dims, value);
-}
-
-/// AJ-E1103: records an interface display preference as a gauge.
-#[tauri::command]
-pub fn usage_stats_ui_gauge(metric: String, value: String) {
-    usage_stats_ui_gauge_impl(&metric, &value);
-}
-
-/// AJ-E1102: the usage-stats choice and what applies.
-#[tauri::command]
-#[must_use]
-pub fn usage_stats_info(state: tauri::State<'_, Arc<AppState>>) -> UsageStatsInfo {
-    usage_stats_info_impl(state.inner())
-}
-
-/// AJ-E1102: sets the usage-stats mode (`off` deletes local stats).
-///
-/// # Errors
-///
-/// Per [`usage_stats_set_impl`].
-#[tauri::command]
-pub fn usage_stats_set(
-    state: tauri::State<'_, Arc<AppState>>,
-    mode: String,
-) -> AppResult<UsageStatsSetResult> {
-    usage_stats_set_impl(state.inner(), &mode)
 }
 
 #[cfg(test)]

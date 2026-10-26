@@ -131,7 +131,7 @@ export function SessionRow({
         {/* L1: I-01 I-02 … I-04/I-10 (text never hidden in Compact) */}
         <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <span
-            className="inline-flex min-w-0 shrink items-center gap-1 text-[10.5px] font-medium text-ink"
+            className="inline-flex min-w-0 shrink items-center gap-1 text-label font-medium text-ink"
             title={providerDisplayName(session.provider)}
           >
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
@@ -143,7 +143,7 @@ export function SessionRow({
             {badge ? (
               <span
                 className={
-                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium " +
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-label font-medium " +
                   chipToneClasses[badge.tone]
                 }
               >
@@ -153,7 +153,7 @@ export function SessionRow({
             ) : (
               <span
                 className={
-                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium " +
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-label font-medium " +
                   chipToneClasses[chip.tone]
                 }
               >
@@ -164,7 +164,7 @@ export function SessionRow({
           </span>
         </span>
         {/* L2: I-05 bar-only + I-09 + CPU/RAM text (sparkline → text) */}
-        <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-muted">
+        <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-label text-muted">
           <span
             className="relative inline-block h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-surface-3"
             title={session.quota ? `${Math.round(100 - session.quota.used_percentage)}% left · ${session.quota.confidence}` : "Quota: not measured yet"}
@@ -192,7 +192,7 @@ export function SessionRow({
               {resources ? (
                 <span className="min-w-0 truncate tabular-nums">{resources}</span>
               ) : (
-                <span className="text-faint" title="resources unavailable">
+                <span className="text-muted" title="resources unavailable">
                   <span aria-hidden="true">—</span>
                   <span className="sr-only">resources unavailable</span>
                 </span>
@@ -226,7 +226,7 @@ export function SessionRow({
           glyphs never clip (WCAG 1.4.1). */}
       <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
         <span
-          className="inline-flex min-w-0 shrink items-center gap-1 text-[10.5px] font-medium text-ink"
+          className="inline-flex min-w-0 shrink items-center gap-1 text-label font-medium text-ink"
           title={providerDisplayName(session.provider)}
         >
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
@@ -241,7 +241,7 @@ export function SessionRow({
             tabIndex={0}
             data-testid="rail-identity"
             data-state={identityWords(session)!.state}
-            className="shrink-0 rounded-full border border-hairline px-1 text-[9.5px] font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            className="shrink-0 rounded-full border border-hairline px-1 text-label font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           >
             {identityWords(session)!.glyph}
           </span>
@@ -249,14 +249,14 @@ export function SessionRow({
         {session.kind === "desktop" && (
           <span
             title="desktop app session"
-            className="shrink-0 rounded-full border border-accent/25 bg-accent-soft px-1 text-[9.5px] font-medium text-accent-hi"
+            className="shrink-0 rounded-full border border-accent/25 bg-accent-soft px-1 text-label font-medium text-accent-hi"
             data-testid="rail-app-chip"
           >
             app
           </span>
         )}
-        <span className="min-w-0 shrink truncate text-[10.5px] text-muted" title={session.model ?? "default model"}>
-          {session.model ?? <span className="text-faint">default model</span>}
+        <span className="min-w-0 shrink truncate text-label text-muted" title={session.model ?? "default model"}>
+          {session.model ?? <span className="text-muted">default model</span>}
         </span>
         {modelDrift(session) && (
           <span
@@ -264,7 +264,7 @@ export function SessionRow({
             aria-label={modelDrift(session)!}
             tabIndex={0}
             data-testid="model-drift"
-            className="shrink-0 rounded-full border border-warning/25 bg-warning-soft px-1 text-[10px] font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            className="shrink-0 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           >
             ⇄
           </span>
@@ -275,7 +275,7 @@ export function SessionRow({
               title={parkedWords(session, now)!.long}
               aria-label={parkedWords(session, now)!.long}
               data-testid="rail-parked"
-              className="inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-[10px] font-medium text-ink"
+              className="inline-flex items-center gap-1 rounded-full border border-hairline px-1.5 py-px text-label font-medium text-ink"
             >
               <span aria-hidden="true">⏸</span>
               {parkedWords(session, now)!.chip}
@@ -284,7 +284,7 @@ export function SessionRow({
             <span
               title={attentionTooltip(session)}
               className={
-                "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium " +
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-label font-medium " +
                 chipToneClasses[badge.tone]
               }
             >
@@ -294,7 +294,7 @@ export function SessionRow({
           ) : (
             <span
               className={
-                "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium " +
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-label font-medium " +
                 chipToneClasses[chip.tone]
               }
             >
@@ -306,7 +306,7 @@ export function SessionRow({
       </span>
       {/* I-10 suffix (wait duration / reset countdown) + I-09 I-11. The
           age text yields (truncate) before anything else clips. */}
-      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-muted">
+      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-label text-muted">
         {badge && suffix ? (
           <span
             className={
@@ -329,7 +329,7 @@ export function SessionRow({
       </span>
       {/* I-06 I-08 I-07 — right-hand resource text yields before anything
           clips. */}
-      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] text-muted">
+      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-label text-muted">
         {tokens ? <span className="shrink-0 tabular-nums">{tokens}</span> : null}
         <ChildBadges session={session} />
         {showResources && (
@@ -344,7 +344,7 @@ export function SessionRow({
         )}
       </span>
       {session.kind === "desktop" && (
-        <span className="self-start text-[9px] font-medium uppercase tracking-wide text-accent-hi">
+        <span className="self-start text-label font-semibold text-accent-hi">
           app
         </span>
       )}

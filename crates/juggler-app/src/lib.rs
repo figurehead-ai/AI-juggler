@@ -11,6 +11,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod activation;
 pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
@@ -43,12 +44,14 @@ pub mod lifecycle;
 pub mod link;
 pub mod machine_alerts;
 pub mod machine_health;
+pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
+pub mod paging;
 pub mod parked;
 pub mod preview;
 pub mod quit;
@@ -154,6 +157,7 @@ macro_rules! app_commands {
             Write crash::crash_ui_error,
             Read  commands::usage_source_health,
             Read  commands::cost_rollups,
+            Read  commands::cost_rows_page,
             Write commands::cost_csv_export,
             Write commands::pricing_override_set,
             Write commands::pricing_override_clear,
@@ -164,6 +168,10 @@ macro_rules! app_commands {
             Read  features::quota::capture::quota_capture_preview,
             Write features::quota::capture::quota_capture_turn_on,
             Write features::quota::capture::quota_capture_turn_off,
+            Read  features::quota::probe::quota_probe_status,
+            Write features::quota::probe::quota_probe_turn_on,
+            Write features::quota::probe::quota_probe_turn_off,
+            Write features::quota::probe::quota_probe_run,
             Write features::app::uninstall::app_prepare_uninstall,
             Write commands::account_set_fee,
             Read  commands::ranking_rows,
@@ -308,6 +316,11 @@ macro_rules! app_commands {
             Write features::account_settings::commands::account_settings_apply,
             Write features::trust::commands::trust_open,
             Read  features::budgets::commands::budgets_list,
+            Read  features::usage_history::commands::usage_history_summary,
+            Read  features::usage_history::commands::usage_history_sessions,
+            Read  features::usage_history::commands::usage_history_first,
+            Read  features::usage_history::commands::usage_history_limits,
+            Read  features::usage_history::commands::usage_history_session,
             Write features::budgets::commands::budgets_save,
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
@@ -352,9 +365,6 @@ macro_rules! app_commands {
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
             Read  commands::launch_port_warning,
-            Write commands::orphan_stop,
-            Write commands::orphan_stop_all,
-            Write commands::orphan_verify,
             Write commands::kill_verify,
             Write commands::kill_execute,
             Write commands::kill_cancel,
@@ -413,6 +423,7 @@ macro_rules! app_commands {
             Write manage::session_rename,
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
+            Read  features::conversations::commands::conversations_get,
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
@@ -424,6 +435,9 @@ macro_rules! app_commands {
             Read  features::subscriptions::commands::subscriptions_list,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
+            Read  features::sessions::commands::sessions_page,
+            Read  features::sessions::commands::sessions_counts,
+            Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.
@@ -443,6 +457,8 @@ macro_rules! app_commands {
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
+            // D-38: an app's icon, read from its bundle on this Mac.
+            Read  features::app_icons::app_icons_read,
             Write features::projects::mark::projects_mark_set,
             Read  features::project_sync::commands::project_sync_rules,
             Read  features::project_sync::commands::project_sync_diff,
@@ -685,6 +701,9 @@ pub fn run() {
                 // Without it a second launch uses the plugin's hand-over.
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
+            // 0.1.5: Go to it hands activation over on the main thread.
+            let main_handle = app.handle().clone();
+            activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
             register_go_to_hotkey(app.handle());
             features::notifications::connect(
                 app.handle(),
@@ -1046,7 +1065,10 @@ fn spawn_read_model_ticks(
                 use tauri::Emitter;
                 // QA batch 8: a long first pass tells the UI as it goes.
                 let tell = || {
-                    let _ = conversations_app.emit(features::conversations::EVENT_CHANGED, ());
+                    let _ = conversations_app.emit(
+                        features::conversations::EVENT_CHANGED,
+                        features::conversations::CHANGED_INDEX,
+                    );
                 };
                 if let Ok(true) = features::conversations::tick_with(
                     &conversations_state,
@@ -1071,7 +1093,10 @@ fn spawn_read_model_ticks(
                 loop {
                     use tauri::Emitter;
                     if let Ok(true) = features::conversations::live_tick(&live_state) {
-                        let _ = live_app.emit(features::conversations::EVENT_CHANGED, ());
+                        let _ = live_app.emit(
+                            features::conversations::EVENT_CHANGED,
+                            features::conversations::CHANGED_LIVE,
+                        );
                     }
                     // poll: the live view's cadence (scan::TICK, 2 s).
                     std::thread::sleep(features::conversations::scan::TICK);

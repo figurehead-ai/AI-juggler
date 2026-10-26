@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import type {
@@ -129,7 +129,7 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "main", type: "Session", tabs: ["Terminal", "Overview", "Usage", "Processes"] },
+    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Usage", "Processes"] },
     // A tool's page is its body alone: no tab strip.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
@@ -156,13 +156,17 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     expect(openProject).toHaveBeenCalledWith("proj-1");
   });
 
-  it("a project's Usage tab appears once something is measured, by account", () => {
+  it("a project's Usage tab appears once something is measured: its dashboard, scoped to it", async () => {
     const measured = { ...instance, tokens: { input: 1200, output: 300, cache_read: 5000, cache_write: 0, reasoning: 0 } };
     const { container, getByTestId } = render(
       <RightInspector selection={{ kind: "project", id: "proj-1" }} data={{ project, machineId: "this-mac" }} {...props} sessions={[measured]} />,
     );
     fireEvent.click(container.querySelector("#page-tab-usage")!);
-    expect(getByTestId("project-usage-total").textContent).toBe("2k");
+    const dashboard = getByTestId("project-usage-dashboard");
+    // The frame draws at once: four figures, the charts' cards.
+    expect(within(dashboard).getAllByTestId("stat-value").length).toBe(4);
+    expect(within(dashboard).getByTestId("usage-over-time")).toBeTruthy();
+    await waitFor(() => expect(within(dashboard).getByTestId("tile-tokens").textContent).not.toContain("—"));
   });
 
   it("a project's header reads its root's git state: branch, ahead/behind, not committed", async () => {
@@ -182,9 +186,11 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   });
 
   it("a project's body lists its sessions, live first", () => {
-    const { getAllByTestId, getByTestId } = shell({ kind: "project", id: "proj-1" });
-    expect(getAllByTestId("page-session-row")).toHaveLength(1);
-    expect(getByTestId("page-sessions-count").textContent).toBe("1 session · 1 open");
+    const { getByTestId } = shell({ kind: "project", id: "proj-1" });
+    // The Sessions panel's own list (Overview's Open sessions is a list too).
+    const panel = getByTestId("page-panel-sessions");
+    expect(panel.querySelectorAll('[data-testid="page-session-row"]')).toHaveLength(1);
+    expect(panel.querySelector('[data-testid="page-sessions-count"]')!.textContent).toBe("1 session · 1 open");
   });
 });
 
@@ -209,9 +215,9 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   // (⌥ changes what `key` reads; the digit comes from `code`).
   it("Option+Cmd/Ctrl+digit picks a tab; Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    fireEvent.keyDown(window, { key: "4", code: "Digit4", metaKey: true });
+    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("false");
-    fireEvent.keyDown(window, { key: "¢", code: "Digit4", metaKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement?.id).toBe("page-tab-processes");
   });

@@ -51,231 +51,9 @@ impl AppInfo {
     }
 }
 
-/// AJ-E609: the account's cost rollups (session/account/project/day
-/// dimensions share one shape — the UI matrix and the CSV export read
-/// the SAME rows, so reconciliation is exact) plus the dual
-/// subscription view and the pricing-staleness flag.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
-pub struct CostRollupsInfo {
-    /// Day-bucketed rollup rows (`key` = session id in the session
-    /// dimension).
-    pub rows: Vec<juggler_core::cost_ledger::CostRollup>,
-    /// "≈$X at API prices · you pay flat" — ratio only when a fee
-    /// exists (AJ-E610's form owns entry).
-    pub subscription: juggler_core::cost_ledger::SubscriptionView,
-    /// The bundled pricing table is >30 d old (inline warn).
-    pub pricing_stale: bool,
-    /// The bundled table's `last synced`, epoch ms.
-    pub pricing_last_synced_ms: Option<i64>,
-    /// The grand-total row (ALL bucket) for the scope.
-    pub total_usd: Option<f64>,
-    /// The scope the query ran over (account id or `ALL`).
-    pub scope: String,
-}
-
-/// The catalog as loaded: bundled seed + user overrides + staleness.
-#[must_use]
-pub(crate) fn pricing_catalog(
-    storage: &juggler_core::storage::Storage,
-) -> juggler_core::cost_ledger::PricingCatalog {
-    use juggler_core::cost_ledger::PricingCatalog;
-    let mut catalog = PricingCatalog {
-        bundled: juggler_core::cost_ledger::load_seed_rows(),
-        overrides: storage.usage().pricing_overrides().unwrap_or_default(),
-        last_synced_ms: None,
-    };
-    catalog.last_synced_ms = storage
-        .app_settings()
-        .get("pricing_synced_at")
-        .ok()
-        .flatten()
-        .and_then(|value| value.parse::<i64>().ok());
-    catalog
-}
-
-/// The scoped events (one account, or every account with usage) plus
-/// the account's optional user-entered flat fee.
-fn scoped_cost_events(
-    storage: &juggler_core::storage::Storage,
-    account: Option<&str>,
-) -> (String, Vec<juggler_core::quota::UsageEvent>, Option<f64>) {
-    let account = account.map_or_else(|| "ALL".to_owned(), str::to_owned);
-    let usage = storage.usage();
-    let mut events = Vec::new();
-    if account == "ALL" {
-        for account_id in usage.usage_accounts().unwrap_or_default() {
-            events.extend(usage.events_for_account(&account_id, 0).unwrap_or_default());
-        }
-    } else {
-        events = usage.events_for_account(&account, 0).unwrap_or_default();
-    }
-    let fee = storage
-        .app_settings()
-        .get(&format!("subscription_fee:{account}"))
-        .ok()
-        .flatten()
-        .and_then(|value| value.parse::<f64>().ok());
-    (account, events, fee)
-}
-
-/// AJ-E609 Req.3: the per-session cost matrix (session × model × day).
-#[tauri::command]
-#[must_use]
-pub fn cost_rollups(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-    account: Option<String>,
-) -> CostRollupsInfo {
-    let Ok(storage) = state.storage.lock() else {
-        return CostRollupsInfo::default_cost();
-    };
-    let catalog = pricing_catalog(&storage);
-    let (scope, events, fee) = scoped_cost_events(&storage, account.as_deref());
-    let rows = juggler_core::cost_ledger::rollup(
-        &events,
-        &catalog,
-        juggler_core::cost_ledger::RollupDimension::Session,
-    );
-    let all = juggler_core::cost_ledger::rollup(
-        &events,
-        &catalog,
-        juggler_core::cost_ledger::RollupDimension::All,
-    );
-    let total_usd = all.first().and_then(|row| row.usd.usd);
-    let view = juggler_core::cost_ledger::subscription_view(total_usd, fee);
-    let now = juggler_core::model::Timestamp::now().millis();
-    CostRollupsInfo {
-        rows,
-        subscription: view,
-        pricing_stale: catalog.is_stale(now),
-        pricing_last_synced_ms: catalog.last_synced_ms,
-        total_usd,
-        scope,
-    }
-}
-
-impl CostRollupsInfo {
-    /// The poison/error fallback: an empty, honest matrix.
-    #[must_use]
-    fn default_cost() -> Self {
-        Self {
-            rows: Vec::new(),
-            subscription: juggler_core::cost_ledger::subscription_view(None, None),
-            pricing_stale: false,
-            pricing_last_synced_ms: None,
-            total_usd: None,
-            scope: String::new(),
-        }
-    }
-}
-
-/// AJ-E609 Req.6: streams the CSV to a temp file (chunked month
-/// windows — never a full-table read) and returns its path. The rows
-/// are the SAME rollup shape the UI displays.
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] on storage or I/O failure.
-#[tauri::command]
-pub fn cost_csv_export(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-    account: Option<String>,
-) -> AppResult<String> {
-    let storage = lock_storage_arc(&state)?;
-    let catalog = pricing_catalog(&storage);
-    let usage = storage.usage();
-    let accounts: Vec<String> = match account.as_deref() {
-        Some(named) => vec![named.to_owned()],
-        None => usage.usage_accounts()?,
-    };
-    let month_ms = 30 * 24 * 60 * 60 * 1000_i64;
-    let now = juggler_core::model::Timestamp::now().millis();
-    let path = std::env::temp_dir().join(format!("ai-juggler-costs-{now}.csv"));
-    let mut file =
-        std::fs::File::create(&path).map_err(|error| AppError::io("create cost csv", &error))?;
-    // Header + chunked month windows, merged into the day map as we
-    // go (bounded memory: the map is day-bucketed, the events chunk
-    // never accumulates).
-    let mut merged: Vec<juggler_core::cost_ledger::CostRollup> = Vec::new();
-    for account_id in &accounts {
-        let mut hi = now;
-        loop {
-            let lo = hi.saturating_sub(month_ms);
-            let chunk = usage.events_between(account_id, lo, hi)?;
-            if !chunk.is_empty() {
-                let mut rows = juggler_core::cost_ledger::rollup(
-                    &chunk,
-                    &catalog,
-                    juggler_core::cost_ledger::RollupDimension::Session,
-                );
-                merged.append(&mut rows);
-            }
-            if lo <= 0 {
-                break;
-            }
-            hi = lo;
-        }
-    }
-    juggler_core::cost_ledger::write_csv(&merged, &mut file)
-        .map_err(|error| AppError::io("write cost csv", &error))?;
-    Ok(path.to_string_lossy().to_string())
-}
-
-/// AJ-E609 Req.1: set one user pricing override (the editor shows
-/// `source_url` + effective date before save — AJ-E610's surface).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] on validation or storage failure.
-#[tauri::command]
-pub fn pricing_override_set(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-    row: juggler_core::cost_ledger::LedgerPriceRow,
-) -> AppResult<()> {
-    if row.model.trim().is_empty() || row.source_url.trim().is_empty() {
-        return Err(AppError::Validation {
-            subject: "pricing override",
-            message: "model and source_url are required (auditable pricing law)".into(),
-        });
-    }
-    let storage = lock_storage_arc(&state)?;
-    storage
-        .usage()
-        .pricing_override_upsert(&row)
-        .map_err(AppError::from)?;
-    Ok(())
-}
-
-/// AJ-E609: clear one override (history reprices back to bundled).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] on storage failure.
-#[tauri::command]
-pub fn pricing_override_clear(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-    model: String,
-    effective_from_ms: i64,
-) -> AppResult<()> {
-    let storage = lock_storage_arc(&state)?;
-    storage
-        .usage()
-        .pricing_override_delete(&model, effective_from_ms)
-        .map_err(AppError::from)?;
-    Ok(())
-}
-
-/// AJ-E609: catalog metadata for the pricing editor (staleness, last
-/// synced, the bundled + override rows).
-#[tauri::command]
-#[must_use]
-pub fn pricing_catalog_info(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-) -> juggler_core::cost_ledger::PricingCatalog {
-    match state.storage.lock() {
-        Ok(storage) => pricing_catalog(&storage),
-        Err(_) => juggler_core::cost_ledger::PricingCatalog::default(),
-    }
-}
+// The cost commands (AJ-E609) are their own module.
+mod costs;
+pub use costs::*;
 
 // The quota display (AJ-E610/E611, #120) is its own feature module.
 pub use crate::features::quota::*;
@@ -885,17 +663,23 @@ fn badge_word(confidence: juggler_core::model::Confidence) -> &'static str {
 /// its wall-clock local hour — the quiet-hours gate for the digest
 /// flush.
 #[tauri::command]
-#[must_use]
-pub fn alerts_tick(
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn alerts_tick(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     local_hour: Option<u32>,
-) -> Vec<AlertEventInfo> {
-    // AJ-E1510: the local hour, for notifications' quiet hours.
-    state.notifier.local_hour_seen(local_hour, now_millis());
-    let events = alerts_tick_inner(&state, local_hour);
-    // AJ-E709: route them to paired consoles too (a no-op with Link off).
-    crate::link::publish_alerts(state.inner(), &events);
-    events
+) -> AppResult<Vec<AlertEventInfo>> {
+    crate::ipc::blocking(state.inner(), "alerts tick", move |state| {
+        // AJ-E1510: the local hour, for notifications' quiet hours.
+        state.notifier.local_hour_seen(local_hour, now_millis());
+        let events = alerts_tick_inner(state, local_hour);
+        // AJ-E709: route them to paired consoles too (a no-op with Link off).
+        crate::link::publish_alerts(state, &events);
+        Ok(events)
+    })
+    .await
 }
 
 /// AJ-E611: one reset-queue row.
@@ -921,44 +705,53 @@ pub struct ResetQueueInfo {
 ///
 /// Returns the typed [`AppError`] on storage failure.
 #[tauri::command]
-pub fn reset_queue_queue(
+pub async fn reset_queue_queue(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     session: String,
     account: String,
     resume_at_ms: i64,
 ) -> AppResult<()> {
-    let storage = lock_storage_arc(&state)?;
-    let id = format!("rq-{session}");
-    storage
-        .usage()
-        .queue_reset(&id, &session, &account, resume_at_ms)
-        .map_err(AppError::from)?;
-    Ok(())
+    crate::ipc::blocking(state.inner(), "reset queue queue", move |state| {
+        let storage = lock_storage_arc(state)?;
+        let id = format!("rq-{session}");
+        storage
+            .usage()
+            .queue_reset(&id, &session, &account, resume_at_ms)
+            .map_err(AppError::from)?;
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E611: the queue rows (countdown/ready/stale explained).
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
 #[tauri::command]
-#[must_use]
-pub fn reset_queue_list(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-) -> Vec<ResetQueueInfo> {
-    let Ok(storage) = state.storage.lock() else {
-        return Vec::new();
-    };
-    let now = juggler_core::model::Timestamp::now().millis();
-    storage
-        .usage()
-        .pending_resumes(now + 365 * 24 * 3_600_000)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(id, session, account, resume_at)| ResetQueueInfo {
-            id,
-            session,
-            account,
-            resume_at_ms: resume_at,
-            state: if resume_at <= now { "ready" } else { "queued" }.to_owned(),
-        })
-        .collect()
+pub async fn reset_queue_list(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<ResetQueueInfo>> {
+    crate::ipc::blocking(state.inner(), "reset queue list", |state| {
+        let Ok(storage) = state.storage.lock() else {
+            return Ok(Vec::new());
+        };
+        let now = juggler_core::model::Timestamp::now().millis();
+        Ok(storage
+            .usage()
+            .pending_resumes(now + 365 * 24 * 3_600_000)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(id, session, account, resume_at)| ResetQueueInfo {
+                id,
+                session,
+                account,
+                resume_at_ms: resume_at,
+                state: if resume_at <= now { "ready" } else { "queued" }.to_owned(),
+            })
+            .collect())
+    })
+    .await
 }
 
 /// AJ-E611: dismiss a queued resume (explicit user action).
@@ -967,16 +760,19 @@ pub fn reset_queue_list(
 ///
 /// Returns the typed [`AppError`] on storage failure.
 #[tauri::command]
-pub fn reset_queue_dismiss(
+pub async fn reset_queue_dismiss(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     id: String,
 ) -> AppResult<()> {
-    let storage = lock_storage_arc(&state)?;
-    storage
-        .usage()
-        .set_reset_state(&id, "dismissed")
-        .map_err(AppError::from)?;
-    Ok(())
+    crate::ipc::blocking(state.inner(), "reset queue dismiss", move |state| {
+        let storage = lock_storage_arc(state)?;
+        storage
+            .usage()
+            .set_reset_state(&id, "dismissed")
+            .map_err(AppError::from)?;
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E610 Req.3/E609 Req.4: the user-entered flat subscription fee
@@ -987,34 +783,37 @@ pub fn reset_queue_dismiss(
 ///
 /// Returns the typed [`AppError`] on validation or storage failure.
 #[tauri::command]
-pub fn account_set_fee(
+pub async fn account_set_fee(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     account: String,
     fee_usd: Option<f64>,
 ) -> AppResult<()> {
-    if let Some(fee) = fee_usd
-        && !(0.0..=100_000.0).contains(&fee)
-    {
-        return Err(AppError::Validation {
-            subject: "subscription fee",
-            message: "must be between 0 and 100000 USD/month".into(),
-        });
-    }
-    let storage = lock_storage_arc(&state)?;
-    let key = format!("subscription_fee:{account}");
-    match fee_usd {
-        Some(fee) => storage
-            .app_settings()
-            .set(&key, &fee.to_string())
-            .map_err(AppError::from)?,
-        None => {
-            storage
-                .app_settings()
-                .set(&key, "")
-                .map_err(AppError::from)?;
+    crate::ipc::blocking(state.inner(), "account set fee", move |state| {
+        if let Some(fee) = fee_usd
+            && !(0.0..=100_000.0).contains(&fee)
+        {
+            return Err(AppError::Validation {
+                subject: "subscription fee",
+                message: "must be between 0 and 100000 USD/month".into(),
+            });
         }
-    }
-    Ok(())
+        let storage = lock_storage_arc(state)?;
+        let key = format!("subscription_fee:{account}");
+        match fee_usd {
+            Some(fee) => storage
+                .app_settings()
+                .set(&key, &fee.to_string())
+                .map_err(AppError::from)?,
+            None => {
+                storage
+                    .app_settings()
+                    .set(&key, "")
+                    .map_err(AppError::from)?;
+            }
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E610: the two-clock display for one account (by id).
@@ -1023,30 +822,33 @@ pub fn account_set_fee(
 ///
 /// Returns [`AppError::NotFound`] when the account is unknown.
 #[tauri::command]
-pub fn quota_display(
+pub async fn quota_display(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
     account: String,
 ) -> AppResult<QuotaDisplayInfo> {
-    let storage = lock_storage_arc(&state)?;
-    let record = storage
-        .accounts()
-        .get(&juggler_core::model::AccountId::new(account.clone()))?;
-    let display = quota_display_inner(
-        &storage,
-        &record,
-        juggler_core::model::Timestamp::now().millis(),
-    );
-    // AJ-E1103: the Usage tab is showing an exhaustion forecast.
-    if display.forecast.tte_min.is_some() {
-        crate::usage_stats::count(
-            "usage.forecast_shown",
-            &[(
-                "provider",
-                crate::usage_stats::provider(record.harness.as_str()),
-            )],
+    crate::ipc::blocking(state.inner(), "quota display", move |state| {
+        let storage = lock_storage_arc(state)?;
+        let record = storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(account.clone()))?;
+        let display = quota_display_inner(
+            &storage,
+            &record,
+            juggler_core::model::Timestamp::now().millis(),
         );
-    }
-    Ok(display)
+        // AJ-E1103: the Usage tab is showing an exhaustion forecast.
+        if display.forecast.tte_min.is_some() {
+            crate::usage_stats::count(
+                "usage.forecast_shown",
+                &[(
+                    "provider",
+                    crate::usage_stats::provider(record.harness.as_str()),
+                )],
+            );
+        }
+        Ok(display)
+    })
+    .await
 }
 
 /// AJ-E610: the two-clock display for EVERY account (the rail chip /
@@ -1082,20 +884,25 @@ pub async fn quota_display_all(
 /// ENGINE demotes its Measured readings to Stale; data is never
 /// deleted).
 #[tauri::command]
-#[must_use]
-pub fn usage_source_health(
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn usage_source_health(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-) -> Vec<crate::usage_pipeline::SourceHealthInfo> {
-    crate::usage_pipeline::source_health(&state)
+) -> AppResult<Vec<crate::usage_pipeline::SourceHealthInfo>> {
+    crate::ipc::blocking(state.inner(), "usage source health", move |state| {
+        Ok(crate::usage_pipeline::source_health(state))
+    })
+    .await
 }
 
 #[tauri::command]
-#[must_use]
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn app_info() -> AppInfo {
+pub async fn app_info() -> AppInfo {
     AppInfo::current()
 }
 
@@ -1463,12 +1270,11 @@ pub struct ImportResult {
 /// Lists the Providers this build can manage (canonical name; the
 /// legacy `harnesses_list` alias is registered in the handler).
 #[tauri::command(rename = "providers_list")]
-#[must_use]
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn harnesses_list() -> Vec<ProviderInfo> {
+pub async fn harnesses_list() -> Vec<ProviderInfo> {
     let registry = crate::state::default_registry();
     registry
         .ids()
@@ -1522,13 +1328,16 @@ pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn account_create(
+pub async fn account_create(
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
     label: String,
     plan: Option<String>,
 ) -> AppResult<AccountInfo> {
-    create_account(state.inner(), &harness, &label, plan)
+    crate::ipc::blocking(state.inner(), "account create", move |state| {
+        create_account(state, &harness, &label, plan)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests (commands need a
@@ -1578,12 +1387,15 @@ pub fn create_account(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn account_login_state(
+pub async fn account_login_state(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<String> {
-    let account = find_account(&state, &account_id)?;
-    Ok(login_state_name(login_state_of(&state.registry, &account)).to_string())
+    crate::ipc::blocking(state.inner(), "account login state", move |state| {
+        let account = find_account_arc(state, &account_id)?;
+        Ok(login_state_name(login_state_of(&state.registry, &account)).to_string())
+    })
+    .await
 }
 
 /// The copyable shell command that runs the vendor's own login against this
@@ -1593,33 +1405,44 @@ pub fn account_login_state(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn account_login_command(
+pub async fn account_login_command(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<String> {
-    let account = find_account(&state, &account_id)?;
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    juggler_adapter::adapter::shell_snippet(
-        adapter.as_ref(),
-        &account.state_dir,
-        &std::collections::BTreeMap::new(),
-    )
-    .ok_or_else(|| AppError::Validation {
-        subject: "sign-in",
-        message: format!("{} has no terminal sign-in command", account.harness),
+    crate::ipc::blocking(state.inner(), "account login command", move |state| {
+        let account = find_account_arc(state, &account_id)?;
+        let adapter = state
+            .registry
+            .get(&account.harness)
+            .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
+        juggler_adapter::adapter::shell_snippet(
+            adapter.as_ref(),
+            &account.state_dir,
+            &std::collections::BTreeMap::new(),
+        )
+        .ok_or_else(|| AppError::Validation {
+            subject: "sign-in",
+            message: format!("{} has no terminal sign-in command", account.harness),
+        })
     })
+    .await
 }
 
 /// Scans the machine for existing harness setups the onboarding wizard can
 /// import (metadata-only; ADR-0006). Never fails — an empty list is a
 /// valid "nothing found".
 #[tauri::command]
-#[must_use]
-pub fn environment_scan(state: tauri::State<'_, Arc<AppState>>) -> Vec<DiscoveredInfo> {
-    environment_scan_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn environment_scan(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<DiscoveredInfo>> {
+    crate::ipc::blocking(state.inner(), "environment scan", move |state| {
+        Ok(environment_scan_impl(state))
+    })
+    .await
 }
 
 /// The stable LOCAL machine id (AJ-E501 Req.6, D-13): generated once,
@@ -1835,8 +1658,11 @@ pub fn funnel_event_impl(
 ///
 /// Returns the typed [`AppError`] on storage failure.
 #[tauri::command]
-pub fn funnel_export(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
-    funnel_export_impl(state.inner())
+pub async fn funnel_export(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "funnel export", move |state| {
+        funnel_export_impl(state)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -1884,18 +1710,21 @@ pub struct ExpertSetupInfo {
 /// Returns the typed [`AppError`] for an unknown Provider, Account,
 /// or Launch settings (or Launch settings of another Account).
 #[tauri::command]
-pub fn expert_setup_info(
+pub async fn expert_setup_info(
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
     account_id: Option<String>,
     recipe_id: Option<String>,
 ) -> AppResult<ExpertSetupInfo> {
-    expert_setup_info_impl(
-        state.inner(),
-        &provider,
-        account_id.as_deref(),
-        recipe_id.as_deref(),
-    )
+    crate::ipc::blocking(state.inner(), "expert setup info", move |state| {
+        expert_setup_info_impl(
+            state,
+            &provider,
+            account_id.as_deref(),
+            recipe_id.as_deref(),
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -1983,19 +1812,22 @@ pub fn expert_setup_info_impl(
 /// Returns the typed [`AppError`] for unknown ids or when Finder
 /// cannot be opened.
 #[tauri::command]
-pub fn expert_reveal(
+pub async fn expert_reveal(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
     account_id: Option<String>,
 ) -> AppResult<()> {
-    let target = expert_reveal_target(state.inner(), &provider, account_id.as_deref())?;
-    app.opener()
-        .reveal_item_in_dir(&target)
-        .map_err(|error| AppError::Io {
-            context: "reveal in Finder",
-            message: error.to_string(),
-        })
+    crate::ipc::blocking(state.inner(), "expert reveal", move |state| {
+        let target = expert_reveal_target(state, &provider, account_id.as_deref())?;
+        app.opener()
+            .reveal_item_in_dir(&target)
+            .map_err(|error| AppError::Io {
+                context: "reveal in Finder",
+                message: error.to_string(),
+            })
+    })
+    .await
 }
 
 /// The folder [`expert_reveal`] would show (shared with tests): the
@@ -2039,12 +1871,15 @@ pub use crate::env_overlay::validate_env_overlay;
 ///
 /// Returns the typed [`AppError`] for an unknown id.
 #[tauri::command]
-pub fn launch_recipe_env_get(
+pub async fn launch_recipe_env_get(
     state: tauri::State<'_, Arc<AppState>>,
     recipe_id: String,
 ) -> AppResult<std::collections::BTreeMap<String, String>> {
-    let (recipe, _) = find_profile_with_account_arc(state.inner(), &recipe_id)?;
-    Ok(recipe.settings_overlay.env)
+    crate::ipc::blocking(state.inner(), "launch recipe env get", move |state| {
+        let (recipe, _) = find_profile_with_account_arc(state, &recipe_id)?;
+        Ok(recipe.settings_overlay.env)
+    })
+    .await
 }
 
 /// AJ-E309 Req.5: replaces one Launch settings' environment
@@ -2056,12 +1891,15 @@ pub fn launch_recipe_env_get(
 /// Returns the typed [`AppError`] for an unknown id, a refused
 /// overlay, or a storage failure.
 #[tauri::command]
-pub fn launch_recipe_env_set(
+pub async fn launch_recipe_env_set(
     state: tauri::State<'_, Arc<AppState>>,
     recipe_id: String,
     env: std::collections::BTreeMap<String, String>,
 ) -> AppResult<std::collections::BTreeMap<String, String>> {
-    launch_recipe_env_set_impl(state.inner(), &recipe_id, env)
+    crate::ipc::blocking(state.inner(), "launch recipe env set", move |state| {
+        launch_recipe_env_set_impl(state, &recipe_id, env)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -2106,11 +1944,14 @@ pub struct IsolationRowInfo {
 ///
 /// Returns the typed [`AppError`] (unknown account / storage).
 #[tauri::command]
-pub fn isolation_check(
+pub async fn isolation_check(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<Vec<IsolationRowInfo>> {
-    isolation_check_impl(state.inner(), &account_id)
+    crate::ipc::blocking(state.inner(), "isolation check", move |state| {
+        isolation_check_impl(state, &account_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -2277,12 +2118,15 @@ pub(crate) fn launch_env_pinned(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] (unknown harness / unreadable path).
-pub fn source_inspect(
+pub async fn source_inspect(
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
     source_path: String,
 ) -> AppResult<SourceInspectInfo> {
-    source_inspect_impl(state.inner(), &harness, &source_path)
+    crate::ipc::blocking(state.inner(), "source inspect", move |state| {
+        source_inspect_impl(state, &harness, &source_path)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -2366,11 +2210,14 @@ pub fn account_import(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn account_use_original(
+pub async fn account_use_original(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<AccountInfo> {
-    account_use_original_impl(state.inner(), &account_id)
+    crate::ipc::blocking(state.inner(), "account use original", move |state| {
+        account_use_original_impl(state, &account_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -2641,30 +2488,35 @@ fn bring_in_setup(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn terminal_spawn_login(
+pub async fn terminal_spawn_login(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<crate::terminal::TerminalInfo> {
-    crate::terminal::spawn_login_terminal_impl(&app, state.inner(), &account_id)
+    crate::ipc::blocking(state.inner(), "terminal spawn login", move |state| {
+        crate::terminal::spawn_login_terminal_impl(&app, state, &account_id)
+    })
+    .await
 }
 
 /// Starts streaming a supervised session into the terminal dock
 /// (idempotent per terminal).
 #[tauri::command]
-#[must_use]
-pub fn terminal_attach(
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn terminal_attach(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
-) -> crate::terminal::TerminalInfo {
-    let info = crate::terminal::TerminalInfo { id: id.clone() };
-    crate::terminal::attach_forwarder(
-        &app,
-        state.inner(),
-        &juggler_core::model::SessionId::new(id),
-    );
-    info
+) -> AppResult<crate::terminal::TerminalInfo> {
+    crate::ipc::blocking(state.inner(), "terminal attach", move |state| {
+        let info = crate::terminal::TerminalInfo { id: id.clone() };
+        crate::terminal::attach_forwarder(&app, state, &juggler_core::model::SessionId::new(id));
+        Ok(info)
+    })
+    .await
 }
 
 /// Feeds keystrokes to a terminal.
@@ -2673,12 +2525,15 @@ pub fn terminal_attach(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn terminal_write(
+pub async fn terminal_write(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
     data: String,
 ) -> AppResult<()> {
-    crate::terminal::terminal_write_impl(state.inner(), &id, &data)
+    crate::ipc::blocking(state.inner(), "terminal write", move |state| {
+        crate::terminal::terminal_write_impl(state, &id, &data)
+    })
+    .await
 }
 
 /// Resizes a terminal.
@@ -2687,13 +2542,16 @@ pub fn terminal_write(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn terminal_resize(
+pub async fn terminal_resize(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
     cols: u16,
     rows: u16,
 ) -> AppResult<()> {
-    crate::terminal::terminal_resize_impl(state.inner(), &id, cols, rows)
+    crate::ipc::blocking(state.inner(), "terminal resize", move |state| {
+        crate::terminal::terminal_resize_impl(state, &id, cols, rows)
+    })
+    .await
 }
 
 /// Stops a terminal's process (graceful ladder).
@@ -2702,8 +2560,11 @@ pub fn terminal_resize(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<()> {
-    crate::terminal::terminal_kill_impl(state.inner(), &id)
+pub async fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "terminal kill", move |state| {
+        crate::terminal::terminal_kill_impl(state, &id)
+    })
+    .await
 }
 
 /// The retained output tail (base64) for replay on panel reopen.
@@ -2712,8 +2573,14 @@ pub fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppR
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn terminal_snapshot(state: tauri::State<'_, Arc<AppState>>, id: String) -> AppResult<String> {
-    crate::terminal::terminal_snapshot_impl(state.inner(), &id)
+pub async fn terminal_snapshot(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "terminal snapshot", move |state| {
+        crate::terminal::terminal_snapshot_impl(state, &id)
+    })
+    .await
 }
 
 /// Opens the vendor's own web sign-in page in the system browser — the
@@ -2724,27 +2591,30 @@ pub fn terminal_snapshot(state: tauri::State<'_, Arc<AppState>>, id: String) -> 
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn login_open_web(
+pub async fn login_open_web(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
 ) -> AppResult<()> {
-    let adapter = state
-        .registry
-        .get(&juggler_core::model::HarnessId::new(harness.as_str()))
-        .ok_or_else(|| AppError::UnknownHarness(harness.clone()))?;
-    let Some(url) = adapter.login_url() else {
-        return Err(AppError::Io {
-            context: "open login page",
-            message: format!("{harness} has no web sign-in page"),
-        });
-    };
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "open login page",
-            message: e.to_string(),
-        })
+    crate::ipc::blocking(state.inner(), "login open web", move |state| {
+        let adapter = state
+            .registry
+            .get(&juggler_core::model::HarnessId::new(harness.as_str()))
+            .ok_or_else(|| AppError::UnknownHarness(harness.clone()))?;
+        let Some(url) = adapter.login_url() else {
+            return Err(AppError::Io {
+                context: "open login page",
+                message: format!("{harness} has no web sign-in page"),
+            });
+        };
+        app.opener()
+            .open_url(url, None::<&str>)
+            .map_err(|e| AppError::Io {
+                context: "open login page",
+                message: e.to_string(),
+            })
+    })
+    .await
 }
 
 /// Lists Launch settings (canonical name `launch_recipes_list`;
@@ -2771,14 +2641,17 @@ pub async fn profiles_list(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn profile_create(
+pub async fn profile_create(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     name: String,
     model: Option<String>,
     default_cwd: Option<String>,
 ) -> AppResult<ProfileInfo> {
-    create_profile(state.inner(), &account_id, &name, model, default_cwd)
+    crate::ipc::blocking(state.inner(), "profile create", move |state| {
+        create_profile(state, &account_id, &name, model, default_cwd)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -2834,11 +2707,17 @@ pub fn create_profile(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn profile_delete(state: tauri::State<'_, Arc<AppState>>, profile_id: String) -> AppResult<()> {
-    lock_storage(&state)?
-        .profiles()
-        .delete(&ProfileId::new(profile_id))?;
-    Ok(())
+pub async fn profile_delete(
+    state: tauri::State<'_, Arc<AppState>>,
+    profile_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "profile delete", move |state| {
+        lock_storage_arc(state)?
+            .profiles()
+            .delete(&ProfileId::new(profile_id))?;
+        Ok(())
+    })
+    .await
 }
 
 /// Launches a session for a profile through the supervisor (one click on
@@ -2962,15 +2841,18 @@ fn civil_from_days(z: i64) -> juggler_core::renewal::CalendarDate {
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn launch_session(
+pub async fn launch_session(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     profile_id: String,
     cwd: Option<String>,
 ) -> AppResult<LaunchResult> {
-    let result = launch_profile(state.inner(), &profile_id, cwd)?;
-    emit_sessions(&app, state.inner())?;
-    Ok(result)
+    crate::ipc::blocking(state.inner(), "launch session", move |state| {
+        let result = launch_profile(state, &profile_id, cwd)?;
+        emit_sessions(&app, state)?;
+        Ok(result)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -3022,50 +2904,34 @@ pub fn launch_profile(
     // A worktree's sessions belong to its repository's project.
     let project_root = juggler_core::storage::worktree_repo_root(&canonical_cwd)
         .unwrap_or_else(|| canonical_cwd.clone());
-    let project_id = {
-        let storage = lock_storage_arc(state)?;
-        storage
-            .projects()
-            .touch(&project_root, None)?
-            .id
-            .to_string()
-    };
-    let spawned = state.supervisor.spawn(
-        &session_id,
-        &spec,
-        &ledger_ctx(state, &account, Some(project_id.clone())),
-    )?;
-    {
-        // The machine identity locks storage itself — resolve it
-        // BEFORE the insert-scope lock (non-reentrant mutex).
-        let machine = local_machine_id(state);
+    let project = {
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&project_root, None)?;
         // AJ-E1502: a session started here brings a forgotten project back.
         if project.forgotten_at.is_some() {
             storage.projects().set_forgotten(&project.id, false)?;
         }
-        let usage = engine_usage_snapshot(&storage, &profile.id);
-        storage.sessions().insert(&SessionRecord {
-            id: session_id.clone(),
-            conversation: None,
-            profile: profile.id,
-            machine: machine.clone(),
-            kind: juggler_core::model::InstanceKind::Terminal,
-            project: Some(project.id.clone()),
-            cwd: spec.cwd.clone(),
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            // Terminal Instances own no window identity (AJ-E414).
-            window: None,
-            transcript_ref: None,
-        })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), false, "new");
+        project.id
     };
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session_id,
+            account: &account,
+            profile: &profile.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: Some(project.clone()),
+            cwd: spec.cwd.clone(),
+            conversation: None,
+            transcript_ref: None,
+            origin: "new",
+        },
+        || {
+            let ctx = ledger_ctx(state, &account, Some(project.to_string()));
+            Ok(state.supervisor.spawn(&session_id, &spec, &ctx)?)
+        },
+    )?;
     crate::identity::record(state, &session_id, &account, &assertion, "launch");
     Ok(LaunchResult {
         session_id: session_id.to_string(),
@@ -3082,14 +2948,17 @@ pub fn launch_profile(
 /// Returns the typed [`AppError`] message when the provider ships no
 /// desktop app or the process cannot start.
 #[tauri::command]
-pub fn desktop_launch(
+pub async fn desktop_launch(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<DesktopLaunchInfo> {
-    let result = desktop_launch_arc(state.inner(), &account_id)?;
-    emit_sessions(&app, state.inner())?;
-    Ok(result)
+    crate::ipc::blocking(state.inner(), "desktop launch", move |state| {
+        let result = desktop_launch_arc(state, &account_id)?;
+        emit_sessions(&app, state)?;
+        Ok(result)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -3150,53 +3019,47 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
     }
     let launch = adapter.desktop_launch(&account)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
-    let project_id = {
-        let storage = lock_storage_arc(state)?;
-        storage.projects().touch(&launch.cwd, None)?.id.to_string()
-    };
-    let spawned = state.supervisor.spawn_desktop(
-        &session_id,
-        &launch,
-        &ledger_ctx(state, &account, Some(project_id)),
-    )?;
-    {
-        // The machine identity locks storage itself — resolve it
-        // BEFORE the insert-scope lock (non-reentrant mutex).
-        let machine = local_machine_id(state);
+    let project = {
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&launch.cwd, None)?;
         if project.forgotten_at.is_some() {
             storage.projects().set_forgotten(&project.id, false)?;
         }
-        let usage = engine_usage_snapshot(&storage, &recipe_id);
-        storage.sessions().insert(&SessionRecord {
-            id: session_id.clone(),
-            conversation: None,
-            profile: recipe_id,
-            machine: machine.clone(),
+        project.id
+    };
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session_id,
+            account: &account,
+            profile: &recipe_id,
             kind: juggler_core::model::InstanceKind::Desktop,
-            project: Some(project.id.clone()),
+            project: Some(project.clone()),
             cwd: launch.cwd.clone(),
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            // Window identity recorded at launch (AJ-E414 Req.2): the
-            // owning PID + bundle id; the title is adopted at first
-            // sight (first focus attempt) and re-discovered thereafter.
-            window: Some(juggler_core::model::WindowIdentity {
-                pid: spawned.pid,
-                bundle_id: launch.bundle_id.clone(),
-                title: None,
-                cgwindow_id: None,
-                start_time: None,
-            }),
+            conversation: None,
             transcript_ref: None,
-        })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), true, "new");
-    }
+            origin: "new",
+        },
+        || {
+            let ctx = ledger_ctx(state, &account, Some(project.to_string()));
+            Ok(state.supervisor.spawn_desktop(&session_id, &launch, &ctx)?)
+        },
+    )?;
+    // Window identity recorded at launch (AJ-E414 Req.2): the owning PID
+    // + bundle id; the title is adopted at first sight (first focus
+    // attempt) and re-discovered thereafter.
+    crate::features::sessions::spawn::record_window(
+        state,
+        &session_id,
+        juggler_core::model::WindowIdentity {
+            pid: spawned.pid,
+            bundle_id: launch.bundle_id.clone(),
+            title: None,
+            cgwindow_id: None,
+            start_time: None,
+        },
+    )?;
     Ok(DesktopLaunchInfo {
         session_id: session_id.to_string(),
         pid: spawned.pid,
@@ -3213,7 +3076,8 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct FocusOutcomeInfo {
     /// `Focused window` | `App opened — window not found` |
-    /// `App not running — Relaunch?` | platform-unavailable note.
+    /// `App not running — Relaunch?` | `macOS didn't bring the app
+    /// forward…` (it isn't in front) | platform-unavailable note.
     pub outcome: String,
     /// True when tiers (b)/(c) were impossible without the
     /// Accessibility permission — the UI shows its explainer.
@@ -3481,16 +3345,32 @@ fn stop_preview_session(state: &Arc<AppState>) {
 ///
 /// Returns the typed [`AppError`] message for a non-desktop Instance,
 /// a missing opt-in, or an unknown id.
-pub fn preview_start(
+pub async fn preview_start(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "preview start", move |state| {
+        preview_start_impl(&app, state, session_id)
+    })
+    .await
+}
+
+/// [`preview_start`]'s work.
+///
+/// # Errors
+///
+/// As [`preview_start`].
+pub fn preview_start_impl(
+    app: &tauri::AppHandle,
+    state: &Arc<AppState>,
     session_id: String,
 ) -> AppResult<()> {
     use std::sync::atomic::AtomicBool;
     use std::sync::mpsc;
 
     let (record, identity) = {
-        let storage = lock_storage(&state)?;
+        let storage = lock_storage_arc(state)?;
         let record = storage
             .sessions()
             .get(&SessionId::new(session_id.clone()))?;
@@ -3503,12 +3383,12 @@ pub fn preview_start(
         if is_terminal(record.status) {
             return Ok(()); // nothing to mirror; the panel renders status only
         }
-        let identity = desktop_window_identity(state.inner(), &record)?;
+        let identity = desktop_window_identity(state, &record)?;
         (record, identity)
     };
     // The Account's explicit consent gate (Req.3) — default off.
     {
-        let storage = lock_storage(&state)?;
+        let storage = lock_storage_arc(state)?;
         let recipe = storage.profiles().get(&record.profile)?;
         let account = storage.accounts().get(&recipe.account)?;
         if !account.preview_opt_in {
@@ -3521,14 +3401,14 @@ pub fn preview_start(
             });
         }
     }
-    stop_preview_session(state.inner());
+    stop_preview_session(state);
 
     let (done_tx, done_rx) = mpsc::channel();
     let stop = std::sync::Arc::new(AtomicBool::new(false));
     let stop_flag = stop.clone();
     let session = session_id.clone();
     let live_id = SessionId::new(session_id.clone());
-    let state_for_thread = Arc::clone(state.inner());
+    let state_for_thread = Arc::clone(state);
     let app = app.clone();
     std::thread::spawn(move || {
         let emit = move |event: crate::preview::PreviewEvent| {
@@ -3574,9 +3454,12 @@ pub fn preview_start(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on state poisoning.
-pub fn preview_stop(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
-    stop_preview_session(state.inner());
-    Ok(())
+pub async fn preview_stop(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "preview stop", move |state| {
+        stop_preview_session(state);
+        Ok(())
+    })
+    .await
 }
 
 /// Sets the per-Account live-preview opt-in (Req.3's permanent off
@@ -3587,21 +3470,24 @@ pub fn preview_stop(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the Account is unknown.
-pub fn account_set_preview_opt_in(
+pub async fn account_set_preview_opt_in(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     opt_in: bool,
 ) -> AppResult<AccountInfo> {
-    let account = {
-        let storage = lock_storage(&state)?;
-        let mut account = storage
-            .accounts()
-            .get(&AccountId::new(account_id.clone()))?;
-        account.preview_opt_in = opt_in;
-        storage.accounts().update(&account)?;
-        account
-    };
-    Ok(account_info_of(&state.registry, &account))
+    crate::ipc::blocking(state.inner(), "account set preview opt in", move |state| {
+        let account = {
+            let storage = lock_storage_arc(state)?;
+            let mut account = storage
+                .accounts()
+                .get(&AccountId::new(account_id.clone()))?;
+            account.preview_opt_in = opt_in;
+            storage.accounts().update(&account)?;
+            account
+        };
+        Ok(account_info_of(&state.registry, &account))
+    })
+    .await
 }
 
 /// Reads one app-level setting (schema v10 kv); `None` = never set.
@@ -3610,12 +3496,15 @@ pub fn account_set_preview_opt_in(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on storage failures.
-pub fn app_setting_get(
+pub async fn app_setting_get(
     state: tauri::State<'_, Arc<AppState>>,
     key: String,
 ) -> AppResult<Option<String>> {
-    let storage = lock_storage(&state)?;
-    storage.app_settings().get(&key).map_err(AppError::from)
+    crate::ipc::blocking(state.inner(), "app setting get", move |state| {
+        let storage = lock_storage_arc(state)?;
+        storage.app_settings().get(&key).map_err(AppError::from)
+    })
+    .await
 }
 
 /// Writes one app-level setting (empty value = reset to default).
@@ -3624,16 +3513,19 @@ pub fn app_setting_get(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on storage failures.
-pub fn app_setting_set(
+pub async fn app_setting_set(
     state: tauri::State<'_, Arc<AppState>>,
     key: String,
     value: String,
 ) -> AppResult<()> {
-    let storage = lock_storage(&state)?;
-    storage
-        .app_settings()
-        .set(&key, &value)
-        .map_err(AppError::from)
+    crate::ipc::blocking(state.inner(), "app setting set", move |state| {
+        let storage = lock_storage_arc(state)?;
+        storage
+            .app_settings()
+            .set(&key, &value)
+            .map_err(AppError::from)
+    })
+    .await
 }
 
 /// Opens the system Accessibility privacy pane (the deep link behind
@@ -3644,7 +3536,7 @@ pub fn app_setting_set(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the pane cannot open.
-pub fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
+pub async fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt;
     app.opener()
         .open_url(
@@ -3669,46 +3561,49 @@ pub fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
 ///
 /// Returns the typed [`AppError`] message for an OS registration
 /// failure (conflict, unparseable accelerator) or a storage failure.
-pub fn go_to_hotkey_set(
+pub async fn go_to_hotkey_set(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     hotkey: String,
 ) -> AppResult<()> {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let hotkey = hotkey.trim().to_string();
-    let previous = {
-        let storage = lock_storage(&state)?;
-        storage
-            .app_settings()
-            .get(crate::GO_TO_HOTKEY_KEY)
-            .map_err(AppError::from)?
-    };
-    let shortcuts = app.global_shortcut();
-    if let Some(previous) = &previous {
-        let _ = shortcuts.unregister(previous.as_str());
-    }
-    // Empty: the key is off (and stays unset), nothing registered.
-    let registered = if hotkey.is_empty() {
-        Ok(())
-    } else {
-        shortcuts.register(hotkey.as_str())
-    };
-    match registered {
-        Ok(()) => lock_storage(&state)?
-            .app_settings()
-            .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
-            .map_err(AppError::from),
-        Err(error) => {
-            // Best-effort restore of the previous binding.
-            if let Some(previous) = &previous {
-                let _ = shortcuts.register(previous.as_str());
-            }
-            Err(AppError::Io {
-                context: "register hotkey",
-                message: format!("{hotkey}: {error}"),
-            })
+    crate::ipc::blocking(state.inner(), "go to hotkey set", move |state| {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        let hotkey = hotkey.trim().to_string();
+        let previous = {
+            let storage = lock_storage_arc(state)?;
+            storage
+                .app_settings()
+                .get(crate::GO_TO_HOTKEY_KEY)
+                .map_err(AppError::from)?
+        };
+        let shortcuts = app.global_shortcut();
+        if let Some(previous) = &previous {
+            let _ = shortcuts.unregister(previous.as_str());
         }
-    }
+        // Empty: the key is off (and stays unset), nothing registered.
+        let registered = if hotkey.is_empty() {
+            Ok(())
+        } else {
+            shortcuts.register(hotkey.as_str())
+        };
+        match registered {
+            Ok(()) => lock_storage_arc(state)?
+                .app_settings()
+                .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
+                .map_err(AppError::from),
+            Err(error) => {
+                // Best-effort restore of the previous binding.
+                if let Some(previous) = &previous {
+                    let _ = shortcuts.register(previous.as_str());
+                }
+                Err(AppError::Io {
+                    context: "register hotkey",
+                    message: format!("{hotkey}: {error}"),
+                })
+            }
+        }
+    })
+    .await
 }
 
 /// Lists Instances (board feed), newest first (canonical name
@@ -3726,7 +3621,8 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
         let labels = desktop_isolation_labels(&state.registry);
         let adopted = state.supervisor.alive_adopted_sessions();
         let storage = lock_storage_arc(state)?;
-        let rows = session_infos(&storage, &live, &labels, &adopted)?;
+        let records = working_records(&storage)?;
+        let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
         drop(storage);
         let rows = crate::features::subtasks::counted(state, rows);
         crate::features::conversations::titled(state, rows)
@@ -3742,6 +3638,20 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 ///
 /// Returns the typed [`AppError`] message on storage failures.
 pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<InstanceInfo>> {
+    let records = working_records(&*lock_storage_arc(state)?)?;
+    instances_of(state, records)
+}
+
+/// The rows of `records` as [`sessions_list`] gives them (from the last
+/// resource sample, never a new one): a page of sessions.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on storage failures.
+pub(crate) fn instances_of(
+    state: &Arc<AppState>,
+    records: Vec<SessionRecord>,
+) -> AppResult<Vec<InstanceInfo>> {
     let live: LiveStatsMap = state
         .resources
         .lock()
@@ -3756,7 +3666,7 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage_arc(state)?;
-    let rows = session_infos(&storage, &live, &labels, &adopted)?;
+    let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
     drop(storage);
     let rows = crate::features::subtasks::counted(state, rows);
     crate::features::conversations::titled(state, rows)
@@ -3768,16 +3678,19 @@ pub fn instances_shared_snapshot(state: &Arc<AppState>) -> AppResult<Vec<Instanc
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn stop_session(
+pub async fn stop_session(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<()> {
-    state
-        .supervisor
-        .stop(&SessionId::new(session_id), Duration::from_secs(5))?;
-    emit_sessions(&app, state.inner())?;
-    Ok(())
+    crate::ipc::blocking(state.inner(), "stop session", move |state| {
+        state
+            .supervisor
+            .stop(&SessionId::new(session_id), Duration::from_secs(5))?;
+        emit_sessions(&app, state)?;
+        Ok(())
+    })
+    .await
 }
 
 /// Dashboard counts.
@@ -3786,32 +3699,35 @@ pub fn stop_session(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn dashboard_stats(state: tauri::State<'_, Arc<AppState>>) -> AppResult<StatsInfo> {
-    let ledger_degraded = state.supervisor.ledger_degraded();
-    let storage = lock_storage(&state)?;
-    let accounts = storage.accounts().list()?;
-    let mut profiles = 0_u64;
-    for account in &accounts {
-        profiles += u64::try_from(storage.profiles().list_by_account(&account.id)?.len())
-            .unwrap_or_default();
-    }
-    let active = storage
-        .sessions()
-        .list(None)?
-        .into_iter()
-        .filter(|record| {
-            matches!(
-                record.status,
-                SessionStatus::Starting | SessionStatus::Running | SessionStatus::WaitingUser
-            )
+pub async fn dashboard_stats(state: tauri::State<'_, Arc<AppState>>) -> AppResult<StatsInfo> {
+    crate::ipc::blocking(state.inner(), "dashboard stats", move |state| {
+        let ledger_degraded = state.supervisor.ledger_degraded();
+        let storage = lock_storage_arc(state)?;
+        let accounts = storage.accounts().list()?;
+        let mut profiles = 0_u64;
+        for account in &accounts {
+            profiles += u64::try_from(storage.profiles().list_by_account(&account.id)?.len())
+                .unwrap_or_default();
+        }
+        let active = storage
+            .sessions()
+            .list(None)?
+            .into_iter()
+            .filter(|record| {
+                matches!(
+                    record.status,
+                    SessionStatus::Starting | SessionStatus::Running | SessionStatus::WaitingUser
+                )
+            })
+            .count();
+        Ok(StatsInfo {
+            accounts: u64::try_from(accounts.len()).unwrap_or_default(),
+            profiles,
+            active_sessions: u64::try_from(active).unwrap_or_default(),
+            ledger_degraded,
         })
-        .count();
-    Ok(StatsInfo {
-        accounts: u64::try_from(accounts.len()).unwrap_or_default(),
-        profiles,
-        active_sessions: u64::try_from(active).unwrap_or_default(),
-        ledger_degraded,
     })
+    .await
 }
 
 // ---------------------------------------------------------------------------
@@ -3832,6 +3748,10 @@ pub fn apply_lifecycle_event(
     };
     let mut record = storage.sessions().get(session_id).ok()?;
     match event {
+        // A start only moves a row that is still starting: one read after
+        // the exit, or after attention was raised, is stale and must
+        // never bring the row back to Running.
+        LifecycleEvent::Started { .. } if record.status != SessionStatus::Starting => return None,
         LifecycleEvent::Started { .. } => {
             record.status = SessionStatus::Running;
             record.attention = None;
@@ -4242,15 +4162,47 @@ fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[tauri::command]
-pub fn instance_quality(
+pub async fn instance_quality(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<QualitySignalsInfo> {
-    let storage = lock_storage(&state)?;
-    let record = storage
-        .sessions()
-        .get(&SessionId::new(session_id.clone()))
-        .map_err(AppError::from)?;
+    crate::ipc::blocking(state.inner(), "instance quality", move |state| {
+        instance_quality_impl(state, &session_id)
+    })
+    .await
+}
+
+/// [`instance_quality`]'s work. Storage is held only to read the
+/// session and its tool; the transcript (it can be gigabytes) is read
+/// after, so nothing else waits on it.
+///
+/// # Errors
+///
+/// As [`instance_quality`].
+pub fn instance_quality_impl(
+    state: &Arc<AppState>,
+    session_id: &str,
+) -> AppResult<QualitySignalsInfo> {
+    let (record, provider) = {
+        let storage = lock_storage_arc(state)?;
+        let record = storage
+            .sessions()
+            .get(&SessionId::new(session_id))
+            .map_err(AppError::from)?;
+        let recipe = storage.profiles().get(&record.profile).ok();
+        let provider = storage
+            .accounts()
+            .list()
+            .ok()
+            .and_then(|accounts| {
+                accounts
+                    .iter()
+                    .find(|a| recipe.as_ref().is_some_and(|r| r.account == a.id))
+                    .map(|a| a.harness.to_string())
+            })
+            .unwrap_or_default();
+        (record, provider)
+    };
     let now = Timestamp::now().millis();
     let scan = scan_transcript(&record, now);
 
@@ -4261,18 +4213,6 @@ pub fn instance_quality(
         format!("{} errors / {} turns", scan.errors, scan.turns)
     };
     let table = juggler_core::quality::load_pricing_table();
-    let recipe = storage.profiles().get(&record.profile).ok();
-    let provider = storage
-        .accounts()
-        .list()
-        .ok()
-        .and_then(|accounts| {
-            accounts
-                .iter()
-                .find(|a| recipe.as_ref().is_some_and(|r| r.account == a.id))
-                .map(|a| a.harness.to_string())
-        })
-        .unwrap_or_default();
     // AJ-E412 Req.4: price per turn where the transcript records the
     // model; turns without one stay in the token totals but are
     // excluded from $. Falls back to tokens-only when no turn was
@@ -4321,27 +4261,40 @@ pub fn instance_quality(
     })
 }
 
-/// Emits the refreshed session list to the UI.
+/// Tells the UI the sessions changed; it reads its lists again (0.1.5
+/// review: this sent every session ever run, built twice, on each change).
 ///
 /// # Errors
 ///
-/// Returns the typed [`AppError`] message on failure.
+/// Never fails; the result type matches its callers'.
 pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
-    let live = live_stats_of(state);
-    let sessions = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        session_infos(
-            &storage,
-            &live,
-            &desktop_isolation_labels(&state.registry),
-            &state.supervisor.alive_adopted_sessions(),
-        )?
-    };
-    let sessions = crate::features::subtasks::counted(state, sessions);
-    let sessions = crate::features::conversations::titled(state, sessions)?;
-    let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, sessions);
+    let _ = state;
+    let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, ());
     Ok(())
+}
+
+/// The working set's ended sessions: every one of the last day (the
+/// rail's "ended today" counts), and the newest this many of the last
+/// [`RECENT_ENDED_MS`]; History pages the rest.
+pub const RECENT_ENDED: usize = 200;
+/// How far back the working set's ended sessions go.
+pub const RECENT_ENDED_MS: i64 = 7 * DAY_MS;
+/// One day: everything active within it is in the working set.
+pub const DAY_MS: i64 = 24 * 3_600_000;
+
+/// The sessions the app's lists hold: every open or pinned one and the
+/// recent ended ones ([`RECENT_ENDED`]), never the whole history.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn working_records(storage: &Storage) -> AppResult<Vec<SessionRecord>> {
+    Ok(storage.sessions().working_set(
+        now_millis() - DAY_MS,
+        now_millis() - RECENT_ENDED_MS,
+        RECENT_ENDED,
+    )?)
 }
 
 /// One batched sample of live process stats for every supervised session
@@ -4433,12 +4386,6 @@ pub fn emit_quota(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()
 pub(crate) fn lock_storage_arc(
     state: &Arc<AppState>,
 ) -> Result<std::sync::MutexGuard<'_, Storage>, AppError> {
-    state.storage.lock().map_err(|_| AppError::StatePoisoned)
-}
-
-fn lock_storage<'a>(
-    state: &'a tauri::State<'_, Arc<AppState>>,
-) -> Result<std::sync::MutexGuard<'a, Storage>, AppError> {
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
@@ -4593,7 +4540,7 @@ pub(crate) fn is_active(status: SessionStatus) -> bool {
 /// launch-recipe or account row is gone (defensive only — storage FKs
 /// prevent it today), the Provider and label degrade to a generic
 /// `unknown` marker, never a blank string, and the account id to `null`.
-fn resolved_join(
+pub(crate) fn resolved_join(
     recipe_index: &std::collections::BTreeMap<String, (String, String, Option<String>)>,
     account_index: &std::collections::BTreeMap<String, (String, String)>,
     recipe_id: &str,
@@ -4622,7 +4569,7 @@ fn resolved_join(
 /// AJ-E412 Req.1 classification: the I-03 display model prefers the
 /// OBSERVED running model over the launch intent; the source names how
 /// it is known (`in-session` = observed drift from the overlay).
-fn display_model(
+pub(crate) fn display_model(
     running: Option<&juggler_core::model::RunningModel>,
     launch: Option<&String>,
 ) -> (Option<String>, String) {
@@ -4673,9 +4620,9 @@ pub fn session_infos_snapshot(storage: &Storage) -> AppResult<Vec<InstanceInfo>>
 }
 
 /// account id → (label, provider).
-type AccountIndex = std::collections::BTreeMap<String, (String, String)>;
+pub(crate) type AccountIndex = std::collections::BTreeMap<String, (String, String)>;
 /// launch-recipe id → (account id, provider, overlay model).
-type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<String>)>;
+pub(crate) type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<String>)>;
 
 /// Join indexes for the read model: account id → (label, provider) and
 /// launch-recipe id → (account id, provider, overlay model). One
@@ -4684,7 +4631,7 @@ type RecipeIndex = std::collections::BTreeMap<String, (String, String, Option<St
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on storage failures.
-fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
+pub(crate) fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex, RecipeIndex)> {
     // AJ-E1501: a removed account's sessions keep its name, marked.
     let removed = storage.accounts().removed_ids()?;
     let account_index: AccountIndex = storage
@@ -4746,14 +4693,24 @@ fn session_infos(
     desktop_labels: &std::collections::BTreeMap<String, String>,
     adopted_ids: &[juggler_core::model::SessionId],
 ) -> AppResult<Vec<InstanceInfo>> {
+    let records = storage.sessions().list(None)?;
+    session_infos_for(storage, records, live, desktop_labels, adopted_ids)
+}
+
+/// [`session_infos`] for some sessions only (a page of them).
+fn session_infos_for(
+    storage: &Storage,
+    records: Vec<SessionRecord>,
+    live: &LiveStatsMap,
+    desktop_labels: &std::collections::BTreeMap<String, String>,
+    adopted_ids: &[juggler_core::model::SessionId],
+) -> AppResult<Vec<InstanceInfo>> {
     let (account_index, recipe_index) = session_join_indexes(storage)?;
     let identities = storage.identity().latest_by_session().unwrap_or_default();
     let parked = crate::parked::parked_index(storage);
     let lifecycle = storage.sessions().lifecycle_latest().unwrap_or_default();
     let marks = storage.sessions().marks().unwrap_or_default();
-    Ok(storage
-        .sessions()
-        .list(None)?
+    Ok(records
         .into_iter()
         .map(|record| {
             let (account_id, account_label, provider, launch_model) =
@@ -4865,8 +4822,11 @@ fn session_infos(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u32> {
-    projects_backfill_impl(state.inner())
+pub async fn projects_backfill(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u32> {
+    crate::ipc::blocking(state.inner(), "projects backfill", move |state| {
+        projects_backfill_impl(state)
+    })
+    .await
 }
 
 /// Core implementation shared with tests.
@@ -5045,15 +5005,18 @@ pub fn normalise_remote(url: &str) -> Option<String> {
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on failure.
-pub fn session_handover(
+pub async fn session_handover(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
 ) -> AppResult<LaunchResult> {
-    let result = session_handover_impl(state.inner(), &session_id, &target_profile_id)?;
-    emit_sessions(&app, state.inner())?;
-    Ok(result)
+    crate::ipc::blocking(state.inner(), "session handover", move |state| {
+        let result = session_handover_impl(state, &session_id, &target_profile_id)?;
+        emit_sessions(&app, state)?;
+        Ok(result)
+    })
+    .await
 }
 
 /// Core implementation shared with tests.
@@ -5984,7 +5947,6 @@ fn switch_execute_core(
     record_edge_succeeded(
         state,
         &source,
-        &profile_b,
         &record,
         &account_b,
         &EdgeCtx {
@@ -6674,11 +6636,14 @@ fn plain_prime(turns: &[juggler_adapter::handover::TurnText]) -> String {
 /// a failed stop aborts BEFORE the source resumes (never two live
 /// instances on one work item).
 #[tauri::command]
-pub fn switch_undo(
+pub async fn switch_undo(
     state: tauri::State<'_, Arc<AppState>>,
     edge_id: String,
 ) -> AppResult<LaunchResult> {
-    switch_undo_impl(state.inner(), &edge_id)
+    crate::ipc::blocking(state.inner(), "switch undo", move |state| {
+        switch_undo_impl(state, &edge_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -6846,17 +6811,30 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            source.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account_a,
+            profile: &profile_a.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: source.project.clone(),
+            cwd: source.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(
+                native_id.to_owned(),
+            )),
+            transcript_ref: source.transcript_ref.clone(),
+            origin: "relaunch",
+        },
+        || {
+            let project = source.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account_a, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
 
-    record_compensating_edge(state, context, &new_session, &profile_a.id, &source)?;
+    record_compensating_edge(state, context, &new_session)?;
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -6864,7 +6842,7 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
     })
 }
 
-/// Records the undo: the resumed source instance row, its epoch, and
+/// Records the undo: the resumed source instance's epoch, and
 /// the compensating edge (`parent_edge_a` = the original; launched +
 /// confirmed in one motion — the supervisor accepting the spawn is
 /// the proof we can record today).
@@ -6876,13 +6854,8 @@ fn record_compensating_edge(
     state: &Arc<AppState>,
     context: &UndoContext,
     new_session: &SessionId,
-    profile: &juggler_core::model::LaunchRecipeId,
-    source: &juggler_core::model::InstanceRecord,
 ) -> AppResult<()> {
-    use juggler_core::model::{
-        ConversationId, Epoch, EpochId, InstanceKind, InstanceRecord, SwitchEdge, SwitchEdgeId,
-        SwitchMechanism,
-    };
+    use juggler_core::model::{Epoch, EpochId, SwitchEdge, SwitchEdgeId, SwitchMechanism};
     let UndoContext {
         work,
         to_epoch,
@@ -6890,31 +6863,7 @@ fn record_compensating_edge(
         native_id,
         ..
     } = context;
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
-    let usage = engine_usage_snapshot(&storage, profile);
-    storage.sessions().insert(&InstanceRecord {
-        id: new_session.clone(),
-        conversation: Some(ConversationId::new(native_id.to_owned())),
-        profile: profile.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: source.project.clone(),
-        cwd: source.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: source.transcript_ref.clone(),
-    })?;
-    crate::usage_stats::instance_started(
-        &crate::usage_stats::harness_of_recipe(&storage, profile),
-        false,
-        "relaunch",
-    );
     let graph = storage.switch_graph();
     let epoch_undo = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -7008,7 +6957,8 @@ fn record_redaction_decision(
 
 /// The supervisor launch hook: builds the resume spec for the
 /// INSTALLED native id (a collision fork changes it) and spawns under
-/// the app's supervisor — the only spawn path (suggest-only law).
+/// the app's supervisor — the only spawn path (suggest-only law). The
+/// continuation's row is written first (intent before spawn, ADR-0010).
 fn make_launch_hook<'a>(
     state: &'a Arc<AppState>,
     adapter: juggler_adapter::SharedAdapter,
@@ -7018,29 +6968,41 @@ fn make_launch_hook<'a>(
     new_session: &'a SessionId,
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
+        let native_id = install.reference.native_id.clone().unwrap_or_default();
         let spec = adapter
             .launch_spec(
                 account_b,
                 profile_b,
                 &source.cwd,
                 &LaunchMode::Resume {
-                    session_id: install.reference.native_id.clone().unwrap_or_default(),
+                    session_id: native_id.clone(),
                     delta_prompt: None,
                 },
             )
             .map_err(|error| error.to_string())?;
-        let spawned = state
-            .supervisor
-            .spawn(
-                new_session,
-                &spec,
-                &ledger_ctx(
-                    state,
-                    account_b,
-                    source.project.as_ref().map(ToString::to_string),
-                ),
-            )
-            .map_err(|error| error.to_string())?;
+        let spawned = crate::features::sessions::spawn::spawn_tracked(
+            state,
+            &crate::features::sessions::spawn::NewSession {
+                id: new_session,
+                account: account_b,
+                profile: &profile_b.id,
+                kind: juggler_core::model::InstanceKind::Terminal,
+                project: source.project.clone(),
+                cwd: source.cwd.clone(),
+                conversation: Some(juggler_core::model::ConversationId::new(native_id.clone())),
+                transcript_ref: Some(juggler_core::model::TranscriptRef {
+                    path: install.reference.path.clone(),
+                    native_id: Some(native_id),
+                }),
+                origin: "switch",
+            },
+            || {
+                let project = source.project.as_ref().map(ToString::to_string);
+                let ctx = ledger_ctx(state, account_b, project);
+                Ok(state.supervisor.spawn(new_session, &spec, &ctx)?)
+            },
+        )
+        .map_err(|error| error.to_string())?;
         Ok(spawned.pid)
     }
 }
@@ -7177,9 +7139,10 @@ struct EdgeCtx {
 }
 
 /// Records the succeeded switch: the source rests (`HandedOver`), the
-/// continuation Instance starts, the TARGET epoch is created, the
-/// edge launches + confirms (the supervisor accepting the spawn is
-/// the confirmation provable today), and the manifest rows land.
+/// TARGET epoch is created for the continuation Instance (its row was
+/// written by the launch hook, before its spawn), the edge launches +
+/// confirms (the supervisor accepting the spawn is the confirmation
+/// provable today), and the manifest rows land.
 ///
 /// # Errors
 ///
@@ -7187,7 +7150,6 @@ struct EdgeCtx {
 fn record_edge_succeeded(
     state: &Arc<AppState>,
     source: &juggler_core::model::InstanceRecord,
-    profile_b: &juggler_core::model::LaunchRecipe,
     record: &juggler_handover::pipeline::SwitchRecord,
     target: &juggler_core::model::Account,
     ctx: &EdgeCtx,
@@ -7200,33 +7162,10 @@ fn record_edge_succeeded(
         .native_id
         .clone()
         .unwrap_or_default();
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
     let mut handed = source.clone();
     handed.status = SessionStatus::HandedOver;
     storage.sessions().update(&handed)?;
-    let usage = engine_usage_snapshot(&storage, &profile_b.id);
-    storage.sessions().insert(&SessionRecord {
-        id: ctx.session.clone(),
-        conversation: Some(juggler_core::model::ConversationId::new(native_id.clone())),
-        profile: profile_b.id.clone(),
-        machine,
-        kind: juggler_core::model::InstanceKind::Terminal,
-        project: source.project.clone(),
-        cwd: source.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: Some(juggler_core::model::TranscriptRef {
-            path: record.install.reference.path.clone(),
-            native_id: Some(native_id.clone()),
-        }),
-    })?;
-    crate::usage_stats::instance_started(target.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -7398,13 +7337,6 @@ pub(crate) fn repo_identity_cached(root: &std::path::Path) -> Option<String> {
     repo
 }
 
-fn find_account(
-    state: &tauri::State<'_, Arc<AppState>>,
-    account_id: &str,
-) -> Result<Account, AppError> {
-    find_account_arc(state.inner(), account_id)
-}
-
 /// Core account lookup shared with the terminal module and tests.
 ///
 /// # Errors
@@ -7491,29 +7423,6 @@ pub struct TreeSampleInfo {
     pub rss_bytes: u64,
 }
 
-/// One confirmed orphan row (`Orphaned - left behind (N)` section).
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct OrphanInfo {
-    /// Instance the process was left behind by.
-    pub session_id: String,
-    /// Orphan process id.
-    pub pid: u32,
-    /// Process name.
-    pub name: String,
-    /// Resident memory, bytes.
-    #[ts(type = "number")]
-    pub rss_bytes: u64,
-    /// Label of the dead parent (its program name).
-    pub parent_label: String,
-    /// Age since the parent exited, ms.
-    #[ts(type = "number")]
-    pub age_since_parent_exit_ms: i64,
-    /// Last stop state for this pid (`gone` / `still alive - escalated to
-    /// SIGKILL` / …), when one exists.
-    pub stop_state: Option<String>,
-}
-
 /// The Processes tab payload for one Instance (AJ-E410 Req.2/3).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -7522,52 +7431,27 @@ pub struct ProcessesInfo {
     pub rows: Vec<ProcessRowInfo>,
     /// 5-minute 2 s resource ring (the I-07 sparkline source).
     pub spark: Vec<TreeSampleInfo>,
-    /// Confirmed orphans for this Instance.
-    pub orphans: Vec<OrphanInfo>,
     /// Honest unavailability note (adopted/deskto-kind without a tree):
     /// `resources unavailable`, never flat-zero rows.
     pub unavailable_reason: Option<String>,
 }
 
-/// Outcome payload for orphan stop actions.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct StopOutcomeInfo {
-    /// The pid the action targeted.
-    pub pid: u32,
-    /// UI state: `gone`, `still alive - escalated to SIGKILL`, or the
-    /// refusal reason.
-    pub state: String,
-}
-
-/// `Verify owner` payload: the re-checked ppid chain evidence.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct OrphanVerifyInfo {
-    /// The pid examined.
-    pub pid: u32,
-    /// True when the process is alive and non-zombie.
-    pub alive: bool,
-    /// Current parent pid, when readable.
-    #[ts(type = "number | null")]
-    pub parent_pid: Option<u32>,
-    /// Human note (e.g. `re-parented to init/launchd`).
-    pub note: String,
-}
-
-/// The live Processes tab payload for one Instance (rows + spark +
-/// orphans); rollups above Instance level aggregate several of these
+/// The live Processes tab payload for one Instance (rows + spark;
+/// what it left behind is the shared Cleanup inventory's); rollups above Instance level aggregate several of these
 /// read-only in the UI (Req.2).
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the Instance is unknown.
 #[tauri::command]
-pub fn instance_processes(
+pub async fn instance_processes(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<ProcessesInfo> {
-    instance_processes_arc(&state, &session_id)
+    crate::ipc::blocking(state.inner(), "instance processes", move |state| {
+        instance_processes_arc(state, &session_id)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -7596,7 +7480,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
         }));
     }
     let session = SessionId::new(session_id.to_string());
-    let session_id = session_id.to_string();
     let (rows, spark, unavailable) = {
         let Ok(collector) = state.resources.lock() else {
             return Ok(unavailable_processes("resources unavailable"));
@@ -7609,24 +7492,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
             (!supervised && rows.is_empty()).then(|| "resources unavailable".to_string());
         (rows, spark, unavailable)
     };
-    let now = Timestamp::now().millis();
-    let orphans = state
-        .orphans
-        .orphans_of(&session)
-        .into_iter()
-        .map(|orphan| OrphanInfo {
-            session_id: session_id.clone(),
-            pid: orphan.pid,
-            name: orphan.name,
-            rss_bytes: orphan.rss_bytes,
-            parent_label: orphan.parent_label,
-            age_since_parent_exit_ms: now - orphan.parent_exit_ms,
-            stop_state: state
-                .orphans
-                .stop_state(orphan.pid)
-                .map(|outcome| outcome.state_label().to_string()),
-        })
-        .collect();
     Ok(ProcessesInfo {
         rows: rows
             .into_iter()
@@ -7649,7 +7514,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
                 rss_bytes: sample.rss_bytes,
             })
             .collect(),
-        orphans,
         unavailable_reason: unavailable,
     })
 }
@@ -7659,7 +7523,6 @@ fn unavailable_processes(reason: &str) -> ProcessesInfo {
     ProcessesInfo {
         rows: Vec::new(),
         spark: Vec::new(),
-        orphans: Vec::new(),
         unavailable_reason: Some(reason.to_string()),
     }
 }
@@ -7755,8 +7618,13 @@ pub struct PortWarningInfo {
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[tauri::command]
-pub fn port_inventory(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PortInventoryInfo> {
-    Ok(port_inventory_inner(&state))
+pub async fn port_inventory(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<PortInventoryInfo> {
+    crate::ipc::blocking(state.inner(), "port inventory", move |state| {
+        Ok(port_inventory_inner(state))
+    })
+    .await
 }
 
 /// The pre-launch warning (Req.4): a project's expected dev port
@@ -7768,11 +7636,14 @@ pub fn port_inventory(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PortI
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[tauri::command]
-pub fn launch_port_warning(
+pub async fn launch_port_warning(
     state: tauri::State<'_, Arc<AppState>>,
     project_id: Option<String>,
 ) -> AppResult<Option<PortWarningInfo>> {
-    Ok(launch_port_warning_inner(&state, project_id))
+    crate::ipc::blocking(state.inner(), "launch port warning", move |state| {
+        Ok(launch_port_warning_inner(state, project_id))
+    })
+    .await
 }
 
 /// Humanized age for the copy-exact warning: `45s` / `12m` / `3h` /
@@ -7899,7 +7770,8 @@ pub struct CleanupRow {
     /// True for helpers of roots that died while Juggler was closed
     /// (AJ-E510 Req.2) — the distinct down-period marker.
     pub down_period: bool,
-    /// Role guess — always labelled a guess (E504 note).
+    /// Role guess in plain words ([`role_words`]: "dev server",
+    /// "watcher"; empty when unknown) — always labelled a guess (E504).
     pub role_guess: String,
     /// Executable path (truncated for display, full on expand).
     pub exe_path: String,
@@ -7936,8 +7808,82 @@ pub struct CleanupGroup {
     pub machine: String,
     /// True when the tree is healthy (collapse by default).
     pub healthy: bool,
+    /// The account's name ("Work Max"), when known — the group title
+    /// names things, never ids.
+    pub account_label: Option<String>,
+    /// The project's name ("web-app"), when known.
+    pub project_name: Option<String>,
+    /// The user's name for the session (AJ-E1502), when it has one.
+    pub label: Option<String>,
+    /// The session's lifecycle status (storage vocabulary: `failed`,
+    /// `stopped`, …) — how it ended; `None` without a session record.
+    pub status: Option<String>,
+    /// When the session started, epoch ms, when known.
+    pub started_at_ms: Option<i64>,
+    /// True while the session's own process runs.
+    pub live: bool,
+    /// When the session's own process ended, epoch ms (`None` while
+    /// it runs, or when nothing recorded it).
+    pub ended_at_ms: Option<i64>,
     /// The rows.
     pub rows: Vec<CleanupRow>,
+}
+
+/// What a Cleanup group's title is made of, read from storage once per
+/// inventory (names, not ids).
+#[derive(Default)]
+struct GroupNames {
+    account_label: Option<String>,
+    project_name: Option<String>,
+    label: Option<String>,
+    status: Option<String>,
+    started_at_ms: Option<i64>,
+}
+
+/// The names behind each session's group (one storage lock for all).
+fn group_names(
+    state: &Arc<AppState>,
+    keys: &[(String, Option<String>, Option<String>)],
+) -> std::collections::HashMap<String, GroupNames> {
+    let mut out = std::collections::HashMap::new();
+    let Ok(storage) = lock_storage_arc(state) else {
+        return out;
+    };
+    let marks = storage.sessions().marks().unwrap_or_default();
+    for (session, account, project) in keys {
+        let record = storage
+            .sessions()
+            .get(&SessionId::new(session.clone()))
+            .ok();
+        let project = project.clone().or_else(|| {
+            record
+                .as_ref()
+                .and_then(|r| r.project.as_ref().map(ToString::to_string))
+        });
+        out.insert(
+            session.clone(),
+            GroupNames {
+                account_label: account.as_ref().and_then(|id| {
+                    storage
+                        .accounts()
+                        .get(&AccountId::new(id.clone()))
+                        .ok()
+                        .map(|account| account.label)
+                }),
+                project_name: project.and_then(|id| {
+                    storage
+                        .projects()
+                        .get(&juggler_core::model::ProjectId::new(id))
+                        .ok()
+                        .map(|project| project.name)
+                }),
+                label: label_of(&marks, session),
+                status: record.as_ref().map(|r| r.status.as_str().to_string()),
+                started_at_ms: record.as_ref().map(|r| r.started_at.millis()),
+            },
+        );
+    }
+    out
 }
 
 /// One Cleanup Centre history row (AJ-E509: the audit log's read
@@ -7989,16 +7935,19 @@ pub fn cleanup_state_label(state: &str) -> &'static str {
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[tauri::command]
-pub fn cleanup_inventory(
+pub async fn cleanup_inventory(
     state: tauri::State<'_, Arc<AppState>>,
     filter: String,
     machine_scope: Option<String>,
 ) -> AppResult<CleanupInventoryInfo> {
-    Ok(cleanup_inventory_inner(
-        &state,
-        &filter,
-        machine_scope.as_deref() == Some("all"),
-    ))
+    crate::ipc::blocking(state.inner(), "cleanup inventory", move |state| {
+        Ok(cleanup_inventory_inner(
+            state,
+            &filter,
+            machine_scope.as_deref() == Some("all"),
+        ))
+    })
+    .await
 }
 
 /// `cleanup_inventory` sans-Tauri (tests + dogfood evidence).
@@ -8191,7 +8140,7 @@ pub fn cleanup_inventory_inner(
                 state: effective_state.to_string(),
                 state_label,
                 down_period,
-                role_guess: format!("{} (guess)", row.exe_path.rsplit('/').next().unwrap_or("?")),
+                role_guess: role_words(guess_role(&row.exe_path, &row.cmdline_trunc)).to_string(),
                 exe_path: row.exe_path.clone(),
                 cmdline: row.cmdline_trunc.clone(),
                 age_ms: row
@@ -8219,9 +8168,6 @@ pub fn cleanup_inventory_inner(
             continue;
         }
         let healthy = !any_attention && root_alive;
-        if healthy && filter == "needs-attention" {
-            // Healthy trees hold no attention rows by construction.
-        }
         if healthy
             && root_alive
             && rows_raw
@@ -8237,8 +8183,39 @@ pub fn cleanup_inventory_inner(
             project,
             machine,
             healthy,
+            account_label: None,
+            project_name: None,
+            label: None,
+            status: None,
+            started_at_ms: None,
+            live: root_alive || session_adopted,
+            ended_at_ms: (!root_alive && !session_adopted)
+                .then(|| root_row.map(|row| row.last_seen))
+                .flatten(),
             rows,
         });
+    }
+    // Names, not ids, for each group's title (storage only, after the
+    // collector reads: the two locks are never held together).
+    let keys: Vec<(String, Option<String>, Option<String>)> = groups
+        .iter()
+        .map(|group| {
+            (
+                group.session.clone(),
+                group.account.clone(),
+                group.project.clone(),
+            )
+        })
+        .collect();
+    let mut names = group_names(state, &keys);
+    for group in &mut groups {
+        if let Some(found) = names.remove(&group.session) {
+            group.account_label = found.account_label;
+            group.project_name = found.project_name;
+            group.label = found.label;
+            group.status = found.status;
+            group.started_at_ms = found.started_at_ms;
+        }
     }
     CleanupInventoryInfo {
         groups,
@@ -8257,8 +8234,11 @@ pub fn cleanup_inventory_inner(
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[tauri::command]
-pub fn cleanup_audit_export(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
-    Ok(cleanup_audit_export_inner(&state))
+pub async fn cleanup_audit_export(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "cleanup audit export", move |state| {
+        Ok(cleanup_audit_export_inner(state))
+    })
+    .await
 }
 
 /// `cleanup_audit_export` sans-Tauri (tests + evidence).
@@ -8485,7 +8465,7 @@ pub fn launch_port_warning_inner(
             );
             let age_ms = row.listener_age_ms.unwrap_or_default();
             let message = format!(
-                ":{} is already held by an orphan from {instance} ({}).",
+                ":{} is already held by a process left running from {instance} ({}).",
                 row_port,
                 human_age(age_ms)
             );
@@ -8497,140 +8477,6 @@ pub fn launch_port_warning_inner(
                 message,
             }
         })
-}
-
-/// Stops one orphan: the allow-list guard refuses PIDs that were not
-/// recorded as descendants (fail closed, PROPOSAL.md:47), then the
-/// TERM→KILL ladder runs with the post-stop re-read built in (Req.6).
-/// Every kill lands in the journal's audit trail (D-08) AND the
-/// append-only cleanup audit (AJ-E509: intent before signal).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill); otherwise the typed stop outcome.
-#[tauri::command]
-pub fn orphan_stop(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-    pid: u32,
-) -> AppResult<StopOutcomeInfo> {
-    orphan_stop_inner(&state, &SessionId::new(session_id), pid)
-}
-
-/// Stops every confirmed orphan of one Instance (the confirm popover
-/// lists all PIDs before this runs; each kill is audited).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub fn orphan_stop_all(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-) -> AppResult<Vec<StopOutcomeInfo>> {
-    let session = SessionId::new(session_id);
-    let mut out = Vec::new();
-    for orphan in state.orphans.orphans_of(&session) {
-        // One kill at a time: a failed audit intent stands the run
-        // down HERE (typed error out) — never silently continue.
-        out.push(orphan_stop_inner(&state, &session, orphan.pid)?);
-    }
-    Ok(out)
-}
-
-/// Shared stop path for the command and `Stop all` (guard → audit
-/// intent → ladder → tracker).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill).
-pub fn orphan_stop_inner(
-    state: &Arc<AppState>,
-    session: &SessionId,
-    pid: u32,
-) -> Result<StopOutcomeInfo, AppError> {
-    orphan_stop_audited(state, state.audit.as_ref(), session, pid)
-}
-
-/// `orphan_stop_inner` with an injected audit writer (the
-/// fault-injection gate's seam; production passes the real repo).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill); otherwise the typed stop outcome.
-pub fn orphan_stop_audited(
-    state: &Arc<AppState>,
-    audit: &dyn AuditWriter,
-    session: &SessionId,
-    pid: u32,
-) -> Result<StopOutcomeInfo, AppError> {
-    if !state.orphans.allows(session, pid) {
-        let outcome = juggler_supervisor::StopOutcome::RefusedNotRecorded;
-        state.orphans.record_stop(pid, outcome.clone());
-        crate::usage_stats::count(
-            "leftover.verify_refused",
-            &[("reason", "ownership_unverified")],
-        );
-        return Ok(StopOutcomeInfo {
-            pid,
-            state: outcome.state_label().to_string(),
-        });
-    }
-    // AJ-E509: NO AUDIT, NO KILL — the intent row is written BEFORE
-    // the first signal; a failed write refuses the kill with the
-    // typed error (never a silent `let _ =`), and the ladder runs
-    // only behind a recorded intent.
-    let (intent_id, ports_before) = audit_kill_intent(state, audit, session, pid)?;
-    // AJ-E1103: what it is and holds, read before it goes.
-    let before = if crate::usage_stats::recording() {
-        state
-            .resources
-            .lock()
-            .ok()
-            .and_then(|collector| collector.lookup(pid))
-    } else {
-        None
-    };
-    let outcome = juggler_supervisor::stop_pid_ladder(pid, Duration::from_secs(2), |pid| {
-        juggler_supervisor::process_alive(pid).is_some()
-    });
-    state.orphans.record_stop(pid, outcome.clone());
-    if let Some(journal) = state.supervisor.journal_ref() {
-        let _ = journal.record_killed(session, pid, "manual", outcome.state_label());
-    }
-    // Complete the audit with the per-PID outcome and the honest
-    // post-ladder port state (a still-held port is a fact, never a
-    // success claim).
-    let ports_after = ports_held_by(pid);
-    if let Some(id) = intent_id {
-        // Best-effort completion: the intent (the accountability
-        // floor) already exists; a failed completion degrades to the
-        // truthful pending record, read as `outcome unknown`.
-        let _ = audit.complete(id, outcome.state_label(), ports_after.as_deref());
-    }
-    if let (juggler_supervisor::StopOutcome::Gone { .. }, Some((name, rss))) = (&outcome, &before) {
-        let ports = |list: Option<&str>| {
-            list.unwrap_or_default()
-                .split(',')
-                .filter(|port| !port.trim().is_empty())
-                .count()
-        };
-        let freed = ports(ports_before.as_deref()).saturating_sub(ports(ports_after.as_deref()));
-        crate::usage_stats::leftover_cleaned(
-            name,
-            "",
-            false,
-            u64::try_from(freed).unwrap_or(0),
-            *rss,
-        );
-    }
-    Ok(StopOutcomeInfo {
-        pid,
-        state: outcome.state_label().to_string(),
-    })
 }
 
 /// The audit-writer seam (AJ-E509 Req.3's fault-injection gate):
@@ -8698,48 +8544,6 @@ impl AuditWriter for juggler_core::storage::CleanupAuditRepo {
     }
 }
 
-/// Writes the audit intent for a manual kill (AJ-E509 Req.2/3) and
-/// captures the pre-ladder ports. `Err(AppError::AuditUnavailable)`
-/// REFUSES the kill — the caller surfaces it.
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the intent write fails.
-fn audit_kill_intent(
-    state: &Arc<AppState>,
-    audit: &dyn AuditWriter,
-    session: &SessionId,
-    pid: u32,
-) -> Result<(Option<i64>, Option<String>), AppError> {
-    use juggler_core::storage::{ACTOR_PREFIX_USER, CleanupAuditRecord};
-    let now = now_millis();
-    let ports_before = ports_held_by(pid);
-    let record = CleanupAuditRecord {
-        id: 0,
-        at_ms: now,
-        actor: format!("{ACTOR_PREFIX_USER}orphan_stop"),
-        pid,
-        pgid: None,
-        exe_path: format!("pid:{pid}"),
-        cmdline_hash: format!("pid:{pid}"),
-        cmdline_trunc: format!("PID {pid} (recorded orphan)"),
-        session_id: session.as_str().to_string(),
-        provider: "unknown".into(),
-        account_id: None,
-        project_id: None,
-        machine_id: local_machine_id(state).as_str().to_string(),
-        identity: "allow-list guard (journal-recorded descendant)".into(),
-        scope: "pid".into(),
-        outcome: String::new(),
-        ports_before: ports_before.clone(),
-        ports_after: None,
-    };
-    match audit.intent(&record) {
-        Ok(id) => Ok((Some(id), ports_before)),
-        Err(AuditWriteError) => Err(AppError::AuditUnavailable),
-    }
-}
-
 /// The ports a pid holds RIGHT NOW (the audit's before/after facts).
 fn ports_held_by(pid: u32) -> Option<String> {
     let listeners = os_listeners().ok()?;
@@ -8785,9 +8589,31 @@ fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
 /// AJ-E708 Req.5: the refusal while an Instance's lineage diverged.
 pub const KILL_DIVERGED_COPY: &str = "This work diverged across machines — choose what to keep (Keep mine, Keep theirs or Keep both) first. Nothing was signalled.";
 
-/// The exact unsaved-state warning copy (Req.5).
+/// The exact unsaved-state warning copy (Req.5), in plain words
+/// ("Includes an MCP server that may hold unsaved state.").
 fn unsaved_state_copy(role: &str) -> String {
-    format!("Includes a {role} that may hold unsaved state.")
+    let what = match role {
+        "McpServer" => "an MCP server".to_string(),
+        other => format!("a {}", role_words(other)),
+    };
+    format!("Includes {what} that may hold unsaved state.")
+}
+
+/// A [`guess_role`] code in the words people use ("dev server",
+/// "MCP server"); empty when nothing is known. The UI says "probably"
+/// before it: a guess is never shown as a fact.
+#[must_use]
+pub fn role_words(role: &str) -> &'static str {
+    match role {
+        "McpServer" => "MCP server",
+        "Database" => "database",
+        "DevServer" => "dev server",
+        "Watcher" => "watcher",
+        "BuildTool" => "build tool",
+        "TerminalShell" => "terminal shell",
+        "Harness" => "AI tool",
+        _ => "",
+    }
 }
 
 /// Role guess, pass2 §5 vocabulary — inferred from exe/cmdline, always
@@ -8857,7 +8683,8 @@ pub struct KillMemberInfo {
     pub exe: String,
     /// Truncated command line (display).
     pub cmdline: String,
-    /// pass2 §5 role guess — always labelled a guess in the UI.
+    /// pass2 §5 role guess in plain words ([`role_words`]; empty when
+    /// unknown) — always labelled a guess in the UI.
     pub role_guess: &'static str,
     /// The exact Req.5 warning when the role may hold unsaved state.
     pub unsaved_state_warning: Option<String>,
@@ -8918,12 +8745,15 @@ pub struct KillVerifyInfo {
 /// session (the UI never offers a kill on unmanaged rows — Req.2 —
 /// so this is a contract breach, not a UI state).
 #[tauri::command]
-pub fn kill_verify(
+pub async fn kill_verify(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     pid: u32,
 ) -> AppResult<KillVerifyInfo> {
-    kill_verify_inner(&state, &session_id, pid)
+    crate::ipc::blocking(state.inner(), "kill verify", move |state| {
+        kill_verify_inner(state, &session_id, pid)
+    })
+    .await
 }
 
 /// Click-time identity verification — ONE rule shared by the sheet
@@ -9110,7 +8940,7 @@ fn kill_collateral(
                 pgid: juggler_supervisor::group::pgid_of(member_pid).ok(),
                 exe: member_exe.rsplit('/').next().unwrap_or("?").to_string(),
                 cmdline: truncate_cmdline(&member_cmd),
-                role_guess: role,
+                role_guess: role_words(role),
                 unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell")
                     .then(|| unsaved_state_copy(role)),
                 from_ledger: ledger_row.is_some(),
@@ -9197,7 +9027,7 @@ pub struct KillExecuteInfo {
 /// [`AppError::AuditUnavailable`] when the audit intent fails (the
 /// kill is refused, zero signals sent).
 #[tauri::command]
-pub fn kill_execute(
+pub async fn kill_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     pid: u32,
@@ -9205,26 +9035,37 @@ pub fn kill_execute(
     attempt: String,
     goal_port: Option<u16>,
 ) -> AppResult<KillExecuteInfo> {
-    let flag = state.register_kill_cancel(&attempt);
-    let result = kill_execute_audited(
-        &state,
-        state.audit.as_ref(),
-        &session_id,
-        pid,
-        &scope,
-        &flag,
-        goal_port,
-    );
-    state.unregister_kill_cancel(&attempt);
-    result
+    crate::ipc::blocking(state.inner(), "kill execute", move |state| {
+        let flag = state.register_kill_cancel(&attempt);
+        let result = kill_execute_audited(
+            state,
+            state.audit.as_ref(),
+            &session_id,
+            pid,
+            &scope,
+            &flag,
+            goal_port,
+        );
+        state.unregister_kill_cancel(&attempt);
+        result
+    })
+    .await
 }
 
 /// Cancels a running ladder's grace window (the UI's Cancel button).
 /// Idempotent; unknown attempts are no-ops (the ladder already
 /// finished).
 #[tauri::command]
-pub fn kill_cancel(state: tauri::State<'_, Arc<AppState>>, attempt: String) {
-    state.flip_kill_cancel(&attempt);
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn kill_cancel(state: tauri::State<'_, Arc<AppState>>, attempt: String) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "kill cancel", move |state| {
+        state.flip_kill_cancel(&attempt);
+        Ok(())
+    })
+    .await
 }
 
 /// The grace window's per-process exit ticks (Req.3): liveness of the
@@ -9232,8 +9073,7 @@ pub fn kill_cancel(state: tauri::State<'_, Arc<AppState>>, attempt: String) {
 /// pid — no scans). The sheet polls this while the ladder runs; the
 /// AUTHORITATIVE outcomes still come from `kill_execute`'s report.
 #[tauri::command]
-#[must_use]
-pub fn kill_liveness(pids: Vec<u32>) -> Vec<bool> {
+pub async fn kill_liveness(pids: Vec<u32>) -> Vec<bool> {
     pids.iter()
         .map(|pid| juggler_supervisor::process_alive(*pid).is_some())
         .collect()
@@ -9530,57 +9370,6 @@ fn still_holding_report(
     (still_holding, reoffer_pid)
 }
 
-/// `Verify owner`: re-reads the ppid chain for one orphan pid (manual,
-/// honest evidence — never a silent re-check).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub fn orphan_verify(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-    pid: u32,
-) -> AppResult<OrphanVerifyInfo> {
-    orphan_verify_arc(&state, &session_id, pid)
-}
-
-/// The Arc-based core (tests call this directly).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on probe failure.
-pub fn orphan_verify_arc(
-    _state: &Arc<AppState>,
-    _session_id: &str,
-    pid: u32,
-) -> AppResult<OrphanVerifyInfo> {
-    // The probe itself is per-pid (the session scopes it in the UI).
-    match juggler_supervisor::verify_owner(pid) {
-        juggler_supervisor::OwnerState::Gone => Ok(OrphanVerifyInfo {
-            pid,
-            alive: false,
-            parent_pid: None,
-            note: "process is gone".to_string(),
-        }),
-        juggler_supervisor::OwnerState::Alive { ppid } => Ok(OrphanVerifyInfo {
-            pid,
-            alive: true,
-            parent_pid: ppid,
-            note: owner_note(ppid),
-        }),
-    }
-}
-
-/// Human note for a live pid's parent state.
-fn owner_note(ppid: Option<u32>) -> String {
-    match ppid {
-        Some(1 | 0) => "alive — re-parented to init/launchd (its parent exited)".to_string(),
-        Some(parent) => format!("alive — parent pid {parent}"),
-        None => "alive — parent not readable".to_string(),
-    }
-}
-
 /// Sets the per-Account Tier-1 cleanup opt-in (D-08: off by default;
 /// the toggle is the only way automatic kills ever happen).
 ///
@@ -9588,12 +9377,15 @@ fn owner_note(ppid: Option<u32>) -> String {
 ///
 /// Returns the typed [`AppError`] message when the Account is unknown.
 #[tauri::command]
-pub fn account_set_cleanup(
+pub async fn account_set_cleanup(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     opt_in: bool,
 ) -> AppResult<AccountInfo> {
-    account_set_cleanup_arc(&state, &account_id, opt_in)
+    crate::ipc::blocking(state.inner(), "account set cleanup", move |state| {
+        account_set_cleanup_arc(state, &account_id, opt_in)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -9627,12 +9419,15 @@ pub fn account_set_cleanup_arc(
 /// Returns the typed [`AppError`] message when the Account is unknown
 /// or the date format is invalid.
 #[tauri::command]
-pub fn account_set_renewal(
+pub async fn account_set_renewal(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     date: Option<String>,
 ) -> AppResult<AccountInfo> {
-    account_set_renewal_arc(&state, &account_id, date.as_deref())
+    crate::ipc::blocking(state.inner(), "account set renewal", move |state| {
+        account_set_renewal_arc(state, &account_id, date.as_deref())
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10267,8 +10062,13 @@ fn instance_label_for(state: &Arc<AppState>, session: &str) -> String {
 ///
 /// Returns the typed [`AppError`] message on read failure.
 #[tauri::command]
-pub fn cleanup_alerts(state: tauri::State<'_, Arc<AppState>>) -> AppResult<CleanupAlertsInfo> {
-    Ok(cleanup_alerts_inner(&state))
+pub async fn cleanup_alerts(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<CleanupAlertsInfo> {
+    crate::ipc::blocking(state.inner(), "cleanup alerts", move |state| {
+        Ok(cleanup_alerts_inner(state))
+    })
+    .await
 }
 
 /// The cleanup automation's status (the centre's banners + the
@@ -10307,10 +10107,13 @@ pub struct RecoverySummaryInfo {
 ///
 /// Returns the typed [`AppError`] message on read failure.
 #[tauri::command]
-pub fn recovery_summary_get(
+pub async fn recovery_summary_get(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Option<RecoverySummaryInfo>> {
-    recovery_summary_get_arc(&state)
+    crate::ipc::blocking(state.inner(), "recovery summary get", move |state| {
+        recovery_summary_get_arc(state)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10361,13 +10164,16 @@ pub fn recovery_summary_get_arc(state: &Arc<AppState>) -> AppResult<Option<Recov
 ///
 /// Returns the typed [`AppError`] message on write failure.
 #[tauri::command]
-pub fn recovery_summary_dismiss(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
-    let storage = lock_storage_arc(&state)?;
-    storage
-        .app_settings()
-        .set("recovery_summary_consumed", "1")
-        .map_err(AppError::from)?;
-    Ok(())
+pub async fn recovery_summary_dismiss(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "recovery summary dismiss", move |state| {
+        let storage = lock_storage_arc(state)?;
+        storage
+            .app_settings()
+            .set("recovery_summary_consumed", "1")
+            .map_err(AppError::from)?;
+        Ok(())
+    })
+    .await
 }
 
 /// Reads the automation status (Tier 0 is always the fallback — this
@@ -10377,8 +10183,13 @@ pub fn recovery_summary_dismiss(state: tauri::State<'_, Arc<AppState>>) -> AppRe
 ///
 /// Returns the typed [`AppError`] message on lock failure.
 #[tauri::command]
-pub fn cleanup_status(state: tauri::State<'_, Arc<AppState>>) -> AppResult<CleanupStatusInfo> {
-    cleanup_status_inner(&state)
+pub async fn cleanup_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<CleanupStatusInfo> {
+    crate::ipc::blocking(state.inner(), "cleanup status", move |state| {
+        cleanup_status_inner(state)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10423,11 +10234,14 @@ fn cleanup_status_of(state: &Arc<AppState>) -> CleanupStatusInfo {
 ///
 /// Returns the typed [`AppError`] message on write failure.
 #[tauri::command]
-pub fn cleanup_pause_set(
+pub async fn cleanup_pause_set(
     state: tauri::State<'_, Arc<AppState>>,
     paused: bool,
 ) -> AppResult<CleanupStatusInfo> {
-    cleanup_pause_set_arc(&state, paused)
+    crate::ipc::blocking(state.inner(), "cleanup pause set", move |state| {
+        cleanup_pause_set_arc(state, paused)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10453,12 +10267,15 @@ pub fn cleanup_pause_set_arc(state: &Arc<AppState>, paused: bool) -> AppResult<C
 ///
 /// Returns the typed [`AppError`] message on lock failure.
 #[tauri::command]
-pub fn cleanup_tier2_decide(
+pub async fn cleanup_tier2_decide(
     state: tauri::State<'_, Arc<AppState>>,
     pid: u32,
     keep: bool,
 ) -> AppResult<CleanupStatusInfo> {
-    cleanup_tier2_decide_arc(&state, pid, keep)
+    crate::ipc::blocking(state.inner(), "cleanup tier2 decide", move |state| {
+        cleanup_tier2_decide_arc(state, pid, keep)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10485,10 +10302,13 @@ pub fn cleanup_tier2_decide_arc(
 ///
 /// Returns the typed [`AppError`] message on write failure.
 #[tauri::command]
-pub fn cleanup_resume_after_crash(
+pub async fn cleanup_resume_after_crash(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<CleanupStatusInfo> {
-    cleanup_resume_after_crash_arc(&state)
+    crate::ipc::blocking(state.inner(), "cleanup resume after crash", move |state| {
+        cleanup_resume_after_crash_arc(state)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10512,11 +10332,14 @@ pub fn cleanup_resume_after_crash_arc(state: &Arc<AppState>) -> AppResult<Cleanu
 ///
 /// Returns the typed [`AppError`] message on read failure.
 #[tauri::command]
-pub fn cleanup_tiers_get(
+pub async fn cleanup_tiers_get(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
 ) -> AppResult<juggler_core::storage::CleanupTierSettings> {
-    cleanup_tiers_get_arc(&state, &account_id)
+    crate::ipc::blocking(state.inner(), "cleanup tiers get", move |state| {
+        cleanup_tiers_get_arc(state, &account_id)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -10538,13 +10361,16 @@ pub fn cleanup_tiers_get_arc(
 ///
 /// Returns the typed [`AppError`] message on write failure.
 #[tauri::command]
-pub fn cleanup_tiers_set(
+pub async fn cleanup_tiers_set(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     tier1_opt_in: bool,
     tier2_opt_in: bool,
 ) -> AppResult<juggler_core::storage::CleanupTierSettings> {
-    cleanup_tiers_set_arc(&state, &account_id, tier1_opt_in, tier2_opt_in)
+    crate::ipc::blocking(state.inner(), "cleanup tiers set", move |state| {
+        cleanup_tiers_set_arc(state, &account_id, tier1_opt_in, tier2_opt_in)
+    })
+    .await
 }
 
 /// The Arc-based core (tests call this directly).
@@ -11337,9 +11163,8 @@ pub mod legacy_aliases {
 
     /// Legacy alias of `providers_list`.
     #[tauri::command]
-    #[must_use]
-    pub fn harnesses_list_alias() -> Vec<ProviderInfo> {
-        harnesses_list()
+    pub async fn harnesses_list_alias() -> Vec<ProviderInfo> {
+        harnesses_list().await
     }
 
     /// Legacy alias of `launch_recipes_list`.
@@ -12442,14 +12267,25 @@ fn resume_original_with_delta(
     let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            original_session.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account_a,
+            profile: &profile_a.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: original_session.project.clone(),
+            cwd: original_session.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(resume_id.clone())),
+            transcript_ref: original_session.transcript_ref.clone(),
+            origin: "switch",
+        },
+        || {
+            let project = original_session.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account_a, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
 
     record_switch_back_edge(
@@ -12457,8 +12293,6 @@ fn resume_original_with_delta(
         lineage,
         away_account,
         &account_a,
-        &profile_a,
-        &original_session,
         &new_session,
         &resume_id,
         fresh,
@@ -12472,7 +12306,7 @@ fn resume_original_with_delta(
     })
 }
 
-/// Records the return: the resumed instance row, its epoch
+/// Records the return: the resumed instance's epoch
 /// (`resumed_from_epoch` = the ORIGINAL epoch), the switch-back
 /// edge (parent = the fork; two-parent shape ready for merges),
 /// and the per-conflict choices as manifest rows (E201).
@@ -12486,8 +12320,6 @@ fn record_switch_back_edge(
     lineage: &BackLineage,
     away_account: &juggler_core::model::Account,
     account_a: &juggler_core::model::Account,
-    profile_a: &juggler_core::model::LaunchRecipe,
-    original_session: &juggler_core::model::InstanceRecord,
     new_session: &SessionId,
     resume_id: &str,
     fresh: bool,
@@ -12497,30 +12329,10 @@ fn record_switch_back_edge(
     )],
 ) -> AppResult<()> {
     use juggler_core::model::{
-        ConversationId, EdgeActor, EdgeState, Epoch, EpochId, InstanceKind, InstanceRecord,
-        ManifestEntry, SwitchEdge, SwitchEdgeId, SwitchMechanism,
+        EdgeActor, EdgeState, Epoch, EpochId, ManifestEntry, SwitchEdge, SwitchEdgeId,
+        SwitchMechanism,
     };
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
-    let usage = engine_usage_snapshot(&storage, &profile_a.id);
-    storage.sessions().insert(&InstanceRecord {
-        id: new_session.clone(),
-        conversation: Some(ConversationId::new(resume_id.to_owned())),
-        profile: profile_a.id.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: original_session.project.clone(),
-        cwd: original_session.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: original_session.transcript_ref.clone(),
-    })?;
-    crate::usage_stats::instance_started(account_a.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let epoch_id = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -12852,11 +12664,14 @@ fn strip_label(policy: juggler_handover::redaction::RedactionPolicy) -> String {
 ///
 /// Returns the typed [`AppError`] when storage reads fail.
 #[tauri::command]
-pub fn redaction_policy_get(
+pub async fn redaction_policy_get(
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
 ) -> AppResult<RedactionPolicyInfo> {
-    redaction_policy_get_impl(state.inner(), &provider)
+    crate::ipc::blocking(state.inner(), "redaction policy get", move |state| {
+        redaction_policy_get_impl(state, &provider)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -12896,11 +12711,14 @@ pub fn redaction_policy_get_impl(
 ///
 /// Returns the typed [`AppError`] when storage writes fail.
 #[tauri::command]
-pub fn redaction_policy_set_global(
+pub async fn redaction_policy_set_global(
     state: tauri::State<'_, Arc<AppState>>,
     policy: Option<String>,
 ) -> AppResult<()> {
-    redaction_policy_set_global_impl(state.inner(), policy.as_deref())
+    crate::ipc::blocking(state.inner(), "redaction policy set global", move |state| {
+        redaction_policy_set_global_impl(state, policy.as_deref())
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -12942,12 +12760,17 @@ pub fn redaction_policy_set_global_impl(
 /// Returns the typed [`AppError`] on an unknown wire name or a
 /// storage write failure.
 #[tauri::command]
-pub fn redaction_policy_set_override(
+pub async fn redaction_policy_set_override(
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
     policy: Option<String>,
 ) -> AppResult<()> {
-    redaction_policy_set_override_impl(state.inner(), &provider, policy.as_deref())
+    crate::ipc::blocking(
+        state.inner(),
+        "redaction policy set override",
+        move |state| redaction_policy_set_override_impl(state, &provider, policy.as_deref()),
+    )
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13100,16 +12923,54 @@ fn switch_rank_context_of(
             }
         }
     }
-    let source_replay_tokens = source.transcript_ref.as_ref().and_then(|reference| {
-        juggler_adapters::transcript_tokens(&reference.path)
-            .map(|tokens| tokens.input.saturating_add(tokens.output))
-    });
+    // What the usage pipeline already counted for it; the transcript is
+    // read (once per size and time) only when it counted nothing (0.1.5
+    // review: a session's page read its whole transcript twice on open).
+    let counted = source
+        .usage
+        .tokens
+        .input
+        .saturating_add(source.usage.tokens.output);
+    let source_replay_tokens = if counted > 0 {
+        Some(counted)
+    } else {
+        source
+            .transcript_ref
+            .as_ref()
+            .and_then(|reference| transcript_tokens_once(&reference.path))
+    };
     Ok(SwitchRankContext {
         source_provider: source_account.harness.to_string(),
         source_tte_min,
         returnable_accounts: returnable,
         source_replay_tokens,
     })
+}
+
+/// A transcript's input + output tokens, read again only when its size or
+/// time changed (the last few kept).
+fn transcript_tokens_once(path: &std::path::Path) -> Option<u64> {
+    type Seen =
+        std::collections::HashMap<PathBuf, (u64, Option<std::time::SystemTime>, Option<u64>)>;
+    static SEEN: std::sync::LazyLock<std::sync::Mutex<Seen>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(Seen::new()));
+    let meta = std::fs::metadata(path).ok()?;
+    let stamp = (meta.len(), meta.modified().ok());
+    if let Ok(seen) = SEEN.lock()
+        && let Some((len, modified, tokens)) = seen.get(path)
+        && (*len, *modified) == stamp
+    {
+        return *tokens;
+    }
+    let tokens = juggler_adapters::transcript_tokens(path)
+        .map(|tokens| tokens.input.saturating_add(tokens.output));
+    if let Ok(mut seen) = SEEN.lock() {
+        if seen.len() >= 64 {
+            seen.clear();
+        }
+        seen.insert(path.to_path_buf(), (stamp.0, stamp.1, tokens));
+    }
+    tokens
 }
 
 /// AJ-E209: the ranked + badged destinations for one source session
@@ -13120,11 +12981,14 @@ fn switch_rank_context_of(
 /// Returns the typed [`AppError`] when the source session or ranking
 /// inputs cannot be resolved.
 #[tauri::command]
-pub fn switch_targets(
+pub async fn switch_targets(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Vec<SwitchTargetInfo>> {
-    switch_targets_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "switch targets", move |state| {
+        switch_targets_impl(state, &session_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13272,11 +13136,14 @@ pub struct WorkGraphInfo {
 /// Returns the typed [`AppError`] when the project or graph reads
 /// fail.
 #[tauri::command]
-pub fn switch_graph_overview(
+pub async fn switch_graph_overview(
     state: tauri::State<'_, Arc<AppState>>,
     project_id: String,
 ) -> AppResult<Vec<WorkGraphInfo>> {
-    switch_graph_overview_impl(state.inner(), &project_id)
+    crate::ipc::blocking(state.inner(), "switch graph overview", move |state| {
+        switch_graph_overview_impl(state, &project_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13496,11 +13363,14 @@ fn find_epoch_with_session(
 /// Returns the typed [`AppError`] when the epoch or its account/
 /// recipe cannot be resolved or the spawn fails.
 #[tauri::command]
-pub fn epoch_resume(
+pub async fn epoch_resume(
     state: tauri::State<'_, Arc<AppState>>,
     epoch_id: String,
 ) -> AppResult<LaunchResult> {
-    epoch_resume_impl(state.inner(), &epoch_id)
+    crate::ipc::blocking(state.inner(), "epoch resume", move |state| {
+        epoch_resume_impl(state, &epoch_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13541,40 +13411,26 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account,
-            session_row.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account,
+            profile: &profile.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: session_row.project.clone(),
+            cwd: session_row.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(native_id)),
+            transcript_ref: session_row.transcript_ref.clone(),
+            origin: "resume",
+        },
+        || {
+            let project = session_row.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
-    {
-        let machine = local_machine_id(state);
-        let storage = lock_storage_arc(state)?;
-        let usage = engine_usage_snapshot(&storage, &profile.id);
-        storage
-            .sessions()
-            .insert(&juggler_core::model::InstanceRecord {
-                id: new_session.clone(),
-                conversation: Some(juggler_core::model::ConversationId::new(native_id)),
-                profile: profile.id.clone(),
-                machine,
-                kind: juggler_core::model::InstanceKind::Terminal,
-                project: session_row.project.clone(),
-                cwd: session_row.cwd.clone(),
-                status: SessionStatus::Starting,
-                started_at: Timestamp::now(),
-                last_activity: None,
-                usage,
-                attention: None,
-                running: None,
-                window: None,
-                transcript_ref: session_row.transcript_ref.clone(),
-            })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
-    }
     Ok(LaunchResult {
         session_id: new_session.to_string(),
         pid: spawned.pid,
@@ -13593,8 +13449,14 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
 /// the policy is unset (exports block like switches), or the write
 /// fails.
 #[tauri::command]
-pub fn pack_export(state: tauri::State<'_, Arc<AppState>>, epoch_id: String) -> AppResult<String> {
-    pack_export_impl(state.inner(), &epoch_id)
+pub async fn pack_export(
+    state: tauri::State<'_, Arc<AppState>>,
+    epoch_id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "pack export", move |state| {
+        pack_export_impl(state, &epoch_id)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13833,10 +13695,13 @@ pub struct DogfoodCellInfo {
 ///
 /// Returns the typed [`AppError`] on storage failures.
 #[tauri::command]
-pub fn validation_matrix(
+pub async fn validation_matrix(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ValidationCellInfo>> {
-    validation_matrix_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "validation matrix", move |state| {
+        validation_matrix_impl(state)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -13913,7 +13778,7 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
 /// researched matrix (never invented) or the store fails.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub fn validation_dogfood_record(
+pub async fn validation_dogfood_record(
     state: tauri::State<'_, Arc<AppState>>,
     from: String,
     to: String,
@@ -13924,17 +13789,20 @@ pub fn validation_dogfood_record(
     target_sha256: String,
     note: String,
 ) -> AppResult<()> {
-    validation_dogfood_record_impl(
-        state.inner(),
-        &from,
-        &to,
-        &verdict,
-        &at,
-        &project_shape,
-        &source_sha256,
-        &target_sha256,
-        &note,
-    )
+    crate::ipc::blocking(state.inner(), "the tried-by-hand record", move |state| {
+        validation_dogfood_record_impl(
+            state,
+            &from,
+            &to,
+            &verdict,
+            &at,
+            &project_shape,
+            &source_sha256,
+            &target_sha256,
+            &note,
+        )
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -14064,10 +13932,13 @@ pub struct ProviderCapabilityInfo {
 ///
 /// Never in practice; typed for the command surface.
 #[tauri::command]
-pub fn providers_capabilities(
+pub async fn providers_capabilities(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ProviderCapabilityInfo>> {
-    Ok(providers_capabilities_impl(state.inner()))
+    crate::ipc::blocking(state.inner(), "providers capabilities", move |state| {
+        Ok(providers_capabilities_impl(state))
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests.
@@ -14102,10 +13973,13 @@ pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabil
 /// Returns the typed [`AppError`] on registry failures (never for a
 /// missing binary — that is a ROW, not an error).
 #[tauri::command]
-pub fn providers_discover(
+pub async fn providers_discover(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ProviderInstallInfo>> {
-    providers_discover_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "providers discover", move |state| {
+        providers_discover_impl(state)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests (the no-binary
@@ -14183,7 +14057,7 @@ fn warm_provider_versions(state: &Arc<AppState>) {
 }
 
 fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
-    // Tauri dispatches commands off the UI thread; the per-adapter
+    // Commands run this off the main thread (`crate::ipc::blocking`); the per-adapter
     // probes additionally run on their OWN threads (parallel, one
     // subprocess each — the ≤800 ms p95 budget for 3 Providers).
     {
@@ -14393,20 +14267,23 @@ fn mark_in_use(state: &Arc<AppState>, installs: &mut [DiscoveredInfo]) {
 /// Returns the typed [`AppError`] on registry failures (a denied or
 /// partial probe is a ROW, never an error).
 #[tauri::command]
-pub fn environment_scan_full(
+pub async fn environment_scan_full(
     state: tauri::State<'_, Arc<AppState>>,
     app: tauri::AppHandle,
 ) -> AppResult<ScanReportInfo> {
-    // Progress streams to the webview as `scan-progress` events
-    // ("Checking… n of 10" — H1 visibility, WCAG-safe text).
-    let sink = move |done: u32, total: u32| {
-        let _ = tauri::Emitter::emit(
-            &app,
-            "scan-progress",
-            serde_json::json!({ "done": done, "total": total }),
-        );
-    };
-    environment_scan_full_impl(state.inner(), Some(&sink))
+    crate::ipc::blocking(state.inner(), "environment scan full", move |state| {
+        // Progress streams to the webview as `scan-progress` events
+        // ("Checking… n of 10" — H1 visibility, WCAG-safe text).
+        let sink = move |done: u32, total: u32| {
+            let _ = tauri::Emitter::emit(
+                &app,
+                "scan-progress",
+                serde_json::json!({ "done": done, "total": total }),
+            );
+        };
+        environment_scan_full_impl(state, Some(&sink))
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests. `progress` is
@@ -14875,7 +14752,7 @@ fn manager_detail(managers: &[juggler_adapter::environment::ManagerHint], manage
 /// AJ-E302 Req.5: cancels a running scan (the wizard calls it on
 /// close/unmount; the report that returns carries `cancelled`).
 #[tauri::command]
-pub fn scan_cancel() {
+pub async fn scan_cancel() {
     SCAN_CANCEL.store(true, Ordering::SeqCst);
 }
 
@@ -14891,10 +14768,13 @@ pub fn scan_cancel() {
 ///
 /// Returns the typed [`AppError`] when the scan fails.
 #[tauri::command]
-pub fn recommendation_for(
+pub async fn recommendation_for(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<juggler_core::recommendation::Recommendation> {
-    recommendation_for_impl(state.inner())
+    crate::ipc::blocking(state.inner(), "recommendation for", move |state| {
+        recommendation_for_impl(state)
+    })
+    .await
 }
 
 /// Core implementation shared with integration tests (the

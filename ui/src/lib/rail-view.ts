@@ -107,9 +107,14 @@ export function useRailView(): RailView {
   );
 }
 
-/** Turns one Show part on (the "Also:" line, Home's links). */
+/** Fired with the Show part just turned on: the list brings it into view. */
+export const RAIL_REVEAL_EVENT = "aij:rail-reveal";
+
+/** Turns one Show part on (the "Also:" line, Home's links), and the
+ * list scrolls to it: a click always shows what it turned on. */
 export function showInRail(key: ShowKey, on = true): void {
   setRailView((view) => ({ ...view, show: { ...view.show, [key]: on } }));
+  if (on) window.dispatchEvent(new CustomEvent(RAIL_REVEAL_EVENT, { detail: { key } }));
 }
 
 export function isDefaultView(view: RailView): boolean {

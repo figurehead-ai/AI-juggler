@@ -11,7 +11,7 @@ export function FilterChip({ active, onClick, count, children }: { active: boole
       aria-pressed={active}
       onClick={onClick}
       className={
-        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-label font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
         (active
           ? "border-accent/40 bg-accent-soft text-accent-hi"
           : "border-hairline text-muted hover:bg-surface hover:text-ink")
@@ -37,7 +37,7 @@ export function Select({ ariaLabel, value, onChange, options }: { ariaLabel: str
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-[10px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-label text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>

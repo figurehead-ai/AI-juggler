@@ -257,5 +257,12 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
-Total: 255 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
+| AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
+| AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
+| AJ-E2204 | Usage, a dashboard | E22-visual-usage.md | P0 | L | AJ-E2202, AJ-E2203 |
+| AJ-E2205 | A project's page, visual | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
+| AJ-E2206 | A profile's page and the account cards | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
+| AJ-E2207 | A session's usage | E22-visual-usage.md | P1 | S | AJ-E2202, AJ-E2203 |
+Total: 262 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

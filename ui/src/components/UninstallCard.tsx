@@ -34,7 +34,7 @@ export function UninstallCard(): JSX.Element {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-uninstall">
       <CardTitle>Before you uninstall</CardTitle>
-      <p className="text-[12px] leading-relaxed text-muted">
+      <p className="text-label leading-relaxed text-muted">
         Puts back what AI Juggler changed outside its own folder, and lists what's left for you to remove. Nothing is deleted.
       </p>
       <div>
@@ -48,7 +48,7 @@ export function UninstallCard(): JSX.Element {
         </p>
       )}
       {done && (
-        <div className="flex flex-col gap-3 text-[12px] leading-relaxed" role="status" data-testid="uninstall-result">
+        <div className="flex flex-col gap-3 text-label leading-relaxed" role="status" data-testid="uninstall-result">
           <section className="flex flex-col gap-1">
             <h4 className="font-medium text-ink">Status lines</h4>
             {done.status_lines.length === 0 ? (

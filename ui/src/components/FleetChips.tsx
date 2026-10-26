@@ -83,7 +83,7 @@ export function ClockSkewNote({ label, skewMs }: { label: string; skewMs: number
   const minutes = Math.round(Math.abs(skewMs) / 60_000);
   const direction = skewMs > 0 ? "ahead of" : "behind";
   return (
-    <p className="w-full text-[11px] text-ink" role="note" data-testid="fleet-clock-skew">
+    <p className="w-full text-label text-ink" role="note" data-testid="fleet-clock-skew">
       <span aria-hidden="true">⚠ </span>
       {label}'s clock is {minutes} min {direction} this Mac's — times it reports may look off. Order
       always follows its own change sequence, never its clock.

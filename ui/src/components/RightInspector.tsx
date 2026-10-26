@@ -11,16 +11,19 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
+// The verified stop sheet loads when a Stop is chosen (lazy-load rule).
+const KillSheet = lazyNamed(() => import("./KillSheet"), "KillSheet");
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
+const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
-import { PortInventoryList } from "./PortMap";
-import { ProcessRow } from "./ProcessRow";
+import { ProcessRow, ProcessRowsHeader, type CleanupRowInfo } from "./ProcessRow";
+import type { KillBridge } from "./KillSheet";
 import { IconProjects, IconTerminal } from "./icons";
 import type {
   AccountInfo,
@@ -31,25 +34,16 @@ import type {
 } from "../lib/bridge";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
-import { TwoClocks } from "./QuotaRings";
-import { quotaDisplay, quotaDisplayAll, switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData, errorText,
+import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
 import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
-import { FOUND_UNCHECKED, providerDisplayName, versionUnchecked } from "../lib/providers";
-import { SwitchTargetRows } from "./SwitchTargetRows";
-import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
-import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
-import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
-import {
-  fleetDivergences,
-  fleetSwitchBackPlan,
-  fleetSwitchTargets,
-  type DivergenceRecordInfo,
-  type FleetSwitchBackPlanInfo,
-  type RemoteSwitchTargetInfo,
-} from "../lib/bridge";
+import { modelName } from "./charts/colors";
+import { useCached } from "../lib/usage/cached";
+import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
+import { installWords, providerDisplayName } from "../lib/providers";
+import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 
@@ -82,8 +76,8 @@ function HonestEmpty({ tab }: { tab: EmptyTab }) {
   };
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-      <p className="text-[12px] font-medium text-muted">Unavailable</p>
-      <p className="max-w-xs text-[11px] leading-relaxed text-muted">{copy[tab]}</p>
+      <p className="text-label font-medium text-muted">Unavailable</p>
+      <p className="max-w-xs text-label leading-relaxed text-muted">{copy[tab]}</p>
     </div>
   );
 }
@@ -183,6 +177,7 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
+  const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
@@ -202,7 +197,7 @@ export function RightInspector({
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
-    hasUsage: data.project ? projectHasUsage(data.project.id, sessions, conversations) : false,
+    hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
         outside(conversations).some((c) => c.account_id === data.account!.id)
@@ -271,7 +266,7 @@ export function RightInspector({
       }
       footer={(tab) => (
         // Sticky with a solid background: a long tab scrolls under it.
-        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-[10px] text-muted">
+        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">
           <span>
             Updated{" "}
             {since(remote ? (remote.machine.last_heard_ms ?? now) : (freshness[data.instance?.id ?? ""]?.resources ?? now), now)} ago
@@ -288,8 +283,23 @@ export function RightInspector({
 /** The tab ids a paired Mac's bodies take (RemoteTabs.tsx). */
 type InspectorTab = "overview" | "usage" | "history" | "quality" | "processes" | "actions";
 
-/** A project has usage to show when any of its sessions measured some. */
-function projectHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
+/** A project has usage to show when the usage history holds any of it,
+ * at any time (0.1.5: its summaries, not the sessions the app holds
+ * now); until that answer comes, what the working set says, so the tab
+ * doesn't blink. */
+function useProjectHasUsage(projectId: string | null, meanwhile: boolean): boolean {
+  const result = useCached<UsageHistoryInfo>(
+    projectId ? `project-has-usage:${projectId}` : null,
+    () => usageHistory({ edges_ms: [0, Date.now()], group_by: "profile", profile: null, project: projectId, top: 0 }),
+    60_000,
+  );
+  if (!projectId) return false;
+  const summary = result.current ? result.data : null;
+  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
+}
+
+/** What the sessions the app holds now say: any measured some. */
+function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): boolean {
   const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
   return (
     sessions.some((s) => s.project_id === projectId && used(s.tokens)) ||
@@ -308,13 +318,16 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "overview": // AJ-E2108: where it runs and its last messages.
           return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
         case "usage":
-          // AJ-E1533: Quality joins Usage — one place for what it used
-          // and how it went.
-          return (
-            <>
-              <InstanceUsage {...props} />
+          // 0.1.5: the same Usage tab as any session's (its charts and its
+          // account's window), then how it's going (AJ-E1533: Quality
+          // joins Usage).
+          return props.data.instance ? (
+            <div className="flex flex-col gap-grid" data-testid="instance-usage">
+              <OwnSessionUsage session={props.data.instance} visible />
               <QualityTab {...props} />
-            </>
+            </div>
+          ) : (
+            <HonestEmpty tab="usage" />
           );
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
@@ -354,19 +367,16 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
 /// import site — the seam keeps the component testable either way.)
 export type ProcessesBridge = {
   load: (sessionId: string) => Promise<import("../lib/bridge").ProcessesInfo | null>;
-  stop: (sessionId: string, pid: number) => Promise<import("../lib/bridge").StopOutcomeInfo>;
-  stopAll: (sessionId: string) => Promise<import("../lib/bridge").StopOutcomeInfo[]>;
-  verify: (
-    sessionId: string,
-    pid: number,
-  ) => Promise<import("../lib/bridge").OrphanVerifyInfo>;
+  /** This session's rows in the shared Cleanup inventory (G-1: one data
+   * path, one row, one verified Stop). */
+  cleanup: (sessionId: string) => Promise<{ rows: CleanupRowInfo[]; localMachine: string }>;
+  /** The verified sheet's calls; absent = the real bridge. */
+  kill?: KillBridge;
 };
 
 const defaultProcessesBridge: ProcessesBridge = {
   load: async (sessionId) => (await import("../lib/bridge")).instanceProcesses(sessionId),
-  stop: async (sessionId, pid) => (await import("../lib/bridge")).orphanStop(sessionId, pid),
-  stopAll: async (sessionId) => (await import("../lib/bridge")).orphanStopAll(sessionId),
-  verify: async (sessionId, pid) => (await import("../lib/bridge")).orphanVerify(sessionId, pid),
+  cleanup: async (sessionId) => (await import("../lib/bridge")).sessionCleanup(sessionId),
 };
 
 type PanelProps = {
@@ -404,7 +414,6 @@ const defaultFocusBridge: FocusBridge = async (sessionId) =>
   (await import("../lib/bridge")).desktopFocus(sessionId);
 
 function InstanceOverview(props: PanelProps) {
-  const handoverRef = useRef<HTMLDetailsElement | null>(null);
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
   // shown verbatim, never overstated. A missing Accessibility grant
   // additionally raises the one-time explainer (Req.3).
@@ -412,68 +421,6 @@ function InstanceOverview(props: PanelProps) {
   const [explainerDismissed, setExplainerDismissed] = useState(
     () => localStorage.getItem("aij.a11y-explainer.dismissed") === "1",
   );
-  // D-25: the ranked switch list is one step away — open when this
-  // session hit its limit (or a way back is on offer), otherwise behind
-  // "Switch account…" (header) or ⌘⇧H.
-  const [switchOpen, setSwitchOpen] = useState(() => props.data.instance?.status === "quota_blocked");
-  useEffect(() => {
-    const scroll = () => {
-      setSwitchOpen(true);
-      // jsdom has no scrollIntoView; the guard keeps tests honest.
-      requestAnimationFrame(() => {
-        handoverRef.current?.scrollIntoView?.({ block: "center" });
-        // ⌘⇧H "focuses the hand-over section": its summary takes focus.
-        handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
-      });
-    };
-    window.addEventListener("aij:focus-handover", scroll);
-    return () => window.removeEventListener("aij:focus-handover", scroll);
-  }, []);
-  // AJ-E209: the ranked + badged switch destinations for the selected
-  // instance (§Q6 extended; suggest-only). Refetch when the instance
-  // or its live state changes — the ranker's inputs (quota, sessions)
-  // move with them.
-  const [switchTargets_, setSwitchTargets] = useState<SwitchTargetData[] | null>(null);
-  const instanceId = props.data.instance?.id ?? null;
-  useEffect(() => {
-    if (instanceId === null) return;
-    let alive = true;
-    switchTargets(instanceId)
-      .then((rows) => {
-        if (alive) setSwitchTargets(rows);
-      })
-      .catch(() => {
-        if (alive) setSwitchTargets([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [instanceId, props.data.instance?.status]);
-  // AJ-E706: paired machines as destinations, and — for an Instance
-  // that came from another machine — the way back (with any divergence
-  // that waits for the user, AJ-E708).
-  const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
-  const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
-  const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);
-  const [crossTarget, setCrossTarget] = useState<RemoteSwitchTargetInfo | null>(null);
-  const [backOpen, setBackOpen] = useState(false);
-  const [crossTick, setCrossTick] = useState(0);
-  useEffect(() => {
-    if (instanceId === null) return;
-    let alive = true;
-    fleetSwitchTargets(instanceId)
-      .then((rows) => alive && setRemoteTargets(rows))
-      .catch(() => alive && setRemoteTargets([]));
-    fleetSwitchBackPlan(instanceId)
-      .then((plan) => alive && setBackPlan(plan))
-      .catch(() => alive && setBackPlan(null));
-    fleetDivergences()
-      .then((rows) => alive && setDivergence(rows.find((row) => row.session_id === instanceId) ?? null))
-      .catch(() => alive && setDivergence(null));
-    return () => {
-      alive = false;
-    };
-  }, [instanceId, props.data.instance?.status, crossTick]);
   const { kind, data, sessions, accounts, profiles, terminalTitle } = props;
 
   if (kind === "instance" && data.instance) {
@@ -484,117 +431,142 @@ function InstanceOverview(props: PanelProps) {
     const terminalId = session.id;
     const live = session.status === "running" || session.status === "starting";
     const project = props.projects.find((p) => p.id === session.project_id) ?? null;
-    return (
-      // Grows with its content (the section scrolls): a long handover
-      // list never squashes the overview or the terminal.
-      <div className="flex flex-1 flex-col gap-3">
-        {/* §5.1 Overview fields (every field honest: absent → named
-            empty, never fabricated). Lineage is omitted entirely until
-            the Switch Graph exists (E2) — no fabricated A→B links. */}
-        <Card className="flex flex-col gap-2 p-3" data-testid="instance-overview-fields">
-          {/* The header already says the state, the account and its low
-              runway (D-25); this row adds only when it ended and the
-              identity check. */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] empty:hidden">
-            {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
-              <span className="text-[11.5px] text-muted" data-testid="session-ended-stamp">
-                Ended{" "}
-                {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-              </span>
-            ) : null}
-            {identityWords(session) && (
-              <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
-                <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
-                  {identityWords(session)!.text}
-                </Chip>
-              </span>
+    // §5.1 Overview fields (every field honest: absent → named empty,
+    // never fabricated). Lineage is omitted entirely until the Switch
+    // Graph exists (E2) — no fabricated A→B links.
+    const fields = (
+      <div className={"flex flex-col gap-2 " + (isDesktop ? "" : "border-t border-hairline pt-3")} data-testid="instance-overview-fields">
+        {/* The header already says the state, the account and its low
+            runway (D-25); this row adds only when it ended and the
+            identity check. */}
+        <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
+          {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
+            <span className="text-meta text-muted" data-testid="session-ended-stamp">
+              Ended{" "}
+              {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+            </span>
+          ) : null}
+          {identityWords(session) && (
+            <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
+              <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
+                {identityWords(session)!.text}
+              </Chip>
+            </span>
+          )}
+        </div>
+        {(() => {
+          // AJ-E412 Req.3/5: the observed running model line — drift
+          // shown in full, unobservable providers named honestly.
+          const drift =
+            session.running_model !== null &&
+            session.launch_model !== null &&
+            session.running_model !== session.launch_model
+              ? `Launched with ${session.launch_model} - now running ${session.running_model}`
+              : null;
+          if (drift) {
+            return (
+              <p data-testid="instance-model-line" className="text-label text-ink">
+                {drift} <span className="text-muted">(observed in transcript)</span>
+              </p>
+            );
+          }
+          if (session.running_model === null && session.launch_model === null) {
+            return (
+              <p data-testid="instance-model-line" className="text-label text-muted">
+                Model: not reported by {providerDisplayName(session.provider)}
+              </p>
+            );
+          }
+          return null;
+        })()}
+        <SessionNotes session={session} live={live} now={props.now} />
+        <details className="group text-meta" data-testid="instance-details">
+          {/* Says what's inside (the review of 0.1.4: an empty strip). */}
+          <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+            Details <span className="text-muted">· launch settings and session id</span>
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ToolChip tool={session.provider} />
+          <Chip tone="neutral">
+            {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
+          </Chip>
+          <Chip tone="accent">{session.model ?? "default model"}</Chip>
+          {session.model_source === "launch" && session.launch_model !== null && (
+            <Chip tone="warning">not verified live</Chip>
+          )}
+        </div>
+        <div className="flex flex-col gap-1 text-muted">
+          {project ? (
+            <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
+          ) : null}
+          <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
+          <span data-testid="instance-native-id">
+            Claude session:{" "}
+            <span className="font-mono text-ink">
+              {session.conversation_id ?? "not found yet"}
+            </span>
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label">
+          <span className="inline-flex items-center gap-1.5" data-testid="instance-quota">
+            <QuotaBar quota={session.quota} />
+          </span>
+          <span data-testid="instance-tokens" className="inline-flex items-center gap-1.5 text-muted">
+            {session.tokens ? (
+              <>
+                tokens: <span className="tabular-nums text-ink">
+                  {(session.tokens.input + session.tokens.output).toLocaleString()} ({session.tokens.input.toLocaleString()} in / {session.tokens.output.toLocaleString()} out)
+                </span>
+              </>
+            ) : (
+              "No usage recorded yet"
             )}
+          </span>
+          <span data-testid="instance-cost" className="text-muted">
+            cost: <span className="text-muted">—</span>
+          </span>
+          <span data-testid="instance-resources" className="tabular-nums text-muted">
+            cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
+            {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
+            {session.child_count ?? "—"}
+          </span>
+        </div>
           </div>
-          {(() => {
-            // AJ-E412 Req.3/5: the observed running model line — drift
-            // shown in full, unobservable providers named honestly.
-            const drift =
-              session.running_model !== null &&
-              session.launch_model !== null &&
-              session.running_model !== session.launch_model
-                ? `Launched with ${session.launch_model} - now running ${session.running_model}`
-                : null;
-            if (drift) {
-              return (
-                <p data-testid="instance-model-line" className="text-[11px] text-ink">
-                  {drift} <span className="text-faint">(observed in transcript)</span>
-                </p>
-              );
-            }
-            if (session.running_model === null && session.launch_model === null) {
-              return (
-                <p data-testid="instance-model-line" className="text-[11px] text-muted">
-                  Model: not reported by {providerDisplayName(session.provider)}
-                </p>
-              );
-            }
-            return null;
-          })()}
-          <SessionNotes session={session} live={live} now={props.now} />
-          <details className="group text-[11px]" data-testid="instance-details">
-            <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-              Details
-            </summary>
-            <div className="mt-2 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <ToolChip tool={session.provider} />
-            <Chip tone="neutral">
-              {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
-            </Chip>
-            <Chip tone="accent">{session.model ?? "default model"}</Chip>
-            {session.model_source === "launch" && session.launch_model !== null && (
-              <Chip tone="warning">not verified live</Chip>
-            )}
-          </div>
-          <div className="flex flex-col gap-1 text-muted">
-            {project ? (
-              <CopyField testId="instance-project" label="project" value={project.name} onOpen={() => props.onOpenProject(project.id)} />
-            ) : null}
-            <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
-            <span data-testid="instance-native-id">
-              Claude session:{" "}
-              <span className="font-mono text-ink">
-                {session.conversation_id ?? "not found yet"}
-              </span>
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
-            <span className="inline-flex items-center gap-1.5" data-testid="instance-quota">
-              <QuotaBar quota={session.quota} />
-            </span>
-            <span data-testid="instance-tokens" className="inline-flex items-center gap-1.5 text-muted">
-              {session.tokens ? (
-                <>
-                  tokens: <span className="tabular-nums text-ink">
-                    {(session.tokens.input + session.tokens.output).toLocaleString()} ({session.tokens.input.toLocaleString()} in / {session.tokens.output.toLocaleString()} out)
-                  </span>
-                </>
-              ) : (
-                "No usage recorded yet"
-              )}
-            </span>
-            <span data-testid="instance-cost" className="text-muted">
-              cost: <span className="text-faint">—</span>
-            </span>
-            <span data-testid="instance-resources" className="tabular-nums text-muted">
-              cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-              {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · helpers{" "}
-              {session.child_count ?? "—"}
-            </span>
-          </div>
+        </details>
+      </div>
+    );
+    // A terminal's session: the page every session has (its terminal the
+    // main pane, the side column beside it).
+    if (!isDesktop) {
+      return (
+        <OwnTerminalOverview
+          session={session}
+          project={project}
+          onOpenProject={props.onOpenProject}
+          details={fields}
+          switchBackSuggestions={props.switchBackSuggestions}
+          onSwitchBack={props.onSwitchBack}
+          onHandover={props.onHandover}
+          terminal={
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+                <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
+              </Card>
+              {!live && <p className="text-meta text-muted">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
             </div>
-          </details>
-        </Card>
+          }
+        />
+      );
+    }
+    return (
+      <div className="flex flex-1 flex-col gap-3">
+        <Card className="flex flex-col gap-2 p-3">{fields}</Card>
         {project && (
           <button
             type="button"
             onClick={() => props.onOpenProject(project.id)}
-            className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
+            className="flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
           >
             <IconProjects width={12} height={12} />
             {project.name}
@@ -617,7 +589,7 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone="neutral">app</Chip>
               </span>
               <ToolChip tool={session.provider} />
-              <span className="text-[11.5px] text-muted">
+              <span className="text-meta text-muted">
                 {session.account_label}
                 {project ? ` · ${project.name}` : ""}
               </span>
@@ -655,7 +627,7 @@ function InstanceOverview(props: PanelProps) {
               />
             )}
             <div
-              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] tabular-nums text-muted"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
               data-testid="desktop-resources"
             >
               <span>
@@ -677,16 +649,16 @@ function InstanceOverview(props: PanelProps) {
                 data-testid="desktop-isolation"
               >
                 <Chip tone="warning">isolation</Chip>
-                <p className="text-[11.5px] leading-relaxed text-ink">
+                <p className="text-meta leading-relaxed text-ink">
                   {session.isolation_label}
                 </p>
               </div>
             )}
             {focusOutcome !== null && (
-              <p className="text-[11.5px] text-muted" data-testid="desktop-focus-outcome">
+              <p className="text-meta text-muted" data-testid="desktop-focus-outcome">
                 {focusOutcome.outcome}
                 {focusOutcome.window_title !== null ? (
-                  <span className="text-faint"> · window “{focusOutcome.window_title}”</span>
+                  <span className="text-muted"> · window “{focusOutcome.window_title}”</span>
                 ) : null}
               </p>
             )}
@@ -697,7 +669,7 @@ function InstanceOverview(props: PanelProps) {
                 className="flex flex-col gap-2 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
                 data-testid="desktop-a11y-explainer"
               >
-                <p className="text-[11.5px] leading-relaxed text-ink">
+                <p className="text-meta leading-relaxed text-ink">
                   Juggler can open the app; exact-window focus needs Accessibility permission
                 </p>
                 <div className="flex items-center gap-2">
@@ -725,150 +697,19 @@ function InstanceOverview(props: PanelProps) {
               </div>
             )}
             {!live && (
-              <p className="text-[11px] text-faint" data-testid="desktop-state-line">
+              <p className="text-label text-muted" data-testid="desktop-state-line">
                 {session.status === "failed"
                   ? "app crashed · exit details on the Processes tab"
                   : "app exited · Relaunch, above, starts it again"}
               </p>
             )}
-            <p className="text-[11px] text-faint">
+            <p className="text-label text-muted">
               The window is the app's own; Juggler tracks the process, never embeds it.
               Focus matches this session's recorded window — a stale title or a collision is
               reported, never guessed to a wrong window.
             </p>
           </Card>
-        ) : (
-          <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-            <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
-          </Card>
-        )}
-        {!live && !isDesktop && (
-          <p className="text-[11px] text-faint">
-            {`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}
-          </p>
-        )}
-        {!isDesktop && (
-        <details
-          ref={handoverRef}
-          open={switchOpen || Boolean(backPlan) || (props.switchBackSuggestions ?? []).some((suggestion) => suggestion.session_id === session.id)}
-          onToggle={(event) => setSwitchOpen((event.currentTarget as HTMLDetailsElement).open)}
-          className="group flex flex-col gap-2"
-          data-testid="handover-section"
-        >
-          <summary className="cursor-pointer list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-            <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
-            Continue on another account
-          </summary>
-          {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
-              never executed; the user clicks. */}
-          {(props.switchBackSuggestions ?? [])
-            .filter((suggestion) => suggestion.session_id === session.id)
-            .map((suggestion) => (
-              <button
-                key={suggestion.session_id}
-                type="button"
-                onClick={() => props.onSwitchBack?.(suggestion.session_id)}
-                data-testid="switch-back-card"
-                className="rounded-lg border border-accent/40 bg-accent-soft px-2.5 py-2 text-left text-[11px] text-accent-hi transition-colors hover:border-accent/60"
-              >
-                <span className="block" data-testid="switch-back-card-copy">
-                  {suggestion.copy}
-                </span>
-                <span className="text-muted">Resume the original conversation ▸</span>
-              </button>
-            ))}
-          {/* AJ-E209 Req.1/3: the ranked, badged destinations —
-              §Q6 + switch cost + return bonus; every cross-Provider
-              row carries its ordered-pair badge and Drop list
-              (D-04/D-11). Suggest-only; the click opens the E205
-              flow. */}
-          {backPlan && (
-            <button
-              type="button"
-              onClick={() => setBackOpen(true)}
-              data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
-              className={
-                "rounded-lg border px-2.5 py-2 text-left text-[11px] transition-colors " +
-                (divergence
-                  ? "border-warning/50 text-ink hover:border-warning"
-                  : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-              }
-            >
-              <span className="block">
-                {divergence ? (
-                  <>
-                    <span aria-hidden="true">⚠ </span>Diverged — {divergence.turns_since} new{" "}
-                    {divergence.turns_since === 1 ? "turn" : "turns"} on {divergence.machine_label} since the work
-                    left. Choose what to keep.
-                  </>
-                ) : (
-                  <>
-                    Came from {backPlan.original_machine_label} ({backPlan.original_account_label}) —{" "}
-                    {backPlan.new_turns} new {backPlan.new_turns === 1 ? "turn" : "turns"} here.
-                  </>
-                )}
-              </span>
-              <span className="text-muted">
-                {divergence ? "Review the conflict ▸" : `Switch back to ${backPlan.original_machine_label} ▸`}
-              </span>
-            </button>
-          )}
-          {switchTargets_ === null ? (
-            <p className="text-[11px] text-faint" data-testid="handover-targets-loading">
-              Ranking destinations…
-            </p>
-          ) : switchTargets_.length === 0 ? (
-            <p className="text-[11px] text-faint" data-testid="handover-targets-empty">
-              Add another account to juggle between them.
-            </p>
-          ) : (
-            <SwitchTargetRows
-              targets={switchTargets_}
-              onPick={(target) =>
-                props.onHandover(session.id, target.recipe_id, target.account_label)
-              }
-            />
-          )}
-          {remoteTargets.length > 0 && (
-            <>
-              <p className="mt-1 text-[11px] uppercase tracking-wider text-muted">
-                Continue on another machine
-              </p>
-              <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
-            </>
-          )}
-        </details>
-        )}
-        {crossTarget && (
-          <CrossMachineSwitchFlow
-            sessionId={session.id}
-            target={crossTarget}
-            onClose={() => {
-              setCrossTarget(null);
-              setCrossTick((tick) => tick + 1);
-            }}
-          />
-        )}
-        {backOpen && backPlan && (
-          <CrossMachineSwitchBack
-            sessionId={session.id}
-            plan={backPlan}
-            divergence={
-              divergence
-                ? {
-                    turns_since: divergence.turns_since,
-                    last_activity_ms: divergence.last_activity_ms,
-                    summary: divergence.summary,
-                  }
-                : null
-            }
-            onClose={() => {
-              setBackOpen(false);
-              setCrossTick((tick) => tick + 1);
-            }}
-            onResolved={() => setCrossTick((tick) => tick + 1)}
-          />
-        )}
+        ) : null}
       </div>
     );
   }
@@ -878,10 +719,10 @@ function InstanceOverview(props: PanelProps) {
     const history = sessions.filter((s) => s.project_id === project.id);
     return (
       <div className="flex flex-col gap-3">
-        <p className="font-mono text-[11px] text-faint">{project.root}</p>
+        <p className="font-mono text-label text-muted">{project.root}</p>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <Card className="flex flex-col gap-3 p-4">
-            <p className="text-[11px] uppercase tracking-wider text-faint">On it now</p>
+            <p className="text-section font-semibold text-ink">On it now</p>
             {project.active_instance ? (
               <button
                 type="button"
@@ -893,14 +734,14 @@ function InstanceOverview(props: PanelProps) {
                 <Chip tone={statusTone(project.active_instance.status).tone}>
                   {statusTone(project.active_instance.status).label}
                 </Chip>
-                <span className="ml-auto flex items-center gap-1 text-[11px] text-muted">
+                <span className="ml-auto flex items-center gap-1 text-label text-muted">
                   open <IconTerminal width={12} height={12} />
                 </span>
               </button>
             ) : (
               <p className="text-xs text-muted">No live session — free to juggle.</p>
             )}
-            <p className="mt-2 text-[11px] uppercase tracking-wider text-faint">
+            <p className="mt-2 text-section font-semibold text-ink">
               Launch with another account
             </p>
             <div className="flex flex-col gap-1.5">
@@ -920,9 +761,9 @@ function InstanceOverview(props: PanelProps) {
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <span className="text-faint">·</span>
+                    <span className="text-muted">·</span>
                     <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                    {recipe.model && <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>}
+                    {recipe.model && <span className="ml-auto font-mono text-label text-muted">{recipe.model}</span>}
                     {!ready && <Chip tone="neutral">sign in first</Chip>}
                   </button>
                 );
@@ -933,7 +774,7 @@ function InstanceOverview(props: PanelProps) {
             </div>
           </Card>
           <Card className="flex flex-col gap-2 p-4">
-            <p className="text-[11px] uppercase tracking-wider text-faint">Sessions in this project</p>
+            <p className="text-section font-semibold text-ink">Sessions in this project</p>
             {history.length === 0 ? (
               <p className="text-xs text-muted">Nothing recorded yet.</p>
             ) : (
@@ -963,8 +804,8 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Account</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11.5px]">
+          <p className="text-section font-semibold text-ink">Account</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
             <span>
               tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
             </span>
@@ -977,7 +818,7 @@ function InstanceOverview(props: PanelProps) {
           </div>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Sessions on this account</p>
+          <p className="text-section font-semibold text-ink">Sessions on this account</p>
           {rows.length === 0 ? (
             <p className="text-xs text-muted">No sessions recorded yet.</p>
           ) : (
@@ -1003,15 +844,15 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Tool</p>
-          <p className="font-mono text-[11.5px]">{data.provider.id}</p>
-          <p className="text-[11.5px] text-muted">
+          <p className="text-section font-semibold text-ink">Tool</p>
+          <p className="font-mono text-meta">{data.provider.id}</p>
+          <p className="text-meta text-muted">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
             {providerAccounts.filter((a) => signedIn(a.login_state)).length} signed in
           </p>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[11px] uppercase tracking-wider text-faint">Accounts</p>
+          <p className="text-section font-semibold text-ink">Accounts</p>
           {providerAccounts.map((account) => (
             <p key={account.id} className="flex items-center gap-2 py-1 text-xs">
               <span className="min-w-0 flex-1 truncate font-medium">{account.label}</span>
@@ -1058,74 +899,12 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
             setCopied(false);
           }
         }}
-        className="shrink-0 rounded px-1 py-1.5 text-[9px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="shrink-0 rounded px-1 py-1.5 text-label text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {copied ? "copied" : "copy"}
       </button>
     </span>
   );
-}
-
-/** Instance Usage (§5.1): the real breakdown + honest chart empties. */
-function InstanceUsage(props: PanelProps) {
-  const instance = props.data.instance;
-  if (!instance) return <HonestEmpty tab="usage" />;
-  const tokens = instance.tokens;
-  return (
-    <div className="flex flex-col gap-3" data-testid="instance-usage">
-      <Card className="flex flex-col gap-2 p-4">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Token breakdown</p>
-        {tokens ? (
-          <table className="w-full max-w-sm text-[11.5px]">
-            <tbody className="[&_td]:py-0.5">
-              <tr><td className="text-muted">input</td><td className="text-right tabular-nums text-ink">{tokens.input.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">output</td><td className="text-right tabular-nums text-ink">{tokens.output.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">read from cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_read.toLocaleString()}</td></tr>
-              <tr><td className="text-muted">written to cache</td><td className="text-right tabular-nums text-ink">{tokens.cache_write.toLocaleString()}</td></tr>
-              <tr className="border-t border-hairline"><td className="text-muted">total (input + output)</td><td className="text-right tabular-nums font-medium text-ink">{(tokens.input + tokens.output).toLocaleString()}</td></tr>
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-[11.5px] text-muted">No usage recorded yet</p>
-        )}
-        <span className="text-[10px] text-muted">
-          <TierTag tier="Measured" />
-        </span>
-      </Card>
-      <Card className="flex flex-col gap-2 p-4" data-testid="two-clock-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">This account's limits</p>
-        {/* AJ-E610: the account's windows + the SEPARATE subscription
-            clock (a calendar line — never merged with the rings) and
-            the forecast pill. */}
-        <AccountTwoClocks accountId={instance.account_id} />
-      </Card>
-      {/* D-25: tokens/min and cost over time join this tab once a time
-          series exists; until then the card isn't shown. */}
-    </div>
-  );
-}
-
-/** AJ-E610: the Usage tab's account block (engine query; a null
- * account id — orphaned launch settings — renders the honest empty). */
-function AccountTwoClocks({ accountId }: { accountId: string | null }) {
-  const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
-  useEffect(() => {
-    if (!accountId) return;
-    let alive = true;
-    quotaDisplay(accountId).then((payload) => {
-      if (alive) setDisplay(payload);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [accountId]);
-  if (!accountId) {
-    return <p className="text-xs text-muted">Account unknown — usage cannot be attributed.</p>;
-  }
-  if (!display) {
-    return <p className="text-xs text-muted">loading…</p>;
-  }
-  return <TwoClocks display={display} />;
 }
 
 // --- AJ-E408: Provider / Account / Project content -----------------------
@@ -1163,21 +942,7 @@ export function useToolInstall(
   return result && result.providerId === providerId ? result.install : null;
 }
 
-/** The installed version and verified range, in words. */
-export function installWords(install: import("../lib/bridge").ProviderInstallData): string {
-  const verified = install.verified_against ?? [];
-  switch (install.status) {
-    case "installed":
-      return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
-    case "unverified":
-      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
-    case "not_installed":
-      return "Not installed on this Mac";
-    default:
-      if (versionUnchecked(install)) return FOUND_UNCHECKED;
-      return "Couldn't check what's installed";
-  }
-}
+export { installWords } from "../lib/providers";
 
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
@@ -1212,7 +977,7 @@ function ProviderOverview(props: PanelProps) {
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+        <div className="flex flex-wrap items-center gap-2 text-meta">
           <span className="text-ink">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
           </span>
@@ -1220,21 +985,21 @@ function ProviderOverview(props: PanelProps) {
         </div>
         {/* Shown once known; nothing in its place until then (D-25). */}
         {install !== null && (
-          <p className="text-[11px] text-muted" data-testid="provider-install">
+          <p className="text-label text-muted" data-testid="provider-install">
             {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
           </p>
         )}
       </Card>
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Runway, least left first</p>
+        <p className="text-section font-semibold text-ink">Runway, least left first</p>
         {perAccount.length === 0 ? (
-          <p className="text-[11.5px] text-muted">No accounts for this tool yet.</p>
+          <p className="text-meta text-muted">No accounts for this tool yet.</p>
         ) : (
           perAccount.map(({ account, display, sessions }) => (
             <div key={account.id} className="flex flex-col gap-1.5 py-1">
-              <span className="text-[11.5px]">
+              <span className="text-meta">
                 <span className="text-ink">{account.label}</span>
-                {!signedIn(account.login_state) ? <span className="text-faint"> · signed out</span> : null}
+                {!signedIn(account.login_state) ? <span className="text-muted"> · signed out</span> : null}
               </span>
               {/* D-25: a signed-out account with no reading says "signed
                   out" above; its runway would only repeat it. */}
@@ -1259,13 +1024,8 @@ const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
 
 function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="rounded border border-hairline px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
-        {tier}
-      </span>
-      <span className="text-[10px] font-normal normal-case tracking-normal text-faint" data-testid="tier-words">
-        {TIER_WORDS[tier]}
-      </span>
+    <span className="mt-auto pt-1 text-label text-muted" data-testid="tier-words" data-tier={tier}>
+      {TIER_WORDS[tier]}
     </span>
   );
 }
@@ -1315,8 +1075,8 @@ function QualityTab(props: PanelProps) {
   if (loadError) {
     return (
       <Card className="flex flex-col gap-1 p-4" data-testid="quality-tab">
-        <p className="text-[11.5px] text-muted">Signals unavailable right now.</p>
-        <p className="text-[10px] text-muted">{loadError}</p>
+        <p className="text-meta text-muted">Signals unavailable right now.</p>
+        <p className="text-label text-muted">{loadError}</p>
       </Card>
     );
   }
@@ -1331,7 +1091,7 @@ function QualityTab(props: PanelProps) {
             {Math.round(quality.avg_tokens_per_min)} a minute on average over the last 5 minutes
           </span>
           {asTable ? (
-            <table className="text-[10px]">
+            <table className="text-label">
               <tbody>
                 <tr>
                   <td className="pr-2 text-muted">minutes ago</td>
@@ -1407,7 +1167,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          about ${quality.session_cost_usd.toFixed(2)} at {quality.priced_model}'s API prices
+          about ${quality.session_cost_usd.toFixed(2)} at list prices{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""}
         </span>
       ) : (
         <span className="text-muted">
@@ -1424,7 +1184,7 @@ function QualityTab(props: PanelProps) {
     if (quality.stuck) {
       signals.push({
         testId: "quality-stuck",
-        label: "Stuck?",
+        label: "Probably stuck",
         tier: "Computed",
         body: (
           <span className="text-ink">
@@ -1436,35 +1196,42 @@ function QualityTab(props: PanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="quality-tab">
-      {signals.length === 0 ? (
-        <Card className="flex flex-col gap-1 p-4">
-          <p className="text-[11.5px] text-muted">Nothing measured yet — this fills in as the session works.</p>
-        </Card>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] text-muted">Measured every 2 seconds</p>
+    <section className="flex flex-col gap-3" data-testid="quality-tab" aria-labelledby="quality-title">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 id="quality-title" className="text-section font-semibold text-ink">
+          How it's going
+        </h3>
+        {signals.length > 0 && (
+          <span className="flex items-center gap-3">
+            <span className="text-meta text-muted">every 2 seconds</span>
             <button
               type="button"
               onClick={() => setAsTable((v) => !v)}
               aria-pressed={asTable}
-              className="rounded-lg border border-hairline px-2 py-0.5 text-[10px] text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="rounded-lg border border-hairline px-2 py-0.5 text-label text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             >
               {asTable ? "View as chart" : "View as table"}
             </button>
-          </div>
+          </span>
+        )}
+      </div>
+      {signals.length === 0 ? (
+        <Card className="flex flex-col gap-1 p-5">
+          <p className="text-body text-muted">Nothing measured yet — this fills in as the session works.</p>
+        </Card>
+      ) : (
+        // Cards sized to what they say, as many to a row as fit.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-grid">
           {signals.map((signal) => (
-            <Card key={signal.testId} className="flex flex-col gap-1 p-3" data-testid={signal.testId}>
-              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted">
-                {signal.label} <TierTag tier={signal.tier} />
-              </p>
+            <Card key={signal.testId} className="flex flex-col gap-1.5 p-5 text-body" data-testid={signal.testId}>
+              <p className="text-meta font-medium text-muted">{signal.label}</p>
               {signal.body}
+              <TierTag tier={signal.tier} />
             </Card>
           ))}
-        </>
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -1483,54 +1250,112 @@ function formatAge(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-/// The Instance panel's Cleanup rows (AJ-E506 Req.6): the global
-/// Centre's data, filtered to this Instance — same ProcessRow, same
-/// labels, no second data path.
-function InstanceCleanupRows(props: { sessionId: string }) {
-  const [rows, setRows] = useState<Array<import("./ProcessRow").CleanupRowInfo> | null>(null);
+/// The session's own rows from the shared Cleanup inventory (G-1): the
+/// same ProcessRow and labels as Cleanup, and the same verified sheet
+/// behind every Stop — never a second kill path. Rows the live tree
+/// above already shows are left out; what remains is what the session
+/// left behind (or, with no tree to read, everything it runs).
+function SessionLeftovers(props: {
+  sessionId: string;
+  livePids: ReadonlySet<number>;
+  bridge: ProcessesBridge;
+  reloadKey: number;
+  onStopped: () => void;
+}) {
+  const [data, setData] = useState<{ rows: CleanupRowInfo[]; localMachine: string } | null>(null);
+  const [killTarget, setKillTarget] = useState<{ pid: number; goalPort: number | null; trigger: HTMLElement } | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const { bridge, sessionId } = props;
   useEffect(() => {
     let alive = true;
-    import("../lib/bridge")
-      .then((bridge) => bridge.cleanupInventory("all-managed"))
-      .then((data) => {
-        if (alive) {
-          setRows(
-            data.groups.find((group) => group.session === props.sessionId)?.rows ?? [],
-          );
-        }
-      })
-      .catch(() => {
-        if (alive) setRows([]);
-      });
+    bridge
+      .cleanup(sessionId)
+      .then((result) => alive && setData(result))
+      .catch(() => alive && setData({ rows: [], localMachine: "" }));
     return () => {
       alive = false;
     };
-  }, [props.sessionId]);
+  }, [sessionId, bridge, props.reloadKey, refresh]);
 
-  if (rows === null || rows.length === 0) return null;
+  const rows = (data?.rows ?? []).filter((row) => !props.livePids.has(row.pid));
+  const localMachine = data?.localMachine ?? "";
+  const openCleanup = () =>
+    window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "cleanup" } }));
   return (
-    <section className="mt-3" data-testid="instance-cleanup-rows">
-      <h4 className="text-[10.5px] font-medium text-ink">Ledger rows (read-only)</h4>
-      <ul className="mt-1">
-        {rows.map((row) => (
-          <ProcessRow key={row.pid} row={row} />
-        ))}
-      </ul>
-    </section>
+    <Card className="flex flex-col gap-2 p-3" data-testid="session-leftovers">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-section font-semibold text-ink" data-testid="leftovers-heading">
+          {rows.length > 0 ? `Left behind (${rows.length})` : "Nothing left behind"}
+        </h3>
+        <button
+          type="button"
+          onClick={openCleanup}
+          className="text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="leftovers-open-cleanup"
+        >
+          Open in Cleanup
+        </button>
+      </div>
+      {data !== null && rows.length === 0 ? (
+        <p className="text-meta text-muted">Nothing this session started is still running after it.</p>
+      ) : (
+        <div>
+          <ProcessRowsHeader />
+          <ul data-testid="instance-cleanup-rows">
+            {rows.map((row) => (
+              <ProcessRow
+                key={row.pid}
+                row={row}
+                onKill={
+                  // AJ-E511: another Mac's row is display-only.
+                  row.machine_id !== undefined && localMachine !== "" && row.machine_id !== localMachine
+                    ? undefined
+                    : (target, trigger) =>
+                        setKillTarget({
+                          pid: target.pid,
+                          goalPort:
+                            target.ports !== null && target.ports.split(",").length === 1
+                              ? Number(target.ports)
+                              : null,
+                          trigger,
+                        })
+                }
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+      {killTarget !== null && (
+        <Suspense fallback={null}>
+          <KillSheet
+            session={sessionId}
+            pid={killTarget.pid}
+            goalPort={killTarget.goalPort}
+            trigger={killTarget.trigger}
+            bridge={bridge.kill}
+            onClose={(stopped) => {
+              setKillTarget(null);
+              if (stopped) {
+                setRefresh((key) => key + 1);
+                props.onStopped();
+              }
+            }}
+          />
+        </Suspense>
+      )}
+    </Card>
   );
 }
 
 /// The live Processes tab (AJ-E410): the tree table (PID / Process /
-/// CPU / RAM / Age / ⑂), the I-07 sparkline, and the orphan section
-/// with verified stop actions. Refreshes every 5 s; failures render a
-/// banner with a manual Retry — never a silently empty table.
+/// CPU / RAM / Age / ⑂), the I-07 sparkline, and what the session left
+/// behind as the shared Cleanup rows, whose Stop is the verified sheet
+/// (G-1). Refreshes every 5 s; failures render a banner with a manual
+/// Retry — never a silently empty table.
 function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   const instance = props.data.instance;
   const [info, setInfo] = useState<import("../lib/bridge").ProcessesInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmPid, setConfirmPid] = useState<number | null>(null);
-  const [confirmAll, setConfirmAll] = useState(false);
-  const [verifyNotes, setVerifyNotes] = useState<Record<number, string>>({});
   const [reloadKey, setReloadKey] = useState(0);
   const readOnly = props.readOnly ?? false;
 
@@ -1570,8 +1395,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   // E507 sheet) is the way to end it.
   const adoptedNotice = instance.adopted ? (
     <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
-      <p className="text-[11.5px] font-medium text-ink">Running — picked up after restart</p>
-      <p className="text-[10.5px] text-muted">
+      <p className="text-meta font-medium text-ink">Running — picked up after restart</p>
+      <p className="text-label text-muted">
         The terminal is detached: output from before the app closed is not available. Stop
         runs through the verified sheet (Terminate… on a row below).
       </p>
@@ -1581,8 +1406,8 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   if (error) {
     return (
       <Card className="flex flex-col gap-2 p-4" data-testid="processes-error" role="alert">
-        <p className="text-[11.5px] font-medium text-ink">Process tree read failed</p>
-        <p className="text-[10px] break-all text-muted">{error}</p>
+        <p className="text-meta font-medium text-ink">Process tree read failed</p>
+        <p className="text-label break-all text-muted">{error}</p>
         <Button size="sm" variant="secondary" onClick={() => setReloadKey((key) => key + 1)}>
           Retry
         </Button>
@@ -1590,112 +1415,79 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     );
   }
 
+  const leftovers = (livePids: ReadonlySet<number>) =>
+    readOnly ? null : (
+      <SessionLeftovers
+        sessionId={instance.id}
+        livePids={livePids}
+        bridge={bridge}
+        reloadKey={reloadKey}
+        onStopped={() => setReloadKey((key) => key + 1)}
+      />
+    );
+
   if (info?.unavailable_reason) {
     return (
-      <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
-        <p className="text-[11.5px] text-muted">{info.unavailable_reason}</p>
-        <p className="text-[10px] text-faint">
-          Adopted or desktop-kind sessions have no readable process tree — resources are
-          unavailable, never flat zero.
-        </p>
-      </Card>
+      <div className="flex flex-col gap-3" data-testid="processes-tab">
+        {adoptedNotice}
+        <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
+          <p className="text-meta text-muted">{info.unavailable_reason}</p>
+          <p className="text-label text-muted">
+            Adopted or desktop-kind sessions have no readable process tree — resources are
+            unavailable, never flat zero.
+          </p>
+        </Card>
+        {leftovers(new Set())}
+      </div>
     );
   }
 
   const rows = info?.rows ?? [];
-  const orphans = info?.orphans ?? [];
   const spark = info?.spark ?? [];
   const lastSpark = spark.at(-1);
-
-  const stopOne = (pid: number) => {
-    setConfirmPid(null);
-    bridge
-      .stop(instance.id, pid)
-      .then((outcome) => {
-          setInfo((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  orphans: prev.orphans.map((orphan) =>
-                    orphan.pid === pid ? { ...orphan, stop_state: outcome.state } : orphan,
-                  ),
-                }
-              : prev,
-          );
-        })
-        .catch(() => {
-          /* the 5 s refresh re-reads the row state */
-        });
-  };
-
-  const stopAll = () => {
-    setConfirmAll(false);
-    bridge
-      .stopAll(instance.id)
-      .then((outcomes) => {
-          setInfo((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  orphans: prev.orphans.map((orphan) => {
-                    const outcome = outcomes.find((row) => row.pid === orphan.pid);
-                    return outcome ? { ...orphan, stop_state: outcome.state } : orphan;
-                  }),
-                }
-              : prev,
-          );
-        })
-        .catch(() => {
-          /* the 5 s refresh re-reads the row states */
-        });
-  };
-
-  const verifyOne = (pid: number) => {
-    bridge
-      .verify(instance.id, pid)
-      .then((result) => setVerifyNotes((notes) => ({ ...notes, [pid]: result.note })))
-      .catch(() => {
-        /* verification is manual — failures keep the row as-is */
-      });
-  };
 
   return (
     <div className="flex flex-col gap-3" data-testid="processes-tab">
       {adoptedNotice}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] text-muted">Measured every 2 seconds</p>
+        <p className="text-meta text-muted">Measured every 2 seconds</p>
         {lastSpark && (
-          <span className="flex items-end gap-[2px]" aria-hidden="true" data-testid="processes-spark">
-            {spark.slice(-30).map((sample, i) => (
-              <span
-                key={i}
-                className="w-[3px] rounded-sm bg-accent/70"
-                style={{
-                  height: `${Math.max(2, ((sample.cpu_pct ?? 0) / 100) * 18)}px`,
-                }}
-              />
-            ))}
+          // Named and on a baseline, so a quiet minute reads as a chart,
+          // not a dotted line.
+          <span className="flex items-end gap-2 text-label text-muted" aria-hidden="true">
+            CPU, last minute
+            <span className="flex h-[18px] items-end gap-[2px] border-b border-hairline" data-testid="processes-spark">
+              {spark.slice(-30).map((sample, i) => (
+                <span
+                  key={i}
+                  className="w-[3px] rounded-sm bg-accent/70"
+                  style={{
+                    height: `${Math.max(2, ((sample.cpu_pct ?? 0) / 100) * 18)}px`,
+                  }}
+                />
+              ))}
+            </span>
           </span>
         )}
       </div>
 
       {/* AJ-E804: a scrollable region is reachable by keyboard. */}
       <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
-        <table className="w-full min-w-[420px] text-left text-[11px]">
+        <table className="w-full min-w-[420px] text-left text-meta">
           <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-muted">
+            <tr className="text-meta text-muted">
               <th scope="col" className="py-1 pr-2 font-medium">PID</th>
               <th scope="col" className="py-1 pr-2 font-medium">Process</th>
               <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
               <th scope="col" className="py-1 pr-2 font-medium">Memory</th>
               <th scope="col" className="py-1 pr-2 font-medium">Age</th>
-              <th scope="col" className="py-1 font-medium">Helpers</th>
+              <th scope="col" className="py-1 font-medium">More processes</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-3 text-center text-[11px] text-muted" data-testid="processes-empty">
+                <td colSpan={6} className="py-3 text-center text-meta text-muted" data-testid="processes-empty">
                   {/* One source per fact: never "none" while the header counts helpers. */}
                   {(instance.child_count ?? 0) > 0 ? "Reading the process tree…" : "No subprocesses"}
                 </td>
@@ -1703,127 +1495,30 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
             ) : (
               rows.map((row) => (
                 <tr key={row.pid} className="border-t border-hairline">
-                  <td className="py-1 pr-2 font-mono text-[10.5px] tabular-nums text-muted">{row.pid}</td>
-                  <td className="py-1 pr-2 text-ink">
-                    <span aria-hidden="true" className="text-faint">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
+                  <td className="py-1.5 pr-2 font-mono text-meta tabular-nums text-muted">{row.pid}</td>
+                  <td className="py-1.5 pr-2 text-ink">
+                    <span aria-hidden="true" className="text-muted">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
                     {row.name}
                   </td>
-                  <td className="py-1 pr-2 tabular-nums text-ink">
-                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-faint">measuring…</span>}
+                  <td className="py-1.5 pr-2 tabular-nums text-ink">
+                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-muted">measuring…</span>}
                   </td>
-                  <td className="py-1 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
-                  <td className="py-1 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
-                  <td className="py-1 tabular-nums text-muted">{row.child_count}</td>
+                  <td className="py-1.5 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
+                  <td className="py-1.5 tabular-nums text-muted">{row.child_count}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
         {readOnly && (
-          <p className="pt-1 text-[10px] text-faint">
+          <p className="pt-1 text-label text-muted">
             Read-only — ended conversation; stop actions live on the session&apos;s Processes tab.
           </p>
         )}
       </Card>
 
-      {!readOnly && (
-        <Card className="flex flex-col gap-2 p-3" data-testid="processes-orphans">
-          <p className="text-[11px] uppercase tracking-wider text-muted" data-testid="orphans-heading">
-            {orphans.length > 0 ? `Orphaned - left behind (${orphans.length})` : "No orphaned processes"}
-          </p>
-          {orphans.length === 0 ? (
-            <p className="text-[10px] text-faint">
-              Nothing this session started is still running after it.
-            </p>
-          ) : (
-            <>
-              {orphans.map((orphan) => (
-                <div key={orphan.pid} className="flex flex-col gap-1 border-t border-hairline pt-2" data-testid={`orphan-row-${orphan.pid}`}>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                    <span className="font-mono text-[10.5px] tabular-nums text-muted">{orphan.pid}</span>
-                    <span className="text-ink">{orphan.name}</span>
-                    <span className="tabular-nums text-muted">{formatRss(orphan.rss_bytes)}</span>
-                    <span className="tabular-nums text-muted">since exit {formatAge(orphan.age_since_parent_exit_ms)}</span>
-                    <span className="text-faint">parent: {orphan.parent_label}</span>
-                    {orphan.stop_state && (
-                      <span
-                        data-testid={`orphan-state-${orphan.pid}`}
-                        className={orphan.stop_state === "gone" ? "text-success" : "text-warning"}
-                      >
-                        {orphan.stop_state === "gone" ? "gone ✓" : orphan.stop_state}
-                      </span>
-                    )}
-                  </div>
-                  {verifyNotes[orphan.pid] && (
-                    <p className="text-[10px] text-muted" data-testid={`orphan-verify-${orphan.pid}`}>
-                      Verify owner: {verifyNotes[orphan.pid]}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => verifyOne(orphan.pid)}>
-                      Verify owner
-                    </Button>
-                    {!orphan.stop_state && (
-                      <Button size="sm" variant="danger" onClick={() => setConfirmPid(orphan.pid)}>
-                        Stop process {orphan.pid}
-                      </Button>
-                    )}
-                  </div>
-                  {confirmPid === orphan.pid && (
-                    <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid={`orphan-confirm-${orphan.pid}`} role="alertdialog" aria-label={`Stop process ${orphan.pid}`}>
-                      <p className="text-[11px] text-ink">
-                        Stop process <span className="font-mono">{orphan.pid}</span> ({orphan.name})? SIGTERM
-                        first, SIGKILL after a grace period — only this journal-recorded PID.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="danger" onClick={() => stopOne(orphan.pid)}>
-                          Stop {orphan.pid}
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setConfirmPid(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {orphans.some((orphan) => !orphan.stop_state) && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button size="sm" variant="danger" onClick={() => setConfirmAll(true)}>
-                    Stop all orphans…
-                  </Button>
-                  {confirmAll && (
-                    <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid="orphans-confirm-all" role="alertdialog" aria-label="Stop all orphans">
-                      <p className="text-[11px] text-ink">
-                        Stop all orphaned processes — {orphans.filter((orphan) => !orphan.stop_state).map((orphan) => orphan.pid).join(", ")}?
-                        Each gets the SIGTERM → SIGKILL ladder and a re-read.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="danger" onClick={stopAll}>
-                          Stop all
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setConfirmAll(false)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          {/* AJ-E506: the SAME Cleanup rows as the global Centre
-          (one data path, one label vocabulary — the shared ProcessRow;
-          divergence here is how T3 survivors get mislabelled). */}
-          <InstanceCleanupRows sessionId={instance.id} />
-          {/* AJ-E505: the machine-wide port occupancy map below the
-          Session tree — every listener classified, unmanaged rows
-          display-only (the F3 collateral guard). */}
-          <div className="mt-3">
-            <PortInventoryList />
-          </div>
-        </Card>
-      )}
+      {leftovers(new Set(rows.map((row) => row.pid)))}
     </div>
   );
 }

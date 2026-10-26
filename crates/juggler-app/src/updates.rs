@@ -1097,9 +1097,15 @@ fn watch_restart(app: tauri::AppHandle, state: Arc<AppState>) {
 
 /// AJ-E1010: where updating stands.
 #[tauri::command]
-#[must_use]
-pub fn update_status(state: tauri::State<'_, Arc<AppState>>) -> UpdateStatusInfo {
-    update_status_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn update_status(state: tauri::State<'_, Arc<AppState>>) -> AppResult<UpdateStatusInfo> {
+    crate::ipc::blocking(state.inner(), "update status", move |state| {
+        Ok(update_status_impl(state))
+    })
+    .await
 }
 
 /// AJ-E1010: turns the launch-time check on or off.
@@ -1108,11 +1114,14 @@ pub fn update_status(state: tauri::State<'_, Arc<AppState>>) -> UpdateStatusInfo
 ///
 /// Per [`update_set_check_on_launch_impl`].
 #[tauri::command]
-pub fn update_set_check_on_launch(
+pub async fn update_set_check_on_launch(
     state: tauri::State<'_, Arc<AppState>>,
     enabled: bool,
 ) -> AppResult<UpdateStatusInfo> {
-    update_set_check_on_launch_impl(state.inner(), enabled)
+    crate::ipc::blocking(state.inner(), "update set check on launch", move |state| {
+        update_set_check_on_launch_impl(state, enabled)
+    })
+    .await
 }
 
 /// D-20: chooses the update channel.
@@ -1121,11 +1130,14 @@ pub fn update_set_check_on_launch(
 ///
 /// Per [`update_set_channel_impl`].
 #[tauri::command]
-pub fn update_set_channel(
+pub async fn update_set_channel(
     state: tauri::State<'_, Arc<AppState>>,
     channel: String,
 ) -> AppResult<UpdateStatusInfo> {
-    update_set_channel_impl(state.inner(), &channel)
+    crate::ipc::blocking(state.inner(), "update set channel", move |state| {
+        update_set_channel_impl(state, &channel)
+    })
+    .await
 }
 
 /// AJ-E1010: checks for a newer version now.
@@ -1296,17 +1308,20 @@ pub fn busy_with(
 /// Returns [`AppError::Validation`] while a restart has to wait or
 /// nothing was installed.
 #[tauri::command]
-pub fn update_restart(
+pub async fn update_restart(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<()> {
-    if let Some(reason) = restart_blocker(state.inner())? {
-        return Err(AppError::Validation {
-            subject: "update",
-            message: reason,
-        });
-    }
-    // AJ-E1509: restart() skips the exit event: clean, watchdog ended.
-    crate::features::app::crash::before_exit(state.inner());
-    app.restart()
+    crate::ipc::blocking(state.inner(), "update restart", move |state| {
+        if let Some(reason) = restart_blocker(state)? {
+            return Err(AppError::Validation {
+                subject: "update",
+                message: reason,
+            });
+        }
+        // AJ-E1509: restart() skips the exit event: clean, watchdog ended.
+        crate::features::app::crash::before_exit(state);
+        app.restart()
+    })
+    .await
 }

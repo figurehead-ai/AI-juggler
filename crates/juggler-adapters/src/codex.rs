@@ -803,6 +803,10 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_live::is_session_server(exe, args)
     }
 
+    fn tail_turn(&self, tail: &str) -> Option<juggler_adapter::live::TailTurn> {
+        crate::codex_turn::tail_turn(tail)
+    }
+
     fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
         crate::codex_live::host_apps()
     }

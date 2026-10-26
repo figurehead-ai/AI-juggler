@@ -9,7 +9,8 @@
 export type FocusOutcomeInfo = { 
 /**
  * `Focused window` | `App opened — window not found` |
- * `App not running — Relaunch?` | platform-unavailable note.
+ * `App not running — Relaunch?` | `macOS didn't bring the app
+ * forward…` (it isn't in front) | platform-unavailable note.
  */
 outcome: string, 
 /**

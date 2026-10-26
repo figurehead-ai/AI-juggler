@@ -53,7 +53,7 @@ export function CapNeedItems({
               {over ? "■" : "▲"}
             </span>
             <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-              <span className="text-[15px] font-medium text-ink">{capTitle(cap)}</span>
+              <span className="text-section font-medium text-ink">{capTitle(cap)}</span>
               <span className="text-xs text-muted">
                 {spentWords(cap)} · {scopeWords(cap, accounts, projects)}. Nothing is stopped.
               </span>

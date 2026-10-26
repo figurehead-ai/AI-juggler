@@ -17,7 +17,9 @@ afterEach(() => {
 describe("AJ-E1530 measuring limits for sessions started elsewhere", () => {
   it("shows the exact change first, turns on, and off again from the same place", async () => {
     const view = render(<AccountCapture accountId="a1" />);
-    await waitFor(() => expect(view.getByTestId("account-capture-words").textContent).toContain("aren't measured"));
+    await waitFor(() => expect(view.getByTestId("account-capture-words").textContent).toContain("in a terminal"));
+    // The Claude app never runs a status line: it isn't offered as the fix for app sessions.
+    expect(view.getByTestId("account-capture-words").textContent).toContain("measured from the app's own meter");
     await act(async () => {
       fireEvent.click(view.getByTestId("account-capture-open"));
     });
@@ -30,6 +32,7 @@ describe("AJ-E1530 measuring limits for sessions started elsewhere", () => {
       fireEvent.click(view.getByTestId("account-capture-on"));
     });
     await waitFor(() => expect(view.getByTestId("account-capture-words").textContent).toContain("On:"));
+    expect(view.getByTestId("account-capture-words").textContent).not.toMatch(/Claude app or a terminal/);
     expect(view.queryByTestId("account-capture-preview")).toBeNull();
     await act(async () => {
       fireEvent.click(view.getByTestId("account-capture-off"));

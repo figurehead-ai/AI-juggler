@@ -78,8 +78,8 @@ export function IdentityMismatchDialog(): JSX.Element | null {
         <h3 id="identity-title" className="text-sm font-semibold">
           <span aria-hidden="true">⚠ </span>Wrong account for «{check.account_label}»
         </h3>
-        <div id="identity-body" className="flex flex-col gap-1.5 text-[11px] text-ink">
-          <p>Nothing has launched. This Account's {check.provider} sign-in changed:</p>
+        <div id="identity-body" className="flex flex-col gap-1.5 text-label text-ink">
+          <p>Nothing has launched. This account's {check.provider} sign-in changed:</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-hairline p-2.5">
             <dt className="text-muted">Expected</dt>
             <dd data-testid="identity-expected">{check.expected ?? "—"}</dd>

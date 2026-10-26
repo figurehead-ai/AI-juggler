@@ -25,6 +25,7 @@ export function accelerator(keys: string | undefined): string | undefined {
       rest = rest.replace(mark, "");
     }
   }
+  if (rest === "↩") return [...parts, "Enter"].join("+");
   return rest.length === 1 ? [...parts, rest.toUpperCase()].join("+") : undefined;
 }
 

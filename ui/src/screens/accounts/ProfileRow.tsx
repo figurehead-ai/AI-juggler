@@ -5,6 +5,8 @@
  * its limits, rename, default, remove). Its launch settings unfold under
  * it on demand.
  */
+import { AppIcon } from "../../components/AppIcon";
+import type { AppRef } from "../../lib/app-of";
 import { useState, type JSX } from "react";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Chip } from "../../components/primitives";
@@ -19,6 +21,14 @@ import { renewalLabel } from "../../lib/renewal";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 
+/** A folder, short: home as ~, the middle folded ("~/…/bookauth-olivia"); the full path is on hover. */
+export function shortPath(path: string): string {
+  const home = path.replace(/^\/Users\/[^/]+/, "~");
+  const parts = home.split("/").filter(Boolean);
+  if (parts.length <= 3) return home;
+  return `${parts[0] === "~" ? "~" : `/${parts[0]}`}/…/${parts[parts.length - 1]}`;
+}
+
 export type ProfileRowProps = {
   account: AccountInfo;
   /** Its account, for the values its profiles don't agree on. */
@@ -26,8 +36,8 @@ export type ProfileRowProps = {
   recipes: LaunchRecipeInfo[];
   /** Sessions open on it now (AI Juggler's and other apps'). */
   openNow: number;
-  /** The apps those sessions run in ("Claude app, Terminal"). */
-  apps: string[];
+  /** The apps those sessions run in, each with its icon's ref. */
+  apps: AppRef[];
   /** Its folder, `~`-relative, when known. */
   folder: string | null;
   canUseInPlace: boolean;
@@ -64,14 +74,14 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     renewal ? renewal.text : null,
     differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
   ].filter(Boolean);
-  const where = [props.apps.length > 0 ? props.apps.join(", ") : providerDisplayName(account.provider), ...perProfile].join(" · ");
+  const where = [props.apps.length > 0 ? props.apps.map((app) => app.name).join(", ") : providerDisplayName(account.provider), ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
-      <div className="group flex flex-wrap items-center gap-3 px-5 py-2.5" {...menu.triggerProps}>
+      <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
         <AccountAvatar accountId={account.id} label={account.label} size={28} live={props.openNow > 0} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
-            <button type="button" onClick={props.onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-[13px] font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
+            <button type="button" onClick={props.onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
               {account.label}
             </button>
             {account.is_default && (
@@ -80,16 +90,23 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
               </span>
             )}
           </span>
-          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">
+          <span className="flex min-w-0 items-center gap-2 text-meta text-muted">
+            {props.apps.length > 0 && (
+              <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+                {props.apps.slice(0, 4).map((app) => (
+                  <AppIcon key={app.name} {...app} size={16} />
+                ))}
+              </span>
+            )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
             {props.folder && (
-              <span className="truncate font-mono text-[10.5px] text-muted" title={props.folder} data-testid="profile-folder">
-                {props.folder}
+              <span className="truncate font-mono text-label text-muted" title={props.folder} data-testid="profile-folder">
+                {shortPath(props.folder)}
               </span>
             )}
           </span>
           {placementWords(account) && (
-            <span className="flex min-w-0 items-center gap-1.5 text-[11px]">
+            <span className="flex min-w-0 items-center gap-1.5 text-meta">
               <span className="truncate text-muted" title={account.import_source_path ?? undefined} data-testid="account-placement">
                 {placementWords(account)}
               </span>
@@ -104,12 +121,12 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {loggedIn ? (
-            <span className="text-[11px] text-muted" data-testid="account-activity">
+            <span className="text-meta text-muted" data-testid="account-activity">
               {props.openNow > 0 ? `${props.openNow} open now` : "Nothing open"}
             </span>
           ) : (
             <>
-              <span className="text-[11px] text-warning" data-testid="profile-signed-out">
+              <span className="text-meta text-warning" data-testid="profile-signed-out">
                 Not signed in
               </span>
               <Button size="sm" variant="secondary" onClick={props.onLogin}>
@@ -150,29 +167,29 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
   return (
     <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
       <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-[11px] uppercase tracking-wider text-muted">Launch settings · used when you start on this profile</span>
+        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when you start on this profile</span></span>
         <span className="flex items-center gap-1">
-          <button type="button" className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
+          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
             ＋ New settings set
           </button>
-          <button type="button" className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} title="Close launch settings">
+          <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onClose} title="Close launch settings">
             Done
           </button>
         </span>
       </div>
       {recipes.length === 0 ? (
-        <div className="px-4 py-3 text-xs text-muted">No launch settings yet — the default applies when you start.</div>
+        <div className="px-4 py-3 text-meta text-muted">No launch settings yet — the default applies when you start.</div>
       ) : (
         recipes.map((recipe) => (
           <div key={recipe.id} className="group flex flex-wrap items-center gap-3 px-4 py-2.5">
-            <span className="text-sm">{launchSettingsName(recipe.name)}</span>
+            <span className="text-body">{launchSettingsName(recipe.name)}</span>
             <Chip tone="neutral">{recipe.model ?? "default model"}</Chip>
-            {recipe.default_cwd && <span className="truncate font-mono text-[11px] text-muted">{recipe.default_cwd}</span>}
+            {recipe.default_cwd && <span className="truncate font-mono text-label text-muted" title={recipe.default_cwd}>{shortPath(recipe.default_cwd)}</span>}
             <button
               type="button"
               aria-expanded={envFor === recipe.id}
               onClick={() => setEnvFor(envFor === recipe.id ? null : recipe.id)}
-              className="rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
+              className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
               data-testid="recipe-env-toggle"
             >
               Options {envFor === recipe.id ? "▾" : "▸"}

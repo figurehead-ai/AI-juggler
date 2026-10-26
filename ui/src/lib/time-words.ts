@@ -45,3 +45,19 @@ export function agoWords(ms: number, now: number): string {
   const short = ago(ms, now);
   return short === "now" ? "just now" : `${short} ago`;
 }
+
+/** A row's day in words: Today, Yesterday, else "Thursday 23 October"
+ * (with its year when not this one). */
+export function dayWords(ms: number, now: number): string {
+  const start = (at: number) => {
+    const day = new Date(at);
+    day.setHours(0, 0, 0, 0);
+    return day.getTime();
+  };
+  const days = Math.round((start(now) - start(ms)) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  const at = new Date(ms);
+  const sameYear = at.getFullYear() === new Date(now).getFullYear();
+  return at.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", ...(sameYear ? {} : { year: "numeric" }) });
+}

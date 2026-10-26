@@ -224,7 +224,7 @@ fn port_inventory_classifies_orphan_and_unmanaged_listeners() {
     assert_eq!(warning.pid, row_5173.pid);
     assert!(
         warning.message.starts_with(&format!(
-            ":{helper_port} is already held by an orphan from "
+            ":{helper_port} is already held by a process left running from "
         )) && warning.message.ends_with(")."),
         "copy-exact warning, got: {}",
         warning.message

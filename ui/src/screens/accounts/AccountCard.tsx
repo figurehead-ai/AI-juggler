@@ -6,7 +6,10 @@
  */
 import type { JSX } from "react";
 import { Card, Chip } from "../../components/primitives";
-import { AccountRunway, runwayOf } from "../../components/AccountRunway";
+import { runwayOf } from "../../components/AccountRunway";
+import { RunwayPanel } from "../../components/usage/Runway";
+import { useWeekByProfile } from "../../components/usage/RunwayCards";
+import { accountKeyColor } from "../../components/usage/accounts";
 import { providerMark } from "../../components/indicator";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
@@ -15,21 +18,41 @@ import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { ProfileRow } from "./ProfileRow";
+import { OWN_APP_ID } from "../../components/AppIcon";
+import { appOfSession, type AppRef } from "../../lib/app-of";
 
 const LIVE = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
 
-/** How many sessions are open on a profile, and in which apps. */
-export function openOn(profileId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): { count: number; apps: string[] } {
+/** How many sessions are open on a profile, and in which apps (each with
+ * what its icon is read by, D-38). */
+export function openOn(profileId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): { count: number; apps: AppRef[] } {
   const own = sessions.filter((s) => s.account_id === profileId && LIVE.includes(s.status));
   const elsewhere = conversations.filter((c) => c.account_id === profileId && c.live && c.session_id === null);
-  const apps = new Set<string>();
-  for (const s of own) apps.add(s.kind === "desktop" ? `${toolSpec(s.provider).desktop_app ?? providerDisplayName(s.provider)} app` : "AI Juggler");
+  const apps = new Map<string, AppRef>();
+  for (const s of own) {
+    const app = s.kind === "desktop" ? { ...appOfSession(s), name: `${toolSpec(s.provider).desktop_app ?? providerDisplayName(s.provider)} app` } : { appId: OWN_APP_ID, appPid: null, name: "AI Juggler" };
+    apps.set(app.name, app);
+  }
   for (const c of elsewhere) {
     for (const place of c.places ?? []) {
-      if (place.app) apps.add(toolSpec(c.tool).desktop_app === place.app ? `${place.app} app` : place.app);
+      if (!place.app) continue;
+      const name = toolSpec(c.tool).desktop_app === place.app ? `${place.app} app` : place.app;
+      apps.set(name, { appId: place.app_id ?? null, appPid: place.app_pid ?? null, name });
     }
   }
-  return { count: own.length + elsewhere.length, apps: [...apps] };
+  return { count: own.length + elsewhere.length, apps: [...apps.values()] };
+}
+
+/** Why an account has no reading now, and where one comes from: its
+ * tool's own records (the desktop app's meter while it runs, a limit hit),
+ * never a dead end (the maintainer's third report). */
+export function unmeasuredWords(tool: string): string {
+  const spec = toolSpec(tool);
+  const app = spec.desktop_app ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
+  const name = providerDisplayName(tool);
+  return app
+    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
+    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
 }
 
 export type AccountCardProps = {
@@ -64,23 +87,24 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
     renewal && renewal.tier === "date" ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
-  const first = profiles[0];
+  const week = useWeekByProfile();
   return (
-    <Card className="overflow-hidden" data-testid="account-card" data-state={sub.state}>
-      <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-3.5">
+    <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state}>
+      <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi"
+          className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-hairline bg-surface-2 text-ink"
           title={providerDisplayName(sub.tool)}
           data-testid="account-tool-mark"
           data-provider={sub.tool}
         >
-          <mark.Icon width={16} height={16} aria-hidden="true" />
+          <mark.Icon width={18} height={18} aria-hidden="true" />
         </span>
+        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountKeyColor(sub) }} title="This account's colour in the charts" />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold" data-testid="account-name">
+          <h3 className="truncate text-section text-ink" data-testid="account-name">
             {accountName(sub)}
           </h3>
-          <p className="truncate text-[11px] text-muted" data-testid="account-line">
+          <p className="truncate text-meta text-muted" data-testid="account-line">
             {signedOut
               ? `${profiles.length === 1 ? "This profile isn't" : "These profiles aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
               : sub.state === "unverified"
@@ -94,21 +118,30 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           </Chip>
         )}
         {profiles.length > 1 && !signedOut && (
-          <span className="text-[11px] text-muted" data-testid="account-profiles-count">
+          <span className="text-meta text-muted" data-testid="account-profiles-count">
             {profiles.length} profiles share this account
           </span>
         )}
       </div>
       {!signedOut && (
-        <div className="flex flex-col gap-2 px-5 py-3.5">
+        <div className="flex flex-col gap-2 px-5 py-4">
           {props.reportsLimits(sub.tool) ? (
             <>
-              <AccountRunway display={display} sessions={ownSessions} />
+              <RunwayPanel
+                display={display}
+                limitsProfile={display && !unmeasured ? display.account : null}
+                usage={week.values(profiles.map((p) => p.id))}
+                usageTotal={week.total(profiles.map((p) => p.id))}
+                color={accountKeyColor(sub)}
+                name={accountName(sub)}
+                now={props.now}
+                compact
+              />
               {unmeasured && ownSessions.length === 0 && (
-                <p className="text-[11px] text-muted" data-testid="account-unmeasured">
-                  Its sessions run outside AI Juggler, so limits aren't measured yet.{" "}
-                  {first && props.onInspect && (
-                    <button type="button" onClick={() => props.onInspect!(first.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
+                <p className="text-meta text-muted" data-testid="account-unmeasured">
+                  {unmeasuredWords(sub.tool)}{" "}
+                  {profiles[0] && props.onInspect && (
+                    <button type="button" onClick={() => props.onInspect!(profiles[0]!.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
                       Measure its limits…
                     </button>
                   )}
@@ -116,7 +149,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               )}
             </>
           ) : (
-            <p className="text-[11.5px] text-muted" data-testid="account-no-limits">
+            <p className="text-meta text-muted" data-testid="account-no-limits">
               {noLimitsWords(sub.tool)}.
             </p>
           )}

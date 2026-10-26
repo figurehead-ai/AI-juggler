@@ -28,6 +28,17 @@ import type { AccountInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { PREVIEW_TOOLS } from "../preview/tools";
 import { ACTION_ICONS } from "./ActionIcon";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
+import { menuEdge } from "./RowMenu";
+
+describe("a menu keeps a corner at the pointer", () => {
+  it("opens after the point when it fits, else ends at it, else as far in as the window allows", () => {
+    expect(menuEdge(100, 300, 800)).toBe(100);
+    // Opened low (the rail's row at 563 px, a 347 px menu, 800 px tall):
+    // above the pointer, its bottom at it, not pushed against the edge.
+    expect(menuEdge(563, 347, 800)).toBe(216);
+    expect(menuEdge(300, 700, 800)).toBe(96);
+  });
+});
 
 afterEach(cleanup);
 
@@ -439,6 +450,13 @@ describe("AJ-E1537 the native menu builder", () => {
     expect(made.find((entry) => entry.text === "Stop this session")?.accelerator).toBe("CmdOrCtrl+.");
     expect(made.find((entry) => entry.text === "Continue on another account…")?.accelerator).toBe("CmdOrCtrl+Shift+H");
     expect(accelerator("Enter")).toBeUndefined();
+    // A row's keys, as the menus, ⌘K and the ? sheet show them: Go to it
+    // ⌘↩, Open its page ↩ (the maintainer's review of 0.1.4).
+    expect(made.find((entry) => entry.text === "Go to it")?.accelerator).toBe("CmdOrCtrl+Enter");
+    const keys = Object.fromEntries(actions.map((action) => [action.label, action.shortcut]));
+    expect([keys["Go to it"], keys["Open its page"]]).toEqual(["⌘↩", "↩"]);
+    const talk = resolveActions("conversation", { id: "c", live: true } as never, { goToConversation: () => {}, openConversation: () => {} });
+    expect(talk.slice(0, 2).map((action) => [action.label, action.shortcut])).toEqual([["Go to it", "⌘↩"], ["Open its page", "↩"]]);
     vi.doUnmock("@tauri-apps/api/menu");
     vi.doUnmock("@tauri-apps/api/dpi");
   });

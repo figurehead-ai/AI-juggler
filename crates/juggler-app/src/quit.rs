@@ -265,17 +265,15 @@ pub fn request(app: &tauri::AppHandle) -> bool {
 }
 
 /// The window shows the quit sheet (the request is in a person's hands).
-// ipc: main-thread (pure)
 #[tauri::command]
-pub fn app_quit_ack() {
+pub async fn app_quit_ack() {
     gate().acknowledge();
 }
 
 /// Cancel on the quit sheet: everything keeps running, and the next ⌘Q
 /// asks again.
-// ipc: main-thread (pure)
 #[tauri::command]
-pub fn app_quit_cancel() {
+pub async fn app_quit_cancel() {
     gate().cancel();
 }
 
@@ -324,9 +322,8 @@ pub async fn app_quit_plan(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
 /// # Errors
 ///
 /// Never fails; the result type matches the other commands.
-// ipc: main-thread (pure: the stops and the exit run on their own thread)
 #[tauri::command]
-pub fn app_quit(
+pub async fn app_quit(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     stop_first: bool,

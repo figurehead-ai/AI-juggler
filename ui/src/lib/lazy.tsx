@@ -9,14 +9,35 @@ import { lazy, Suspense, type ComponentProps, type ComponentType, type JSX } fro
 
 const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
 
+/** How many parts are loading now. While any is, `<html>` carries
+ * `data-loading-parts`: a part on screen may still be its empty
+ * placeholder, so the visual gate waits for it to clear before a capture
+ * (a terminal pane was caught empty on some runs and drawn on others). */
+let loading = 0;
+
+function counted<M>(loader: () => Promise<M>): () => Promise<M> {
+  const mark = () => {
+    if (typeof document !== "undefined") document.documentElement.toggleAttribute("data-loading-parts", loading > 0);
+  };
+  return () => {
+    loading += 1;
+    mark();
+    return loader().finally(() => {
+      loading -= 1;
+      mark();
+    });
+  };
+}
+
 /** `module[name]`, loaded on first use. It waits on its own (nothing
  * around it blanks while it loads), and is fetched after first paint
  * anyway: `first` puts it at the head of that queue (what's opened most
  * often right after start). */
 export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: K, first = false): M[K] {
-  loaders.push({ load: loader, first });
+  const load = counted(loader);
+  loaders.push({ load, first });
   type C = ComponentType<Record<string, unknown>>;
-  const Lazy = lazy(() => loader().then((module) => ({ default: module[name] as unknown as C })));
+  const Lazy = lazy(() => load().then((module) => ({ default: module[name] as unknown as C })));
   function Loaded(props: ComponentProps<C>): JSX.Element {
     return (
       <Suspense fallback={null}>
@@ -26,6 +47,12 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
   }
   Loaded.displayName = `Lazy(${String(name)})`;
   return Loaded as unknown as M[K];
+}
+
+/** Reads a main screen's first data in the same idle queue, after the
+ * parts opened first (0.1.5 review: a screen opened blank for seconds). */
+export function prefetchData(load: () => Promise<unknown>): void {
+  loaders.push({ load, first: false });
 }
 
 let started = false;

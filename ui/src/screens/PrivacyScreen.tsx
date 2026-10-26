@@ -7,7 +7,6 @@
  * tool's own terms say about several accounts, from its adapter.
  */
 import type { JSX, ReactNode } from "react";
-import { SectionTitle } from "../components/SectionTitle";
 import { ToolMark } from "../components/ToolMark";
 import { useTools } from "../lib/tools";
 import claims from "../lib/trust-claims.json";
@@ -30,9 +29,11 @@ function OutLink({ to, children, className = "" }: { to: TrustLink; children: Re
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }): JSX.Element {
   return (
-    <section aria-labelledby={`${id}-title`} className="flex flex-col gap-2.5" data-testid={`privacy-${id}`}>
-      <SectionTitle id={`${id}-title`}>{title}</SectionTitle>
-      <ul className="flex flex-col rounded-xl border border-hairline bg-surface px-4 py-1.5">{children}</ul>
+    <section aria-labelledby={`${id}-title`} className="flex flex-col gap-2" data-testid={`privacy-${id}`}>
+      <h3 id={`${id}-title`} className="px-1 text-section font-semibold text-ink">
+        {title}
+      </h3>
+      <ul className="flex flex-col rounded-card border border-hairline bg-surface px-4 py-1 shadow-card">{children}</ul>
     </section>
   );
 }
@@ -41,24 +42,24 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
   return (
     <li className="border-t border-hairline/60 py-2.5 first:border-t-0" data-testid="privacy-claim">
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-start [&::-webkit-details-marker]:hidden gap-2.5 rounded-lg text-sm text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="flex cursor-pointer list-none items-start [&::-webkit-details-marker]:hidden gap-2.5 rounded-lg text-body text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           {/* The rail's fold chevron: one look for every disclosure. */}
-          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none">
+          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
             <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="flex-1">{text}</span>
         </summary>
-        <div className="ml-5 mt-1.5 flex flex-col gap-1 text-xs text-muted" data-testid="privacy-tests">
+        <div className="ml-5 mt-1.5 flex flex-col gap-1 text-meta text-muted" data-testid="privacy-tests">
           <span>{tests.length === 1 ? "Checked by this test:" : `Checked by these ${tests.length} tests:`}</span>
           <ul className="flex flex-col gap-0.5">
             {tests.map((reference) => {
               const [path, name] = reference.split("::");
               return (
                 <li key={reference}>
-                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-[11px]">
+                  <OutLink to={{ kind: "source", id: path! }} className="font-mono text-label">
                     {name}
                   </OutLink>
-                  <span className="text-faint"> · {path}</span>
+                  <span className="text-muted"> · {path}</span>
                 </li>
               );
             })}
@@ -69,16 +70,15 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
   );
 }
 
-export function PrivacyScreen(): JSX.Element {
+/** Every line of what AI Juggler reads, changes and sends, each with the
+ * tests that check it; the tools' terms; the way to report a line that
+ * isn't true. It lives in Settings › Privacy (one place, the review of
+ * 0.1.4); `PrivacyScreen` titles it on its own. */
+export function PrivacyClaims(): JSX.Element {
   const tools = useTools().filter((tool) => tool.terms !== null);
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-7 py-2" data-testid="privacy-page">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Privacy</h1>
-        <p className="text-sm text-muted">
-          What AI Juggler reads, changes and sends, and what it never does. {claims.checked}
-        </p>
-      </header>
+    <div className="flex flex-col gap-7" data-testid="privacy-page">
+      <p className="px-1 text-meta text-muted">{claims.checked}</p>
       {claims.groups.map((group) => (
         <Section key={group.id} id={group.id} title={group.title}>
           {group.claims.map((claim) => (
@@ -89,11 +89,11 @@ export function PrivacyScreen(): JSX.Element {
       {tools.length > 0 && (
         <Section id="terms" title="Your accounts and the tools' terms">
           {tools.map((tool) => (
-            <li key={tool.id} className="flex items-start gap-2.5 border-t border-hairline/60 py-2.5 text-sm first:border-t-0" data-testid="privacy-terms-row">
-              <ToolMark tool={tool.id} size={14} className="mt-0.5 shrink-0 text-muted" />
+            <li key={tool.id} className="flex items-start gap-2.5 border-t border-hairline/60 py-2.5 text-body first:border-t-0" data-testid="privacy-terms-row">
+              <ToolMark tool={tool.id} size={16} className="mt-0.5 shrink-0 text-muted" />
               <span className="flex flex-col gap-0.5">
                 <span className="text-ink">{tool.terms!.accounts}</span>
-                <span className="text-xs text-muted">
+                <span className="text-meta text-muted">
                   <OutLink to={{ kind: "terms", id: tool.id }}>{tool.terms!.name} ↗</OutLink>{" "}
                   · checked {checkedWords(tool.terms!.checked)}
                 </span>
@@ -102,9 +102,18 @@ export function PrivacyScreen(): JSX.Element {
           ))}
         </Section>
       )}
-      <p className="text-xs text-muted">
+      <p className="px-1 text-meta text-muted">
         Found a line that isn't true? Please <OutLink to={{ kind: "report" }}>report it privately</OutLink>: it's a security bug.
       </p>
+    </div>
+  );
+}
+
+export function PrivacyScreen(): JSX.Element {
+  return (
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5 pb-10">
+      <h1 className="text-title text-ink">Privacy</h1>
+      <PrivacyClaims />
     </div>
   );
 }

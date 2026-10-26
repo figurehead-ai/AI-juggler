@@ -4,8 +4,9 @@
  * the account page's running counts, and the go-to palette. Read once,
  * read again when the backend says it changed (and when asked).
  */
+import { untitled } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
-import { conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
+import { conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
 
 interface ConversationsState {
   /** Every conversation, newest first. */
@@ -16,8 +17,16 @@ interface ConversationsState {
 
 const Context = createContext<ConversationsState>({ all: [], refresh: () => {} });
 
-export function ConversationsProvider({ children }: { children: ReactNode }): JSX.Element {
-  const [all, setAll] = useState<ConversationInfo[]>([]);
+/**
+ * The list is the backend's working set (open, in a sidebar, today's and
+ * the week's newest), never every conversation ever had (0.1.5 review).
+ * `want` names one that must be in it (the page open now): one past the
+ * working set (an old one, opened from History) is read by its id and
+ * joins the list while wanted.
+ */
+export function ConversationsProvider({ children, want = null }: { children: ReactNode; want?: { accountId: string; id: string } | null }): JSX.Element {
+  const [working, setAll] = useState<ConversationInfo[]>([]);
+  const [extra, setExtra] = useState<ConversationInfo | null>(null);
   const refresh = useCallback(() => {
     void conversationsList().then(setAll, () => undefined);
   }, []);
@@ -25,6 +34,23 @@ export function ConversationsProvider({ children }: { children: ReactNode }): JS
     refresh();
     return onConversationsChanged(refresh);
   }, [refresh]);
+  const missing = want !== null && !working.some((c) => c.account_id === want.accountId && c.id === want.id);
+  useEffect(() => {
+    if (!missing || want === null) return;
+    let alive = true;
+    void conversationsGet(want.accountId, want.id).then(
+      (found) => alive && setExtra(found),
+      () => null,
+    );
+    return () => {
+      alive = false;
+    };
+    // Read again when the list is (its live state may have changed).
+  }, [missing, want?.accountId, want?.id, working]);
+  const all = useMemo(
+    () => (missing && extra && want && extra.account_id === want.accountId && extra.id === want.id ? [...working, extra] : working),
+    [missing, extra, want, working],
+  );
   const value = useMemo(() => ({ all, refresh }), [all, refresh]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
@@ -48,5 +74,6 @@ export function liveOutside(all: ConversationInfo[], accountId?: string): Conver
  * folder's name. */
 export function conversationTitle(conversation: ConversationInfo): string {
   const folder = (conversation.cwd ?? "").replace(/\/+$/, "").split("/").pop() ?? "";
-  return conversation.title ?? conversation.git_branch ?? (folder || conversation.id.slice(0, 8));
+  // Never a bare "main": a telling branch, else "Untitled session · <folder>".
+  return conversation.title ?? untitled(conversation.git_branch, folder);
 }

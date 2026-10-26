@@ -20,7 +20,8 @@
 
   /* Text */
   --color-ink: #e8ecf3;
-  --color-muted: #8b95a7;
+  /* The readability scale: ≥ 7:1 on every surface (was #8b95a7, 5.2–6.4:1). */
+  --color-muted: #a8b1c0;
   --color-faint: #848c99; /* AJ-E804: ≥ 4.5:1 on every surface (was #5b6474, 2.6–3.3:1) */
 
   /* Identity: electric violet primary, cyan for live data */
@@ -44,6 +45,39 @@
     Roboto, sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+  /*
+   * The readability scale (0.1.5; every new screen uses it, the rest
+   * adopts it as it's rebuilt). One size per role, nothing under 12 px
+   * anywhere — chips, captions and chart axes included:
+   *   text-title    22 px semibold — a page's name
+   *   text-section  15 px semibold — a section's title, sentence case, in ink
+   *   text-body     14 px / 1.5    — running text and table cells
+   *   text-meta     13 px          — secondary lines, column heads
+   *   text-label    12 px          — the floor: chips, captions, axes, eyebrows
+   *   text-stat     28 px semibold — a big number (with tabular-nums)
+   * Layout: content max 1440 px, cards padded 20 px, 16 px between them.
+   */
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.25;
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.01em;
+  --text-section: 0.9375rem;
+  --text-section--line-height: 1.35;
+  --text-section--font-weight: 600;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.45;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.4;
+  --text-stat: 1.75rem;
+  --text-stat--line-height: 1.1;
+  --text-stat--font-weight: 600;
+  --text-stat--letter-spacing: -0.02em;
+  --container-content: 90rem;
+  --spacing-card: 1.25rem;
+  --spacing-grid: 1rem;
 
   /* Shape */
   --radius-card: 0.875rem;
@@ -82,7 +116,8 @@ body {
   --color-hairline: #d8dde8;
 
   --color-ink: #171c26;
-  --color-muted: #57607a;
+  /* The readability scale: ≥ 7:1 on every surface (was #57607a, 5.2–6.3:1). */
+  --color-muted: #434a5e;
   --color-faint: #626879; /* AJ-E804: ≥ 4.5:1 on every surface (was #8a92a6, 2.6–3.1:1) */
 
   --color-accent: #5555e1; /* AJ-E804: ≥ 4.5:1 on surface-3 too */

@@ -15,13 +15,16 @@ import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
 import { useActionHost } from "../components/ItemMenu";
 import { useProjectManage } from "../components/ManageWork";
 import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
-import { SwitchGraph } from "../components/SwitchGraph";
-import { homeRelative, lastWorked, projectStats } from "../lib/project-words";
+import { Section } from "../components/charts/ChartCard";
+import { IconGit, IconUser } from "../components/usage/controls";
+import { ProjectOverviewView } from "./project/Overview";
+import { homeRelative, projectStats } from "../lib/project-words";
 import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
-import { SessionsList, useSessionRows } from "./SessionsList";
+import { PagedSessions, useSessionRows } from "./SessionsList";
+import { sessionsQuery } from "../lib/ipc/sessions";
 import { launchSettingsName } from "../lib/account-words";
 
 export type ProjectPanelProps = {
@@ -60,7 +63,7 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
   const uncommitted = git ? git.changed + git.untracked : 0;
   return (
     <>
-      <span className="font-mono text-[11px]" title={project.root} data-testid="project-root">
+      <span className="font-mono text-label" title={project.root} data-testid="project-root">
         {homeRelative(project.root)}
       </span>
       {branches.length > 0 && <span data-testid="project-branch">· {branches.join(", ")}</span>}
@@ -135,10 +138,22 @@ export function ProjectSessions(props: ProjectPanelProps) {
   const host = useActionHost();
   const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession, props.now);
   const start = () => (host.newSessionIn ? host.newSessionIn(project) : window.dispatchEvent(new Event("aij:new-session")));
+  // A page at a time (0.1.5): the backend's whole list, not the working set.
+  const [total, setTotal] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-3">
       <MissingBanner project={project} onStopped={props.onStopped} />
-      {rows.length > 0 ? <SessionsList rows={rows} empty="" /> : <EmptyProject project={project} now={props.now} onStart={start} />}
+      {total === 0 && <EmptyProject project={project} now={props.now} onStart={start} />}
+      <div hidden={total === 0}>
+        <PagedSessions
+          listKey={`project-sessions:${project.id}`}
+          query={sessionsQuery({ project_id: project.id })}
+          local={() => rows}
+          empty=""
+          onOpenSession={props.onOpenSession}
+          onTotal={setTotal}
+        />
+      </div>
     </div>
   );
 }
@@ -151,13 +166,13 @@ function EmptyProject({ project, now, onStart }: { project: ProjectInfo; now: nu
           what was done there — the rail row's own line. */}
       {project.history_sessions > 0 ? (
         <div className="flex flex-col items-center gap-1">
-          <p className="text-[12px] font-medium text-ink">Nothing started from AI Juggler here yet</p>
-          <p className="text-[11.5px] text-muted" data-testid="project-history-line">
+          <p className="text-body font-medium text-ink">Nothing started from AI Juggler here yet</p>
+          <p className="text-meta text-muted" data-testid="project-history-line">
             {projectStats(project, now).join(" · ")}
           </p>
         </div>
       ) : (
-        <p className="text-[12px] font-medium text-ink">No sessions in this project yet</p>
+        <p className="text-body font-medium text-ink">No sessions in this project yet</p>
       )}
       <Button size="sm" variant="primary" onClick={onStart}>
         <IconTerminal width={13} height={13} />
@@ -176,6 +191,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
   const project = props.project;
   const { all: conversations } = useConversations();
   const rows = props.sessions.filter((s) => s.project_id === project.id);
+  const sessionRows = useSessionRows(props.sessions, { projectId: project.id }, props.onOpenSession, props.now);
   const theirs = outside(conversations).filter((c) => c.project_id === project.id);
   const accountsUsed = [...new Set([...project.accounts_used, ...rows.map((r) => r.account_label), ...theirs.map((c) => c.account_label)])];
   // The checkouts its sessions worked in, and who's in each now.
@@ -203,82 +219,73 @@ export function ProjectOverview(props: ProjectPanelProps) {
       id: project.id, root: project.root, name: project.name, last_activity_ms: null,
       active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: project.missing,
     });
-  return (
-    <div className="flex flex-col gap-3" data-testid="project-overview">
-      <MissingBanner project={project} onStopped={props.onStopped} />
-      <Card className="flex flex-col gap-2 p-4" data-testid="project-summary">
-        <p className="text-[11px] uppercase tracking-wider text-muted">At a glance</p>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[12px]">
-          <dt className="text-muted">Sessions</dt>
-          <dd className="text-ink" data-testid="project-sessions-ever">
-            {rows.length + theirs.length}
-            {theirs.length > 0 && <span className="text-muted"> ({theirs.length} outside AI Juggler)</span>}
-          </dd>
-          {lastWorked(project) > 0 && (
-            <>
-              <dt className="text-muted">Last worked</dt>
-              <dd className="text-ink">{projectStats(project, props.now)[0]}</dd>
-            </>
-          )}
-          <dt className="text-muted">Accounts</dt>
-          <dd className="text-ink">{accountsUsed.join(", ") || "None yet"}</dd>
-        </dl>
-      </Card>
-      {checkouts.size > 0 && (
-        <Card className="flex flex-col gap-2 p-4" data-testid="project-checkouts">
-          <p className="text-[11px] uppercase tracking-wider text-muted">Checkouts</p>
-          {[...checkouts].map(([path, entry]) => (
-            <div key={path} className="flex flex-col gap-0.5 text-[12px]">
-              <span className="flex flex-wrap items-center gap-x-2">
-                <span className="font-mono text-[11px] text-ink" title={path}>
-                  {path.replace(/^\/Users\/[^/]+/, "~")}
-                </span>
-                {entry.branch && <span className="text-muted">{entry.branch}</span>}
-                <span className="text-faint">{entry.live.length > 0 ? `${entry.live.length} running` : "nothing running"}</span>
-              </span>
-              {entry.live.length > 1 && (
-                <span className="text-[11px] text-warning" data-testid="shared-checkout">
-                  {entry.live.length} sessions share this checkout: their edits can collide. Give the next one its own worktree.
-                </span>
-              )}
-            </div>
-          ))}
-        </Card>
+  const sharedBy = Math.max(0, ...[...checkouts.values()].map((entry) => entry.live.length));
+  const accountsCard = (
+    <Section title="Accounts" icon={<IconUser />} sub="who starts work here" testId="project-accounts">
+      <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
+      {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
+      {ranked.length > 0 && (
+        <p className="text-meta text-muted">
+          {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one on another account, most room first" : "Or start one on another account"}
+        </p>
       )}
-      <Card className="flex flex-col gap-2 p-4" data-testid="project-accounts">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Accounts</p>
-        <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
-        {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
-        {ranked.length > 0 && (
-          <p className="text-[11px] text-muted">
-            {ranked.some((entry) => Number.isFinite(entry.left)) ? "Start one on another account (most left first):" : "Start one on another account:"}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {ranked.map(({ recipe, usual }) => {
-            const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
-            return (
-              <Button key={recipe.id} size="sm" variant="secondary" disabled={!ready} title={ready ? launchSettingsName(recipe.name) : "Needs sign-in first"} onClick={() => launch(recipe)}>
-                <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={14} />
-                {recipe.account_label}
-                {/* An account with several launch settings: say which. */}
-                {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && (
-                  <span className="text-muted">· {launchSettingsName(recipe.name)}</span>
-                )}
-                {usual && <span className="text-[9px] text-accent-hi">Usual</span>}
-              </Button>
-            );
-          })}
-        </div>
-        {ranked.length === 0 && <p className="text-[11.5px] text-muted">No launch settings yet: add an account first.</p>}
-      </Card>
-      {/* AJ-E209 Req.4/5: the per-Work Switch Graph — how the work
-          travelled across accounts, with per-node Resume / Switch
-          from here / Export pack and failed-edge recovery. */}
-      <Card className="flex flex-col gap-2 p-4" data-testid="project-switch-graph-card">
-        <p className="text-[11px] uppercase tracking-wider text-muted">How this work travelled</p>
-        <SwitchGraph projectId={project.id} onOpenSession={props.onOpenSession} />
-      </Card>
+      <ul className="flex flex-col gap-1.5">
+        {ranked.map(({ recipe, usual, left }) => {
+          const ready = signedIn(props.accounts.find((a) => a.id === recipe.account_id)?.login_state);
+          return (
+            <li key={recipe.id}>
+              <button
+                type="button"
+                disabled={!ready}
+                title={ready ? launchSettingsName(recipe.name) : "Needs sign-in first"}
+                onClick={() => launch(recipe)}
+                className="flex w-full items-center gap-2.5 rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-left text-meta text-ink outline-none hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+              >
+                <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={20} />
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {recipe.account_label}
+                  {/* An account with several launch settings: say which. */}
+                  {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && <span className="font-normal text-muted"> · {launchSettingsName(recipe.name)}</span>}
+                </span>
+                {usual && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-accent-hi">Usual</span>}
+                {Number.isFinite(left) && <span className={"text-label tabular-nums " + (left <= 25 ? "text-warning" : "text-muted")}>{Math.round(left)}% left</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {ranked.length === 0 && <p className="text-meta text-muted">No launch settings yet: add an account first.</p>}
+    </Section>
+  );
+  const checkoutsCard =
+    checkouts.size > 1 ? (
+      <Section title="Checkouts" icon={<IconGit />} sub={`${checkouts.size} folders this project's sessions worked in`} className="@min-[700px]:col-span-2" testId="project-checkouts">
+        <ul className="flex flex-col divide-y divide-hairline">
+          {[...checkouts].map(([path, entry]) => (
+            <li key={path} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-meta">
+              <span className="font-mono text-ink" title={path}>
+                {homeRelative(path)}
+              </span>
+              {entry.branch && <span className="text-muted">{entry.branch}</span>}
+              <span className="ml-auto text-muted">{entry.live.length > 0 ? `${entry.live.length} running` : "nothing running"}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+    ) : null;
+  return (
+    <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-overview">
+      <MissingBanner project={project} onStopped={props.onStopped} />
+      <ProjectOverviewView
+        project={project}
+        rows={sessionRows}
+        now={props.now}
+        sharedBy={sharedBy}
+        accounts={accountsCard}
+        checkouts={checkoutsCard}
+        onOpenSession={props.onOpenSession}
+        onAllSessions={() => document.getElementById("page-tab-sessions")?.click()}
+      />
     </div>
   );
 }
@@ -292,7 +299,7 @@ function MissingBanner({ project, onStopped }: { project: ProjectInfo; onStopped
     <>
       <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
         <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">{homeRelative(project.root)}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-label text-muted">{homeRelative(project.root)}</span>
         <Button size="sm" variant="secondary" onClick={() => void manage.actions.relocate(project)}>
           Relocate…
         </Button>

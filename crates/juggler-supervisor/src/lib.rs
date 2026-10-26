@@ -24,6 +24,7 @@ pub mod orphans;
 pub mod ports;
 pub mod ring;
 pub mod stats;
+mod stop_guard;
 pub mod supervisor;
 pub mod tree;
 
@@ -40,7 +41,7 @@ pub use machine::{
 };
 pub use orphans::{
     AUTO_CLEANUP_GRACE_MS, DescendantRow, ExitSnapshot, ORPHAN_GRACE_MS, Orphan, OrphanTracker,
-    OwnerState, StopOutcome, process_alive, stop_pid_ladder, verify_owner,
+    process_alive,
 };
 #[cfg(unix)]
 pub use ports::NetstatProbe;

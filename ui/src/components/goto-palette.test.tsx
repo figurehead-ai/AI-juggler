@@ -99,11 +99,19 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     expect(view.container.querySelector('[data-testid="goto-palette"]')).toBeNull();
   });
 
-  it("Enter on a desktop row focuses its window; on a terminal row opens its panel", () => {
+  it("Enter opens a row's page here; ⌘Enter on a desktop row focuses its window", () => {
     const { view, onFocusWindow, onOpenSession } = shell();
     const input = view.container.querySelector("input")!;
-    // Active row 0 is desktop: Enter → window focus.
+    // Active row 0 is desktop: Enter → its page here (the review of 0.1.4).
     fireEvent.keyDown(input, { key: "Enter" });
+    expect(onOpenSession).toHaveBeenCalledWith(SESSIONS[1]!.id);
+    expect(onFocusWindow).not.toHaveBeenCalled();
+  });
+
+  it("⌘Enter on a desktop row goes to its window; on a terminal row opens its panel", () => {
+    const { view, onFocusWindow, onOpenSession } = shell();
+    const input = view.container.querySelector("input")!;
+    fireEvent.keyDown(input, { key: "Enter", metaKey: true });
     expect(onFocusWindow).toHaveBeenCalledWith(SESSIONS[1]);
     expect(onOpenSession).not.toHaveBeenCalled();
     // Terminal row (index 2): ArrowDown ×2 then Enter → panel.

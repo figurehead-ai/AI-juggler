@@ -185,14 +185,14 @@ function PrefNumber({
           <button
             type="button"
             onClick={() => onSave(fallback)}
-            className="rounded-lg px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface-2 hover:text-ink"
+            className="rounded-lg px-1.5 py-0.5 text-label text-muted hover:bg-surface-2 hover:text-ink"
             data-testid={`pref-${id}-reset`}
           >
             Reset to {fallback}
           </button>
         )}
       </div>
-      <span id={`pref-${id}-hint`} className="text-[11px] text-muted">
+      <span id={`pref-${id}-hint`} className="text-label text-muted">
         {hint}
       </span>
     </div>

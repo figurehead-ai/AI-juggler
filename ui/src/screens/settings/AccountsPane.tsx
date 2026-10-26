@@ -6,8 +6,46 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { RenewalSettingsCard } from "../../components/SettingsSections";
-import { accountsList, type AccountInfo } from "../../lib/bridge";
+import { ToolMark } from "../../components/ToolMark";
+import { accountsList, providersDiscover, type AccountInfo, type ProviderInstallData } from "../../lib/bridge";
+import { installWords } from "../../lib/providers";
+import { useTools } from "../../lib/tools";
 import { Pane, PaneSection, SettingRow } from "./parts";
+
+/** What this Mac has of each tool, read once (null while reading). */
+function useInstalls(): ProviderInstallData[] | null {
+  const [rows, setRows] = useState<ProviderInstallData[] | null>(null);
+  useEffect(() => {
+    void providersDiscover().then(setRows, () => setRows([]));
+  }, []);
+  return rows;
+}
+
+/** 0.1.5: the tools you have accounts on — what's installed and how many
+ * accounts each has (the tool page folded in here: the review of 0.1.4
+ * found it added nothing Accounts didn't show). */
+function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | null {
+  const installs = useInstalls();
+  const tools = useTools().filter((tool) => accounts.some((account) => account.provider === tool.id));
+  if (tools.length === 0) return null;
+  return (
+    <PaneSection id="tools" title="Tools on this Mac" footer="Read from each tool's install. AI Juggler updates none of them.">
+      {tools.map((tool) => {
+        const install = installs?.find((row) => row.provider === tool.id);
+        const count = accounts.filter((account) => account.provider === tool.id).length;
+        return (
+          <SettingRow
+            key={tool.id}
+            testId="settings-tool"
+            icon={<ToolMark tool={tool.id} size={20} className="text-muted" />}
+            title={tool.display_name}
+            description={`${count === 1 ? "1 account" : `${count} accounts`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
+          />
+        );
+      })}
+    </PaneSection>
+  );
+}
 
 /** Every account (each profile's sign-in), read once for a pane. */
 export function useAccounts(): AccountInfo[] {
@@ -37,6 +75,7 @@ export function AccountsPane({ anchor }: { anchor?: string }): JSX.Element {
           }
         />
       </PaneSection>
+      <ToolsSection accounts={accounts} />
       <PaneSection id="renewal" title="Renewal dates" footer="Reminders come only from dates you enter. AI Juggler never reads your billing." card>
         <RenewalSettingsCard accounts={accounts} />
       </PaneSection>

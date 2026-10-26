@@ -20,7 +20,8 @@ import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
-export type MachineFixture = "plenty" | "tight" | "pressure" | "unsampled";
+/** `others`: the 0.1.4 review's Mac, other apps holding most of the memory. */
+export type MachineFixture = "plenty" | "tight" | "pressure" | "others" | "unsampled";
 
 interface MachineSeams {
   __AIJ_MACHINE__?: MachineFixture | MachineHealthInfo;
@@ -49,6 +50,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
     // "Memory Used"): high on a working Mac. Free is on the same basis, so
     // used + free = total.
     memory_used: 22 * GB,
+    memory_compressed: 2.4 * GB,
     memory_basis: "app_wired_compressed",
     memory_available: 10 * GB,
     pressure: "normal",
@@ -66,11 +68,14 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
       return { ...base, sampled: false, cpu_pct: null, series: [], summary: { level: "plenty", words: "Plenty of room", reasons: [] } };
     case "plenty":
       return base;
+    case "others":
+      return othersFillIt(base);
     case "tight":
       return {
         ...base,
         cpu_pct: 64,
         memory_used: 29.4 * GB,
+        memory_compressed: 5.1 * GB,
         memory_available: 2.6 * GB,
         pressure: "warning",
         swap_used: 3.1 * GB,
@@ -90,6 +95,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
         ...base,
         cpu_pct: 96,
         memory_used: 31.2 * GB,
+        memory_compressed: 8.6 * GB,
         memory_available: 0.8 * GB,
         pressure: "critical",
         swap_used: 3.9 * GB,
@@ -131,16 +137,16 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
     ];
   return [];
 }
 
-const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "unsampled"];
+const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "others", "unsampled"];
 
 /** A preview URL's fixture name, only when it is one we know. */
 function asFixture(value: string | undefined): MachineFixture | undefined {
@@ -185,11 +191,15 @@ interface ThisMacSeams {
   __AIJ_ALERTS_FRESH__?: OverloadAlertInfo[];
   /** Recommendations for the derived mock (AJ-E1409). */
   __AIJ_RECOMMENDATIONS__?: string[];
+  /** The other apps for the derived mock (default: a few). */
+  __AIJ_OTHER_APPS__?: OtherAppInfo[];
 }
 const thisMacSeams = () => window as unknown as ThisMacSeams;
 
 // The preview's This Mac (no backend) lives with the other preview data.
 import { mockThisMac, previewWindows, withHeavyLoad } from "../preview/this-mac";
+import { othersFillIt, othersPreview } from "../preview/machine";
+import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
 export { mockHeavyNote, mockThisMac } from "../preview/this-mac";
 
 /** This Mac now. */
@@ -204,10 +214,11 @@ export async function thisMac(): Promise<ThisMacInfo> {
       leftovers = leftovers ?? [2, 1];
     }
     const top = sessions.find((session) => session.status === "running");
-    const alerts = seams.__AIJ_ALERTS__ ?? previewAlerts(top?.id ?? null);
+    const others = othersPreview(machineSeams().__AIJ_MACHINE__ ?? previewParam("aij_machine"));
+    const alerts = seams.__AIJ_ALERTS__ ?? others?.alerts ?? previewAlerts(top?.id ?? null);
     const advice = seams.__AIJ_RECOMMENDATIONS__ ?? (previewParam("aij_history") ? PREVIEW_HISTORY : []);
-    const observed = seams.__AIJ_OBSERVED__ ?? previewWindows(Number(previewParam("aij_windows") ?? 0));
-    return mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice);
+    const observed = seams.__AIJ_OBSERVED__ ?? others?.observed ?? previewWindows(Number(previewParam("aij_windows") ?? 0));
+    return mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice, seams.__AIJ_OTHER_APPS__ ?? others?.apps);
   }
   return invoke<ThisMacInfo>("this_mac");
 }
@@ -250,7 +261,7 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
   const parts = [
     `CPU ${cpu !== null ? `${Math.round(cpu)}%` : "—"}`,
     rss !== null ? bytesWords(rss) : "memory —",
-    helpers === null ? "helpers —" : helpers === 1 ? "1 helper" : `${helpers} helpers`,
+    helpers === null ? "more processes —" : helpers === 1 ? "1 more process" : `${helpers} more processes`,
   ];
   return parts.join(" · ");
 }
@@ -262,7 +273,7 @@ export const ThisMacContext = createContext<ThisMacInfo | null>(null);
 /** How each level of the Mac's state looks: This Mac's glyph and tone,
  * the rail footer's dot. */
 export const MACHINE_LEVEL: Record<string, { glyph: string; tone: string; dot: string }> = {
-  plenty: { glyph: "●", tone: "text-faint", dot: "bg-success" },
+  plenty: { glyph: "●", tone: "text-success", dot: "bg-success" },
   tight: { glyph: "▲", tone: "text-warning", dot: "bg-warning" },
   pressure: { glyph: "■", tone: "text-danger", dot: "bg-danger" },
 };
@@ -381,46 +392,5 @@ export function keptNotices(notices: MachineNotice[], activeKeys: Set<string> | 
     return activeKeys === null || activeKeys.has(notice.alertKey) || now - notice.toldAt < NOTICE_SETTLE_MS;
   });
 }
-/** Who an alert is about, and what of theirs is high ("feat/read-model is
- * using 3.2 GB", "The Claude app is using CPU 140%"): the engine sends only
- * the figures that are high, so a CPU-heavy session isn't told by its
- * memory. */
-export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: string) => string | null): string | null {
-  const who = alert.session_id
-    ? (nameOf(alert.session_id) ?? "a session")
-    : alert.place
-      ? alert.place === "desktop"
-        ? "The Claude app"
-        : "claude in a terminal"
-      : null;
-  if (!who) return null;
-  const figures = [
-    alert.subject_cpu !== null ? `CPU ${Math.round(alert.subject_cpu)}%` : null,
-    alert.subject_bytes !== null
-      ? // A tool AI Juggler didn't start: its helpers share memory the
-        // sum counts more than once (AJ-E1402).
-        `${alert.subject_estimate ? "about " : ""}${bytesWords(alert.subject_bytes)}`
-      : null,
-  ].filter((figure): figure is string => figure !== null);
-  if (figures.length === 0) return null;
-  const what = figures.join(" and ");
-  // A tool AI Juggler didn't start is named as a whole: its windows'
-  // figure, and how many it sums (the 0.0.12 report).
-  const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} windows` : "";
-  // A session's name keeps its own case ("feat/read-model").
-  return `${who} is using ${what}${windows}`;
-}
-
-/** The one source of a machine alert's words — the banner on other
- * screens and Home's Needs you say exactly this (the 0.0.12 report). */
-export function alertWords(
-  alerts: OverloadAlertInfo[],
-  nameOf: (sessionId: string) => string | null,
-): { title: string; detail: string } | null {
-  const first = alerts[0];
-  if (!first) return null;
-  return {
-    title: first.title,
-    detail: [reasonSentence(alerts.map((alert) => alert.detail)), alertSubject(first, nameOf)].filter(Boolean).join(". "),
-  };
-}
+// The alerts' words live with the memory parts they name.
+export { alertSubject, alertWords } from "./machine-memory";

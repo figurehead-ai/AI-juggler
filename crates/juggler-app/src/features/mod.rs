@@ -4,6 +4,7 @@
 
 pub mod account_settings;
 pub mod app;
+pub mod app_icons;
 pub mod budgets;
 pub mod conversations;
 pub mod fleet;
@@ -22,3 +23,4 @@ pub mod switch_setup;
 pub mod terminal;
 pub mod tools;
 pub mod trust;
+pub mod usage_history;

@@ -78,7 +78,8 @@ fn nothing_the_user_owns_reaches_the_stats_store_or_a_report() {
                 plan: None,
                 state_dir: state_dir.clone(),
                 cleanup_opt_in: false,
-                renewal_date: Some("2026-11-02".into()),
+                // A date the stats store can never write: its weeks are this year's.
+                renewal_date: Some("2019-07-17".into()),
                 preview_opt_in: false,
                 import_source_path: None,
                 import_origin: None,
@@ -188,7 +189,7 @@ fn nothing_the_user_owns_reaches_the_stats_store_or_a_report() {
         "acme-agent",
         "sk-ant",
         "never-read",
-        "2026-11-02",
+        "2019-07-17",
     ];
     if user.len() >= 3 {
         forbidden.push(&user);

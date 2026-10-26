@@ -6,7 +6,8 @@
  */
 import { bytesWords } from "../lib/machine";
 import { providerDisplayName } from "../lib/providers";
-import { PREVIEW_OBSERVED } from "./machine";
+import { PREVIEW_OBSERVED, PREVIEW_OTHER_APPS } from "./machine";
+import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
 import type { InstanceInfo } from "../lib/bridge";
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { ThisMacInfo } from "../types/generated/ThisMacInfo";
@@ -51,6 +52,7 @@ export function mockThisMac(
   leftovers: [number, number] = [0, 0],
   alerts: OverloadAlertInfo[] = [],
   recommendations: string[] = [],
+  otherApps: OtherAppInfo[] = PREVIEW_OTHER_APPS,
 ): ThisMacInfo {
   const live = sessions.filter((session) => !["finished", "stopped", "handed_over", "failed"].includes(session.status));
   const ours: ToolTreeInfo[] = live
@@ -106,6 +108,7 @@ export function mockThisMac(
     top: all.slice(0, 3),
     others: all.slice(3),
     heavy: all.filter((tree) => tree.heavy_note !== null),
+    other_apps: otherApps,
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
     // As the backend's awake keeper, with Settings' defaults: kept awake

@@ -1326,36 +1326,28 @@ pub(crate) fn launch_here(
     let assertion = crate::identity::assert_identity(state, account)?;
     let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let spawned = state.supervisor.spawn(
-        &session,
-        &spec,
-        &crate::commands::ledger_ctx(state, account, Some(project.id.to_string())),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session,
+            account,
+            profile: &profile.id,
+            kind: InstanceKind::Terminal,
+            project: Some(project.id.clone()),
+            cwd: spec.cwd.clone(),
+            conversation: transcript
+                .as_ref()
+                .and_then(|reference| reference.native_id.clone())
+                .map(ConversationId::new),
+            transcript_ref: transcript,
+            origin: "switch",
+        },
+        || {
+            let ctx = crate::commands::ledger_ctx(state, account, Some(project.id.to_string()));
+            Ok(state.supervisor.spawn(&session, &spec, &ctx)?)
+        },
     )?;
-    let machine = crate::commands::local_machine_id(state);
-    let storage = crate::commands::lock_storage_arc(state)?;
-    let usage = crate::commands::engine_usage_snapshot(&storage, &profile.id);
-    storage.sessions().insert(&InstanceRecord {
-        id: session.clone(),
-        conversation: transcript
-            .as_ref()
-            .and_then(|reference| reference.native_id.clone())
-            .map(ConversationId::new),
-        profile: profile.id.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: Some(project.id.clone()),
-        cwd: spec.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: transcript,
-    })?;
-    crate::usage_stats::instance_started(account.harness.as_str(), false, "switch");
-    drop(storage);
     crate::identity::record(state, &session, account, &assertion, moment);
     Ok((session, spawned.pid))
 }
@@ -1436,11 +1428,14 @@ pub const EVENT_FLEET_SWITCH_PROGRESS: &str = "fleet://switch-progress";
 ///
 /// Returns the typed [`AppError`] per [`fleet_switch_targets_impl`].
 #[tauri::command]
-pub fn fleet_switch_targets(
+pub async fn fleet_switch_targets(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Vec<RemoteSwitchTargetInfo>> {
-    fleet_switch_targets_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "fleet switch targets", move |state| {
+        fleet_switch_targets_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E706: runs one confirmed cross-machine switch (progress arrives as
@@ -1475,9 +1470,18 @@ pub async fn fleet_switch_execute(
 
 /// AJ-E706: cancels the push to `machine_id` (within one chunk).
 #[tauri::command]
-#[must_use]
-pub fn fleet_switch_cancel(state: tauri::State<'_, Arc<AppState>>, machine_id: String) -> bool {
-    fleet_switch_cancel_impl(state.inner(), &machine_id)
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_switch_cancel(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "fleet switch cancel", move |state| {
+        Ok(fleet_switch_cancel_impl(state, &machine_id))
+    })
+    .await
 }
 
 pub mod switch_back;

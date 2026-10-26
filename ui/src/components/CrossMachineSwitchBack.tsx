@@ -160,18 +160,18 @@ export function CrossMachineSwitchBack({
             <h3 id="cross-back-title" className="text-sm font-semibold">
               <span aria-hidden="true">⚠ </span>Diverged — both sides moved on
             </h3>
-            <p className="text-[11px] text-ink">
+            <p className="text-label text-ink">
               Nothing was merged and nothing ran. Choose what to keep; switching back and cleaning up
               this session wait until you do.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="conflict-sides">
-              <section className="rounded-lg border border-hairline p-2.5 text-[11px]" aria-label="Here">
+              <section className="rounded-lg border border-hairline p-2.5 text-label" aria-label="Here">
                 <p className="font-medium text-ink">Here — {plan.away_account_label}</p>
                 <p className="text-ink">
                   {plan.new_turns} new {plan.new_turns === 1 ? "turn" : "turns"} since the work arrived
                 </p>
               </section>
-              <section className="rounded-lg border border-hairline p-2.5 text-[11px]" aria-label={`On ${machine}`}>
+              <section className="rounded-lg border border-hairline p-2.5 text-label" aria-label={`On ${machine}`}>
                 <p className="font-medium text-ink">
                   On {machine} — {plan.original_account_label}
                 </p>
@@ -186,7 +186,7 @@ export function CrossMachineSwitchBack({
                 <label
                   key={option.id}
                   className={
-                    "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] " +
+                    "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
                     (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
                   }
                 >
@@ -238,12 +238,12 @@ export function CrossMachineSwitchBack({
             </h3>
             {phase.kind === "plan" && (
               <>
-                <p className="text-[11px] text-ink">
+                <p className="text-label text-ink">
                   The original conversation resumes on {machine} — never overwritten — with this one update
                   ({plan.new_turns} new {plan.new_turns === 1 ? "turn" : "turns"} from here):
                 </p>
                 <pre
-                  className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-hairline bg-canvas p-2 text-[11px] text-ink"
+                  className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-hairline bg-canvas p-2 text-label text-ink"
                   data-testid="cross-back-delta"
                   tabIndex={0}
                   aria-label="The update the original receives"
@@ -253,14 +253,14 @@ export function CrossMachineSwitchBack({
                 {plan.blockers.length > 0 && (
                   <ul className="flex flex-col gap-1" data-testid="cross-back-blockers">
                     {plan.blockers.map((reason) => (
-                      <li key={reason} className="rounded border border-warning/40 px-2 py-1 text-[11px] text-ink">
+                      <li key={reason} className="rounded border border-warning/40 px-2 py-1 text-label text-ink">
                         <span aria-hidden="true">⚠ </span>
                         {reason}
                       </li>
                     ))}
                   </ul>
                 )}
-                <label className="flex items-center gap-2 text-[11px] text-ink">
+                <label className="flex items-center gap-2 text-label text-ink">
                   <input type="checkbox" checked={keepAway} onChange={(event) => setKeepAway(event.target.checked)} />
                   Keep this session running too
                 </label>
@@ -290,13 +290,13 @@ export function CrossMachineSwitchBack({
               </>
             )}
             {phase.kind === "running" && (
-              <p className="text-[11px] text-ink" aria-live="polite" data-testid="cross-back-running">
+              <p className="text-label text-ink" aria-live="polite" data-testid="cross-back-running">
                 Asking {machine} to resume the original…
               </p>
             )}
             {phase.kind === "done" && (
               <div className="flex flex-col gap-2" aria-live="polite" data-testid="cross-back-done">
-                <p className="text-[11px] text-ink">
+                <p className="text-label text-ink">
                   <span aria-hidden="true">✓ </span>
                   {phase.message}
                 </p>
@@ -309,7 +309,7 @@ export function CrossMachineSwitchBack({
             )}
             {phase.kind === "failed" && (
               <div className="flex flex-col gap-2" role="alert" data-testid="cross-back-failed">
-                <p className="text-[11px] text-ink">
+                <p className="text-label text-ink">
                   <span aria-hidden="true">✗ </span>
                   {phase.message}
                 </p>

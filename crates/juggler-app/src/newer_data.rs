@@ -341,8 +341,13 @@ pub fn going_back_prepare_at(
 ///
 /// Per [`going_back_options_impl`].
 #[tauri::command]
-pub fn going_back_options(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<GoingBackInfo>> {
-    going_back_options_impl(state.inner())
+pub async fn going_back_options(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<GoingBackInfo>> {
+    crate::ipc::blocking(state.inner(), "going back options", move |state| {
+        going_back_options_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1010: prepares going back to an earlier version, then quits.
@@ -351,22 +356,28 @@ pub fn going_back_options(state: tauri::State<'_, Arc<AppState>>) -> AppResult<V
 ///
 /// Per [`going_back_prepare_impl`]; on success the app quits.
 #[tauri::command]
-pub fn going_back_prepare(state: tauri::State<'_, Arc<AppState>>, schema: i64) -> AppResult<()> {
-    going_back_prepare_at(
-        state.inner(),
-        schema,
-        juggler_core::model::Timestamp::now().millis(),
-        &mut |kept| {
-            eprintln!(
-                "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
-                kept.display()
-            );
-            // Quit with the storage lock still held: nothing goes through
-            // the app's storage (or is uploaded from it) after the swap.
-            std::process::exit(0);
-        },
-    )?;
-    Ok(())
+pub async fn going_back_prepare(
+    state: tauri::State<'_, Arc<AppState>>,
+    schema: i64,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "going back prepare", move |state| {
+        going_back_prepare_at(
+            state,
+            schema,
+            juggler_core::model::Timestamp::now().millis(),
+            &mut |kept| {
+                eprintln!(
+                    "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
+                    kept.display()
+                );
+                // Quit with the storage lock still held: nothing goes through
+                // the app's storage (or is uploaded from it) after the swap.
+                std::process::exit(0);
+            },
+        )?;
+        Ok(())
+    })
+    .await
 }
 
 /// Where AI Juggler's releases are published.
@@ -396,7 +407,10 @@ pub fn releases_page(version: Option<&str>) -> String {
 ///
 /// When the system can't open the link.
 #[tauri::command]
-pub fn going_back_open_releases(app: tauri::AppHandle, version: Option<String>) -> AppResult<()> {
+pub async fn going_back_open_releases(
+    app: tauri::AppHandle,
+    version: Option<String>,
+) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt as _;
     app.opener()
         .open_url(releases_page(version.as_deref()), None::<&str>)

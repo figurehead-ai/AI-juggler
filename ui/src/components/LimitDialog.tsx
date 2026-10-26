@@ -180,7 +180,7 @@ export function LimitDialog({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">Continue now on {target.account_label}</span>
                     {target.suggested && (
-                      <span className="rounded-full border border-accent/40 px-1.5 text-[10.5px] font-medium text-accent-hi">Recommended</span>
+                      <span className="rounded-full border border-accent/40 px-1.5 text-label font-medium text-accent-hi">Recommended</span>
                     )}
                   </div>
                   {ready && (
@@ -252,7 +252,7 @@ export function LimitDialog({
                 Not now
               </Button>
             </footer>
-            <p className="text-[11px] text-faint">You can switch back to {session.account_label} after the reset.</p>
+            <p className="text-label text-muted">You can switch back to {session.account_label} after the reset.</p>
           </>
         )}
       </div>

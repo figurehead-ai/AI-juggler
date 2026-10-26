@@ -79,8 +79,9 @@ for (const theme of ["dark", "light"] as const) {
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
     const menu = page.getByRole("menu");
-    // AJ-E2106: getting there first (Go to it only while it runs).
-    await expect(menu.getByRole("menuitem").first()).toHaveText(/^(Go to it|Open its page)$/);
+    // AJ-E2106: getting there first (Go to it only while it runs), each
+    // with its row key: ⌘↩ goes to it, ↩ opens its page.
+    await expect(menu.getByRole("menuitem").first()).toHaveText(/^(Go to it\s*⌘↩|Open its page\s*↩)$/);
     await expect(menu.getByRole("menuitem", { name: "Rename…" })).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `session-menu-1280x800-${theme}.png`) });
     await axeClean(page, "session menu");
