@@ -8,8 +8,10 @@
  * permissions through the same Access sheet as the Fleet screen.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { useEffect, useState } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./Settings";
+import { Pane, PaneSection } from "./settings/parts";
 
 const w = () => window as unknown as Record<string, unknown>;
 
@@ -252,5 +254,47 @@ describe("wireframe 26 — the policies the user owns", () => {
     const { findByText, getByTestId } = render(<SettingsScreen focusSection="fleet" />);
     expect(await findByText("No paired Macs. Pair one on the Fleet screen.")).toBeTruthy();
     expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs");
+  });
+});
+
+describe("a pane's anchor", () => {
+  /** A section drawn only once its data is read, as Accounts' Tools on this Mac is. */
+  function Late({ after }: { after: number }) {
+    const [shown, setShown] = useState(false);
+    useEffect(() => {
+      const timer = setTimeout(() => setShown(true), after);
+      return () => clearTimeout(timer);
+    }, [after]);
+    return shown ? (
+      <PaneSection id="late" title="Drawn late">
+        <p>its rows</p>
+      </PaneSection>
+    ) : null;
+  }
+
+  it("lands on a section drawn after the pane opens, not on whichever frame the read beat", async () => {
+    render(
+      <Pane id="test" title="Test" anchor="late">
+        <Late after={60} />
+      </Pane>,
+    );
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById("settings-late-title")));
+  });
+
+  it("stops waiting for a section that never comes", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <Pane id="test" title="Test" anchor="late">
+          <Late after={10_000} />
+        </Pane>,
+      );
+      act(() => void vi.advanceTimersByTime(10_000));
+      // Drawn after the wait ended: the pane stays where the user is.
+      expect(document.getElementById("settings-late-title")).not.toBeNull();
+      expect(document.activeElement).not.toBe(document.getElementById("settings-late-title"));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

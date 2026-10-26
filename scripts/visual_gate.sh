@@ -6,6 +6,8 @@
 # every baseline is re-rendered, so a change under the comparison
 # threshold still lands in the baseline);
 # `--selftest` seeds a 2 px button shift that must fail.
+# Anything else goes to Playwright as is, to run a part of the gate:
+# `--update tests/visual/regression.spec.ts -g "rail with pins"`.
 # `--full-sweep [--base REF] …` is the other mode (D-21): the whole
 # gallery, base against head, no baselines — scripts/visual_sweep.sh.
 set -euo pipefail
@@ -16,8 +18,9 @@ ARGS=""
 ENV_SELFTEST=0
 for arg in "$@"; do
   case "$arg" in
-    --update) ARGS="--update-snapshots=all" ;;
+    --update) ARGS="$ARGS --update-snapshots=all" ;;
     --selftest) ENV_SELFTEST=1 ;;
+    *) ARGS="$ARGS $(printf '%q' "$arg")" ;;
   esac
 done
 docker run --rm --ipc=host --platform linux/amd64 \

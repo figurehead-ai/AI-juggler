@@ -237,6 +237,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Usage shows each account's sessions left and its burn-down again,
+  under its runway card: "About 6 usual sessions left (each about 10%)",
+  the chart, and when this pace runs out. The new Usage dashboard had
+  dropped them.
+- Settings › Accounts opened from a tool's chip lands on Tools on this
+  Mac every time. It sometimes opened at the top of the pane, when the
+  accounts were read after the jump.
 - Claude accounts used in the Claude app show their limits. They used to
   read "Not measured yet" for both windows, because Claude Code reports
   limits only to a status line, and the Claude app never runs one.

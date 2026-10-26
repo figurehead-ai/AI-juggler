@@ -8,6 +8,7 @@ import { useActionHost } from "../ItemMenu";
 import { quotaDisplayAll, type AccountInfo, type QuotaDisplayData } from "../../lib/bridge";
 import { accountDisplay, accountLine, useSubscriptions } from "../../lib/subscriptions";
 import { runwayOf } from "../AccountRunway";
+import { BurnDowns } from "../BurnDown";
 import { IconGauge } from "./controls";
 import { accountGroups, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
@@ -87,6 +88,8 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
                 </span>
               </div>
               <RunwayPanel display={display} limitsProfile={measuredProfile} usage={week.values(group.profiles)} usageTotal={week.total(group.profiles)} color={group.color} name={group.label} now={now} />
+              {/* AJ-E1512: each window's sessions left and its burn-down. */}
+              <BurnDowns display={display} />
               {group.profiles.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5" aria-label={`Profiles on ${group.label}`}>
                   {names.map((name, index) => (

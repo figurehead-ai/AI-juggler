@@ -41,7 +41,9 @@ export default defineConfig({
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 120_000,
+    // The build runs inside the container; under emulation on a busy Mac
+    // (an arm64 Mac running the amd64 image) it takes minutes.
+    timeout: 600_000,
   },
   reporter: [["list"], ["json", { outputFile: "test-results/visual-gate.json" }]],
 });

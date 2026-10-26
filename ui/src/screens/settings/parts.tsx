@@ -4,9 +4,13 @@
  * does), rows (a title, a line of why, and a control on the right) and
  * the switch. One look for every pane.
  */
-import { useEffect, useId, type JSX, type ReactNode } from "react";
+import { useEffect, useId, useRef, type JSX, type ReactNode } from "react";
 import { InSettingsSection } from "../../components/CardTitle";
 import type { PaneTone } from "./panes";
+
+/** How long a pane waits for its anchored section to appear (a section
+ * drawn from data read on open, as Accounts' Tools on this Mac is). */
+const ANCHOR_WAIT_MS = 2_000;
 
 /** A pane: its title, then its sections. Opens on `anchor`'s section
  * when a link asked for one. */
@@ -21,19 +25,44 @@ export function Pane({
   anchor?: string;
   children: ReactNode;
 }): JSX.Element {
+  const pane = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!anchor) return;
+    const find = () => document.getElementById(`settings-${anchor}`);
+    let frame = 0;
     const jump = () => {
-      document.getElementById(`settings-${anchor}`)?.scrollIntoView?.({ block: "start" });
+      find()?.scrollIntoView?.({ block: "start" });
       document.getElementById(`settings-${anchor}-title`)?.focus({ preventScroll: true });
     };
-    jump();
-    // Once more after the screen around it has set its own scroll.
-    const frame = requestAnimationFrame(jump);
-    return () => cancelAnimationFrame(frame);
+    const land = () => {
+      jump();
+      // Once more after the screen around it has set its own scroll.
+      frame = requestAnimationFrame(jump);
+    };
+    if (find()) {
+      land();
+      return () => cancelAnimationFrame(frame);
+    }
+    // A section drawn once its data is read isn't there yet: jump when it
+    // appears, not on whichever frame the read happened to beat (the
+    // visual gate caught the pane opening at its top on some runs).
+    const root = pane.current;
+    if (!root || typeof MutationObserver === "undefined") return;
+    const watch = new MutationObserver(() => {
+      if (!find()) return;
+      watch.disconnect();
+      land();
+    });
+    watch.observe(root, { childList: true, subtree: true });
+    const timer = window.setTimeout(() => watch.disconnect(), ANCHOR_WAIT_MS);
+    return () => {
+      watch.disconnect();
+      window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
   }, [anchor]);
   return (
-    <div className="flex flex-col gap-7" data-testid={`settings-pane-${id}`} data-pane={id}>
+    <div ref={pane} className="flex flex-col gap-7" data-testid={`settings-pane-${id}`} data-pane={id}>
       <h2 className="text-title text-ink">{title}</h2>
       {children}
     </div>

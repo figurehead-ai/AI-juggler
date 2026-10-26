@@ -9,8 +9,8 @@
  *
  * Run: pnpm --dir ui visual:capture   (writes docs/qa/evidence/_gallery/)
  */
-import { test, expect, gate } from "./axe-gallery";
-import { mkdirSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
+import { test, expect, gate, settle } from "./axe-gallery";
+import { mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
@@ -984,45 +984,38 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-// Determinism self-test (Req.4): same fixture twice → byte-identical PNG.
-test("determinism — two captures are byte-identical", async ({ page }) => {  const capture = async (suffix: string) => {
-    await page.addInitScript(
-      ({ fixture, t0 }) => {
+// Determinism self-test (Req.4): the same fixture rendered twice, each in
+// a fresh context (nothing the first load stored carries over), at one
+// pinned clock (Date.now and new Date()), settled → byte-identical PNGs.
+// It shot as soon as the rail showed, racing what loads after the first
+// paint, and failed about 1 run in 3.
+test("determinism — two captures are byte-identical", async ({ browser }, testInfo) => {
+  const { baseURL } = testInfo.project.use;
+  const capture = async (suffix: string): Promise<Buffer> => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: "reduce", colorScheme: "dark" });
+    try {
+      const page = await context.newPage();
+      await page.clock.setFixedTime(T0);
+      await page.addInitScript((fixture) => {
         (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
         localStorage.setItem("aij.theme", "dark");
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      { fixture: allStatuses, t0: T0 },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    await expectRail(page); // D-25: the list, or its icon column when narrow
-    const path = resolve(GALLERY, `01-rail/determinism-${suffix}.png`);
-    await page.screenshot({ path });
-    return path;
+      }, allStatuses);
+      await page.goto("/");
+      await expectRail(page); // D-25: the list, or its icon column when narrow
+      await settle(page); // what loads after the first paint has landed
+      await page.mouse.move(0, 0);
+      return await page.screenshot({ path: resolve(GALLERY, `01-rail/determinism-${suffix}.png`), animations: "disabled", caret: "hide" });
+    } finally {
+      await context.close();
+    }
   };
   const a = await capture("a");
   const b = await capture("b");
-  const { readFileSync, statSync, unlinkSync } = await import("node:fs");
-  const sizeA = statSync(a).size;
-  const sizeB = statSync(b).size;
-  // Byte comparison (pinned clock + reduced motion + fixed viewport).
-  const identical = readFileSync(a).equals(readFileSync(b));
-  if (identical) {
-    unlinkSync(b); // keep one artifact
-  } else {
-    // PNG streams may differ in chunk ordering; report honestly rather
-    // than fake a pass — the task requires 0 px diff, so fail loudly.
-    throw new Error(
-      `determinism check failed: captures differ (sizes ${sizeA} vs ${sizeB}); see determinism-a/b.png`,
-    );
-  }
-  if (existsSync(resolve(GALLERY, "determinism-b.png"))) {
-    // already unlinked on success; no-op
-  }
+  // Byte comparison; on a difference both captures stay for a look.
+  expect(a.equals(b), `captures differ (${a.length} vs ${b.length} bytes); see 01-rail/determinism-a/b.png`).toBe(true);
+  rmSync(resolve(GALLERY, "01-rail/determinism-b.png"), { force: true }); // keep one artifact
 });
 
 
@@ -4937,6 +4930,8 @@ for (const theme of THEMES) {
       await page.getByTestId("page-session-item").first().click({ button: "right" });
       await page.getByTestId("action-replay").click();
       await expect(page.getByTestId("replay-process-list")).toContainText("root 48211");
+      // The transcript is drawn (xterm parses its writes asynchronously).
+      await expect(page.locator('[aria-label="Transcript, read-only"][data-ready]')).toBeAttached();
       await page.screenshot({ path: resolve(GALLERY, `56-history/replay-${vp.name}-${theme}.png`) });
       await page.getByTestId("replay-close").click();
       await page.getByTestId("history-tab-ended").click();
