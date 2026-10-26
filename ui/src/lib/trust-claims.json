@@ -94,11 +94,13 @@
         },
         {
           "id": "this-mac-other-apps",
-          "text": "To show what else is using memory, This Mac names the biggest other apps by their app or program name, with their memory. It never shows their folders or the options they started with, and it can't stop them.",
+          "text": "To show what else is using memory, This Mac names the biggest other apps, and Processes lists the rest of your Mac when you include other apps: by app or program name, with their memory. It never shows their folders or the options they started with, and it can't stop them.",
           "tests": [
             "crates/juggler-app/src/machine_memory.rs::other_apps_show_names_never_paths",
             "crates/juggler-supervisor/src/live_stats.rs::other_processes_carry_a_name_and_memory_only_and_leave_ai_juggler_out",
             "ui/src/screens/this-mac-page.test.tsx::shows the whole Mac's memory, explains pressure, and lists what else uses it by name, read-only",
+            "crates/juggler-app/tests/processes_graph.rs::the_rest_of_the_mac_shows_only_when_asked_for_and_only_names_and_memory",
+            "ui/src/screens/processes-page.test.tsx::Include other apps adds the rest of this Mac: names and memory only, nothing to stop",
             "crates/juggler-app/tests/trust.rs::no_process_environment_is_ever_read"
           ]
         },

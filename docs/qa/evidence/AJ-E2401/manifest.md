@@ -17,7 +17,7 @@ Task: `docs/tasks/E24-processes.md` AJ-E2401, The process graph: one model of ap
 | Budget: 50 sessions, 2,000 processes | `cargo test --release -p juggler-app --test processes_graph the_graph_and_a_page_fit_the_budget_at_two_thousand_processes -- --nocapture` | build ≤ 5 ms, page ≤ 50 ms | build 1.92 ms; Needs attention page 0.16 ms; Everything running page 0.52 ms; search 0.02 ms (release, this Mac) | PASS | — | 2026-10-25 | agent |
 | Budget: the tick's extra CPU ≤ 1 % of a core | derived: build 1.92 ms per 2 s tick = 0.1 % of a core, plus the reads it shares with the tick | ≤ 1 % | ≈ 0.1 % measured part; the gathering not timed separately | UNPROVEN | — | 2026-10-25 | agent |
 | Existing suites unchanged (collector, reconciler, guardrails, collateral) | `cargo test -p juggler-supervisor --test collateral --test reconciler --test observed --test orphan --test ledger --test identity`; `cargo test -p juggler-app --test guardrails --test processes --test cleanup --test tiers --test observed_guard --test kill_sheet --test ports --test recovery --test machine_fixtures` | pass | pass | PASS | — | 2026-10-25 | agent |
-| Visual: the page | AJ-E2404 | looked at | not built yet | UNPROVEN | — | 2026-10-25 | agent |
+| Visual: the page | AJ-E2404's gallery, `_gallery/90-processes/` | looked at | looked at (48 captures) | PASS | — | 2026-10-26 | agent |
 
 ## Redaction checklist (tick before commit)
 

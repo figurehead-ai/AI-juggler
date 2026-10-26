@@ -114,11 +114,11 @@
 
 ## Step 2 — the page
 
-### AJ-E2404 The Processes page | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E2401, AJ-E2403
+### AJ-E2404 The Processes page | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort XL | Depends: AJ-E2401, AJ-E2403
 **Goal**: One page to see, manage and clean up every process, replacing Cleanup, and the same view in each session's Processes tab.
 **User story**: As someone juggling many sessions, I open Processes, see what needs me first, unfold a session to its subprocesses, and stop or keep what it left.
 **Requirements**:
-1. Views: Needs attention (default), Everything running, Ended (7 days), Cleanup history.
+1. Views: Needs attention (default), Everything running, Ended (7 days), Ports (every open port on this Mac: 0.1.5's Cleanup › Ports, folded in), Cleanup history.
 2. A tree table: App → Session → process → subprocess; a healthy session folds to one line ("web-app · 6 processes · 1.2 GB · 4 %"). Columns with headings: Process (indented, role word), State (icon + word), CPU with a sparkline, Memory, Ports, Age, Owner. A sticky header; virtualised (≤ 60 rows in the DOM); keyboard tree navigation (↑ ↓ ← → Home End, Enter).
 3. Filters, all off by default (state, app, profile, project, has a port, heavy, include other apps), and search (`port:5173`).
 4. Row actions: Stop… (always the verify sheet), Keep, Remind me in 1 h, Go to session, Reveal folder, Copy PID; for a session: "Clean up what this session left (N)…" with a verify line and outcome per process; other apps' processes: the D-41b stop, Go to its app, Show in Activity Monitor.
@@ -154,7 +154,7 @@
 
 ## Step 3 — one source, documents
 
-### AJ-E2407 One source: the session tab, Cleanup and This Mac on the graph | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2401, AJ-E2404
+### AJ-E2407 One source: the session tab, Cleanup and This Mac on the graph | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort M | Depends: AJ-E2401, AJ-E2404
 **Goal**: The E410 tracker's second model of orphans is retired; every surface reads the graph.
 **User story**: As a user, the session's Processes tab, Processes and This Mac all say the same thing about what is left behind.
 **Requirements**:
@@ -170,7 +170,7 @@
 **Research basis**: the gap analysis (one source of truth).
 **Handover note**: Waits for 0.1.5's G-1 stop fix to land in release/0.2 (it changes the same stop path).
 
-### AJ-E2406 Privacy lines, guide, and the processes lab | Status: TODO | Priority P0 | Effort S | Depends: AJ-E2402, AJ-E2403, AJ-E2404
+### AJ-E2406 Privacy lines, guide, and the processes lab | Status: IN-PROGRESS (agent, 2026-10-26) | Priority P0 | Effort S | Depends: AJ-E2402, AJ-E2403, AJ-E2404
 **Goal**: What AI Juggler keeps of other apps' processes, and when it may stop one, is written down and tested; the live check is a checklist.
 **User story**: As a careful user, I read on the Privacy page that AI Juggler keeps only names and a hash of other apps' processes for 7 days, and stops one only when I ask.
 **Requirements**:
