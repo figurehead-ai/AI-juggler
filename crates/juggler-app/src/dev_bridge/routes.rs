@@ -292,6 +292,12 @@ read_routes! {
     "messages_needs" => async_result features::messages::commands::messages_needs(state);
     "messages_docs" => async_result features::messages::commands::messages_docs(state; pool_id: String, cursor: Option<String>);
     "messages_links" => async_result features::messages::commands::messages_links(state; pool_id: String);
+    // E17 and E23: the agent tools' settings, and the runtimes' reads.
+    "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
+    "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
+    "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
+    "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);
+    "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other

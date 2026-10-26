@@ -1,7 +1,7 @@
 //! The one way a session starts. Every launch, resume, switch or
 //! hand-over, its undo, a switch back, a continue here, a crash restart
 //! and a resume after AI Juggler restarted goes through
-//! [`start_session`], which, in this order:
+//! `start_session`, which, in this order:
 //!
 //! 1. writes the session's row as `Starting` (intent before spawn,
 //!    ADR-0010 §1), so whatever its process reports, an exit within
@@ -9,7 +9,7 @@
 //! 2. chooses its runtime (ADR-0022): the terminal, or driven when its
 //!    plan says so and the tool's protocol answers
 //!    ([`crate::features::runtime::launch`], which spawns each attempt
-//!    through [`spawn_process`]);
+//!    through `spawn_process`);
 //! 3. adds the agent bridge to the launch that runs (AJ-E1704);
 //! 4. adds the account's key to that launch only, for an account through
 //!    another service (AJ-E1601, D-34): read from the Keychain into
@@ -21,7 +21,7 @@
 //! 6. counts the start, or ends the row as `Failed` with the reason: no
 //!    row is left looking live.
 //!
-//! A desktop app ([`start_desktop`]) has no runtime, bridge or key: its
+//! A desktop app (`start_desktop`) has no runtime, bridge or key: its
 //! row is written first and ended the same way. Nothing else in the app
 //! calls the supervisor's spawns for a session (the guardrail
 //! `every_session_starts_through_the_one_spawn_path` holds it).
@@ -324,7 +324,7 @@ pub(crate) fn spawn_view(
 ///
 /// # Errors
 ///
-/// As [`crate::features::service_accounts::session_env`]: an account
+/// As `crate::features::service_accounts::session_env`: an account
 /// whose key isn't in this Mac's Keychain starts nothing.
 pub fn launched_spec(
     state: &Arc<AppState>,

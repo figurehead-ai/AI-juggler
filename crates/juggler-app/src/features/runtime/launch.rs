@@ -28,7 +28,7 @@ const MAX_SOCKET_PATH: usize = 100;
 const SOCKET_WAIT: Duration = Duration::from_secs(5);
 
 /// What a launch asks of its runtime (its account, project and folder
-/// are its row's: [`NewSession`]).
+/// are its row's: `NewSession`).
 pub struct Plan<'a> {
     /// Its launch settings.
     pub profile: &'a Profile,
