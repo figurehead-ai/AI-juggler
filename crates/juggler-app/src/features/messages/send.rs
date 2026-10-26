@@ -16,7 +16,7 @@
 //!    else replaces them with •••);
 //! 8. the store, and the loop check: two agents answering each other
 //!    without a person pause the pool;
-//! 9. routing: where it goes for each recipient ([`route`]).
+//! 9. routing: where it goes for each recipient (`route`).
 
 use std::collections::BTreeSet;
 use std::sync::Arc;

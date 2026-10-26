@@ -1229,7 +1229,7 @@ impl MessagesRepo<'_> {
     }
 
     /// One page of a pool's docs, newest first; `before` is the previous
-    /// page's last doc's position (from [`Self::doc_seq`]).
+    /// page's last doc's position (the number each row comes with).
     ///
     /// # Errors
     ///

@@ -12,7 +12,7 @@
 //! - **Only with the user's permission.** A message is queued by the
 //!   user's Deliver (or their compose with Deliver), or by
 //!   `allowed(pool, deliver_to_session)` (a pool at Full, or a rule) within
-//!   the hop limit ([`decide`]). At the limit the thread pauses and the
+//!   the hop limit (`decide`). At the limit the thread pauses and the
 //!   user is asked in Needs you. A message queued by the pool's
 //!   permission waits while the pool or the thread is paused, or the
 //!   pool's delivery is stopped; the user's own click doesn't.
