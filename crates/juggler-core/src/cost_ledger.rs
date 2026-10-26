@@ -52,6 +52,17 @@ pub fn load_seed_rows() -> Vec<LedgerPriceRow> {
     seed.rows
 }
 
+/// When the bundled table's numbers were captured: the seed's `captured`
+/// day, at midnight UTC (epoch ms). `None` only for a seed without a
+/// readable date, which the tests rule out. The pricing warning reads it:
+/// a build's prices age with the build, and no price sync exists.
+#[must_use]
+pub fn seed_captured_ms() -> Option<i64> {
+    let seed: SeedFile = serde_json::from_str(PRICING_SEED).ok()?;
+    let day = crate::renewal::CalendarDate::parse(&seed.captured)?;
+    Some(day.civil_days() * 86_400_000)
+}
+
 /// USD per 1k tokens, per class, for one model from an instant on.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LedgerPriceRow {

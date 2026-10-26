@@ -530,3 +530,13 @@ fn corpus_total_matches_the_independent_oracle() {
         "corpus totals match the independent oracle: rust {total} vs oracle {ORACLE_TOTAL_USD}"
     );
 }
+
+/// The pricing warning's clock: the bundled table carries a readable
+/// capture day, so the warning can show once a build's prices are old.
+#[test]
+fn the_bundled_table_says_when_it_was_captured() {
+    let captured = juggler_core::cost_ledger::seed_captured_ms().expect("a capture day");
+    // 2025-01-01 .. 2100-01-01: a real day, not a parse slip.
+    assert!((1_735_689_600_000..4_102_444_800_000).contains(&captured));
+    assert_eq!(captured % 86_400_000, 0, "midnight UTC");
+}

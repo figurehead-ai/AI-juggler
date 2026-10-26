@@ -147,12 +147,16 @@ pub(crate) fn pricing_catalog(
         overrides: storage.usage().pricing_overrides().unwrap_or_default(),
         last_synced_ms: None,
     };
-    catalog.last_synced_ms = storage
+    // How fresh the prices are: the bundled table's capture day, or a
+    // later sync when one was recorded (0.1.7: the warning read only the
+    // sync time, which nothing writes, so it could never show).
+    let synced = storage
         .app_settings()
         .get("pricing_synced_at")
         .ok()
         .flatten()
         .and_then(|value| value.parse::<i64>().ok());
+    catalog.last_synced_ms = synced.max(juggler_core::cost_ledger::seed_captured_ms());
     catalog
 }
 
