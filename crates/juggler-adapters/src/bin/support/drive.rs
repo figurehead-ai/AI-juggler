@@ -151,6 +151,11 @@ fn parse(args: &[String]) -> Result<(PathBuf, String, bool), String> {
             "--dir" => dir = PathBuf::from(value()?),
             "--session-id" => session = Some(value()?),
             "--resume" => resume = Some(value()?),
+            // The agent bridge's file (E18: a driven session with the
+            // agent tools on); this fake speaks no MCP in `drive`.
+            "--mcp-config" => {
+                value()?;
+            }
             other => return Err(format!("unknown option {other}")),
         }
     }

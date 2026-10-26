@@ -13,7 +13,7 @@ use std::time::Duration;
 use juggler_adapter::AdapterError;
 use juggler_adapter::runtime::{
     AskAnswer, AskId, DrivenSession, ItemKind, LimitsSnapshot, LiveStatusWord, OptionEffect,
-    Release, ReleaseOutcome, RuntimeEvent, TurnInput,
+    Release, ReleaseOutcome, RuntimeEvent, TurnInput, TurnOrigin,
 };
 use juggler_core::model::{AttentionReason, SessionId, SessionStatus, Timestamp};
 
@@ -232,9 +232,13 @@ impl Snapshot {
                 self.status = Some(*status);
                 changed
             }
-            RuntimeEvent::TurnStarted { .. } => {
+            RuntimeEvent::TurnStarted { origin, .. } => {
                 self.turn_running = true;
                 self.streaming.clear();
+                // D-29: a delivered turn says what started it.
+                if let Some(TurnOrigin::Delivered { sender }) = origin {
+                    self.push("delivered", format!("Started by a message from {sender}"));
+                }
                 false
             }
             RuntimeEvent::TurnEnded { .. } => {
@@ -718,6 +722,19 @@ fn run(
                         | RuntimeEvent::Exited
                 ) {
                     mark(&state);
+                }
+                // E18: a turn boundary (or an ask closed): queued messages
+                // may go in now; the delivery worker checks, off this thread.
+                if matches!(
+                    event,
+                    RuntimeEvent::Started { .. }
+                        | RuntimeEvent::TurnEnded { .. }
+                        | RuntimeEvent::AskResolved { .. }
+                        | RuntimeEvent::State {
+                            status: LiveStatusWord::Idle
+                        }
+                ) {
+                    crate::features::messages::delivery::kick(&state, session);
                 }
                 if stored {
                     let snap = snapshot.lock().map(|s| s.clone()).unwrap_or_default();

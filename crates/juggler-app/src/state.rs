@@ -69,6 +69,9 @@ pub struct AppState {
     /// the drivers of driven sessions, and why a session fell back to the
     /// terminal. Held in memory only.
     pub runtime: crate::features::runtime::Runtimes,
+    /// E18: messages between agents — the delivery worker, who is typing
+    /// where, and the last note each session got. The rest is storage.
+    pub messages: crate::features::messages::Messages,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -314,6 +317,7 @@ impl AppState {
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
             runtime: crate::features::runtime::Runtimes::default(),
+            messages: crate::features::messages::Messages::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

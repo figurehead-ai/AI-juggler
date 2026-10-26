@@ -773,6 +773,36 @@ impl MessagesRepo<'_> {
         collect(rows)
     }
 
+    /// One message for any of `refs`, with their row, when it's theirs.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn inbox_row(
+        &self,
+        refs: &[String],
+        message_id: &str,
+    ) -> Result<Option<InboxRow>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                &format!(
+                    "SELECT {MESSAGE_COLUMNS}, r.message_id, r.recipient_ref, r.recipient_name, r.state, r.state_at, r.via
+                       FROM agent_recipients r JOIN agent_messages m ON m.id = r.message_id
+                      WHERE r.recipient_ref IN (SELECT value FROM json_each(?1)) AND m.id = ?2
+                      LIMIT 1"
+                ),
+                params![refs_json(refs), message_id],
+                |row| {
+                    Ok(InboxRow {
+                        message: message_of(row)?,
+                        recipient: recipient_at(row, 16)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
     /// How many messages wait for any of `refs` in `state`, and their
     /// senders' names (newest first, each once).
     ///
@@ -927,6 +957,27 @@ impl MessagesRepo<'_> {
         })?)?;
         rows.reverse();
         Ok(rows)
+    }
+
+    /// The name `sender_ref` last sent under in a pool.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn sender_name(
+        &self,
+        pool_id: &str,
+        sender_ref: &str,
+    ) -> Result<Option<String>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT sender_name FROM agent_messages WHERE pool_id = ?1 AND sender_ref = ?2
+                  ORDER BY seq DESC LIMIT 1",
+                params![pool_id, sender_ref],
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     /// Sets a thread's state (with why), and logs it.
