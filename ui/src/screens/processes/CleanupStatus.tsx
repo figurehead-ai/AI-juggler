@@ -15,6 +15,7 @@ import {
   cleanupStatus,
   cleanupTier2Decide,
   errorText,
+  statsEvent,
   type CleanupAlertData,
   type CleanupStatusData,
 } from "../../lib/bridge";
@@ -125,7 +126,16 @@ export function CleanupStatus({ degraded, onFind }: { degraded: boolean; onFind:
             {alerts.map((alert) => (
               <li key={`${alert.kind}-${alert.pid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-meta text-ink" data-testid={`${alert.kind === "hog" ? "hog-alert" : "idle-nudge"}-${alert.pid}`}>
                 <span className="min-w-0 flex-1">{alert.text}</span>
-                <Button size="sm" variant="ghost" onClick={() => onFind(alert.pid)} data-testid={`alert-find-${alert.pid}`}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    // AJ-E512: the alert was acted on (the backend counts it shown).
+                    statsEvent("resource.alert", { kind: alert.kind === "hog" ? "memory_hog" : "idle", action: "acted" });
+                    onFind(alert.pid);
+                  }}
+                  data-testid={`alert-find-${alert.pid}`}
+                >
                   Show it
                 </Button>
               </li>
