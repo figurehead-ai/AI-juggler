@@ -35,7 +35,7 @@ function PortRow({ row }: { row: PortRowInfo }) {
   return (
     <li
       className={`flex flex-col gap-[3px] border-t border-hairline py-2 first:border-t-0 ${
-        notManaged ? "opacity-60" : ""
+        notManaged ? "text-muted" : ""
       }`}
       data-testid={`port-row-${row.port}`}
     >
