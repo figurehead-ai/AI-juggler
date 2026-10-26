@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
+import { killDisplayName, probablyWords } from "../lib/process-words";
 
 /**
  * AJ-E507: the verify-before-kill sheet — the ONLY manual kill path
@@ -113,41 +114,9 @@ export const KILL_SCOPES: { id: KillScope; label: string; hint: string }[] = [
   { id: "tree", label: "Whole session tree", hint: "every live process of this session" },
 ];
 
-/** Interpreters whose OWN name is never the user's name for the
- * process (`node …/vite dev` is "vite", not "node"). */
-const INTERPRETER_NAMES = new Set([
-  "node",
-  "npm",
-  "npx",
-  "pnpm",
-  "yarn",
-  "bun",
-  "bunx",
-  "deno",
-  "python",
-  "python3",
-  "ruby",
-  "sh",
-  "bash",
-  "zsh",
-  "fish",
-  "dotnet",
-  "java",
-]);
-
-/** The short process name for the consequence-named button (Req.1's
- * `Terminate vite (PID 8123) and free :5173`). */
-export function killDisplayName(cmdline: string, exePath: string): string {
-  const basename = (token: string) =>
-    token.replaceAll("\\", "/").split("/").pop() ?? "";
-  for (const token of cmdline.split(/\s+/)) {
-    const base = basename(token);
-    if (base !== "" && !INTERPRETER_NAMES.has(base.toLowerCase())) {
-      return base;
-    }
-  }
-  return basename(cmdline.split(/\s+/)[0] ?? "") || basename(exePath) || "process";
-}
+// The short process name lives with the other process words (the
+// shared row names its processes the same way).
+export { killDisplayName } from "../lib/process-words";
 
 type Phase = "verifying" | "ready" | "refused" | "running" | "report";
 
@@ -464,7 +433,9 @@ export function KillSheet(props: {
                       >
                         <span className="text-ink">{member.exe}</span>
                         <span>PID {member.pid}</span>
-                        <span className="text-muted">{member.role_guess} (guess)</span>
+                        {probablyWords(member.role_guess) !== null && (
+                          <span className="font-sans text-muted">{probablyWords(member.role_guess)}</span>
+                        )}
                         {!member.from_ledger && (
                           <span className="text-warning">not Juggler-managed</span>
                         )}

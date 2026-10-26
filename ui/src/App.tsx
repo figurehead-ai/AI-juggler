@@ -763,7 +763,7 @@ export default function App() {
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
             <ScrollingScreen key="cleanup" screen="cleanup" label="Cleanup">
-              <CleanupCentre />
+              <CleanupCentre sessions={sessions} />
             </ScrollingScreen>
           ) : global === "accounts" ? (
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">

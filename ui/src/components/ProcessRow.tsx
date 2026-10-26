@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { agoWords } from "../lib/time-words";
+import { killDisplayName, probablyWords } from "../lib/process-words";
 
 // The Centre reuses the shared primitive; re-export keeps one source.
 export { Button } from "./primitives";
@@ -6,13 +8,14 @@ import { Button } from "./primitives";
 
 /**
  * AJ-E506/E507: the shared Cleanup row (the Cleanup Centre AND the
- * Instance Processes tab render THIS component — no copies, no
+ * session's Processes tab render THIS component — no copies, no
  * divergent labels; divergence is how T3 survivors get mislabelled).
  *
- * The kill affordance (AJ-E507) exists ONLY on rows that verified at
- * last read AND are still live — Unverifiable/not-managed/exited
- * rows render NONE (Req.2: not disabled-with-tooltip; the sheet
- * re-verifies at click time anyway, and ITS refusal is final).
+ * The stop affordance (AJ-E507) exists ONLY on rows that verified at
+ * last read AND are still live — Unverifiable/not-managed/exited rows,
+ * and a live session's own main process (its session's Stop ends it),
+ * render NONE (Req.2: not disabled-with-tooltip). It always opens the
+ * verified sheet, which re-verifies at click time; ITS refusal is final.
  */
 
 export interface VerificationBadgeInfo {
@@ -41,6 +44,8 @@ export interface CleanupRowInfo {
   state_label: string;
   /** AJ-E510: helpers of roots that died while Juggler was closed. */
   down_period?: boolean;
+  /** What it probably is, in plain words ("dev server"); empty when
+   * nothing is known. Always shown as a guess. */
   role_guess: string;
   exe_path: string;
   cmdline: string;
@@ -54,7 +59,7 @@ export interface CleanupRowInfo {
 }
 
 function ageText(ms: number | null): string {
-  if (ms === null) return "age unknown";
+  if (ms === null) return "—";
   const secs = Math.max(0, Math.floor(ms / 1000));
   if (secs < 60) return `${secs}s`;
   if (secs < 3_600) return `${Math.floor(secs / 60)}m`;
@@ -65,6 +70,7 @@ function ageText(ms: number | null): string {
 function rssText(bytes: number | null): string {
   if (bytes === null) return "—";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
 }
 
@@ -85,131 +91,211 @@ function stateIcon(state: string): string {
 }
 
 /** Rows that may offer the verified kill sheet (AJ-E507 Req.2):
- * verified at last read AND still live. Everything else —
- * Unverifiable, exited, starting — renders no affordance at all. */
+ * verified at last read AND still live — but never a live session's own
+ * main process (the session's Stop ends it, with its undo window).
+ * Everything else — Unverifiable, exited, starting — renders no
+ * affordance at all. */
 export function killableRow(row: CleanupRowInfo): boolean {
+  if (row.role === "root" && row.state === "running") return false;
   return (
     row.evidence.verification.verdict === "verified" &&
     (row.state === "running" || row.state === "orphaned" || row.state === "adopted")
   );
 }
 
+/** The one column layout: the headings and every row share it. */
+const COLUMNS =
+  "grid grid-cols-[minmax(0,1fr)_minmax(0,17.5rem)_3.5rem_4.5rem_5rem_3rem_6.5rem] items-center gap-x-3";
+
+/** The column headings over a list of rows (visual; each cell also names
+ * itself to a screen reader). */
+export function ProcessRowsHeader() {
+  return (
+    <div
+      aria-hidden="true"
+      className={`${COLUMNS} border-b border-hairline px-1 pb-1.5 text-label font-medium text-muted`}
+      data-testid="process-rows-header"
+    >
+      <span className="pl-5">Process</span>
+      <span>State</span>
+      <span className="text-right">CPU</span>
+      <span className="text-right">Memory</span>
+      <span>Ports</span>
+      <span className="text-right">Age</span>
+      <span />
+    </div>
+  );
+}
+
+/** The identity check in plain words (the technical detail on hover). */
+function identityWords(verification: VerificationBadgeInfo): string {
+  switch (verification.verdict) {
+    case "verified":
+      return "Matches what AI Juggler recorded: the same program, started at the same time.";
+    case "unverifiable":
+      return "Doesn't match what AI Juggler recorded, so it may be another program now. AI Juggler won't touch it.";
+    default:
+      return verification.detail.charAt(0).toUpperCase() + verification.detail.slice(1) + ".";
+  }
+}
+
 export function ProcessRow(props: {
   row: CleanupRowInfo;
-  /** This node's machine id (AJ-E511): equals the row's machine →
-   * `This Mac` (the user label, Nielsen H2), else the foreign id. */
-  localMachine?: string;
+  /** The machine's name, as its own quiet chip — passed only when more
+   * than one Mac is in view (one Mac needs no label). */
+  machineLabel?: string;
   /** Opens the AJ-E507 sheet; the row's element rides along for
    * focus-return (WCAG 2.4.3). Absent = read-only surface. */
   onKill?: (row: CleanupRowInfo, trigger: HTMLElement) => void;
+  /** Clock for the evidence's "seen" words (tests pin it). */
+  now?: number;
 }) {
   const row = props.row;
   const [expanded, setExpanded] = useState(false);
   const evidence = row.evidence;
   const killable = killableRow(row) && props.onKill !== undefined;
+  const name = killDisplayName(row.cmdline, row.exe_path);
+  const guess = probablyWords(row.role_guess);
+  const now = props.now ?? Date.now();
+  const isoFirst = new Date(evidence.first_seen).toISOString().slice(0, 19).replace("T", " ");
+  const isoLast = new Date(evidence.last_seen).toISOString().slice(0, 19).replace("T", " ");
   return (
-    <li className="border-t border-hairline" data-testid={`cleanup-row-${row.pid}`}>
-      <div className="flex items-center gap-2 py-2 text-meta">
+    <li className="border-t border-hairline first:border-t-0" data-testid={`cleanup-row-${row.pid}`}>
+      <div className={`${COLUMNS} px-1 py-2 text-meta`}>
         <button
           type="button"
           onClick={() => setExpanded((open) => !open)}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex min-w-0 items-start gap-2 rounded-md py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
           title="Why AI Juggler counts it as your session's"
         >
-          <span aria-hidden="true" className="w-3 text-center text-label text-muted">
+          <span aria-hidden="true" className="mt-0.5 w-3 shrink-0 text-center text-label text-muted">
             {expanded ? "▾" : "▸"}
           </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="max-w-[12rem] shrink-0 truncate font-medium text-ink" data-testid={`cleanup-name-${row.pid}`}>
+                {name}
+              </span>
+              {guess !== null && (
+                <span className="min-w-0 truncate text-muted" data-testid={`cleanup-role-${row.pid}`}>
+                  {guess}
+                </span>
+              )}
+              {row.hog && (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/50 px-1.5 py-[1px] text-label text-warning"
+                  title={row.hog_rules.join("; ")}
+                >
+                  <span aria-hidden="true">▲</span>heavy
+                </span>
+              )}
+              {props.machineLabel !== undefined && (
+                <span
+                  className="shrink-0 rounded-full border border-hairline px-1.5 py-[1px] text-label text-muted"
+                  data-testid={`cleanup-machine-${row.pid}`}
+                >
+                  {props.machineLabel}
+                </span>
+              )}
+            </span>
+            <span className="truncate font-mono text-label text-muted" title={row.cmdline}>
+              {row.cmdline}
+            </span>
+          </span>
+        </button>
+        <span className="min-w-0">
+          <span className="sr-only">State: </span>
           <span
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-[1px] text-label ${
+            className={`inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-[1px] text-label ${
               row.state === "orphaned"
                 ? "border-accent/50 text-accent"
                 : row.state === "unverifiable"
                   ? "border-danger/50 text-danger"
                   : "border-hairline text-muted"
             }`}
+            title={row.state_label}
             data-testid={`cleanup-state-${row.pid}`}
           >
             <span aria-hidden="true">{stateIcon(row.state)}</span>
-        {props.localMachine !== undefined && row.machine_id !== undefined && (
-          <span
-            className="shrink-0 font-mono text-label text-muted"
-            title={`Machine: ${row.machine_id}`}
-            data-testid={`cleanup-machine-${row.pid}`}
-          >
-            {row.machine_id === props.localMachine ? "This Mac" : row.machine_id}
+            <span className="truncate">{row.state_label}</span>
           </span>
-        )}
-            {row.state_label}
-          </span>
-          {row.hog && (
-            <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/50 px-1.5 py-[1px] text-label text-warning"
-              title={row.hog_rules.join("; ")}
-            >
-              <span aria-hidden="true">▲</span>heavy
-            </span>
+        </span>
+        <span className="text-right tabular-nums text-ink">
+          <span className="sr-only">CPU </span>
+          {row.cpu_pct !== null ? `${row.cpu_pct.toFixed(0)}%` : "—"}
+        </span>
+        <span className="text-right tabular-nums text-ink">
+          <span className="sr-only">Memory </span>
+          {rssText(row.rss_bytes)}
+        </span>
+        <span className="truncate tabular-nums">
+          <span className="sr-only">Ports </span>
+          {row.ports !== null ? (
+            <span className="text-accent-hi">:{row.ports.split(",").join(" :")}</span>
+          ) : (
+            <span className="text-muted">—</span>
           )}
-          <span className="truncate font-mono text-label text-ink">{row.cmdline}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-2 text-label tabular-nums text-muted">
-            <span>PID {row.pid}</span>
-            {row.pgid !== null && <span>PGID {row.pgid}</span>}
-            <span>{ageText(row.age_ms)}</span>
-            <span>{rssText(row.rss_bytes)}</span>
-            {row.cpu_pct !== null && <span>{row.cpu_pct.toFixed(0)}%</span>}
-            {row.ports !== null && <span className="text-accent">:{row.ports.split(",").join(" :")}</span>}
-          </span>
-        </button>
-        {killable && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="shrink-0"
-            onClick={(event: React.MouseEvent<HTMLButtonElement>) =>
-              props.onKill?.(row, event.currentTarget)
-            }
-            data-testid={`cleanup-kill-${row.pid}`}
-          >
-            Terminate…
-          </Button>
-        )}
+        </span>
+        <span className="text-right tabular-nums text-muted">
+          <span className="sr-only">Age </span>
+          {ageText(row.age_ms)}
+        </span>
+        <span className="flex justify-end">
+          {killable && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="shrink-0"
+              onClick={(event: React.MouseEvent<HTMLButtonElement>) =>
+                props.onKill?.(row, event.currentTarget)
+              }
+              data-testid={`cleanup-kill-${row.pid}`}
+            >
+              Terminate…
+            </Button>
+          )}
+        </span>
       </div>
       {expanded && (
         <div
-          className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface/40 p-2.5 text-label text-muted"
+          className="mb-2 ml-6 flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface/40 p-3 text-meta text-muted"
           data-testid={`cleanup-evidence-${row.pid}`}
         >
           <p className="font-medium text-ink">Why AI Juggler counts it as your session's</p>
-          <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
-            <dt className="text-muted">Spawned by</dt>
-            <dd>
-              Session root PID {evidence.root_pid ?? "—"}
-              {evidence.parent_pid !== null && <> · first-seen parent {evidence.parent_pid}</>}
+          <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1">
+            <dt>Started by</dt>
+            <dd
+              className="text-ink"
+              title={`Root PID ${evidence.root_pid ?? "—"}${evidence.parent_pid !== null ? ` · first-seen parent PID ${evidence.parent_pid}` : ""}`}
+            >
+              {evidence.root_pid !== null && evidence.parent_pid === evidence.root_pid
+                ? "The session's main process"
+                : "A process the session started"}
             </dd>
-            <dt className="text-muted">Group</dt>
-            <dd>
-              PGID {evidence.pgid ?? "—"}{" "}
+            <dt>Grouping</dt>
+            <dd className="text-ink" title={`Process group (PGID) ${evidence.pgid ?? "—"}`}>
               {evidence.escaped_group
-                ? "— escaped its process group (containment void)"
+                ? "Left the session's process group, so stopping the group would miss it."
                 : evidence.pgid !== null && evidence.pgid === evidence.root_pid
-                  ? "— matches the root (contained)"
-                  : ""}
+                  ? "Stays with the session's other processes."
+                  : "In a process group of its own."}
             </dd>
-            <dt className="text-muted">Identity check</dt>
-            <dd data-testid={`cleanup-verification-${row.pid}`}>
-              {evidence.verification.verdict} — {evidence.verification.detail}
+            <dt>Identity check</dt>
+            <dd className="text-ink" title={evidence.verification.detail} data-testid={`cleanup-verification-${row.pid}`}>
+              {identityWords(evidence.verification)}
             </dd>
-            <dt className="text-muted">Role</dt>
-            <dd>{row.role_guess}</dd>
-            <dt className="text-muted">Seen</dt>
-            <dd>
-              first {new Date(evidence.first_seen).toISOString().slice(0, 19)} · last{" "}
-              {new Date(evidence.last_seen).toISOString().slice(0, 19)}
+            <dt>What it is</dt>
+            <dd className="text-ink">
+              {guess !== null ? guess.charAt(0).toUpperCase() + guess.slice(1) : "Not known"}
+              <span className="text-muted"> · process {row.pid}</span>
+            </dd>
+            <dt>Seen</dt>
+            <dd className="text-ink" title={`First ${isoFirst} · last ${isoLast} (UTC)`}>
+              First {agoWords(evidence.first_seen, now)} · last {agoWords(evidence.last_seen, now)}
             </dd>
           </dl>
-          <p className="text-muted">
-            Stopping a verified process always asks you to confirm first — never a one-click kill.
-          </p>
+          <p>Stopping a verified process always asks you to confirm first — never a one-click kill.</p>
         </div>
       )}
     </li>

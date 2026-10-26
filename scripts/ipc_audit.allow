@@ -95,7 +95,6 @@ unbounded machine_alerts_take  # bounded: drains the alert queue (capped)
 unbounded machine_health  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded orphan_stop_all  # bounded: one session's leftovers
 unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded os_access_request  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded overnight_summary  # TO PAGE: what happened while away (grows with sessions)

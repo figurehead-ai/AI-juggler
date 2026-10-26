@@ -518,40 +518,48 @@ test("inspector — Quality tab View as table", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "09-quality/as-table-1440x900.png") });
 });
 
-// AJ-E410 processes-tab captures: live tree (3 levels), orphan section
-// with the PID-named confirm, the `gone` verification state, and the
-// good empty state.
-test("inspector — Processes tab live tree + orphans", gate("10-processes"), async ({ page }) => {
+// AJ-E410 processes-tab captures: live tree (3 levels), what the
+// session left behind as the shared Cleanup rows (G-1), the verified
+// sheet a Stop opens, its refusal for a recycled pid, and the good
+// empty state.
+test("inspector — Processes tab live tree + left behind", gate("10-processes"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
   await expect(page.getByTestId("processes-spark")).toBeVisible();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
+  await expect(page.getByTestId("cleanup-row-39871")).toBeVisible();
+  await expect(page.getByTestId("leftovers-open-cleanup")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "10-processes/live-tree-1440x900.png") });
 });
 
-test("inspector — Processes tab Stop confirm popover (PID named)", async ({ page }) => {
+test("inspector — Processes tab Stop opens the verified sheet", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_KILL_VERIFY__: (session: string, pid: number) => unknown }).__AIJ_KILL_VERIFY__ = (session, pid) => ({
+      pid, session, verified: true, refusal: null, exe_path: "/usr/local/bin/node",
+      cmdline: "node node_modules/.bin/vite dev --port 5173", cwd: "/Users/me/code/web-app", ports: [5173],
+      pgid: 40100, escaped_group: false, members: [], tree_pids: [pid], platform: "TERM → grace → KILL",
+      grace_secs: 5, provider: "claude-code", account_id: "Work Max", project_id: "web-app",
+    });
+  });
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
-  await page.getByRole("button", { name: "Stop process 39871" }).click();
-  await expect(page.getByTestId("orphan-confirm-39871")).toBeVisible();
+  await page.getByTestId("cleanup-kill-39871").click();
+  await expect(page.getByTestId("kill-confirm-39871")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "10-processes/stop-confirm-1440x900.png") });
 });
 
-test("inspector — Processes tab gone verification state", async ({ page }) => {
+test("inspector — Processes tab refuses a recycled pid", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
-  await page.getByRole("button", { name: "Stop process 39871" }).click();
-  await page.getByRole("button", { name: "Stop 39871" }).click();
-  await expect(page.getByTestId("orphan-state-39871")).toHaveText("gone ✓");
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/gone-state-1440x900.png") });
+  await page.getByTestId("cleanup-kill-39871").click();
+  await expect(page.getByRole("dialog")).toContainText("belongs to a different program");
+  await expect(page.getByTestId("kill-confirm-39871")).toHaveCount(0);
+  await page.screenshot({ path: resolve(GALLERY, "10-processes/refused-1440x900.png") });
 });
 
 test("inspector — Processes tab good empty state", async ({ page }) => {
@@ -2035,7 +2043,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("cleanup-row-9101")).toHaveCount(0);
       // Widen: the foreign row appears, display-only (no kill control).
       await page.getByRole("combobox", { name: "Machine filter" }).selectOption("all");
-      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("machine-studio");
+      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("Mac Studio");
       await expect(page.getByTestId("cleanup-kill-9101")).toHaveCount(0);
       await expect(page.getByTestId("cleanup-kill-8123")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `24-fleet/machine-filter-${vp.name}-${theme}.png`) });

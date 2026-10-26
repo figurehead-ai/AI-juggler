@@ -75,14 +75,12 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../types/generated/InstanceQuotaInfo";
 import type { InstanceResourcesInfo } from "../types/generated/InstanceResourcesInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
-import type { OrphanVerifyInfo } from "../types/generated/OrphanVerifyInfo";
 import type { DesktopLaunchInfo } from "../types/generated/DesktopLaunchInfo";
 import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { ProcessesInfo } from "../types/generated/ProcessesInfo";
-import { MOCK_PROCESSES } from "./preview-processes";
-import type { StopOutcomeInfo } from "../types/generated/StopOutcomeInfo";
+import { MOCK_PROCESSES, MOCK_SESSION_CLEANUP } from "./preview-processes";
 import type { LaunchResult } from "../types/generated/LaunchResult";
 import type { NeedsAttention } from "../types/generated/NeedsAttention";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -100,8 +98,6 @@ export type {
   PreviewStateInfo,
   QualitySignalsInfo,
   ProcessesInfo,
-  StopOutcomeInfo,
-  OrphanVerifyInfo,
   AccountInfo,
   AccountRemovedInfo,
   DiscoveredInfo,
@@ -1406,6 +1402,7 @@ export async function cleanupAuditExport(): Promise<string> {
 
 /** AJ-E506: the read-only Cleanup Centre DTOs (zero kill fields). */
 export type { CleanupRowInfo, EvidenceChainInfo, VerificationBadgeInfo } from "../components/ProcessRow";
+import type { CleanupRowInfo } from "../components/ProcessRow";
 export type { CleanupGroupInfo } from "../screens/CleanupCentre";
 import type { CleanupInventoryData } from "../screens/CleanupCentre";
 
@@ -1759,6 +1756,21 @@ export async function cleanupInventory(
   return invoke<CleanupInventoryData>("cleanup_inventory", { filter, machineScope });
 }
 
+/** One session's rows from the shared Cleanup inventory (the session's
+ * Processes tab: the same data, rows and verified Stop as Cleanup). */
+export async function sessionCleanup(
+  sessionId: string,
+): Promise<{ rows: CleanupRowInfo[]; localMachine: string }> {
+  if (!hasBackend && (window as unknown as { __AIJ_CLEANUP__?: unknown }).__AIJ_CLEANUP__ === undefined) {
+    return { rows: MOCK_SESSION_CLEANUP[sessionId] ?? [], localMachine: "" };
+  }
+  const data = await cleanupInventory("all-managed");
+  return {
+    rows: data.groups.find((group) => group.session === sessionId)?.rows ?? [],
+    localMachine: data.local_machine,
+  };
+}
+
 /** AJ-E507: the kill sheet's step-1 verify (zero signalling). */
 export async function killVerify(sessionId: string, pid: number): Promise<KillVerifyData> {
   if (!hasBackend) {
@@ -1852,45 +1864,6 @@ export async function launchPortWarning(projectId: string | null): Promise<PortW
       ?? null;
   }
   return invoke<PortWarningInfo | null>("launch_port_warning", { projectId });
-}
-
-/** AJ-E410: stop one orphan (allow-list guarded, TERM→KILL ladder). */
-export async function orphanStop(sessionId: string, pid: number): Promise<StopOutcomeInfo> {
-  if (!hasBackend) {
-    // Mock: the allow-list guard refuses anything but fixture orphans.
-    const orphan = MOCK_PROCESSES[sessionId]?.orphans.find((row) => row.pid === pid);
-    const state = orphan
-      ? orphan.stop_state ?? "gone"
-      : "refused - not a recorded descendant";
-    return { pid, state };
-  }
-  return invoke<StopOutcomeInfo>("orphan_stop", { sessionId, pid });
-}
-
-/** AJ-E410: stop every confirmed orphan of one Instance. */
-export async function orphanStopAll(sessionId: string): Promise<StopOutcomeInfo[]> {
-  if (!hasBackend) {
-    const orphans = MOCK_PROCESSES[sessionId]?.orphans ?? [];
-    return orphans.map((orphan) => ({ pid: orphan.pid, state: orphan.stop_state ?? "gone" }));
-  }
-  return invoke<StopOutcomeInfo[]>("orphan_stop_all", { sessionId });
-}
-
-/** AJ-E410: re-check the ppid chain for one orphan pid. */
-export async function orphanVerify(sessionId: string, pid: number): Promise<OrphanVerifyInfo> {
-  if (!hasBackend) {
-    const orphan = MOCK_PROCESSES[sessionId]?.orphans.find((row) => row.pid === pid);
-    if (orphan) {
-      return {
-        pid,
-        alive: !orphan.stop_state,
-        parent_pid: 1,
-        note: "alive — re-parented to init/launchd (its parent exited)",
-      };
-    }
-    return { pid, alive: false, parent_pid: null, note: "process is gone" };
-  }
-  return invoke<OrphanVerifyInfo>("orphan_verify", { sessionId, pid });
 }
 
 /** AJ-E411 (D-12): set (validate server-side) or clear the user-entered renewal date. */
