@@ -11,9 +11,14 @@
 //! - It sends one line to the app's socket with the session's **report
 //!   key** (its own environment, [`REPORT_TOKEN_ENV`]) and waits at most
 //!   [`WAIT`] for the answer.
-//! - It prints nothing and always exits 0, so it never decides a
-//!   permission (a `PermissionRequest` hook that prints nothing leaves the
-//!   tool's own dialog to the user) and never holds the tool up.
+//! - It always exits 0 and never decides anything: a `PermissionRequest`
+//!   hook prints nothing, which leaves the tool's own dialog to the user,
+//!   and it never holds the tool up.
+//! - E18 (AJ-E1803): on `UserPromptSubmit` and `PostToolUse` the app may
+//!   answer with a short facts-only note ("2 unread messages from
+//!   Planner"); the hook prints it as the tool's `additionalContext` for
+//!   those events ([`NOTE_EVENTS`]) and nothing else. Never a decision,
+//!   never a "keep going", never a message's words.
 
 use std::io::Read;
 use std::path::PathBuf;
@@ -25,6 +30,13 @@ use crate::client::send_line;
 use crate::wire::{
     HOOK_EVENTS, HookReport, REPORT_TOKEN_ENV, Report, SOCKET_ENV, SUMMARY_MAX, VERSION,
 };
+
+/// The events whose hook may print a note (Claude Code adds a hook's
+/// `additionalContext` to the model's context on these).
+pub const NOTE_EVENTS: [&str; 2] = ["UserPromptSubmit", "PostToolUse"];
+
+/// The longest note printed.
+pub const NOTE_MAX: usize = 300;
 
 /// The most of the tool's input read.
 pub const INPUT_MAX: usize = 256 * 1024;
@@ -92,35 +104,52 @@ pub fn report_of(event: &str, input: &str) -> Option<HookReport> {
     })
 }
 
-/// Runs the hook: reads stdin, reports, prints nothing. The exit code is
-/// always 0 (the caller's), whatever happened.
-pub fn run(event: &str, stdin: impl Read) {
+/// Runs the hook: reads stdin, reports, and returns what to print (a
+/// note's JSON on [`NOTE_EVENTS`], else nothing). The exit code is always
+/// 0 (the caller's), whatever happened.
+pub fn run(event: &str, stdin: impl Read) -> Option<String> {
     let mut input = String::new();
-    if stdin
+    stdin
         .take(u64::try_from(INPUT_MAX).unwrap_or(u64::MAX))
         .read_to_string(&mut input)
-        .is_err()
-    {
-        return;
-    }
-    let Some(hook) = report_of(event, &input) else {
-        return;
-    };
+        .ok()?;
+    let hook = report_of(event, &input)?;
     let token = std::env::var(REPORT_TOKEN_ENV).unwrap_or_default();
-    let Some(socket) = std::env::var_os(SOCKET_ENV).map(PathBuf::from) else {
-        return;
-    };
+    let socket = std::env::var_os(SOCKET_ENV).map(PathBuf::from)?;
     if token.is_empty() {
-        return; // not a session AI Juggler started with reports on
+        return None; // not a session AI Juggler started with reports on
     }
     let report = Report {
         v: VERSION,
         token,
         hook,
     };
-    if let Ok(line) = serde_json::to_string(&report) {
-        let _ = send_line(&socket, &line, WAIT);
+    let line = serde_json::to_string(&report).ok()?;
+    let answer = send_line(&socket, &line, WAIT).ok()?;
+    note_output(event, &answer)
+}
+
+/// What a hook prints for the app's answer: the note as the tool's
+/// `additionalContext`, on [`NOTE_EVENTS`] only, one bounded line.
+#[must_use]
+pub fn note_output(event: &str, answer: &str) -> Option<String> {
+    if !NOTE_EVENTS.contains(&event) {
+        return None;
     }
+    let response: crate::wire::Response = serde_json::from_str(answer.trim()).ok()?;
+    let note = response.result?.get("note")?.as_str().map(|note| {
+        note.chars()
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .take(NOTE_MAX)
+            .collect::<String>()
+    })?;
+    if note.trim().is_empty() {
+        return None;
+    }
+    serde_json::to_string(&serde_json::json!({
+        "hookSpecificOutput": {"hookEventName": event, "additionalContext": note}
+    }))
+    .ok()
 }
 
 #[cfg(test)]
@@ -140,6 +169,27 @@ mod tests {
         assert_eq!(report.transcript.as_deref(), Some("/h/p/abc.jsonl"));
         let json = serde_json::to_string(&report).unwrap();
         assert!(!json.contains("permission_suggestions") && !json.contains("/w\""));
+    }
+
+    #[test]
+    fn a_note_is_printed_only_where_it_adds_context_and_never_decides() {
+        let answer = r#"{"result":{"note":"AI Juggler: 2 unread messages from Planner."}}"#;
+        let printed = super::note_output("UserPromptSubmit", answer).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&printed).unwrap();
+        assert_eq!(
+            value["hookSpecificOutput"]["additionalContext"],
+            "AI Juggler: 2 unread messages from Planner."
+        );
+        assert_eq!(
+            value["hookSpecificOutput"]["hookEventName"],
+            "UserPromptSubmit"
+        );
+        assert!(value.get("decision").is_none() && value.get("continue").is_none());
+        for event in ["PermissionRequest", "Stop", "PreToolUse", "Notification"] {
+            assert_eq!(super::note_output(event, answer), None, "{event}");
+        }
+        assert_eq!(super::note_output("PostToolUse", r#"{"result":{}}"#), None);
+        assert_eq!(super::note_output("PostToolUse", "not json"), None);
     }
 
     #[test]

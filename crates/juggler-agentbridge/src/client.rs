@@ -10,7 +10,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::wire::{Call, MAX_RESPONSE, Refusal, Request, Response, SOCKET_ENV, TOKEN_ENV, VERSION};
+use crate::wire::{Args, Call, MAX_RESPONSE, Refusal, Request, Response, SOCKET_ENV, TOKEN_ENV};
 
 /// How long a call may take before the bridge gives up (the app answers
 /// in well under 50 ms; this is for an app that's stuck).
@@ -102,17 +102,8 @@ pub fn trusted_socket(_socket: &Path) -> bool {
 ///
 /// [`CallError`] when the app can't be reached, refuses, or answers
 /// something unreadable.
-pub fn call(
-    target: &Target,
-    call: Call,
-    text: Option<String>,
-) -> Result<serde_json::Value, CallError> {
-    let request = Request {
-        v: VERSION,
-        token: target.token.clone(),
-        call,
-        text,
-    };
+pub fn call(target: &Target, call: Call, args: Args) -> Result<serde_json::Value, CallError> {
+    let request = Request::new(target.token.clone(), call, args);
     let line =
         serde_json::to_string(&request).map_err(|error| CallError::Garbled(error.to_string()))?;
     let answer = exchange(&target.socket, &line, CALL_WAIT)?;
