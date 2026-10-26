@@ -16,6 +16,7 @@ pub mod live;
 pub mod places;
 pub mod procs;
 pub mod scan;
+pub mod switch_source;
 
 /// Emitted when the conversations or which are live changed (the rail
 /// reads them again). Its payload says which: [`CHANGED_INDEX`] or

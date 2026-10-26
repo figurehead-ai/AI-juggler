@@ -5,7 +5,7 @@
  * component for both (ADR-0019: no copy per kind).
  */
 import type { ChipTone } from "../../components/primitives";
-import type { ConversationInfo, PlaceInfo } from "../../lib/ipc/conversations";
+import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib/ipc/conversations";
 import type { InstanceInfo } from "../../lib/bridge";
 import { stateWord } from "../../components/OutsideConversations";
 import { statusTone } from "../ItemHeader";
@@ -21,6 +21,9 @@ export type SessionModel = {
   conversationId: string | null;
   /** AI Juggler's session, when AI Juggler started it. */
   sessionId: string | null;
+  /** AJ-E2108: what a switch to another profile starts from: AI Juggler's
+   * session, or the session another app runs (its key). */
+  switchSource: string;
   /** Open now: a live process runs it. */
   live: boolean;
   /** The state in E21's words, its chip's tone and since when; whether
@@ -44,6 +47,7 @@ export function fromConversation(c: ConversationInfo): SessionModel {
     profileLabel: c.account_label,
     conversationId: c.id,
     sessionId: c.session_id,
+    switchSource: switchSourceOf(c),
     live: c.live,
     state: {
       words: stateWord(c),
@@ -70,6 +74,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     profileLabel: s.account_label,
     conversationId: s.conversation_id,
     sessionId: s.id,
+    switchSource: s.id,
     live,
     state: { words: tone.label, tone: tone.tone, asks: s.status === "waiting_user", working: s.status === "running", since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],

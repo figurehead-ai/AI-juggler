@@ -1,23 +1,35 @@
 /**
  * AJ-E2108 — Continue on another account, on a session's page: the
- * accounts with their profiles beneath, how much each has left, and a
- * one-line check of what the profile lacks. A profile on the session's
- * own account gives no new room (one runway), so it isn't offered. The
- * click opens the switch screen and its checks (AJ-E1542/1543), never a
- * copy of them. A session AI Juggler didn't start is carried in first.
+ * accounts with their profiles beneath, of every tool, how much each has
+ * left, the move's badge and a one-line check of what the profile lacks.
+ * A profile on the session's own account gives no new room (one runway),
+ * so it isn't offered. The click opens the switch screen and its checks
+ * (AJ-E1542/1543), never a copy of them. The same for a session AI
+ * Juggler runs and one another app runs: that one is read, never touched,
+ * and continues as a new session here while it stays open in its app.
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Card } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
+import { FidelityBadge } from "../../components/SwitchTargetRows";
 import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData } from "../../lib/bridge";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { accountDisplay, accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
-import type { SessionModel } from "./model";
+import { appWords, type SessionModel } from "./model";
 import { CardTitle } from "./CardTitle";
 
 /** A target profile, as the page shows it. */
-export type Target = { profileId: string; label: string; recipeId: string | null; blocked: string | null };
+export type Target = {
+  profileId: string;
+  label: string;
+  recipeId: string;
+  blocked: string | null;
+  /** What the move carries ("Full story, fresh start · Beta"), when known. */
+  badge: { words: string; validated: boolean } | null;
+  /** Another tool than the session's. */
+  crossTool: boolean;
+};
 
 /** The one-line check, in words. */
 export function setupWords(check: SetupCheckInfo | null | undefined): string | null {
@@ -49,10 +61,24 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   return { others: [...groups.values()], sameAccount: same };
 }
 
+/** The backend's rows as the page's targets: never its own profile, which
+ * is where it is already. */
+export function targetsOf(rows: SwitchTargetData[], ownProfile: string): Target[] {
+  return rows
+    .filter((row) => row.account_id !== ownProfile)
+    .map((row) => ({
+      profileId: row.account_id,
+      label: row.account_label,
+      recipeId: row.recipe_id,
+      blocked: row.filtered_reason,
+      badge: row.badge ? { words: row.badge, validated: row.validated } : null,
+      crossTool: row.cross_provider,
+    }));
+}
+
 export function ContinueOn({
   model,
   accounts,
-  labels,
   displays,
   onPick,
   onCarryIn,
@@ -61,50 +87,39 @@ export function ContinueOn({
 }: {
   model: SessionModel;
   accounts: SubscriptionInfo[];
-  /** The profiles' names, by id. */
-  labels: ReadonlyMap<string, string>;
   displays: QuotaDisplayData[];
-  /** Opens the switch screen (a session AI Juggler runs). */
+  /** Opens the switch screen from `model.switchSource`: AI Juggler's
+   * session, or the session another app runs, alike. */
   onPick?: (recipeId: string, label: string) => void;
-  /** Carries a session another app runs into AI Juggler. */
+  /** Continues a session another app runs here, on its own profile. */
   onCarryIn?: () => void;
   switchBack?: SwitchBackSuggestionData | null;
   onSwitchBack?: () => void;
 }): JSX.Element {
-  const own = model.sessionId !== null && onPick !== undefined;
-  const [rows, setRows] = useState<SwitchTargetData[] | null>(own ? null : []);
+  const source = model.switchSource;
+  const outside = model.sessionId === null;
+  const [rows, setRows] = useState<SwitchTargetData[] | null>(null);
   const [checks, setChecks] = useState<Record<string, SetupCheckInfo | null>>({});
   useEffect(() => {
-    if (!own || model.sessionId === null) return;
     let alive = true;
-    switchTargets(model.sessionId).then(
+    setRows(null);
+    switchTargets(source).then(
       (next) => alive && setRows(next),
       () => alive && setRows([]),
     );
     return () => {
       alive = false;
     };
-  }, [own, model.sessionId]);
-  const targets: Target[] = useMemo(() => {
-    // Its own profile is where it is already: never a target.
-    if (own) return (rows ?? []).filter((row) => row.account_id !== model.profileId).map((row) => ({ profileId: row.account_id, label: row.account_label, recipeId: row.recipe_id, blocked: row.filtered_reason }));
-    // Another app's session: every signed-in profile of its tool, to read.
-    return accounts
-      .filter((account) => account.tool === model.tool && account.state === "signed_in")
-      .flatMap((account) => account.profiles)
-      .filter((profile) => profile.id !== model.profileId)
-      .map((profile) => ({ profileId: profile.id, label: profile.id, recipeId: null, blocked: null }));
-  }, [own, rows, accounts, model.tool, model.profileId]);
+  }, [source]);
+  const targets = useMemo(() => targetsOf(rows ?? [], model.profileId), [rows, model.profileId]);
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
   // The one-line checks, for the first few profiles offered.
   useEffect(() => {
-    if (!own || model.sessionId === null) return;
     let alive = true;
-    const sessionId = model.sessionId;
     for (const target of others.flatMap((group) => group.targets).slice(0, 4)) {
-      if (!target.recipeId || target.recipeId in checks) continue;
+      if (target.recipeId in checks) continue;
       const id = target.recipeId;
-      switchSetupCheck(sessionId, id).then(
+      switchSetupCheck(source, id).then(
         (check) => alive && setChecks((now) => ({ ...now, [id]: check })),
         () => alive && setChecks((now) => ({ ...now, [id]: null })),
       );
@@ -114,9 +129,10 @@ export function ContinueOn({
     };
     // `checks` is read to skip what's done; asking again on its change would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [own, model.sessionId, others.length]);
+  }, [source, others.length]);
 
-  const label = (target: Target) => (own ? target.label : (labels.get(target.profileId) ?? target.profileId));
+  // Where the original stays, for a session another app runs.
+  const app = appWords(model.places[0], model.tool);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       <CardTitle>Continue on another account</CardTitle>
@@ -138,28 +154,30 @@ export function ContinueOn({
             return (
               <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account">
                 <span className="flex items-baseline justify-between gap-2 text-meta">
-                  <span className="truncate font-medium text-ink">{group.account ? accountName(group.account) : label(group.targets[0]!)}</span>
+                  <span className="truncate font-medium text-ink">{group.account ? accountName(group.account) : group.targets[0]!.label}</span>
                   <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-muted")}>{left === null ? "not measured" : `${left}% left`}</span>
                 </span>
                 {group.targets.map((target) => {
-                  const words = target.recipeId && target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
+                  const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
                   return (
-                    <div key={target.profileId + (target.recipeId ?? "")} className="flex flex-col gap-0.5">
+                    <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
                       <Button
                         size="md"
                         variant="secondary"
                         className="justify-start"
-                        disabled={!own || target.blocked !== null}
-                        title={target.blocked ?? (own ? `Continue on ${label(target)}` : "Continue it in AI Juggler first")}
-                        onClick={() => target.recipeId && onPick?.(target.recipeId, label(target))}
+                        disabled={!onPick || target.blocked !== null}
+                        title={target.blocked ?? `Continue on ${target.label}`}
+                        onClick={() => onPick?.(target.recipeId, target.label)}
                         data-testid="continue-target"
+                        data-cross-tool={target.crossTool ? "true" : undefined}
                       >
-                        <AccountAvatar accountId={target.profileId} label={label(target)} size={14} />
-                        <span className="truncate">{label(target)}</span>
+                        <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
+                        <span className="truncate">{target.label}</span>
                         {left !== null && <span className="ml-auto tabular-nums text-muted">{left}% left</span>}
                       </Button>
-                      {(target.blocked || words) && (
-                        <span className="pl-1 text-label text-muted" data-testid="continue-check">
+                      {(target.blocked || words || (target.crossTool && target.badge)) && (
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
+                          {target.crossTool && target.badge && <FidelityBadge badge={target.badge.words} validated={target.badge.validated} />}
                           {target.blocked ?? words}
                         </span>
                       )}
@@ -173,20 +191,26 @@ export function ContinueOn({
       )}
       {sameAccount.map((target) => (
         <p key={target.profileId} className="text-label text-muted" data-testid="continue-no-room">
-          {label(target)} shares this account, so it gives no new room.
+          {target.label} shares this account, so it gives no new room.
         </p>
       ))}
-      {!own && (
-        <div className="flex flex-col gap-2 border-t border-hairline pt-3">
+      {outside && (
+        <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
           <p className="text-meta leading-[1.5] text-muted">
             {model.live
-              ? "It's open in its app now. Close it there, continue it in AI Juggler, then move it from there."
-              : "To move it, continue it in AI Juggler first; its page then offers these accounts."}
+              ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
+              : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
           </p>
-          {onCarryIn && (
-            <Button size="md" variant="secondary" disabled={model.live} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
-              Continue in AI Juggler
-            </Button>
+          {model.live ? (
+            <p className="text-label text-muted" data-testid="continue-same-profile">
+              To carry on with it on {model.profileLabel} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
+            </p>
+          ) : (
+            onCarryIn && (
+              <Button size="md" variant="secondary" onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+                Continue in AI Juggler
+              </Button>
+            )
           )}
         </div>
       )}

@@ -5063,6 +5063,28 @@ fn resolve_source(
     session_id: &str,
     persist: bool,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    // AJ-E2108: a session another app runs is read from the index, by its
+    // key; it has no row (and its file is known, so nothing is guessed).
+    match crate::features::conversations::switch_source::parse_source_key(session_id) {
+        Some((account, conversation)) => {
+            crate::features::conversations::switch_source::as_switch_source(
+                state,
+                account,
+                conversation,
+                persist,
+            )
+        }
+        None => resolve_row_source(state, session_id, persist),
+    }
+}
+
+/// [`resolve_source`] for a session AI Juggler runs: its row, and the
+/// transcript link found for it.
+fn resolve_row_source(
+    state: &Arc<AppState>,
+    session_id: &str,
+    persist: bool,
+) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
     let (mut source, account_a, taken, ambiguous, replayed_into) = {
         let storage = lock_storage_arc(state)?;
         let source = storage
@@ -5243,6 +5265,13 @@ pub struct PreflightInfo {
     /// outside it): the switch leaves it running and the copy is a
     /// separate continuation.
     pub source_keeps_running: bool,
+    /// AJ-E2108: the source is a session another app runs: its
+    /// conversation is only read, and the switch continues it as a new
+    /// session here, leaving it as it is.
+    pub source_outside: bool,
+    /// The app that source is open in now ("Claude", "Terminal"), when it
+    /// is open and the app is known.
+    pub source_app: Option<String>,
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
@@ -5388,9 +5417,7 @@ pub(crate) fn preflight_with(
         .map(|situation| pipeline::user_copy(situation.clone()))
         .collect();
     let source_live = matches!(source.status.as_str(), "running" | "starting");
-    // The same rule `freeze_source` follows: only a session AI Juggler
-    // supervises is stopped.
-    let source_keeps_running = source_live && !state.supervisor.is_supervised(&source.id);
+    let stays = source_stays(state, &source, &reference, &account_a, source_live);
 
     // AJ-E206 §8: choose the door from the same preflight facts.
     // Headroom ≥ Tight holds unless the tight warn fired (exhausted
@@ -5427,7 +5454,9 @@ pub(crate) fn preflight_with(
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
-        source_keeps_running,
+        source_keeps_running: stays.keeps_running,
+        source_outside: stays.outside,
+        source_app: stays.app,
         experimental_copy: move_copy(
             report.mechanism,
             validated,
@@ -5444,6 +5473,46 @@ pub(crate) fn preflight_with(
         redaction_items,
         validated,
     })
+}
+
+/// What the switch leaves of the source, for the switch screen.
+struct SourceStays {
+    /// It keeps running: the same rule `freeze_source` follows (only a
+    /// session AI Juggler supervises is stopped).
+    keeps_running: bool,
+    /// AJ-E2108: it is a session another app runs.
+    outside: bool,
+    /// The app that one is open in now, when it is.
+    app: Option<String>,
+}
+
+/// [`SourceStays`] for `source` (`live` when it runs now).
+fn source_stays(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+    reference: &juggler_core::model::TranscriptRef,
+    account: &Account,
+    live: bool,
+) -> SourceStays {
+    let keeps_running = live && !state.supervisor.is_supervised(&source.id);
+    let outside = source_row(source).is_none();
+    let app = outside
+        .then(|| {
+            reference.native_id.as_deref().and_then(|native| {
+                crate::features::conversations::switch_source::open_in(
+                    state,
+                    account.id.as_str(),
+                    account.harness.as_str(),
+                    native,
+                )
+            })
+        })
+        .flatten();
+    SourceStays {
+        keeps_running,
+        outside,
+        app,
+    }
 }
 
 /// AJ-E808: whether `from → to` is validated right now — the recorded
@@ -6475,9 +6544,11 @@ fn record_replay_succeeded(
     use juggler_core::model::{Epoch, EpochId, ManifestEntry};
 
     let storage = lock_storage_arc(state)?;
-    let mut handed = sides.source.clone();
-    handed.status = SessionStatus::HandedOver;
-    storage.sessions().update(&handed)?;
+    if source_row(&sides.source).is_some() {
+        let mut handed = sides.source.clone();
+        handed.status = SessionStatus::HandedOver;
+        storage.sessions().update(&handed)?;
+    }
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -6710,9 +6781,17 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
         .clone();
     let target_session = find(&to_epoch_id).and_then(|epoch| epoch.session_ref.clone());
     if from_epoch.session_ref.is_none() {
+        // AJ-E2108: a switch from a session another app runs left that
+        // session as it was: there is nothing here to go back to.
+        let message = if from_epoch.native_id.is_some() {
+            "The original is a session another app runs, and it's still there, untouched: \
+             stop the new session from its page if you don't want it"
+        } else {
+            "The switch's source session is missing — resume it from Sessions"
+        };
         return Err(AppError::Io {
             context: "undo switch",
-            message: "The switch's source session is missing — resume it from Sessions".to_owned(),
+            message: message.to_owned(),
         });
     }
     let Some(native_id) = from_epoch.native_id.clone().filter(|id| !id.is_empty()) else {
@@ -7007,6 +7086,35 @@ fn make_launch_hook<'a>(
     }
 }
 
+/// AJ-E2108: the source's own session row, when it has one. A session
+/// another app runs has none: the graph keeps it by its account and the
+/// tool's id for it, and nothing marks it handed over (it isn't AI
+/// Juggler's to mark).
+fn source_row(source: &juggler_core::model::InstanceRecord) -> Option<&SessionId> {
+    (!crate::features::conversations::switch_source::is_source_key(source.id.as_str()))
+        .then_some(&source.id)
+}
+
+/// Whether `epoch` is `source`'s: by its row, or for a session another
+/// app runs by its account and conversation, so every switch from it
+/// starts from the one epoch.
+fn is_source_epoch(
+    epoch: &juggler_core::model::Epoch,
+    source: &juggler_core::model::InstanceRecord,
+    reference: &juggler_core::model::TranscriptRef,
+    account: &Account,
+) -> bool {
+    match source_row(source) {
+        Some(row) => epoch.session_ref.as_ref() == Some(row),
+        None => {
+            epoch.session_ref.is_none()
+                && epoch.account == account.id
+                && epoch.native_id.is_some()
+                && epoch.native_id == reference.native_id
+        }
+    }
+}
+
 /// Records the pre-execution graph state: the work item (created on
 /// first switch), the SOURCE epoch, and the Staged edge. Returns
 /// `(work, from_epoch, edge)` ids.
@@ -7048,7 +7156,7 @@ fn record_edge_staged(
             .epochs_for_work(&work.id)?
             .into_iter()
             .rev()
-            .find(|epoch| epoch.session_ref.as_ref() == Some(&source.id))
+            .find(|epoch| is_source_epoch(epoch, source, reference, account_a))
         {
             existing = Some((work.clone(), epoch));
             break;
@@ -7069,7 +7177,7 @@ fn record_edge_staged(
         let from = Epoch {
             id: EpochId::new(format!("ep-{}", unique_suffix())),
             work: work.id.clone(),
-            session_ref: Some(source.id.clone()),
+            session_ref: source_row(source).cloned(),
             native_id: reference.native_id.clone(),
             account: account_a.id.clone(),
             provider: account_a.harness.clone(),
@@ -7138,11 +7246,11 @@ struct EdgeCtx {
     session: SessionId,
 }
 
-/// Records the succeeded switch: the source rests (`HandedOver`), the
-/// TARGET epoch is created for the continuation Instance (its row was
-/// written by the launch hook, before its spawn), the edge launches +
-/// confirms (the supervisor accepting the spawn is the confirmation
-/// provable today), and the manifest rows land.
+/// Records the succeeded switch: the source rests (`HandedOver`, when it
+/// has a row), the TARGET epoch is created for the continuation Instance
+/// (its row was written by the launch hook, before its spawn), the edge
+/// launches + confirms (the supervisor accepting the spawn is the
+/// confirmation provable today), and the manifest rows land.
 ///
 /// # Errors
 ///
@@ -7163,9 +7271,11 @@ fn record_edge_succeeded(
         .clone()
         .unwrap_or_default();
     let storage = lock_storage_arc(state)?;
-    let mut handed = source.clone();
-    handed.status = SessionStatus::HandedOver;
-    storage.sessions().update(&handed)?;
+    if source_row(source).is_some() {
+        let mut handed = source.clone();
+        handed.status = SessionStatus::HandedOver;
+        storage.sessions().update(&handed)?;
+    }
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -11316,7 +11426,9 @@ struct BackLineage {
     fork_edge: juggler_core::model::SwitchEdge,
     /// The away instance's session row.
     away_session: juggler_core::model::InstanceRecord,
-    /// The original session row, when it still exists.
+    /// The original session row, when it still exists; for work that began
+    /// as a session another app runs, that conversation as the switch reads
+    /// it (AJ-E2108).
     original_session: Option<juggler_core::model::InstanceRecord>,
     /// AJ-E1541: the epochs the work went through between the original
     /// and the away one, oldest first (A → B → Codex, returning to A: B).
@@ -11446,7 +11558,32 @@ fn back_lineage(
                 &lineage.original_epoch.account.to_string(),
             )
         })?;
+    drop(storage);
+    let lineage = with_outside_original(state, lineage, &original_account);
     Ok((lineage, away_account, original_account))
+}
+
+/// AJ-E2108: work that began as a session another app runs goes back to
+/// that conversation, read from the index as the first switch read it.
+fn with_outside_original(
+    state: &Arc<AppState>,
+    mut lineage: BackLineage,
+    original_account: &Account,
+) -> BackLineage {
+    if lineage.original_session.is_none()
+        && lineage.original_epoch.session_ref.is_none()
+        && let Some(native) = lineage.original_epoch.native_id.as_deref()
+    {
+        lineage.original_session = crate::features::conversations::switch_source::as_switch_source(
+            state,
+            original_account.id.as_str(),
+            native,
+            false,
+        )
+        .ok()
+        .map(|(row, _)| row);
+    }
+    lineage
 }
 
 /// AJ-E1541: the confirmed edges back from `away`, nearest first: (the
@@ -12069,6 +12206,18 @@ pub fn switch_back_execute_to_impl(
     let _slot = SwitchSlot::take(state, session_id)?;
     let (lineage, away_account, original_account, delta_input, conflicts, away_live, verdict) =
         back_facts(state, session_id, to_epoch)?;
+    // AJ-E2108: an original another app has open now is left alone:
+    // resuming it here too would give one conversation two writers.
+    if let Some(original) = &lineage.original_session
+        && source_row(original).is_none()
+        && original.status == SessionStatus::Running
+    {
+        return Err(AppError::Refused(format!(
+            "The original on {} is still open in its app: close it there first, so one \
+             conversation never has two writers",
+            original_account.label
+        )));
+    }
     // S-F8: every conflict resolved or the work stays forked — an
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);
