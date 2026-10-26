@@ -1,5 +1,5 @@
 //! The one way an account's session is started: every launch, resume,
-//! switch and continue goes through [`spawn_account_session`], so what a
+//! switch and continue goes through `spawn_account_session`, so what a
 //! session starts with is decided in one place.
 //!
 //! AJ-E1601 (D-34): a profile added through another service starts with
@@ -22,7 +22,7 @@ use crate::state::AppState;
 ///
 /// # Errors
 ///
-/// As [`crate::features::service_accounts::session_env`]: an account
+/// As `crate::features::service_accounts::session_env`: an account
 /// whose key isn't in this Mac's Keychain starts nothing.
 pub fn launched_spec(
     state: &Arc<AppState>,
