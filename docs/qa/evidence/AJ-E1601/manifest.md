@@ -36,7 +36,8 @@ binaries; the live run on spare accounts is the maintainer's step
   (`SubscriptionInfo.service`), its sign-in state saying whether the key
   is in the Keychain (asked of the item's attributes only).
 - **The key reaches only that account's sessions**: every session start
-  goes through `features::sessions::spawn::spawn_account_session`, which
+  goes through `features::sessions::spawn` (the one spawn path since the
+  0.1.5 merge: `start_session`, each process through `spawn_process`), which
   reads the key into memory for that one launch and puts it in the
   variable the service's guide names. The launch spec the adapter builds,
   and the spawn ledger's command line, never hold it.

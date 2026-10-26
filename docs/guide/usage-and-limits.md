@@ -58,12 +58,29 @@ balance. It shows only the limits Codex reports for your plan.
 
 ### Claude Code
 
-Claude Code reports its limits only to its status line. AI Juggler reads it
-for sessions it starts. For sessions you start elsewhere, there's an option
-per profile, off by default:
+AI Juggler reads Claude's limits from Claude's own records on your Mac,
+with nothing to set up:
+
+- **The Claude app's meter.** While the Claude app is open on a profile,
+  it records the 5-hour and weekly use about every 15 minutes. A reading
+  shows where it came from and how old it is: "60% left · from the Claude
+  app, 12 min ago".
+- **Limit hits.** When Claude Code hits a limit, it records which limit it
+  was and when it resets: "Hit its limit at 2:02 PM · resets 7:00 PM".
+- **Claude Code's last `/usage`.** When you run `/usage`, Claude Code keeps
+  its answer, with both windows and their resets.
+
+A 5-hour reading older than five hours says nothing about now, so it shows
+as history: "Last reading 13 h ago: 40% used; that window has reset since".
+A team plan with no weekly limit says so instead of "Not measured yet".
+
+Sessions AI Juggler starts report their limits through Claude Code's status
+line. For sessions you start with `claude` in a terminal, there's an option
+per profile, off by default. The Claude app never runs a status line, so its
+sessions don't need it:
 
 1. On the Accounts page, open the profile's menu.
-2. Turn on measuring limits for sessions started elsewhere.
+2. Choose **Measure its limits…**, then **Also measure terminal sessions…**.
 3. Review the change it shows you: one setting, `statusLine`, in that
    profile's `settings.json`. Your own status line keeps working; AI
    Juggler only reads its limits and passes the rest through.

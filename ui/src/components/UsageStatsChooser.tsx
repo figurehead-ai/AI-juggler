@@ -52,7 +52,7 @@ export function UsageStatsChooser({
       disabled={disabled}
     >
       <legend className="px-1 text-xs font-medium text-ink">{legend}</legend>
-      {hint && <p className="text-[11px] leading-relaxed text-muted">{hint}</p>}
+      {hint && <p className="text-label leading-relaxed text-muted">{hint}</p>}
       {USAGE_STATS_OPTIONS.map((option) => {
         const consequenceId = `${base}-${option.value}`;
         const checked = value === option.value;
@@ -79,7 +79,7 @@ export function UsageStatsChooser({
             />
             <span className="flex flex-col gap-0.5">
               <span className="font-medium text-ink">{option.title}</span>
-              <span id={consequenceId} className="text-[11px] leading-relaxed text-muted">
+              <span id={consequenceId} className="text-label leading-relaxed text-muted">
                 {option.consequence}
               </span>
             </span>
@@ -89,7 +89,7 @@ export function UsageStatsChooser({
       <button
         type="button"
         onClick={() => void usageStatsOpenDocs()}
-        className="self-start text-[11px] text-ink underline underline-offset-2 hover:text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
+        className="self-start text-label text-ink underline underline-offset-2 hover:text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
         data-testid="usage-stats-docs"
       >
         See exactly what's collected

@@ -57,12 +57,9 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 ///   own (P21: one counted another thread's call again; main's 5).
 const REREAD_VERSION: u32 = 6;
 
-/// Quota samples gathered in one pass: (account, window, sample).
-type SampleBatch = Vec<(
-    String,
-    juggler_core::quota::WindowKind,
-    juggler_core::quota::QuotaSample,
-)>;
+/// Quota samples gathered in one pass: (account, window, sample, where
+/// it came from).
+type SampleBatch = crate::features::quota::records::SourcedBatch;
 
 /// Per-account persisted tail state (offsets by file path).
 #[derive(Default, serde::Serialize, serde::Deserialize)]
@@ -78,6 +75,10 @@ struct AccountOffsets {
     /// model, the last total, compactions waiting for their thread).
     #[serde(default)]
     carries: BTreeMap<String, juggler_adapters::RolloutCarry>,
+    /// Claude: how far its own limit records were read (the app's meter,
+    /// Claude Code's last `/usage`, the look back for limit hits).
+    #[serde(default)]
+    records: crate::features::quota::records::RecordsState,
 }
 
 /// The whole persisted pipeline state.
@@ -94,6 +95,10 @@ struct IngestState {
     /// `forget_duplicated_compactions`).
     #[serde(default)]
     compactions_checked: std::collections::BTreeSet<String>,
+    /// The tools' own app instance folders seen (their limit records are
+    /// read there while the folder is).
+    #[serde(default)]
+    app_instances: std::collections::BTreeSet<String>,
 }
 
 /// A Codex account's P21 check to make, with the threads whose rollouts
@@ -172,6 +177,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     let mut sample_batch: SampleBatch = Vec::new();
     let mut credits_batch: Vec<(String, juggler_adapters::CreditsSnapshot)> = Vec::new();
     let mut checks: Vec<CompactionCheck> = Vec::new();
+    // Claude's own limit records, on their slower cadence.
+    let instances =
+        crate::features::quota::records::due_instances(state, &mut ingest.app_instances, tick);
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -194,6 +202,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
+                    instances.as_deref(),
                 );
             }
             "codex" if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
@@ -252,7 +261,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             // is not new use.
             crate::usage_stats::tokens_ingested(&accounts, &store_batch, &stored);
         }
-        if usage.insert_samples(&sample_batch).is_err() {
+        if usage.insert_sourced_samples(&sample_batch).is_err() {
             return;
         }
         save_credits(&storage, &credits_batch);
@@ -260,6 +269,11 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         if let Ok(blob) = serde_json::to_string(&ingest) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
+    }
+    // D-39 (off until ruled): ask the tool itself for profiles whose own
+    // records are old.
+    if instances.is_some() {
+        crate::features::quota::probe::tick(state, &accounts);
     }
 }
 
@@ -440,7 +454,8 @@ fn session_chunks(
     chunks
 }
 
-/// Claude: spool tail every pass; transcript scan every file-scan cadence.
+/// Claude: spool tail every pass; transcript scan every file-scan cadence;
+/// its own limit records (`records`) when `instances` is given.
 fn ingest_claude(
     account: &str,
     dir: &Path,
@@ -448,7 +463,9 @@ fn ingest_claude(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
+    instances: Option<&[PathBuf]>,
 ) {
+    use juggler_core::quota::UsageSource;
     // The status line spool in AI Juggler's own folder: AI Juggler's
     // launches pass it with `--settings` (ADR-0018 §3); nothing is
     // installed into the account's folder, a copy's included.
@@ -466,7 +483,7 @@ fn ingest_claude(
         outcome.parse_errors += older.parse_errors;
     }
     for (kind, sample) in outcome.samples {
-        samples.push((account.to_owned(), kind, sample));
+        samples.push((account.to_owned(), kind, sample, UsageSource::Statusline));
         record_health(ingest, account, "statusline", Some(sample.ts), 0, "");
     }
     if outcome.parse_errors > 0 {
@@ -484,14 +501,35 @@ fn ingest_claude(
     let mut files = Vec::new();
     let _ = collect_files(&projects, &mut files, is_jsonl);
     forget_missing(ingest, account, &projects, &files);
-    ingest_files(
-        account,
-        "transcript",
-        files,
-        |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
-        ingest,
-        store,
-    );
+    // Limit hits ride in the transcripts: Claude Code's own record of a
+    // window running out, with the vendor's reset.
+    for path in &files {
+        let outcome = tail_one(
+            account,
+            "transcript",
+            path,
+            |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
+            ingest,
+            store,
+        );
+        for (kind, sample) in outcome.samples {
+            samples.push((account.to_owned(), kind, sample, UsageSource::ApiRetry));
+        }
+    }
+    if let Some(instances) = instances {
+        let records = &mut ingest
+            .offsets
+            .entry(account.to_owned())
+            .or_default()
+            .records;
+        let now_ms = juggler_core::model::Timestamp::now().millis();
+        crate::features::quota::records::look_back_for_hits(
+            account, &files, now_ms, records, samples,
+        );
+        crate::features::quota::records::read_claude_records(
+            account, dir, instances, records, samples,
+        );
+    }
 }
 
 /// Codex: rollout files under <dir>/sessions/**, offset-tracked. Their
@@ -545,7 +583,12 @@ fn ingest_codex(
             store,
         );
         for (kind, sample) in outcome.samples {
-            samples.push((account.to_owned(), kind, sample));
+            samples.push((
+                account.to_owned(),
+                kind,
+                sample,
+                juggler_core::quota::UsageSource::Rollout,
+            ));
         }
         if let Some(seen) = outcome.credits
             && latest.as_ref().is_none_or(|kept| kept.ts <= seen.ts)
@@ -652,20 +695,6 @@ fn ingest_store(
             }
         }
         Err(error) => record_health(ingest, id, "store", None, 0, &error),
-    }
-}
-
-/// Tails a set of JSONL files with per-file offsets.
-fn ingest_files(
-    account: &str,
-    source: &str,
-    files: Vec<PathBuf>,
-    tail: Tail,
-    ingest: &mut IngestState,
-    store: &mut Vec<juggler_core::quota::UsageEvent>,
-) {
-    for path in files {
-        let _ = tail_one(account, source, &path, tail, ingest, store);
     }
 }
 

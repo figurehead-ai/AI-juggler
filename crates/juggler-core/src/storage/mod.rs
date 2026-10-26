@@ -32,6 +32,7 @@ mod switch_graph;
 mod tasks;
 mod transcript_index;
 mod usage;
+mod usage_history;
 
 use std::path::Path;
 
@@ -69,13 +70,17 @@ pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use tasks::{
-    Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskLink, TaskNeed,
+    Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
     TaskQuery, TaskSession, TasksRepo,
 };
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
-pub use usage::{Stored, UsageRepo, anchor_settings_key, cap_settings_key};
+pub use usage::{CostBucket, Stored, UsageRepo, anchor_settings_key, bucket_key, cap_settings_key};
+pub use usage_history::{
+    HOUR_MS, HourRow, ModelRow, SETTLED_MS, SwitchRow, TurnRow, UsageHistoryRepo,
+    add as add_tokens, thin,
+};
 
 use crate::error::CoreError;
 
@@ -839,6 +844,7 @@ impl Storage {
         };
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
+        storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         Ok(storage)
     }
 
@@ -913,6 +919,13 @@ impl Storage {
     #[must_use]
     pub fn usage(&self) -> UsageRepo<'_> {
         UsageRepo::new(&self.conn)
+    }
+
+    /// The usage history's summary queries (0.1.5): read-only sums per
+    /// hour or day, never the raw events.
+    #[must_use]
+    pub fn usage_history(&self) -> UsageHistoryRepo<'_> {
+        UsageHistoryRepo::new(&self.conn)
     }
 
     /// Repository for the Switch Graph (schema v20, AJ-E201):

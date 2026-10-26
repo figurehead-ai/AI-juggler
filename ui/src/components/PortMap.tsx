@@ -1,3 +1,4 @@
+import { toolSpec } from "../lib/tools";
 import { useEffect, useState } from "react";
 import type { PortInventoryInfo, PortRowInfo } from "../lib/bridge";
 import { Button } from "./primitives";
@@ -14,10 +15,10 @@ import { errorText } from "../lib/bridge";
  */
 
 const CLASS_LABELS: Record<string, string> = {
-  "managed-orphan": "Managed orphan",
-  "managed-running": "Managed running",
+  "managed-orphan": "Left running",
+  "managed-running": "Running in a session",
   "re-adopted": "Picked up after restart",
-  "not-managed": "Not managed by Juggler",
+  "not-managed": "Not from AI Juggler",
 };
 
 function ageText(ms: number | null): string {
@@ -34,15 +35,15 @@ function PortRow({ row }: { row: PortRowInfo }) {
   return (
     <li
       className={`flex flex-col gap-[3px] border-t border-hairline py-2 first:border-t-0 ${
-        notManaged ? "opacity-60" : ""
+        notManaged ? "text-muted" : ""
       }`}
       data-testid={`port-row-${row.port}`}
     >
       <div className="flex items-center gap-2">
-        <span className="font-mono text-[11.5px] font-medium text-ink">:{row.port}</span>
-        <span className="font-mono text-[10.5px] text-muted">PID {row.pid}</span>
+        <span className="font-mono text-meta font-medium text-ink">:{row.port}</span>
+        <span className="text-label tabular-nums text-muted">PID {row.pid}</span>
         <span
-          className={`ml-auto inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] text-[9.5px] ${
+          className={`ml-auto inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] text-label ${
             notManaged
               ? "border-hairline text-muted"
               : row.class === "managed-orphan"
@@ -56,15 +57,15 @@ function PortRow({ row }: { row: PortRowInfo }) {
           {CLASS_LABELS[row.class] ?? row.class}
         </span>
       </div>
-      <div className="flex items-center gap-2 text-[10px] text-muted">
+      <div className="flex items-center gap-2 text-label text-muted">
         {row.provider !== null ? (
           <span className="truncate">
-            {row.provider}
+            {toolSpec(row.provider).display_name}
             {row.account !== null ? ` · ${row.account}` : ""}
             {row.project !== null ? ` · ${row.project}` : ""}
           </span>
         ) : (
-          <span>listener outside Juggler's ledger — display only</span>
+          <span>Not started by AI Juggler, so it is only shown</span>
         )}
         <span className="ml-auto whitespace-nowrap">
           {ageText(row.listener_age_ms)}
@@ -114,35 +115,35 @@ export function PortInventoryList(props: { bridge?: PortsBridge }) {
 
   if (error !== null) {
     return (
-      <p className="text-[10.5px] text-muted" role="alert" data-testid="port-inventory-error">
+      <p className="text-label text-muted" role="alert" data-testid="port-inventory-error">
         Port inventory unavailable: {error}
       </p>
     );
   }
   if (info === null) {
     return (
-      <p className="text-[10.5px] text-muted" data-testid="port-inventory-loading">
+      <p className="text-label text-muted" data-testid="port-inventory-loading">
         Reading the listener table…
       </p>
     );
   }
   if (info.note !== null) {
     return (
-      <p className="text-[10.5px] text-muted" data-testid="port-inventory-note">
+      <p className="text-label text-muted" data-testid="port-inventory-note">
         {info.note}
       </p>
     );
   }
   if (info.rows.length === 0) {
     return (
-      <p className="text-[10.5px] text-muted" data-testid="port-inventory-empty">
+      <p className="text-label text-muted" data-testid="port-inventory-empty">
         Nothing is listening on a port.
       </p>
     );
   }
   return (
     <section className="flex flex-col" data-testid="port-inventory">
-      <h4 className="text-[10.5px] font-medium text-ink">Port inventory</h4>
+      <h4 className="text-label font-medium text-ink">Port inventory</h4>
       <ul className="mt-1">
         {info.rows.map((row) => (
           <PortRow key={`${row.port}-${row.pid}`} row={row} />
@@ -169,7 +170,7 @@ export function PortWarningSheet(props: {
       aria-label="Port already held"
       data-testid="port-warning-sheet"
     >
-      <p className="text-[12px] text-ink" data-testid="port-warning-copy">
+      <p className="text-label text-ink" data-testid="port-warning-copy">
         {props.warning.message}
       </p>
       <div className="flex items-center gap-2">

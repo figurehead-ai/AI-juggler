@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::conversation::{ConversationSummary, title_from};
+use juggler_adapter::conversation::ConversationSummary;
 use juggler_core::time::timestamp_ms;
 
 use crate::claude_transcript::MessageRole;
@@ -83,6 +83,12 @@ fn pool() -> Vec<String> {
             "response_item",
             r#"{"type":"message","role":"user","content":"a second ask"}"#,
         ),
+        // The Codex app's own block: in the conversation, never its title.
+        line(
+            13,
+            "response_item",
+            r#"{"type":"message","role":"user","content":[{"type":"input_text","text":"<external_codex_apps_operation>{}</external_codex_apps_operation>"}]}"#,
+        ),
         "{ not json".to_owned(),
         String::new(),
         "   ".to_owned(),
@@ -134,8 +140,8 @@ fn whole_summary(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
         title: parsed
             .messages
             .iter()
-            .find(|message| message.role == MessageRole::User)
-            .and_then(|message| title_from(&message.text, 80)),
+            .filter(|message| message.role == MessageRole::User)
+            .find_map(|message| crate::codex_titles::title(&message.text)),
         ..ConversationSummary::default()
     };
     for line in String::from_utf8_lossy(bytes).lines() {

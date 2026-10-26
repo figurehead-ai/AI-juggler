@@ -1,29 +1,21 @@
 /**
  * E19 (AJ-E1903) — the plan behind a fold: each epic, its stories, and
- * their tasks, loaded when a fold opens (never the whole tree at once).
+ * their tasks, read a page at a time when a fold opens (never the whole
+ * tree at once).
  * The same rows as the list, indented; a fold says how many are done.
  */
-import { useEffect, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
+import { Button } from "../../components/primitives";
+import { usePagedList } from "../../lib/paged";
 import { tasksChildren, type TaskInfo } from "../../lib/ipc/tasks";
 import { TaskRow } from "./TaskRow";
 
 function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo; depth: number; plan: TaskInfo[]; poolId: string; open: string | null; now: number; onOpen: (id: string) => void }): JSX.Element {
   const [shown, setShown] = useState(depth === 0);
-  const [tasks, setTasks] = useState<TaskInfo[] | null>(null);
   const stories = plan.filter((p) => p.parent_id === item.id);
-  // A fold's tasks load the first time it opens.
-  const loaded = tasks !== null;
-  useEffect(() => {
-    if (!shown || loaded) return;
-    let alive = true;
-    void tasksChildren(poolId, item.id).then(
-      (page) => alive && setTasks(page.tasks.filter((t) => t.kind === "task")),
-      () => alive && setTasks([]),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [shown, loaded, poolId, item.id]);
+  // A fold's items are read while it's open (its stories come with the plan).
+  const under = usePagedList(shown ? `tasks-children:${poolId}:${item.id}` : null, (page) => tasksChildren(poolId, item.id, page), { keyOf: (task) => task.id });
+  const tasks = under.items.filter((t) => t.kind === "task");
   const toggle = () => setShown((was) => !was);
   return (
     <>
@@ -50,13 +42,20 @@ function Fold({ item, depth, plan, poolId, open, now, onOpen }: { item: TaskInfo
           {stories.map((story) => (
             <Fold key={story.id} item={story} depth={depth + 1} plan={plan} poolId={poolId} open={open} now={now} onOpen={onOpen} />
           ))}
-          {(tasks ?? []).map((task) => (
+          {tasks.map((task) => (
             <li key={task.id} style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
               <ul>
                 <TaskRow task={task} now={now} selected={open === task.id} onOpen={() => onOpen(task.id)} />
               </ul>
             </li>
           ))}
+          {under.hasMore && (
+            <li style={{ marginLeft: `${(depth + 1) * 18 + 24}px` }}>
+              <Button size="sm" variant="ghost" onClick={under.loadMore} disabled={under.loadingMore} data-testid="tree-more">
+                {under.loadingMore ? "Reading more…" : `Show more under ${item.title}`}
+              </Button>
+            </li>
+          )}
         </>
       )}
     </>
@@ -67,7 +66,7 @@ export function TaskTree({ plan, poolId, open, now, onOpen }: { plan: TaskInfo[]
   const roots = plan.filter((item) => item.kind === "epic" || !plan.some((p) => p.id === item.parent_id));
   if (roots.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-[13px] text-muted" data-testid="tree-empty">
+      <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="tree-empty">
         No epics or stories yet. Add an epic to plan bigger work, then its stories, then their tasks.
       </p>
     );

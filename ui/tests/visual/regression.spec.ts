@@ -153,8 +153,8 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
         await page.getByRole("button", { name: /Work Max/ }).first().click();
-        // AJ-E1533: a session's page opens on its body, the Terminal tab.
-        await expect(page.getByRole("tab", { name: "Terminal" })).toHaveAttribute("aria-selected", "true");
+        // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
+        await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
         // The terminal loads on first use (#173): a slow runner shot its
         // empty pane (#175).
         await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
@@ -168,7 +168,8 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
-        await expect(page.getByTestId("provider-install")).toBeVisible();
+        // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
+        await expect(page.getByTestId("settings-tool").first()).toBeVisible();
         await page.mouse.move(0, 0);
         await expect(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
       });
@@ -435,9 +436,12 @@ test("status is never colour-only", async ({ page }) => {
   const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
   const drawn = new Set<string>();
   const dots = await rail.locator("[data-state-dot]").all();
+  // A row is its button (its name) under the line it draws (the dot and
+  // the words), in one [data-rail-row].
   for (const dot of dots) {
-    const row = dot.locator("xpath=ancestor::button[1]");
-    const word = (await row.getByTestId("state-word").innerText()).trim();
+    const line = dot.locator("xpath=ancestor::*[@data-rail-row][1]");
+    const row = line.locator("[data-rail-item]");
+    const word = (await line.getByTestId("state-word").innerText()).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     expect.soft(word, `${id}: its state in words`).toMatch(vocabulary);
     await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
@@ -446,7 +450,7 @@ test("status is never colour-only", async ({ page }) => {
   // Needs you: why, in amber and in words, and first in the row's name.
   const needs = await rail.getByTestId("need-word").all();
   for (const mark of needs) {
-    const row = mark.locator("xpath=ancestor::button[1]");
+    const row = mark.locator("xpath=ancestor::*[@data-rail-row][1]").locator("[data-rail-item]");
     const word = (await mark.innerText()).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     expect.soft(word, `${id}: why it needs you, in words`).not.toBe("");

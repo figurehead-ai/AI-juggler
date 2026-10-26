@@ -86,7 +86,7 @@ export function CloudBackupPanel(): JSX.Element | null {
   return (
     <section
       aria-labelledby="cloud-backup-title"
-      className="flex flex-col gap-2 rounded-lg border border-hairline px-3 py-3 text-[11px]"
+      className="flex flex-col gap-2 rounded-lg border border-hairline px-3 py-3 text-label"
       data-testid="cloud-backup-panel"
     >
       <h4 id="cloud-backup-title" className="text-xs font-semibold">
@@ -107,7 +107,7 @@ export function CloudBackupPanel(): JSX.Element | null {
           <select
             value={status.schedule}
             onChange={(event) => void cloudBackupSetSchedule(event.target.value).then(setStatus)}
-            className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-[11px] text-ink"
+            className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
             aria-label="Cloud backup schedule"
             data-testid="cloud-backup-schedule"
           >
@@ -121,7 +121,7 @@ export function CloudBackupPanel(): JSX.Element | null {
           type="button"
           disabled={busy !== null}
           onClick={() => void backUp()}
-          className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] font-medium text-ink disabled:text-muted"
+          className="rounded-lg border border-hairline px-2.5 py-1 text-label font-medium text-ink disabled:text-muted"
           data-testid="cloud-backup-now"
         >
           Back up now
@@ -130,7 +130,7 @@ export function CloudBackupPanel(): JSX.Element | null {
           type="button"
           disabled={busy !== null}
           onClick={() => void openList()}
-          className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] text-ink disabled:text-muted"
+          className="rounded-lg border border-hairline px-2.5 py-1 text-label text-ink disabled:text-muted"
           data-testid="cloud-backup-restore"
         >
           Restore from Cloud…
@@ -157,7 +157,7 @@ export function CloudBackupPanel(): JSX.Element | null {
                   <input
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
-                    className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink"
+                    className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"
                     aria-label="Recovery code"
                     data-testid="cloud-backup-code"
                     autoComplete="off"
@@ -179,7 +179,7 @@ export function CloudBackupPanel(): JSX.Element | null {
                       type="button"
                       disabled={busy !== null || (needsCode && code.trim().length < 20)}
                       onClick={() => void restore(row)}
-                      className="rounded border border-hairline px-2 py-0.5 text-[11px] text-ink disabled:text-muted"
+                      className="rounded border border-hairline px-2 py-0.5 text-label text-ink disabled:text-muted"
                       data-testid="cloud-backup-pick"
                     >
                       {busy === "opening" ? "Opening…" : "Restore…"}

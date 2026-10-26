@@ -38,8 +38,9 @@ sees your password or your tokens.
 
 - **The list on the left** shows what's open right now, grouped by place:
   the app and profile each session runs in, such as "Claude app · Work".
-  What needs you is on top. Choose **Go to it**, or press Enter, to bring a
-  session's app forward. See [What's open, and getting to it](whats-open.md).
+  What needs you is on top. Click a session, or press Enter, to open its
+  page here. Its **↗** (or ⌘Enter) brings its app forward. See
+  [What's open, and getting to it](whats-open.md).
 - **Home** shows what needs you, the apps you have open, and how much room
   each account has left.
 - **New session** starts the tool you choose, on the profile you choose, in

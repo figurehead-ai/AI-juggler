@@ -37,7 +37,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 
 #[test]
 fn codex_is_a_listed_provider() {
-    let providers = commands::harnesses_list();
+    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
     let codex = providers
         .iter()
         .find(|p| p.id == CODEX_ID)

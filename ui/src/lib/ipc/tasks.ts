@@ -14,14 +14,15 @@ import { useEffect, useState } from "react";
 import { invoke, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { TaskInfo } from "../../types/generated/TaskInfo";
-import type { TasksPage } from "../../types/generated/TasksPage";
+import type { TaskCounts } from "../../types/generated/TaskCounts";
+import type { Page, PageRequest } from "../paged";
 import type { TaskDetail } from "../../types/generated/TaskDetail";
 import type { TaskInput } from "../../types/generated/TaskInput";
 import type { TaskEdit } from "../../types/generated/TaskEdit";
 import type { TaskNeedInfo } from "../../types/generated/TaskNeedInfo";
 import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
 
-export type { TaskInfo, TasksPage, TaskDetail, TaskInput, TaskEdit, TaskNeedInfo, TaskStartedInfo };
+export type { TaskInfo, TaskCounts, TaskDetail, TaskInput, TaskEdit, TaskNeedInfo, TaskStartedInfo };
 
 /** The event the backend sends when tasks change (the pools' ids). */
 export const TASKS_CHANGED = "tasks://changed";
@@ -43,7 +44,6 @@ interface Seams {
 }
 const seams = () => window as unknown as Seams;
 const record = (call: string) => (seams().__AIJ_TASKS_CALLS__ ??= []).push(call);
-const PAGE = 40;
 const RANK = ["ready", "in_progress", "in_review", "blocked", "todo", "done", "cancelled"];
 const PRIORITY = ["urgent", "high", "normal", "low"];
 
@@ -100,15 +100,29 @@ function previewDetail(taskId: string): TaskDetail {
   };
 }
 
-function counts(poolId: string): TasksPage["counts"] {
-  const all = preview().tasks.filter((t) => t.pool_id === poolId && t.kind === "task");
-  return RANK.map((status) => ({ status, count: all.filter((t) => t.status === status).length })).filter((c) => c.count > 0);
+/** The preview's rows as one keyset page (the backend's cursor is
+ * opaque; the preview's names the last row's index). */
+function previewPage(rows: TaskInfo[], page: PageRequest): Page<TaskInfo> {
+  const from = page.cursor ? Number(page.cursor.slice(1)) : 0;
+  const limit = Math.min(Math.max(page.limit ?? 50, 1), 200);
+  const items = rows.slice(from, from + limit).map((t) => ({ ...t }));
+  return { items, next_cursor: rows.length > from + limit ? `p${from + limit}` : null, total: rows.length };
+}
+
+/** How many of a pool's tasks (the work) are in each status. */
+export async function tasksCounts(poolId: string): Promise<TaskCounts> {
+  if (!hasLiveBackend()) {
+    const all = preview().tasks.filter((t) => t.pool_id === poolId && t.kind === "task");
+    const n = (status: string) => all.filter((t) => t.status === status).length;
+    return { ready: n("ready"), in_progress: n("in_progress"), in_review: n("in_review"), blocked: n("blocked"), todo: n("todo"), done: n("done"), cancelled: n("cancelled") };
+  }
+  return invoke<TaskCounts>("tasks_counts", { poolId });
 }
 
 /** One page of a pool's tasks (the work: epics and stories are the
  * plan), ready work first. `filter`: `open` (the default), `closed`,
  * `mine`, `all`, or one status. */
-export async function tasksList(poolId: string, filter: string | null = null, words: string | null = null, cursor: string | null = null): Promise<TasksPage> {
+export async function tasksList(poolId: string, filter: string | null, words: string | null, page: PageRequest): Promise<Page<TaskInfo>> {
   if (!hasLiveBackend()) {
     const want = (t: TaskInfo) => {
       switch (filter ?? "open") {
@@ -128,37 +142,36 @@ export async function tasksList(poolId: string, filter: string | null = null, wo
     const rows = preview()
       .tasks.filter((t) => t.pool_id === poolId && t.kind === "task" && want(t) && (!needle || t.title.toLowerCase().includes(needle)))
       .sort(order);
-    const from = cursor ? Number(cursor.slice(1)) : 0;
-    return { tasks: rows.slice(from, from + PAGE).map((t) => ({ ...t })), next: rows.length > from + PAGE ? `o${from + PAGE}` : null, counts: counts(poolId) };
+    return previewPage(rows, page);
   }
-  return invoke<TasksPage>("tasks_list", { poolId, filter, words, cursor });
+  return invoke<Page<TaskInfo>>("tasks_list", { poolId, filter, words, page });
 }
 
-/** A pool's epics and stories (the plan's folds). */
-export async function tasksPlan(poolId: string): Promise<TaskInfo[]> {
-  if (!hasLiveBackend()) return preview().tasks.filter((t) => t.pool_id === poolId && t.kind !== "task").sort(order);
-  return invoke<TaskInfo[]>("tasks_plan", { poolId });
+/** One page of a pool's epics and stories (the plan's folds). */
+export async function tasksPlan(poolId: string, page: PageRequest): Promise<Page<TaskInfo>> {
+  if (!hasLiveBackend()) return previewPage(preview().tasks.filter((t) => t.pool_id === poolId && t.kind !== "task").sort(order), page);
+  return invoke<Page<TaskInfo>>("tasks_plan", { poolId, page });
 }
 
 /** One page of the items under an epic or story (`""`: tasks with none). */
-export async function tasksChildren(poolId: string, parent: string, cursor: string | null = null): Promise<TasksPage> {
+export async function tasksChildren(poolId: string, parent: string, page: PageRequest): Promise<Page<TaskInfo>> {
   if (!hasLiveBackend()) {
     const rows = preview()
       .tasks.filter((t) => t.pool_id === poolId && (parent ? t.parent_id === parent : !t.parent_id && t.kind === "task"))
       .sort(order);
-    return { tasks: rows.map((t) => ({ ...t })), next: null, counts: [] };
+    return previewPage(rows, page);
   }
-  return invoke<TasksPage>("tasks_children", { poolId, parent, cursor });
+  return invoke<Page<TaskInfo>>("tasks_children", { poolId, parent, page });
 }
 
-/** A session's tasks (what it holds, what it worked). */
-export async function tasksOfSession(sessionId: string): Promise<TaskInfo[]> {
+/** One page of a session's tasks (what it holds, what it worked). */
+export async function tasksOfSession(sessionId: string, page: PageRequest): Promise<Page<TaskInfo>> {
   if (!hasLiveBackend()) {
     const data = preview();
     const ids = data.sessions[sessionId] ?? [];
-    return data.tasks.filter((t) => ids.includes(t.id) || t.holder_session_id === sessionId).sort(order);
+    return previewPage(data.tasks.filter((t) => ids.includes(t.id) || t.holder_session_id === sessionId).sort(order), page);
   }
-  return invoke<TaskInfo[]>("tasks_session", { sessionId });
+  return invoke<Page<TaskInfo>>("tasks_session", { sessionId, page });
 }
 
 /** One task in full (`cursor`: older history). */

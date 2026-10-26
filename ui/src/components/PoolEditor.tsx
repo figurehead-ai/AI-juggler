@@ -80,7 +80,7 @@ export function PoolEditor({
         )}
 
         <section aria-label="Sessions" className="flex flex-col gap-1.5">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-faint">Sessions</p>
+          <p className="text-label uppercase tracking-[0.14em] text-faint">Sessions</p>
           {members.length === 0 ? (
             <p className="text-xs text-muted" data-testid="pool-empty">
               {isDefault ? "Every session of its project is in another pool." : "No sessions yet. Add one below, or from a session's menu."}
@@ -93,15 +93,15 @@ export function PoolEditor({
                 return (
                   <li key={session.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-hairline/60 px-2.5 py-1.5" data-testid="pool-member">
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[12.5px] text-ink">{where.title}</span>
-                      {where.detail && <span className="truncate text-[11px] text-muted">{where.detail}</span>}
+                      <span className="truncate text-meta text-ink">{where.title}</span>
+                      {where.detail && <span className="truncate text-label text-muted">{where.detail}</span>}
                     </span>
                     <select
                       aria-label={`Role for ${named}`}
                       value={roleOf(pools, session.id)}
                       disabled={busy}
                       onChange={(event) => void run(() => poolSetRole(session.id, event.target.value as PoolRole))}
-                      className="h-7 shrink-0 rounded-lg border border-hairline bg-surface-2 px-1.5 text-[11.5px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+                      className="h-7 shrink-0 rounded-lg border border-hairline bg-surface-2 px-1.5 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
                       data-testid="pool-member-role"
                     >
                       {ROLES.map((entry) => (
@@ -117,7 +117,7 @@ export function PoolEditor({
                         onClick={() => void run(() => poolMove(session.id, defaultPoolIdOf(session.project_id)))}
                         aria-label={`Take out ${named}`}
                         title="Back to its project's pool"
-                        className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                        className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                         data-testid="pool-member-out"
                       >
                         Take out
@@ -137,7 +137,7 @@ export function PoolEditor({
                 const id = event.target.value;
                 if (id) void run(() => poolMove(id, pool.id));
               }}
-              className="h-8 rounded-lg border border-dashed border-hairline bg-transparent px-2 text-[11.5px] text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="h-8 rounded-lg border border-dashed border-hairline bg-transparent px-2 text-label text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
               data-testid="pool-add"
             >
               <option value="">Add a session…</option>
@@ -160,7 +160,7 @@ export function PoolEditor({
         )}
 
         <details className="rounded-lg border border-hairline/60 px-2.5 py-1.5" data-testid="pool-access-fold">
-          <summary className="cursor-pointer select-none text-[12px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
+          <summary className="cursor-pointer select-none text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
             What agents may do: <span className="text-muted">{levelLabel(pool.access.level)}</span>
           </summary>
           <div className="mt-2">
@@ -176,7 +176,7 @@ export function PoolEditor({
 
         <div className="flex items-center justify-between gap-2">
           {isDefault ? (
-            <span className="text-[11px] text-faint">It's always here: every session of its project that isn't in another pool.</span>
+            <span className="text-label text-faint">It's always here: every session of its project that isn't in another pool.</span>
           ) : confirmDelete ? (
             <span className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted" data-testid="pool-delete-confirm">
               <span>

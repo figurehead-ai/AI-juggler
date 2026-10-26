@@ -18,7 +18,8 @@ use juggler_core::model::TokenCounts;
 use crate::claude_transcript::{MessageRole, ParsedMessage, ParsedTranscript};
 
 /// User-role messages Codex injects itself (environment, instructions,
-/// permissions) — context, not something the person typed.
+/// permissions) — context, not something the person typed. Left out of
+/// the conversation.
 const INJECTED_PREFIXES: &[&str] = &[
     "<environment_context>",
     "<user_instructions>",
@@ -26,6 +27,44 @@ const INJECTED_PREFIXES: &[&str] = &[
     "<turn_aborted>",
     "# AGENTS.md instructions",
 ];
+
+/// Whether a user-role message is one Codex itself injects (left out of
+/// the conversation).
+fn is_codex_context(body: &str) -> bool {
+    let body = body.trim_start();
+    INJECTED_PREFIXES
+        .iter()
+        .any(|prefix| body.starts_with(prefix))
+}
+
+/// Whether a user-role message is one Codex, its app or a harness injects
+/// rather than something the person typed, so never a title: Codex's own
+/// context, or any tag-wrapped block (the app's `<external_…>`, …). The
+/// conversation keeps the latter: a person can open with a tag too.
+#[must_use]
+pub fn is_injected(body: &str) -> bool {
+    is_codex_context(body) || is_tagged(body.trim_start())
+}
+
+/// Whether `text` opens with a tag: `<`, an identifier-like name, then
+/// `>` (or attributes and a `>` on the same line). `<3` or `<- see` is
+/// not a tag.
+fn is_tagged(text: &str) -> bool {
+    let Some(rest) = text.strip_prefix('<') else {
+        return false;
+    };
+    let rest = rest.strip_prefix('/').unwrap_or(rest);
+    if !rest.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+        return false;
+    }
+    let name_end = rest
+        .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | ':')))
+        .unwrap_or(rest.len());
+    let after = &rest[name_end..];
+    after.starts_with('>')
+        || (after.starts_with([' ', '\t'])
+            && after.lines().next().is_some_and(|line| line.contains('>')))
+}
 
 /// Parses rollout bytes. Never fails; damage is counted.
 #[must_use]
@@ -116,15 +155,11 @@ impl RolloutParser {
                     _ => return, // developer/system instructions
                 };
                 let body = message_text(payload.get("content"));
-                if body.trim().is_empty()
-                    || (role == MessageRole::User
-                        && INJECTED_PREFIXES
-                            .iter()
-                            .any(|prefix| body.trim_start().starts_with(prefix)))
+                if body.trim().is_empty() || (role == MessageRole::User && is_codex_context(&body))
                 {
                     return;
                 }
-                if role == MessageRole::User && self.first_ask.is_none() {
+                if role == MessageRole::User && self.first_ask.is_none() && !is_injected(&body) {
                     self.first_ask = Some(body.clone());
                 }
                 if !self.keep_messages {
@@ -180,7 +215,8 @@ impl RolloutParser {
         }
     }
 
-    /// The first thing the user asked (not the context Codex injects).
+    /// The first thing the user asked (not a block Codex, its app or a
+    /// harness injects: [`is_injected`]).
     #[must_use]
     pub fn first_ask(&self) -> Option<&str> {
         self.first_ask.as_deref()
@@ -512,10 +548,7 @@ pub(crate) mod reference {
                     };
                     let body = message_text(payload.get("content"));
                     if body.trim().is_empty()
-                        || (role == MessageRole::User
-                            && INJECTED_PREFIXES
-                                .iter()
-                                .any(|prefix| body.trim_start().starts_with(prefix)))
+                        || (role == MessageRole::User && is_codex_context(&body))
                     {
                         continue;
                     }

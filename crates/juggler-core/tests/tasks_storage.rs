@@ -107,7 +107,6 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
                 pool_id: Some("pool-team"),
                 ..TaskQuery::default()
             },
-            0,
             10,
         )
         .unwrap();

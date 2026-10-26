@@ -1,7 +1,7 @@
 /**
  * E19 — whether a session holds or worked a task (its page shows a Tasks
- * tab only then). One small read when the page opens, again when tasks
- * change.
+ * tab only then). One small read (a page of one row) when the page
+ * opens, again when tasks change.
  */
 import { useEffect, useState } from "react";
 import { onTasksChanged, tasksOfSession } from "../../lib/ipc/tasks";
@@ -12,7 +12,7 @@ export function useSessionTasks(sessionId: string | null): boolean {
     setHas(false);
     if (!sessionId) return;
     let alive = true;
-    const read = () => void tasksOfSession(sessionId).then((rows) => alive && setHas(rows.length > 0), () => undefined);
+    const read = () => void tasksOfSession(sessionId, { cursor: null, limit: 1 }).then((page) => alive && setHas(page.items.length > 0), () => undefined);
     read();
     const off = onTasksChanged(read);
     return () => {

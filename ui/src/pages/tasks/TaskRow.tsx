@@ -36,24 +36,24 @@ export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: Tas
         data-kind={task.kind}
       >
         <span className="flex min-w-0 items-baseline gap-2">
-          {task.kind !== "task" && <span className="shrink-0 text-[12px] font-semibold uppercase tracking-wider text-muted">{KIND_WORDS[task.kind]}</span>}
-          <span className={"min-w-0 flex-1 truncate text-[14px] text-ink " + (task.status === "done" || task.status === "cancelled" ? "text-muted line-through decoration-hairline" : "font-medium")}>{task.title}</span>
-          <span className="shrink-0 text-[12px] text-muted">{ago(task.updated_at_ms, now)}</span>
+          {task.kind !== "task" && <span className="shrink-0 text-label font-semibold uppercase tracking-wider text-muted">{KIND_WORDS[task.kind]}</span>}
+          <span className={"min-w-0 flex-1 truncate text-body text-ink " + (task.status === "done" || task.status === "cancelled" ? "text-muted line-through decoration-hairline" : "font-medium")}>{task.title}</span>
+          <span className="shrink-0 text-label text-muted">{ago(task.updated_at_ms, now)}</span>
         </span>
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <TaskStatus status={task.status} />
-          <span className="font-mono text-[12px] text-muted">{task.id}</span>
+          <span className="font-mono text-label text-muted">{task.id}</span>
           {task.holder ? (
-            <span className="min-w-0 truncate text-[13px] text-muted">
+            <span className="min-w-0 truncate text-meta text-muted">
               {task.holder === "You" ? "Yours" : task.holder}
             </span>
           ) : (
-            task.status === "ready" && task.kind === "task" && <span className="text-[13px] text-muted">Anyone can take it</span>
+            task.status === "ready" && task.kind === "task" && <span className="text-meta text-muted">Anyone can take it</span>
           )}
-          {task.blocked_by.length > 0 && <span className="truncate text-[13px] text-danger">Waits on {task.blocked_by.join(", ")}</span>}
-          {items && <span className="text-[13px] text-muted">{items}</span>}
-          {urgent && <span className="text-[12px] font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
-          {task.issue_label && <span className="truncate font-mono text-[12px] text-muted">{task.issue_label}</span>}
+          {task.blocked_by.length > 0 && <span className="truncate text-meta text-danger">Waits on {task.blocked_by.join(", ")}</span>}
+          {items && <span className="text-meta text-muted">{items}</span>}
+          {urgent && <span className="text-label font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
+          {task.issue_label && <span className="truncate font-mono text-label text-muted">{task.issue_label}</span>}
         </span>
       </button>
     </li>

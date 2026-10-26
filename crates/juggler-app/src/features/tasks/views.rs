@@ -9,20 +9,21 @@ use std::sync::Arc;
 
 use juggler_agentbridge::wire::TaskCreateArgs;
 use juggler_core::model::SessionId;
-use juggler_core::storage::{Storage, TASK_USER, Task, TaskChange, TaskQuery};
+use juggler_core::storage::{Storage, TASK_USER, Task, TaskChange, TaskKey, TaskQuery};
 use juggler_core::tasks::{LinkKind, TaskKind, TaskStatus};
 
 use super::Actor;
 use super::apply::{self, Assignee};
 use super::dto::{
-    TaskCountInfo, TaskDetail, TaskEdit, TaskEventInfo, TaskInfo, TaskInput, TaskIssueInfo,
-    TaskLinkInfo, TaskSessionInfo, TaskThreadInfo, TasksPage,
+    TaskCounts, TaskDetail, TaskEdit, TaskEventInfo, TaskInfo, TaskInput, TaskIssueInfo,
+    TaskLinkInfo, TaskSessionInfo, TaskThreadInfo,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::paging::{Page, PageRequest, SortKey, page, page_of_fetched};
 use crate::state::AppState;
 
-/// A page of the list.
+/// The items a task's page shows under it.
 pub const PAGE: u32 = 40;
 /// A page of a task's history.
 pub const HISTORY: u32 = 20;
@@ -70,11 +71,49 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
     }
 }
 
-fn offset_of(cursor: Option<&str>) -> u32 {
-    cursor
-        .and_then(|c| c.strip_prefix('o'))
-        .and_then(|n| n.parse().ok())
-        .unwrap_or(0)
+/// A task's place as the IPC's keyset cursor names it (`paging.rs`).
+fn sort_key(task: &Task) -> SortKey {
+    let key = task.key();
+    SortKey::new(
+        [i64::from(key.rank), i64::from(key.priority), -key.seq],
+        task.id.clone(),
+    )
+}
+
+/// The task a cursor starts after.
+fn after_of(request: &PageRequest) -> AppResult<Option<TaskKey>> {
+    Ok(request
+        .start_after()?
+        .and_then(|key| match key.ranks.as_slice() {
+            [rank, priority, seq] => Some(TaskKey {
+                rank: u8::try_from(*rank).ok()?,
+                priority: u8::try_from(*priority).ok()?,
+                seq: -seq,
+            }),
+            _ => None,
+        }))
+}
+
+/// One page of `query` (after the request's cursor), as rows.
+fn page_of(
+    state: &Arc<AppState>,
+    query: TaskQuery<'_>,
+    request: &PageRequest,
+) -> AppResult<Page<TaskInfo>> {
+    let limit = request.limit();
+    let storage = lock_storage_arc(state)?;
+    let rows = storage.tasks().list(
+        &TaskQuery {
+            after: after_of(request)?,
+            ..query
+        },
+        u32::try_from(limit + 1).unwrap_or(u32::MAX),
+    )?;
+    let fetched = rows
+        .iter()
+        .map(|task| (sort_key(task), info(&storage, task)))
+        .collect();
+    Ok(page_of_fetched(fetched, limit, None))
 }
 
 /// One page of a pool's tasks (the work; epics and stories are the plan):
@@ -83,14 +122,14 @@ fn offset_of(cursor: Option<&str>) -> u32 {
 ///
 /// # Errors
 ///
-/// Validation for an unknown filter; storage failures.
+/// Validation for an unknown filter or cursor; storage failures.
 pub fn list(
     state: &Arc<AppState>,
     pool_id: &str,
     filter: Option<&str>,
     words: Option<&str>,
-    cursor: Option<&str>,
-) -> AppResult<TasksPage> {
+    request: &PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     let open: Vec<TaskStatus> = TaskStatus::ALL
         .into_iter()
         .filter(|s| s.is_open())
@@ -112,11 +151,9 @@ pub fn list(
             None,
         ),
     };
-    let offset = offset_of(cursor);
-    let storage = lock_storage_arc(state)?;
-    let repo = storage.tasks();
-    let rows = repo.list(
-        &TaskQuery {
+    page_of(
+        state,
+        TaskQuery {
             pool_id: Some(pool_id),
             assignees,
             statuses: statuses.as_deref(),
@@ -126,88 +163,91 @@ pub fn list(
             words: words.filter(|w| !w.trim().is_empty()),
             ..TaskQuery::default()
         },
-        offset,
-        PAGE + 1,
-    )?;
-    let next = (rows.len() > PAGE as usize).then(|| format!("o{}", offset + PAGE));
-    Ok(TasksPage {
-        tasks: rows
-            .iter()
-            .take(PAGE as usize)
-            .map(|task| info(&storage, task))
-            .collect(),
-        next,
-        counts: repo
-            .counts(pool_id, Some(&[TaskKind::Task]))?
-            .into_iter()
-            .map(|(status, count)| TaskCountInfo {
-                status: status.as_str().to_owned(),
-                count,
-            })
-            .collect(),
-    })
+        request,
+    )
 }
 
-/// The pool's plan: its epics and stories (the tree's folds), at most 200.
+/// How many of a pool's tasks (the work) are in each honest status: the
+/// filter's numbers.
 ///
 /// # Errors
 ///
 /// Storage failures.
-pub fn plan(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<TaskInfo>> {
-    let storage = lock_storage_arc(state)?;
-    let rows = storage.tasks().list(
-        &TaskQuery {
+pub fn counts(state: &Arc<AppState>, pool_id: &str) -> AppResult<TaskCounts> {
+    let mut out = TaskCounts::default();
+    for (status, count) in lock_storage_arc(state)?
+        .tasks()
+        .counts(pool_id, Some(&[TaskKind::Task]))?
+    {
+        let slot = match status {
+            TaskStatus::Ready => &mut out.ready,
+            TaskStatus::InProgress => &mut out.in_progress,
+            TaskStatus::InReview => &mut out.in_review,
+            TaskStatus::Blocked => &mut out.blocked,
+            TaskStatus::Todo => &mut out.todo,
+            TaskStatus::Done => &mut out.done,
+            TaskStatus::Cancelled => &mut out.cancelled,
+        };
+        *slot = count;
+    }
+    Ok(out)
+}
+
+/// One page of the pool's plan: its epics and stories (the tree's folds).
+///
+/// # Errors
+///
+/// Validation for a cursor this app didn't make; storage failures.
+pub fn plan(
+    state: &Arc<AppState>,
+    pool_id: &str,
+    request: &PageRequest,
+) -> AppResult<Page<TaskInfo>> {
+    page_of(
+        state,
+        TaskQuery {
             pool_id: Some(pool_id),
             kinds: Some(&[TaskKind::Epic, TaskKind::Story]),
             ..TaskQuery::default()
         },
-        0,
-        200,
-    )?;
-    Ok(rows.iter().map(|task| info(&storage, task)).collect())
+        request,
+    )
 }
 
-/// One page of the items under an epic or story (`""`: those with none).
+/// One page of the items under an epic or story (`""`: tasks with none).
 ///
 /// # Errors
 ///
-/// Storage failures.
+/// Validation for a cursor this app didn't make; storage failures.
 pub fn children(
     state: &Arc<AppState>,
     pool_id: &str,
     parent: &str,
-    cursor: Option<&str>,
-) -> AppResult<TasksPage> {
-    let offset = offset_of(cursor);
-    let storage = lock_storage_arc(state)?;
-    let rows = storage.tasks().list(
-        &TaskQuery {
+    request: &PageRequest,
+) -> AppResult<Page<TaskInfo>> {
+    page_of(
+        state,
+        TaskQuery {
             pool_id: Some(pool_id),
             parent: Some(parent),
             kinds: (parent.is_empty()).then_some(&[TaskKind::Task][..]),
             ..TaskQuery::default()
         },
-        offset,
-        PAGE + 1,
-    )?;
-    Ok(TasksPage {
-        next: (rows.len() > PAGE as usize).then(|| format!("o{}", offset + PAGE)),
-        tasks: rows
-            .iter()
-            .take(PAGE as usize)
-            .map(|task| info(&storage, task))
-            .collect(),
-        counts: Vec::new(),
-    })
+        request,
+    )
 }
 
-/// A session's tasks: what it holds (any session of its Work item) and
-/// what it worked, open ones first.
+/// One page of a session's tasks: what it holds (any session of its Work
+/// item) and what it worked, open ones first.
 ///
 /// # Errors
 ///
-/// Storage failures.
-pub fn of_session(state: &Arc<AppState>, session_id: &str) -> AppResult<Vec<TaskInfo>> {
+/// Validation for a cursor this app didn't make; storage failures.
+pub fn of_session(
+    state: &Arc<AppState>,
+    session_id: &str,
+    request: &PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     let storage = lock_storage_arc(state)?;
     let session = SessionId::new(session_id);
     let refs = crate::features::messages::refs_of(&storage, &session);
@@ -217,8 +257,7 @@ pub fn of_session(state: &Arc<AppState>, session_id: &str) -> AppResult<Vec<Task
             assignees: Some(&refs),
             ..TaskQuery::default()
         },
-        0,
-        50,
+        200,
     )?;
     let sessions: Vec<String> = refs
         .iter()
@@ -231,14 +270,11 @@ pub fn of_session(state: &Arc<AppState>, session_id: &str) -> AppResult<Vec<Task
             rows.push(task);
         }
     }
-    rows.sort_by_key(|t| {
-        (
-            t.status.rank(),
-            t.priority.rank(),
-            std::cmp::Reverse(t.updated_at),
-        )
-    });
-    Ok(rows.iter().map(|task| info(&storage, task)).collect())
+    let keyed: Vec<(SortKey, TaskInfo)> = rows
+        .iter()
+        .map(|task| (sort_key(task), info(&storage, task)))
+        .collect();
+    page(keyed, |(key, _)| key.clone(), request).map(|page| page.map(|(_, row)| row))
 }
 
 /// AJ-E1904: a switch history node's task, as `aj-7f3c · title`: the
@@ -401,7 +437,6 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
             parent: Some(&task.id),
             ..TaskQuery::default()
         },
-        0,
         PAGE,
     )?;
     let session_asked = repo

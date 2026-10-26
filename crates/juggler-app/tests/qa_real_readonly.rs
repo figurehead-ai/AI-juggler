@@ -216,7 +216,10 @@ fn real_setup_read_models() {
     );
     report.insert(
         "cost_rollups".into(),
-        serde_json::to_value(commands::cost_rollups(managed.clone(), None)).unwrap(),
+        serde_json::to_value(
+            tauri::async_runtime::block_on(commands::cost_rollups(managed.clone(), None)).unwrap(),
+        )
+        .unwrap(),
     );
 
     // This Mac: the app's 2 s process tick (collector table, then the
@@ -297,4 +300,43 @@ fn real_setup_read_models() {
     )
     .unwrap();
     eprintln!("wrote {}", out.display());
+}
+
+/// Before a release: the update's own backup step, run on a COPY of the
+/// user's real AI Juggler data (`AIJ_QA_APP_DATA_COPY`, a folder holding a
+/// consistent copy of `juggler.sqlite`, e.g. from `sqlite3 … ".backup …"`).
+/// Two updates in a row failed on the real setup and nowhere else (an
+/// unsigned version, then a project name read as a key); this runs what
+/// the update runs, on what the user really has. Ignored and a no-op
+/// unless the variable is set; it never opens the real folder.
+#[test]
+#[ignore = "QA before a release; needs AIJ_QA_APP_DATA_COPY"]
+fn update_preflight_on_a_copy_of_the_real_data() {
+    let Some(copy) = std::env::var_os("AIJ_QA_APP_DATA_COPY").map(PathBuf::from) else {
+        eprintln!("AIJ_QA_APP_DATA_COPY not set: nothing to do");
+        return;
+    };
+    let real = dirs::data_dir().unwrap_or_default().join("AI Juggler");
+    assert!(
+        !copy.starts_with(&real),
+        "AIJ_QA_APP_DATA_COPY must be a copy, never the real folder"
+    );
+    assert!(
+        copy.join("juggler.sqlite").exists(),
+        "the copy holds juggler.sqlite"
+    );
+    let state = Arc::new(AppState::init(copy.clone()).unwrap());
+    let dest = copy.join("preflight-before-update.ajbackup");
+    let _ = std::fs::remove_file(&dest);
+    let written = juggler_app::backup::backup_before_update(&state, &dest, &mut |_, _| {});
+    assert!(
+        written.is_ok(),
+        "the update's backup would fail: {}",
+        written.err().map(|e| e.to_string()).unwrap_or_default()
+    );
+    assert!(dest.exists());
+    eprintln!(
+        "update preflight: the backup before an update is written ({} bytes)",
+        std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0)
+    );
 }

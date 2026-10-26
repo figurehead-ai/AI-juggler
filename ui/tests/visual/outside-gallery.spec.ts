@@ -53,7 +53,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`an outside conversation's page — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
+    // A rail row opens its page here; its ↗ goes to its app.
     await openOutsidePage(page);
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await shoot(page, "conversation-page", theme);

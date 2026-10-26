@@ -81,7 +81,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
           Rules
         </h3>
         {rules.summary && (
-          <span className={`text-[11px] ${rules.in_sync ? "text-muted" : "text-warning"}`} data-testid="project-sync-summary">
+          <span className={`text-label ${rules.in_sync ? "text-muted" : "text-warning"}`} data-testid="project-sync-summary">
             {rules.summary}
           </span>
         )}
@@ -159,17 +159,17 @@ function RulesRow({
     >
       <label className={`flex items-center gap-2 ${file.can_be_master ? "" : "pl-5"}`}>
         {file.can_be_master && <input type="radio" name="rules-master" checked={isMaster} onChange={onPick} aria-label={`Use ${file.name} as the master`} />}
-        <span className="font-mono text-[12px] text-ink">{file.name}</span>
+        <span className="font-mono text-label text-ink">{file.name}</span>
       </label>
       <span className="text-muted">{file.tools.join(", ")}</span>
       <span className={differs ? "text-warning" : "text-muted"}>{file.words}</span>
-      {file.modified_ms !== null && <span className="text-faint">changed {agoWords(file.modified_ms, Date.now())}</span>}
+      {file.modified_ms !== null && <span className="text-muted">changed {agoWords(file.modified_ms, Date.now())}</span>}
       {canApply(file) && (
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={isOpen}
-          className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2"
+          className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2"
         >
           {isOpen ? "Hide changes" : "Show changes"}
         </button>
@@ -259,7 +259,7 @@ function HowButton({ pressed, onClick, children }: { pressed: boolean; onClick: 
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`rounded-lg border px-2 py-1 text-[11px] ${pressed ? "border-accent/60 bg-accent-soft text-ink" : "border-hairline text-muted hover:bg-surface-2"}`}
+      className={`rounded-lg border px-2 py-1 text-label ${pressed ? "border-accent/60 bg-accent-soft text-ink" : "border-hairline text-muted hover:bg-surface-2"}`}
     >
       {children}
     </button>
@@ -270,7 +270,7 @@ function HowButton({ pressed, onClick, children }: { pressed: boolean; onClick: 
 export function DiffView({ diff }: { diff: RulesDiffInfo }) {
   if (diff.groups.length === 0) return <p className="text-xs text-muted">Nothing changes.</p>;
   return (
-    <div className="overflow-x-auto rounded border border-hairline bg-canvas font-mono text-[11px] leading-relaxed" data-testid="sync-diff">
+    <div className="overflow-x-auto rounded border border-hairline bg-canvas font-mono text-label leading-relaxed" data-testid="sync-diff">
       {diff.groups.map((group, index) => (
         <div key={index} className={index > 0 ? "border-t border-dashed border-hairline" : ""}>
           {group.map((line, at) => (
@@ -278,7 +278,7 @@ export function DiffView({ diff }: { diff: RulesDiffInfo }) {
               key={at}
               className={`flex gap-2 px-2 ${line.change === "added" ? "bg-success-soft" : line.change === "removed" ? "bg-danger-soft" : ""}`}
             >
-              <span className="w-8 shrink-0 select-none text-right text-faint">{line.old_number ?? ""}</span>
+              <span className="w-8 shrink-0 select-none text-right text-muted">{line.old_number ?? ""}</span>
               <span className="w-3 shrink-0 select-none text-muted" aria-hidden="true">
                 {line.change === "added" ? "+" : line.change === "removed" ? "−" : ""}
               </span>

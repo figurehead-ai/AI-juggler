@@ -148,6 +148,8 @@
 | AJ-E2108 | (no claims yet) | 2026-10-24 | [manifest](AJ-E2108/manifest.md) |
 | AJ-E2109 | (no claims yet) | 2026-10-24 | [manifest](AJ-E2109/manifest.md) |
 | AJ-E2110 | PASS7 UNPROVEN2 | 2026-10-24 | [manifest](AJ-E2110/manifest.md) |
+| AJ-E2203 | PASS5 | 2026-10-25 | [manifest](AJ-E2203/manifest.md) |
+| AJ-E2204 | PASS4 | 2026-10-25 | [manifest](AJ-E2204/manifest.md) |
 | AJ-E2301 | FAIL1 PASS10 UNPROVEN2 | 2026-10-25 | [manifest](AJ-E2301/manifest.md) |
 | AJ-E2302 | PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2302/manifest.md) |
 | AJ-E2303 | FAIL1 PASS9 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2303/manifest.md) |

@@ -140,11 +140,11 @@ function Field({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-0.5 py-1.5" data-testid={testId}>
-      <dt className="text-[11px] text-muted">{label}</dt>
+      <dt className="text-label text-muted">{label}</dt>
       <dd className="text-sm">
         {value ?? <span className="text-muted">Unavailable — not reported</span>}
       </dd>
-      {value !== null && <dd className="text-[10px] text-muted">{source}</dd>}
+      {value !== null && <dd className="text-label text-muted">{source}</dd>}
     </div>
   );
 }
@@ -187,7 +187,7 @@ function InstanceOverview({
         />
       </dl>
       {/* AJ-E2108: a session's messages stay on its own Mac. */}
-      <p className="mt-3 text-[12px] text-muted" data-testid="last-messages-remote">Last messages: open on {machine.label} to read.</p>
+      <p className="mt-3 text-label text-muted" data-testid="last-messages-remote">Last messages: open on {machine.label} to read.</p>
     </Card>
   );
 }
@@ -204,7 +204,7 @@ function InstanceQuality({
   const source = `from ${machine.label} · measured ${ago(instance.measured_at_ms, now)}`;
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="remote-quality">
-      <p className="text-[11px] text-muted">Measurable signals only — no composite score.</p>
+      <p className="text-label text-muted">Measurable signals only — no composite score.</p>
       <dl>
         <Field
           label="Process health"
@@ -336,12 +336,12 @@ function InstanceActions({
           </span>
         )}
         {reason && (
-          <span id="remote-stop-reason" className="text-[11px] text-muted" data-testid="remote-stop-reason">
+          <span id="remote-stop-reason" className="text-label text-muted" data-testid="remote-stop-reason">
             {reason}
           </span>
         )}
       </div>
-      <p className="text-[11px] leading-relaxed text-muted">
+      <p className="text-label leading-relaxed text-muted">
         {machine.label} checks the pairing permission, that the request is fresh, and that this
         Session exists before it acts — and records the request.
       </p>
@@ -450,7 +450,7 @@ function MachineProcesses({ machine, now }: { machine: RemoteMachineInfo; now: n
                 {row.rss_bytes !== null ? ` · ${formatBytes(row.rss_bytes)}` : ""}
               </span>
               <span className="flex-1" />
-              <span className="text-[10px] text-muted">measured {ago(row.measured_at_ms, now)}</span>
+              <span className="text-label text-muted">measured {ago(row.measured_at_ms, now)}</span>
             </li>
           ))}
         </ul>
@@ -466,7 +466,7 @@ function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineIn
   const rows = (machine.processes ?? []).filter((row) => row.instance_id === instanceId);
   if (rows.length === 0) {
     return (
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         Unavailable — {machine.label} hasn't reported this session's processes.
       </p>
     );
@@ -476,7 +476,7 @@ function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineIn
       <ul className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline" data-testid="remote-process-list">
         {rows.map((row) => (
           <li key={row.pid} className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 text-xs">
-            <span className="font-mono text-[11px]">{row.name || "process"}</span>
+            <span className="font-mono text-label">{row.name || "process"}</span>
             <span className="text-muted">pid {row.pid}</span>
             <span className="text-muted">· {row.role}</span>
             <span className="text-muted">· {row.state_label}</span>
@@ -488,7 +488,7 @@ function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineIn
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-muted">Clean verified processes in Cleanup → All machines.</p>
+      <p className="text-label text-muted">Clean verified processes in Cleanup → All machines.</p>
     </div>
   );
 }

@@ -1,0 +1,6 @@
+{"timestamp":"2026-10-25T09:00:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t3","started_at":1793005200,"model_context_window":272000}}
+{"timestamp":"2026-10-25T09:00:00.100Z","type":"turn_context","payload":{"turn_id":"t3","cwd":"/work/shop","model":"gpt-5.5","approval_policy":"untrusted"}}
+{"timestamp":"2026-10-25T09:00:00.200Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Install the new dependency"}]}}
+{"timestamp":"2026-10-25T09:00:04.000Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"c2","name":"exec","input":"npm install left-pad"}}
+{"timestamp":"2026-10-25T09:00:04.100Z","type":"event_msg","payload":{"type":"exec_approval_request","call_id":"c2","turn_id":"t3"}}
+{"timestamp":"2026-10-25T09:00:04.600Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":null}}

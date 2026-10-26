@@ -32,6 +32,7 @@ import { TaskNeeds } from "../../components/TaskNeeds";
 import { SwitchGraph } from "../../components/SwitchGraph";
 import { pageTabs } from "../registry";
 import { MOCK_SESSIONS, type ProjectInfo } from "../../lib/bridge";
+import { forgetPaged } from "../../lib/paged";
 import { provideProcessesLink } from "../../lib/task-links";
 import { resetPreviewTasks, type TaskInfo, type TaskNeedInfo, type TasksSeed } from "../../lib/ipc/tasks";
 
@@ -108,7 +109,8 @@ beforeEach(() => {
   ];
   provideProcessesLink(null);
 });
-afterEach(() => cleanup());
+// Each test reads its own lists: none remembered from the one before.
+afterEach(() => (cleanup(), forgetPaged()));
 
 const members = [
   { session_id: live.id, name: "Builder" },
@@ -128,6 +130,17 @@ describe("a pool's tasks", () => {
     expect((await findByTestId("task-acceptance")).textContent).toContain("- tests pass");
     expect(within(getByTestId("task-links")).getByTestId("task-link").textContent).toContain("Blocks");
     expect(getByTestId("task-threads").textContent).toContain("Start on the API");
+  });
+
+  it("reads a page at a time: Show more reads the next, none twice", async () => {
+    seams().__AIJ_TASKS__!.tasks = Array.from({ length: 45 }, (_, n) => task({ id: `aj-${(0x2000 + n).toString(16)}`, title: `Task ${n}` }));
+    const { findAllByTestId, findByTestId, queryByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    expect(await findAllByTestId("task-row")).toHaveLength(40);
+    fireEvent.click(await findByTestId("tasks-more"));
+    await waitFor(() => expect(document.querySelectorAll("[data-testid='task-row']")).toHaveLength(45));
+    const ids = [...document.querySelectorAll<HTMLElement>("[data-testid='task-row']")].map((row) => row.textContent);
+    expect(new Set(ids).size).toBe(45);
+    expect(queryByTestId("tasks-more")).toBeNull();
   });
 
   it("a blocked task says what it waits on, honestly", async () => {

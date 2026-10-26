@@ -34,13 +34,13 @@ export function Pane({
   }, [anchor]);
   return (
     <div className="flex flex-col gap-7" data-testid={`settings-pane-${id}`} data-pane={id}>
-      <h2 className="text-2xl font-bold tracking-tight text-ink">{title}</h2>
+      <h2 className="text-title text-ink">{title}</h2>
       {children}
     </div>
   );
 }
 
-/** One section: a 13 px header, its card (rows, or a settings card
+/** One section: a 15 px header (the readability scale), its card (rows, or a settings card
  * that brings its own surface), and a muted one-line footer. */
 export function PaneSection({
   id,
@@ -64,7 +64,7 @@ export function PaneSection({
       className="flex scroll-mt-4 flex-col gap-2"
       data-settings-section={id}
     >
-      <h3 id={`settings-${id}-title`} tabIndex={-1} className="px-1 text-[13px] font-bold text-ink outline-none">
+      <h3 id={`settings-${id}-title`} tabIndex={-1} className="px-1 text-section font-semibold text-ink outline-none">
         {title}
       </h3>
       <InSettingsSection.Provider value>
@@ -193,7 +193,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={
         "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-        (checked ? "border-accent bg-accent" : "border-hairline bg-surface-3")
+        (checked ? "border-accent bg-accent" : "border-muted/60 bg-surface-3")
       }
       data-testid={testId}
     >

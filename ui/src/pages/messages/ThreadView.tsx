@@ -31,21 +31,21 @@ function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: 
   return (
     <li className={"flex max-w-[min(88%,720px)] flex-col gap-1.5 " + (you ? "ml-auto items-end" : "items-start")} data-testid="message-bubble" data-from={message.from_kind}>
       <div className={"flex flex-wrap items-baseline gap-x-2 gap-y-0.5 " + (you ? "justify-end" : "")}>
-        <span className={"text-[13px] font-semibold " + (asks ? "text-warning" : "text-ink")}>{message.from_name}</span>
-        {message.kind !== "note" && <span className="text-[12px] text-muted">{KIND_WORDS[message.kind] ?? message.kind}</span>}
-        <span className="text-[12px] text-muted">{when(message.at_ms, now)}</span>
-        {!you && <span className="text-[12px] text-muted">· an agent</span>}
+        <span className={"text-meta font-semibold " + (asks ? "text-warning" : "text-ink")}>{message.from_name}</span>
+        {message.kind !== "note" && <span className="text-label text-muted">{KIND_WORDS[message.kind] ?? message.kind}</span>}
+        <span className="text-label text-muted">{when(message.at_ms, now)}</span>
+        {!you && <span className="text-label text-muted">· an agent</span>}
       </div>
       <p
         className={
-          "whitespace-pre-wrap break-words rounded-2xl border px-3.5 py-2.5 text-[14px] leading-relaxed text-ink " +
+          "whitespace-pre-wrap break-words rounded-2xl border px-3.5 py-2.5 text-body leading-relaxed text-ink " +
           (you ? "border-accent/25 bg-accent-soft" : asks ? "border-warning/40 bg-warning-soft" : "border-hairline bg-surface-2")
         }
       >
         {message.body}
       </p>
       {message.redacted > 0 && (
-        <span className="text-[12px] text-muted" data-testid="message-redacted">
+        <span className="text-label text-muted" data-testid="message-redacted">
           {message.redacted === 1 ? "1 secret withheld" : `${message.redacted} secrets withheld`}, as you chose for packs
         </span>
       )}
@@ -53,7 +53,7 @@ function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: 
         {message.recipients
           .filter((r) => !(you && r.name === "You"))
           .map((recipient) => (
-            <li key={recipient.id} className="flex flex-wrap items-center gap-2 text-[12px] text-muted" data-testid="message-recipient" data-state={recipient.state}>
+            <li key={recipient.id} className="flex flex-wrap items-center gap-2 text-label text-muted" data-testid="message-recipient" data-state={recipient.state}>
               {recipient.name === "You" ? (
                 <span className={recipient.state === "unread" ? "font-medium text-warning" : ""}>{recipientWords(recipient.state, recipient.name)}</span>
               ) : (
@@ -130,7 +130,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       <div className="flex flex-col gap-3 p-4" role="status" aria-label="Loading the thread">
         <span className="h-12 w-2/3 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
         <span className="ml-auto h-10 w-1/2 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
-        {error && <p className="text-[13px] text-danger">{error}</p>}
+        {error && <p className="text-meta text-danger">{error}</p>}
       </div>
     );
   }
@@ -144,7 +144,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           <h3 id={`thread-${thread.id}`} className="text-[16px] font-semibold text-ink">
             {thread.subject}
           </h3>
-          <p className="text-[13px] text-muted">
+          <p className="text-meta text-muted">
             {thread.people.join(", ")}
             {thread.pool_name ? ` · in «${thread.pool_name}»` : ""}
           </p>
@@ -171,7 +171,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
         </div>
       </header>
       {thread.state !== "open" && thread.state_reason && (
-        <p className="rounded-lg border border-warning/30 bg-warning-soft/50 px-3 py-2 text-[13px] text-ink" data-testid="thread-why">
+        <p className="rounded-lg border border-warning/30 bg-warning-soft/50 px-3 py-2 text-meta text-ink" data-testid="thread-why">
           {THREAD_WORDS[thread.state]}: {thread.state_reason}. {thread.state === "paused" ? "No agent can write here or be woken by it until you resume it." : "Agents can't write here any more."}
         </p>
       )}
@@ -185,9 +185,9 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           <Bubble key={message.id} message={message} now={now} busy={busy} onDeliver={(recipient) => act(() => messagesDeliver(message.id, recipient))} />
         ))}
       </ol>
-      <p className="text-[12px] text-muted">An agent's message is its own words: it can't approve anything or change settings.</p>
+      <p className="text-label text-muted">An agent's message is its own words: it can't approve anything or change settings.</p>
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

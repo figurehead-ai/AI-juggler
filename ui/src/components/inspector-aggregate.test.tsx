@@ -260,15 +260,16 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     ];
     const { container } = shell("account", "claude-work");
     const rings = container.querySelector('[data-testid="account-rings"]')!;
+    // 0.1.5: a gauge per window, what's left in words and in its ring.
     await waitFor(() =>
-      expect(rings.querySelectorAll("[role='img']").length).toBe(2),
+      expect(container.querySelectorAll("[data-testid='window-gauge']").length).toBe(2),
     );
-    expect(rings.textContent).toContain("55%");
-    expect(rings.textContent).toContain("Start a session to measure");
-    const fiveHourAria = rings.querySelector('[role="img"]')!.getAttribute("aria-label")!;
-    expect(fiveHourAria).toContain("55% used");
-    expect(fiveHourAria).toContain("Measured");
-    expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("1h0m");
+    expect(rings.textContent).toContain("45%");
+    expect(rings.textContent).toContain("Not measured yet");
+    const fiveHourAria = rings.querySelector('[data-testid="window-gauge"]')!.getAttribute("aria-label")!;
+    expect(fiveHourAria).toContain("45% left");
+    expect(fiveHourAria).toContain("in 1 h");
+    expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("in 1 h");
     expect(container.querySelector('[data-testid="account-renewal"]')?.textContent).toContain("Expiry: unknown");
     expect(container.querySelector('[data-testid="account-affinity"]')?.textContent).toContain("ai-juggler");
     // AJ-E410 (D-08): the Tier-1 cleanup opt-in toggle — off by default.
@@ -301,14 +302,14 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
 });
 
 describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
-  it("the header says where it is and its branch; Overview, its sessions ever and accounts", () => {
+  it("the header says where it is and its branch; Overview, its sessions ever and accounts", async () => {
     const { container, getByTestId } = shell("project", "proj-1");
     expect(getByTestId("project-root").getAttribute("title")).toBe("/w/ai-juggler");
     expect(getByTestId("page-facts").textContent).toContain("main");
     open(container, "overview");
     const summary = getByTestId("project-summary");
     expect(summary.textContent).toContain("Work Max");
-    expect(getByTestId("project-sessions-ever").textContent).toMatch(/^1/);
+    await waitFor(() => expect(getByTestId("project-sessions-ever").textContent).toMatch(/^\d+ with usage in all$/));
   });
 
   it("a missing directory renders the danger banner with Relocate… (AJ-E1502)", () => {

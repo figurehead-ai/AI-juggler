@@ -1933,9 +1933,15 @@ pub fn discovered_impl(state: &Arc<AppState>) -> Vec<DiscoveredMachineInfo> {
 
 /// AJ-E704: Link status.
 #[tauri::command]
-#[must_use]
-pub fn link_status(state: tauri::State<'_, Arc<AppState>>) -> LinkStatusInfo {
-    link_status_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn link_status(state: tauri::State<'_, Arc<AppState>>) -> AppResult<LinkStatusInfo> {
+    crate::ipc::blocking(state.inner(), "link status", move |state| {
+        Ok(link_status_impl(state))
+    })
+    .await
 }
 
 /// AJ-E704: turns Link on or off.
@@ -1961,9 +1967,17 @@ pub async fn link_set_enabled(
 
 /// AJ-E704: machines on the network that aren't paired.
 #[tauri::command]
-#[must_use]
-pub fn fleet_discovered(state: tauri::State<'_, Arc<AppState>>) -> Vec<DiscoveredMachineInfo> {
-    discovered_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_discovered(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<DiscoveredMachineInfo>> {
+    crate::ipc::blocking(state.inner(), "fleet discovered", move |state| {
+        Ok(discovered_impl(state))
+    })
+    .await
 }
 
 /// Test seam: run Link without mDNS (pairing by address only).
@@ -2041,15 +2055,35 @@ pub fn prompt_decide_impl(state: &Arc<AppState>, id: u64, allow: bool) {
 
 /// AJ-E709: control commands waiting for this Mac's user.
 #[tauri::command]
-#[must_use]
-pub fn fleet_prompts(state: tauri::State<'_, Arc<AppState>>) -> Vec<FleetPromptInfo> {
-    prompts_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_prompts(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<FleetPromptInfo>> {
+    crate::ipc::blocking(state.inner(), "fleet prompts", move |state| {
+        Ok(prompts_impl(state))
+    })
+    .await
 }
 
 /// AJ-E709: Allow or Deny a waiting command.
 #[tauri::command]
-pub fn fleet_prompt_decide(state: tauri::State<'_, Arc<AppState>>, id: u64, allow: bool) {
-    prompt_decide_impl(state.inner(), id, allow);
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_prompt_decide(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: u64,
+    allow: bool,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "fleet prompt decide", move |state| {
+        prompt_decide_impl(state, id, allow);
+        Ok(())
+    })
+    .await
 }
 
 /// Test seam: re-asks every connected peer what it grants this Mac now

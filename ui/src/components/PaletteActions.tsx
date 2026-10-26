@@ -56,10 +56,10 @@ export function usePaletteActions(selected: PaletteSelection | null, needle: str
 export function ActionOption({ action }: { action: ResolvedAction }): JSX.Element {
   return (
     <>
-      <ActionIcon name={action.icon} className={action.reason ? "text-faint" : action.destructive ? "text-danger" : "text-muted"} />
-      <span className={"min-w-0 shrink truncate " + (action.reason ? "text-faint" : action.destructive ? "text-danger" : "")}>{fullLabel(action)}</span>
-      {action.reason && <span className="min-w-0 shrink truncate text-[10.5px] text-faint">{action.reason}</span>}
-      {action.shortcut && <kbd className="ml-auto shrink-0 font-mono text-[10px] text-faint">{action.shortcut}</kbd>}
+      <ActionIcon name={action.icon} className={action.reason ? "text-muted" : action.destructive ? "text-danger" : "text-muted"} />
+      <span className={"min-w-0 shrink truncate " + (action.reason ? "text-muted" : action.destructive ? "text-danger" : "")}>{fullLabel(action)}</span>
+      {action.reason && <span className="min-w-0 shrink truncate text-label text-muted">{action.reason}</span>}
+      {action.shortcut && <kbd className="ml-auto shrink-0 font-mono text-label text-muted">{action.shortcut}</kbd>}
     </>
   );
 }

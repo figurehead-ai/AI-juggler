@@ -42,7 +42,7 @@ export function RemoteSwitchTargets({
         const label = rows[0]?.machine_label ?? machineId;
         return (
           <section key={machineId} aria-label={`Destinations on ${label}`} className="flex flex-col gap-1">
-            <p className="text-[11px] font-medium text-ink">On {label}</p>
+            <p className="text-label font-medium text-ink">On {label}</p>
             <ul className="flex flex-col gap-1">
               {rows.map((target) => {
                 const unavailable = target.readiness === "unavailable";
@@ -55,7 +55,7 @@ export function RemoteSwitchTargets({
                       data-testid="remote-switch-target"
                       data-readiness={target.readiness}
                       className={
-                        "flex w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-left text-[11px] " +
+                        "flex w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-left text-label " +
                         (unavailable
                           ? "cursor-not-allowed border-hairline text-muted"
                           : "border-hairline hover:border-accent/40 hover:bg-surface")
@@ -72,7 +72,7 @@ export function RemoteSwitchTargets({
                         <span className="text-muted">· {launchSettingsName(target.recipe_name)}</span>
                         <span className="flex-1" />
                         <span
-                          className="rounded border border-warning/60 px-1.5 py-px text-[10px] text-warning"
+                          className="rounded border border-warning/60 px-1.5 py-px text-label text-warning"
                           data-testid="remote-switch-badge"
                         >
                           {target.badge}

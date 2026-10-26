@@ -138,7 +138,7 @@ describe("AJ-E403 density field presence per mode", () => {
       <SessionRow session={mk()} selected={false} onSelect={() => {}} freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
     const text = container.textContent ?? "";
-    for (const field of ["Claude", "opus", "Running", "% left", "15.0k tokens", "main", "12% · 1.0 GB"]) {
+    for (const field of ["Claude", "opus", "Working", "% left", "15.0k tokens", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
     expect(container.querySelector("svg polyline")).not.toBeNull(); // sparkline
@@ -152,14 +152,16 @@ describe("AJ-E403 density field presence per mode", () => {
     const shown = container.cloneNode(true) as HTMLElement;
     shown.querySelectorAll("[hidden], .sr-only").forEach((node) => node.remove());
     const text = shown.textContent ?? "";
-    for (const field of ["Claude", "Running", "main", "12% · 1.0 GB"]) {
+    for (const field of ["Claude", "Working", "main", "12% · 1.0 GB"]) {
       expect(text).toContain(field);
     }
     // I-05 bar-only: the bar renders (title carries semantics), the
     // `% left` number text does not; the sparkline is replaced by text.
     expect(text).not.toContain("% left");
     expect(container.querySelector("svg polyline")).toBeNull();
-    expect(container.textContent).toContain("WM"); // I-02 disc initials ride in the tooltip? no — title attr; assert via aria
+    // I-02: the account's disc, its name as its tooltip (under 24 px a
+    // disc is its colour alone: letters would be under 12 px).
+    expect(container.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
   });
 
   it("Compact never hides the I-04 state text or the I-10 badge", () => {
@@ -167,7 +169,7 @@ describe("AJ-E403 density field presence per mode", () => {
     const { container } = render(
       <SessionRow session={waiting} selected={false} onSelect={() => {}} density="compact" freshness={{ ["sess-density"]: fresh }} now={NOW} />,
     );
-    expect(container.textContent).toContain("Needs you");
+    expect(container.textContent).toContain("Asks you");
   });
 
   it("Minimal shows disc + state glyph + ! badge and keeps the full text in its name and description", () => {

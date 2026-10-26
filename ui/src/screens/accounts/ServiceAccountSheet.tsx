@@ -150,7 +150,7 @@ export function ServiceAccountSheet({
           />
         </Field>
         <fieldset className="flex flex-col gap-2" data-testid="service-tools">
-          <legend className="mb-1 text-[11px] uppercase tracking-[0.14em] text-faint">Use it with</legend>
+          <legend className="mb-1 text-label uppercase tracking-[0.14em] text-faint">Use it with</legend>
           {service.tools.map((tool) => {
             const pick = picks[tool.tool];
             const name = providerDisplayName(tool.tool);
@@ -160,7 +160,7 @@ export function ServiceAccountSheet({
                   <input type="checkbox" checked={pick?.on ?? false} onChange={(event) => set(tool.tool, { on: event.target.checked })} data-testid="service-tool-on" />
                   <ToolMark tool={tool.tool} size={14} className="text-muted" />
                   {name}
-                  {found !== null && !found.has(tool.tool) && <span className="text-[10px] font-normal text-muted">Not installed</span>}
+                  {found !== null && !found.has(tool.tool) && <span className="text-label font-normal text-muted">Not installed</span>}
                 </label>
                 {pick?.on && (
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -186,7 +186,7 @@ export function ServiceAccountSheet({
             );
           })}
         </fieldset>
-        <div className="flex items-start gap-2 text-[11.5px] text-muted" data-testid="service-usage">
+        <div className="flex items-start gap-2 text-label text-muted" data-testid="service-usage">
           <UsageChip usage={service.service.usage} />
           <span>{service.service.usage_words}</span>
         </div>

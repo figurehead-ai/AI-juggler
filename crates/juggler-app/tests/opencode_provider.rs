@@ -91,7 +91,7 @@ fn seed_usage(db: &Path, project: &Path) {
 
 #[test]
 fn opencode_is_a_listed_provider() {
-    let providers = commands::harnesses_list();
+    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
     let opencode = providers
         .iter()
         .find(|p| p.id == OPENCODE_ID)

@@ -97,9 +97,14 @@ export function pageTabs(kind: PageKind, facts: TabFacts = {}): PageTab[] {
 function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
   const when = (shown: boolean | undefined, tab: PageTabId) => (shown ? [TAB[tab]] : []);
   switch (kind) {
-    // AJ-E2108: its body (terminal or window) first, as ever, then Overview.
+    // AJ-E2108: its body first. A terminal's session: its terminal IS its
+    // Overview (the conversation, with the side column beside it, as on
+    // every session's page); a desktop app's: its window, then Overview.
     case "session":
-      return [TAB[facts.desktop ? "window" : "terminal"], TAB.overview, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+      // E18: its Messages, once it has any.
+      return facts.desktop
+        ? [TAB.window, TAB.overview, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
+        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     case "project":
       return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
     case "account":

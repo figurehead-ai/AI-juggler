@@ -41,12 +41,12 @@ export function DensityChoice(): JSX.Element {
             />
             <span className="flex flex-col">
               <span>{option.label}</span>
-              <span className="text-[11px] text-muted">{option.what}</span>
+              <span className="text-label text-muted">{option.what}</span>
             </span>
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-muted">Ctrl+D cycles through them from anywhere.</p>
+      <p className="text-label text-muted">Ctrl+D cycles through them from anywhere.</p>
     </fieldset>
   );
 }

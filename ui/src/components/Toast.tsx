@@ -354,7 +354,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
         <>
           <div className="flex flex-col">
             <p className="text-xs text-warning">Undo didn’t complete</p>
-            <p className="text-[11px] text-muted">{entry.failure}</p>
+            <p className="text-label text-muted">{entry.failure}</p>
           </div>
           <button
             type="button"

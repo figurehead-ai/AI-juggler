@@ -48,7 +48,7 @@ export function RailToolbar({
   return (
     <div className="flex items-center gap-1.5" data-testid="rail-toolbar">
       <div className="relative min-w-0 flex-1">
-        <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-faint">
+        <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted">
           ⌕
         </span>
         <input
@@ -64,7 +64,7 @@ export function RailToolbar({
           }}
           placeholder="Search ⌘K"
           aria-label="Search sessions: words, or is:ended, app:, profile:, account:, project:, mac:"
-          className="h-[30px] w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-[11.5px] text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="h-[30px] w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
         />
       </div>
       <ViewPopover options={options} />

@@ -29,17 +29,17 @@ export function TaskLinks({
   return (
     <section className="flex flex-col gap-1.5" data-testid="task-links">
       <div className="flex items-center gap-2">
-        <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted">Links</h4>
+        <h4 className="text-label font-semibold uppercase tracking-wider text-muted">Links</h4>
         {!adding && (
-          <button type="button" className="text-[12px] text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setAdding(true)}>
+          <button type="button" className="text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setAdding(true)}>
             Add a link
           </button>
         )}
       </div>
-      {detail.links.length === 0 && !adding && <p className="text-[13px] text-muted">None. A task that waits on another starts when that one is done.</p>}
+      {detail.links.length === 0 && !adding && <p className="text-meta text-muted">None. A task that waits on another starts when that one is done.</p>}
       <ul className="flex flex-col gap-1">
         {detail.links.map((link) => (
-          <li key={`${link.kind}:${link.task_id}`} className="flex flex-wrap items-center gap-2 text-[13px]" data-testid="task-link" data-kind={link.kind}>
+          <li key={`${link.kind}:${link.task_id}`} className="flex flex-wrap items-center gap-2 text-meta" data-testid="task-link" data-kind={link.kind}>
             <span className="w-24 shrink-0 text-muted">{LINK_WORDS[link.kind] ?? link.kind}</span>
             <button type="button" className="min-w-0 truncate text-left text-ink hover:underline" onClick={() => onOpenTask(link.task_id)}>
               <span className="font-mono text-muted">{link.task_id}</span> {link.title}
@@ -47,7 +47,7 @@ export function TaskLinks({
             <TaskStatus status={link.status} />
             <button
               type="button"
-              className="text-[12px] text-muted hover:text-danger"
+              className="text-label text-muted hover:text-danger"
               disabled={busy}
               onClick={() => act(() => tasksLink(id, link.task_id, link.kind, false))}
             >
@@ -68,14 +68,14 @@ export function TaskLinks({
             setAdding(false);
           }}
         >
-          <select aria-label="How they're linked" value={kind} onChange={(event) => setKind(event.target.value)} className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent/60">
+          <select aria-label="How they're linked" value={kind} onChange={(event) => setKind(event.target.value)} className="h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60">
             {KINDS.map((word) => (
               <option key={word} value={word}>
                 {LINK_WORDS[word]}
               </option>
             ))}
           </select>
-          <input aria-label="The other task's id" placeholder="aj-7f3c" value={other} onChange={(event) => setOther(event.target.value)} className="h-8 w-32 rounded-lg border border-hairline bg-surface px-2.5 font-mono text-[13px] text-ink outline-none focus:border-accent/60" />
+          <input aria-label="The other task's id" placeholder="aj-7f3c" value={other} onChange={(event) => setOther(event.target.value)} className="h-8 w-32 rounded-lg border border-hairline bg-surface px-2.5 font-mono text-meta text-ink outline-none focus:border-accent/60" />
           <Button type="submit" size="sm" variant="secondary" disabled={busy || !other.trim()}>
             Link
           </Button>

@@ -86,15 +86,16 @@ for (const theme of ["dark", "light"] as const) {
     await row.click({ button: "right", position: { x: 40, y: 10 } });
     expect(await labels(page)).toEqual(fromButton);
     await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
+    // A corner at the pointer: its top, or (no room below the row) its
+    // bottom, as the Mac's own menus open.
     const at = (await page.getByRole("menu").boundingBox())!;
-    expect(Math.abs(at.x - (box.x + 40))).toBeLessThanOrEqual(1);
-    // At the pointer, or (a menu taller than the room below it) moved up
-    // just enough to stay in the window.
+    const pointer = { x: box.x + 40, y: box.y + 10 };
+    expect(Math.abs(at.x - pointer.x)).toBeLessThanOrEqual(1);
+    // At the pointer, flipped above it, or (a menu taller than the room on
+    // either side) moved up just enough to stay in the window.
     const viewport = page.viewportSize()!;
-    if (Math.abs(at.y - (box.y + 10)) > 1) {
-      expect(at.y).toBeLessThan(box.y + 10);
-      expect(Math.abs(at.y + at.height - (viewport.height - 4))).toBeLessThanOrEqual(1);
-    }
+    const fits = Math.abs(at.y + at.height - (viewport.height - 4));
+    expect(Math.min(Math.abs(at.y - pointer.y), Math.abs(at.y + at.height - pointer.y), fits)).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
     await row.getByRole("button").first().focus();
     await page.keyboard.press("Shift+F10");

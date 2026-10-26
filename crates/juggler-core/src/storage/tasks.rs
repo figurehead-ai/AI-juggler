@@ -222,6 +222,33 @@ pub struct TaskQuery<'a> {
     pub parent: Option<&'a str>,
     /// Those whose title has these words.
     pub words: Option<&'a str>,
+    /// Those after this one in the list's order (the previous page's last).
+    pub after: Option<TaskKey>,
+}
+
+/// A task's place in a list: ready work first (its honest status's rank),
+/// then the most urgent, then the newest. Pages start after one (a keyset
+/// cursor: a task added or changed meanwhile never repeats or skips one).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TaskKey {
+    /// `TaskStatus::rank` of its honest status.
+    pub rank: u8,
+    /// `Priority::rank`.
+    pub priority: u8,
+    /// Its row number, newest first (negated in the order).
+    pub seq: i64,
+}
+
+impl Task {
+    /// Its place in a list.
+    #[must_use]
+    pub fn key(&self) -> TaskKey {
+        TaskKey {
+            rank: self.status.rank(),
+            priority: self.priority.rank(),
+            seq: self.seq,
+        }
+    }
 }
 
 /// A change to a task. `None` leaves a field as it is.
@@ -356,6 +383,13 @@ const EFFECTIVE: &str = "CASE WHEN t.status IN ('todo','ready') AND EXISTS (
          WHERE l.to_id = t.id AND l.kind = 'blocks' AND b.status NOT IN ('done','cancelled'))
     THEN 'blocked' ELSE t.status END";
 
+/// The most links one task's read shows (its first ones): a task's
+/// answer to the UI stays small however many an agent adds.
+pub const LINKS_READ: u32 = 100;
+/// The most open blockers a task's row names (its honest status counts
+/// them all).
+pub const BLOCKERS_SHOWN: usize = 20;
+
 /// The open blockers of `t`, as a JSON array.
 const BLOCKERS: &str =
     "(SELECT json_group_array(l.from_id) FROM task_links l JOIN tasks b ON b.id = l.from_id
@@ -380,8 +414,10 @@ fn select_sql() -> String {
 
 fn task_of(row: &Row<'_>) -> rusqlite::Result<Task> {
     let stored = TaskStatus::stored(&row.get::<_, String>(9)?);
-    let blocked_by: Vec<String> =
+    let mut blocked_by: Vec<String> =
         serde_json::from_str(&row.get::<_, String>(21)?).unwrap_or_default();
+    let open_blockers = blocked_by.len();
+    blocked_by.truncate(BLOCKERS_SHOWN);
     let url: Option<String> = row.get(17)?;
     Ok(Task {
         seq: row.get(0)?,
@@ -393,7 +429,7 @@ fn task_of(row: &Row<'_>) -> rusqlite::Result<Task> {
         body: row.get(6)?,
         acceptance: row.get(7)?,
         priority: Priority::of_rank(row.get(8)?),
-        status: effective(stored, blocked_by.len()),
+        status: effective(stored, open_blockers),
         stored,
         blocked_by,
         assignee_ref: row.get(10)?,
@@ -420,9 +456,13 @@ fn json<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "[]".to_owned())
 }
 
-/// A page size within 1..=200.
+/// The most rows one read returns: the IPC's largest page (200) and the
+/// one more it reads to know whether another page follows.
+pub const READ_MAX: u32 = 201;
+
+/// A page size within 1..=[`READ_MAX`].
 fn page(limit: u32) -> i64 {
-    i64::from(limit.clamp(1, 200))
+    i64::from(limit.clamp(1, READ_MAX))
 }
 
 fn collect<T>(rows: impl Iterator<Item = rusqlite::Result<T>>) -> Result<Vec<T>, CoreError> {
@@ -615,26 +655,22 @@ impl TasksRepo<'_> {
     }
 
     /// One page of tasks, ready work first, then by priority, newest
-    /// first within each; `offset` is how many the earlier pages held.
+    /// first within each, after `query.after` when it says.
     ///
     /// # Errors
     ///
     /// Storage failures.
-    pub fn list(
-        &self,
-        query: &TaskQuery<'_>,
-        offset: u32,
-        limit: u32,
-    ) -> Result<Vec<Task>, CoreError> {
+    pub fn list(&self, query: &TaskQuery<'_>, limit: u32) -> Result<Vec<Task>, CoreError> {
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT * FROM ({}
+            "SELECT * FROM (SELECT *, {RANK} AS rk FROM ({}
               WHERE (?1 IS NULL OR t.pool_id = ?1)
                 AND (?2 IS NULL OR t.assignee_ref IN (SELECT value FROM json_each(?2)))
                 AND (?4 IS NULL OR t.kind IN (SELECT value FROM json_each(?4)))
                 AND (?5 IS NULL OR (?5 = '' AND t.parent_id IS NULL) OR t.parent_id = ?5)
-                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\'))
+                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')))
               WHERE (?3 IS NULL OR eff IN (SELECT value FROM json_each(?3)))
-              ORDER BY {RANK}, priority, seq DESC LIMIT ?7 OFFSET ?8",
+                AND (?8 IS NULL OR (rk, priority, -seq) > (?8, ?9, ?10))
+              ORDER BY rk, priority, seq DESC LIMIT ?7",
             select_sql()
         ))?;
         let statuses = query
@@ -659,7 +695,9 @@ impl TasksRepo<'_> {
                 query.parent,
                 words,
                 page(limit),
-                offset
+                query.after.map(|key| key.rank),
+                query.after.map(|key| key.priority),
+                query.after.map(|key| -key.seq),
             ],
             task_of,
         )?;
@@ -1026,7 +1064,7 @@ impl TasksRepo<'_> {
         Ok(())
     }
 
-    /// A task's links, both ways.
+    /// A task's links, both ways: the first `LINKS_READ`.
     ///
     /// # Errors
     ///
@@ -1035,9 +1073,9 @@ impl TasksRepo<'_> {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT l.kind, l.from_id = ?1, t.id, t.title, t.status, {EFFECTIVE}
                FROM task_links l JOIN tasks t ON t.id = CASE WHEN l.from_id = ?1 THEN l.to_id ELSE l.from_id END
-              WHERE l.from_id = ?1 OR l.to_id = ?1 ORDER BY l.created_at"
+              WHERE l.from_id = ?1 OR l.to_id = ?1 ORDER BY l.created_at LIMIT ?2"
         ))?;
-        collect(stmt.query_map(params![id], |row| {
+        collect(stmt.query_map(params![id, LINKS_READ], |row| {
             Ok(TaskLink {
                 kind: LinkKind::parse(&row.get::<_, String>(0)?).unwrap_or(LinkKind::RelatesTo),
                 outgoing: row.get(1)?,
@@ -1405,7 +1443,6 @@ mod tests {
                     statuses: Some(&[TaskStatus::Ready]),
                     ..TaskQuery::default()
                 },
-                0,
                 50,
             )
             .unwrap();
@@ -1452,6 +1489,27 @@ mod tests {
                 .iter()
                 .any(|l| l.kind == LinkKind::Blocks && l.outgoing)
         );
+    }
+
+    #[test]
+    fn a_tasks_read_stays_small_however_many_links_it_has() {
+        let (storage, pool) = storage();
+        let repo = storage.tasks();
+        let ids: Vec<String> = (0..120).map(|n| format!("aj-{:04x}", 0x100 + n)).collect();
+        for id in &ids {
+            repo.create(&new(&pool, id, TaskKind::Task, &[])).unwrap();
+        }
+        repo.create(&new(&pool, "aj-0001", TaskKind::Task, &[]))
+            .unwrap();
+        for id in &ids {
+            repo.link(id, "aj-0001", LinkKind::Blocks, (TASK_USER, "You"))
+                .unwrap();
+        }
+        let task = repo.get("aj-0001").unwrap().unwrap();
+        // Its honest status counts every blocker; its row names the first 20.
+        assert_eq!(task.status, TaskStatus::Blocked);
+        assert_eq!(task.blocked_by.len(), BLOCKERS_SHOWN);
+        assert_eq!(repo.links("aj-0001").unwrap().len(), LINKS_READ as usize);
     }
 
     #[test]
@@ -1595,27 +1653,29 @@ mod tests {
                     pool_id: Some(&pool),
                     ..TaskQuery::default()
                 },
-                0,
                 200,
             )
             .unwrap();
-        let mut seen = all.len();
-        let mut offset = 200;
-        while seen < 1000 {
+        let mut ids: std::collections::HashSet<String> = all.iter().map(|t| t.id.clone()).collect();
+        let mut last = all.last().map(Task::key);
+        while ids.len() < 1000 {
             let next = repo
                 .list(
                     &TaskQuery {
                         pool_id: Some(&pool),
+                        after: last,
                         ..TaskQuery::default()
                     },
-                    offset,
                     200,
                 )
                 .unwrap();
             assert!(!next.is_empty());
-            seen += next.len();
-            offset += 200;
+            for task in &next {
+                assert!(ids.insert(task.id.clone()), "{} twice", task.id);
+            }
+            last = next.last().map(Task::key);
         }
+        let seen = ids.len();
         let took = started.elapsed();
         assert_eq!(all[0].status, TaskStatus::Ready, "ready work first");
         assert_eq!(seen, 1000);

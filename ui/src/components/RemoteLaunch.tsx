@@ -36,7 +36,7 @@ export function MachinePicker({ where }: { where: Where }): JSX.Element | null {
   const choices: [string | null, string][] = [[null, "This Mac"], ...where.machines.map((m): [string, string] => [m.machine_id, m.label])];
   return (
     <div role="radiogroup" aria-label="Runs on" className="mb-4 flex flex-wrap items-center gap-1.5 text-xs" data-testid="machine-picker">
-      <span className="mr-1 text-[11px] uppercase tracking-wider text-muted">Runs on</span>
+      <span className="mr-1 text-section font-semibold text-ink">Runs on</span>
       {choices.map(([id, label]) => {
         const on = (where.machine?.machine_id ?? null) === id;
         return (
@@ -111,7 +111,7 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
             </p>
           ) : (
             <>
-              <p className="text-[11px] uppercase tracking-wider text-muted">Where on {machine.label}?</p>
+              <p className="text-section font-semibold text-ink">Where on {machine.label}?</p>
               <div className="mt-2 grid grid-cols-2 gap-2" data-testid="remote-projects">
                 {machine.projects.map((p) => (
                   <button key={p.id} type="button" aria-pressed={project === p.id} onClick={() => setProject(p.id)} className={choice(project === p.id)}>
@@ -120,15 +120,15 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
                 ))}
                 <button type="button" aria-pressed={project === null} onClick={() => setProject(null)} className={choice(project === null)}>
                   <span className="font-medium">Its launch setting's folder</span>
-                  <span className="text-[10px] text-muted">where it starts by default</span>
+                  <span className="text-label text-muted">where it starts by default</span>
                 </button>
               </div>
-              <p className="mt-5 text-[11px] uppercase tracking-wider text-muted">Which account?</p>
+              <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="remote-recipes">
                 {machine.recipes.map((r) => (
                   <button key={r.id} type="button" aria-pressed={recipe === r.id} onClick={() => setRecipe(r.id)} className={choice(recipe === r.id)}>
                     <span className="font-medium">{r.account}</span>
-                    <span className="text-[10px] text-muted">
+                    <span className="text-label text-muted">
                       {r.tool} · Launch settings: {r.name}
                     </span>
                   </button>
@@ -143,7 +143,7 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
           )}
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-hairline/60 px-6 py-3">
-          <span className="text-[11px] text-muted">{machine.label} checks it and starts it there.</span>
+          <span className="text-label text-muted">{machine.label} checks it and starts it there.</span>
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={onClose}>
               Close

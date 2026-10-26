@@ -28,7 +28,7 @@ const nothing: FixtureSet = { ...allStatuses, sessions: allStatuses.sessions.fil
 interface State {
   name: string;
   fixture: FixtureSet;
-  machine: "plenty" | "tight" | "pressure";
+  machine: "plenty" | "tight" | "pressure" | "others";
   observed?: unknown[];
   leftovers?: [number, number];
   expect: string;
@@ -39,6 +39,8 @@ const STATES: State[] = [
   { name: "nothing-running", fixture: nothing, machine: "plenty", observed: [], expect: "Nothing running — your Mac has room" },
   { name: "tight-heavy-leftovers", fixture: heavy, machine: "tight", leftovers: [2, 1], expect: "Getting tight" },
   { name: "pressure", fixture: calm, machine: "pressure", expect: "Under pressure" },
+  // The 0.1.4 review: pressure while other apps hold most of the memory.
+  { name: "pressure-from-other-apps", fixture: calm, machine: "others", expect: "Under memory pressure" },
 ];
 const VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -96,7 +98,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("rail-heavy")).toContainText("3.2 GB");
     await item.getByRole("button", { name: /Take a look/ }).click();
     const header = page.getByTestId("session-resources");
-    await expect(header).toContainText("CPU 96% · 3.2 GB · 5 helpers");
+    await expect(header).toContainText("CPU 96% · 3.2 GB · 5 more processes");
     await expect(header).toContainText("working your Mac hard");
     await page.screenshot({ path: resolve(OUT, `session-header-heavy-1280x800-${theme}.png`) });
     await axeClean(page, "session header heavy");

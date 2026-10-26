@@ -536,8 +536,12 @@ fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
     link::link_set_enabled_impl(&b, false).unwrap();
 }
 
-/// A scripted focus runner on the node: one window, every AX call works.
-struct OneWindow;
+/// A scripted focus runner on the node: one window, every AX call works,
+/// and the app asked to come forward is the frontmost one.
+#[derive(Default)]
+struct OneWindow {
+    front: std::sync::Mutex<Option<u32>>,
+}
 
 impl juggler_app::focus::ScriptRunner for OneWindow {
     fn osascript(&self, source: &str) -> Result<String, String> {
@@ -546,8 +550,15 @@ impl juggler_app::focus::ScriptRunner for OneWindow {
         }
         Ok(String::new())
     }
-    fn activate(&self, _pid: u32) -> Result<(), String> {
-        Ok(())
+}
+
+impl juggler_app::activation::Front for OneWindow {
+    fn request(&self, pid: u32) -> juggler_app::activation::Request {
+        *self.front.lock().unwrap() = Some(pid);
+        juggler_app::activation::Request::Asked { in_front: true }
+    }
+    fn frontmost(&self) -> Option<u32> {
+        *self.front.lock().unwrap()
     }
 }
 
@@ -616,7 +627,7 @@ fn a_remote_focus_runs_on_the_owning_mac_and_reports_its_honest_outcome() {
     fleet::fleet_set_label_impl(&a, "Studio Mac").unwrap();
     seed_desktop(&a, work.path());
     seed_instance(&a, work.path()); // a terminal Instance too
-    juggler_app::focus::set_link_runner_for_test(Some(Arc::new(OneWindow)));
+    juggler_app::focus::set_link_runner_for_test(Some(Arc::new(OneWindow::default())));
     juggler_app::focus::set_link_exact_windows_for_test(Some(true));
     juggler_app::focus::set_screen_locked_for_test(Some(false));
     link::link_set_enabled_impl(&a, true).unwrap();

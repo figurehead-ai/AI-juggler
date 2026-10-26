@@ -65,19 +65,19 @@ export function AccountMacsCard({
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-macs">
       <h3 className="text-sm font-semibold">Your Macs on Figurehead</h3>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         Linked to your account, found without a code. Figurehead only lists them — your Macs still connect directly to
         each other, and only after you compare fingerprints on both.
       </p>
       {error && (
-        <p role="alert" className="text-[11px] text-ink">
+        <p role="alert" className="text-label text-ink">
           {error}
         </p>
       )}
-      {info && info.macs.length === 0 && <p className="text-[11px] text-muted">No other Mac is linked to your account yet.</p>}
+      {info && info.macs.length === 0 && <p className="text-label text-muted">No other Mac is linked to your account yet.</p>}
       <ul className="flex flex-col gap-1.5">
         {info?.macs.map((mac) => (
-          <li key={mac.device_id} className="flex flex-wrap items-center gap-2 text-[11px]" data-testid="account-mac">
+          <li key={mac.device_id} className="flex flex-wrap items-center gap-2 text-label" data-testid="account-mac">
             <span className="min-w-0 flex-1">
               <span className="font-medium text-ink">{mac.name || "A Mac"}</span>
               <span className="text-muted"> · {STATE_WORDS[mac.state] ?? mac.state}</span>
@@ -86,7 +86,7 @@ export function AccountMacsCard({
               <button
                 type="button"
                 onClick={() => setComparing(mac)}
-                className="rounded-lg border border-hairline px-2.5 py-1 text-[11px] font-medium text-ink hover:border-accent/50"
+                className="rounded-lg border border-hairline px-2.5 py-1 text-label font-medium text-ink hover:border-accent/50"
                 data-testid="account-mac-compare"
               >
                 Compare and pair…
@@ -151,11 +151,11 @@ function CompareSheet({
         <h3 id="compare-title" className="text-sm font-semibold">
           Pair with {mac.name || "this Mac"}
         </h3>
-        <p className="text-[11px] text-ink">
+        <p className="text-label text-ink">
           Open Fleet on {mac.name || "the other Mac"} too. Both Macs show the same two fingerprints — check they match,
           then confirm on each.
         </p>
-        <dl className="grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-2 text-label sm:grid-cols-2">
           <div className="rounded-lg border border-hairline p-2.5">
             <dt className="text-muted">This Mac</dt>
             <dd className="select-all break-all font-mono text-ink" data-testid="compare-this">
@@ -169,16 +169,16 @@ function CompareSheet({
             </dd>
           </div>
         </dl>
-        <p className="text-[11px] text-muted">
+        <p className="text-label text-muted">
           If they don't match, don't pair — someone may have changed your account's list. It starts at View only; you can
           allow more later.
         </p>
-        <label className="flex items-center gap-2 text-[11px] text-ink">
+        <label className="flex items-center gap-2 text-label text-ink">
           <input type="checkbox" checked={match} onChange={(event) => setMatch(event.target.checked)} data-testid="compare-match" />
           Both fingerprints match on both Macs
         </label>
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}

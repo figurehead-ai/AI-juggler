@@ -53,7 +53,7 @@ export function UsageStatsReconsent(): JSX.Element | null {
         <h2 id="reconsent-title" className="text-sm font-semibold">
           Usage statistics changed
         </h2>
-        <p className="text-[11px] leading-relaxed text-muted">
+        <p className="text-label leading-relaxed text-muted">
           What a weekly report can contain has changed. Nothing is sent until you choose again — your current choice is
           selected.
         </p>

@@ -11,7 +11,7 @@ import { MainNav } from "./components/MainNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, PrivacyScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage,
 } from "./lazyParts";
@@ -19,7 +19,7 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, type GlobalId } from "./lib/nav";
+import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
 import { IconJuggler, IconTerminal } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -72,6 +72,7 @@ import { RecoverySummaryDialog } from "./components/RecoverySummaryDialog";
 import { ProfilesScreen } from "./screens/Profiles";
 import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
+import { useWithSelected } from "./lib/session-lookup";
 import {
   accountsList, providersDiscover, launchRecipesList, onSessionsUpdated, onTerminalExit, projectsBackfill, projectsList,
   instancesList, sessionHandover, switchBackSuggestions, onFolderDropped, launchSession, desktopFocus, goToHotkeySet,
@@ -227,6 +228,7 @@ export default function App() {
     setSettingsFocusCloud(true);
     setGlobal("settings");
   };
+  const openToolInSettings = useSettingsLinks(global, setGlobal, setSettingsSection, () => setSettingsFocusCloud(false));
   // AJ-E1010: the update notice's Review lands on Settings.
   useEffect(() => {
     const open = (event: Event) => {
@@ -239,10 +241,11 @@ export default function App() {
   }, []);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
-  const [sessions, setSessions] = useState<InstanceInfo[]>([]);
-  // AJ-E1007: archived Instances leave the rail (History keeps them).
-  // AJ-E1502: a forgotten project, and its (ended) sessions, leave the
-  // rail and New session until it is used again; History keeps them.
+  // The working set; a session past it joins while selected (session-lookup).
+  const [workingSessions, setSessions] = useState<InstanceInfo[]>([]);
+  const sessions = useWithSelected(workingSessions, selection.kind === "session" ? selection.id : null);
+  // AJ-E1007/E1502: archived Instances, and a forgotten project and its (ended)
+  // sessions, leave the rail and New session until it's used again; History keeps them.
   const shownProjects = useMemo(() => projects.filter((project) => !project.forgotten), [projects]);
   const railSessions = useMemo(() => {
     const forgotten = new Set(projects.filter((project) => project.forgotten).map((project) => project.id));
@@ -288,7 +291,7 @@ export default function App() {
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
   // The tool chip leaves the header when its view opens: focus follows.
-  const [inspectorFocus, setInspectorFocus] = useState(0);
+  const [inspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E207: the suggested returns (reset-trigger cards) + the
   // switch-back review modal. Null = closed; suggest-only.
@@ -378,13 +381,11 @@ export default function App() {
     }
   }), [baselineFreshness]);
 
-  // Golden path day one: surface the user's REAL project history from
-  // imported transcripts (idempotent backend scan). AJ-E1529: the backend
-  // backfills again when the files change (an import, a new folder) and
-  // says so; the lists are read again then.
+  // Day one: the REAL project history from imported transcripts (an idempotent
+  // scan); AJ-E1529: again when the files change (not when only what's open did).
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
-    return onConversationsChanged(() => void refresh());
+    return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
   // Drop a folder anywhere → New session pre-filled with it.
@@ -591,15 +592,15 @@ export default function App() {
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
-    <ConversationsProvider>
+    <ConversationsProvider want={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}>
     <AppActions
       selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
       selectSession={selectSession}
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
-      selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
+      selectTool={() => openToolInSettings()}
       selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
-      openAccounts={() => setGlobal("accounts")}
+      openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
       refresh={() => void refresh()}
@@ -640,6 +641,8 @@ export default function App() {
             <button
               type="button"
               title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
+              aria-label={minimal ? "Show the list" : "Show icons only"}
+              aria-keyshortcuts="Meta+B"
               onClick={toggleRail}
               className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
             >
@@ -648,7 +651,7 @@ export default function App() {
               </span>
             </button>
             {!minimal && (
-              <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
+              <span className="whitespace-nowrap text-section font-semibold tracking-tight">
                 AI Juggler
               </span>
             )}
@@ -656,7 +659,7 @@ export default function App() {
                 AI Juggler itself (Nightly and Dev run side by side). */}
             {info && info.edition !== "main" && (
               <span
-                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-ink"
+                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-ink"
                 data-testid="edition-badge"
                 title={`${info.name}: its own data, separate from AI Juggler`}
               >
@@ -675,7 +678,7 @@ export default function App() {
                     surface 1 of 3 — identical content everywhere). */}
                 <LegendPopover />
               </div>
-              <div className="truncate font-mono text-[10px] text-faint">
+              <div className="truncate font-mono text-label text-muted">
                 v{info?.version ?? "0.0.0"}
               </div>
             </div>
@@ -694,18 +697,16 @@ export default function App() {
           // window keeps the single row.
           className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
         >
-          <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-sm font-semibold tracking-wide">{contextTitle}</h1>
+          {/* Room for the title and its tool chip, so the nav beside it
+              wraps rather than covering the chip at 1024 px (0.1.5). */}
+          <div className="flex min-w-[12rem] flex-1 basis-0 items-center gap-3">
+            <h1 className="min-w-0 truncate text-body font-semibold">{contextTitle}</h1>
             {/* The tool's own view (what's installed, its accounts and
                 their quota): one click from a session that runs on it. */}
             {contextProvider && contextProviderId && selection.kind !== "provider" && (
               <button
                 type="button"
-                onClick={() => {
-                  setGlobal(null);
-                  setSelection({ kind: "provider", id: contextProviderId });
-                  setInspectorFocus((n) => n + 1);
-                }}
+                onClick={() => openToolInSettings()}
                 aria-label={`About ${contextProvider}`}
                 title={`About ${contextProvider}`}
                 className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
@@ -725,7 +726,6 @@ export default function App() {
               page={selection.kind}
               pairedCount={pairedCount}
               cleanupCount={cleanupCount}
-              toolIds={[...new Set(accounts.map((account) => account.provider))]}
               onPick={(id) => {
                 if (PRIMARY_NAV.some((item) => item.id === id)) {
                   setSettingsFocusCloud(false);
@@ -736,7 +736,6 @@ export default function App() {
                   setSelection({ kind: "none" });
                 } else setGlobal(id);
               }}
-              onOpenTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); }}
             />
             <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
               <IconTerminal width={14} height={14} />
@@ -750,11 +749,9 @@ export default function App() {
          * recovery summary) dismiss and return focus to the board. */}
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
-            <div className="h-full">
-              <ScreenBoundary key="cleanup" screen="cleanup" label="Cleanup">
-                <CleanupCentre />
-              </ScreenBoundary>
-            </div>
+            <ScrollingScreen key="cleanup" screen="cleanup" label="Cleanup">
+              <CleanupCentre sessions={sessions} />
+            </ScrollingScreen>
           ) : global === "accounts" ? (
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
               <ProfilesScreen
@@ -771,7 +768,7 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "history" ? (
             <ScrollingScreen key="history" screen="history" label="History">
-              <History sessions={sessions} projects={projects} onChanged={() => void refresh()} />
+              <History sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
             <ScrollingScreen key="usage" screen="usage" label="Usage">
@@ -797,9 +794,8 @@ export default function App() {
               />
             </ScrollingScreen>
           ) : global === "privacy" ? (
-            <ScrollingScreen key="privacy" screen="privacy" label="Privacy">
-              <PrivacyScreen />
-            </ScrollingScreen>
+            // Settings › Privacy, a frame from now (the redirect above).
+            null
           ) : global === "settings" ? (
             <ScrollingScreen key="settings" screen="settings" label="Settings">
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />

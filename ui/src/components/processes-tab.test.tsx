@@ -2,11 +2,14 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProcessesInfo, ProjectInfo } from "../lib/bridge";
+import type { CleanupRowInfo } from "./ProcessRow";
+import type { KillBridge, KillVerifyData } from "./KillSheet";
 
 /**
  * AJ-E410 evidence: the Processes tab — the live tree table per §7.3,
- * the orphan section with PID-named confirms and verified stop states,
- * the manual Retry on read failure, and the good empty states.
+ * the manual Retry on read failure, and the good empty states. G-1:
+ * what the session left behind is the SHARED Cleanup row, and every
+ * Stop opens the verified sheet (verify first) — never a direct stop.
  */
 
 // The seam (ProcessesBridge) is injected — vitest 5's mocker did not
@@ -14,11 +17,76 @@ import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProcessesInfo, Projec
 // its data source as a prop (production default = the real bridge).
 const e410 = {
   processes: {} as Record<string, ProcessesInfo | null>,
-  stopImpl: (_sessionId: string, _pid: number) => "gone" as string,
-  stopCalls: [] as [string, number][],
-  stopAllCalls: [] as string[],
+  cleanup: {} as Record<string, CleanupRowInfo[]>,
   verifyCalls: [] as [string, number][],
+  executeCalls: [] as [string, number][],
+  verified: true,
   throws: false,
+};
+
+function leftover(pid: number, overrides: Partial<CleanupRowInfo> = {}): CleanupRowInfo {
+  return {
+    machine_id: "this-mac",
+    pid,
+    pgid: 40100,
+    role: "helper",
+    state: "orphaned",
+    state_label: "Still running after its session closed",
+    role_guess: "dev server",
+    exe_path: "/usr/local/bin/node",
+    cmdline: "node node_modules/.bin/vite dev --port 5173",
+    age_ms: 18 * 60_000,
+    rss_bytes: 210 * 1024 * 1024,
+    cpu_pct: 0.4,
+    ports: "5173",
+    hog: false,
+    hog_rules: [],
+    evidence: {
+      root_pid: 40100,
+      parent_pid: 40100,
+      pgid: 40100,
+      escaped_group: false,
+      verification: { verdict: "verified", detail: "start-time and exe match the live process" },
+      first_seen: 1,
+      last_seen: 2,
+    },
+    ...overrides,
+  };
+}
+
+function verifyData(session: string, pid: number): KillVerifyData {
+  return {
+    pid,
+    session,
+    verified: e410.verified,
+    refusal: e410.verified ? null : "This PID now belongs to a different program — Juggler will not touch it.",
+    exe_path: "/usr/local/bin/node",
+    cmdline: "node node_modules/.bin/vite dev --port 5173",
+    cwd: "/w/x",
+    ports: [5173],
+    pgid: 40100,
+    escaped_group: false,
+    members: [],
+    tree_pids: [pid],
+    platform: "TERM → grace → KILL",
+    grace_secs: 5,
+    provider: "claude-code",
+    account_id: "a1",
+    project_id: null,
+  };
+}
+
+const kill: KillBridge = {
+  verify: async (session, pid) => {
+    e410.verifyCalls.push([session, pid]);
+    return verifyData(session, pid);
+  },
+  execute: async (session, pid) => {
+    e410.executeCalls.push([session, pid]);
+    return { refusal: null, members: [{ pid, outcome: "exited on TERM" }], cancelled: false, all_succeeded: true, still_holding: [], reoffer_pid: null };
+  },
+  cancel: async () => undefined,
+  liveness: async (pids) => pids.map(() => false),
 };
 
 const processesBridge = {
@@ -26,27 +94,8 @@ const processesBridge = {
     if (e410.throws) throw new Error("sysinfo probe failed");
     return e410.processes[id] ?? null;
   },
-  stop: async (sessionId: string, pid: number) => {
-    e410.stopCalls.push([sessionId, pid]);
-    return { pid, state: e410.stopImpl(sessionId, pid) };
-  },
-  stopAll: async (sessionId: string) => {
-    e410.stopAllCalls.push(sessionId);
-    const orphans = e410.processes[sessionId]?.orphans ?? [];
-    return orphans.map((orphan) => ({
-      pid: orphan.pid,
-      state: orphan.pid === 39890 ? "still alive - escalated to SIGKILL" : "gone",
-    }));
-  },
-  verify: async (sessionId: string, pid: number) => {
-    e410.verifyCalls.push([sessionId, pid]);
-    return {
-      pid,
-      alive: true,
-      parent_pid: 1,
-      note: "alive — re-parented to init/launchd (its parent exited)",
-    };
-  },
+  cleanup: async (id: string) => ({ rows: e410.cleanup[id] ?? [], localMachine: "this-mac" }),
+  kill,
 };
 
 vi.mock("./TerminalView", () => ({
@@ -54,7 +103,6 @@ vi.mock("./TerminalView", () => ({
 }));
 
 const NOW = 1_728_800_000_000;
-const REFUSED_PID = 99_999;
 
 const fixtures: Record<string, ProcessesInfo> = {
   tree: {
@@ -64,27 +112,34 @@ const fixtures: Record<string, ProcessesInfo> = {
       { pid: 41302, parent_pid: 41233, name: "rg (search)", cpu_pct: null, rss_bytes: 120_000_000, age_ms: 12_000, child_count: 0, depth: 2 },
     ],
     spark: [{ at_ms: NOW - 2_000, cpu_pct: 7.5, rss_bytes: 1_106_000_000 }],
-    orphans: [
-      { session_id: "tree", pid: 39871, name: "node dev-server", rss_bytes: 210_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: null },
-      { session_id: "tree", pid: 39890, name: "vite", rss_bytes: 88_000_000, parent_label: "claude", age_since_parent_exit_ms: 18 * 60_000, stop_state: null },
-    ],
     unavailable_reason: null,
   },
   clean: {
     rows: [],
     spark: [],
-    orphans: [],
     unavailable_reason: null,
   },
   unavailable: {
     rows: [],
     spark: [],
-    orphans: [],
     unavailable_reason: "resources unavailable",
   },
 };
 
 Object.assign(e410.processes, fixtures);
+e410.cleanup.tree = [
+  // The live tree already shows this one: it is not listed twice.
+  leftover(41233, { state: "running", state_label: "Running" }),
+  leftover(39871),
+  leftover(39890, { cmdline: "node esbuild --watch src/index.ts", role_guess: "watcher", ports: null }),
+  leftover(39900, {
+    state: "unverifiable",
+    state_label: "Unverifiable — will not be touched",
+    cmdline: "postgres -D /var/pg",
+    evidence: { ...leftover(1).evidence, verification: { verdict: "unverifiable", detail: "differs" } },
+  }),
+];
+e410.cleanup.unavailable = [leftover(55120, { state: "adopted", state_label: "Running — picked up after restart" })];
 
 function instance(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
   return {
@@ -154,10 +209,9 @@ function processesShell(row: InstanceInfo) {
 
 afterEach(cleanup);
 beforeEach(() => {
-  e410.stopCalls.length = 0;
-  e410.stopAllCalls.length = 0;
   e410.verifyCalls.length = 0;
-  e410.stopImpl = () => "gone";
+  e410.executeCalls.length = 0;
+  e410.verified = true;
   e410.throws = false;
 });
 
@@ -179,74 +233,64 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     expect(container.querySelectorAll('[data-testid="processes-tab"] th[scope="col"]').length).toBe(6);
   });
 
-  it("renders the orphan section with copy-exact heading, parents, and PID-labelled stop buttons", async () => {
+  it("lists what was left behind as the shared Cleanup rows, without the live tree's processes", async () => {
     const { container } = processesShell(instance("tree"));
-    await waitFor(() => expect(container.querySelector('[data-testid="processes-orphans"]')).not.toBeNull());
-    expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe(
-      "Orphaned - left behind (2)",
-    );
-    expect(container.querySelector('[data-testid="orphan-row-39871"]')!.textContent).toContain("node dev-server");
-    expect(container.querySelector('[data-testid="orphan-row-39871"]')!.textContent).toContain("parent: claude");
-    expect(container.querySelector('[data-testid="orphan-row-39871"]')!.textContent).toContain("since exit 18m");
-    const stopButton = [
-      ...container.querySelectorAll("button"),
-    ].find((button) => button.textContent === "Stop process 39871")!;
-    expect(stopButton).toBeDefined();
-    expect(stopButton.getAttribute("aria-label") ?? "").toBe(""); // labelled by its visible text
+    await waitFor(() => expect(container.querySelector('[data-testid="cleanup-row-39871"]')).not.toBeNull());
+    expect(container.querySelector('[data-testid="leftovers-heading"]')!.textContent).toBe("Left behind (3)");
+    // The same row component as Cleanup, with its column headings.
+    const section = container.querySelector('[data-testid="session-leftovers"]')!;
+    expect(section.querySelector('[data-testid="process-rows-header"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="cleanup-name-39871"]')!.textContent).toBe("vite");
+    expect(container.querySelector('[data-testid="cleanup-role-39871"]')!.textContent).toBe("probably a dev server");
+    // 41233 is in the live tree above: never listed twice.
+    expect(container.querySelector('[data-testid="cleanup-row-41233"]')).toBeNull();
+    // No second list, no ledger dump, no machine-wide port list here.
+    const tab = container.querySelector('[data-testid="processes-tab"]')!.textContent ?? "";
+    expect(tab).not.toContain("Ledger rows");
+    expect(tab).not.toContain("Stop all orphans");
+    expect(tab).not.toContain("Verify owner");
+    expect(container.querySelector('[data-testid^="port-row-"]')).toBeNull();
+    // An unverifiable row offers no Stop at all.
+    expect(container.querySelector('[data-testid="cleanup-kill-39900"]')).toBeNull();
   });
 
-  it("confirms before stopping, names the PID, then shows gone ✓ on the row", async () => {
-    const { container } = processesShell(instance("tree"));
-    await waitFor(() => expect(container.querySelector('[data-testid="orphan-row-39871"]')).not.toBeNull());
-    fireEvent.click([...container.querySelectorAll("button")].find((b) => b.textContent === "Stop process 39871")!);
-    const confirm = container.querySelector('[data-testid="orphan-confirm-39871"]')!;
-    expect(confirm.getAttribute("role")).toBe("alertdialog");
-    expect(confirm.textContent).toContain("39871");
-    expect(confirm.textContent).toContain("SIGTERM");
-    fireEvent.click([...container.querySelectorAll("button")].find((b) => b.textContent === "Stop 39871")!);
-    await waitFor(() =>
-      expect(container.querySelector('[data-testid="orphan-state-39871"]')!.textContent).toBe("gone ✓"),
-    );
-    expect(e410.stopCalls).toContainEqual(["tree", 39871]);
+  it("Stop opens the verified sheet — it verifies first, and nothing is signalled in one click", async () => {
+    const { container, findByRole } = processesShell(instance("tree"));
+    await waitFor(() => expect(container.querySelector('[data-testid="cleanup-kill-39871"]')).not.toBeNull());
+    fireEvent.click(container.querySelector('[data-testid="cleanup-kill-39871"]')!);
+    const sheet = await findByRole("dialog");
+    await waitFor(() => expect(e410.verifyCalls).toContainEqual(["tree", 39871]));
+    // Verified: the consequence-named confirm is offered, not run.
+    await waitFor(() => expect(sheet.querySelector('[data-testid="kill-confirm-39871"]')).not.toBeNull());
+    expect(e410.executeCalls).toEqual([]);
   });
 
-  it("Stop all lists every PID in its confirm and lands the escalated state verbatim", async () => {
-    const { container } = processesShell(instance("tree"));
-    await waitFor(() => expect(container.querySelector('[data-testid="processes-orphans"]')).not.toBeNull());
-    fireEvent.click([...container.querySelectorAll("button")].find((b) => b.textContent === "Stop all orphans…")!);
-    const confirm = container.querySelector('[data-testid="orphans-confirm-all"]')!;
-    expect(confirm.textContent).toContain("39871");
-    expect(confirm.textContent).toContain("39890");
-    fireEvent.click([...container.querySelectorAll("button")].find((b) => b.textContent === "Stop all")!);
-    await waitFor(() =>
-      expect(container.querySelector('[data-testid="orphan-state-39890"]')!.textContent).toBe(
-        "still alive - escalated to SIGKILL",
-      ),
-    );
-    expect(e410.stopAllCalls).toContainEqual("tree");
+  it("a recycled pid is refused by the sheet: no confirm button exists", async () => {
+    e410.verified = false;
+    const { container, findByRole } = processesShell(instance("tree"));
+    await waitFor(() => expect(container.querySelector('[data-testid="cleanup-kill-39871"]')).not.toBeNull());
+    fireEvent.click(container.querySelector('[data-testid="cleanup-kill-39871"]')!);
+    const sheet = await findByRole("dialog");
+    await waitFor(() => expect(sheet.textContent ?? "").toContain("belongs to a different program"));
+    expect(sheet.querySelector('[data-testid="kill-confirm-39871"]')).toBeNull();
+    expect(e410.executeCalls).toEqual([]);
   });
 
-  it("Verify owner shows the re-checked ppid evidence", async () => {
-    const { container } = processesShell(instance("tree"));
-    await waitFor(() => expect(container.querySelector('[data-testid="orphan-row-39871"]')).not.toBeNull());
-    fireEvent.click([...container.querySelectorAll("button")].find((b) => b.textContent === "Verify owner")!);
-    await waitFor(() =>
-      expect(container.querySelector('[data-testid="orphan-verify-39871"]')!.textContent).toContain(
-        "re-parented to init/launchd",
-      ),
-    );
-    expect(e410.verifyCalls.length).toBeGreaterThan(0);
-  });
-
-  it("good empty states: No subprocesses / No orphaned processes", async () => {
+  it("good empty states: No subprocesses / Nothing left behind, and a way to Cleanup", async () => {
     const { container } = processesShell(instance("clean"));
     await waitFor(() => expect(container.querySelector('[data-testid="processes-empty"]')).not.toBeNull());
     expect(container.querySelector('[data-testid="processes-empty"]')!.textContent).toBe("No subprocesses");
-    expect(container.querySelector('[data-testid="orphans-heading"]')!.textContent).toBe("No orphaned processes");
-    // Plain words under it, not a design note (0.0.11 walk).
-    const orphans = container.querySelector('[data-testid="processes-orphans"]')!.textContent ?? "";
-    expect(orphans).toContain("Nothing this session started is still running after it.");
-    expect(orphans).not.toContain("empty state");
+    await waitFor(() =>
+      expect(container.querySelector('[data-testid="leftovers-heading"]')!.textContent).toBe("Nothing left behind"),
+    );
+    const section = container.querySelector('[data-testid="session-leftovers"]')!.textContent ?? "";
+    expect(section).toContain("Nothing this session started is still running after it.");
+    const opened: string[] = [];
+    const onOpen = (event: Event) => opened.push((event as CustomEvent<{ id: string }>).detail.id);
+    window.addEventListener("aij:open-screen", onOpen);
+    fireEvent.click(container.querySelector('[data-testid="leftovers-open-cleanup"]')!);
+    window.removeEventListener("aij:open-screen", onOpen);
+    expect(opened).toEqual(["cleanup"]);
   });
 
   it("adopted/desktop-kind sessions render resources unavailable — never zeroed rows", async () => {
@@ -256,6 +300,9 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
       "resources unavailable",
     );
     expect(container.querySelector('[data-testid="processes-tab"] table')).toBeNull();
+    // With no tree to read, its processes are the shared rows, stoppable
+    // through the verified sheet.
+    await waitFor(() => expect(container.querySelector('[data-testid="cleanup-kill-55120"]')).not.toBeNull());
   });
 
   it("tree-read failure renders an alert banner with a manual Retry", async () => {
@@ -270,35 +317,6 @@ describe("AJ-E410 Processes tab (§7.3 + orphan contract)", () => {
     await waitFor(() => expect(container.querySelector('[data-testid="processes-tab"] table')).not.toBeNull());
   });
 
-  it("a refused stop surfaces the guardrail text on the row", async () => {
-    e410.stopImpl = (_sessionId: string, pid: number) =>
-      pid === REFUSED_PID ? "refused - not a recorded descendant" : "gone";
-    e410.processes.tree = {
-      ...(e410.processes.tree as ProcessesInfo),
-      orphans: [
-        ...(e410.processes.tree as ProcessesInfo).orphans,
-        { session_id: "tree", pid: REFUSED_PID, name: "stray", rss_bytes: 1_000, parent_label: "claude", age_since_parent_exit_ms: 5_000, stop_state: null },
-      ],
-    };
-    const { container } = processesShell(instance("tree"));
-    await waitFor(() => expect(container.querySelector(`[data-testid="orphan-row-${REFUSED_PID}"]`)).not.toBeNull());
-    fireEvent.click(
-      [...container.querySelectorAll("button")].find((b) => b.textContent === `Stop process ${REFUSED_PID}`)!,
-    );
-    fireEvent.click(
-      [...container.querySelectorAll("button")].find((b) => b.textContent === `Stop ${REFUSED_PID}`)!,
-    );
-    await waitFor(() =>
-      expect(container.querySelector(`[data-testid="orphan-state-${REFUSED_PID}"]`)!.textContent).toBe(
-        "refused - not a recorded descendant",
-      ),
-    );
-    // restore the fixture for later tests
-    e410.processes.tree = {
-      ...(e410.processes.tree as ProcessesInfo),
-      orphans: (e410.processes.tree as ProcessesInfo).orphans.filter((orphan) => orphan.pid !== REFUSED_PID),
-    };
-  });
 });
 
 describe("AJ-E510 re-adopted Instances (crash recovery)", () => {

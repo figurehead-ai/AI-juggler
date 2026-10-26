@@ -45,27 +45,25 @@ pub struct TaskInfo {
     pub issue_label: Option<String>,
 }
 
-/// One page of a pool's tasks, ready work first.
-#[derive(Debug, Clone, Serialize, TS)]
+/// How many of a pool's tasks are in each honest status (the filter's
+/// numbers).
+#[derive(Debug, Clone, Default, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct TasksPage {
-    /// The tasks.
-    pub tasks: Vec<TaskInfo>,
-    /// The next page's cursor, when there is one.
-    pub next: Option<String>,
-    /// How many of the pool's tasks are in each status (the filter's
-    /// numbers), most actionable first.
-    pub counts: Vec<TaskCountInfo>,
-}
-
-/// How many tasks are in one status.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct TaskCountInfo {
-    /// The status.
-    pub status: String,
-    /// How many.
-    pub count: u32,
+pub struct TaskCounts {
+    /// Ready for anyone.
+    pub ready: u32,
+    /// Someone is on it.
+    pub in_progress: u32,
+    /// Waits on a review.
+    pub in_review: u32,
+    /// Something blocks it.
+    pub blocked: u32,
+    /// Not ready yet.
+    pub todo: u32,
+    /// Finished.
+    pub done: u32,
+    /// Dropped.
+    pub cancelled: u32,
 }
 
 /// One link, from the task's side.

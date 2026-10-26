@@ -63,6 +63,20 @@ pub enum Ask {
     Pending,
 }
 
+/// What a transcript's tail says of a session's last turn, for a tool
+/// that records no status word of its own (Codex). Worked out from the
+/// tail, so the UI says "probably".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TailTurn {
+    /// A turn started and hasn't ended: it is working.
+    Running,
+    /// The running turn waits on the user's answer (an approval, a
+    /// question).
+    Waiting,
+    /// The last turn ended: waiting for the next thing.
+    Ended,
+}
+
 /// One open session, as its tool's own per-session file says.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LiveSession {

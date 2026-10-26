@@ -37,8 +37,13 @@ use juggler_agentbridge::wire::{
 };
 use juggler_app::features::pools;
 use juggler_app::features::tasks::{dto::TaskInput, issues, launch, needs, views};
+use juggler_app::paging::PageRequest;
 use juggler_core::model::SessionId;
 use lab::{Lab, field};
+
+fn first_page() -> PageRequest {
+    PageRequest::first(50)
+}
 
 fn create(lab: &Lab, key: &str, title: &str, kind: Option<&str>) -> Response {
     lab.call(
@@ -236,16 +241,16 @@ fn each_level_decides_and_a_change_above_it_waits_on_the_user() {
     assert!(waiting[0].title.contains("Planner"), "{:?}", waiting[0]);
     assert!(!waiting[0].offer_always, "not before the second approval");
     assert!(
-        views::list(&lab.state, &lab.pool, None, None, None)
+        views::list(&lab.state, &lab.pool, None, None, &first_page())
             .unwrap()
-            .tasks
+            .items
             .is_empty(),
         "nothing happens before the user's OK"
     );
     needs::answer(&lab.state, &waiting[0].id, "once").unwrap();
-    let tasks = views::list(&lab.state, &lab.pool, None, None, None)
+    let tasks = views::list(&lab.state, &lab.pool, None, None, &first_page())
         .unwrap()
-        .tasks;
+        .items;
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].written_by, "Planner", "made as the agent's own");
     // The second ask offers a rule; Always allow makes one.
@@ -485,8 +490,8 @@ fn a_card_shows_its_members_task() {
         card(&lab).value.as_deref(),
         Some(format!("{id} · Build the API (in progress)").as_str())
     );
-    let mine = views::of_session(&lab.state, a_id.as_str()).unwrap();
-    assert_eq!(mine[0].id, id);
+    let mine = views::of_session(&lab.state, a_id.as_str(), &first_page()).unwrap();
+    assert_eq!(mine.items[0].id, id);
 }
 
 #[test]
@@ -526,13 +531,13 @@ fn the_user_plans_an_epic_with_stories_and_sees_the_tree() {
         views::create(&lab.state, input("Wrong", "story", Some(&stories[0]))).is_err(),
         "a story goes under an epic"
     );
-    let plan = views::plan(&lab.state, &lab.pool).unwrap();
-    assert_eq!(plan.len(), 4);
+    let plan = views::plan(&lab.state, &lab.pool, &first_page()).unwrap();
+    assert_eq!(plan.items.len(), 4);
     let detail = views::detail(&lab.state, &epic, None).unwrap();
     assert_eq!(detail.children.len(), 3);
     assert_eq!((detail.task.items, detail.task.items_done), (3, 0));
-    let under = views::children(&lab.state, &lab.pool, &stories[0], None).unwrap();
-    assert_eq!(under.tasks.len(), 1);
+    let under = views::children(&lab.state, &lab.pool, &stories[0], &first_page()).unwrap();
+    assert_eq!(under.items.len(), 1);
 }
 
 #[test]
@@ -542,20 +547,31 @@ fn two_hundred_tasks_list_fast_and_page() {
         task(&lab, &format!("Task {n}"), &[]);
     }
     let started = Instant::now();
-    let first = views::list(&lab.state, &lab.pool, None, None, None).unwrap();
+    let first = views::list(&lab.state, &lab.pool, None, None, &PageRequest::first(200)).unwrap();
     let took = started.elapsed();
-    assert_eq!(first.tasks.len(), views::PAGE as usize);
+    assert_eq!(first.items.len(), 200);
     assert!(took < Duration::from_millis(100), "{took:?}");
-    let mut seen = first.tasks.len();
-    let mut next = first.next;
+    // Keyset pages (paging.rs): every task once, none twice.
+    let mut seen: std::collections::HashSet<String> =
+        first.items.iter().map(|t| t.id.clone()).collect();
+    let mut next = first.next_cursor;
     while let Some(cursor) = next {
-        let page = views::list(&lab.state, &lab.pool, None, None, Some(&cursor)).unwrap();
-        seen += page.tasks.len();
-        next = page.next;
+        let page = views::list(
+            &lab.state,
+            &lab.pool,
+            None,
+            None,
+            &PageRequest::after(&cursor, 50),
+        )
+        .unwrap();
+        for task in &page.items {
+            assert!(seen.insert(task.id.clone()), "{} twice", task.id);
+        }
+        next = page.next_cursor;
     }
-    assert_eq!(seen, 230);
-    assert_eq!(first.counts[0].status, "ready");
-    assert_eq!(first.counts[0].count, 230);
+    assert_eq!(seen.len(), 230);
+    let counts = views::counts(&lab.state, &lab.pool).unwrap();
+    assert_eq!((counts.ready, counts.done), (230, 0));
 }
 
 /// A stand-in for the user's `gh`, printing what GitHub would.

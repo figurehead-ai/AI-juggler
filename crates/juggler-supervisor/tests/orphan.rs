@@ -1,7 +1,8 @@
 //! AJ-E410 orphan-contract integration: a real supervised process that
-//! leaves a child behind, the 10 s grace, the TERM→KILL ladder, and the
-//! allow-list guardrail. Real processes, real signals, real timing —
-//! the evidence for `docs/qa/evidence/AJ-E410/manifest.md`.
+//! leaves a child behind and the 10 s grace. The tracker only detects;
+//! stopping goes through the verified ladder (`terminate_group`, behind
+//! the app's identity check and audit). Real processes, real signals,
+//! real timing — the evidence for `docs/qa/evidence/AJ-E410/manifest.md`.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
@@ -13,8 +14,15 @@ use juggler_adapter::{EnvMap, LaunchSpec};
 use juggler_core::model::SessionId;
 use juggler_supervisor::{
     DescendantRow, ExitKind, ExitSnapshot, LifecycleEvent, LiveStatsCollector, ORPHAN_GRACE_MS,
-    OrphanTracker, StopOutcome, Supervisor, process_alive, stop_pid_ladder,
+    OrphanTracker, ProcessOutcome, Supervisor, process_alive, terminate_group,
 };
+
+/// The ladder over one pid (the primitive the app's verified path runs).
+fn ladder(pid: u32, grace: Duration) -> ProcessOutcome {
+    let outcome = terminate_group(grace, move || vec![pid], || false);
+    assert_eq!(outcome.members.len(), 1);
+    outcome.members[0].1
+}
 
 fn fake_harness_bin() -> PathBuf {
     if let Some(path) = option_env!("CARGO_BIN_EXE_fake-harness") {
@@ -51,7 +59,7 @@ fn now_ms() -> i64 {
 
 /// The full contract against real processes: harness spawns a `sleep`
 /// child, exits non-clean, the child surfaces as an orphan after the
-/// 10 s grace, and `Stop process` yields `gone` on re-read.
+/// 10 s grace, and once it is stopped the tracker stops watching it.
 fn ledger_test_ctx() -> juggler_supervisor::tree::SpawnContext {
     juggler_supervisor::tree::SpawnContext {
         provider: "claude-code".into(),
@@ -188,14 +196,12 @@ fn orphan_detected_after_grace_and_stopped_gone() {
         "orphan surfaced too late (>10 s + 2 s poll + slack): {elapsed:?}"
     );
 
-    // Stop process: allowed (recorded), TERM suffices for a sleep.
-    assert!(tracker.allows(&session, child_pid));
-    let outcome = stop_pid_ladder(child_pid, Duration::from_secs(2), |pid| {
-        process_alive(pid).is_some()
-    });
-    tracker.record_stop(child_pid, outcome.clone());
-    assert_eq!(outcome, StopOutcome::Gone { escalated: false });
-    assert_eq!(tracker.stop_state(child_pid).unwrap().state_label(), "gone");
+    // Stopped (TERM suffices for a sleep): the next poll drops it.
+    assert_eq!(
+        ladder(child_pid, Duration::from_secs(2)),
+        ProcessOutcome::ExitedOnTerm
+    );
+    tracker.poll(now_ms(), process_alive);
     assert!(tracker.orphans_of(&session).is_empty(), "gone row drops");
 
     // The audit + allow-list are durable: the journal carries both.
@@ -263,12 +269,9 @@ fn stop_ladder_escalates_when_sigterm_ignored() {
         process_alive(child_pid).is_some(),
         "child survived the harness"
     );
-    let outcome = stop_pid_ladder(child_pid, Duration::from_millis(800), |pid| {
-        process_alive(pid).is_some()
-    });
     assert_eq!(
-        outcome,
-        StopOutcome::Gone { escalated: true },
+        ladder(child_pid, Duration::from_millis(800)),
+        ProcessOutcome::NeededKill,
         "TERM is ignored — the ladder must escalate to SIGKILL"
     );
 }
@@ -281,32 +284,9 @@ fn ladder_stops_normal_child_with_term() {
         .spawn()
         .unwrap();
     let pid = child.id();
-    let outcome = stop_pid_ladder(pid, Duration::from_secs(2), |pid| {
-        process_alive(pid).is_some()
-    });
-    assert_eq!(outcome, StopOutcome::Gone { escalated: false });
-    let _ = child.wait();
-}
-
-/// Owner verification reports the re-parenting evidence.
-#[test]
-fn verify_owner_reports_reparented_or_gone() {
-    let mut child = std::process::Command::new("/bin/sleep")
-        .arg("60")
-        .spawn()
-        .unwrap();
-    let pid = child.id();
-    let state = juggler_supervisor::verify_owner(pid);
-    assert!(matches!(
-        state,
-        juggler_supervisor::OwnerState::Alive { .. }
-    ));
-    stop_pid_ladder(pid, Duration::from_secs(2), |pid| {
-        process_alive(pid).is_some()
-    });
     assert_eq!(
-        juggler_supervisor::verify_owner(pid),
-        juggler_supervisor::OwnerState::Gone
+        ladder(pid, Duration::from_secs(2)),
+        ProcessOutcome::ExitedOnTerm
     );
     let _ = child.wait();
 }

@@ -79,6 +79,7 @@ export function resolveActions<K extends ItemKind>(kind: K, item: ItemOf[K], hos
           submenu: spec.submenu,
           destructive: group === "stop",
           shortcut: spec.shortcut ? SHORTCUTS.find((entry) => entry.id === spec.shortcut)?.keys[0] : undefined,
+          shortcutId: spec.shortcut,
           reason: reason ?? undefined,
           run: reason ? () => {} : () => spec.run(item, host),
         };

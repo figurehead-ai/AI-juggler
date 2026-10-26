@@ -32,7 +32,7 @@ function usedHere(sub: SubscriptionInfo, displays: QuotaDisplayData[]): { five: 
 export function ServiceUsage({ sub, service, displays }: { sub: SubscriptionInfo; service: AccountServiceInfo; displays: QuotaDisplayData[] }): JSX.Element {
   const used = usedHere(sub, displays);
   return (
-    <div className="flex flex-col gap-1.5 text-[11.5px] text-muted" data-testid="account-service-usage" data-usage={service.usage}>
+    <div className="flex flex-col gap-1.5 text-label text-muted" data-testid="account-service-usage" data-usage={service.usage}>
       <span className="flex items-start gap-2">
         <UsageChip usage={service.usage} />
         <span>{service.usage_words}</span>

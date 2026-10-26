@@ -17,7 +17,7 @@ const TONES: Record<PillTone, string> = {
 
 export function Pill({ tone, children, testId }: { tone: PillTone; children: ReactNode; testId?: string }): JSX.Element {
   return (
-    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-medium ${TONES[tone]}`} data-testid={testId}>
+    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-label font-medium ${TONES[tone]}`} data-testid={testId}>
       {children}
     </span>
   );

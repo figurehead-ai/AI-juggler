@@ -17,6 +17,13 @@ vi.mock("../lib/bridge", async (importOriginal) => {
   };
 });
 
+// 0.1.5: the rows come a page at a time (`costRowsPage`); the totals stay.
+vi.mock("../lib/ipc/costs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/ipc/costs")>();
+  const { pageOf } = await import("../lib/paged");
+  return { ...original, costRowsPage: vi.fn(async (_account: string | null, page: import("../lib/paged").PageRequest) => pageOf(fixture.rows, page)) };
+});
+
 const fixture: CostRollupsData = {
   rows: [
     {
@@ -70,13 +77,14 @@ describe("CostMatrix (AJ-E609)", () => {
     expect(screen.container.textContent).toContain("≈$0.01 at API prices");
   });
 
-  it("associates headers and announces the totals row (WCAG 2.2 AA)", async () => {
+  it("names every column, on every row for screen readers, and says the total (WCAG 2.2 AA)", async () => {
     const screen = render(<CostMatrix />);
     await screen.findByText("claude-opus-4");
-    const headers = screen.container.querySelectorAll("th[scope='col']");
-    expect(headers.length).toBeGreaterThanOrEqual(6);
-    const rowHeader = screen.container.querySelector("tfoot th[scope='row']");
-    expect(rowHeader?.textContent).toContain("Total");
+    expect(screen.getByTestId("cost-columns").children.length).toBe(6);
+    const row = screen.getAllByTestId("cost-row")[0]!;
+    for (const name of ["Session", "Model", "Day", "Tokens in and out", "Credits", "USD, estimate"]) expect(row.textContent).toContain(name);
+    expect(screen.getByRole("list", { name: "Cost per session, model and day" })).toBeTruthy();
+    expect((await screen.findByTestId("cost-total")).textContent).toContain("Total");
   });
 });
 

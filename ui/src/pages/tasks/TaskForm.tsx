@@ -10,7 +10,7 @@ import { errorText } from "../../lib/bridge";
 import { tasksCreate, type TaskDetail, type TaskInfo } from "../../lib/ipc/tasks";
 import { KIND_WORDS, PRIORITIES, PRIORITY_WORDS } from "./words";
 
-const FIELD = "h-8 rounded-lg border border-hairline bg-surface px-2.5 text-[13px] text-ink outline-none focus:border-accent/60";
+const FIELD = "h-8 rounded-lg border border-hairline bg-surface px-2.5 text-meta text-ink outline-none focus:border-accent/60";
 
 export function TaskForm({
   poolId,
@@ -80,7 +80,7 @@ export function TaskForm({
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <input aria-label="Title" placeholder="What needs doing" value={title} maxLength={120} autoFocus onChange={(event) => setTitle(event.target.value)} className={FIELD + " h-9 min-w-[240px] flex-1 text-[14px]"} data-testid="task-form-title" />
+        <input aria-label="Title" placeholder="What needs doing" value={title} maxLength={120} autoFocus onChange={(event) => setTitle(event.target.value)} className={FIELD + " h-9 min-w-[240px] flex-1 text-body"} data-testid="task-form-title" />
         <select aria-label="Kind" value={kind} onChange={(event) => setKind(event.target.value)} className={FIELD}>
           {(["task", "story", "epic"] as const).map((word) => (
             <option key={word} value={word}>
@@ -96,18 +96,18 @@ export function TaskForm({
           ))}
         </select>
       </div>
-      <textarea aria-label="What it asks" placeholder="What it asks, and anything the one who takes it should know" rows={3} maxLength={4000} value={body} onChange={(event) => setBody(event.target.value)} className="min-h-[64px] resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-[14px] leading-relaxed text-ink outline-none focus:border-accent/60" />
-      <button type="button" aria-expanded={more} onClick={() => setMore((was) => !was)} className="self-start text-[13px] text-muted underline decoration-hairline underline-offset-2 hover:text-ink" data-testid="task-form-more">
+      <textarea aria-label="What it asks" placeholder="What it asks, and anything the one who takes it should know" rows={3} maxLength={4000} value={body} onChange={(event) => setBody(event.target.value)} className="min-h-[64px] resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-body leading-relaxed text-ink outline-none focus:border-accent/60" />
+      <button type="button" aria-expanded={more} onClick={() => setMore((was) => !was)} className="self-start text-meta text-muted underline decoration-hairline underline-offset-2 hover:text-ink" data-testid="task-form-more">
         {more ? "Fewer details" : "More: when it's done, its epic, what it waits on, an issue link"}
       </button>
       {more && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[13px] text-muted sm:col-span-2">
+          <label className="flex flex-col gap-1 text-meta text-muted sm:col-span-2">
             Done when
-            <textarea rows={2} maxLength={2000} value={acceptance} placeholder="- tests pass&#10;- the docs say how" onChange={(event) => setAcceptance(event.target.value)} className="resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-accent/60" />
+            <textarea rows={2} maxLength={2000} value={acceptance} placeholder="- tests pass&#10;- the docs say how" onChange={(event) => setAcceptance(event.target.value)} className="resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-body text-ink outline-none focus:border-accent/60" />
           </label>
           {kind !== "epic" && (
-            <label className="flex flex-col gap-1 text-[13px] text-muted">
+            <label className="flex flex-col gap-1 text-meta text-muted">
               Part of
               <select value={parent} onChange={(event) => setParent(event.target.value)} className={FIELD}>
                 <option value="">Nothing above it</option>
@@ -119,18 +119,18 @@ export function TaskForm({
               </select>
             </label>
           )}
-          <label htmlFor={`${ids}-status`} className="flex flex-col gap-1 text-[13px] text-muted">
+          <label htmlFor={`${ids}-status`} className="flex flex-col gap-1 text-meta text-muted">
             Starts
             <select id={`${ids}-status`} value={status} onChange={(event) => setStatus(event.target.value)} className={FIELD}>
               <option value="ready">Ready for anyone</option>
               <option value="todo">To do (not ready yet)</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[13px] text-muted">
+          <label className="flex flex-col gap-1 text-meta text-muted">
             Waits on
             <input value={waits} placeholder="aj-7f3c, aj-1a2b" onChange={(event) => setWaits(event.target.value)} className={FIELD + " font-mono"} />
           </label>
-          <label className="flex flex-col gap-1 text-[13px] text-muted">
+          <label className="flex flex-col gap-1 text-meta text-muted">
             Issue link
             <input value={url} type="url" placeholder="https://github.com/…/issues/42" onChange={(event) => setUrl(event.target.value)} className={FIELD} />
           </label>
@@ -147,7 +147,7 @@ export function TaskForm({
         </Button>
       </div>
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

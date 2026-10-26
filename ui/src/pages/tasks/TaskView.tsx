@@ -16,18 +16,22 @@ import { onTasksChanged, tasksAssign, tasksDetail, tasksEdit, tasksLookUp, type 
 import { processesLinkFor } from "../../lib/task-links";
 import { ago } from "../../lib/time-words";
 import { useActionHost } from "../../components/ItemMenu";
+import { PlaceMark, markPlace } from "../../components/PlaceMarks";
 import { showTab } from "../PageShell";
 import { StartSession } from "./StartSession";
 import { TaskLinks } from "./TaskLinks";
 import { TaskRow, TaskStatus } from "./TaskRow";
 import { HOW_WORDS, KIND_WORDS, PRIORITY_WORDS, STATUSES, STATUS_WORDS } from "./words";
 
-const SELECT = "h-8 rounded-lg border border-hairline bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent/60";
+/** Tasks are worked by the sessions AI Juggler runs: its own place. */
+const OWN = markPlace(undefined, true);
+
+const SELECT = "h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60";
 
 function Section({ title, children, testId }: { title: string; children: React.ReactNode; testId?: string }): JSX.Element {
   return (
     <section className="flex flex-col gap-1.5" data-testid={testId}>
-      <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted">{title}</h4>
+      <h4 className="text-label font-semibold uppercase tracking-wider text-muted">{title}</h4>
       {children}
     </section>
   );
@@ -73,6 +77,7 @@ export function TaskView({
       (cause) => (setBusy(false), setError(errorText(cause))),
     );
   };
+  const profileOf = (id: string | null) => sessions.find((s) => s.id === id)?.account_label ?? null;
   const openSession = (id: string | null) => {
     const row = sessions.find((s) => s.id === id);
     if (row) host.openSession?.(row);
@@ -82,7 +87,7 @@ export function TaskView({
       <div className="flex flex-col gap-3 p-1" role="status" aria-label="Loading the task">
         <span className="h-6 w-2/3 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
         <span className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
-        {error && <p className="text-[13px] text-danger">{error}</p>}
+        {error && <p className="text-meta text-danger">{error}</p>}
       </div>
     );
   }
@@ -92,7 +97,7 @@ export function TaskView({
   return (
     <article className="flex min-w-0 flex-col gap-5" aria-labelledby={`task-${task.id}`} data-testid="task-view">
       <header className="flex flex-col gap-2 border-b border-hairline/60 pb-3">
-        <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
+        <div className="flex flex-wrap items-center gap-2 text-label text-muted">
           <span className="font-semibold uppercase tracking-wider">{KIND_WORDS[task.kind]}</span>
           <span className="font-mono">{task.id}</span>
           {detail.parent_title && task.parent_id && (
@@ -101,20 +106,20 @@ export function TaskView({
             </button>
           )}
         </div>
-        <h3 id={`task-${task.id}`} className="text-[18px] font-semibold leading-snug text-ink">
+        <h3 id={`task-${task.id}`} className="text-[16px] font-semibold leading-snug text-ink">
           {task.title}
         </h3>
         <div className="flex flex-wrap items-center gap-2">
           <TaskStatus status={task.status} />
           {task.priority !== "normal" && <Pill tone={task.priority === "low" ? "neutral" : "warning"}>{PRIORITY_WORDS[task.priority] ?? task.priority}</Pill>}
-          {task.stored_status && <span className="text-[13px] text-danger">Set {STATUS_WORDS[task.stored_status]?.toLowerCase()}, but it waits on {task.blocked_by.join(", ")}</span>}
-          <span className="text-[13px] text-muted">
+          {task.stored_status && <span className="text-meta text-danger">Set {STATUS_WORDS[task.stored_status]?.toLowerCase()}, but it waits on {task.blocked_by.join(", ")}</span>}
+          <span className="text-meta text-muted">
             Written by {task.written_by}
             {task.by_agent ? " (an agent: its words, not yours)" : ""} · changed {ago(task.updated_at_ms, now)}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <label className="flex items-center gap-1.5 text-[13px] text-muted">
+          <label className="flex items-center gap-1.5 text-meta text-muted">
             Status
             <select aria-label="Status" value={task.stored_status ?? task.status} disabled={busy} className={SELECT} onChange={(event) => act(() => tasksEdit({ task_id: task.id, status: event.target.value }))} data-testid="task-set-status">
               {STATUSES.map((word) => (
@@ -124,7 +129,7 @@ export function TaskView({
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-1.5 text-[13px] text-muted">
+          <label className="flex items-center gap-1.5 text-meta text-muted">
             With
             <select aria-label="Who has it" value={task.holder_session_id ?? (task.holder === "You" ? "you" : task.holder ? "held" : "nobody")} disabled={busy} className={SELECT} onChange={(event) => act(() => tasksAssign(task.id, event.target.value))} data-testid="task-set-holder">
               <option value="nobody">No one (anyone can take it)</option>
@@ -143,11 +148,13 @@ export function TaskView({
             </Button>
           )}
         </div>
-        {detail.session_asked && !starting && <p className="text-[13px] text-warning">An agent asked you for a new session for it. You pick the account and start it, or leave it.</p>}
+        {detail.session_asked && !starting && <p className="text-meta text-warning">An agent asked you for a new session for it. You pick the account and start it, or leave it.</p>}
         {starting && <StartSession taskId={task.id} needId={detail.session_asked} defaultAccountId={defaultAccountId} onCancel={() => setStarting(false)} onStarted={() => setStarting(false)} />}
       </header>
       {task.holder_session_id && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-2/60 px-3 py-2 text-[13px]" data-testid="task-holder">
+        <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-hairline bg-surface-2/60 px-3 py-2 text-meta" data-testid="task-holder">
+          {/* D-38: the app it runs in (AI Juggler's own), with its profile. */}
+          <PlaceMark place={OWN} profile={profileOf(task.holder_session_id)} size={20} ring="var(--color-surface-2)" />
           <span className="min-w-0 flex-1 text-ink">
             {STATUS_WORDS[task.status]} with <span className="font-medium">{task.holder}</span>, running now
           </span>
@@ -163,12 +170,12 @@ export function TaskView({
       )}
       {detail.body && (
         <Section title="What it asks">
-          <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink">{detail.body}</p>
+          <p className="whitespace-pre-wrap break-words text-body leading-relaxed text-ink">{detail.body}</p>
         </Section>
       )}
       {detail.acceptance && (
         <Section title="Done when">
-          <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink" data-testid="task-acceptance">
+          <p className="whitespace-pre-wrap break-words text-body leading-relaxed text-ink" data-testid="task-acceptance">
             {detail.acceptance}
           </p>
         </Section>
@@ -185,7 +192,7 @@ export function TaskView({
       <TaskLinks detail={detail} busy={busy} act={act} onOpenTask={onOpenTask} />
       {detail.issue && (
         <Section title="Issue" testId="task-issue">
-          <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <div className="flex flex-wrap items-center gap-2 text-meta">
             <a href={detail.issue.url} target="_blank" rel="noreferrer" className="font-mono text-accent-hi underline underline-offset-2">
               {detail.issue.label ?? detail.issue.url}
             </a>
@@ -204,8 +211,8 @@ export function TaskView({
         <Section title="Sessions" testId="task-sessions">
           <ul className="flex flex-col gap-1">
             {detail.sessions.map((s) => (
-              <li key={s.session_id} className="flex items-center gap-2 text-[13px]">
-                <span className={"size-2 shrink-0 rounded-full " + (s.live ? "bg-live" : "bg-hairline")} aria-hidden="true" />
+              <li key={s.session_id} className="flex items-center gap-2 text-meta">
+                {s.live ? <PlaceMark place={OWN} profile={profileOf(s.session_id)} size={16} ring="var(--color-surface)" /> : <span className="size-4 shrink-0 rounded-full border border-hairline" aria-hidden="true" />}
                 <span className="min-w-0 flex-1 truncate text-ink">
                   {s.name} <span className="text-muted">{HOW_WORDS[s.how] ?? s.how} · {ago(s.at_ms, now)}{s.live ? " · running" : ""}</span>
                 </span>
@@ -224,7 +231,7 @@ export function TaskView({
           <ul className="flex flex-col gap-1">
             {detail.threads.map((thread) => (
               <li key={thread.thread_id}>
-                <button type="button" className="flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] hover:bg-surface-2" onClick={() => (focusThread(thread.thread_id), showTab("messages"))}>
+                <button type="button" className="flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-meta hover:bg-surface-2" onClick={() => (focusThread(thread.thread_id), showTab("messages"))}>
                   <span className="min-w-0 flex-1 truncate text-ink">{thread.subject}</span>
                   <span className="shrink-0 text-muted">
                     {thread.count === 1 ? "1 message" : `${thread.count} messages`} · {ago(thread.at_ms, now)}
@@ -238,7 +245,7 @@ export function TaskView({
       <Section title="History" testId="task-history">
         <ol className="flex flex-col gap-1">
           {detail.history.map((event) => (
-            <li key={event.id} className="flex gap-2 text-[13px]">
+            <li key={event.id} className="flex gap-2 text-meta">
               <span className="w-16 shrink-0 text-muted">{ago(event.at_ms, now)}</span>
               <span className="min-w-0 flex-1 text-ink">
                 <span className="font-medium">{event.who}</span> {event.what}
@@ -248,7 +255,7 @@ export function TaskView({
         </ol>
       </Section>
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

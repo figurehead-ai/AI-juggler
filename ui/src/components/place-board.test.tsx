@@ -81,13 +81,14 @@ describe("the rail by place", () => {
     expect(working.textContent).toContain("viewed 2 min ago");
   });
 
-  it("a quiet place folds to its header with its count, and opens on a click", async () => {
+  it("a quiet place folds to its header with its count, and opens on its chevron", async () => {
     const view = board([]);
     await view.findByTestId("rail-open-now");
     const personal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "Claude|Personal")!;
-    const toggle = within(personal).getAllByRole("button")[0]!;
+    const toggle = within(personal).getByTestId("rail-fold");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(toggle.textContent).toContain("Personal · 1 idle");
+    expect(toggle.getAttribute("aria-label")).toBe("Unfold Claude · Personal");
+    expect(within(personal).getByTestId("place-page").textContent).toContain("Personal · 1 idle");
     fireEvent.click(toggle);
     await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-4']")).not.toBeNull());
   });

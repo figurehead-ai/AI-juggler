@@ -26,7 +26,7 @@ export function CrashReportsSetting(): JSX.Element | null {
   const locked = info.reason !== null;
   return (
     <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-crash-reports">
-      <label className="flex flex-wrap items-center gap-2 text-[11px] text-ink">
+      <label className="flex flex-wrap items-center gap-2 text-label text-ink">
         <span className="font-medium">Crash reports</span>
         <select
           value={locked ? "never" : info.setting}
@@ -34,7 +34,7 @@ export function CrashReportsSetting(): JSX.Element | null {
           onChange={(event) =>
             void crashSet(event.target.value as "never" | "ask" | "always").then(setInfo, (cause) => setError(errorText(cause)))
           }
-          className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-[11px] text-ink"
+          className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
           aria-label="Crash reports"
           data-testid="crash-setting"
         >
@@ -45,18 +45,18 @@ export function CrashReportsSetting(): JSX.Element | null {
           ))}
         </select>
       </label>
-      <p className="text-[11px] text-muted">
+      <p className="text-label text-muted">
         {info.reason
           ? `${info.reason}.`
           : "Separate from usage statistics. A report is scrubbed on this Mac first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
       </p>
       {!info.can_send && info.effective !== "never" && (
-        <p className="text-[11px] text-muted" data-testid="crash-cannot-send">
+        <p className="text-label text-muted" data-testid="crash-cannot-send">
           This build can't send crash reports yet{info.queued > 0 ? ` — ${info.queued} kept on this Mac until one can` : ""}.
         </p>
       )}
       {error && (
-        <p role="alert" className="text-[11px] text-ink">
+        <p role="alert" className="text-label text-ink">
           {error}
         </p>
       )}
@@ -92,13 +92,13 @@ export function CrashReportPrompt(): JSX.Element | null {
         <h2 id="crash-title" className="text-sm font-semibold">
           AI Juggler quit unexpectedly. Send a crash report?
         </h2>
-        <p className="text-[11px] leading-relaxed text-muted">
+        <p className="text-label leading-relaxed text-muted">
           This is the whole report, exactly as it would be sent. It was scrubbed on this Mac: no home folder, user name,
           links or keys.
           {!info.can_send && " This build can't send it yet, so Send keeps it on this Mac until one can."}
         </p>
         <pre
-          className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-[10.5px] text-ink"
+          className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-label text-ink"
           aria-label="Crash report (read-only)"
           tabIndex={0}
           data-testid="crash-preview"

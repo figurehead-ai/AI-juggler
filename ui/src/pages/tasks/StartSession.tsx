@@ -74,7 +74,7 @@ export function StartSession({
         start();
       }}
     >
-      <label htmlFor={`${id}-profile`} className="text-[13px] text-muted">
+      <label htmlFor={`${id}-profile`} className="text-meta text-muted">
         On
       </label>
       <select
@@ -82,7 +82,7 @@ export function StartSession({
         value={chosen}
         disabled={profiles === null || busy}
         onChange={(event) => setChosen(event.target.value)}
-        className="h-8 min-w-0 max-w-[280px] flex-1 rounded-lg border border-hairline bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent/60"
+        className="h-8 min-w-0 max-w-[280px] flex-1 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
         data-testid="task-start-profile"
       >
         <option value="">{profiles === null ? "Loading…" : "Pick launch settings"}</option>
@@ -100,9 +100,9 @@ export function StartSession({
           Cancel
         </Button>
       )}
-      {!compact && <p className="basis-full text-[12px] text-muted">It starts in the pool's project with the task as its first prompt, and the task is its own. You pick the account; nothing starts by itself.</p>}
+      {!compact && <p className="basis-full text-label text-muted">It starts in the pool's project with the task as its first prompt, and the task is its own. You pick the account; nothing starts by itself.</p>}
       {error && (
-        <p role="alert" className="basis-full text-[13px] text-danger">
+        <p role="alert" className="basis-full text-meta text-danger">
           {error}
         </p>
       )}

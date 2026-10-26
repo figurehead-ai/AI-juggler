@@ -137,7 +137,7 @@ export function StartWithSettings({
               <SwitchSetupList check={check} picked={picked} onToggle={toggle} bare />
             </div>
           )}
-          <p className="text-[11px] text-faint">Never its sign-in, history or caches. Each can be undone in Settings.</p>
+          <p className="text-label text-muted">Never its sign-in, history or caches. Each can be undone in Settings.</p>
         </div>
       )}
       {error && (

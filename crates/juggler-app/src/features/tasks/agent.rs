@@ -508,12 +508,19 @@ fn list(
     actor: &Actor,
     args: &TasksListArgs,
 ) -> Result<Value, Response> {
-    let offset = args
-        .cursor
-        .as_deref()
-        .and_then(|c| c.strip_prefix('o'))
-        .and_then(|n| n.parse::<u32>().ok())
-        .unwrap_or(0);
+    // The same keyset cursor as the app's pages: a task added meanwhile
+    // never repeats or skips one.
+    let after = args.cursor.as_deref().and_then(|cursor| {
+        let key = crate::paging::SortKey::parse(cursor).ok()?;
+        match key.ranks.as_slice() {
+            [rank, priority, seq] => Some(juggler_core::storage::TaskKey {
+                rank: u8::try_from(*rank).ok()?,
+                priority: u8::try_from(*priority).ok()?,
+                seq: -seq,
+            }),
+            _ => None,
+        }
+    });
     let status = match args.status.as_deref() {
         Some(word) => Some(
             TaskStatus::parse(word)
@@ -533,9 +540,9 @@ fn list(
                 assignees: args.mine.then_some(actor.refs.as_slice()),
                 statuses: statuses.as_deref(),
                 parent: args.parent.as_deref(),
+                after,
                 ..TaskQuery::default()
             },
-            offset,
             PAGE + 1,
         )
         .map_err(|_| refuse(Refusal::Bad, "AI Juggler couldn't read the tasks."))?;
@@ -547,7 +554,14 @@ fn list(
         let value = row(task, actor);
         let len = value.to_string().len();
         if index == PAGE as usize || (size + len > OUTPUT_MAX && !out.is_empty()) {
-            next = Some(format!("o{}", offset as usize + index));
+            next = rows.get(index.saturating_sub(1)).map(|last| {
+                let key = last.key();
+                crate::paging::SortKey::new(
+                    [i64::from(key.rank), i64::from(key.priority), -key.seq],
+                    last.id.clone(),
+                )
+                .cursor()
+            });
             break;
         }
         size += len;

@@ -11,13 +11,13 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::runtime::{Connection, DrivenLaunch, DrivenRuntime, Runtime, Transport};
 use juggler_adapter::{HarnessAdapter, LaunchSpec};
-use juggler_core::model::{Account, Profile, SessionId};
-use juggler_supervisor::SpawnedProcess;
+use juggler_core::model::{Profile, SessionId};
 use sha2::{Digest, Sha256};
 
 use super::driver::{Driver, Meta};
-use super::settings::{self, Plan};
-use crate::error::{AppError, AppResult};
+use super::settings;
+use crate::error::AppError;
+use crate::features::sessions::spawn::{Io, NewSession, Started, Unstarted, spawn_process};
 use crate::state::AppState;
 
 /// The runtime folder in the app's data folder (`0700`).
@@ -27,31 +27,15 @@ const MAX_SOCKET_PATH: usize = 100;
 /// How long a server has to make its socket.
 const SOCKET_WAIT: Duration = Duration::from_secs(5);
 
-/// What a launch asks for.
-pub struct Start<'a> {
-    /// The account it runs on.
-    pub account: &'a Account,
+/// What a launch asks of its runtime (its account, project and folder
+/// are its row's: `NewSession`).
+pub struct Plan<'a> {
     /// Its launch settings.
     pub profile: &'a Profile,
-    /// Its project, for the ledger and the agent tools.
-    pub project: Option<String>,
     /// The tool's conversation to continue, when resuming.
     pub resume: Option<String>,
     /// The user's choice for this session, when they made one.
     pub requested: Option<Runtime>,
-}
-
-/// What started.
-pub struct Started {
-    /// The session's id (a new one when a driven start failed after its
-    /// process was spawned: that id is spent).
-    pub session: SessionId,
-    /// The process.
-    pub spawned: SpawnedProcess,
-    /// The launch that ran.
-    pub spec: LaunchSpec,
-    /// Its runtime.
-    pub runtime: Runtime,
 }
 
 /// The socket for `session`: short, in the runtime folder, or `None` when
@@ -149,11 +133,12 @@ fn try_driven(
     state: &Arc<AppState>,
     adapter: &dyn HarnessAdapter,
     driven: &dyn DrivenRuntime,
-    session: &SessionId,
-    start: &Start<'_>,
+    row: &NewSession<'_>,
+    plan: &Plan<'_>,
     cwd: &Path,
     trust: Option<bool>,
 ) -> Result<Started, NotDriven> {
+    let session = row.id;
     let socket = socket_path(&state.data_dir, session).ok_or_else(|| {
         NotDriven::Before("the data folder's path is too long for a socket".into())
     })?;
@@ -162,51 +147,35 @@ fn try_driven(
     clear_stale(&socket);
     let launch = DrivenLaunch {
         socket: socket.clone(),
-        resume: start.resume.clone(),
+        resume: plan.resume.clone(),
         fresh_id: fresh_uuid(),
     };
     let mut spec = driven
-        .driven_spec(start.account, start.profile, cwd, &launch)
+        .driven_spec(row.account, plan.profile, cwd, &launch)
         .map_err(|e| NotDriven::Before(e.to_string()))?;
     // Lab 2: the folder's trust, in memory (never the tool's own config).
     if let Some(trusted) = trust {
         adapter.apply_folder_trust(&mut spec.launch.args, cwd, trusted);
     }
-    crate::features::agent_bridge::prepare(
-        state,
-        adapter,
-        &mut spec.launch,
-        session,
-        start.project.as_deref(),
-        start.account.id.as_str(),
-    );
-    let launched =
-        crate::features::sessions::spawn::launched_spec(state, start.account, &spec.launch)
-            .map_err(|e| NotDriven::Before(e.to_string()))?;
-    let ctx = crate::commands::ledger_ctx(state, start.account, start.project.clone());
-    let (spawned, io) = match &spec.transport {
-        Transport::Socket(path) => {
-            let spawned = state
-                .supervisor
-                .spawn(session, &launched, &ctx)
-                .map_err(|e| NotDriven::Before(e.to_string()))?;
-            (spawned, connect_socket(state, session, path))
-        }
-        Transport::Stdio => {
-            let (spawned, pipes) = state
-                .supervisor
-                .spawn_driven(session, &launched, &ctx)
-                .map_err(|e| NotDriven::Before(e.to_string()))?;
-            let io = Connection {
-                reader: Box::new(BufReader::new(pipes.stdout)),
-                writer: Box::new(pipes.stdin),
-            };
-            (spawned, Ok(io))
-        }
+    // The one spawn path: the bridge and the account's key go into this
+    // launch, under the supervisor.
+    let io = match &spec.transport {
+        Transport::Socket(_) => Io::Owned,
+        Transport::Stdio => Io::Driver,
+    };
+    let (spawned, pipes) = spawn_process(state, adapter, row, session, &mut spec.launch, io, false)
+        .map_err(|e| NotDriven::Before(e.to_string()))?;
+    let io = match (&spec.transport, pipes) {
+        (Transport::Socket(path), _) => connect_socket(state, session, path),
+        (Transport::Stdio, Some(pipes)) => Ok(Connection {
+            reader: Box::new(BufReader::new(pipes.stdout)),
+            writer: Box::new(pipes.stdin),
+        }),
+        (Transport::Stdio, None) => Err("the session's pipes couldn't be opened".to_owned()),
     };
     let connected = io.and_then(|io| {
         driven
-            .connect(io, &spec, start.account)
+            .connect(io, &spec, row.account)
             .map_err(|e| e.to_string())
     });
     let session_box = match connected {
@@ -233,88 +202,112 @@ fn try_driven(
     Ok(Started {
         session: session.clone(),
         spawned,
-        spec: spec.launch,
         runtime: Runtime::Driven,
     })
 }
 
-/// Starts `session` in the runtime its plan picks; the terminal launch
-/// `terminal` is the fallback (and what runs for a terminal plan).
+/// Starts `row`'s session in the runtime its plan picks; the terminal
+/// launch `terminal` is the fallback (and what runs for a terminal plan).
+/// Called by the one path,
+/// [`crate::features::sessions::spawn::start_session`], which wrote the
+/// row first. A driven start that fails after its process ran leaves that
+/// id spent: the terminal's own row is written before it starts.
 ///
 /// # Errors
 ///
-/// The terminal launch's own spawn errors.
-pub fn start(
+/// The terminal launch's own spawn errors, with the session whose row
+/// they end.
+pub(crate) fn start(
     state: &Arc<AppState>,
     adapter: &dyn HarnessAdapter,
-    session: SessionId,
-    start: &Start<'_>,
+    row: &NewSession<'_>,
+    plan: &Plan<'_>,
     mut terminal: LaunchSpec,
-) -> AppResult<Started> {
+) -> Result<Started, Unstarted> {
     let (profile_choice, beta, trust) = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        let storage = state
+            .storage
+            .lock()
+            .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
         (
             settings::profile_choices(&storage)
-                .get(start.profile.id.as_str())
+                .get(plan.profile.id.as_str())
                 .copied(),
             settings::beta_on(&storage),
-            super::trust::plan(&storage, adapter, start.account, &terminal.cwd),
+            super::trust::plan(&storage, adapter, row.account, &terminal.cwd),
         )
     };
     if let Some(trusted) = trust {
         adapter.apply_folder_trust(&mut terminal.args, &terminal.cwd, trusted);
     }
-    let mut session = session;
-    let fell_back = match settings::plan(adapter.driven(), start.requested, profile_choice, beta) {
-        Plan::Terminal(why) => why,
-        Plan::Driven => {
-            let driven = adapter
-                .driven()
-                .ok_or_else(|| AppError::Refused("no driven runtime".into()))?;
-            match try_driven(
-                state,
-                adapter,
-                driven,
-                &session,
-                start,
-                &terminal.cwd,
-                trust,
-            ) {
+    let mut session = row.id.clone();
+    let fell_back = match settings::plan(adapter.driven(), plan.requested, profile_choice, beta) {
+        settings::Plan::Terminal(why) => why,
+        settings::Plan::Driven => {
+            let driven = adapter.driven().ok_or_else(|| {
+                Unstarted::of(row.id, AppError::Refused("no driven runtime".into()))
+            })?;
+            match try_driven(state, adapter, driven, row, plan, &terminal.cwd, trust) {
                 Ok(started) => return Ok(started),
                 Err(NotDriven::Before(why)) => Some(why),
                 Err(NotDriven::After(why)) => {
                     session = SessionId::new(format!("{}-t", session.as_str()));
+                    spent(state, row, &session, &why)?;
                     Some(why)
                 }
             }
         }
     };
-    crate::features::agent_bridge::prepare(
+    let row = NewSession {
+        id: &session,
+        ..row.clone()
+    };
+    // AJ-E2306: the tool's own hooks report its exact state (`true`).
+    let (spawned, _) = spawn_process(
         state,
         adapter,
+        &row,
+        &session,
         &mut terminal,
-        &session,
-        start.project.as_deref(),
-        start.account.id.as_str(),
-    );
-    // AJ-E2306: the tool's own hooks report its exact state.
-    super::reports::prepare(state, adapter, &mut terminal, &session);
-    let spawned = crate::features::sessions::spawn::spawn_account_session(
-        state,
-        &session,
-        &terminal,
-        start.account,
-        start.project.clone(),
-    )?;
+        Io::Owned,
+        true,
+    )
+    .map_err(|error| Unstarted::of(&session, error))?;
     if let Some(why) = fell_back {
         state.runtime.fell_back(&session, why);
     }
     Ok(Started {
         session,
         spawned,
-        spec: terminal,
         runtime: Runtime::Terminal,
     })
+}
+
+/// A driven start failed after its process ran (and was stopped): its id
+/// is spent. Its history says why, and the terminal's row, `next`, is
+/// written before the terminal starts (intent before spawn).
+fn spent(
+    state: &Arc<AppState>,
+    row: &NewSession<'_>,
+    next: &SessionId,
+    why: &str,
+) -> Result<(), Unstarted> {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.sessions().record_lifecycle(
+            row.id,
+            &format!("its driven start didn't answer ({why}): it started in its terminal"),
+        );
+    }
+    let next_row = NewSession {
+        id: next,
+        ..row.clone()
+    };
+    crate::features::sessions::spawn::write_starting(
+        state,
+        &next_row,
+        juggler_core::model::InstanceKind::Terminal,
+    )
+    .map_err(|error| Unstarted::of(row.id, error))
 }
 
 #[cfg(test)]

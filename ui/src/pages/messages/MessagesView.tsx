@@ -42,16 +42,16 @@ function ThreadRow({ thread, selected, now, onOpen }: { thread: ThreadInfo; sele
         data-state={thread.state}
       >
         <span className="flex min-w-0 items-baseline gap-2">
-          <span className={"min-w-0 flex-1 truncate text-[14px] text-ink " + (thread.unread > 0 ? "font-semibold" : "font-medium")}>{thread.subject}</span>
-          <span className="shrink-0 text-[12px] text-muted">{ago(thread.updated_at_ms, now)}</span>
+          <span className={"min-w-0 flex-1 truncate text-body text-ink " + (thread.unread > 0 ? "font-semibold" : "font-medium")}>{thread.subject}</span>
+          <span className="shrink-0 text-label text-muted">{ago(thread.updated_at_ms, now)}</span>
         </span>
         <span className="flex min-w-0 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[13px] text-muted">
+          <span className="min-w-0 flex-1 truncate text-meta text-muted">
             {thread.last_from}: {thread.last_line}
           </span>
-          {thread.state !== "open" && <span className="shrink-0 text-[12px] font-medium text-warning">{THREAD_WORDS[thread.state]}</span>}
+          {thread.state !== "open" && <span className="shrink-0 text-label font-medium text-warning">{THREAD_WORDS[thread.state]}</span>}
           {thread.unread > 0 && (
-            <span className="shrink-0 rounded-full bg-accent px-1.5 text-[12px] font-semibold text-white" aria-label={`${thread.unread} new for you`}>
+            <span className="shrink-0 rounded-full bg-accent px-1.5 text-label font-semibold text-white" aria-label={`${thread.unread} new for you`}>
               {thread.unread}
             </span>
           )}
@@ -140,7 +140,7 @@ export function MessagesView({
     <div className="flex w-full min-w-0 max-w-[1440px] flex-col gap-4" data-testid="messages-view">
       {paused && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/35 bg-warning-soft/60 px-4 py-3" role="status" data-testid="messages-paused">
-          <p className="min-w-0 flex-1 text-[14px] text-ink">
+          <p className="min-w-0 flex-1 text-body text-ink">
             <span className="font-semibold">Messages in this pool are paused</span> — {paused.reason}. No agent can send or be woken until you resume them.
           </p>
           <Button size="sm" variant="primary" onClick={() => void messagesSetPool(poolId, false).then(setPage, (cause) => setError(errorText(cause)))} data-testid="messages-resume">
@@ -157,7 +157,7 @@ export function MessagesView({
               placeholder="Search messages"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-[13px] text-ink outline-none focus:border-accent/60"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60"
             />
             <Button size="md" variant="primary" onClick={() => setWriting(true)} data-testid="messages-new">
               New message
@@ -170,7 +170,7 @@ export function MessagesView({
               ))}
             </div>
           ) : shown.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-[13px] text-muted" data-testid="messages-empty">
+            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="messages-empty">
               {found ? "No message has those words." : sessionId ? "No messages to or from this session yet." : "No messages yet. When agents here write to each other or to you, their threads show here."}
             </p>
           ) : (
@@ -186,12 +186,12 @@ export function MessagesView({
             </Button>
           )}
           {!paused && !sessionId && (
-            <button type="button" className="self-start text-[12px] text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => void messagesSetPool(poolId, true).then(setPage)} data-testid="messages-pause">
+            <button type="button" className="self-start text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => void messagesSetPool(poolId, true).then(setPage)} data-testid="messages-pause">
               Pause this pool's messages
             </button>
           )}
           {error && (
-            <p role="alert" className="text-[13px] text-danger">
+            <p role="alert" className="text-meta text-danger">
               {error}
             </p>
           )}

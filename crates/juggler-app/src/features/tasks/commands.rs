@@ -6,9 +6,10 @@
 use std::sync::Arc;
 
 use super::dto::{
-    TaskDetail, TaskEdit, TaskInfo, TaskInput, TaskNeedInfo, TaskStartedInfo, TasksPage,
+    TaskCounts, TaskDetail, TaskEdit, TaskInfo, TaskInput, TaskNeedInfo, TaskStartedInfo,
 };
 use crate::error::AppResult;
+use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
 
 /// One page of a pool's tasks, ready work first.
@@ -22,21 +23,31 @@ pub async fn tasks_list(
     pool_id: String,
     filter: Option<String>,
     words: Option<String>,
-    cursor: Option<String>,
-) -> AppResult<TasksPage> {
+    page: PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     crate::ipc::blocking(state.inner(), "the tasks", move |state| {
-        super::views::list(
-            state,
-            &pool_id,
-            filter.as_deref(),
-            words.as_deref(),
-            cursor.as_deref(),
-        )
+        super::views::list(state, &pool_id, filter.as_deref(), words.as_deref(), &page)
     })
     .await
 }
 
-/// A pool's epics and stories (the tree's folds).
+/// How many of a pool's tasks are in each status.
+///
+/// # Errors
+///
+/// As [`super::views::counts`].
+#[tauri::command]
+pub async fn tasks_counts(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<TaskCounts> {
+    crate::ipc::blocking(state.inner(), "the tasks", move |state| {
+        super::views::counts(state, &pool_id)
+    })
+    .await
+}
+
+/// One page of a pool's epics and stories (the tree's folds).
 ///
 /// # Errors
 ///
@@ -45,9 +56,10 @@ pub async fn tasks_list(
 pub async fn tasks_plan(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
-) -> AppResult<Vec<TaskInfo>> {
+    page: PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     crate::ipc::blocking(state.inner(), "the plan", move |state| {
-        super::views::plan(state, &pool_id)
+        super::views::plan(state, &pool_id, &page)
     })
     .await
 }
@@ -62,15 +74,15 @@ pub async fn tasks_children(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
     parent: String,
-    cursor: Option<String>,
-) -> AppResult<TasksPage> {
+    page: PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     crate::ipc::blocking(state.inner(), "the plan", move |state| {
-        super::views::children(state, &pool_id, &parent, cursor.as_deref())
+        super::views::children(state, &pool_id, &parent, &page)
     })
     .await
 }
 
-/// A session's tasks.
+/// One page of a session's tasks.
 ///
 /// # Errors
 ///
@@ -79,9 +91,10 @@ pub async fn tasks_children(
 pub async fn tasks_session(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
-) -> AppResult<Vec<TaskInfo>> {
+    page: PageRequest,
+) -> AppResult<Page<TaskInfo>> {
     crate::ipc::blocking(state.inner(), "the session's tasks", move |state| {
-        super::views::of_session(state, &session_id)
+        super::views::of_session(state, &session_id, &page)
     })
     .await
 }

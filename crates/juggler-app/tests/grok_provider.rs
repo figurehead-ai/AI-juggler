@@ -57,7 +57,7 @@ fn snapshot(dir: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
 
 #[test]
 fn grok_build_is_listed_isolated_and_says_its_limits_arent_read() {
-    let providers = commands::harnesses_list();
+    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
     assert!(
         providers
             .iter()

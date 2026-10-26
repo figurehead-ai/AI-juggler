@@ -47,12 +47,12 @@ function LaunchRow({ need, projects }: { need: TaskNeedInfo; projects: ProjectIn
   return (
     <li className="flex min-w-0 flex-col gap-2 border-b border-hairline/40 py-2.5 last:border-b-0" data-testid="task-need-launch" data-home-item>
       <div className="flex min-w-0 items-start gap-2.5">
-        <span aria-hidden="true" className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-accent-soft text-[12px] text-accent-hi">
+        <span aria-hidden="true" className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-accent-soft text-label text-accent-hi">
           ▶
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[13px] font-medium text-ink">{need.title}</span>
-          <span className="text-[12px] text-muted">
+          <span className="text-meta font-medium text-ink">{need.title}</span>
+          <span className="text-label text-muted">
             {need.pool_name}
             {project ? ` · in ${project.name}` : ""} · {need.detail}
           </span>

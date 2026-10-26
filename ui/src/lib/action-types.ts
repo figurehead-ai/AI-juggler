@@ -77,6 +77,8 @@ export interface ResolvedAction {
   destructive: boolean;
   /** The shortcut's keys, as the ? sheet shows them. */
   shortcut?: string;
+  /** The shortcut itself (a row's ⌘↩ runs the action that has it). */
+  shortcutId?: ShortcutId;
   /** Why it's disabled; absent when it's enabled. */
   reason?: string;
   run: () => void | Promise<void>;
