@@ -454,10 +454,6 @@ impl Supervisor {
         {
             self.settle_identity(session, spawned.pid, handle);
         }
-        let _ = self.events_tx.send(LifecycleEvent::Started {
-            session: session.clone(),
-            pid: spawned.pid,
-        });
         Ok(spawned)
     }
 
@@ -541,15 +537,11 @@ impl Supervisor {
             journal.record_spawned(session, pid, &launch.program, identity.as_ref())?;
         }
         self.settle_identity(session, pid, handle);
-        let _ = self.events_tx.send(LifecycleEvent::Started {
-            session: session.clone(),
-            pid,
-        });
 
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        let events = self.announce(session, pid);
         let done = Arc::clone(&finished);
         std::thread::spawn(move || {
             let status = child.lock().ok().and_then(|mut c| c.wait().ok());
@@ -666,7 +658,7 @@ impl Supervisor {
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        let events = self.announce(session, pid);
         let done = Arc::clone(&finished);
         std::thread::spawn(move || {
             let status = child.lock().ok().and_then(|mut c| c.wait().ok());
@@ -765,7 +757,7 @@ impl Supervisor {
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        let events = self.announce(session, pid);
         let done = Arc::clone(&finished);
         let exit_timer = Arc::clone(&exit_at);
         std::thread::spawn(move || {
@@ -818,6 +810,14 @@ impl Supervisor {
             pgid,
             identity,
         })
+    }
+
+    /// Sends `session`'s Started, then returns the sender its wait thread
+    /// reports the exit on: called before that thread exists, so a start
+    /// is never received after its exit.
+    fn announce(&self, session: &SessionId, pid: u32) -> std::sync::mpsc::Sender<LifecycleEvent> {
+        let _ = self.events_tx.send(LifecycleEvent::started(session, pid));
+        self.events_tx.clone()
     }
 
     #[allow(clippy::needless_pass_by_value)] // Arc handles are moved intentionally

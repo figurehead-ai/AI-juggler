@@ -884,9 +884,7 @@ pub fn continue_impl(
     account_id: &str,
     id: &str,
 ) -> AppResult<crate::commands::LaunchResult> {
-    use juggler_core::model::{
-        ConversationId, InstanceKind, InstanceRecord, SessionId, SessionStatus, Timestamp,
-    };
+    use juggler_core::model::{ConversationId, InstanceKind, SessionId};
     let conversation = find(state, account_id, id)?;
     if state
         .conversations
@@ -936,34 +934,25 @@ pub fn continue_impl(
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
-        &session,
-        &spec,
-        &crate::commands::ledger_ctx(state, &account, Some(project.id.to_string())),
-    )?;
-    {
-        let machine = crate::commands::local_machine_id(state);
-        let storage = lock_storage_arc(state)?;
-        let usage = crate::commands::engine_usage_snapshot(&storage, &profile.id);
-        storage.sessions().insert(&InstanceRecord {
-            id: session.clone(),
-            conversation: Some(ConversationId::new(id)),
-            profile: profile.id.clone(),
-            machine,
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session,
+            account: &account,
+            profile: &profile.id,
             kind: InstanceKind::Terminal,
             project: Some(project.id.clone()),
             cwd,
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            window: None,
+            conversation: Some(ConversationId::new(id)),
             transcript_ref: None,
-        })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
-    }
+            origin: "resume",
+        },
+        || {
+            let ctx = crate::commands::ledger_ctx(state, &account, Some(project.id.to_string()));
+            Ok(state.supervisor.spawn(&session, &spec, &ctx)?)
+        },
+    )?;
     Ok(crate::commands::LaunchResult {
         session_id: session.to_string(),
         pid: spawned.pid,

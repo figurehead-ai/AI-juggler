@@ -2904,50 +2904,34 @@ pub fn launch_profile(
     // A worktree's sessions belong to its repository's project.
     let project_root = juggler_core::storage::worktree_repo_root(&canonical_cwd)
         .unwrap_or_else(|| canonical_cwd.clone());
-    let project_id = {
-        let storage = lock_storage_arc(state)?;
-        storage
-            .projects()
-            .touch(&project_root, None)?
-            .id
-            .to_string()
-    };
-    let spawned = state.supervisor.spawn(
-        &session_id,
-        &spec,
-        &ledger_ctx(state, &account, Some(project_id.clone())),
-    )?;
-    {
-        // The machine identity locks storage itself — resolve it
-        // BEFORE the insert-scope lock (non-reentrant mutex).
-        let machine = local_machine_id(state);
+    let project = {
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&project_root, None)?;
         // AJ-E1502: a session started here brings a forgotten project back.
         if project.forgotten_at.is_some() {
             storage.projects().set_forgotten(&project.id, false)?;
         }
-        let usage = engine_usage_snapshot(&storage, &profile.id);
-        storage.sessions().insert(&SessionRecord {
-            id: session_id.clone(),
-            conversation: None,
-            profile: profile.id,
-            machine: machine.clone(),
-            kind: juggler_core::model::InstanceKind::Terminal,
-            project: Some(project.id.clone()),
-            cwd: spec.cwd.clone(),
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            // Terminal Instances own no window identity (AJ-E414).
-            window: None,
-            transcript_ref: None,
-        })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), false, "new");
+        project.id
     };
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session_id,
+            account: &account,
+            profile: &profile.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: Some(project.clone()),
+            cwd: spec.cwd.clone(),
+            conversation: None,
+            transcript_ref: None,
+            origin: "new",
+        },
+        || {
+            let ctx = ledger_ctx(state, &account, Some(project.to_string()));
+            Ok(state.supervisor.spawn(&session_id, &spec, &ctx)?)
+        },
+    )?;
     crate::identity::record(state, &session_id, &account, &assertion, "launch");
     Ok(LaunchResult {
         session_id: session_id.to_string(),
@@ -3035,53 +3019,47 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
     }
     let launch = adapter.desktop_launch(&account)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
-    let project_id = {
-        let storage = lock_storage_arc(state)?;
-        storage.projects().touch(&launch.cwd, None)?.id.to_string()
-    };
-    let spawned = state.supervisor.spawn_desktop(
-        &session_id,
-        &launch,
-        &ledger_ctx(state, &account, Some(project_id)),
-    )?;
-    {
-        // The machine identity locks storage itself — resolve it
-        // BEFORE the insert-scope lock (non-reentrant mutex).
-        let machine = local_machine_id(state);
+    let project = {
         let storage = lock_storage_arc(state)?;
         let project = storage.projects().touch(&launch.cwd, None)?;
         if project.forgotten_at.is_some() {
             storage.projects().set_forgotten(&project.id, false)?;
         }
-        let usage = engine_usage_snapshot(&storage, &recipe_id);
-        storage.sessions().insert(&SessionRecord {
-            id: session_id.clone(),
-            conversation: None,
-            profile: recipe_id,
-            machine: machine.clone(),
+        project.id
+    };
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session_id,
+            account: &account,
+            profile: &recipe_id,
             kind: juggler_core::model::InstanceKind::Desktop,
-            project: Some(project.id.clone()),
+            project: Some(project.clone()),
             cwd: launch.cwd.clone(),
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            // Window identity recorded at launch (AJ-E414 Req.2): the
-            // owning PID + bundle id; the title is adopted at first
-            // sight (first focus attempt) and re-discovered thereafter.
-            window: Some(juggler_core::model::WindowIdentity {
-                pid: spawned.pid,
-                bundle_id: launch.bundle_id.clone(),
-                title: None,
-                cgwindow_id: None,
-                start_time: None,
-            }),
+            conversation: None,
             transcript_ref: None,
-        })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), true, "new");
-    }
+            origin: "new",
+        },
+        || {
+            let ctx = ledger_ctx(state, &account, Some(project.to_string()));
+            Ok(state.supervisor.spawn_desktop(&session_id, &launch, &ctx)?)
+        },
+    )?;
+    // Window identity recorded at launch (AJ-E414 Req.2): the owning PID
+    // + bundle id; the title is adopted at first sight (first focus
+    // attempt) and re-discovered thereafter.
+    crate::features::sessions::spawn::record_window(
+        state,
+        &session_id,
+        juggler_core::model::WindowIdentity {
+            pid: spawned.pid,
+            bundle_id: launch.bundle_id.clone(),
+            title: None,
+            cgwindow_id: None,
+            start_time: None,
+        },
+    )?;
     Ok(DesktopLaunchInfo {
         session_id: session_id.to_string(),
         pid: spawned.pid,
@@ -3770,6 +3748,10 @@ pub fn apply_lifecycle_event(
     };
     let mut record = storage.sessions().get(session_id).ok()?;
     match event {
+        // A start only moves a row that is still starting: one read after
+        // the exit, or after attention was raised, is stale and must
+        // never bring the row back to Running.
+        LifecycleEvent::Started { .. } if record.status != SessionStatus::Starting => return None,
         LifecycleEvent::Started { .. } => {
             record.status = SessionStatus::Running;
             record.attention = None;
@@ -5965,7 +5947,6 @@ fn switch_execute_core(
     record_edge_succeeded(
         state,
         &source,
-        &profile_b,
         &record,
         &account_b,
         &EdgeCtx {
@@ -6830,17 +6811,30 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            source.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account_a,
+            profile: &profile_a.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: source.project.clone(),
+            cwd: source.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(
+                native_id.to_owned(),
+            )),
+            transcript_ref: source.transcript_ref.clone(),
+            origin: "relaunch",
+        },
+        || {
+            let project = source.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account_a, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
 
-    record_compensating_edge(state, context, &new_session, &profile_a.id, &source)?;
+    record_compensating_edge(state, context, &new_session)?;
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -6848,7 +6842,7 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
     })
 }
 
-/// Records the undo: the resumed source instance row, its epoch, and
+/// Records the undo: the resumed source instance's epoch, and
 /// the compensating edge (`parent_edge_a` = the original; launched +
 /// confirmed in one motion — the supervisor accepting the spawn is
 /// the proof we can record today).
@@ -6860,13 +6854,8 @@ fn record_compensating_edge(
     state: &Arc<AppState>,
     context: &UndoContext,
     new_session: &SessionId,
-    profile: &juggler_core::model::LaunchRecipeId,
-    source: &juggler_core::model::InstanceRecord,
 ) -> AppResult<()> {
-    use juggler_core::model::{
-        ConversationId, Epoch, EpochId, InstanceKind, InstanceRecord, SwitchEdge, SwitchEdgeId,
-        SwitchMechanism,
-    };
+    use juggler_core::model::{Epoch, EpochId, SwitchEdge, SwitchEdgeId, SwitchMechanism};
     let UndoContext {
         work,
         to_epoch,
@@ -6874,31 +6863,7 @@ fn record_compensating_edge(
         native_id,
         ..
     } = context;
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
-    let usage = engine_usage_snapshot(&storage, profile);
-    storage.sessions().insert(&InstanceRecord {
-        id: new_session.clone(),
-        conversation: Some(ConversationId::new(native_id.to_owned())),
-        profile: profile.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: source.project.clone(),
-        cwd: source.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: source.transcript_ref.clone(),
-    })?;
-    crate::usage_stats::instance_started(
-        &crate::usage_stats::harness_of_recipe(&storage, profile),
-        false,
-        "relaunch",
-    );
     let graph = storage.switch_graph();
     let epoch_undo = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -6992,7 +6957,8 @@ fn record_redaction_decision(
 
 /// The supervisor launch hook: builds the resume spec for the
 /// INSTALLED native id (a collision fork changes it) and spawns under
-/// the app's supervisor — the only spawn path (suggest-only law).
+/// the app's supervisor — the only spawn path (suggest-only law). The
+/// continuation's row is written first (intent before spawn, ADR-0010).
 fn make_launch_hook<'a>(
     state: &'a Arc<AppState>,
     adapter: juggler_adapter::SharedAdapter,
@@ -7002,29 +6968,41 @@ fn make_launch_hook<'a>(
     new_session: &'a SessionId,
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
+        let native_id = install.reference.native_id.clone().unwrap_or_default();
         let spec = adapter
             .launch_spec(
                 account_b,
                 profile_b,
                 &source.cwd,
                 &LaunchMode::Resume {
-                    session_id: install.reference.native_id.clone().unwrap_or_default(),
+                    session_id: native_id.clone(),
                     delta_prompt: None,
                 },
             )
             .map_err(|error| error.to_string())?;
-        let spawned = state
-            .supervisor
-            .spawn(
-                new_session,
-                &spec,
-                &ledger_ctx(
-                    state,
-                    account_b,
-                    source.project.as_ref().map(ToString::to_string),
-                ),
-            )
-            .map_err(|error| error.to_string())?;
+        let spawned = crate::features::sessions::spawn::spawn_tracked(
+            state,
+            &crate::features::sessions::spawn::NewSession {
+                id: new_session,
+                account: account_b,
+                profile: &profile_b.id,
+                kind: juggler_core::model::InstanceKind::Terminal,
+                project: source.project.clone(),
+                cwd: source.cwd.clone(),
+                conversation: Some(juggler_core::model::ConversationId::new(native_id.clone())),
+                transcript_ref: Some(juggler_core::model::TranscriptRef {
+                    path: install.reference.path.clone(),
+                    native_id: Some(native_id),
+                }),
+                origin: "switch",
+            },
+            || {
+                let project = source.project.as_ref().map(ToString::to_string);
+                let ctx = ledger_ctx(state, account_b, project);
+                Ok(state.supervisor.spawn(new_session, &spec, &ctx)?)
+            },
+        )
+        .map_err(|error| error.to_string())?;
         Ok(spawned.pid)
     }
 }
@@ -7161,9 +7139,10 @@ struct EdgeCtx {
 }
 
 /// Records the succeeded switch: the source rests (`HandedOver`), the
-/// continuation Instance starts, the TARGET epoch is created, the
-/// edge launches + confirms (the supervisor accepting the spawn is
-/// the confirmation provable today), and the manifest rows land.
+/// TARGET epoch is created for the continuation Instance (its row was
+/// written by the launch hook, before its spawn), the edge launches +
+/// confirms (the supervisor accepting the spawn is the confirmation
+/// provable today), and the manifest rows land.
 ///
 /// # Errors
 ///
@@ -7171,7 +7150,6 @@ struct EdgeCtx {
 fn record_edge_succeeded(
     state: &Arc<AppState>,
     source: &juggler_core::model::InstanceRecord,
-    profile_b: &juggler_core::model::LaunchRecipe,
     record: &juggler_handover::pipeline::SwitchRecord,
     target: &juggler_core::model::Account,
     ctx: &EdgeCtx,
@@ -7184,33 +7162,10 @@ fn record_edge_succeeded(
         .native_id
         .clone()
         .unwrap_or_default();
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
     let mut handed = source.clone();
     handed.status = SessionStatus::HandedOver;
     storage.sessions().update(&handed)?;
-    let usage = engine_usage_snapshot(&storage, &profile_b.id);
-    storage.sessions().insert(&SessionRecord {
-        id: ctx.session.clone(),
-        conversation: Some(juggler_core::model::ConversationId::new(native_id.clone())),
-        profile: profile_b.id.clone(),
-        machine,
-        kind: juggler_core::model::InstanceKind::Terminal,
-        project: source.project.clone(),
-        cwd: source.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: Some(juggler_core::model::TranscriptRef {
-            path: record.install.reference.path.clone(),
-            native_id: Some(native_id.clone()),
-        }),
-    })?;
-    crate::usage_stats::instance_started(target.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -12312,14 +12267,25 @@ fn resume_original_with_delta(
     let assertion = crate::identity::assert_identity(state, &account_a)?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(&account_a, &profile_a, &original_session.cwd, &mode)?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account_a,
-            original_session.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account_a,
+            profile: &profile_a.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: original_session.project.clone(),
+            cwd: original_session.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(resume_id.clone())),
+            transcript_ref: original_session.transcript_ref.clone(),
+            origin: "switch",
+        },
+        || {
+            let project = original_session.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account_a, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
 
     record_switch_back_edge(
@@ -12327,8 +12293,6 @@ fn resume_original_with_delta(
         lineage,
         away_account,
         &account_a,
-        &profile_a,
-        &original_session,
         &new_session,
         &resume_id,
         fresh,
@@ -12342,7 +12306,7 @@ fn resume_original_with_delta(
     })
 }
 
-/// Records the return: the resumed instance row, its epoch
+/// Records the return: the resumed instance's epoch
 /// (`resumed_from_epoch` = the ORIGINAL epoch), the switch-back
 /// edge (parent = the fork; two-parent shape ready for merges),
 /// and the per-conflict choices as manifest rows (E201).
@@ -12356,8 +12320,6 @@ fn record_switch_back_edge(
     lineage: &BackLineage,
     away_account: &juggler_core::model::Account,
     account_a: &juggler_core::model::Account,
-    profile_a: &juggler_core::model::LaunchRecipe,
-    original_session: &juggler_core::model::InstanceRecord,
     new_session: &SessionId,
     resume_id: &str,
     fresh: bool,
@@ -12367,30 +12329,10 @@ fn record_switch_back_edge(
     )],
 ) -> AppResult<()> {
     use juggler_core::model::{
-        ConversationId, EdgeActor, EdgeState, Epoch, EpochId, InstanceKind, InstanceRecord,
-        ManifestEntry, SwitchEdge, SwitchEdgeId, SwitchMechanism,
+        EdgeActor, EdgeState, Epoch, EpochId, ManifestEntry, SwitchEdge, SwitchEdgeId,
+        SwitchMechanism,
     };
-    let machine = local_machine_id(state);
     let storage = lock_storage_arc(state)?;
-    let usage = engine_usage_snapshot(&storage, &profile_a.id);
-    storage.sessions().insert(&InstanceRecord {
-        id: new_session.clone(),
-        conversation: Some(ConversationId::new(resume_id.to_owned())),
-        profile: profile_a.id.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: original_session.project.clone(),
-        cwd: original_session.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: original_session.transcript_ref.clone(),
-    })?;
-    crate::usage_stats::instance_started(account_a.harness.as_str(), false, "switch");
     let graph = storage.switch_graph();
     let epoch_id = EpochId::new(format!("ep-{}", unique_suffix()));
     graph.insert_epoch(&Epoch {
@@ -13469,40 +13411,26 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             delta_prompt: None,
         },
     )?;
-    let spawned = state.supervisor.spawn(
-        &new_session,
-        &spec,
-        &ledger_ctx(
-            state,
-            &account,
-            session_row.project.as_ref().map(ToString::to_string),
-        ),
+    // Intent before spawn (ADR-0010 §1): the row first, then the process.
+    let spawned = crate::features::sessions::spawn::spawn_tracked(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &new_session,
+            account: &account,
+            profile: &profile.id,
+            kind: juggler_core::model::InstanceKind::Terminal,
+            project: session_row.project.clone(),
+            cwd: session_row.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(native_id)),
+            transcript_ref: session_row.transcript_ref.clone(),
+            origin: "resume",
+        },
+        || {
+            let project = session_row.project.as_ref().map(ToString::to_string);
+            let ctx = ledger_ctx(state, &account, project);
+            Ok(state.supervisor.spawn(&new_session, &spec, &ctx)?)
+        },
     )?;
-    {
-        let machine = local_machine_id(state);
-        let storage = lock_storage_arc(state)?;
-        let usage = engine_usage_snapshot(&storage, &profile.id);
-        storage
-            .sessions()
-            .insert(&juggler_core::model::InstanceRecord {
-                id: new_session.clone(),
-                conversation: Some(juggler_core::model::ConversationId::new(native_id)),
-                profile: profile.id.clone(),
-                machine,
-                kind: juggler_core::model::InstanceKind::Terminal,
-                project: session_row.project.clone(),
-                cwd: session_row.cwd.clone(),
-                status: SessionStatus::Starting,
-                started_at: Timestamp::now(),
-                last_activity: None,
-                usage,
-                attention: None,
-                running: None,
-                window: None,
-                transcript_ref: session_row.transcript_ref.clone(),
-            })?;
-        crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
-    }
     Ok(LaunchResult {
         session_id: new_session.to_string(),
         pid: spawned.pid,
