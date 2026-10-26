@@ -187,12 +187,14 @@ fn token(spec: &LaunchSpec) -> String {
 }
 
 fn ask(world: &World, token: &str, call: Call, text: Option<&str>) -> Response {
-    let request = Request {
-        v: wire::VERSION,
-        token: token.to_owned(),
+    let request = Request::new(
+        token.to_owned(),
         call,
-        text: text.map(str::to_owned),
-    };
+        wire::Args {
+            text: text.map(str::to_owned),
+            ..wire::Args::default()
+        },
+    );
     calls::handle(&world.state, &serde_json::to_string(&request).unwrap())
 }
 
@@ -295,14 +297,15 @@ fn the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys() {
         socket: socket.clone(),
         token: token(&spec),
     };
-    let me = juggler_agentbridge::client::call(&target, Call::Whoami, None).unwrap();
+    let me =
+        juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
     assert_eq!(me["session_id"], "s-1");
     let stranger = juggler_agentbridge::client::Target {
         socket,
         token: "0".repeat(64),
     };
     assert!(matches!(
-        juggler_agentbridge::client::call(&stranger, Call::Whoami, None),
+        juggler_agentbridge::client::call(&stranger, Call::Whoami, wire::Args::default()),
         Err(juggler_agentbridge::client::CallError::Refused(
             Refusal::Unknown,
             _
@@ -487,8 +490,28 @@ fn calls_answer_in_under_50_ms() {
         Call::PoolRoster,
     ] {
         let started = Instant::now();
-        juggler_agentbridge::client::call(&target, call, None).unwrap();
+        juggler_agentbridge::client::call(&target, call, wire::Args::default()).unwrap();
         slowest = slowest.max(started.elapsed());
+    }
+    // E18 (AJ-E1801): a send and a read, over the socket, under 50 ms too.
+    for n in 0..3 {
+        let send = wire::Args {
+            send: Some(wire::SendArgs {
+                to: "s-1".into(),
+                body: format!("Start on step {n}"),
+                ..wire::SendArgs::default()
+            }),
+            ..wire::Args::default()
+        };
+        let read = wire::Args {
+            inbox: Some(wire::InboxArgs::default()),
+            ..wire::Args::default()
+        };
+        for (call, args) in [(Call::SendMessage, send), (Call::ReadInbox, read)] {
+            let started = Instant::now();
+            juggler_agentbridge::client::call(&target, call, args).unwrap();
+            slowest = slowest.max(started.elapsed());
+        }
     }
     println!("slowest call over the socket: {slowest:?}");
     assert!(slowest < Duration::from_millis(50), "{slowest:?}");
@@ -562,7 +585,11 @@ fn a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch() {
             .unwrap()
     };
     assert_eq!(reply(1)["result"]["serverInfo"]["name"], "juggler");
-    assert_eq!(reply(2)["result"]["tools"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        reply(2)["result"]["tools"].as_array().unwrap().len(),
+        wire::TOOLS.len(),
+        "the roster, the status and E18's messages and docs"
+    );
     let me = &reply(3)["result"];
     assert_eq!(me["isError"], false, "{me}");
     assert_eq!(

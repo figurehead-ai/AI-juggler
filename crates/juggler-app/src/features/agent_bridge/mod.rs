@@ -229,6 +229,19 @@ impl Bridge {
         Some(token)
     }
 
+    /// Whether `session` holds a key for the agent tools now (E18: only
+    /// then is it told about its messages).
+    #[must_use]
+    pub fn has_tools_key(&self, data_dir: &Path, session: &str) -> bool {
+        let Ok(mut epochs) = self.epochs.lock() else {
+            return false;
+        };
+        let epochs = epochs.get_or_insert_with(|| load_epochs(data_dir));
+        epochs
+            .values()
+            .any(|epoch| epoch.session == session && epoch.scope.is_empty())
+    }
+
     /// The sessions that hold a key now.
     #[must_use]
     pub fn sessions(&self, data_dir: &Path) -> Vec<String> {

@@ -1,0 +1,39 @@
+     Running unittests src/lib.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/juggler_agentbridge-98b8f3eb0d605e89)
+test wire::tests::only_the_tools_name_calls ... ok
+test wire::tests::a_request_round_trips_and_refuses_strangers ... ok
+test wire::tests::a_status_is_one_short_line ... ok
+test hook::tests::notifications_carry_their_type_word_never_their_message ... ok
+test hook::tests::a_note_is_printed_only_where_it_adds_context_and_never_decides ... ok
+test wire::tests::a_message_names_its_recipient_and_nothing_else ... ok
+test hook::tests::only_the_reported_fields_are_kept ... ok
+test hook::tests::questions_stops_and_strangers ... ok
+test mcp::tests::nonsense_gets_json_rpc_errors_never_a_crash ... ok
+test cli::tests::the_command_line_has_no_way_to_pass_a_key ... ok
+test mcp::tests::the_handshake_echoes_a_known_version_and_offers_the_latest_otherwise ... ok
+test mcp::tests::calls_go_to_the_app_and_refusals_come_back_as_the_tools_error ... ok
+test mcp::tests::a_tools_arguments_have_one_shape ... ok
+test cli::tests::serving_answers_each_request_on_its_own_line ... ok
+test mcp::tests::the_tools_and_one_resource_and_which_ones_write ... ok
+test client::tests::the_key_goes_only_to_a_socket_in_a_closed_folder ... ok
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/main.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/juggler_agent-0416634d27172dc8)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/bridge.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/bridge-21908ce6bbb1178c)
+test the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up ... ok
+test what_agents_reach_has_no_path_to_a_session_a_setting_or_a_secret ... ok
+test nothing_is_added_before_the_question_is_answered ... ok
+test the_key_is_in_the_environment_only_and_nothing_lands_in_the_account_folder ... ok
+test the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys ... ok
+test agents_see_account_labels_never_emails_or_plans ... ok
+test a_new_epoch_gets_a_new_key_and_the_old_one_stops ... ok
+test each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited ... ok
+test calls_answer_in_under_50_ms ... ok
+test the_command_line_reads_the_key_from_its_environment_only ... ok
+test a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+     Running tests/reports.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/reports-366b4c95f1ff3ad2)
+test the_hook_command_is_silent_and_never_fails ... ok
+test a_report_with_a_stranger_key_is_refused ... ok
+test the_tools_own_hooks_make_the_state_exact ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

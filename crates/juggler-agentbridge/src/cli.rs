@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::client::{CallError, Target, call};
 use crate::mcp::{Backend, handle_line};
-use crate::wire::{Call, Refusal, clean_status};
+use crate::wire::{Args, Call, InboxArgs, ReadDocArgs, Refusal, SendArgs, clean_status};
 
 /// The app, reached with this process's own key.
 pub struct App {
@@ -27,8 +27,8 @@ impl App {
 }
 
 impl Backend for App {
-    fn call(&mut self, what: Call, text: Option<String>) -> Result<Value, CallError> {
-        call(self.target.as_ref().map_err(Clone::clone)?, what, text)
+    fn call(&mut self, what: Call, args: Args) -> Result<Value, CallError> {
+        call(self.target.as_ref().map_err(Clone::clone)?, what, args)
     }
 }
 
@@ -39,6 +39,16 @@ pub const USAGE: &str = "juggler-agent: AI Juggler's pool tools for the agent in
   juggler-agent roster          the other sessions in the pool
   juggler-agent cards           the pool's context cards
   juggler-agent status <text>   set this session's one-line status (empty clears it)
+  juggler-agent send <to> <text>
+                                write to a member (its session_id), \"pool\" or \"user\"
+  juggler-agent reply <thread> <to> <text>
+                                answer in a thread
+  juggler-agent inbox [--all]   this session's messages (unread only without --all)
+  juggler-agent read <message>  one message in full
+  juggler-agent ack <message>…  mark messages handled
+  juggler-agent share <name>    share the text on stdin with the pool
+  juggler-agent docs            the pool's shared documents
+  juggler-agent doc <id>        one shared document
   juggler-agent --mcp           serve the same as an MCP server on stdin and stdout
   juggler-agent hook <event>    (run by the tool's own hooks) report this session's state
 
@@ -55,7 +65,9 @@ pub enum Command {
     /// `--version`.
     Version,
     /// One call.
-    Call(Call, Option<String>),
+    Call(Call, Box<Args>),
+    /// E18: share the text on stdin as a doc called this.
+    Share(String),
     /// AJ-E2306: a tool's hook reporting its session's state
     /// (`hook <event>`, the tool's JSON on stdin).
     Hook(String),
@@ -73,15 +85,86 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
         ["hook", event] => Ok(Command::Hook((*event).to_owned())),
-        ["whoami"] => Ok(Command::Call(Call::Whoami, None)),
-        ["roster" | "pool_roster"] => Ok(Command::Call(Call::PoolRoster, None)),
-        ["cards"] => Ok(Command::Call(Call::Cards, None)),
-        ["status" | "set_status", text @ ..] => Ok(Command::Call(
+        ["whoami"] => Ok(call_of(Call::Whoami, Args::default())),
+        ["roster" | "pool_roster"] => Ok(call_of(Call::PoolRoster, Args::default())),
+        ["cards"] => Ok(call_of(Call::Cards, Args::default())),
+        ["status" | "set_status", text @ ..] => Ok(call_of(
             Call::SetStatus,
-            Some(clean_status(&text.join(" "))),
+            Args {
+                text: Some(clean_status(&text.join(" "))),
+                ..Args::default()
+            },
+        )),
+        ["send", to, text @ ..] if !text.is_empty() => Ok(send(to, None, text)),
+        ["reply", thread, to, text @ ..] if !text.is_empty() => Ok(send(to, Some(thread), text)),
+        ["inbox"] | ["inbox", "--all"] => Ok(call_of(
+            Call::ReadInbox,
+            Args {
+                inbox: Some(InboxArgs {
+                    all: words.len() == 2,
+                    ..InboxArgs::default()
+                }),
+                ..Args::default()
+            },
+        )),
+        ["read", message] => Ok(call_of(
+            Call::ReadInbox,
+            Args {
+                inbox: Some(InboxArgs {
+                    message: Some((*message).to_owned()),
+                    all: true,
+                    ..InboxArgs::default()
+                }),
+                ..Args::default()
+            },
+        )),
+        ["ack", ids @ ..] if !ids.is_empty() => Ok(call_of(
+            Call::Ack,
+            Args {
+                ack: Some(ids.iter().map(|id| (*id).to_owned()).collect()),
+                ..Args::default()
+            },
+        )),
+        ["share", name] => Ok(Command::Share((*name).to_owned())),
+        ["docs"] => Ok(call_of(
+            Call::ReadDoc,
+            Args {
+                read_doc: Some(ReadDocArgs::default()),
+                ..Args::default()
+            },
+        )),
+        ["doc", id] => Ok(call_of(
+            Call::ReadDoc,
+            Args {
+                read_doc: Some(ReadDocArgs {
+                    doc: Some((*id).to_owned()),
+                    cursor: None,
+                }),
+                ..Args::default()
+            },
         )),
         _ => Err(format!("{USAGE}\n\nNot a command: {}", words.join(" "))),
     }
+}
+
+/// One call with its arguments.
+fn call_of(what: Call, args: Args) -> Command {
+    Command::Call(what, Box::new(args))
+}
+
+fn send(to: &str, thread: Option<&str>, text: &[&str]) -> Command {
+    call_of(
+        Call::SendMessage,
+        Args {
+            send: Some(SendArgs {
+                to: to.to_owned(),
+                body: text.join(" "),
+                thread: thread.map(str::to_owned),
+                ..SendArgs::default()
+            }),
+            ..Args::default()
+        },
+    )
 }
 
 /// Serves MCP until the tool closes stdin (the session ended).
@@ -117,10 +200,10 @@ pub fn exit_code(outcome: &Result<Value, CallError>) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, parse, serve};
+    use super::{Command, call_of, parse, serve};
     use crate::client::CallError;
     use crate::mcp::Backend;
-    use crate::wire::Call;
+    use crate::wire::{Args, Call};
     use serde_json::{Value, json};
 
     fn words(line: &str) -> Vec<String> {
@@ -132,15 +215,33 @@ mod tests {
         assert_eq!(parse(&words("--mcp")), Ok(Command::Mcp));
         assert_eq!(
             parse(&words("whoami")),
-            Ok(Command::Call(Call::Whoami, None))
+            Ok(call_of(Call::Whoami, Args::default()))
         );
         assert_eq!(
             parse(&words("status Fixing   the checkout")),
-            Ok(Command::Call(
+            Ok(call_of(
                 Call::SetStatus,
-                Some("Fixing the checkout".into())
+                Args {
+                    text: Some("Fixing the checkout".into()),
+                    ..Args::default()
+                }
             ))
         );
+        let Ok(Command::Call(Call::SendMessage, args)) =
+            parse(&words("send sess-2 Start on the API"))
+        else {
+            panic!("send");
+        };
+        let send = args.send.unwrap();
+        assert_eq!(
+            (send.to.as_str(), send.body.as_str()),
+            ("sess-2", "Start on the API")
+        );
+        assert_eq!(
+            parse(&words("share schema.md")),
+            Ok(Command::Share("schema.md".into()))
+        );
+        assert!(parse(&words("send sess-2")).is_err(), "nothing to say");
         for bad in [
             "--token abc",
             "--mcp --token abc",
@@ -153,7 +254,7 @@ mod tests {
 
     struct Echo;
     impl Backend for Echo {
-        fn call(&mut self, _call: Call, _text: Option<String>) -> Result<Value, CallError> {
+        fn call(&mut self, _call: Call, _args: Args) -> Result<Value, CallError> {
             Ok(json!({"ok": true}))
         }
     }

@@ -657,7 +657,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
     let info = pools::access::set_level_impl(&state, &team, "read", &[]).unwrap();
     assert_eq!(
         level(&info, &team).1,
-        ["read_roster", "read_cards", "read_tasks"]
+        ["read_roster", "read_cards", "read_tasks", "read_messages"]
     );
     assert!(matches!(
         decide(&planner, AgentAction::PostMessage),

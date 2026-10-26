@@ -112,7 +112,8 @@ fn fidelity_words(pack: &OpenedPack) -> String {
     }
 }
 
-fn withheld_words(kind: &str) -> String {
+/// A detector's kind in words, as packs and shared docs show it.
+pub(crate) fn withheld_words(kind: &str) -> String {
     match kind {
         "sk-key" | "api-key" => "API keys",
         "bearer" => "bearer tokens",

@@ -33,6 +33,7 @@ export type PageTabId =
   | "history"
   | "actions"
   | "members"
+  | "messages"
   | "access";
 
 export type PageTab = {
@@ -53,6 +54,7 @@ const TAB: Record<PageTabId, PageTab> = {
   history: { id: "history", label: "History", source: "the session's transcript" },
   actions: { id: "actions", label: "Actions", source: "the paired Mac" },
   members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
+  messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this Mac" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
 };
 
@@ -66,6 +68,8 @@ export type TabFacts = {
   hasUsage?: boolean;
   /** An account's past sessions. */
   hasSessions?: boolean;
+  /** E18: a session with messages to or from it. */
+  hasMessages?: boolean;
 };
 
 /** Where an Overview's numbers come from, by page (P21: never one
@@ -91,7 +95,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
   switch (kind) {
     // AJ-E2108: its body (terminal or window) first, as ever, then Overview.
     case "session":
-      return [TAB[facts.desktop ? "window" : "terminal"], TAB.overview, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+      return [TAB[facts.desktop ? "window" : "terminal"], TAB.overview, ...when(facts.hasMessages, "messages"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     case "project":
       return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
     case "account":
@@ -105,7 +109,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
     case "pool":
-      return [TAB.members, TAB.access];
+      return [TAB.members, TAB.messages, TAB.access];
   }
 }
 

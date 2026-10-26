@@ -9,6 +9,7 @@ pub mod budgets;
 pub mod conversations;
 pub mod fleet;
 pub mod handover;
+pub mod messages;
 pub mod notifications;
 pub mod outside_search;
 pub mod packs;

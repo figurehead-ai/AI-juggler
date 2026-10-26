@@ -41,6 +41,7 @@ export const AGENT_ACTIONS = [
   "read_roster",
   "read_cards",
   "read_tasks",
+  "read_messages",
   "set_status",
   "post_message",
   "share_doc",
@@ -51,9 +52,9 @@ export const AGENT_ACTIONS = [
   "deliver_to_session",
   "prepare_launch",
 ] as const;
-const READ = AGENT_ACTIONS.slice(0, 3);
+const READ = AGENT_ACTIONS.slice(0, 4);
 // Staging a launch is Work together's: the Needs you card's click is the gate.
-const WORK = [...AGENT_ACTIONS.slice(0, 9), "prepare_launch"];
+const WORK = [...AGENT_ACTIONS.slice(0, 10), "prepare_launch"];
 const LEVEL_ACTIONS: Record<string, readonly string[]> = { read: READ, work_together: WORK, full: [...WORK, "deliver_to_session"] };
 
 // D-29: delivering into a session is Full's or a rule's, never Custom's.
