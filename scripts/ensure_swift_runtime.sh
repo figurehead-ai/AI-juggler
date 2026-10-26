@@ -24,9 +24,13 @@ if [ ! -f "$CLT_SWIFT/libswiftCompatibility56.a" ]; then
     exit 0
 fi
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-mkdir -p "$REPO_ROOT/target/debug"
-STUB="$REPO_ROOT/target/debug/libswift_Concurrency.dylib"
+# One place per user, never per checkout: the stub's folder is in the
+# flags, and flags that differ per worktree make cargo build its own copy
+# of every crate for each one in a shared CARGO_TARGET_DIR (2026-10-26:
+# 56 GB, and a `target/` in every worktree).
+STUB_DIR="${AIJ_SWIFT_STUB_DIR:-$HOME/Library/Caches/AIJuggler-dev/swift-stub}"
+mkdir -p "$STUB_DIR"
+STUB="$STUB_DIR/libswift_Concurrency.dylib"
 if [ ! -f "$STUB" ]; then
     # An empty dylib with the expected install name: the bridge loads
     # it but binds none of its symbols.
@@ -37,8 +41,8 @@ fi
 # rpath ORDER is load-bearing (AJ-E415 real-capture fix): /usr/lib/swift
 # comes FIRST — the OS provides libswift_Concurrency.dylib from the dyld
 # shared cache even without a file on disk (verified: dlopen +
-# swift_task_create resolve). The empty stub in target/debug stays as a
+# swift_task_create resolve). The empty stub stays as a
 # LINK-time satisfier only; at runtime the OS runtime wins, so the
 # bridge's _swift_task_* calls land on real symbols instead of NULL.
 # Exported by callers via $(scripts/ensure_swift_runtime.sh).
-echo "RUSTFLAGS=-C link-arg=-L$CLT_SWIFT -C link-arg=-lswiftCompatibility56 -C link-arg=-Wl,-rpath,/usr/lib/swift -C link-arg=-Wl,-rpath,$REPO_ROOT/target/debug"
+echo "RUSTFLAGS=-C link-arg=-L$CLT_SWIFT -C link-arg=-lswiftCompatibility56 -C link-arg=-Wl,-rpath,/usr/lib/swift -C link-arg=-Wl,-rpath,$STUB_DIR"
