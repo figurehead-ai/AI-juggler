@@ -278,6 +278,47 @@ impl CleanupAuditRepo {
         Ok(out)
     }
 
+    /// AJ-E2405: one page of the audit within the window, newest first,
+    /// optionally only one session's or one project's: after `after`
+    /// (`(at_ms, id)` of the previous page's last row), at most `limit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn page(
+        &self,
+        since_ms: i64,
+        after: Option<(i64, i64)>,
+        limit: usize,
+        session_id: Option<&str>,
+        project_id: Option<&str>,
+    ) -> Result<Vec<CleanupAuditRecord>, CoreError> {
+        let conn = self.lock()?;
+        let (at, id) = after.unwrap_or((i64::MAX, i64::MAX));
+        let mut stmt = conn.prepare(
+            "SELECT * FROM cleanup_audit
+             WHERE at_ms >= ?1 AND (at_ms < ?2 OR (at_ms = ?2 AND id < ?3))
+               AND (?4 IS NULL OR session_id = ?4)
+               AND (?5 IS NULL OR project_id = ?5)
+             ORDER BY at_ms DESC, id DESC
+             LIMIT ?6",
+        )?;
+        let rows = stmt
+            .query_map(
+                params![
+                    since_ms,
+                    at,
+                    id,
+                    session_id,
+                    project_id,
+                    i64::try_from(limit).unwrap_or(i64::MAX)
+                ],
+                map_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
     /// Full-fidelity rows within the window (the EXPORT source —
     /// hashed cmdlines only, per the privacy boundary).
     ///

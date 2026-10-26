@@ -632,6 +632,90 @@ impl ProcessLedgerRepo {
         Ok(out)
     }
 
+    /// AJ-E2401: every row the Processes view shows as alive on one
+    /// machine — `running`, `orphaned` and `unverifiable` (the last is
+    /// shown as "won't be touched", never acted on). One indexed read per
+    /// tick (`(state, last_seen)`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn live_rows(&self, machine_id: &str) -> Result<Vec<LedgerRow>, CoreError> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare(
+            "SELECT * FROM process_ledger
+             WHERE state IN (?1, ?2, ?3) AND machine_id = ?4 AND pid IS NOT NULL",
+        )?;
+        let rows = stmt
+            .query_map(
+                params![
+                    STATE_RUNNING,
+                    STATE_ORPHANED,
+                    STATE_UNVERIFIABLE,
+                    machine_id
+                ],
+                map_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// AJ-E2401: one page of the processes that ended on one machine since
+    /// `since_ms` (the 7 days the ledger keeps), newest first. `after` is
+    /// the last row of the previous page (`(last_seen, pid)`), so a page
+    /// never repeats or skips a row while new ones end.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn ended_rows(
+        &self,
+        machine_id: &str,
+        since_ms: i64,
+        after: Option<(i64, u32)>,
+        limit: usize,
+    ) -> Result<Vec<LedgerRow>, CoreError> {
+        let conn = self.lock()?;
+        let (before_seen, before_pid) = after.unwrap_or((i64::MAX, u32::MAX));
+        let mut stmt = conn.prepare(
+            "SELECT * FROM process_ledger
+             WHERE state = ?1 AND machine_id = ?2 AND last_seen >= ?3 AND pid IS NOT NULL
+               AND (last_seen < ?4 OR (last_seen = ?4 AND pid < ?5))
+             ORDER BY last_seen DESC, pid DESC
+             LIMIT ?6",
+        )?;
+        let rows = stmt
+            .query_map(
+                params![
+                    STATE_EXITED,
+                    machine_id,
+                    since_ms,
+                    before_seen,
+                    before_pid,
+                    i64::try_from(limit).unwrap_or(i64::MAX)
+                ],
+                map_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// AJ-E2401: how many processes ended on one machine since `since_ms`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn ended_count(&self, machine_id: &str, since_ms: i64) -> Result<u64, CoreError> {
+        let conn = self.lock()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM process_ledger
+             WHERE state = ?1 AND machine_id = ?2 AND last_seen >= ?3 AND pid IS NOT NULL",
+            params![STATE_EXITED, machine_id, since_ms],
+            |row| row.get(0),
+        )?;
+        Ok(u64::try_from(count).unwrap_or(0))
+    }
+
     /// Prunes `exited` rows last seen before `before_ms`. Running
     /// rows are NEVER pruned. Returns the removed count.
     ///

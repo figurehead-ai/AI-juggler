@@ -271,83 +271,6 @@ export const atScale: FixtureSet = (() => {
   };
 })();
 
-const CLEANUP_ROW = (pid: number, state: string) => ({
-  pid,
-  pgid: 8100,
-  role: "helper",
-  state,
-  state_label:
-    state === "orphaned"
-      ? "Still running after its session closed"
-      : state === "adopted"
-        ? "Running — picked up after restart"
-        : state === "unverifiable"
-          ? "Unverifiable — will not be touched"
-          : "Running",
-  role_guess: "python3 (guess)",
-  exe_path: "/usr/bin/python3",
-  cmdline: "python3 -m http.server 5173",
-  age_ms: 9_000_000,
-  rss_bytes: 48 * 1024 * 1024,
-  cpu_pct: 1.4,
-  ports: state === "orphaned" ? "5173" : null,
-  hog: pid === 8124,
-  hog_rules: pid === 8124 ? ["tree-rss>p95(provider)"] : [],
-  evidence: {
-    root_pid: 8100,
-    parent_pid: 8100,
-    pgid: 8100,
-    escaped_group: false,
-    verification: {
-      verdict: state === "unverifiable" ? "unverifiable" : "verified",
-      detail:
-        state === "unverifiable"
-          ? "live start-time or exe differs from the record"
-          : "start-time and exe match the live process",
-    },
-    first_seen: T0,
-    last_seen: T0 + 90_000,
-  },
-});
-
-/** The Cleanup centre inventory for a gallery state (AJ-E503/E804). */
-export function cleanupFixture(state: string) {
-  if (state === "empty") {
-    return { groups: [], clean_instances: 3, ledger_degraded: false };
-  }
-  if (state === "degraded") {
-    return { groups: [], clean_instances: 0, ledger_degraded: true };
-  }
-  // The FILTER states map to row states: needs-attention shows the
-  // orphan + the hog; re-adopted shows the adopted row; unverifiable
-  // shows the flagged one; all-managed shows the mix.
-  const firstState =
-    state === "needs-attention"
-      ? "orphaned"
-      : state === "re-adopted"
-        ? "adopted"
-        : "running";
-  const rows = [
-    CLEANUP_ROW(8123, firstState),
-    CLEANUP_ROW(8124, state === "unverifiable" ? "unverifiable" : "running"),
-  ];
-  return {
-    groups: [
-      {
-        session: "s-1",
-        provider: "claude-code",
-        account: "Work Max",
-        project: "web",
-        machine: "machine-local",
-        healthy: false,
-        rows,
-      },
-    ],
-    clean_instances: 2,
-    ledger_degraded: false,
-  };
-}
-
 /** Switch preflights for the wizard and 1-click doors (AJ-E206/E804). */
 export const DOOR_WIZARD = {
   mechanism: "transplant",
@@ -380,7 +303,7 @@ export const DOOR_ONECLICK = {
 /**
  * D-25: opens a top-level screen the way a user does — Home, Accounts,
  * History and Settings sit in the header (Fleet too, once a Mac is
- * paired); Triage, Overview, Usage, Fleet and Cleanup wait under More.
+ * paired); Triage, Overview, Usage, Fleet and Processes wait under More.
  */
 export async function goTo(page: import("@playwright/test").Page, name: string): Promise<void> {
   const main = page.getByRole("navigation", { name: "Main" });

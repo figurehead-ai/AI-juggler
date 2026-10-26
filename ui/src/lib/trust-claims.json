@@ -94,11 +94,13 @@
         },
         {
           "id": "this-mac-other-apps",
-          "text": "To show what else is using memory, This Mac names the biggest other apps by their app or program name, with their memory. It never shows their folders or the options they started with, and it can't stop them.",
+          "text": "To show what else is using memory, This Mac names the biggest other apps, and Processes lists the rest of your Mac when you include other apps: by app or program name, with their memory. It never shows their folders or the options they started with, and it can't stop them.",
           "tests": [
             "crates/juggler-app/src/machine_memory.rs::other_apps_show_names_never_paths",
             "crates/juggler-supervisor/src/live_stats.rs::other_processes_carry_a_name_and_memory_only_and_leave_ai_juggler_out",
             "ui/src/screens/this-mac-page.test.tsx::shows the whole Mac's memory, explains pressure, and lists what else uses it by name, read-only",
+            "crates/juggler-app/tests/processes_graph.rs::the_rest_of_the_mac_shows_only_when_asked_for_and_only_names_and_memory",
+            "ui/src/screens/processes-page.test.tsx::Include other apps adds the rest of this Mac: names and memory only, nothing to stop",
             "crates/juggler-app/tests/trust.rs::no_process_environment_is_ever_read"
           ]
         },
@@ -122,6 +124,15 @@
           "tests": [
             "crates/juggler-app/src/features/runtime/driver.rs::the_conversation_is_held_in_memory_and_bounded",
             "crates/juggler-app/tests/runtime.rs::a_driven_session_is_exact_and_answered_only_by_the_user"
+          ]
+        },
+        {
+          "id": "process-sightings",
+          "text": "For sessions other apps run, it keeps each of their processes' program name, start time, the session it was in and a hash of its command line, on your Mac only, for 7 days, so a process left behind can be named by its session. Never its environment, and never the command line itself.",
+          "tests": [
+            "crates/juggler-core/tests/sightings_storage.rs::a_sighting_never_holds_the_environment_or_the_command_line",
+            "crates/juggler-core/tests/sightings_storage.rs::a_sighting_is_forgotten_seven_days_after_it_was_last_seen",
+            "crates/juggler-app/src/features/processes/sightings.rs::the_hash_is_keyed_and_never_the_line"
           ]
         }
       ]
@@ -243,6 +254,16 @@
             "crates/juggler-adapters/tests/conformance/mod.rs::adds_state_reports_honestly",
             "crates/juggler-adapters/tests/conformance/mod.rs::runs_both_runtimes_honestly",
             "crates/juggler-app/tests/runtime.rs::claude_runs_without_a_terminal_only_as_a_per_session_beta"
+          ]
+        },
+        {
+          "id": "observed-stop",
+          "text": "It stops a process another app's session left running only when you ask, only after that session has ended, and only once it has checked it is the same process it saw. Never the app or the session itself, and no automatic rule ever does it. Each stop is in Cleanup history.",
+          "tests": [
+            "crates/juggler-app/tests/observed_stop.rs::no_automatic_rule_ever_stops_another_apps_leftover",
+            "crates/juggler-app/tests/observed_stop.rs::every_refusal_sends_zero_signals",
+            "crates/juggler-app/tests/observed_stop.rs::a_verified_leftover_of_an_ended_session_stops_and_is_audited",
+            "crates/juggler-app/src/features/processes/stop.rs::the_identity_check_fails_closed_on_every_leg"
           ]
         }
       ]

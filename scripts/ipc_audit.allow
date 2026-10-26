@@ -38,7 +38,6 @@ unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or t
 unbounded backup_verify  # bounded: one backup's checks
 unbounded budgets_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded cleanup_alerts  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded cleanup_inventory  # TO PAGE: every leftover process
 unbounded cleanup_pause_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_resume_after_crash  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or tools)
@@ -81,7 +80,6 @@ unbounded going_back_options  # bounded: a fixed set (settings, checks, choices 
 unbounded harnesses_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded identity_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded instance_delete_preview  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded instance_processes  # TO PAGE: one session's process tree
 unbounded instance_quality  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded instance_replay  # bounded: the transcript is cut at its size limit (truncated)
 unbounded instances_list  # bounded: the working set (open, pinned, the newest 200 ended this week); History and the Sessions tabs page the rest
@@ -129,6 +127,10 @@ unbounded pools_set_role  # TO PAGE: every pool and every session's place (pools
 unbounded pools_set_spans_macs  # TO PAGE: every pool and every session's place (pools_info reads every session ever run)
 unbounded port_inventory  # TO PAGE: every listening port
 unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded processes_dry_run  # bounded: one account's left-behind processes
+unbounded processes_observed_stop  # bounded: one process
+unbounded processes_observed_verify  # bounded: one process
+unbounded processes_policy  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded profiles_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded project_sync_diff  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded project_sync_rules  # bounded: a fixed set (settings, checks, choices or tools)

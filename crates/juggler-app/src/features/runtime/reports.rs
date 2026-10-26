@@ -200,6 +200,17 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
     else {
         return Response::refused(Refusal::Unknown, "This session's report key isn't current.");
     };
+    // AJ-E2401: what a command the tool ran started is named on the
+    // Processes page ("Started by Bash: npm run dev"), from memory only.
+    if report.hook.event == "PostToolUse"
+        && let (Some(tool), Some(summary)) = (&report.hook.tool, &report.hook.summary)
+    {
+        state.processes.note_label(
+            session.as_str(),
+            &format!("{tool}: {summary}"),
+            Timestamp::now().millis(),
+        );
+    }
     state.runtime.observe(state, &session, &report.hook);
     // E18 (AJ-E1803): "N unread messages from …" at a turn boundary, once
     // per change; facts only, never a message's words.

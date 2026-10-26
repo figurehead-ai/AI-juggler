@@ -7,6 +7,8 @@ vi.mock("./ipc/sessions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./ipc/sessions")>()),
   sessionsPage: async () => ({ items: [{ key: "s/1", session: null, conversation: null, snippet: null }], next_cursor: "c", total: 900 }),
 }));
+const processRows = vi.fn(async () => undefined);
+vi.mock("../screens/processes/useProcessRows", () => ({ prefetchProcessRows: processRows }));
 vi.mock("./ipc/costs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./ipc/costs")>()),
   costRowsPage: async () => ({ items: [], next_cursor: null, total: 0 }),
@@ -19,10 +21,12 @@ const { costRowsKey } = await import("./ipc/costs");
 describe("the main screens' first pages, after first paint", () => {
   it("are queued in idle time and land under the keys their screens read", async () => {
     prefetchMainScreens();
-    expect(queued).toHaveLength(2);
+    expect(queued).toHaveLength(3);
     expect(rememberedPage(historyKey("ended", ""))).toBeUndefined();
     for (const load of queued) await load();
     expect(rememberedPage(historyKey("ended", ""))!.total).toBe(900);
     expect(rememberedPage(costRowsKey(null))!.items).toEqual([]);
+    // AJ-E2404: Processes' Needs attention, read into its own rows.
+    expect(processRows).toHaveBeenCalledOnce();
   });
 });

@@ -293,7 +293,10 @@ impl Snapshot {
                 self.asks.clear();
                 true
             }
+            // ItemStarted: the Processes page names what a command
+            // started; the conversation shows the command once it ends.
             RuntimeEvent::ToolDelta { .. }
+            | RuntimeEvent::ItemStarted { .. }
             | RuntimeEvent::Usage { .. }
             | RuntimeEvent::Compacted
             | RuntimeEvent::Transcript { .. }
@@ -537,6 +540,22 @@ fn execute(driven: &mut dyn DrivenSession, command: Command) -> Option<Command> 
 
 /// Keeps the stored session exact: Asks you while an ask is open, else
 /// running; the notifier tells the UI.
+/// AJ-E2401: a command the tool ran names what it started on the
+/// Processes page (held in memory only).
+fn note_command(state: &Arc<AppState>, session: &SessionId, event: &RuntimeEvent) {
+    let (RuntimeEvent::ItemStarted { summary: item, .. } | RuntimeEvent::Item { item }) = event
+    else {
+        return;
+    };
+    if item.kind == ItemKind::Command {
+        state.processes.note_label(
+            session.as_str(),
+            &format!("a command: {}", item.text),
+            Timestamp::now().millis(),
+        );
+    }
+}
+
 fn store(state: &Arc<AppState>, session: &SessionId, snapshot: &Snapshot) {
     store_ask(state, session, snapshot.asks.first(), snapshot.ended);
 }
@@ -736,6 +755,7 @@ fn run(
                 {
                     unlinked = Some((native_id, Some(path.clone())));
                 }
+                note_command(&state, session, &event);
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });

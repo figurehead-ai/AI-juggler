@@ -70,7 +70,7 @@ fn upgrading_from_pools_keeps_a_copy_and_every_pool_as_it_was() {
 
     let storage = Storage::open(&db).unwrap();
     assert!(storage.migrated_on_open());
-    assert_eq!(storage.user_version().unwrap(), 34);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 33);
     assert_eq!(tables(&copies[0].1), before);

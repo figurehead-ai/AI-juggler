@@ -32,8 +32,14 @@ pub struct OverloadAlertInfo {
     pub detail: String,
     /// The biggest contributor, when there is one: a session id …
     pub session_id: Option<String>,
-    /// … or a tool AI Juggler didn't start (`desktop` | `terminal`).
+    /// … or a tool AI Juggler didn't start: its This Mac group (`desktop`
+    /// and `terminal` for the Claude tools, an app's group for another
+    /// app's sessions, AJ-E2407).
     pub place: Option<String>,
+    /// That group in words, for another app's (`ChatGPT`); the Claude
+    /// tools' words are the UI's.
+    #[ts(optional = nullable)]
+    pub subject_name: Option<String>,
     /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
     pub subject_bytes: Option<u64>,
@@ -151,6 +157,19 @@ fn memory_cause(mac: &ThisMacInfo) -> (Option<ToolTreeInfo>, Vec<OtherAppInfo>) 
     }
 }
 
+/// Another app's group in words, when it is the subject (AJ-E2407); the
+/// Claude tools' and our sessions' words are the UI's.
+fn subject_name(subject: Option<&ToolTreeInfo>) -> Option<String> {
+    subject
+        .filter(|s| {
+            s.session_id.is_none()
+                && s.place
+                    .as_deref()
+                    .is_some_and(|place| !crate::machine_tools::CLAUDE_PLACES.contains(&place))
+        })
+        .and_then(|s| s.title.clone())
+}
+
 fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
     candidates(mac)
         .into_iter()
@@ -176,25 +195,26 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
         .filter(|tree| seen.insert(tree.session_id.clone()))
         .cloned()
         .collect();
-    out.extend(
-        mac.by_tool
-            .iter()
-            .filter(|group| !group.ours)
-            .map(|group| ToolTreeInfo {
-                root_pid: None,
-                session_id: None,
-                place: Some(group.tool.clone()),
-                // The Claude tools AI Juggler didn't start (desktop | terminal).
-                tool: Some(crate::machine_health::OBSERVED_TOOL.to_string()),
-                group: group.tool.clone(),
-                account_label: None,
-                cpu_pct: group.cpu_one_core_pct,
-                rss_bytes: group.totals.rss_bytes,
-                memory_estimate: group.totals.memory_estimate,
-                helpers: 0,
-                heavy_note: None,
-            }),
-    );
+    out.extend(mac.by_tool.iter().filter(|group| !group.ours).map(|group| {
+        ToolTreeInfo {
+            root_pid: None,
+            session_id: None,
+            place: Some(group.tool.clone()),
+            // The Claude tools AI Juggler didn't start (desktop |
+            // terminal), or another app's sessions (AJ-E2407).
+            tool: crate::machine_tools::CLAUDE_PLACES
+                .contains(&group.tool.as_str())
+                .then(|| crate::machine_health::OBSERVED_TOOL.to_string()),
+            group: group.tool.clone(),
+            account_label: None,
+            cpu_pct: group.cpu_one_core_pct,
+            rss_bytes: group.totals.rss_bytes,
+            memory_estimate: group.totals.memory_estimate,
+            helpers: 0,
+            heavy_note: None,
+            title: Some(group.label.clone()),
+        }
+    }));
     out
 }
 
@@ -429,6 +449,7 @@ impl AlertEngine {
                     .as_ref()
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
+                subject_name: subject_name(condition.subject.as_ref()),
                 subject_bytes: condition
                     .subject
                     .as_ref()
@@ -694,6 +715,7 @@ mod tests {
             memory_estimate: place.is_some(),
             helpers: 2,
             heavy_note: note.map(str::to_string),
+            title: None,
         }
     }
 

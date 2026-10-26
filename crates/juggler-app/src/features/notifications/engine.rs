@@ -19,6 +19,8 @@ pub enum Kind {
     Finished,
     /// This Mac is getting tight or under pressure.
     MacTight,
+    /// AJ-E2405: a session ended and left processes running.
+    LeftBehind,
 }
 
 impl Kind {

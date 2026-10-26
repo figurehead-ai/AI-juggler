@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, cleanupFixture, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
+import { allStatuses, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/keyboard");
@@ -241,17 +241,26 @@ test("switch, wizard — three steps by keyboard; Esc returns to the row", async
   ]);
 });
 
-test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", async ({ page }) => {
-  await open(page, allStatuses, { __AIJ_CLEANUP__: cleanupFixture("needs-attention") });
+test("processes — Stop… opens the confirm sheet; Esc returns to the row", async ({ page }) => {
+  await open(page, allStatuses);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  // D-25: Cleanup waits under More (a pill shows while something's left).
+  // D-25: Processes waits under More (a pill shows while something's left).
   await tabTo(page, stops, /^button: More$/);
   await page.keyboard.press("Enter");
-  await tabTo(page, stops, /^button: Cleanup/);
+  await tabTo(page, stops, /^button: Processes/);
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-  await tabTo(page, stops, /^button: Terminate…$/);
+  await expect(page.getByTestId("processes-page")).toBeVisible();
+  // The tree is one Tab stop; arrows move inside it (AJ-E2404).
+  await tabToEl(page, stops, "[role='row'][data-kind]");
+  for (let i = 0; i < 10; i++) {
+    if (await page.evaluate(() => document.activeElement?.getAttribute("data-testid")?.startsWith("process-row-p:8123:") ?? false)) break;
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(50);
+  }
+  const row = await focused(page);
+  stops.push(row);
+  expect(row.name).toContain("node (vite)");
   await page.keyboard.press("Enter");
   const sheet = page.locator("[data-testid^='kill-sheet-']");
   await expect(sheet).toBeVisible();
@@ -266,11 +275,11 @@ test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", as
   }
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
-  await expect.poll(async () => (await focused(page)).name).toBe("button: Terminate…");
+  await expect.poll(async () => (await focused(page)).name).toBe(row.name);
   stops.push(await focused(page));
   record("cleanup-confirm", stops, [
-    "Cleanup is reached from the top bar; the leftover's Terminate… opens the confirm sheet with focus inside.",
-    "Tab stays inside the sheet; Esc cancels and returns focus to Terminate….",
+    "Processes is reached from the top bar; Enter on a left-behind row (Stop…) opens the confirm sheet with focus inside.",
+    "Tab stays inside the sheet; Esc cancels and returns focus to the row.",
   ]);
 });
 

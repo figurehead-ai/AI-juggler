@@ -28,6 +28,7 @@ mod pools;
 mod process_ledger;
 mod projects;
 mod settings;
+mod sightings;
 mod switch_graph;
 mod transcript_index;
 mod usage;
@@ -67,6 +68,10 @@ pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
+pub use sightings::{
+    MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
+    SightingsRepo,
+};
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
@@ -586,9 +591,15 @@ const V33: &str = pools::MIGRATION;
 /// pauses. The messages module owns its tables ([`messages::MIGRATION`]).
 const V34: &str = messages::MIGRATION;
 
+/// v35 (AJ-E2402, D-41a): sightings of the processes in sessions other
+/// apps run (names, times and a hashed command line only), and the user's
+/// marks on processes (Keep, Remind me later). The sightings module owns
+/// its tables ([`sightings::MIGRATION`]).
+const V35: &str = sightings::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -952,6 +963,13 @@ impl Storage {
     #[must_use]
     pub fn messages(&self) -> MessagesRepo<'_> {
         MessagesRepo::new(&self.conn)
+    }
+
+    /// Repository for sightings of other apps' sessions' processes and the
+    /// user's marks on processes (schema v35, AJ-E2402).
+    #[must_use]
+    pub fn sightings(&self) -> SightingsRepo<'_> {
+        SightingsRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

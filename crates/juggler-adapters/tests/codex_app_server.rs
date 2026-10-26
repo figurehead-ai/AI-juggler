@@ -25,8 +25,8 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::runtime::{
-    AskAnswer, Connection, DrivenLaunch, DrivenSession, ErrorCategory, OptionEffect, PartAnswer,
-    Release, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, ViewOf,
+    AskAnswer, Connection, DrivenLaunch, DrivenSession, ErrorCategory, ItemKind, OptionEffect,
+    PartAnswer, Release, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, ViewOf,
 };
 use juggler_adapter::{HarnessAdapter, LaunchMode};
 use juggler_adapters::CodexAdapter;
@@ -247,6 +247,13 @@ fn recorded_messages_make_the_right_events_and_answers() {
         events
             .iter()
             .any(|e| matches!(e, RuntimeEvent::Item { item } if item.text == "npm test"))
+    );
+    // A command is named when it starts (its item may never complete).
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, RuntimeEvent::ItemStarted { item, summary }
+        if item == "call_1" && summary.text == "npm test" && summary.kind == ItemKind::Command))
     );
     assert!(
         events

@@ -127,8 +127,8 @@ test("rail — no row overflows its width", async ({ page }) => {
 
 // AJ-E507 quality gate: axe-core 0 critical/serious on the kill
 // sheet — the ready (interactive) state and the failed-verification
-// explanation. The suite rides the same cleanup fixture as the
-// 20-kill gallery; the sheet opens the real way (row affordance).
+// explanation. The suite rides the Processes page's made-up Mac, as the
+// 20-kill gallery does; the sheet opens the real way (the row's Stop…).
 const KILL_VERIFY_OK = {
   pid: 8123,
   session: "s-1",
@@ -169,59 +169,13 @@ const KILL_VERIFY_FAILED = {
 for (const theme of ["dark", "light"] as const) {
   for (const state of ["ready", "refused"] as const) {
     test(`kill-sheet — ${state} — axe 0 critical/serious — ${theme}`, async ({ page }) => {
-      const cleanup = {
-        groups: [
-          {
-            session: "s-1",
-            provider: "claude-code",
-            account: "Work Max",
-            project: "web",
-            machine: "machine-local",
-            healthy: false,
-            rows: [
-              {
-                pid: 8123,
-                pgid: 8100,
-                role: "helper",
-                state: "orphaned",
-                state_label: "Still running after its session closed",
-                role_guess: "python3 (guess)",
-                exe_path: "/usr/bin/python3",
-                cmdline: "python3 -m http.server 5173",
-                age_ms: 9_000_000,
-                rss_bytes: 48 * 1024 * 1024,
-                cpu_pct: 1.4,
-                ports: "5173",
-                hog: false,
-                hog_rules: [],
-                evidence: {
-                  root_pid: 8100,
-                  parent_pid: 8100,
-                  pgid: 8100,
-                  escaped_group: false,
-                  verification: {
-                    verdict: "verified",
-                    detail: "start-time and exe match the live process",
-                  },
-                  first_seen: T0,
-                  last_seen: T0 + 90_000,
-                },
-              },
-            ],
-          },
-        ],
-        clean_instances: 2,
-        ledger_degraded: false,
-      };
       await page.addInitScript(
-        ({ fixture, t0, cleanup: c, theme: t, verify }) => {
+        ({ fixture, t0, theme: t, verify }) => {
           const w = window as unknown as {
             __AIJ_FIXTURE__?: unknown;
-            __AIJ_CLEANUP__?: unknown;
             __AIJ_KILL_VERIFY__?: unknown;
           };
           w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_CLEANUP__ = c;
           w.__AIJ_KILL_VERIFY__ = () => verify;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -231,7 +185,6 @@ for (const theme of ["dark", "light"] as const) {
         {
           fixture: allStatuses,
           t0: T0,
-          cleanup,
           theme,
           verify: state === "ready" ? KILL_VERIFY_OK : KILL_VERIFY_FAILED,
         },
@@ -239,9 +192,9 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto("/");
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-      await page.getByTestId("cleanup-kill-8123").click();
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("processes-page")).toBeVisible();
+      await page.getByTestId("process-stop-8123").click();
       await expect(
         page.getByTestId(state === "ready" ? "kill-ready-8123" : "kill-refused-8123"),
       ).toBeVisible();
@@ -353,7 +306,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("cleanup-tier2-notice-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -403,7 +356,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     const reconfirm = page.getByTestId("cleanup-resume-button");
     await reconfirm.click();
     await expect(page.getByTestId("cleanup-resume-error")).toHaveText("Couldn't resume: the supervisor isn't answering");
@@ -502,14 +455,14 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+              text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
               pid: 8123,
               session: "s-1",
             },
             {
               kind: "idle",
-              text: "python3 has been idle for 2h — review it in Cleanup.",
-              pid: 8124,
+              text: "python3 has been idle for 2h — review it in Processes.",
+              pid: 8155,
               session: "s-1",
             },
           ],
@@ -519,7 +472,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -552,109 +505,9 @@ for (const theme of ["dark", "light"] as const) {
 }
 
 
-// AJ-E511: axe-core 0 critical/serious on the fleet machine surfaces
-// (the machine column + the widened All-machines view with its
-// display-only foreign row).
-for (const theme of ["dark", "light"] as const) {
-  test(`fleet — machine column + filter — axe 0 critical/serious — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, theme: t, cleanup }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_CLEANUP__ = cleanup;
-        // D-25: the machine filter shows once another Mac is paired.
-        w.__AIJ_FLEET_PEERS__ = [{
-          machine_id: "machine-studio", label: "Mac Studio", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
-          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
-          paired_at_ms: t0, last_seen_ms: t0, connection: "connected", protocol: "v1.0", connection_detail: null,
-        }];
-        localStorage.setItem("aij.theme", t);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [
-            {
-              session: "s-local", provider: "claude-code", account: "Work Max",
-              project: "web", machine: "machine-local", healthy: false,
-              rows: [
-                {
-                  machine_id: "machine-local", pid: 8123, pgid: 8100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its session closed",
-                  role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-                  cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
-                  rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-                  hog: false, hog_rules: [],
-                  evidence: {
-                    root_pid: 8100, parent_pid: 8100, pgid: 8100, escaped_group: false,
-                    verification: { verdict: "verified", detail: "match" },
-                    first_seen: T0, last_seen: T0 + 90_000,
-                  },
-                },
-                {
-                  machine_id: "machine-studio", pid: 9101, pgid: 9100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its session closed",
-                  role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
-                  cmdline: "node vite dev", age_ms: 4_000_000,
-                  rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
-                  hog: false, hog_rules: [],
-                  evidence: {
-                    root_pid: 9100, parent_pid: 9100, pgid: 9100, escaped_group: false,
-                    verification: { verdict: "verified", detail: "match (remote record)" },
-                    first_seen: T0, last_seen: T0 + 90_000,
-                  },
-                },
-              ],
-            },
-          ],
-          local_machine: "machine-local",
-          clean_instances: 2,
-          ledger_degraded: false,
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page
-      .getByRole("combobox", { name: "Machine filter" })
-      .selectOption("all");
-    await expect(page.getByTestId("cleanup-machine-9101")).toBeVisible();
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-    let serious = results.violations.filter((v) =>
-      ["serious", "critical"].includes(v.impact ?? ""),
-    );
-    if (serious.length > 0) {
-        // AJ-E806: confirmatory re-scan — load-induced contrast false
-        // positives do not survive; real violations still fail.
-        await page.waitForTimeout(400);
-        const confirm = await new AxeBuilder({ page })
-          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-          .analyze();
-        serious = confirm.violations.filter((v) =>
-          ["serious", "critical"].includes(v.impact ?? ""),
-        );
-    }
-    if (serious.length > 0) {
-      const summary = serious
-        .map(
-          (v) =>
-            `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`,
-        )
-        .join("\n");
-      throw new Error(`axe violations on the fleet surfaces (${theme}):\n${summary}`);
-    }
-    expect(serious).toHaveLength(0);
-  });
-}
+// AJ-E511's machine column and filter retired with the Cleanup Centre
+// (AJ-E2404): a paired Mac's leftovers are the Processes page's "Paired
+// machines" section, scanned by the AJ-E707 test below.
 
 
 // AJ-E611: axe-core 0 critical/serious on the ranking + notification
@@ -1812,7 +1665,7 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-/** AJ-E707 a11y (both themes): paired machines in the Cleanup Centre and
+/** AJ-E707 a11y (both themes): paired machines on the Processes page and
  * the Clean confirmation (alertdialog, Cancel focused). */
 for (const theme of ["dark", "light"] as const) {
   test(`fleet — remote cleanup — axe 0 — ${theme}`, async ({ page }) => {
@@ -1843,8 +1696,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByLabel("Machine filter").selectOption("all");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("remote-cleanup")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("remote-cleanup-clean").click();

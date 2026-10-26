@@ -59,6 +59,7 @@ pub const SURFACE: &[(Kind, &str)] = &[
     (Kind::Notification, "thread/status/changed"),
     (Kind::Notification, "turn/started"),
     (Kind::Notification, "turn/completed"),
+    (Kind::Notification, "item/started"),
     (Kind::Notification, "item/completed"),
     (Kind::Notification, "item/agentMessage/delta"),
     (Kind::Notification, "item/commandExecution/outputDelta"),

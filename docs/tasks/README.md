@@ -15,7 +15,7 @@
    decisions D-01..D-42. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E23 below).
+4. The epic file for the task you claim (E1-E24 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -46,6 +46,7 @@
 | [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2110 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
+| [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

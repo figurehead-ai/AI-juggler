@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -518,58 +518,8 @@ test("inspector — Quality tab View as table", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "09-quality/as-table-1440x900.png") });
 });
 
-// AJ-E410 processes-tab captures: live tree (3 levels), what the
-// session left behind as the shared Cleanup rows (G-1), the verified
-// sheet a Stop opens, its refusal for a recycled pid, and the good
-// empty state.
-test("inspector — Processes tab live tree + left behind", gate("10-processes"), async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("processes-spark")).toBeVisible();
-  await expect(page.getByTestId("cleanup-row-39871")).toBeVisible();
-  await expect(page.getByTestId("leftovers-open-cleanup")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/live-tree-1440x900.png") });
-});
-
-test("inspector — Processes tab Stop opens the verified sheet", async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __AIJ_KILL_VERIFY__: (session: string, pid: number) => unknown }).__AIJ_KILL_VERIFY__ = (session, pid) => ({
-      pid, session, verified: true, refusal: null, exe_path: "/usr/local/bin/node",
-      cmdline: "node node_modules/.bin/vite dev --port 5173", cwd: "/Users/me/code/web-app", ports: [5173],
-      pgid: 40100, escaped_group: false, members: [], tree_pids: [pid], platform: "TERM → grace → KILL",
-      grace_secs: 5, provider: "claude-code", account_id: "Work Max", project_id: "web-app",
-    });
-  });
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await page.getByTestId("cleanup-kill-39871").click();
-  await expect(page.getByTestId("kill-confirm-39871")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/stop-confirm-1440x900.png") });
-});
-
-test("inspector — Processes tab refuses a recycled pid", async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await page.getByTestId("cleanup-kill-39871").click();
-  await expect(page.getByRole("dialog")).toContainText("belongs to a different program");
-  await expect(page.getByTestId("kill-confirm-39871")).toHaveCount(0);
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/refused-1440x900.png") });
-});
-
-test("inspector — Processes tab good empty state", async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Personal/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("processes-empty")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/empty-1440x900.png") });
-});
+// AJ-E410's Processes-tab captures moved to processes-gallery.spec.ts
+// (AJ-E2407: a session's Processes tab is the Processes view, filtered).
 
 // AJ-E411 renewal captures: every threshold state on the Account
 // Overview, `Expiry: unknown`, the editor + helper text, and the row
@@ -1124,10 +1074,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      // 0.1.5: the machine-wide port map lives in Cleanup › Ports, not in
-      // each session's Processes tab.
-      await goTo(page, "Cleanup");
-      await page.getByRole("radio", { name: "Ports", exact: true }).click();
+      // AJ-E2404: the machine-wide port map is the Processes page's Ports
+      // view, not each session's Processes tab.
+      await goTo(page, "Processes");
+      await page.getByRole("tab", { name: "Ports", exact: true }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
       await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
       await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
@@ -1179,156 +1129,16 @@ for (const theme of THEMES) {
 }
 
 
-// AJ-E506 Cleanup Centre captures: six states (needs-attention with
-// orphan+hog+collision, all-managed, re-adopted, unverifiable,
-// empty-success, ledger-degraded) × themes × sizes.
-
-for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiable", "empty", "degraded"]) {
-  for (const theme of THEMES) {
-    for (const vp of [
-      { name: "1440x900", width: 1440, height: 900 },
-      { name: "1024x700", width: 1024, height: 700 },
-    ]) {
-      test(`cleanup — ${state} — ${vp.name} — ${theme}`, gate("19-cleanup"), async ({ page }) => {
-        await page.addInitScript(
-          ({ fixture, t0, cleanup, theme }) => {
-            (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-            (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-            localStorage.setItem("aij.theme", theme);
-            localStorage.setItem("aij.onboarding.dismissed", "1");
-            sessionStorage.setItem("aij.ready.skipped", "1");
-            Date.now = () => t0;
-          },
-          { fixture: allStatuses, t0: T0, cleanup: cleanupFixture(state), theme },
-        );
-        await page.emulateMedia({ reducedMotion: "reduce" });
-        await page.setViewportSize({ width: vp.width, height: vp.height });
-        await page.goto("/");
-        // Reached from the TOP-RIGHT global menus (ADR-0007) — never
-        // a rail peer.
-        await goTo(page, "Cleanup");
-        await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-        if (state === "needs-attention") {
-          await expect(page.getByTestId("cleanup-row-8123")).toContainText(
-            "Still running after its session closed",
-          );
-          await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
-        }
-        if (state === "empty") {
-          await expect(page.getByTestId("cleanup-empty")).toContainText(
-            "Nothing left behind — 3 sessions running clean.",
-          );
-        }
-        if (state === "degraded") {
-          await expect(page.getByTestId("cleanup-degraded-banner")).toBeVisible();
-        }
-        if (state === "unverifiable") {
-          await expect(page.getByTestId("cleanup-state-8124")).toContainText(
-            "Unverifiable — will not be touched",
-          );
-        }
-        await page.screenshot({ path: resolve(GALLERY, `19-cleanup/${state}-${vp.name}-${theme}.png`) });
-      });
-    }
-  }
-}
-
-
-// AJ-E509 history captures: audit rows (manual + automatic actors,
-// outcome vocabulary incl. the crash-pending unknown) and the
-// empty-history copy — via the Cleanup Centre's History filter.
-for (const theme of THEMES) {
-  test(`cleanup — history populated — 1440x900 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, cleanup, theme }) => {
-        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-        (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-        localStorage.setItem("aij.theme", theme);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [],
-          clean_instances: 0,
-          ledger_degraded: false,
-          history: {
-            rows: [
-              {
-                id: 1, at_ms: T0 - 90_000, actor: "user:orphan_stop", automatic: false,
-                pid: 8123, cmdline_trunc: "python3 -m http.server 5173", session_id: "s-1",
-                provider: "claude-code", account_id: "Work Max", machine_id: "machine-local",
-                outcome: "exited on TERM", ports_before: "5173", ports_after: "",
-              },
-              {
-                id: 2, at_ms: T0 - 200_000, actor: "auto:tier-1", automatic: true,
-                pid: 4400, cmdline_trunc: "node vite", session_id: "s-2",
-                provider: "claude-code", account_id: null, machine_id: "machine-local",
-                outcome: "TERM'd, outcome unknown", ports_before: null, ports_after: null,
-              },
-            ],
-            empty_note: null,
-          },
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByRole("radio", { name: "History (7 days)" }).click();
-    await expect(page.getByTestId("cleanup-history")).toBeVisible();
-    await expect(page.getByTestId("cleanup-history-actor-2")).toContainText("automatic");
-    await page.screenshot({ path: resolve(GALLERY, `19-cleanup/history-populated-1440x900-${theme}.png`) });
-  });
-
-  test(`cleanup — history empty — 1440x900 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, cleanup, theme }) => {
-        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-        (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-        localStorage.setItem("aij.theme", theme);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [],
-          clean_instances: 0,
-          ledger_degraded: false,
-          history: {
-            rows: [],
-            empty_note: "No cleanups yet — automatic cleanup is off by default.",
-          },
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByRole("radio", { name: "History (7 days)" }).click();
-    await expect(page.getByTestId("cleanup-history-empty")).toContainText(
-      "No cleanups yet — automatic cleanup is off by default.",
-    );
-    await page.screenshot({ path: resolve(GALLERY, `19-cleanup/history-empty-1440x900-${theme}.png`) });
-  });
-}
+// AJ-E506/E509's Cleanup Centre captures (its states and its history)
+// moved to processes-gallery.spec.ts: the Cleanup Centre is the Processes
+// page's Needs attention and Cleanup history views (AJ-E2404).
 
 
 // ---------------------------------------------------------------------------
 // AJ-E507 — the verify-before-kill sheet: the three steps and every
 // state. All states ride the SAME needs-attention fixture (verified
 // orphan row holding :5173); the sheet is opened the real way — the
-// row's Terminate… affordance — never mounted out of context.
+// Processes page row's Stop… (AJ-E2404) — never mounted out of context.
 // ---------------------------------------------------------------------------
 
 const KILL_VERIFY_OK = {
@@ -1429,9 +1239,8 @@ for (const state of [
       test(`kill-sheet — ${state} — ${vp.name} — ${theme}`, gate("20-kill"), async ({ page }) => {
         const seams = killSeams(state);
         await page.addInitScript(
-          ({ fixture, t0, cleanup, theme, seams }) => {
+          ({ fixture, t0, theme, seams }) => {
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-            (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
             const w = window as never as Record<string, unknown>;
             w.__AIJ_KILL_VERIFY__ = () => seams.verify;
             // The countdown state leaves execute UNSET so the pending
@@ -1449,15 +1258,15 @@ for (const state of [
             sessionStorage.setItem("aij.ready.skipped", "1");
             Date.now = () => t0;
           },
-          { fixture: allStatuses, t0: T0, cleanup: cleanupFixture("needs-attention"), theme, seams },
+          { fixture: allStatuses, t0: T0, theme, seams },
         );
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        await goTo(page, "Cleanup");
-        await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-        // The REAL entry: the verified orphan row's affordance.
-        await page.getByTestId("cleanup-kill-8123").click();
+        await goTo(page, "Processes");
+        await expect(page.getByTestId("processes-page")).toBeVisible();
+        // The REAL entry: the left-behind row's Stop….
+        await page.getByTestId("process-stop-8123").click();
         await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
 
         if (state === "verification-failed") {
@@ -1586,7 +1395,7 @@ for (const theme of THEMES) {
           tier2_pending: [],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-paused-banner")).toContainText(
         "Automatic cleanup is paused.",
       );
@@ -1605,9 +1414,9 @@ for (const theme of THEMES) {
           tier2_pending: [],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-suspended-banner")).toContainText(
-        "suspended for 24 h",
+        "waits for you to re-confirm it (up to 24 h)",
       );
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/suspended-${vp.name}-${theme}.png`),
@@ -1630,11 +1439,11 @@ for (const theme of THEMES) {
           ],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText(
-        "survived a crash",
+        "outlived a crash",
       );
-      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 30s");
+      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 30 s");
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/tier2-appearance-${vp.name}-${theme}.png`),
       });
@@ -1656,8 +1465,8 @@ for (const theme of THEMES) {
           ],
         },
       });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 5s");
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 5 s");
       await expect(page.getByTestId("cleanup-tier2-undo-8123")).toContainText("Undo");
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/tier2-5s-${vp.name}-${theme}.png`),
@@ -1683,47 +1492,6 @@ const RECOVERY_SUMMARY = {
   unverifiable: 1,
 };
 
-const RECOVERY_CLEANUP = {
-  groups: [
-    {
-      session: "s-crash",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-local",
-      healthy: false,
-      rows: [
-        {
-          pid: 8402, pgid: 8400, role: "root", state: "adopted",
-          state_label: "Running — picked up after restart", down_period: false,
-          role_guess: "sh (guess)", exe_path: "/bin/sh", cmdline: "sh -c claude",
-          age_ms: 45 * 60_000, rss_bytes: 12_000_000, cpu_pct: 0.2, ports: null,
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8402, parent_pid: null, pgid: 8400, escaped_group: false,
-            verification: { verdict: "verified", detail: "start-time matches the live process" },
-            first_seen: T0 - 45 * 60_000, last_seen: T0,
-          },
-        },
-        {
-          pid: 8301, pgid: 8300, role: "helper", state: "orphaned",
-          state_label: "left behind while Juggler was closed", down_period: true,
-          role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-          cmdline: "python3 -m http.server 5173",
-          age_ms: 9_000_000, rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8300, parent_pid: 8300, pgid: 8300, escaped_group: false,
-            verification: { verdict: "verified", detail: "start-time and exe match the live process" },
-            first_seen: T0 - 9_000_000, last_seen: T0,
-          },
-        },
-      ],
-    },
-  ],
-  clean_instances: 1,
-  ledger_degraded: false,
-};
 
 async function seedRecoveryPage(
   page: import("@playwright/test").Page,
@@ -1801,15 +1569,19 @@ for (const theme of THEMES) {
     });
   });
 
-  test(`recovery — cleanup Re-adopted filter + left-behind label — 1440x900 — ${theme}`, async ({ page }) => {
-    await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: RECOVERY_CLEANUP });
-    await goTo(page, "Cleanup");
-    await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-    await page.getByRole("radio", { name: "Picked up after restart" }).click();
-    await expect(page.getByTestId("cleanup-state-8402")).toContainText("Running — picked up after restart");
-    await expect(page.getByTestId("cleanup-state-8301")).toContainText(
-      "left behind while Juggler was closed",
-    );
+  test(`recovery — Processes filtered to picked up + left behind while closed — 1440x900 — ${theme}`, async ({ page }) => {
+    await seedRecoveryPage(page, theme, {});
+    await goTo(page, "Processes");
+    await expect(page.getByTestId("processes-page")).toBeVisible();
+    // AJ-E2404: the Cleanup Centre's Re-adopted filter is the page's state
+    // filter, in the one vocabulary (over Everything running).
+    await page.getByTestId("process-view-running").click();
+    await page.getByTestId("process-filters").click();
+    await page.getByTestId("filter-state-picked_up").check();
+    await page.getByTestId("filter-state-left_behind_closed").check();
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-testid^="process-row-p:5512:"]').getByTestId("process-state")).toHaveText("Picked up after restart");
+    await expect(page.locator('[data-testid^="process-row-p:8155:"]').getByTestId("process-state")).toHaveText("Left behind while closed");
     await page.screenshot({
       path: resolve(GALLERY, `22-recovery/cleanup-readopted-1440x900-${theme}.png`),
     });
@@ -1825,14 +1597,14 @@ for (const theme of THEMES) {
 
 const HOG_ALERT = {
   kind: "hog",
-  text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+  text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
   pid: 8123,
   session: "s-1",
 };
 const IDLE_ALERT = {
   kind: "idle",
-  text: "python3 has been idle for 2h — review it in Cleanup.",
-  pid: 8124,
+  text: "python3 has been idle for 2h — review it in Processes.",
+  pid: 8155,
   session: "s-1",
 };
 
@@ -1843,7 +1615,6 @@ for (const theme of THEMES) {
   ]) {
     test(`alerts — hog alert + staged sheet — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT] },
         __AIJ_KILL_VERIFY__: () => ({
           pid: 8123,
@@ -1878,55 +1649,56 @@ for (const theme of THEMES) {
           reoffer_pid: null,
         }),
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-alerts")).toBeVisible();
       await expect(page.getByTestId("hog-alert-8123")).toContainText(
-        "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+        "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
       );
       // A status message, not a dialog.
       await expect(
-        page.getByRole("status", { name: "Passive cleanup alerts" }),
+        page.getByRole("status", { name: "Alerts about processes" }),
       ).toHaveAttribute("aria-live", "polite");
-      await page.getByTestId("hog-stage-8123").click();
+      // "Show it" finds the row; its Stop… opens the verified sheet.
+      await page.getByTestId("alert-find-8123").click();
+      await expect(page.getByTestId("process-search")).toHaveValue("pid:8123");
+      await page.getByTestId("process-stop-8123").click();
       await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/hog-staged-${vp.name}-${theme}.png`) });
     });
 
     test(`alerts — idle nudge (passive, no action) — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [IDLE_ALERT] },
       });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("idle-nudge-8124")).toContainText(
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("idle-nudge-8155")).toBeVisible();
+      await expect(page.getByTestId("idle-nudge-8155")).toContainText(
         "has been idle for 2h",
       );
-      await expect(page.getByTestId("idle-nudge-8124").locator("button")).toHaveCount(0);
+      // Passive: it only finds the row ("Show it"); nothing stops from here.
+      await expect(page.getByTestId("idle-nudge-8155").locator("button")).toHaveText(["Show it"]);
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/idle-nudge-${vp.name}-${theme}.png`) });
     });
 
     test(`alerts — mixed gate-day state — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT, IDLE_ALERT] },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
-      await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
+      await expect(page.getByTestId("idle-nudge-8155")).toBeVisible();
+      await expect(page.locator('[data-testid^="process-row-p:8155:"]')).toContainText("Left behind while closed");
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/mixed-${vp.name}-${theme}.png`) });
     });
   }
 }
 
-// The recorded keyboard-only pass (AJ-E512 visual testing): open the
-// Centre → Tab to the hog alert's stage button → Enter opens the
-// verified sheet → Esc closes it → focus RETURNS to the stage button
-// (2.4.3). No pointer input anywhere in the pass.
-test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
+// The recorded keyboard-only pass (AJ-E512 visual testing, AJ-E2404):
+// open Processes → Tab to the hog alert's "Show it" → Enter finds the row
+// → Tab to the row → Enter opens the verified sheet → Esc closes it →
+// focus RETURNS to the row (2.4.3). No pointer input anywhere in the pass.
+test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
   await seedRecoveryPage(page, "dark", {
-    __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
     __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT] },
     __AIJ_KILL_VERIFY__: () => ({
       pid: 8123, session: "s-1", verified: true, refusal: null,
@@ -1940,23 +1712,36 @@ test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus"
       provider: "claude-code", account_id: "Work Max", project_id: "web",
     }),
   });
-  await goTo(page, "Cleanup");
+  await goTo(page, "Processes");
   await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
-  const stage = page.getByTestId("hog-stage-8123");
-  // Keyboard-only traversal: Tab until the stage button owns focus.
-  for (let i = 0; i < 30; i += 1) {
-    const focused = await page.evaluate(
-      () => document.activeElement?.getAttribute("data-testid") ?? "",
-    );
-    if (focused === "hog-stage-8123") break;
-    await page.keyboard.press("Tab");
+  const tabTo = async (match: (testId: string) => boolean) => {
+    for (let i = 0; i < 40; i += 1) {
+      const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? "");
+      if (match(focused)) return;
+      await page.keyboard.press("Tab");
+    }
+  };
+  // Keyboard-only traversal: Tab until "Show it" owns focus.
+  await tabTo((id) => id === "alert-find-8123");
+  await expect(page.getByTestId("alert-find-8123")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("process-search")).toHaveValue("pid:8123");
+  await expect(page.locator('[data-testid^="process-row-p:"]')).toHaveCount(1);
+  // Then into the tree (one Tab stop), down to the found row, and Enter:
+  // its Stop….
+  await tabTo((id) => id.startsWith("process-row-"));
+  for (let i = 0; i < 10; i += 1) {
+    const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? "");
+    if (focused.startsWith("process-row-p:8123:")) break;
+    await page.keyboard.press("ArrowDown");
   }
-  await expect(stage).toBeFocused();
+  const row = page.locator('[data-testid^="process-row-p:8123:"]');
+  await expect(row).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("kill-sheet-8123")).toHaveCount(0);
-  await expect(stage).toBeFocused();
+  await expect(row).toBeFocused();
   await page.screenshot({ path: resolve(GALLERY, "23-alerts/keyboard-pass-1440x900-dark.png") });
 });
 
@@ -1968,60 +1753,15 @@ test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus"
 // foreign-row state (no kill control in the DOM).
 // ---------------------------------------------------------------------------
 
-const FLEET_CLEANUP = {
-  groups: [
-    {
-      session: "s-local",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-local",
-      healthy: false,
-      rows: [
-        {
-          machine_id: "machine-local",
-          pid: 8123, pgid: 8100, role: "helper", state: "orphaned",
-          state_label: "Still running after its session closed",
-          role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-          cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
-          rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8100, parent_pid: 8100, pgid: 8100, escaped_group: false,
-            verification: { verdict: "verified", detail: "match" },
-            first_seen: T0, last_seen: T0 + 90_000,
-          },
-        },
-      ],
-    },
-    {
-      session: "s-local",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-studio",
-      healthy: false,
-      rows: [
-        {
-          machine_id: "machine-studio",
-          pid: 9101, pgid: 9100, role: "helper", state: "orphaned",
-          state_label: "Still running after its session closed",
-          role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
-          cmdline: "node vite dev", age_ms: 4_000_000,
-          rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 9100, parent_pid: 9100, pgid: 9100, escaped_group: false,
-            verification: { verdict: "verified", detail: "match (remote record)" },
-            first_seen: T0, last_seen: T0 + 90_000,
-          },
-        },
-      ],
-    },
+/** A paired Mac's view of its leftovers (AJ-E707's seam). */
+const STUDIO_REMOTE = {
+  machine_id: "machine-studio", label: "Mac Studio", connection: "connected", freshness: "live",
+  last_heard_ms: T0, permission: "view", resources: null, instances: [], alerts: [],
+  processes: [
+    { instance_id: "s-local", provider: "claude-code", account_label: "Work Max", pid: 9101, role: "helper", state: "orphaned",
+      state_label: "Still running after its session closed", verified: true, name: "node", age_ms: 4_000_000,
+      rss_bytes: 220 * 1024 * 1024, cpu_percent: 0.4, ports: "5174", measured_at_ms: T0 },
   ],
-  local_machine: "machine-local",
-  clean_instances: 2,
-  ledger_degraded: false,
 };
 
 const STUDIO_PEER = {
@@ -2035,19 +1775,21 @@ for (const theme of THEMES) {
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x700", width: 1024, height: 700 },
   ]) {
-    test(`fleet — machine column + filter + foreign display-only — ${vp.name} — ${theme}`, gate("24-fleet"), async ({ page }) => {
-      // D-25: the machine filter shows once another Mac is paired.
-      await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: FLEET_CLEANUP, __AIJ_FLEET_PEERS__: [STUDIO_PEER] });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-      // The default is This machine — only the local group shows.
-      await expect(page.getByTestId("cleanup-machine-8123")).toHaveText("This Mac");
-      await expect(page.getByTestId("cleanup-row-9101")).toHaveCount(0);
-      // Widen: the foreign row appears, display-only (no kill control).
-      await page.getByRole("combobox", { name: "Machine filter" }).selectOption("all");
-      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("Mac Studio");
-      await expect(page.getByTestId("cleanup-kill-9101")).toHaveCount(0);
-      await expect(page.getByTestId("cleanup-kill-8123")).toBeVisible();
+    test(`fleet — a paired Mac's leftovers, display-only — ${vp.name} — ${theme}`, gate("24-fleet"), async ({ page }) => {
+      // AJ-E2404: this Mac's processes are the page's table; a paired
+      // Mac's leftovers follow it, display-only without Control.
+      await seedRecoveryPage(page, theme, {
+        __AIJ_FLEET_PEERS__: [STUDIO_PEER],
+        __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+        __AIJ_FLEET_REMOTE__: [STUDIO_REMOTE],
+      });
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("process-stop-8123")).toBeVisible();
+      const remote = page.getByTestId("remote-cleanup-machine").filter({ hasText: "Mac Studio" });
+      await remote.scrollIntoViewIfNeeded();
+      await expect(remote.getByTestId("remote-cleanup-row")).toContainText("node");
+      await expect(remote.getByTestId("remote-cleanup-readonly")).toBeVisible();
+      await expect(remote.getByTestId("remote-cleanup-clean")).toBeDisabled();
       await page.screenshot({ path: resolve(GALLERY, `24-fleet/machine-filter-${vp.name}-${theme}.png`) });
     });
   }
@@ -4551,8 +4293,9 @@ for (const theme of THEMES) {
   for (const vp of REMOTE_VP) {
     test(`48 remote cleanup — grouped, confirm, outcome — ${vp.name} — ${theme}`, gate("48-remote-cleanup"), async ({ page }) => {
       await openRemote(page, theme, vp, cleanupMachine());
-      await goTo(page, "Cleanup");
-      await page.getByLabel("Machine filter").selectOption("all");
+      await goTo(page, "Processes");
+      // AJ-E2404: paired Macs follow this Mac's table on the Processes page.
+      await page.getByTestId("remote-cleanup").scrollIntoViewIfNeeded();
       await expect(page.getByTestId("remote-cleanup")).toBeVisible();
       await expect(page.getByTestId("remote-cleanup-clean")).toHaveCount(1);
       await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/grouped-${vp.name}-${theme}.png`) });

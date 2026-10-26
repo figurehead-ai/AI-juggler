@@ -348,6 +348,15 @@ pub enum RuntimeEvent {
         /// The new output.
         text: String,
     },
+    /// An item began: a command the tool runs now (a dev server it starts
+    /// may never finish). `item` is the tool's id for it, the same as its
+    /// later [`RuntimeEvent::ToolDelta`] and [`RuntimeEvent::Item`].
+    ItemStarted {
+        /// The tool's id for the item.
+        item: String,
+        /// What it is.
+        summary: ItemSummary,
+    },
     /// An item finished.
     Item {
         /// What it was.

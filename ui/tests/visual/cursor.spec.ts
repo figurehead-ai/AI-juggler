@@ -70,12 +70,12 @@ test("every clickable control shows the hand — the main screens", async ({ pag
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav).toBeVisible();
   await expectHands(page, "Home");
-  for (const name of ["Accounts", "History", "Settings"]) {
+  for (const name of ["Accounts", "Usage", "History", "Settings"]) {
     await nav.getByRole("button", { name, exact: true }).click();
     await page.waitForTimeout(150);
     await expectHands(page, name);
   }
-  for (const name of ["Usage", "Fleet", "Cleanup"]) {
+  for (const name of ["Fleet", "Processes"]) {
     await nav.getByRole("button", { name: "More", exact: true }).click();
     await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
     await page.waitForTimeout(150);

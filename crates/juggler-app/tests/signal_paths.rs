@@ -12,7 +12,13 @@
 //!   ladder over pids. Called ONLY from `commands::kill_execute_as`,
 //!   after the same-tick identity check (`verify_kill_target`: pid +
 //!   start time + exe + boot, ledger-owned, this Mac) and after the
-//!   audit intent is written.
+//!   audit intent is written; and from `features/processes/stop::execute`
+//!   (D-41b, the user's own stop of another app's leftover): the same
+//!   ladder, this pid only, after the identity check against its
+//!   sighting (pid + start time + program + boot, its session's own
+//!   process ended, never an app, a bundle's process, a ledger process or
+//!   AI Juggler's) at click time and again as the ladder starts, and
+//!   after its audit intent (`user:observed`). No rule ever calls it.
 //! - **session stop** — `Supervisor::stop`, a session's own process
 //!   group. It signals a pid only while it still names our process
 //!   (`stop_targets`: an unreaped child, or an adopted root whose start
@@ -67,6 +73,8 @@ const FORBIDDEN_IN_APP: &[&str] = &[
 /// A new one fails the test until it is routed through a verified path.
 const SINK_SITES: &[(&str, &str)] = &[
     ("commands::kill_execute_as", VERIFIED),
+    // D-41b: another app's leftover, the user's click only (see above).
+    ("features/processes/stop::execute", VERIFIED),
     ("commands::stop_session", SESSION),
     ("commands::freeze_source", SESSION),
     ("commands::stop_continuation", SESSION),
@@ -91,6 +99,7 @@ const SINK_SITES: &[(&str, &str)] = &[
 /// The Tauri commands that can send a signal, and the paths they take.
 const SIGNALLING_COMMANDS: &[(&str, &[&str])] = &[
     ("kill_execute", &[VERIFIED]),
+    ("processes_observed_stop", &[VERIFIED]),
     ("stop_session", &[SESSION]),
     ("terminal_kill", &[SESSION]),
     ("app_quit", &[SESSION]),

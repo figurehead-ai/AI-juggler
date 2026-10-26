@@ -104,11 +104,11 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "session header heavy");
   });
 
-  test(`Clean up leads to Cleanup — ${theme}`, async ({ page }) => {
+  test(`Clean up leads to Processes — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: calm, machine: "plenty", leftovers: [1, 0] }, theme, { width: 1280, height: 800 });
     // AJ-E2105: left-behind processes are a Needs you item on Home.
     await expect(page.getByTestId("home-need-leftovers")).toContainText("1 process left running");
     await page.getByTestId("home-need-leftovers").getByRole("button", { name: /^Clean up/ }).click();
-    await expect(page.getByRole("heading", { name: "Cleanup", exact: false }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Processes", exact: false }).first()).toBeVisible();
   });
 }

@@ -724,8 +724,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 34,
-        "v4 → current (v34, E18 messages) exactly once, on open"
+        version, 35,
+        "v4 → current (v35, AJ-E2402 sightings) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -752,7 +752,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 34);
+    assert_eq!(version, 35);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1280,8 +1280,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 34,
-        "v12 → current (v34, E18) exactly once, on open"
+        version, 35,
+        "v12 → current (v35, AJ-E2402) exactly once, on open"
     );
     drop(storage);
 

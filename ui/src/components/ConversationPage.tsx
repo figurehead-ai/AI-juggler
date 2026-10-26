@@ -11,6 +11,7 @@
  * row last seen stays on screen when one refresh misses it, and the page
  * says it is gone only once it has stayed missing for GONE_MS.
  */
+import { ProcessesView } from "../screens/processes/ProcessesView";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
@@ -102,7 +103,10 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   // Always both tabs: Usage says when nothing is measured (a working
   // session's tokens come and go between refreshes).
-  const tabs = useMemo(() => pageTabs("conversation", { hasUsage: true }), []);
+  // AJ-E2404: a session open in its app has its processes (read-only but
+  // for what it leaves behind once it ends).
+  const live = conversation.live;
+  const tabs = useMemo(() => pageTabs("conversation", { hasUsage: true, live }), [live]);
   // A refresh that briefly lacks the counts keeps the last ones.
   const tokens = conversation.tokens;
   const lastTokens = useRef(tokens);
@@ -144,6 +148,8 @@ function ConversationView({ conversation, now, projects }: { conversation: Conve
         render={(tab, visible) =>
           tab === "usage" ? (
             <UsagePanel model={model} visible={visible} tokens={tokens ?? lastTokens.current} account={account} />
+          ) : tab === "processes" ? (
+            <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
           ) : (
             <SessionOverview
               model={model}

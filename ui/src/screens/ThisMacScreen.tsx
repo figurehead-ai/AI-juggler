@@ -86,6 +86,8 @@ function ToolGroup({
   // Another tool's windows: its trees say which tool they are.
   const mark = group.ours ? group.tool : trees.find((tree) => tree.tool)?.tool;
   const memory = `${group.totals.memory_estimate ? "about " : ""}${bytesWords(group.totals.rss_bytes)}`;
+  // Ours and another app's (AJ-E2407) are sessions; the Claude tools' are windows.
+  const sessions = group.ours || trees.some((tree) => !!tree.title);
   return (
     <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"} open={group.ours}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
@@ -94,7 +96,7 @@ function ToolGroup({
           {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
           <span className="shrink-0">{group.label}</span>
           <span className="min-w-0 truncate text-meta font-normal text-muted">
-            {trees.length === 1 ? "1" : trees.length} {group.ours ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
+            {trees.length === 1 ? "1" : trees.length} {sessions ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
             {group.ours ? "" : " · not started by AI Juggler"}
           </span>
         </span>
