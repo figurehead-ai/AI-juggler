@@ -5096,18 +5096,31 @@ pub(crate) fn handover_source_linked(
     resolve_source(state, session_id, true)
 }
 
+/// Whether a session's transcript link stands: it has one, and it is
+/// another Mac's or its file is here.
+fn link_stands(source: &juggler_core::model::InstanceRecord, here: &MachineId) -> bool {
+    source
+        .transcript_ref
+        .as_ref()
+        .is_some_and(|reference| source.machine != *here || reference.path.exists())
+}
+
 /// AJ-E1303: a session the app launched has no transcript link yet; the
 /// Provider finds the file it created (same folder, created after the
 /// launch). Never a guess: files linked to other sessions are excluded,
 /// two matches find nothing, and another live, unlinked session of the
 /// same account in the same folder makes it ambiguous (its file could
 /// be the only one so far) — the switch then asks. The filesystem scan
-/// runs without the storage lock.
+/// runs without the storage lock. A link of this Mac's session whose file
+/// is gone (0.2 lab: a pool card stayed "Unavailable") is looked for again
+/// the same way, and replaced only when the file is found.
 fn resolve_source(
     state: &Arc<AppState>,
     session_id: &str,
     persist: bool,
 ) -> AppResult<(juggler_core::model::InstanceRecord, Account)> {
+    let here = local_machine_id(state);
+    let stands = |source: &juggler_core::model::InstanceRecord| link_stands(source, &here);
     let (mut source, account_a, taken, ambiguous, replayed_into) = {
         let storage = lock_storage_arc(state)?;
         let source = storage
@@ -5124,7 +5137,7 @@ fn resolve_source(
             .map_err(|error| {
                 not_found_or_core(error, "account", &source_profile.account.to_string())
             })?;
-        if source.transcript_ref.is_some() {
+        if stands(&source) {
             return Ok((source, account_a));
         }
         let others: Vec<juggler_core::model::InstanceRecord> = storage
@@ -5205,10 +5218,11 @@ fn resolve_source(
     if persist {
         // Re-read under the lock: the watcher may have changed the
         // record (status, last activity) during the scan — only the link
-        // is written, and only if nothing linked it meanwhile.
+        // is written, and only if nothing linked it meanwhile (a link
+        // whose file is gone counts as none).
         let storage = lock_storage_arc(state)?;
         let mut fresh = storage.sessions().get(&source.id)?;
-        if fresh.transcript_ref.is_none() {
+        if !stands(&fresh) {
             fresh.transcript_ref.clone_from(&source.transcript_ref);
             storage.sessions().update(&fresh)?;
         }

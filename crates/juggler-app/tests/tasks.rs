@@ -533,12 +533,11 @@ fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
         "the request is answered"
     );
     // It's in the task's pool.
+    let place = pools::members::place_impl(&lab.state, session.as_str()).unwrap();
+    assert_eq!(place.pool_id, lab.pool);
+    // A running session of the working set: the pools' answer says so too.
     let info = pools::pools_list_impl(&lab.state).unwrap();
-    assert!(
-        info.members
-            .iter()
-            .any(|m| m.session_id == session.as_str() && m.pool_id == lab.pool)
-    );
+    assert!(info.placements.contains(&place));
     let _ = lab.state.supervisor.stop(&session, Duration::from_secs(2));
 }
 

@@ -20,8 +20,9 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
 import { actionSpecs } from "../lib/actions";
-import { defaultPoolIdOf, poolsList, resetPreviewPools, type ContextCard, type PoolsInfo } from "../lib/ipc/pools";
-import { openPoolSheet, refreshPools, resetPools } from "../lib/pools";
+import { defaultPoolIdOf, poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
+import { forgetPaged, type PagedList } from "../lib/paged";
+import { openPoolSheet, refreshPools, resetPools, usePoolPlace } from "../lib/pools";
 import { ConversationsProvider } from "../lib/conversations";
 import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { ActionHostProvider } from "./ItemMenu";
@@ -40,6 +41,7 @@ const [first, second, third] = MOCK_SESSIONS as [InstanceInfo, InstanceInfo, Ins
 beforeEach(() => {
   resetPreviewPools();
   resetPools();
+  forgetPaged();
   resetRailViewCache();
   setRailView(DEFAULT_VIEW);
   delete seams().__AIJ_POOLS__;
@@ -131,6 +133,49 @@ describe("pools in the rail: the Pool lens", () => {
     expect(spec.icon).toBe("pool");
     expect(spec.applies(first, {})).toBe(false);
     expect(spec.applies(first, { moveSessionToPool: () => {} })).toBe(true);
+  });
+});
+
+describe("instant and paged (I6)", () => {
+  it("names only the places apart from a project's default, and counts each pool", async () => {
+    seedCheckout();
+    const pools = await poolsList();
+    expect(pools.placements).toEqual([
+      { session_id: first.id, pool_id: "pool-checkout", role: "lead" },
+      { session_id: second.id, pool_id: "pool-checkout", role: "member" },
+    ].sort((a, b) => a.session_id.localeCompare(b.session_id)));
+    expect(pools.pools.find((pool) => pool.id === "pool-checkout")?.members).toBe(2);
+    expect(pools.pools.find((pool) => pool.id === "pool-docs")?.members).toBe(0);
+  });
+
+  it("reads a pool's members a page at a time, its lead first", async () => {
+    seedCheckout();
+    const page = await poolMembers("pool-checkout", { cursor: null, limit: 1 });
+    expect(page.items.map((row) => [row.session.id, row.card.role])).toEqual([[first.id, "lead"]]);
+    expect(page.total).toBe(2);
+    const rest = await poolMembers("pool-checkout", { cursor: page.next_cursor, limit: 1 });
+    expect(rest.items.map((row) => row.session.id)).toEqual([second.id]);
+    expect(rest.next_cursor).toBeNull();
+  });
+
+  it("the pool sheet lists its members from that read", async () => {
+    seedCheckout();
+    const pools = await loaded();
+    const { findAllByTestId, getAllByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
+    expect(await findAllByTestId("pool-member")).toHaveLength(2);
+    expect((getAllByTestId("pool-member-role")[0] as HTMLSelectElement).value).toBe("lead");
+  });
+
+  it("reads one session's place alone, and the rail's lookups see it", async () => {
+    seedCheckout();
+    await loaded();
+    const seen: (string | null)[] = [];
+    function Probe(): null {
+      seen.push(usePoolPlace(first.id)?.pool_id ?? null);
+      return null;
+    }
+    render(<Probe />);
+    await waitFor(() => expect(seen.at(-1)).toBe("pool-checkout"));
   });
 });
 
@@ -268,9 +313,21 @@ describe("context cards", () => {
     files_unavailable: null,
     ...over,
   });
+  /** A read list of these cards' members, as `usePoolMembers` gives it. */
+  const listOf = (cards: ContextCard[]): PagedList<PoolMemberRow> => ({
+    items: cards.map((entry) => ({ session: MOCK_SESSIONS.find((session) => session.id === entry.session_id)!, card: entry })),
+    total: cards.length,
+    loading: false,
+    stale: false,
+    loadingMore: false,
+    hasMore: false,
+    error: null,
+    loadMore: () => {},
+    refresh: () => {},
+  });
 
   it("shows a row like Home's, and the rest behind its disclosure", () => {
-    const { getByTestId, getByLabelText } = render(<PoolCardRows cards={[card({})]} sessions={MOCK_SESSIONS} now={Date.now()} />);
+    const { getByTestId, getByLabelText } = render(<PoolCardRows list={listOf([card({})])} sessions={MOCK_SESSIONS} now={Date.now()} />);
     expect(getByTestId("pool-card").textContent).toContain("Split checkout");
     // D-36: the rows' place line; the tool beside it (the line names the profile).
     expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
@@ -291,14 +348,14 @@ describe("context cards", () => {
       files: [],
       files_unavailable: "Unavailable — read only while it runs in AI Juggler",
     });
-    const { getByLabelText, getByTestId } = render(<PoolCardRows cards={[unknown]} sessions={MOCK_SESSIONS} now={Date.now()} />);
+    const { getByLabelText, getByTestId } = render(<PoolCardRows list={listOf([unknown])} sessions={MOCK_SESSIONS} now={Date.now()} />);
     fireEvent.click(getByLabelText(/^Show what/));
     expect(getByTestId("pool-card-said").textContent).toBe("Unavailable — read only while it runs in AI Juggler");
     expect(getByTestId("pool-card-files").textContent).toBe("Unavailable — read only while it runs in AI Juggler");
   });
 
   it("says so when a pool is empty", () => {
-    const { getByTestId } = render(<PoolCardRows cards={[]} sessions={[]} now={Date.now()} />);
+    const { getByTestId } = render(<PoolCardRows list={listOf([])} sessions={[]} now={Date.now()} />);
     expect(getByTestId("pool-cards-empty")).toBeTruthy();
   });
 });

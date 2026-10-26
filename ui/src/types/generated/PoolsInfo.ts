@@ -3,7 +3,9 @@ import type { PoolInfo } from "./PoolInfo";
 import type { PoolMemberInfo } from "./PoolMemberInfo";
 
 /**
- * Every pool, every session's place in one, and what roles may do.
+ * Every pool, and where the sessions the app's lists hold are: never
+ * the whole history (I6). A pool's members come a page at a time
+ * (`pools_members`).
  */
 export type PoolsInfo = { 
 /**
@@ -12,6 +14,10 @@ export type PoolsInfo = {
  */
 pools: Array<PoolInfo>, 
 /**
- * Each session's pool and role.
+ * The places of the working set's sessions (what the rail holds)
+ * that aren't their project's default pool as a member. A session of
+ * the working set that isn't here is in that default pool, as a
+ * member; one past it (opened from History) is read alone
+ * (`pools_place`).
  */
-members: Array<PoolMemberInfo>, };
+placements: Array<PoolMemberInfo>, };

@@ -189,21 +189,13 @@ pub fn allowed(
     let Ok(storage) = lock_storage_arc(state) else {
         return Decision::Deny;
     };
-    let session = SessionId::new(session_id);
-    let place = storage
-        .sessions()
-        .get(&session)
+    let place = super::members::place_of(&storage, &SessionId::new(session_id))
         .ok()
-        .and_then(|_| pools_info(&storage).ok())
-        .and_then(|info| {
-            info.members
-                .into_iter()
-                .find(|row| row.session_id == session_id)
-        });
-    let member = place.as_ref().is_some_and(|row| row.pool_id == pool_id);
+        .flatten();
+    let member = place.as_ref().is_some_and(|(pool, _)| pool == pool_id);
     let observer = place
         .as_ref()
-        .is_some_and(|row| PoolRole::parse(&row.role) == Some(PoolRole::Observer));
+        .is_some_and(|(_, role)| *role == PoolRole::Observer);
     storage
         .agent_access()
         .allowed(

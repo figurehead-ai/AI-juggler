@@ -203,12 +203,7 @@ pub fn threads(
         rows.truncate(THREADS_PAGE as usize);
         rows.last().map(|thread| format!("t{}", thread.last_seq))
     });
-    let names: std::collections::HashMap<String, String> =
-        crate::features::pools::pools_info(&storage)?
-            .pools
-            .into_iter()
-            .map(|pool| (pool.id, pool.name))
-            .collect();
+    let names = crate::features::pools::pool_names(&storage)?;
     let paused = pool_id.and_then(|pool| {
         storage
             .messages()

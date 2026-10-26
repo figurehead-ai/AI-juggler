@@ -7,7 +7,9 @@
 //! - a session added between two reads never shifts or repeats a row;
 //! - scope, kind and search narrow it server-side;
 //! - the first page arrives well within the 1 s budget (each read prints
-//!   a `[perf]` line).
+//!   a `[perf]` line);
+//! - the pools' answer holds counts and the working set's places, never
+//!   a row per session; a pool's members come a page at a time.
 
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
@@ -24,6 +26,7 @@ use std::time::{Duration, Instant};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_app::commands;
+use juggler_app::features::pools;
 use juggler_app::features::sessions::rows::{
     SessionsQuery, sessions_counts_impl, sessions_page_impl,
 };
@@ -31,7 +34,8 @@ use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, Confidence, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe,
-    MachineId, ProfileId, SessionId, SessionStatus, SettingsOverlay, Timestamp, TokenCounts,
+    MachineId, ProfileId, ProjectId, SessionId, SessionStatus, SettingsOverlay, Timestamp,
+    TokenCounts,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 
@@ -446,4 +450,83 @@ fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
         .get_many(&[SessionId::new("s-00001"), SessionId::new("gone")])
         .unwrap();
     assert_eq!(old.len(), 1);
+}
+
+#[test]
+fn the_pools_answer_holds_counts_never_the_history_and_members_come_paged() {
+    let fx = fixture();
+    let state = &fx.state;
+    let (info, took) = timed("now: the pools (pools_list)", || {
+        pools::pools_list_impl(state).unwrap()
+    });
+    assert!(took < Duration::from_secs(1), "pools took {took:?}");
+    assert!(info.placements.is_empty(), "every place is the default");
+    let counted: u64 = info.pools.iter().map(|pool| u64::from(pool.members)).sum();
+    assert_eq!(counted, (SESSIONS - 200) as u64, "archived ones aside");
+
+    // Ten open sessions (every open one is project 0's) in a pool of yours.
+    let made = pools::pool_create_impl(state, "Team", None).unwrap();
+    let team = made
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Team")
+        .unwrap()
+        .id
+        .clone();
+    for n in (0..1000).step_by(100) {
+        pools::pool_move_impl(state, &format!("s-{n:05}"), &team).unwrap();
+    }
+    let info = pools::pools_list_impl(state).unwrap();
+    assert_eq!(
+        info.placements.len(),
+        10,
+        "only the places that aren't the default"
+    );
+    let bytes = serde_json::to_string(&info).unwrap().len();
+    eprintln!("[perf] the pools' answer: {bytes} bytes");
+    assert!(bytes < 32_000, "the answer grew with the history");
+
+    // Project 0's default pool: 490 sessions, a page at a time.
+    let pool =
+        juggler_core::storage::default_pool_id(Some(&ProjectId::new(fx.projects[0].as_str())));
+    let count = info
+        .pools
+        .iter()
+        .find(|row| row.id == pool)
+        .unwrap()
+        .members;
+    assert_eq!(count, 490);
+    let (first, took) = timed("now: a big pool's first page of members", || {
+        pools::members::members_page(state, &pool, &PageRequest::default()).unwrap()
+    });
+    assert!(took < Duration::from_secs(1), "first page took {took:?}");
+    assert_eq!(first.items.len(), 50);
+    assert_eq!(first.total, Some(u64::from(count)));
+    let mut seen = HashSet::new();
+    let mut cursor: Option<String> = None;
+    let mut last: Option<i64> = None;
+    loop {
+        let page = pools::members::members_page(
+            state,
+            &pool,
+            &PageRequest {
+                cursor: cursor.clone(),
+                limit: Some(200),
+            },
+        )
+        .unwrap();
+        for row in &page.items {
+            assert!(seen.insert(row.session.id.clone()), "a member came twice");
+            let at = row.session.last_activity_ms.unwrap();
+            if let Some(before) = last {
+                assert!(before >= at, "members out of order");
+            }
+            last = Some(at);
+        }
+        match page.next_cursor {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    assert_eq!(seen.len(), 490);
 }

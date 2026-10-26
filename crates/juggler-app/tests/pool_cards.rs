@@ -30,7 +30,7 @@ use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
     ProfileId, ProjectId, SessionId, SessionStatus, Timestamp, TranscriptRef,
 };
-use juggler_core::storage::NO_PROJECT_POOL_ID;
+use juggler_core::storage::{NO_PROJECT_POOL_ID, default_pool_id};
 
 const ACCOUNT_LABEL: &str = "Work Max";
 const PLAN: &str = "Max 20x plan";
@@ -200,7 +200,7 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
     assert_eq!(planner.said.value, None);
     assert_eq!(
         planner.said.unavailable.as_deref(),
-        Some("Unavailable — read only while it runs in AI Juggler")
+        Some("Unavailable — its transcript hasn't been read yet")
     );
     assert_eq!(planner.files, Vec::<String>::new());
     assert!(
@@ -310,6 +310,245 @@ fn a_card_carries_the_account_label_and_never_an_email_or_plan() {
     assert!(result.cards.iter().all(|card| card.account.is_none()));
     let json = serde_json::to_string(&result).unwrap();
     assert!(!json.contains('@'), "{json}");
+}
+
+/// 0.2 lab: a session running in AI Juggler whose tool never named its
+/// file (a headless Claude Code session names only its conversation; a
+/// terminal one, only through its hooks) said "read only while it runs in
+/// AI Juggler". The tick finds the file its tool made, as a switch does,
+/// links it and reads it; an ended session still says why it can't.
+#[test]
+fn a_live_session_whose_tool_never_named_its_file_is_found_and_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::FakeHarnessAdapter::new(
+        dir.path().join("fake-harness"),
+    )));
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), registry).unwrap());
+    account(&state);
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root);
+    let builder = session(
+        &state,
+        "s-builder",
+        &shop,
+        &root,
+        None,
+        SessionStatus::Running,
+    );
+    // Ended, in another folder (one in the same folder would make the
+    // builder's file ambiguous: it could be either's).
+    let elsewhere = root.join("docs");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    let ended = session(
+        &state,
+        "s-ended",
+        &shop,
+        &elsewhere,
+        None,
+        SessionStatus::Finished,
+    );
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let pool = info.pools[0].id.clone();
+    pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
+    pools::pool_move_impl(&state, ended.as_str(), &pool).unwrap();
+    // Its tool's file, made after it started, naming its folder.
+    let folder = state.accounts_dir().join("acc-work").join("transcripts");
+    std::fs::create_dir_all(&folder).unwrap();
+    let file = folder.join("conv-builder.jsonl");
+    let head = format!(
+        "{{\"cwd\":{}}}\n",
+        serde_json::json!(root.to_string_lossy())
+    );
+    std::fs::write(
+        &file,
+        head + &call("Edit", r#"{"file_path":"/w/shop/src/cart.ts"}"#),
+    )
+    .unwrap();
+
+    let before = cards::cards_impl(&state, &pool).unwrap();
+    assert_eq!(
+        card(&before.cards, "s-builder").said.unavailable.as_deref(),
+        Some("Unavailable — its transcript hasn't been read yet"),
+        "running here: not read yet, never 'only while it runs'"
+    );
+    assert_eq!(
+        card(&before.cards, "s-ended").said.unavailable.as_deref(),
+        Some("Unavailable — read only while it runs in AI Juggler")
+    );
+
+    cards::tick(&state);
+    let after = cards::cards_impl(&state, &pool).unwrap();
+    let builder_card = card(&after.cards, "s-builder");
+    assert_eq!(
+        builder_card.files_unavailable, None,
+        "its transcript was read"
+    );
+    assert_eq!(builder_card.files, ["src/cart.ts"]);
+    let linked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&builder)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path);
+    assert_eq!(
+        linked.map(|path| path.canonicalize().unwrap()),
+        Some(file.canonicalize().unwrap()),
+        "linked, so every reader has it"
+    );
+}
+
+/// 0.2 lab (Builder): a driven Codex session's thread names its rollout
+/// before Codex has written it, so the link was never kept and the card
+/// stayed "Unavailable". The tick finds the rollout by the thread's id
+/// once it is there, links it and reads it.
+#[test]
+fn a_driven_session_is_found_by_its_conversations_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::with_bin(
+        "/bin/true",
+    )));
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), registry).unwrap());
+    let home = state.accounts_dir().join("acc-codex");
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-codex"),
+                harness: HarnessId::new(juggler_adapters::CODEX_ID),
+                label: "Codex Plus".into(),
+                plan: None,
+                state_dir: home.clone(),
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&LaunchRecipe {
+                id: ProfileId::new("rec-codex"),
+                name: "Main".into(),
+                account: AccountId::new("acc-codex"),
+                settings_overlay: Default::default(),
+                default_cwd: None,
+            })
+            .unwrap();
+    }
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root);
+    let thread = "019a0000-0000-7000-8000-0000000000b1";
+    let builder = SessionId::new("s-builder");
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .insert(&InstanceRecord {
+            id: builder.clone(),
+            // What the driver keeps when the thread starts: its id only.
+            conversation: Some(juggler_core::model::ConversationId::new(thread)),
+            profile: ProfileId::new("rec-codex"),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: Some(shop.clone()),
+            cwd: root.clone(),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: Some(Timestamp::now()),
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+    let pool = default_pool_id(Some(&shop));
+    let cwd = root.to_string_lossy();
+    // Codex writes the rollout with the first turn.
+    let day = home.join("sessions/2026/10/20");
+    std::fs::create_dir_all(&day).unwrap();
+    let rollout = day.join(format!("rollout-2026-10-20T08-00-00-{thread}.jsonl"));
+    std::fs::write(
+        &rollout,
+        format!(
+            "{{\"timestamp\":\"2026-10-20T08:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{thread}\",\"cwd\":\"{cwd}\"}}}}\n\
+             {{\"timestamp\":\"2026-10-20T08:00:01.000Z\",\"type\":\"response_item\",\"payload\":{{\"type\":\"message\",\"role\":\"user\",\"content\":[{{\"type\":\"input_text\",\"text\":\"hello\"}}]}}}}\n"
+        ),
+    )
+    .unwrap();
+    // Planner (this Mac's): its link names a file that isn't there; its
+    // rollout is elsewhere.
+    let planner = SessionId::new("s-planner");
+    let planner_thread = "019a0000-0000-7000-8000-0000000000c2";
+    let here = juggler_app::commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&builder).unwrap();
+        record.id = planner.clone();
+        record.machine = here;
+        record.conversation = Some(juggler_core::model::ConversationId::new(planner_thread));
+        record.transcript_ref = Some(TranscriptRef {
+            path: home.join("gone.jsonl"),
+            native_id: None,
+        });
+        storage.sessions().insert(&record).unwrap();
+    }
+    let planner_rollout = day.join(format!(
+        "rollout-2026-10-20T09-00-00-{planner_thread}.jsonl"
+    ));
+    std::fs::write(
+        &planner_rollout,
+        format!(
+            "{{\"timestamp\":\"2026-10-20T09:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{planner_thread}\",\"cwd\":\"{cwd}\"}}}}\n"
+        ),
+    )
+    .unwrap();
+
+    cards::tick(&state);
+    let result = cards::cards_impl(&state, &pool).unwrap();
+    assert_eq!(
+        card(&result.cards, "s-planner").files_unavailable,
+        None,
+        "a link whose file is gone is looked for again"
+    );
+    let relinked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&planner)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path.canonicalize().unwrap());
+    assert_eq!(relinked, Some(planner_rollout.canonicalize().unwrap()));
+    let card = card(&result.cards, "s-builder");
+    assert_eq!(card.files_unavailable, None, "its rollout was read");
+    assert_eq!(
+        card.said.unavailable.as_deref(),
+        Some("Unavailable — it hasn't said")
+    );
+    let linked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&builder)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path.canonicalize().unwrap());
+    assert_eq!(linked, Some(rollout.canonicalize().unwrap()));
 }
 
 #[test]

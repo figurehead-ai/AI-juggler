@@ -1,14 +1,15 @@
-//! The pools' commands (AJ-E1702, AJ-E1703): two reads, and the user's
+//! The pools' commands (AJ-E1702, AJ-E1703): three reads, and the user's
 //! changes to pools, members, roles, access levels and rules. Only the app's own window
 //! calls them; none of them touches a session.
 
 use std::sync::Arc;
 
-use super::{PoolCards, PoolsInfo};
+use super::{PoolMemberInfo, PoolMemberRow, PoolsInfo};
 use crate::error::AppResult;
+use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
 
-/// Every pool and every session's place.
+/// Every pool, and the working set's places.
 ///
 /// # Errors
 ///
@@ -18,18 +19,36 @@ pub async fn pools_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Poo
     crate::ipc::blocking(state.inner(), "the pools", super::pools_list_impl).await
 }
 
-/// One pool's context cards.
+/// One page of a pool's members: each one's session and card.
 ///
 /// # Errors
 ///
-/// As [`super::cards::cards_impl`].
+/// As [`super::members::members_page`].
 #[tauri::command]
-pub async fn pools_cards(
+pub async fn pools_members(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
-) -> AppResult<PoolCards> {
-    crate::ipc::blocking(state.inner(), "the pool's cards", move |state| {
-        super::cards::cards_impl(state, &pool_id)
+    page: PageRequest,
+) -> AppResult<Page<PoolMemberRow>> {
+    crate::ipc::blocking(state.inner(), "the pool's members", move |state| {
+        super::members::members_page(state, &pool_id, &page)
+    })
+    .await
+}
+
+/// One session's pool and role (any session, one past the working set
+/// too).
+///
+/// # Errors
+///
+/// As [`super::members::place_impl`].
+#[tauri::command]
+pub async fn pools_place(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<PoolMemberInfo> {
+    crate::ipc::blocking(state.inner(), "the session's pool", move |state| {
+        super::members::place_impl(state, &session_id)
     })
     .await
 }

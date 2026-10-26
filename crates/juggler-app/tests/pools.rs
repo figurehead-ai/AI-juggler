@@ -29,6 +29,7 @@ use juggler_adapter::{AdapterRegistry, EnvMap, LaunchSpec};
 use juggler_app::commands;
 use juggler_app::error::AppError;
 use juggler_app::features::pools::{self, PoolsInfo};
+use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
 use juggler_core::model::{
     Account, AccountId, Epoch, EpochId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe,
@@ -117,13 +118,40 @@ fn session(
     session
 }
 
-fn place<'a>(info: &'a PoolsInfo, session: &str) -> (&'a str, &'a str) {
-    let row = info
-        .members
-        .iter()
-        .find(|row| row.session_id == session)
-        .unwrap_or_else(|| panic!("{session} has no place"));
-    (row.pool_id.as_str(), row.role.as_str())
+/// A session's pool and role.
+#[derive(Debug)]
+struct Place(String, String);
+
+impl PartialEq<(&str, &str)> for Place {
+    fn eq(&self, other: &(&str, &str)) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+/// A session's place as `pools_place` reads it; the pools' answer `info`
+/// agrees (these sessions run, so they're in the working set): it names
+/// the place unless it's the project's default pool, as a member.
+fn place(state: &Arc<AppState>, info: &PoolsInfo, session: &str) -> Place {
+    let read = pools::members::place_impl(state, session).unwrap();
+    let project = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(session))
+        .unwrap()
+        .project;
+    let default = read.pool_id == default_pool_id(project.as_ref()) && read.role == "member";
+    let named = info.placements.iter().find(|row| row.session_id == session);
+    assert_eq!(
+        named.is_none(),
+        default,
+        "the answer names a place exactly when it isn't the default"
+    );
+    if let Some(row) = named {
+        assert_eq!(row, &read, "the answer and the read agree");
+    }
+    Place(read.pool_id, read.role)
 }
 
 fn pool_id(info: &PoolsInfo, name: &str) -> String {
@@ -196,10 +224,22 @@ fn each_project_has_its_own_default_pool_holding_all_its_sessions() {
         ]
     );
     // Every session of a project, on any account, is in its pool.
-    assert_eq!(place(&info, w.as_str()), (shop_pool.as_str(), "member"));
-    assert_eq!(place(&info, p.as_str()), (shop_pool.as_str(), "member"));
-    assert_eq!(place(&info, b.as_str()), (blog_pool.as_str(), "member"));
-    assert_eq!(place(&info, loose.as_str()), (NO_PROJECT_POOL_ID, "member"));
+    assert_eq!(
+        place(&state, &info, w.as_str()),
+        (shop_pool.as_str(), "member")
+    );
+    assert_eq!(
+        place(&state, &info, p.as_str()),
+        (shop_pool.as_str(), "member")
+    );
+    assert_eq!(
+        place(&state, &info, b.as_str()),
+        (blog_pool.as_str(), "member")
+    );
+    assert_eq!(
+        place(&state, &info, loose.as_str()),
+        (NO_PROJECT_POOL_ID, "member")
+    );
 
     for default in [shop_pool.as_str(), NO_PROJECT_POOL_ID] {
         let words = refused(pools::pool_delete_impl(&state, default));
@@ -320,20 +360,26 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
         pools::pool_move_impl(&state, member.as_str(), &checkout).unwrap();
     }
     let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
-    assert_eq!(place(&info, planner.as_str()), (checkout.as_str(), "lead"));
     assert_eq!(
-        place(&info, builder1.as_str()),
+        place(&state, &info, planner.as_str()),
+        (checkout.as_str(), "lead")
+    );
+    assert_eq!(
+        place(&state, &info, builder1.as_str()),
         (checkout.as_str(), "member")
     );
     assert_eq!(
-        place(&info, builder2.as_str()),
+        place(&state, &info, builder2.as_str()),
         (checkout.as_str(), "member")
     );
-    assert_eq!(place(&info, other.as_str()), (NO_PROJECT_POOL_ID, "member"));
+    assert_eq!(
+        place(&state, &info, other.as_str()),
+        (NO_PROJECT_POOL_ID, "member")
+    );
 
     // An observer, then back.
     let info = pools::pool_set_role_impl(&state, builder2.as_str(), "observer").unwrap();
-    assert_eq!(place(&info, builder2.as_str()).1, "observer");
+    assert_eq!(place(&state, &info, builder2.as_str()).1, "observer");
     assert!(matches!(
         pools::pool_set_role_impl(&state, builder2.as_str(), "owner"),
         Err(AppError::Validation { .. })
@@ -345,7 +391,10 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     assert!(words.contains("«Docs»"), "{words}");
     let info = pools::pool_rename_impl(&state, &checkout, "Checkout v2").unwrap();
     assert_eq!(pool_id(&info, "Checkout v2"), checkout);
-    assert_eq!(place(&info, planner.as_str()), (checkout.as_str(), "lead"));
+    assert_eq!(
+        place(&state, &info, planner.as_str()),
+        (checkout.as_str(), "lead")
+    );
     assert_eq!(
         refused(pools::pool_create_impl(&state, "   ", None)),
         "Give the pool a name"
@@ -356,20 +405,26 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     // Moving to another pool makes it a member there.
     let docs = pool_id(&info, "Docs");
     let info = pools::pool_move_impl(&state, planner.as_str(), &docs).unwrap();
-    assert_eq!(place(&info, planner.as_str()), (docs.as_str(), "member"));
+    assert_eq!(
+        place(&state, &info, planner.as_str()),
+        (docs.as_str(), "member")
+    );
 
     // Delete: its sessions go back to their default pool; the pool is gone.
     let info = pools::pool_delete_impl(&state, &checkout).unwrap();
     assert!(info.pools.iter().all(|pool| pool.id != checkout));
     assert_eq!(
-        place(&info, builder1.as_str()),
+        place(&state, &info, builder1.as_str()),
         (NO_PROJECT_POOL_ID, "member")
     );
     assert_eq!(
-        place(&info, builder2.as_str()),
+        place(&state, &info, builder2.as_str()),
         (NO_PROJECT_POOL_ID, "member")
     );
-    assert_eq!(place(&info, planner.as_str()), (docs.as_str(), "member"));
+    assert_eq!(
+        place(&state, &info, planner.as_str()),
+        (docs.as_str(), "member")
+    );
     assert_eq!(
         refused(pools::pool_move_impl(&state, builder1.as_str(), &checkout)),
         "That pool isn't there any more"
@@ -402,11 +457,20 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
     let b = session(&state, "s-b", "work", Some(&shop), &root);
     switch(&state, &shop, &a, &b);
     let info = pools::pools_list_impl(&state).unwrap();
-    assert_eq!(place(&info, b.as_str()), (checkout.as_str(), "lead"));
-    assert_eq!(place(&info, a.as_str()), (checkout.as_str(), "lead"));
-    assert_eq!(place(&info, other.as_str()), (shop_pool.as_str(), "member"));
     assert_eq!(
-        place(&info, other_next.as_str()),
+        place(&state, &info, b.as_str()),
+        (checkout.as_str(), "lead")
+    );
+    assert_eq!(
+        place(&state, &info, a.as_str()),
+        (checkout.as_str(), "lead")
+    );
+    assert_eq!(
+        place(&state, &info, other.as_str()),
+        (shop_pool.as_str(), "member")
+    );
+    assert_eq!(
+        place(&state, &info, other_next.as_str()),
         (shop_pool.as_str(), "member")
     );
 
@@ -414,14 +478,17 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
     let c = session(&state, "s-c", "work", Some(&shop), &root);
     switch(&state, &shop, &b, &c);
     let info = pools::pools_list_impl(&state).unwrap();
-    assert_eq!(place(&info, c.as_str()), (checkout.as_str(), "lead"));
+    assert_eq!(
+        place(&state, &info, c.as_str()),
+        (checkout.as_str(), "lead")
+    );
 
     // A change made after the switch is one change, not two rows that
     // disagree: moving c moves the whole line of work.
     let info = pools::pool_move_impl(&state, c.as_str(), shop_pool.as_str()).unwrap();
     for session in [&a, &b, &c] {
         assert_eq!(
-            place(&info, session.as_str()),
+            place(&state, &info, session.as_str()),
             (shop_pool.as_str(), "member")
         );
     }
@@ -522,6 +589,93 @@ fn scopes_count_projects_whatever_the_account_d33() {
     let info = pools::pool_move_impl(&state, b1.as_str(), &mixed).unwrap();
     assert_eq!(scopes(&info, &mixed), 2);
     assert_eq!(scopes(&info, &default_pool_id(Some(&blog))), 0);
+}
+
+/// I6: the pools' answer never lists the history. Each pool says how many
+/// sessions it holds (archived ones aside); the working set's places are
+/// named only where they aren't the default; a pool's members come a page
+/// at a time, its lead first.
+#[test]
+fn a_pools_members_come_a_page_at_a_time_its_lead_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root, "shop");
+    let shop_pool = default_pool_id(Some(&shop));
+    let sessions: Vec<SessionId> = (0..7)
+        .map(|n| session(&state, &format!("s-{n}"), "work", Some(&shop), &root))
+        .collect();
+    let info = pools::pool_create_impl(&state, "Team", None).unwrap();
+    let team = pool_id(&info, "Team");
+    for member in &sessions[..3] {
+        pools::pool_move_impl(&state, member.as_str(), &team).unwrap();
+    }
+    pools::pool_set_role_impl(&state, sessions[2].as_str(), "lead").unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .record_lifecycle(&sessions[6], "archived")
+        .unwrap();
+
+    let info = pools::pools_list_impl(&state).unwrap();
+    let members = |id: &str| {
+        info.pools
+            .iter()
+            .find(|pool| pool.id == id)
+            .unwrap()
+            .members
+    };
+    assert_eq!(members(&team), 3);
+    assert_eq!(members(&shop_pool), 3, "the archived one isn't counted");
+    let named: Vec<(&str, &str)> = info
+        .placements
+        .iter()
+        .map(|row| (row.session_id.as_str(), row.role.as_str()))
+        .collect();
+    assert_eq!(
+        named,
+        [("s-0", "member"), ("s-1", "member"), ("s-2", "lead")],
+        "only the places that aren't the default"
+    );
+
+    let first = pools::members::members_page(&state, &team, &PageRequest::first(2)).unwrap();
+    assert_eq!(first.total, Some(3));
+    assert_eq!(first.items.len(), 2);
+    assert_eq!(first.items[0].session.id, "s-2", "the lead first");
+    assert_eq!(first.items[0].card.role, "lead");
+    let cursor = first.next_cursor.clone().unwrap();
+    let rest =
+        pools::members::members_page(&state, &team, &PageRequest::after(&cursor, 2)).unwrap();
+    assert_eq!(rest.items.len(), 1);
+    assert_eq!(rest.next_cursor, None, "the last page says so");
+    let mut seen: Vec<&str> = first
+        .items
+        .iter()
+        .chain(&rest.items)
+        .map(|row| row.session.id.as_str())
+        .collect();
+    seen.sort_unstable();
+    assert_eq!(seen, ["s-0", "s-1", "s-2"]);
+    for row in first.items.iter().chain(&rest.items) {
+        assert_eq!(row.card.session_id, row.session.id);
+    }
+
+    let default =
+        pools::members::members_page(&state, &shop_pool, &PageRequest::default()).unwrap();
+    assert_eq!(default.total, Some(3));
+    assert!(
+        default.items.iter().all(|row| row.session.id != "s-6"),
+        "an archived session is history"
+    );
+    assert_eq!(
+        pools::members::members_page(&state, "pool-gone", &PageRequest::default())
+            .err()
+            .map(|error| matches!(error, AppError::Refused(_))),
+        Some(true)
+    );
 }
 
 /// D-32: a pool spans the user's paired Macs only when the user says so.

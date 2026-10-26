@@ -1,11 +1,13 @@
 import { useState, type JSX } from "react";
 
 import type { InstanceInfo } from "../lib/bridge";
-import type { CardField, ContextCard } from "../lib/ipc/pools";
+import type { CardField, ContextCard, PoolMemberRow } from "../lib/ipc/pools";
+import type { PagedList as Paged } from "../lib/paged";
 import { roleLabel } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
-import { sessionState, statusState, STATE_TONE } from "../lib/rail-items";
+import { sessionState, STATE_TONE } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
+import { PagedList } from "./PagedList";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
 
@@ -16,32 +18,34 @@ import { ToolMark } from "./ToolMark";
  * disclosure: its role, what it says it's doing (marked as its own
  * words), its task and the files it changed. A field AI Juggler doesn't
  * know says "Unavailable" and why (D-06).
+ *
+ * A page at a time (I6): a big project's pool holds every session it ever
+ * ran. A member the rail holds shows its live state; the rest, the state
+ * their page was read with.
  */
-export function PoolCardRows({ cards, sessions, now }: { cards: ContextCard[]; sessions: InstanceInfo[]; now: number }): JSX.Element {
-  if (cards.length === 0) {
-    return (
-      <p className="text-xs text-muted" data-testid="pool-cards-empty">
-        No sessions here yet. Move one in from its menu in the list.
-      </p>
-    );
-  }
+export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number }): JSX.Element {
   return (
-    <ul className="overflow-hidden rounded-xl border border-hairline bg-surface" data-testid="pool-cards">
-      {cards.map((card) => (
-        <CardRow key={card.session_id} card={card} session={sessions.find((row) => row.id === card.session_id)} now={now} />
-      ))}
-    </ul>
+    <PagedList
+      list={list}
+      keyOf={(row) => row.session.id}
+      label="Sessions in this pool"
+      rowHeight={56}
+      skeletonRows={3}
+      testId="pool-cards"
+      empty={<p className="text-xs text-muted">No sessions here yet. Move one in from its menu in the list.</p>}
+      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} />}
+    />
   );
 }
 
-function CardRow({ card, session, now }: { card: ContextCard; session: InstanceInfo | undefined; now: number }): JSX.Element {
+function CardRow({ card, session, now }: { card: ContextCard; session: InstanceInfo; now: number }): JSX.Element {
   const host = useActionHost();
   const [open, setOpen] = useState(false);
   // The rail's words and dot (Asks you, Working, Idle, Ended).
-  const said = session ? sessionState(session) : { ...statusState(card.state), tone: STATE_TONE[statusState(card.state).state].text };
+  const said = sessionState(session);
   const detailId = `pool-card-${card.session_id}`;
   return (
-    <li data-home-item className="border-t border-hairline/60 first:border-t-0" data-testid="pool-card">
+    <div data-home-item data-testid="pool-card">
       <div className="flex items-center">
         <button
           type="button"
@@ -54,7 +58,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
             data-state-dot={said.state}
             className={"size-2 shrink-0 rounded-full " + STATE_TONE[said.state].dot + (said.state === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
           />
-          <ProjectMark projectId={session?.project_id ?? null} size={16} />
+          <ProjectMark projectId={session.project_id} size={16} />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm text-ink">
               {card.name}
@@ -66,7 +70,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
             <span className="truncate text-xs text-faint">{card.place}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-            {session && <ToolMark tool={session.provider} size={12} className="shrink-0" />}
+            <ToolMark tool={session.provider} size={12} className="shrink-0" />
             {/* The place line names the profile; the tool stands alone here. */}
             <span>{card.tool}</span>
           </span>
@@ -119,7 +123,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
           </dd>
         </dl>
       )}
-    </li>
+    </div>
   );
 }
 

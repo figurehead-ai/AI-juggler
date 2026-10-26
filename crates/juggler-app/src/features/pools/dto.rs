@@ -3,15 +3,23 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-/// Every pool, every session's place in one, and what roles may do.
+use crate::features::sessions::dto::InstanceInfo;
+
+/// Every pool, and where the sessions the app's lists hold are: never
+/// the whole history (I6). A pool's members come a page at a time
+/// (`pools_members`).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PoolsInfo {
     /// The pools: the user's, oldest first, then each project's default
     /// pool by name, "No project" last.
     pub pools: Vec<PoolInfo>,
-    /// Each session's pool and role.
-    pub members: Vec<PoolMemberInfo>,
+    /// The places of the working set's sessions (what the rail holds)
+    /// that aren't their project's default pool as a member. A session of
+    /// the working set that isn't here is in that default pool, as a
+    /// member; one past it (opened from History) is read alone
+    /// (`pools_place`).
+    pub placements: Vec<PoolMemberInfo>,
 }
 
 /// One pool.
@@ -36,10 +44,13 @@ pub struct PoolInfo {
     /// holds one (D-33); in a user pool more than one means the user put
     /// different projects' work together.
     pub scopes: u32,
+    /// How many sessions are in it, archived ones aside: its member
+    /// list's length (`pools_members`).
+    pub members: u32,
 }
 
 /// One session's place.
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PoolMemberInfo {
     /// The session.
@@ -154,7 +165,18 @@ pub struct ContextCard {
     pub files_unavailable: Option<String>,
 }
 
-/// A pool's cards, its lead first.
+/// One member of a pool as the pool page and sheet list it: its session's
+/// row (as the rail has it) and its card.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolMemberRow {
+    /// The session.
+    pub session: InstanceInfo,
+    /// What it's working on, and its role.
+    pub card: ContextCard,
+}
+
+/// A pool's cards, its lead first (what an agent is shown, AJ-E1704).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PoolCards {

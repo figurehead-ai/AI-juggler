@@ -271,35 +271,86 @@ pub struct PoolMember {
     pub joined_at: i64,
 }
 
-/// Which pool each session (with its project) is in, and its role.
-/// `works` maps a session to its Work item; a session no row matches is
-/// in its project's default pool, as a member. When two rows stand for the same Work item (a session added on
-/// its own, then switched), the newest wins.
+/// Who is where, by the member rows alone: each active row under what it
+/// stands for now (a session row whose session has since switched stands
+/// for its Work item), so any session's place is one lookup. It holds the
+/// user's placements and the sessions' Work items, never the sessions
+/// themselves: a session no row matches is in its project's default pool,
+/// as a member. When two rows stand for the same Work item (a session
+/// added on its own, then switched), the newest wins.
+#[derive(Clone, Debug, Default)]
+pub struct Memberships {
+    by_anchor: HashMap<MemberRef, (String, PoolRole, i64)>,
+    works: HashMap<SessionId, WorkItemId>,
+}
+
+impl Memberships {
+    /// From the active rows ([`PoolsRepo::members`]) and each session's
+    /// Work item (`SwitchGraphRepo::works_by_session`).
+    #[must_use]
+    pub fn new(members: &[PoolMember], works: HashMap<SessionId, WorkItemId>) -> Self {
+        let mut by_anchor: HashMap<MemberRef, (String, PoolRole, i64)> = HashMap::new();
+        for member in members {
+            let anchor = member.member.anchor(&works);
+            match by_anchor.get(&anchor) {
+                Some((_, _, joined_at)) if *joined_at > member.joined_at => {}
+                _ => {
+                    by_anchor.insert(
+                        anchor,
+                        (member.pool_id.clone(), member.role, member.joined_at),
+                    );
+                }
+            }
+        }
+        Self { by_anchor, works }
+    }
+
+    /// The place a row gives `session`, when one does.
+    #[must_use]
+    pub fn placed(&self, session: &SessionId) -> Option<(&str, PoolRole)> {
+        let anchor = MemberRef::of_session(session, self.works.get(session));
+        self.by_anchor
+            .get(&anchor)
+            .map(|(pool_id, role, _)| (pool_id.as_str(), *role))
+    }
+
+    /// `session`'s pool and role: what a row says, else its project's
+    /// default pool, as a member.
+    #[must_use]
+    pub fn place(&self, session: &SessionId, project: Option<&ProjectId>) -> (String, PoolRole) {
+        self.placed(session).map_or_else(
+            || (default_pool_id(project), PoolRole::Member),
+            |(pool_id, role)| (pool_id.to_owned(), role),
+        )
+    }
+
+    /// The Work item `session` belongs to, when it switched.
+    #[must_use]
+    pub fn work_of(&self, session: &SessionId) -> Option<&WorkItemId> {
+        self.works.get(session)
+    }
+}
+
+/// Which pool each session (with its project) is in, and its role
+/// ([`Memberships::place`] for each).
 #[must_use]
 pub fn resolve_memberships<S: BuildHasher>(
     sessions: &[(SessionId, Option<ProjectId>)],
     members: &[PoolMember],
     works: &HashMap<SessionId, WorkItemId, S>,
 ) -> HashMap<SessionId, (String, PoolRole)> {
-    let mut by_anchor: HashMap<MemberRef, &PoolMember> = HashMap::new();
-    for member in members {
-        let anchor = member.member.anchor(works);
-        match by_anchor.get(&anchor) {
-            Some(seen) if seen.joined_at > member.joined_at => {}
-            _ => {
-                by_anchor.insert(anchor, member);
-            }
-        }
-    }
+    let works = works
+        .iter()
+        .map(|(session, work)| (session.clone(), work.clone()))
+        .collect();
+    let memberships = Memberships::new(members, works);
     sessions
         .iter()
         .map(|(session, project)| {
-            let anchor = MemberRef::of_session(session, works.get(session));
-            let place = by_anchor.get(&anchor).map_or_else(
-                || (default_pool_id(project.as_ref()), PoolRole::Member),
-                |member| (member.pool_id.clone(), member.role),
-            );
-            (session.clone(), place)
+            (
+                session.clone(),
+                memberships.place(session, project.as_ref()),
+            )
         })
         .collect()
 }
