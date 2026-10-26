@@ -18,6 +18,7 @@
  *   says "Not measured since the reset" — never 0%, never the old number.
  */
 import type { WindowDisplay } from "./bridge";
+import { compactCount } from "./compact";
 
 export type WindowTone = "ok" | "low" | "out" | "none";
 
@@ -78,10 +79,8 @@ export function resetWords(window: WindowDisplay | null | undefined): string | n
 
 /** 12,345 → "12k", 1,234,567 → "1.2M", 10,329,000,000 → "10.3B" (tokens used in the window). */
 export function tokenWords(tokens: number): string {
-  if (tokens >= 1_000_000_000) return `${(tokens / 1_000_000_000).toFixed(tokens >= 100_000_000_000 ? 0 : 1)}B`;
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens >= 10_000_000 ? 0 : 1)}M`;
-  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
-  return String(tokens);
+  // No decimal for thousands, nor from 10M (or 100B) on.
+  return compactCount(tokens, (value, suffix) => (suffix === "k" || (suffix === "M" ? value >= 10 : value >= 100) ? 0 : 1));
 }
 
 /** True when the window carries a real percentage (never a default). */

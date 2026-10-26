@@ -1,5 +1,7 @@
+
 import { toolMarkIcon } from "./ToolMark";
 import { toolSpec } from "../lib/tools";
+import { compactCount } from "../lib/compact";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
@@ -80,9 +82,7 @@ export function stateChip(status: string): {
 // --- I-06 tokens (no pricing source exists: tokens only, never `$0.00`) ----
 
 export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return n >= 1_000_000_000 ? `${(n / 1_000_000_000).toFixed(1)}B` : `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
+  return compactCount(n, () => 1);
 }
 
 /** `18.2k tokens` from input+output; `null` when usage was never observed. */
