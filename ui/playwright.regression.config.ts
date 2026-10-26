@@ -11,7 +11,7 @@ const GALLERY_SPECS = [
   "burn-down", "capture", "diagnostics", "fleet-launch", "home-gallery", "journey-first-run",
   "keep-going", "launch-advisor-gallery", "limit-ready", "marks-gallery", "menus-gallery",
   "notifications", "open-pack", "outside-gallery", "overload-gallery", "pages-gallery",
-  "privacy-gallery", "project-manage-gallery", "project-sync-gallery", "rail-narrow",
+  "privacy-gallery", "processes-gallery", "project-manage-gallery", "project-sync-gallery", "rail-narrow",
   "rail-projects", "terminal-tools", "this-mac-gallery", "this-mac-page",
 ];
 
