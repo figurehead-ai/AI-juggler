@@ -150,6 +150,9 @@ pub struct TaskIssueInfo {
     pub checked_at_ms: Option<i64>,
     /// It can be looked up (a GitHub link, with `gh` on this Mac).
     pub can_look_up: bool,
+    /// Why a GitHub link can't be looked up, in words (no `gh`, or a `gh`
+    /// AI Juggler won't run, and why).
+    pub look_up_note: Option<String>,
 }
 
 /// A task in full.

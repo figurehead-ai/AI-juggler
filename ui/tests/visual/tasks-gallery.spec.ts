@@ -83,7 +83,7 @@ const DETAILS = {
     acceptance: "- POST and GET pass the contract tests\n- a cart with no items is a 422 with a reason\n- the API reference says how",
     links: [{ kind: "blocks", task_id: "aj-b10c", title: "Totals move to integer cents", status: "blocked" }],
     threads: [{ thread_id: "thr-api", subject: "Start on the API", count: 6, at_ms: T0 - 8 * MIN }],
-    issue: { url: "https://github.com/figurehead/shop/issues/142", service: "github", label: "figurehead/shop#142", title: "Orders API for the new checkout", state: "open", checked_at_ms: T0 - 20 * MIN, can_look_up: true },
+    issue: { url: "https://github.com/figurehead/shop/issues/142", service: "github", label: "figurehead/shop#142", title: "Orders API for the new checkout", state: "open", checked_at_ms: T0 - 20 * MIN, can_look_up: true, look_up_note: null },
     history: [
       { id: 4, at_ms: T0 - 3 * MIN, who: "Planner", by_agent: true, what: "asked you for a new session for it: Builder is on the cart; this needs its own session" },
       { id: 3, at_ms: T0 - 12 * MIN, who: "Planner", by_agent: true, what: "linked aj-7f3c blocks aj-b10c" },

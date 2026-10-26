@@ -135,6 +135,21 @@ fn task(lab: &Lab, title: &str, blocked_by: &[&str]) -> String {
     .id
 }
 
+fn input(lab: &Lab, title: &str) -> TaskInput {
+    TaskInput {
+        pool_id: lab.pool.clone(),
+        title: title.into(),
+        body: String::new(),
+        acceptance: String::new(),
+        kind: "task".into(),
+        parent_id: None,
+        priority: "normal".into(),
+        status: "ready".into(),
+        url: None,
+        blocked_by: Vec::new(),
+    }
+}
+
 fn status_of(lab: &Lab, id: &str) -> String {
     views::detail(&lab.state, id, None).unwrap().task.status
 }
@@ -223,6 +238,40 @@ fn ready_means_no_open_item_blocks_it() {
     let all = list(&lab, &a, TasksListArgs::default());
     assert_eq!(all[0]["status"], "in_progress");
     assert_eq!(all.last().unwrap()["status"], "done");
+}
+
+#[test]
+fn ready_lists_only_tasks_never_epics_or_stories() {
+    // Lab 2026-10-26, bug 1: an epic or story that is Ready isn't work an
+    // agent takes, so `ready: true` lists only the task.
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Builder");
+    for kind in ["epic", "story"] {
+        views::create(
+            &lab.state,
+            TaskInput {
+                kind: kind.into(),
+                ..input(&lab, kind)
+            },
+        )
+        .unwrap();
+    }
+    let only = task(&lab, "Write hello.txt", &[]);
+    let ready = list(
+        &lab,
+        &a,
+        TasksListArgs {
+            ready: true,
+            ..TasksListArgs::default()
+        },
+    );
+    let ids: Vec<_> = ready.iter().map(|t| t["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, [only.as_str()]);
+    assert_eq!(
+        list(&lab, &a, TasksListArgs::default()).len(),
+        3,
+        "the whole list still has all three"
+    );
 }
 
 #[test]
@@ -315,6 +364,27 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     let held = assign(&lab, &lead, &id, builder_id.as_str());
     assert_eq!(held.refused, Some(Refusal::Ask), "{held:?}");
     let ask = needs::needs(&lab.state).unwrap().remove(0);
+    // The held assignment names the member, never its session's id (lab
+    // 2026-10-26, bug 2), in Needs you and in the task's history.
+    assert!(
+        ask.title.ends_with("to Builder") && !ask.title.contains(builder_id.as_str()),
+        "the ask names the member"
+    );
+    let named = format!("give {id} to Builder");
+    let history = views::detail(&lab.state, &id, None).unwrap().history;
+    assert!(
+        history.iter().any(|e| e.what.contains(&named)),
+        "the history names the member"
+    );
+    assert!(
+        !history
+            .iter()
+            .any(|e| e.what.contains(builder_id.as_str())),
+        "no session id in the history"
+    );
+    let stranger = assign(&lab, &lead, &id, "s-nobody-here");
+    assert_eq!(stranger.refused, Some(Refusal::Deny), "not in the pool");
+    assert_eq!(needs::needs(&lab.state).unwrap().len(), 1, "nothing more held");
     needs::answer(&lab.state, &ask.id, "once").unwrap();
     let mine = list(
         &lab,
@@ -626,6 +696,27 @@ fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
     assert_eq!(issue.title.as_deref(), Some("Cart drops items on refresh"));
     assert_eq!(issue.state.as_deref(), Some("open"));
     assert!(issue.checked_at_ms.is_some());
+    assert_eq!(issue.look_up_note, None);
+    // A gh that's there but that others can change isn't run, and the
+    // words say why, never that gh is missing (lab 2026-10-26, bug 3).
+    use std::os::unix::fs::PermissionsExt;
+    let shared = tempfile::tempdir().unwrap();
+    let unsafe_gh = fake_gh(shared.path(), "", 0);
+    std::fs::set_permissions(shared.path(), std::fs::Permissions::from_mode(0o777)).unwrap();
+    lab.state.tasks.set_gh(Some(unsafe_gh));
+    let refused = issues::look_up(&lab.state, &id).unwrap_err().to_string();
+    assert!(refused.contains("won't run it") && refused.contains("other users can change"));
+    assert!(!refused.contains(issues::NO_GH), "it isn't missing");
+    let issue = views::detail(&lab.state, &id, None).unwrap().issue.unwrap();
+    assert!(!issue.can_look_up);
+    assert!(issue.look_up_note.unwrap().contains("won't run it"));
+    std::fs::set_permissions(shared.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    // No gh at all says so.
+    lab.state
+        .tasks
+        .set_gh(Some(shared.path().join("not-installed")));
+    let missing = issues::look_up(&lab.state, &id).unwrap_err().to_string();
+    assert!(missing.contains(issues::NO_GH));
     // A Linear link names its issue from the link, and isn't looked up.
     views::edit(
         &lab.state,

@@ -31,4 +31,9 @@ checked_at_ms: number | null,
 /**
  * It can be looked up (a GitHub link, with `gh` on this Mac).
  */
-can_look_up: boolean, };
+can_look_up: boolean, 
+/**
+ * Why a GitHub link can't be looked up, in words (no `gh`, or a `gh`
+ * AI Juggler won't run, and why).
+ */
+look_up_note: string | null, };

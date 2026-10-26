@@ -333,6 +333,10 @@ fn what(verb: &str, detail: Option<&str>) -> String {
 fn issue_of(state: &Arc<AppState>, task: &Task) -> Option<TaskIssueInfo> {
     task.external.as_ref().map(|x| {
         let link = juggler_core::tasks::external_link(&x.url).ok();
+        let gh = link
+            .as_ref()
+            .is_some_and(|l| l.github.is_some())
+            .then(|| super::issues::gh_or_why(state));
         TaskIssueInfo {
             url: x.url.clone(),
             service: link.as_ref().map_or("web", |l| l.service).to_owned(),
@@ -340,8 +344,8 @@ fn issue_of(state: &Arc<AppState>, task: &Task) -> Option<TaskIssueInfo> {
             title: x.title.clone(),
             state: x.state.clone(),
             checked_at_ms: x.checked_at,
-            can_look_up: link.as_ref().is_some_and(|l| l.github.is_some())
-                && super::issues::gh(state).is_some(),
+            can_look_up: gh.as_ref().is_some_and(Result::is_ok),
+            look_up_note: gh.and_then(Result::err),
         }
     })
 }
