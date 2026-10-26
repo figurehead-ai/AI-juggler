@@ -8,9 +8,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_core::model::SessionId;
 use juggler_core::storage::Storage;
 use juggler_supervisor::tree::LedgerStore as _;
-use juggler_supervisor::{
-    HeuristicEngine, HeuristicThresholds, LiveStatsCollector, OrphanTracker, Supervisor,
-};
+use juggler_supervisor::{HeuristicEngine, HeuristicThresholds, LiveStatsCollector, Supervisor};
 
 /// Everything the commands operate on. `storage` is `Mutex`-wrapped:
 /// rusqlite connections are `Send` but not `Sync`.
@@ -37,9 +35,6 @@ pub struct AppState {
     /// held only for the cheap part of a tick (the disk work, the storage
     /// read and the running-tools scan run outside it).
     pub machine: Mutex<crate::machine_health::MachineWatch>,
-    /// Exit snapshots → confirmed orphans + stop states (AJ-E410).
-    /// Interior-mutex: safe to read without the collector lock.
-    pub orphans: OrphanTracker,
     /// The persistent spawn ledger handle (AJ-E501): queries + prune.
     pub ledger: std::sync::Arc<juggler_supervisor::tree::CoreLedgerStore>,
     /// The append-only cleanup audit (AJ-E509): intent before signal.
@@ -318,7 +313,6 @@ impl AppState {
             storage: Mutex::new(storage),
             resources: Mutex::new(LiveStatsCollector::new()),
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
-            orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             subtasks: crate::features::subtasks::Subtasks::default(),
             pool_activity: crate::features::pools::cards::Activity::default(),

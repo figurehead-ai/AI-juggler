@@ -24,13 +24,6 @@ fn fake_harness_bin() -> PathBuf {
     common::fake_harness::bin()
 }
 
-fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
-        .unwrap_or_default()
-}
-
 /// A real AppState (in-repo storage dir) with the launch chain seeded.
 fn seeded_state(dir: &Path, cleanup_opt_in: bool) -> Arc<AppState> {
     let state = Arc::new(
@@ -198,15 +191,10 @@ fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
     assert!(info.unavailable_reason.is_none());
     assert!(!info.spark.is_empty(), "the 2 s ring retained samples");
 
-    // Past the 10 s grace (injected clock): the orphan surfaces.
+    // AJ-E2407: what was left behind is the ledger's (the reconciler's)
+    // and the Processes view's; stopping it is the verified sheet's job:
+    // verify, then the audited ladder.
     commands::processes_tick(&state);
-    let confirmed = state.orphans.poll(now_ms() + 11_000, |pid| {
-        juggler_supervisor::process_alive(pid)
-    });
-    assert_eq!(confirmed.len(), 1);
-    assert_eq!(confirmed[0].pid, child_pid);
-    // Stopping it is the verified sheet's job (the tracker only
-    // detects): verify, then the audited ladder.
     let verify = commands::kill_verify_inner(state_ref, session.as_str(), child_pid).unwrap();
     assert!(
         verify.verified,
@@ -225,11 +213,6 @@ fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
     .unwrap();
     assert!(outcome.refusal.is_none());
     assert!(outcome.all_succeeded, "the child went: {outcome:?}");
-    // Gone, so the tracker stops watching it on its next poll.
-    state
-        .orphans
-        .poll(now_ms(), juggler_supervisor::process_alive);
-    assert!(state.orphans.all_orphans().is_empty(), "gone orphan drops");
 
     // The audit trail: the intent and its outcome, by hand.
     let rows = state.audit.history(0).unwrap();

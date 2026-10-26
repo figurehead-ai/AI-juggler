@@ -671,6 +671,31 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
     Some(ProcessGraphChangedInfo { version, counts })
 }
 
+/// AJ-E2405/E2407: the reconciler found `pid` of `session` left behind
+/// (`HelperOrphaned`): counted for usage statistics (its category only,
+/// when the user shares them), shown at once, told once per session.
+pub fn helper_orphaned(state: &Arc<AppState>, session: &SessionId, pid: u32) {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let row = state
+        .ledger
+        .session_rows(session)
+        .ok()
+        .and_then(|rows| rows.into_iter().find(|row| row.pid == Some(pid)));
+    let (exe, cmdline) = row.map_or((String::new(), String::new()), |row| {
+        (row.exe_path, row.cmdline_trunc)
+    });
+    crate::usage_stats::count(
+        "leftover.detected",
+        &[(
+            "category",
+            crate::usage_stats::leftover_category(&exe, &cmdline),
+        )],
+    );
+    state
+        .processes
+        .helper_orphaned(session, pid, crate::commands::now_millis());
+}
+
 impl Inner {
     /// The identities of the held sightings whose process may still run.
     fn sightings_pids(&self) -> Vec<(u32, i64)> {

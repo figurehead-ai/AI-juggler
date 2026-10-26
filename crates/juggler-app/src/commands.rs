@@ -9490,9 +9490,9 @@ pub fn account_set_renewal_arc(
     Ok(account_info_of(&state.registry, &account))
 }
 
-/// The exit-snapshot hook (AJ-E410 Req.3): freezes the pre-exit
-/// descendant rows into the tracker and journals the durable
-/// allow-list. Called by the lifecycle forwarder on every Exited event
+/// The exit-snapshot hook (AJ-E410 Req.3): journals the pre-exit
+/// descendant rows (the durable allow-list). AJ-E2407: the in-memory
+/// tracker it once fed is retired; leftovers are the ledger's. Called by the lifecycle forwarder on every Exited event
 /// (clean exits are recorded too — they simply never surface orphans).
 pub fn record_exit_snapshot(
     state: &Arc<AppState>,
@@ -9501,17 +9501,10 @@ pub fn record_exit_snapshot(
     kind: &ExitKind,
 ) {
     let (rows, root_program) = snapshot_descendants(state, session, root_pid);
+    let _ = root_program;
     if let Some(journal) = state.supervisor.journal_ref() {
         let _ = journal.record_descendants(session, root_pid, kind.is_success(), &rows);
     }
-    state.orphans.record_exit(juggler_supervisor::ExitSnapshot {
-        session: session.clone(),
-        root_pid,
-        root_program,
-        clean: kind.is_success(),
-        taken_ms: Timestamp::now().millis(),
-        rows,
-    });
 }
 
 /// The frozen pre-exit rows, split into (descendants, root program name).
@@ -9553,24 +9546,10 @@ pub fn processes_tick(state: &Arc<AppState>) {
             return;
         };
         collector.tick(&state.supervisor, now);
-        // The E410 tracker's own confirmations advance here (the
-        // Processes tab's orphan section); the AJ-E508 sweep reads
-        // the LEDGER's orphan verdicts instead — the tracker
-        // deliberately drops clean exits and cannot serve Tier 1.
-        let tracked = state.orphans.tracked_pids();
-        if !tracked.is_empty() {
-            collector.refresh_pids(&tracked);
-            let confirmed = state.orphans.poll(now, |pid| collector.lookup(pid));
-            for orphan in &confirmed {
-                crate::usage_stats::count(
-                    "leftover.detected",
-                    &[(
-                        "category",
-                        crate::usage_stats::leftover_category(&orphan.name, ""),
-                    )],
-                );
-            }
-        }
+        // AJ-E2407: the E410 tracker's own detection (its ppid snapshot,
+        // its 10 s clock) is retired: what a session left behind is the
+        // reconciler's verdict in the ledger, which the Processes view
+        // reads (and counts, `features::processes::helper_orphaned`).
     }
     // AJ-E1401: the machine's own signals, on the same tick (its own
     // lock — never under the collector's).

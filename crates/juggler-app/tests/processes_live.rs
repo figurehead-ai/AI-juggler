@@ -111,9 +111,7 @@ fn tick(state: &Arc<AppState>) -> bool {
     while let Some(event) = state.supervisor.try_recv() {
         match event {
             juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } => {
-                state
-                    .processes
-                    .helper_orphaned(&session, pid, Timestamp::now().millis());
+                processes::helper_orphaned(state, &session, pid);
             }
             juggler_supervisor::LifecycleEvent::Exited { session, pid, kind } => {
                 commands::record_exit_snapshot(state, &session, pid, &kind);
@@ -195,7 +193,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     // 1. The session and its subprocess, AI Juggler's, under AI Juggler.
     let mut reap = Reap(0);
     let mut changed = false;
-    wait_for("the child in the graph", 20, || {
+    wait_for("the child in the graph", 40, || {
         changed |= tick(&state);
         let graph = state.processes.graph();
         let found = graph

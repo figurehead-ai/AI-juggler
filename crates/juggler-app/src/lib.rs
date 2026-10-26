@@ -1219,7 +1219,7 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
             // AJ-E2405: a helper left behind shows in the Processes view at
             // once, and the user hears of it once per session.
             if let juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } = &event {
-                state.processes.helper_orphaned(session, *pid, now_millis());
+                features::processes::helper_orphaned(&state, session, *pid);
             }
             // AJ-E405: classify non-zero exits against the captured
             // output tail BEFORE the status mapping runs — a rate-limit
