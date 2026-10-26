@@ -26,7 +26,7 @@ import { CleanupStatus } from "./CleanupStatus";
 import { GroupCleanupSheet } from "./GroupCleanupSheet";
 import { HistoryView } from "./HistoryView";
 import { ProcessTree } from "./ProcessTree";
-import { RowActions, canStop, type RowHandlers } from "./RowActions";
+import { RowActions, canStop, isSessionItself, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
 
@@ -83,6 +83,8 @@ export function ProcessesView({
   const embedded = sessionId !== null;
   const [view, setView] = useState<ViewId>(() => (embedded ? "running" : savedView()));
   const [search, setSearch] = useState("");
+  /** An alert's "Show it": the process to focus once its row shows. */
+  const [finding, setFinding] = useState<number | null>(null);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<string[]>([]);
@@ -109,7 +111,7 @@ export function ProcessesView({
       }),
     [view, sessionId, filters, words, expanded, collapsed],
   );
-  const { rows, total, counts, degraded, loading, error, hasMore, loadMore, refresh } = useProcessRows(query);
+  const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh } = useProcessRows(query);
 
   const chooseView = (next: ViewId) => {
     setView(next);
@@ -131,7 +133,18 @@ export function ProcessesView({
   }, []);
 
   const sessionOf = (row: ProcessGraphRowInfo) => rows.find((other) => other.key === row.session_key)?.session ?? row.session;
+  // "Show it" takes the keyboard to the found row (its Enter is Stop…).
+  useEffect(() => {
+    // Once the search for it has been read (the view changes under it).
+    if (finding === null || !current || words !== `pid:${finding}`) return;
+    const row = document.querySelector<HTMLElement>(`[data-testid^="process-row-p:${finding}:"]`);
+    if (!row) return;
+    row.focus();
+    setFinding(null);
+  }, [finding, rows, current, words]);
+
   const handlers: RowHandlers = {
+    onSessionPage: embedded,
     stop: (row) => setStopping({ row, trigger: document.activeElement as HTMLElement | null }),
     mark: (row, mark) => void processesMark(row.process!.pid, row.process!.start_time, mark, mark === "snooze" ? 60 : undefined).then(refresh),
     goToSession: (row) => {
@@ -177,6 +190,7 @@ export function ProcessesView({
           onFind={(pid) => {
             chooseView("running");
             setSearch(`pid:${pid}`);
+            setFinding(pid);
           }}
         />
       )}
@@ -206,7 +220,9 @@ export function ProcessesView({
           isOpen={isOpen}
           onToggle={onToggle}
           actions={(row) => <RowActions row={row} on={handlers} />}
-          onActivate={(row) => (canStop(row) ? handlers.stop(row) : row.kind === "session" ? onToggle(row, !isOpen(row)) : undefined)}
+          onActivate={(row) =>
+            canStop(row) ? handlers.stop(row) : isSessionItself(row) && !embedded ? handlers.goToSession(row) : row.kind === "session" ? onToggle(row, !isOpen(row)) : undefined
+          }
           hasMore={hasMore}
           onNearEnd={loadMore}
           height={height}

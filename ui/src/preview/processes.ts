@@ -62,7 +62,12 @@ function owner(origin: string, app: string): string {
   return origin === "ours" ? "Started by AI Juggler" : `In a session ${app} runs`;
 }
 
+/** A live session's own process AI Juggler started: stopped from its page
+ * (the backend's `never::OUR_SESSION`). */
+const OUR_SESSION = "The session itself: stop it from its page";
+
 function processRow(app: PreviewApp, session: PreviewSession, node: PreviewNode, hasChildren: boolean): ProcessGraphRowInfo {
+  const ownRoot = session.origin === "ours" && session.alive && node.role === "tool" && node.stop === "ours";
   return {
     key: node.key,
     kind: "process",
@@ -91,8 +96,8 @@ function processRow(app: PreviewApp, session: PreviewSession, node: PreviewNode,
       cpu_time_ms: node.cpu_time_ms,
       waits_for_pid: node.waits_for_pid,
       waits_for_name: node.waits_for_name,
-      stop: node.stop,
-      stop_reason: node.stop_reason,
+      stop: ownRoot ? "never" : node.stop,
+      stop_reason: ownRoot ? OUR_SESSION : node.stop_reason,
       mark: node.mark,
       mark_until_ms: node.mark_until_ms,
       heavy: node.heavy,

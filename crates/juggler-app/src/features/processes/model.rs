@@ -119,6 +119,9 @@ pub mod never {
     pub const SESSION_RUNS: &str = "Its session is still running in its app";
     /// A session's own process in another app.
     pub const THEIR_TOOL: &str = "The session itself: stop it in its app";
+    /// A live session's own process AI Juggler started: stopping a session
+    /// is its page's Stop, with its own rules (0.1.5 took it out of Cleanup).
+    pub const OUR_SESSION: &str = "The session itself: stop it from its page";
     /// Ended.
     pub const ENDED: &str = "It has ended";
 }
@@ -698,6 +701,8 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
         let role = role_of(&row.exe_path, &row.cmdline_trunc, is_root);
         let stop = if role.ours_internal() {
             StopPath::Never(never::OWN)
+        } else if is_root && !session.finished && !session.marked_ended {
+            StopPath::Never(never::OUR_SESSION)
         } else {
             match state {
                 ProcState::Zombie => StopPath::Never(never::ZOMBIE),
@@ -803,6 +808,9 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
                     StopPath::Never(never::OWN)
                 } else if live.zombie {
                     StopPath::Never(never::ZOMBIE)
+                } else if is_root {
+                    // This loop runs only while the session is live.
+                    StopPath::Never(never::OUR_SESSION)
                 } else {
                     StopPath::Ours
                 },

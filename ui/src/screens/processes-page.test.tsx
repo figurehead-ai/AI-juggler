@@ -94,6 +94,38 @@ describe("AJ-E2404 the Processes page", () => {
     expect(document.querySelector('[data-testid="menu-reveal"]')).toBeNull();
   });
 
+  it("a live session's own process offers Go to session, never Stop… (stopping a session is its page's)", async () => {
+    const opened: string[] = [];
+    const { container } = render(<ProcessesScreen onOpenSession={(id) => opened.push(id)} />);
+    await waitFor(() => expect(container.querySelector('[data-testid="process-go-session-6600"]')).not.toBeNull());
+    expect(container.querySelector('[data-testid="process-stop-6600"]')).toBeNull();
+    // Its helpers are still stoppable.
+    expect(container.querySelector('[data-testid="process-stop-6620"]')).not.toBeNull();
+    fireEvent.click(container.querySelector('[data-testid="process-go-session-6600"]')!);
+    expect(opened).toEqual(["s-odd"]);
+    // Enter on the row does the same.
+    const row = container.querySelector('[data-testid^="process-row-p:6600:"]') as HTMLElement;
+    row.focus();
+    await waitFor(() => expect(row.getAttribute("aria-selected")).toBe("true"));
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(opened).toEqual(["s-odd", "s-odd"]);
+  });
+
+  it("an alert's Show it finds the process and takes focus to its row", async () => {
+    (window as unknown as { __AIJ_CLEANUP_ALERTS__?: unknown }).__AIJ_CLEANUP_ALERTS__ = {
+      alerts: [{ kind: "hog", text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.", pid: 8123, session: "s-pay" }],
+    };
+    try {
+      const { container, getByTestId } = page();
+      await waitFor(() => expect(container.querySelector('[data-testid="alert-find-8123"]')).not.toBeNull());
+      fireEvent.click(getByTestId("alert-find-8123"));
+      expect((getByTestId("process-search") as HTMLInputElement).value).toBe("pid:8123");
+      await waitFor(() => expect(document.activeElement?.getAttribute("data-testid") ?? "").toMatch(/^process-row-p:8123:/));
+    } finally {
+      delete (window as unknown as { __AIJ_CLEANUP_ALERTS__?: unknown }).__AIJ_CLEANUP_ALERTS__;
+    }
+  });
+
   it("another app's leftover is stopped alone: no scope to widen (D-41b)", async () => {
     const { container } = page();
     await waitFor(() => expect(container.querySelector('[data-testid="process-stop-7301"]')).not.toBeNull());

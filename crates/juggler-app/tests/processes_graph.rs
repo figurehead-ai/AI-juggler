@@ -366,6 +366,13 @@ fn whose_and_how_each_may_be_stopped() {
         "AI Juggler's own sessions first"
     );
     assert_eq!(node(&graph, 201).stop, StopPath::Ours);
+    // A live session's own process: stopped from its page, never here
+    // (0.1.5 took it out of Cleanup); its helpers stay stoppable.
+    assert_eq!(
+        node(&graph, 100).stop,
+        StopPath::Never(model::never::OUR_SESSION)
+    );
+    assert_eq!(node(&graph, 102).stop, StopPath::Ours);
     assert!(
         matches!(node(&graph, 404).stop, StopPath::Never(_)),
         "won't be touched"

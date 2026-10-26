@@ -23,6 +23,16 @@ export interface RowHandlers {
   activityMonitor: () => void;
   copyPid: (pid: number) => void;
   cleanSession: (row: ProcessGraphRowInfo) => void;
+  /** On the session's own page (its Processes tab): its Stop is there. */
+  onSessionPage?: boolean;
+}
+
+/** A live session's own process AI Juggler started: stopping it is its
+ * page's Stop, with its own rules (0.1.5 took it out of Cleanup), so the
+ * row offers Go to session instead. */
+export function isSessionItself(row: ProcessGraphRowInfo): boolean {
+  const proc = row.process;
+  return row.kind === "process" && row.origin === "ours" && !!row.session_key && proc?.role === "tool" && proc.stop === "never" && ALIVE.has(row.state);
 }
 
 const ALIVE = new Set(["working", "idle", "left_behind", "left_behind_closed", "picked_up", "didnt_stop"]);
@@ -49,6 +59,7 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
   const theirs = row.origin === "theirs";
   const leftovers = row.kind === "session" ? (row.rollup?.to_clean ?? 0) : 0;
   const program = row.kind === "program";
+  const sessionItself = isSessionItself(row) && !on.onSessionPage;
   const name = row.kind === "session" ? (row.session?.title ?? "session") : program ? (row.app?.name ?? "program") : (proc?.name ?? "process");
   const open = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -63,6 +74,11 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
       {canStop(row) && (
         <Button size="sm" variant="secondary" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.stop(row); }} data-testid={`process-stop-${proc!.pid}`} aria-label={`Stop ${name}…`}>
           Stop…
+        </Button>
+      )}
+      {sessionItself && (
+        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.goToSession(row); }} data-testid={`process-go-session-${proc!.pid}`} aria-label={`Go to session (${name} is the session itself)`}>
+          Go to session
         </Button>
       )}
       {row.kind === "session" && leftovers > 0 && (

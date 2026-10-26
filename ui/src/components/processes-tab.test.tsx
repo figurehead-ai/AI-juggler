@@ -104,6 +104,10 @@ describe("AJ-E2407 a session's Processes tab is the one view", () => {
     expect(text).not.toContain("webpack");
     // AI Juggler's own tools are hidden unless asked for.
     expect(text).not.toContain("AI Juggler's tools");
+    // The session's own process: its page's Stop is right here, so no Stop…
+    // and no Go to session on its row.
+    expect(container.querySelector('[data-testid="process-stop-61001"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="process-go-session-"]')).toBeNull();
   });
 
   it("lists what a session left behind with Stop…, which opens the verified sheet", async () => {

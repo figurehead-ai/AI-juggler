@@ -86,6 +86,9 @@ A session that left something behind offers **Clean up (N)…**: each of
 its leftovers is checked, then stopped on its own, with the outcome beside
 it.
 
+A session's own process, while the session runs, offers **Go to session**
+instead: you stop a session from its page, with its own **Stop**.
+
 From a process's **⋯** menu you can also:
 
 - **Keep (not a leftover)**: it stays, and stops counting as something to

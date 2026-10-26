@@ -22,7 +22,7 @@ import {
 /** Rows a page asks for (the backend's most). */
 export const PAGE_ROWS = 200;
 
-type Kept = { rows: ProcessGraphRowInfo[]; total: number; counts: ProcessCountsInfo | null; next: string | null; degraded: boolean };
+type Kept = { key: string; rows: ProcessGraphRowInfo[]; total: number; counts: ProcessCountsInfo | null; next: string | null; degraded: boolean };
 
 /** The last rows of each view, by its query (in memory only). */
 const kept = new Map<string, Kept>();
@@ -46,7 +46,7 @@ export async function prefetchProcessRows(): Promise<void> {
   if (kept.has(key)) return;
   const [status, page] = await Promise.all([processesStatus(), processesPage(query, { cursor: null, limit: PAGE_ROWS })]);
   if (kept.has(key)) return;
-  kept.set(key, { rows: page.items, total: page.total ?? page.items.length, counts: status.counts, next: page.next_cursor, degraded: status.ledger_degraded });
+  kept.set(key, { key, rows: page.items, total: page.total ?? page.items.length, counts: status.counts, next: page.next_cursor, degraded: status.ledger_degraded });
 }
 
 export interface ProcessRows {
@@ -57,6 +57,8 @@ export interface ProcessRows {
   degraded: boolean;
   /** The first read hasn't answered yet (and nothing was kept). */
   loading: boolean;
+  /** The rows shown are this query's (not the last one's, while it reads). */
+  current: boolean;
   error: string | null;
   hasMore: boolean;
   loadMore: () => void;
@@ -95,7 +97,7 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
         cursor = page.next_cursor;
         total = page.total ?? rows.length;
       } while (cursor !== null && rows.length < want);
-      const next: Kept = { rows, total, counts, next: cursor, degraded };
+      const next: Kept = { key: readKey, rows, total, counts, next: cursor, degraded };
       kept.delete(readKey);
       kept.set(readKey, next);
       while (kept.size > KEPT_VIEWS) kept.delete(kept.keys().next().value as string);
@@ -136,6 +138,7 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
     counts: state?.counts ?? null,
     degraded: state?.degraded ?? false,
     loading: state === null && error === null,
+    current: state?.key === key,
     error,
     hasMore: Boolean(state?.next),
     loadMore,
