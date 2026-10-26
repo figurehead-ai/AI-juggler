@@ -87,6 +87,9 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("features/app/crash::end_watchdog", CHILD),
     ("features/conversations/scan::open_files", CHILD),
     ("features/quota/probe::run", CHILD),
+    // E19 (AJ-E1906): the `gh` look-up it started itself, stopped past its
+    // time limit; never anything else.
+    ("features/tasks/issues::ask_gh", CHILD),
     // E23 (ADR-0022): a driven session's own process, through the
     // supervisor: the one it just started when its protocol didn't answer
     // (the start falls back to the terminal), one handed over to the
@@ -114,6 +117,8 @@ const SIGNALLING_COMMANDS: &[(&str, &[&str])] = &[
     ("session_prefs_set", &[CHILD]),
     ("quota_probe_turn_on", &[CHILD]),
     ("quota_probe_run", &[CHILD]),
+    // E19: an issue's title through the user's own `gh` (its own child).
+    ("tasks_look_up", &[CHILD]),
     // E23: every start goes through the one spawn path, whose driven try
     // stops the process it just started when its protocol doesn't answer
     // (`try_driven`, through `Supervisor::stop`); a hand-over and a resume
@@ -122,6 +127,8 @@ const SIGNALLING_COMMANDS: &[(&str, &[&str])] = &[
     ("epoch_resume", &[SESSION]),
     ("parked_resume", &[SESSION]),
     ("packs_open_start", &[SESSION]),
+    // E19: "Start a session for it…" goes through the one spawn path.
+    ("tasks_start", &[SESSION]),
     ("runtime_handover", &[SESSION]),
     ("runtime_resume", &[SESSION]),
 ];
