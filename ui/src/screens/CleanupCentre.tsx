@@ -3,7 +3,7 @@ import { Page } from "../components/Page";
 import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
 import { Button, CleanupEmpty } from "../components/ProcessRow";
-import { GroupBlock, machineWords, type CleanupGroupInfo } from "../components/CleanupGroup";
+import { GroupBlock, groupTitle, machineWords, type CleanupGroupInfo } from "../components/CleanupGroup";
 import { errorText, statsEvent, type InstanceInfo } from "../lib/bridge";
 
 /**
@@ -204,6 +204,7 @@ export function CleanupCentre(props: {
   const resuming = useRef(false);
   const [killTarget, setKillTarget] = useState<{
     session: string;
+    where?: string;
     pid: number;
     goalPort: number | null;
     trigger: HTMLElement;
@@ -508,13 +509,14 @@ export function CleanupCentre(props: {
                     // through the same verified path as every row).
                     const target = (data?.groups ?? [])
                       .flatMap((group) =>
-                        group.rows.map((row) => ({ row, session: group.session })),
+                        group.rows.map((row) => ({ row, session: group.session, group })),
                       )
                       .find(({ row }) => row.pid === alert.pid);
                     if (!target) return;
                     statsEvent("resource.alert", { kind: "memory_hog", action: "acted" });
                     setKillTarget({
                       session: target.session,
+                      where: groupTitle(target.group, props.sessions?.find((s) => s.id === target.session), Date.now()),
                       pid: target.row.pid,
                       goalPort:
                         target.row.ports !== null &&
@@ -576,6 +578,7 @@ export function CleanupCentre(props: {
               onKill={(row, session, trigger) =>
                 setKillTarget({
                   session,
+                  where: groupTitle(group, props.sessions?.find((s) => s.id === group.session), Date.now()),
                   pid: row.pid,
                   goalPort:
                     row.ports !== null && row.ports.split(",").length === 1
@@ -594,6 +597,7 @@ export function CleanupCentre(props: {
       {killTarget !== null && (
         <KillSheet
           session={killTarget.session}
+          where={killTarget.where}
           pid={killTarget.pid}
           goalPort={killTarget.goalPort}
           trigger={killTarget.trigger}

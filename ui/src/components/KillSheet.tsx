@@ -122,6 +122,9 @@ type Phase = "verifying" | "ready" | "refused" | "running" | "report";
 
 export function KillSheet(props: {
   session: string;
+  /** Where the process is, in words ("web-app · Fix the login test · ended
+   * 2 h ago"); never the session's id. */
+  where?: string;
   pid: number;
   goalPort?: number | null;
   /** The originating row's element — focus returns here on close. */
@@ -321,15 +324,8 @@ export function KillSheet(props: {
         <div className="flex items-start justify-between gap-4 border-b border-hairline p-4">
           <div>
             <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="mt-0.5 font-mono text-label text-muted">
-              Session {props.session}
-              {verify?.machine_id ? ` · ${verify.machine_id}` : ""}
-              {verify !== null && verify.account_id !== null
-                ? ` · ${verify.account_id}`
-                : ""}
-              {verify !== null && verify.project_id !== null
-                ? ` · ${verify.project_id}`
-                : ""}
+            <p className="mt-0.5 text-label text-muted" data-testid="sheet-where">
+              {props.where ?? "In this session"}
             </p>
           </div>
           <button
