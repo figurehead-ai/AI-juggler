@@ -136,14 +136,17 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
   );
 }
 
-/** One open ask. `title` names its session when shown among others. */
-export function AskCard({ ask, title, onAnswered }: { ask: AskInfo; title?: string; onAnswered?: () => void }): JSX.Element {
+/** One open ask. `title` names its session when shown among others.
+ * `answer` carries the click elsewhere (E18: an agent's held message
+ * goes to the pool's ask, not a tool's); the card is the same. */
+export function AskCard({ ask, title, kindLabel, answer, onAnswered }: { ask: AskInfo; title?: string; kindLabel?: string; answer?: (option: string) => Promise<void>; onAnswered?: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const send = (answer: Parameters<typeof runtimeAnswer>[2]) => {
+  const send = (reply: Parameters<typeof runtimeAnswer>[2]) => {
     setBusy(true);
     setError(null);
-    void runtimeAnswer(ask.session_id, ask.id, answer).then(
+    const sent = answer && reply.option ? answer(reply.option) : runtimeAnswer(ask.session_id, ask.id, reply);
+    void sent.then(
       () => {
         setBusy(false);
         onAnswered?.();
@@ -170,21 +173,23 @@ export function AskCard({ ask, title, onAnswered }: { ask: AskInfo; title?: stri
       className="flex flex-col gap-2 rounded-lg border border-warning/30 bg-warning-soft/40 p-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="ask-card"
       data-ask={ask.id}
-      aria-label={`${kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}
+      aria-label={`${kindLabel ?? kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[10px] uppercase tracking-wider text-warning">
-          {kindWords(ask)}
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-warning">
+          {kindLabel ?? kindWords(ask)}
           {title ? ` · ${title}` : ""}
         </span>
-        {ask.kind === "approval" ? (
+        {kindLabel ? (
+          <span className="text-[14px] text-ink">{ask.summary}</span>
+        ) : ask.kind === "approval" ? (
           <code className="truncate font-mono text-[12px] text-ink" title={ask.summary}>
             {ask.summary}
           </code>
         ) : (
           ask.parts.length === 0 && <span className="text-[12px] text-ink">{ask.summary}</span>
         )}
-        {ask.reason && <span className="text-[11px] text-muted">{ask.reason}</span>}
+        {ask.reason && <span className="whitespace-pre-wrap text-[13px] text-muted">{ask.reason}</span>}
       </div>
       {ask.kind === "approval" ? (
         <Approval ask={ask} busy={busy} answer={(option) => send({ option })} />
@@ -194,7 +199,7 @@ export function AskCard({ ask, title, onAnswered }: { ask: AskInfo; title?: stri
         <p className="text-[11px] text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>
       )}
       {error && (
-        <p role="alert" className="text-[11px] text-danger">
+        <p role="alert" className="text-[12px] text-danger">
           {error}
         </p>
       )}
