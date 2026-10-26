@@ -179,13 +179,20 @@ export const test = base.extend({
       }
       return;
     }
+    const shoot = page.screenshot.bind(page);
     if (!ON) {
+      // The evidence gallery's captures settle too (a capture that raced
+      // the first page load differed from run to run).
+      page.screenshot = (async (options?: Parameters<typeof page.screenshot>[0]) => {
+        await settle(page);
+        return shoot(options);
+      }) as typeof page.screenshot;
       await use(page);
       return;
     }
     const scans: Scan[] = [];
-    const shoot = page.screenshot.bind(page);
     page.screenshot = (async (options?: Parameters<typeof page.screenshot>[0]) => {
+      await settle(page);
       if (options?.path) {
         const findings = await scan(page);
         const counts: Record<string, number> = { critical: 0, serious: 0, moderate: 0, minor: 0 };
