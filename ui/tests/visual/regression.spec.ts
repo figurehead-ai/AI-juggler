@@ -391,7 +391,7 @@ for (const theme of THEMES) {
     await expect(pinned).toContainText("the login fix");
     // A row is two layers (its page's button, and the visible line over
     // it): the mark is on the line, the row's other child.
-    await expect(rail.locator("[data-rail-row]").filter({ has: pinned }).getByTestId("pin-mark")).toBeVisible();
+    await expect(rail.locator("[data-rail-row]").filter({ has: page.locator('[data-instance-id="sess-6"]') }).getByTestId("pin-mark")).toBeVisible();
     await expect(pinned).toHaveAccessibleName(/^Ended, the login fix, pinned, /);
     // Under AI Juggler's place in Open now, its first row — not folded
     // into "Also: n ended today".
