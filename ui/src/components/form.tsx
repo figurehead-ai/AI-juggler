@@ -63,14 +63,18 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  table = false,
   testId,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
-  /** A wider sheet (lists, tables). */
+  /** A wider sheet (lists). */
   wide?: boolean;
+  /** 0.1.7: a sheet for a table with many columns: as wide as the window
+   * allows up to 64rem, never taller than the window. */
+  table?: boolean;
   testId?: string;
 }) {
   const titleId = useId();
@@ -120,7 +124,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={testId}
-        className={`sheen w-full ${wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
+        className={`sheen w-full ${table ? "flex max-h-full max-w-5xl flex-col" : wide ? "max-w-2xl" : "max-w-md"} rounded-card border border-hairline bg-surface
           shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)] p-5`}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -138,7 +142,9 @@ export function Modal({
             </svg>
           </button>
         </div>
-        <div data-modal-body>{children}</div>
+        <div data-modal-body className={table ? "flex min-h-0 flex-1 flex-col" : undefined}>
+          {children}
+        </div>
       </div>
     </div>
   );

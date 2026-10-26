@@ -1455,7 +1455,11 @@ export interface CostRollupsData {
   subscription: SubscriptionViewData;
   pricing_stale: boolean;
   pricing_last_synced_ms: number | null;
+  /** Every model with a list price, summed; null when none has one. */
   total_usd: number | null;
+  /** 0.1.7: the models with no list price (null: a model not recorded),
+   * left out of the total and named beside it. */
+  unpriced_models: (string | null)[];
   scope: string;
 }
 
@@ -1570,6 +1574,7 @@ export async function costRollups(account?: string): Promise<CostRollupsData> {
         pricing_stale: false,
         pricing_last_synced_ms: null,
         total_usd: null,
+        unpriced_models: [],
         scope: account ?? "ALL",
       }
     );

@@ -10,7 +10,7 @@ Why: the 0.0.12 QA walk (P15) found the seed priced only `claude-opus-4` and `cl
 |---|---|---|---|
 | Anthropic | https://platform.claude.com/docs/en/about-claude/pricing (the "Model pricing" table) | 2026-10-21 | Verified-primary |
 | Anthropic (model IDs) | https://platform.claude.com/docs/en/about-claude/models/overview | 2026-10-21 | Verified-primary |
-| OpenAI | https://developers.openai.com/api/docs/pricing (Standard tier; "Specialized models" for Codex) | 2026-10-21 | Verified-primary |
+| OpenAI | https://developers.openai.com/api/docs/pricing (Standard tier; "Specialized models" for Codex) | 2026-10-21; gpt-6.1-terra 2026-10-26 | Verified-primary |
 
 `docs.claude.com/…/pricing` redirects to the Anthropic page above. `platform.openai.com/docs/pricing` redirects to the OpenAI page above.
 
@@ -40,6 +40,7 @@ Other facts from the Anthropic pages:
 | Model | Input | Output | Cached input |
 |---|---|---|---|
 | gpt-6-astra | 10.00 | 50.00 | 1.00 |
+| gpt-6.1-terra (added 2026-10-26) | 1.00 | 5.00 | 0.05 |
 | gpt-6.1-sol | 2.00 | 10.00 | 0.10 |
 | gpt-6-sol | 2.00 | 10.00 | 0.20 |
 | gpt-6-luna | 0.10 | 0.50 | 0.01 |
@@ -69,7 +70,7 @@ The gaps below are labelled **Inferred** where they rest on our reading rather t
 - **Pricing modifiers:** Fast mode, US-only inference (1.1×) and Batch discounts are not modelled.
 - **OpenAI long context:** requests over 272K input tokens cost more. The table has short-context rates only, so such requests are under-priced.
 - **OpenAI cache writes:** their 30-minute and 12-hour prices are not modelled (cache-write rate 0). Codex's `cache_write_input_tokens` is stored apart from input, and whether it is also inside `input_tokens` is not stated on the protocol page we read (Inferred).
-- **Codex models with no row on the page** stay unpriced. This covers older `gpt-5-codex`, `gpt-5.1-codex*`, `gpt-5.2-codex` and `codex-mini-latest`, and `codex-auto-review`, which the QA oracle saw in real use (252 rows). The page has no row by that name (checked 2026-10-21).
+- **Codex models with no row on the page** stay unpriced. This covers older `gpt-5-codex`, `gpt-5.1-codex*`, `gpt-5.2-codex` and `codex-mini-latest`, and `codex-auto-review`, which the QA oracle saw in real use (252 rows). The page has no row by that name (checked 2026-10-21, and again 2026-10-26). Third-party price lists quote a rate for it, but no OpenAI page does, so it stays unpriced: never a guess (D-06). Usage's Prices and details names it as having no list price, and its total leaves it out in words.
 - **Left out of the seed:** retired models (Claude Haiku 3.5), limited-availability models (Claude Mythos) and "pro" models.
 - **Reasoning tokens:** Codex's reasoning tokens are stored apart from output (P14) and priced at the output rate.
 

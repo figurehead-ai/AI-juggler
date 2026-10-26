@@ -212,6 +212,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Usage › Prices and details shows prices (0.1.7). It leads with the
+  total at API list prices, what you pay and the models with no list
+  price; then one row per session and day, named by its title and
+  project (never its id), with the estimate right after the model and the
+  session's models folded into one row you can open. Nothing scrolls
+  sideways, rows keep one height, a model with no list price reads "No
+  list price", and the total stays under the dollar column. The total
+  was one model's one day before, and vanished once any model had no
+  list price; it now sums every priced model and names the others.
+  gpt-6.1-terra has its OpenAI list price; codex-auto-review has none
+  published and stays unpriced.
 - Usage shows each account's sessions left and its burn-down again,
   under its runway card: "About 6 usual sessions left (each about 10%)",
   the chart, and when this pace runs out. The new Usage dashboard had

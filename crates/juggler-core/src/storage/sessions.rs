@@ -389,6 +389,22 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
+    /// 0.1.7: the user's label of each session that has one and knows
+    /// its conversation, `(conversation, label)` (the cost table names a
+    /// session as the rail does). Only labelled sessions: a few rows.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn conversation_labels(&self) -> Result<Vec<(String, String)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT conversation_id, label FROM instances
+              WHERE conversation_id IS NOT NULL AND label IS NOT NULL",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
     /// Each session's conversation, `(conversation, session)`: one cheap
     /// read for the conversations list (never the sessions' whole rows).
     ///
