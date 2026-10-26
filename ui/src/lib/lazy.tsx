@@ -28,6 +28,12 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
   return Loaded as unknown as M[K];
 }
 
+/** Reads a main screen's first data in the same idle queue, after the
+ * parts opened first (0.1.5 review: a screen opened blank for seconds). */
+export function prefetchData(load: () => Promise<unknown>): void {
+  loaders.push({ load, first: false });
+}
+
 let started = false;
 
 /** Fetches every lazily loaded part, one at a time in idle time, once the

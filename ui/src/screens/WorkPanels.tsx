@@ -90,7 +90,7 @@ export function SessionPanel({
           <button
             type="button"
             onClick={() => onOpenProject(project.id)}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink"
           >
             <IconProjects width={12} height={12} />
             {project.name}
@@ -98,7 +98,7 @@ export function SessionPanel({
         )}
         <div className="ml-auto flex items-center gap-2">
           {session && !isLive(session.status) && !isLoginTerminal && (
-            <span className="text-[11px] text-faint">
+            <span className="text-label text-muted">
               ran {since(session.started_at_ms)} · scrollback replayed
             </span>
           )}
@@ -123,7 +123,7 @@ export function SessionPanel({
         {terminalId ? (
           <TerminalView id={terminalId} title={title} status={status ?? undefined} ended={!status && !live} />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-faint">
+          <div className="flex h-full items-center justify-center text-xs text-muted">
             Desktop harnesses open their own window — focus controls arrive
             with the desktop adapter.
           </div>
@@ -133,7 +133,7 @@ export function SessionPanel({
       {isLoginTerminal && !live && (
         <Card className="flex items-center gap-3 p-3">
           <span className="dot-live size-1.5 rounded-full bg-live" />
-          <p className="text-[11px] leading-relaxed text-muted">
+          <p className="text-label leading-relaxed text-muted">
             Complete Anthropic's sign-in above, then check the account again
             from <span className="text-ink">Accounts</span> — it flips to
             ready.
@@ -143,7 +143,7 @@ export function SessionPanel({
 
       {!isLoginTerminal && session && (
         <div className="flex flex-col gap-2">
-          <p className="text-[11px] uppercase tracking-wider text-faint">
+          <p className="text-section font-semibold text-ink">
             Continue on another account
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -166,10 +166,10 @@ export function SessionPanel({
                         : "Needs sign-in first (Ready home)"
                     }
                     className={
-                      "rounded-lg border px-2.5 py-1.5 text-[11px] transition-colors " +
+                      "rounded-lg border px-2.5 py-1.5 text-label transition-colors " +
                       (ready
                         ? "border-accent/30 bg-accent-soft text-accent-hi hover:border-accent/50"
-                        : "border-hairline/50 text-faint")
+                        : "border-hairline/50 text-muted")
                     }
                   >
                     {recipe.account_label}
@@ -178,12 +178,12 @@ export function SessionPanel({
                 );
               })}
             {profiles.filter((p) => p.id !== session.launch_recipe_id).length === 0 && (
-              <p className="text-[11px] text-faint">
+              <p className="text-label text-muted">
                 Add another account to juggle between them.
               </p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-faint">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-label text-muted">
             <span>tool: <span className="text-muted">{providerDisplayName(session.provider)}</span></span>
             <span>age: <span className="text-muted">{since(session.started_at_ms)}</span></span>
             <span className="ml-auto">context moves with the session — transcript copied, then resumed</span>
@@ -239,13 +239,13 @@ export function NewSessionModal({
           it at a directory to make (or reuse) a project.
         </p>
 
-        <label className="mt-4 block text-[11px] uppercase tracking-wider text-faint">
+        <label className="mt-4 block text-section font-semibold text-ink">
           Directory (optional)
           <input
             value={directory}
             onChange={(event) => setDirectory(event.target.value)}
             placeholder="~/Dev/my-project"
-            className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 font-mono text-xs text-ink outline-none placeholder:text-faint focus:border-accent/50"
+            className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted focus:border-accent/50"
           />
         </label>
 
@@ -260,10 +260,10 @@ export function NewSessionModal({
             >
               <IconTerminal width={13} height={13} />
               <span className="font-medium">{recipe.account_label}</span>
-              <span className="text-faint">·</span>
+              <span className="text-muted">·</span>
               <span className="text-muted">{launchSettingsName(recipe.name)}</span>
               {recipe.model && (
-                <span className="ml-auto font-mono text-[10px] text-faint">{recipe.model}</span>
+                <span className="ml-auto font-mono text-label text-muted">{recipe.model}</span>
               )}
             </button>
           ))}

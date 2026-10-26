@@ -511,6 +511,27 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         Some(serde_json::Value::Object(value))
     }
 
+    fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
+        let bin = self.resolve_bin()?;
+        let mut env = EnvMap::new();
+        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        unset_inherited_credentials(&mut env);
+        // An empty folder of AI Juggler's own: run in the profile, Claude
+        // would treat it as a project (a trust prompt, a projects/ entry).
+        let cwd = self
+            .overlays_root
+            .as_ref()
+            .map(|root| root.join("limits-probe"))
+            .filter(|dir| std::fs::create_dir_all(dir).is_ok())?;
+        Some(LaunchSpec {
+            program: bin,
+            args: crate::claude_limits::usage_probe_args(),
+            env,
+            cwd,
+            needs_pty: false,
+        })
+    }
+
     fn session_process(
         &self,
         exe: Option<&Path>,

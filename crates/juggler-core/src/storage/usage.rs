@@ -13,6 +13,9 @@ use crate::error::CoreError;
 use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
+mod cost_pages;
+pub use cost_pages::{CostBucket, bucket_key};
+
 /// Append-only usage store over an open connection (single writer,
 /// like every storage repo).
 pub struct UsageRepo<'a> {
@@ -318,6 +321,67 @@ impl UsageRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// Appends vendor samples with where each came from, in ONE
+    /// transaction (`INSERT OR REPLACE` on both rows: reading the same
+    /// instant again changes nothing).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the transaction
+    /// rolls back atomically.
+    pub fn insert_sourced_samples(
+        &self,
+        samples: &[(String, WindowKind, QuotaSample, UsageSource)],
+    ) -> Result<(), CoreError> {
+        let tx = write_transaction(self.conn)?;
+        for (account, kind, sample, source) in samples {
+            UsageRepo { conn: &tx }.insert_sample(account, *kind, sample)?;
+            tx.execute(
+                "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![account, kind.as_str(), sample.ts, source.as_str()],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// [`Self::samples_for_account`] with each sample's source, oldest
+    /// first (`None`: stored before sources were kept).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn sourced_samples_for_account(
+        &self,
+        account: &str,
+        kind: WindowKind,
+    ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source
+             FROM quota_samples q
+             LEFT JOIN quota_sample_sources s
+               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+             WHERE q.account = ?1 AND q.window = ?2
+             ORDER BY q.ts",
+        )?;
+        let rows = stmt.query_map(params![account, kind.as_str()], |row| {
+            Ok((
+                QuotaSample {
+                    ts: row.get(0)?,
+                    used_pct: row.get(1)?,
+                    resets_at: row.get(2)?,
+                    confidence: parse_confidence(&row.get::<_, String>(3)?),
+                },
+                row.get::<_, Option<String>>(4)?
+                    .as_deref()
+                    .and_then(UsageSource::parse),
+            ))
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
     /// Every sample for one account and window (the §Q8 store keys
     /// `(account, window, ts)` — a five-hour sample must never pollute
     /// the weekly reading).
@@ -600,7 +664,18 @@ fn from_sql(count: i64) -> u64 {
 ///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
 ///   dropped and made again at each open, so a change to them always
 ///   lands.
+/// - `quota_sample_sources`: where each `quota_samples` row came from (a
+///   status line, a rollout, the tool's desktop app, its own cached
+///   reading, a limit hit), keyed like the row. Kept beside the numbered
+///   table, so no migration of its own; a row without one predates it.
 pub(crate) const DERIVED: &str = "
+CREATE TABLE IF NOT EXISTS quota_sample_sources (
+    account TEXT NOT NULL,
+    window TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS usage_holders (
     account TEXT NOT NULL,
     msg_uuid TEXT NOT NULL,
@@ -1161,5 +1236,57 @@ mod tests {
             "quota_cap:acc-1:five_hour"
         );
         assert_eq!(anchor_settings_key("acc-1"), "quota_anchor:acc-1");
+    }
+
+    #[test]
+    fn a_sample_keeps_where_it_came_from_and_reading_it_again_changes_nothing() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let usage = storage.usage();
+        let sample = |ts: i64| QuotaSample {
+            ts,
+            used_pct: 40.0,
+            resets_at: None,
+            confidence: Confidence::Measured,
+        };
+        // One from before sources were kept.
+        usage
+            .insert_sample("acc", WindowKind::FiveHour, &sample(1))
+            .unwrap();
+        let batch = vec![
+            (
+                "acc".to_owned(),
+                WindowKind::FiveHour,
+                sample(2),
+                UsageSource::DesktopApp,
+            ),
+            (
+                "acc".to_owned(),
+                WindowKind::Weekly { anchor_ms: None },
+                sample(2),
+                UsageSource::UsageCache,
+            ),
+        ];
+        usage.insert_sourced_samples(&batch).unwrap();
+        usage.insert_sourced_samples(&batch).unwrap();
+        let five = usage
+            .sourced_samples_for_account("acc", WindowKind::FiveHour)
+            .unwrap();
+        assert_eq!(
+            five.iter().map(|(s, src)| (s.ts, *src)).collect::<Vec<_>>(),
+            vec![(1, None), (2, Some(UsageSource::DesktopApp))]
+        );
+        let week = usage
+            .sourced_samples_for_account("acc", WindowKind::Weekly { anchor_ms: None })
+            .unwrap();
+        assert_eq!(week.len(), 1);
+        assert_eq!(week[0].1, Some(UsageSource::UsageCache));
+        // The plain read sees the same rows.
+        assert_eq!(
+            usage
+                .samples_for_account("acc", WindowKind::FiveHour)
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

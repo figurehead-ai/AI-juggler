@@ -69,13 +69,13 @@ export function FoldedNeeds({ rows, snooze, now }: { rows: InstanceInfo[]; snooz
   const danger = rows.some((row) => !isSnoozed(row, snooze, now) && attentionBadge(row)?.tone === "danger");
   return (
     <span
-      className={"flex items-center gap-1 text-[10px] font-semibold " + (danger ? "text-danger" : "text-warning")}
+      className={"flex items-center gap-1 text-label font-semibold " + (danger ? "text-danger" : "text-warning")}
       data-testid="rail-folded-needs"
     >
       <span
         aria-hidden="true"
         className={
-          "flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold " +
+          "flex size-3.5 items-center justify-center rounded-full text-label font-bold " +
           (danger ? "bg-danger text-white" : "bg-warning text-black")
         }
       >
@@ -96,7 +96,8 @@ export function FoldButton({
 }: {
   open: boolean;
   label: string;
-  controls: string;
+  /** The folded part's id, when it is one element. */
+  controls?: string;
   onToggle: () => void;
 }): JSX.Element {
   return (
@@ -106,7 +107,7 @@ export function FoldButton({
       aria-expanded={open}
       aria-controls={controls}
       aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="rail-fold"
     >
       <svg

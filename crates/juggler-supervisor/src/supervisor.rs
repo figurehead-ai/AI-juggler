@@ -469,10 +469,8 @@ impl Supervisor {
         {
             self.settle_identity(session, spawned.pid, handle);
         }
-        let _ = self.events_tx.send(LifecycleEvent::Started {
-            session: session.clone(),
-            pid: spawned.pid,
-        });
+        // `Started` was sent by the spawn path itself (`announce`), before
+        // the wait thread that sends the exit existed.
         Ok((spawned, pipes))
     }
 
@@ -556,15 +554,11 @@ impl Supervisor {
             journal.record_spawned(session, pid, &launch.program, identity.as_ref())?;
         }
         self.settle_identity(session, pid, handle);
-        let _ = self.events_tx.send(LifecycleEvent::Started {
-            session: session.clone(),
-            pid,
-        });
 
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        let events = self.announce(session, pid);
         let done = Arc::clone(&finished);
         std::thread::spawn(move || {
             let status = child.lock().ok().and_then(|mut c| c.wait().ok());
@@ -663,7 +657,7 @@ impl Supervisor {
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        let events = self.announce(session, pid);
         let done = Arc::clone(&finished);
         let exit_timer = Arc::clone(&exit_at);
         std::thread::spawn(move || {
@@ -718,6 +712,14 @@ impl Supervisor {
         })
     }
 
+    /// Sends `session`'s Started, then returns the sender its wait thread
+    /// reports the exit on: called before that thread exists, so a start
+    /// is never received after its exit.
+    fn announce(&self, session: &SessionId, pid: u32) -> std::sync::mpsc::Sender<LifecycleEvent> {
+        let _ = self.events_tx.send(LifecycleEvent::started(session, pid));
+        self.events_tx.clone()
+    }
+
     #[allow(clippy::needless_pass_by_value)] // Arc handles are moved intentionally
     /// Registers a child handle; `parts.pty` and `parts.last_output_ms`
     /// come from the caller because the PTY path starts its reader before
@@ -758,10 +760,13 @@ impl Supervisor {
     /// group member goes through [`crate::tree::terminate_group`]:
     /// TERM, the grace window, then KILL for TERM-ignorers.
     ///
+    /// Signals a pid only while it still names our process (`stop_guard`).
+    ///
     /// # Errors
     ///
-    /// Returns [`SupervisorError::UnknownSession`] when the id is not
-    /// supervised.
+    /// [`SupervisorError::UnknownSession`] when the id is not supervised;
+    /// [`SupervisorError::Unverifiable`] (nothing signalled) when an
+    /// adopted root no longer matches its recorded identity.
     pub fn stop(&self, session: &SessionId, grace: Duration) -> Result<(), SupervisorError> {
         let handle = self
             .children
@@ -770,44 +775,41 @@ impl Supervisor {
             .get(session)
             .cloned()
             .ok_or_else(|| SupervisorError::UnknownSession(session.clone()))?;
-
+        let adopted = self
+            .adopted
+            .lock()
+            .map_or(true, |all| all.contains_key(session));
+        let identity = handle.identity.lock().ok().and_then(|id| id.clone());
+        let finished = handle.finished.load(Ordering::Acquire);
+        let (root_ours, group_ours) =
+            crate::stop_guard::stop_targets(handle.pid, finished, identity.as_ref(), adopted);
+        if adopted && !root_ours {
+            return Err(SupervisorError::Unverifiable { pid: handle.pid });
+        }
         if let Ok(mut stopped) = self.user_stopped.lock() {
             stopped.retain(|id| id != session);
             stopped.push(session.clone());
         }
-        send_terminate(handle.pid);
+        if !group_ours {
+            return Ok(()); // reaped, and its number now names a stranger
+        }
+        if root_ours {
+            send_terminate(handle.pid);
+        }
 
-        // The rest of the group: the verified ladder. The root is
-        // excluded — a dead-but-unreaped root would make the ladder
-        // escalate on a corpse. Refusals surface honestly on the next
-        // reconciler tick as orphans (AJ-E504); session stop's report
-        // remains the Exited lifecycle event.
-        //
-        // GROUP GUARD: the ladder applies ONLY to the child's OWN
-        // group (`pgid == pid` — the deterministic-kill group the
-        // piped path creates, AJ-E502). A child that never became a
-        // leader (PTY/desktop paths, or a wrapper that `setsid`'d)
-        // shares SOMEONE ELSE's group — signaling it would TERM
-        // strangers, up to and including this process (the desktop
-        // suite's three stop() calls caught exactly that).
-        let helpers: Vec<u32> = handle
-            .pgid
-            .filter(|pgid| *pgid == handle.pid)
-            .map(crate::tree::pgid_members)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|pid| *pid != handle.pid)
-            .collect();
+        // The rest of the group: the verified ladder (`group_helpers`
+        // has the group guard).
+        let helpers = crate::stop_guard::group_helpers(handle.pid, handle.pgid);
         if !helpers.is_empty() {
             crate::tree::terminate_group(grace, move || helpers, || false);
         }
 
         let deadline = Instant::now() + grace;
-        while Instant::now() < deadline && !handle.finished.load(Ordering::Acquire) {
+        while root_ours && Instant::now() < deadline && !handle.finished.load(Ordering::Acquire) {
             // poll: waiting out the stop grace for the child to finish
             std::thread::sleep(Duration::from_millis(10));
         }
-        if !handle.finished.load(Ordering::Acquire) {
+        if root_ours && !handle.finished.load(Ordering::Acquire) {
             (handle.force_kill)();
         }
         Ok(())
@@ -1799,5 +1801,122 @@ mod exit_after_output_tests {
             took < EXIT_OUTPUT_DRAIN + Duration::from_secs(5),
             "reported after {took:?}"
         );
+    }
+}
+
+/// D-01: the session stop signals a pid only while it still names our
+/// process. An adopted root whose start time no longer matches (its
+/// number was reused) and a reaped child whose number now names
+/// someone else are both left alone.
+#[cfg(all(test, unix))]
+mod stop_identity_tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+    use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use juggler_core::model::SessionId;
+
+    use super::{ChildHandle, DEFAULT_RING_CAPACITY, Supervisor};
+    use crate::error::SupervisorError;
+    use crate::ring::OutputRing;
+
+    /// A handle for `pid` with `identity`, recording whether the stop
+    /// ever reached for its force-kill.
+    fn handle(
+        pid: u32,
+        identity: Option<crate::tree::ProcessIdentity>,
+        finished: bool,
+    ) -> (Arc<ChildHandle>, Arc<AtomicBool>) {
+        let forced = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&forced);
+        let handle = Arc::new(ChildHandle {
+            pid,
+            pgid: None,
+            identity: Mutex::new(identity),
+            exit_at_ms: Arc::new(AtomicI64::new(0)),
+            ring: Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY))),
+            finished: Arc::new(AtomicBool::new(finished)),
+            last_output_ms: Arc::new(AtomicI64::new(0)),
+            force_kill: Arc::new(move || flag.store(true, Ordering::SeqCst)),
+            pty: None,
+        });
+        (handle, forced)
+    }
+
+    #[test]
+    fn a_recycled_adopted_root_is_refused_and_never_signalled() {
+        // The process that now holds the number.
+        let mut stranger = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = stranger.id();
+        let live = Supervisor::spawn_identity(pid, None).expect("readable");
+
+        // Control: the true identity is ours.
+        assert_eq!(
+            crate::stop_guard::stop_targets(pid, false, Some(&live), true),
+            (true, true)
+        );
+
+        // The record names an EARLIER process with this pid.
+        let recycled = crate::tree::ProcessIdentity {
+            start_time: live.start_time - 3_600,
+            ..live
+        };
+        let supervisor = Supervisor::new();
+        let session = SessionId::new("adopted-recycled");
+        let (forged, forced) = handle(pid, Some(recycled), false);
+        supervisor
+            .children
+            .lock()
+            .unwrap()
+            .insert(session.clone(), Arc::clone(&forged));
+        supervisor
+            .adopted
+            .lock()
+            .unwrap()
+            .insert(session.clone(), forged);
+        let refused = supervisor.stop(&session, Duration::from_millis(200));
+        assert!(
+            matches!(refused, Err(SupervisorError::Unverifiable { pid: p }) if p == pid),
+            "{refused:?}"
+        );
+        assert!(!forced.load(Ordering::SeqCst), "never force-killed");
+        assert!(stranger.try_wait().unwrap().is_none(), "never signalled");
+        stranger.kill().unwrap();
+        stranger.wait().unwrap();
+    }
+
+    #[test]
+    fn a_reaped_childs_number_held_by_someone_else_is_left_alone() {
+        let mut stranger = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = stranger.id();
+        // Our child under that number finished and was reaped; the
+        // number is live again, so neither it nor its group is ours.
+        let supervisor = Supervisor::new();
+        let session = SessionId::new("reaped-recycled");
+        let (reaped, forced) = handle(pid, None, true);
+        assert_eq!(
+            crate::stop_guard::stop_targets(pid, true, None, false),
+            (false, false)
+        );
+        supervisor
+            .children
+            .lock()
+            .unwrap()
+            .insert(session.clone(), reaped);
+        supervisor
+            .stop(&session, Duration::from_millis(200))
+            .unwrap();
+        assert!(!forced.load(Ordering::SeqCst), "never force-killed");
+        assert!(stranger.try_wait().unwrap().is_none(), "never signalled");
+        stranger.kill().unwrap();
+        stranger.wait().unwrap();
     }
 }

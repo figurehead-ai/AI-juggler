@@ -447,8 +447,8 @@ export async function onlyMac(page: import("@playwright/test").Page, value: stri
  * row's menu: Open its page). Quiet places shown, so its row is drawn. */
 export async function openOutsidePage(page: import("@playwright/test").Page): Promise<void> {
   await railViewAs(page, { group: "place", show: { quiet: true } });
-  await page.locator("[data-testid='rail'] [data-conversation-id]").first().click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Open its page" }).click();
+  // A row's click opens its page here (its ↗ is the way to its app).
+  await page.locator("[data-testid='rail'] [data-conversation-id]").first().click();
 }
 
 /**

@@ -138,6 +138,9 @@ pub struct MachineSample {
     pub memory_used: Option<u64>,
     /// What `memory_used` measures.
     pub memory_basis: MemoryBasis,
+    /// Of `memory_used`, what the compressor holds (the memory macOS keeps
+    /// compressed to make room), bytes; `None` where it isn't read.
+    pub memory_compressed: Option<u64>,
     /// The kernel's pressure level; `None` where the OS has none.
     pub pressure: Option<PressureLevel>,
     /// Swap size, bytes.
@@ -442,6 +445,18 @@ fn disk_reasons(volumes: &[VolumeSample], thresholds: &RoomThresholds) -> Vec<Ro
     reasons
 }
 
+/// Memory in use as one reading: the figure, what it measures, and the
+/// compressor's part of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MemoryReading {
+    /// Memory in use, bytes; `None` when the reading failed.
+    pub used: Option<u64>,
+    /// What `used` measures.
+    pub basis: MemoryBasis,
+    /// Of `used`, what the compressor holds, bytes; `None` where unknown.
+    pub compressed: Option<u64>,
+}
+
 /// The OS readings the sampler can't get from `sysinfo` — a seam so tests
 /// run without the real OS calls.
 pub trait OsReadings: Send {
@@ -458,6 +473,17 @@ pub trait OsReadings: Send {
             Some(total.saturating_sub(available)),
             MemoryBasis::TotalMinusAvailable,
         )
+    }
+    /// Memory in use with the compressor's part, from ONE read of the OS
+    /// (the sampler's call). By default, [`OsReadings::memory_in_use`] and
+    /// no compressed figure.
+    fn memory_reading(&self, total: u64, available: u64) -> MemoryReading {
+        let (used, basis) = self.memory_in_use(total, available);
+        MemoryReading {
+            used,
+            basis,
+            compressed: None,
+        }
     }
 }
 
@@ -556,12 +582,17 @@ impl OsReadings for HostReadings {
     /// total − available is far lower on macOS (inactive app pages count
     /// as available). If the reading fails, nothing — not the other
     /// measure under the same name.
-    fn memory_in_use(&self, total: u64, _available: u64) -> (Option<u64>, MemoryBasis) {
-        memory_parts().map_or((None, MemoryBasis::Unknown), |parts| {
-            (
-                Some(parts.total().min(total)),
-                MemoryBasis::AppWiredCompressed,
-            )
+    fn memory_in_use(&self, total: u64, available: u64) -> (Option<u64>, MemoryBasis) {
+        let reading = self.memory_reading(total, available);
+        (reading.used, reading.basis)
+    }
+
+    /// The parts read once: in use, and the compressor's share of it.
+    fn memory_reading(&self, total: u64, _available: u64) -> MemoryReading {
+        memory_parts().map_or_else(MemoryReading::default, |parts| MemoryReading {
+            used: Some(parts.total().min(total)),
+            basis: MemoryBasis::AppWiredCompressed,
+            compressed: Some(parts.compressed.min(total)),
         })
     }
 
@@ -687,15 +718,17 @@ impl MachineSampler {
             None
         };
         let total = self.system.total_memory();
-        let (memory_used, memory_basis) =
-            self.os.memory_in_use(total, self.system.available_memory());
+        let memory = self
+            .os
+            .memory_reading(total, self.system.available_memory());
         let sample = MachineSample {
             at_ms: now_ms,
             cpu_pct,
             memory_total: self.system.total_memory(),
             memory_available: self.system.available_memory(),
-            memory_used,
-            memory_basis,
+            memory_used: memory.used,
+            memory_basis: memory.basis,
+            memory_compressed: memory.compressed,
             pressure: self.os.pressure(),
             swap_total: self.system.total_swap(),
             swap_used: self.system.used_swap(),
@@ -890,6 +923,7 @@ mod tests {
             memory_available: available,
             memory_used: None,
             memory_basis: MemoryBasis::Unknown,
+            memory_compressed: None,
             pressure: Some(PressureLevel::Normal),
             swap_total: 8 * G,
             swap_used,
@@ -1167,6 +1201,58 @@ mod tests {
         );
     }
 
+    /// A seam that knows only memory in use: no compressed figure.
+    struct UsedOnly;
+
+    impl OsReadings for UsedOnly {
+        fn pressure(&self) -> Option<PressureLevel> {
+            Some(PressureLevel::Warning)
+        }
+        fn power(&self) -> Option<PowerState> {
+            None
+        }
+        fn thermal(&self) -> Option<ThermalState> {
+            None
+        }
+    }
+
+    /// A seam whose one reading carries the compressor's part.
+    struct WithCompressed;
+
+    impl OsReadings for WithCompressed {
+        fn pressure(&self) -> Option<PressureLevel> {
+            Some(PressureLevel::Warning)
+        }
+        fn power(&self) -> Option<PowerState> {
+            None
+        }
+        fn thermal(&self) -> Option<ThermalState> {
+            None
+        }
+        fn memory_reading(&self, total: u64, _available: u64) -> MemoryReading {
+            MemoryReading {
+                used: Some(total - G),
+                basis: MemoryBasis::AppWiredCompressed,
+                compressed: Some(47 * G),
+            }
+        }
+    }
+
+    #[test]
+    fn each_sample_carries_the_compressed_part_only_when_read() {
+        let mut sampler = MachineSampler::with_readings(Box::new(WithCompressed));
+        sampler.tick_with(0, Vec::new);
+        let latest = sampler.snapshot().latest.unwrap();
+        assert_eq!(latest.memory_compressed, Some(47 * G));
+        assert_eq!(latest.memory_used, Some(latest.memory_total - G));
+        // A seam without it: nothing, never a zero.
+        let mut sampler = MachineSampler::with_readings(Box::new(UsedOnly));
+        sampler.tick_with(0, Vec::new);
+        let latest = sampler.snapshot().latest.unwrap();
+        assert_eq!(latest.memory_compressed, None);
+        assert_eq!(latest.memory_basis, MemoryBasis::TotalMinusAvailable);
+    }
+
     #[test]
     fn words_for_bytes() {
         assert_eq!(bytes_words(3_200_000_000), "3.2 GB");
@@ -1206,6 +1292,11 @@ mod tests {
                 used.abs_diff(sum) <= total / 50,
                 "used {used} vs parts {sum}"
             );
+            // The compressor's part comes with the same reading, and is
+            // part of what's in use.
+            let reading = host.memory_reading(total, 0);
+            let compressed = reading.compressed.expect("read with the parts");
+            assert!(compressed <= reading.used.expect("read"));
         } else {
             let missing: Vec<&str> = MEMORY_SYSCTLS
                 .iter()

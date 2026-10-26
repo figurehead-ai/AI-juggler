@@ -37,13 +37,13 @@ export function NoAccounts(): JSX.Element {
 export function Status({ status, error }: { status: string | null; error: string | null }): JSX.Element | null {
   if (error)
     return (
-      <p className="text-[11px] text-danger" role="alert">
+      <p className="text-label text-danger" role="alert">
         {error}
       </p>
     );
   if (status)
     return (
-      <p className="text-[11px] text-muted" role="status">
+      <p className="text-label text-muted" role="status">
         {status}
       </p>
     );
@@ -81,13 +81,13 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         <CardTitle>Cleanup</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           AI Juggler tracks every process it starts. When one is left behind, it tells you; it only tidies up by
-          itself for an Account you've turned that on for, and only dev servers and watchers it verified as that
-          Account's. Shells, MCP servers and databases are never stopped automatically, and every stop is
+          itself for an account you've turned that on for, and only dev servers and watchers it verified as that
+          account's. Shells, MCP servers and databases are never stopped automatically, and every stop is
           recorded. Tidying after a crash waits 5 minutes and asks first, with Undo.
         </p>
       </div>
       <label className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-ink">Default for new Accounts</span>
+        <span className="font-medium text-ink">Default for new accounts</span>
         <select
           value={defaultOn === null ? "" : defaultOn ? "tidy" : "notify"}
           disabled={defaultOn === null}
@@ -135,7 +135,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         />
         <span className="flex flex-col gap-0.5">
           <span className="font-medium text-ink">Pause automatic cleanup</span>
-          <span className="text-muted">For every Account, until you turn this off. Nothing is stopped by itself while paused.</span>
+          <span className="text-muted">For every account, until you turn this off. Nothing is stopped by itself while paused.</span>
         </span>
       </label>
       {pausedError && (
@@ -196,10 +196,10 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
           Clear{" "}<span className="sr-only">the renewal date for {accountName(account)}</span>
         </Button>
       ) : (
-        <span className="text-[11px] text-muted">Not set: no renewal reminders</span>
+        <span className="text-label text-muted">Not set: no renewal reminders</span>
       )}
       {error && (
-        <span className="text-[11px] text-danger" role="alert">
+        <span className="text-label text-danger" role="alert">
           {error}
         </span>
       )}
@@ -224,7 +224,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         <CardTitle>Accounts &amp; renewal dates</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           When each subscription renews, if you want reminders. AI Juggler never reads your billing and never guesses
-          a date: an Account without one simply gets no renewal reminders.
+          a date: an account without one simply gets no renewal reminders.
         </p>
       </div>
       <label className="flex flex-wrap items-center gap-2 text-xs">

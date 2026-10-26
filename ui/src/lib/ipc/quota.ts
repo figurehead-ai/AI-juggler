@@ -29,6 +29,13 @@ export interface WindowDisplay {
   /** AJ-E1512: sessions left and the burn-down (absent without a measured
    * reading of a window that hasn't reset). */
   runway?: RunwayDisplay | null;
+  /** Where the reading behind it came from (`statusline`, `rollout`,
+   * `desktop_app`, `usage_cache`, `api_retry`), when known. */
+  source?: string | null;
+  /** That source in words, from the tool's spec ("the Claude app"). */
+  source_words?: string | null;
+  /** In `reset` only: what the last reading said, as history. */
+  last_used_pct?: number | null;
 }
 
 /** AJ-E1512: a window's runway — worked out from the vendor's readings of

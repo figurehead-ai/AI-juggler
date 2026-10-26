@@ -24,12 +24,12 @@ export type Line =
   | { kind: "plain"; item: RailItem };
 
 export const LINE_HEIGHT: Record<Line["kind"], number> = {
-  section: 28,
-  need: 46,
+  section: 30,
+  need: 64,
   header: 32,
-  row: 42,
+  row: 46,
   more: 24,
-  also: 30,
+  also: 36,
   label: 26,
   plain: 42,
 };
@@ -134,6 +134,26 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     needs: needs.length,
     rows,
   };
+}
+
+/** The lines with Needs you or Open now folded: a folded section keeps
+ * its head (with its count) and drops its rows and places. */
+export function foldSections(lines: Line[], folded: ReadonlySet<"needs" | "open">): Line[] {
+  if (folded.size === 0) return lines;
+  let hiding = false;
+  return lines.filter((line) => {
+    if (line.kind === "section") {
+      hiding = folded.has(line.id);
+      return true;
+    }
+    if (line.kind === "also") hiding = false;
+    return !hiding;
+  });
+}
+
+/** Where a line starts, from the top of the list. */
+export function offsetOf(lines: Line[], index: number): number {
+  return lines.slice(0, index).reduce((sum, line) => sum + LINE_HEIGHT[line.kind], 0);
 }
 
 /** What each list shows now, to freeze it. */

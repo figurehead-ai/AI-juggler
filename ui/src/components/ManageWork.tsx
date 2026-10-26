@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { untitled } from "../lib/project-words";
 import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 import { Field, Input, Modal } from "./form";
@@ -26,11 +27,13 @@ export function sessionTitle(session: InstanceInfo): string {
   return session.label ?? session.title ?? ownTitle(session);
 }
 
-/** The title a session has without a label. */
+/** The title a session has without a label: its branch when the branch
+ * says what it was for ("fix/limits"), never one that says nothing
+ * ("main"), else "Untitled session · <project>" (the review of 0.1.4). */
 export function ownTitle(session: InstanceInfo): string {
   const cwd = session.cwd ?? "";
   const folder = cwd.replace(/\/+$/, "").split("/").pop() || cwd || session.account_label;
-  return session.git_branch ?? folder;
+  return untitled(session.git_branch, folder);
 }
 
 /** The editor projects open in (Settings), or null for Finder. */

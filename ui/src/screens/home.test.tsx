@@ -124,9 +124,10 @@ describe("D-25 Home — the screen", () => {
     );
     const home = getByTestId("home");
     // AJ-E2105: one sentence; the other counts are links under it.
-    expect(getByTestId("home-heading").textContent).toBe("2 things need you");
+    expect(getByTestId("home-heading").textContent).toBe("2 sessions need you");
     expect(getByTestId("home-counts").textContent).toContain("1 open");
-    fireEvent.click(within(home).getByRole("button", { name: /^Go to it/ }));
+    // Its page here (the maintainer's review of 0.1.4: a click never leaves).
+    fireEvent.click(within(home).getByRole("button", { name: /^Open its page/ }));
     expect(onOpenSession).toHaveBeenCalledWith("w");
     fireEvent.click(within(home).getByRole("button", { name: /^See what happened/ }));
     expect(onOpenSession).toHaveBeenCalledWith("f");
@@ -322,7 +323,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     }
     const { container } = render(<Stateful />);
     const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
-    // AJ-E2105: Needs you's Go to it, then the two to pick up (what runs
+    // AJ-E2105: Needs you's Open its page, then the two to pick up (what runs
     // is in the list and under Your apps).
     expect(rows()).toHaveLength(3);
     rows()[0]!.focus();

@@ -96,11 +96,9 @@ pub fn spawn_view_terminal(
     account: &juggler_core::model::Account,
     spec: &juggler_adapter::LaunchSpec,
 ) -> AppResult<TerminalInfo> {
-    let spec = crate::features::sessions::spawn::launched_spec(state, account, spec)?;
     let id = SessionId::new(format!("view-{}", unique_suffix()));
-    let mut ctx = crate::commands::ledger_ctx(state, account, None);
-    ctx.role = juggler_core::storage::ROLE_LOGIN;
-    state.supervisor.spawn(&id, &spec, &ctx)?;
+    // Its account's key, through the one spawn path.
+    crate::features::sessions::spawn::spawn_view(state, &id, account, spec)?;
     attach_forwarder(app, state, &id);
     Ok(TerminalInfo {
         id: id.as_str().to_string(),

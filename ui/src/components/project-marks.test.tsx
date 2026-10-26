@@ -117,9 +117,10 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 describe("a project's mark", () => {
   it("is its letters on its colour, a rounded square", () => {
     withMarks([project("p1", "acme-web", { mark: letters() })]);
-    render(<ProjectMark projectId="p1" size={20} />);
+    render(<ProjectMark projectId="p1" size={24} />);
     const mark = screen.getByTestId("mark-project");
     expect(mark.textContent).toBe("AW");
+    expect(Number.parseFloat(mark.style.fontSize)).toBeGreaterThanOrEqual(12);
     expect(mark.getAttribute("data-kind")).toBe("letters");
     const probe = document.createElement("span");
     probe.style.background = swatchColor(3);
@@ -144,7 +145,7 @@ describe("a project's mark", () => {
   });
 
   it("an emoji shows instead of the letters; a clone carries its number", () => {
-    render(<MarkTile mark={letters({ emoji: "🚀", shows: "emoji", clone: 2 })} icon={null} size={20} />);
+    render(<MarkTile mark={letters({ emoji: "🚀", shows: "emoji", clone: 2 })} icon={null} size={24} />);
     expect(screen.getByTestId("mark-project").textContent).toContain("🚀");
     expect(screen.getByTestId("mark-clone").textContent).toBe("2");
   });
@@ -163,12 +164,18 @@ describe("account avatars", () => {
       { id: "a-work", label: "claude-work" },
       { id: "a-personal", label: "claude-personal" },
     ]);
-    render(<AccountAvatar accountId="a-work" label="claude-work" />);
+    render(<AccountAvatar accountId="a-work" label="claude-work" size={24} />);
     const avatar = screen.getByTestId("account-avatar");
     expect(avatar.textContent).toBe("Wo");
     expect(avatar.title).toBe("claude-work");
     expect(avatar.className).toContain("rounded-full");
     expect(avatar.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("under 24 px is its colour alone, never letters under 12 px", () => {
+    render(<AccountAvatar accountId="a-work" label="claude-work" size={16} />);
+    expect(screen.getByTestId("account-avatar").textContent).toBe("");
+    expect(screen.getByTestId("account-avatar").title).toBe("claude-work");
   });
 
   it("stack up to three, the rest as +N, live ones ringed", () => {
@@ -205,7 +212,7 @@ describe("rows say which account serves them, in words", () => {
     render(<RailRow session={session("s1")} selected={false} onSelect={() => {}} density="comfortable" now={NOW} />);
     const row = screen.getByRole("button");
     expect(row.textContent).toContain("Claude Code on Work Max");
-    expect(within(row).getByTestId("account-avatar").textContent).toBe("WM");
+    expect(within(row).getByTestId("account-avatar").title).toBe("Work Max");
   });
 
   it("a session row shows its project's mark only where the list isn't grouped by project", () => {
@@ -213,7 +220,7 @@ describe("rows say which account serves them, in words", () => {
     const { rerender } = render(<RailRow session={session("s1")} selected={false} onSelect={() => {}} density="comfortable" now={NOW} />);
     expect(screen.queryByTestId("mark-project")).toBeNull();
     rerender(<RailRow session={session("s1")} showProject selected={false} onSelect={() => {}} density="comfortable" now={NOW} />);
-    expect(screen.getByTestId("mark-project").textContent).toBe("AW");
+    expect(screen.getByTestId("mark-project").getAttribute("data-kind")).toBe("letters");
   });
 
   it("a project's group: its mark, the accounts that worked there (live ringed), and their names", () => {
@@ -236,7 +243,7 @@ describe("rows say which account serves them, in words", () => {
       />,
     );
     const heading = screen.getByTestId("rail-project");
-    expect(within(heading).getByTestId("mark-project").textContent).toBe("AW");
+    expect(within(heading).getByTestId("mark-project").getAttribute("data-kind")).toBe("letters");
     expect(within(heading).getByTestId("account-avatar").getAttribute("data-live")).toBe("true");
     // The accounts describe the heading; its name stays the project's.
     expect(heading.textContent).not.toContain("Work Max");

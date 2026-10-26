@@ -409,8 +409,13 @@ fn parse_permission(wire: &str) -> AppResult<Permission> {
 ///
 /// Returns the typed [`AppError`] per [`pairing_host_open_impl`].
 #[tauri::command]
-pub fn pairing_host_open(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_host_open_impl(state.inner())
+pub async fn pairing_host_open(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<PairingStateInfo> {
+    crate::ipc::blocking(state.inner(), "pairing host open", move |state| {
+        pairing_host_open_impl(state)
+    })
+    .await
 }
 
 /// AJ-E704: the host's pairing state.
@@ -419,8 +424,13 @@ pub fn pairing_host_open(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Pa
 ///
 /// Returns the typed [`AppError`] when state is unavailable.
 #[tauri::command]
-pub fn pairing_host_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_host_state_impl(state.inner())
+pub async fn pairing_host_state(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<PairingStateInfo> {
+    crate::ipc::blocking(state.inner(), "pairing host state", move |state| {
+        pairing_host_state_impl(state)
+    })
+    .await
 }
 
 /// AJ-E704: the host user's decision.
@@ -429,24 +439,43 @@ pub fn pairing_host_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<P
 ///
 /// Returns the typed [`AppError`] per [`pairing_host_decide_impl`].
 #[tauri::command]
-pub fn pairing_host_decide(
+pub async fn pairing_host_decide(
     state: tauri::State<'_, Arc<AppState>>,
     commit: bool,
     permission: String,
 ) -> AppResult<PairingStateInfo> {
-    pairing_host_decide_impl(state.inner(), commit, parse_permission(&permission)?)
+    crate::ipc::blocking(state.inner(), "pairing host decide", move |state| {
+        pairing_host_decide_impl(state, commit, parse_permission(&permission)?)
+    })
+    .await
 }
 
 /// AJ-E704: closes "Add a machine".
 #[tauri::command]
-pub fn pairing_host_close(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_host_close_impl(state.inner());
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn pairing_host_close(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "pairing host close", move |state| {
+        pairing_host_close_impl(state);
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E704: re-enables pairing after the daily disable.
 #[tauri::command]
-pub fn pairing_re_enable(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_re_enable_impl(state.inner());
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn pairing_re_enable(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "pairing re enable", move |state| {
+        pairing_re_enable_impl(state);
+        Ok(())
+    })
+    .await
 }
 
 /// AJ-E704: starts joining a host.
@@ -480,8 +509,13 @@ pub async fn pairing_join_start(
 ///
 /// Returns the typed [`AppError`] when state is unavailable.
 #[tauri::command]
-pub fn pairing_join_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<PairingStateInfo> {
-    pairing_join_state_impl(state.inner())
+pub async fn pairing_join_state(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<PairingStateInfo> {
+    crate::ipc::blocking(state.inner(), "pairing join state", move |state| {
+        pairing_join_state_impl(state)
+    })
+    .await
 }
 
 /// AJ-E704: the joiner user's decision.
@@ -490,16 +524,27 @@ pub fn pairing_join_state(state: tauri::State<'_, Arc<AppState>>) -> AppResult<P
 ///
 /// Returns the typed [`AppError`] per [`pairing_join_decide_impl`].
 #[tauri::command]
-pub fn pairing_join_decide(
+pub async fn pairing_join_decide(
     state: tauri::State<'_, Arc<AppState>>,
     commit: bool,
     permission: String,
 ) -> AppResult<PairingStateInfo> {
-    pairing_join_decide_impl(state.inner(), commit, parse_permission(&permission)?)
+    crate::ipc::blocking(state.inner(), "pairing join decide", move |state| {
+        pairing_join_decide_impl(state, commit, parse_permission(&permission)?)
+    })
+    .await
 }
 
 /// AJ-E704: resets the joiner state.
 #[tauri::command]
-pub fn pairing_join_reset(state: tauri::State<'_, Arc<AppState>>) {
-    pairing_join_reset_impl(state.inner());
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn pairing_join_reset(state: tauri::State<'_, Arc<AppState>>) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "pairing join reset", move |state| {
+        pairing_join_reset_impl(state);
+        Ok(())
+    })
+    .await
 }

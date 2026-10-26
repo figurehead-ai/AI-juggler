@@ -422,8 +422,12 @@ fn the_accounts_page_shows_one_account_with_both_profiles() {
 
 #[test]
 fn every_session_starts_through_the_one_spawn_path() {
-    // The spawn path adds the key: a session started any other way would
-    // start without it, or another account's could be given it.
+    // The spawn path writes the row first, adds the bridge and the key,
+    // and ends a failed start's row: a session started any other way would
+    // start without its key, or another account's could be given it, or
+    // its exit could land before its row. Every supervisor spawn counts:
+    // a terminal or driven session's, a driven one over its pipes, a
+    // desktop app's.
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     common::source::sources(&src, &mut files);
@@ -434,24 +438,41 @@ fn every_session_starts_through_the_one_spawn_path() {
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect();
-        let count = flat.matches(".supervisor.spawn(").count();
-        if count > 0 {
-            let rel = path
-                .strip_prefix(&src)
-                .unwrap()
-                .to_string_lossy()
-                .into_owned();
-            found.push((rel, count));
+        let rel = path
+            .strip_prefix(&src)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        for call in [".supervisor.spawn(", ".spawn_driven(", ".spawn_desktop("] {
+            let count = flat.matches(call).count();
+            if count > 0 {
+                found.push((rel.clone(), call, count));
+            }
         }
     }
     found.sort();
     assert_eq!(
         found,
         [
-            // The account sessions' one path.
-            ("features/sessions/spawn.rs".to_owned(), 1),
+            // The one path: a desktop app's session (no runtime, bridge or
+            // key).
+            (
+                "features/sessions/spawn.rs".to_owned(),
+                ".spawn_desktop(",
+                1
+            ),
+            // A driven session over its stdin and stdout.
+            ("features/sessions/spawn.rs".to_owned(), ".spawn_driven(", 1),
+            // A session's process (its terminal, or a driven session
+            // serving a socket), and the tool's terminal view of a driven
+            // session's conversation (no row; its account's key).
+            (
+                "features/sessions/spawn.rs".to_owned(),
+                ".supervisor.spawn(",
+                2
+            ),
             // The tool's own sign-in, in a terminal (no session, no key).
-            ("terminal.rs".to_owned(), 1),
+            ("terminal.rs".to_owned(), ".supervisor.spawn(", 1),
         ]
     );
 }

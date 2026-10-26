@@ -65,11 +65,11 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
     <Card className="flex min-h-[280px] flex-1 flex-col gap-3 p-4" data-testid="driven-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <span className="text-[12px] text-ink" data-testid="runtime-line">
+          <span className="text-label text-ink" data-testid="runtime-line">
             Runs through {runtime?.label ?? "its tool's protocol"}
             {runtime?.beta ? " (Beta)" : ""}
           </span>
-          <span className="text-[11px] text-muted">
+          <span className="text-label text-muted">
             {state ? STATE_WORDS[state] ?? state : "Starting"}
             {view?.model ? ` · ${view.model}` : ""}
           </span>
@@ -102,7 +102,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       </div>
       {cutOff && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-2 p-3" data-testid="runtime-cut-off">
-          <p className="min-w-0 flex-1 text-[12px] text-ink">{cutOff}. Resume continues the conversation and sends nothing.</p>
+          <p className="min-w-0 flex-1 text-label text-ink">{cutOff}. Resume continues the conversation and sends nothing.</p>
           <Button size="sm" variant="primary" disabled={busy !== null} data-testid="runtime-resume" onClick={() => act("resume", () => runtimeResume(session.id).then((next) => onOpenSession?.(next.session_id)))}>
             {busy === "resume" ? "Resuming…" : "Resume"}
           </Button>
@@ -112,7 +112,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </div>
       )}
       {runtime?.limits && runtime.limits.length > 0 && (
-        <p className="text-[11px] text-muted" data-testid="runtime-limits">
+        <p className="text-label text-muted" data-testid="runtime-limits">
           {runtime.limits
             .map((w) => `${w.window_mins === 300 ? "5 hours" : w.window_mins === 10080 ? "Weekly" : w.window_mins ? `${w.window_mins} min` : w.id}: ${Math.round(w.used_pct)}% used${w.resets_at_ms ? `, resets ${new Date(w.resets_at_ms).toLocaleString()}` : ""}`)
             .join(" · ")}
@@ -124,14 +124,14 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       ))}
       <ol className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto" aria-label="Recent conversation" data-testid="driven-items">
         {(view?.items ?? []).map((item, index) => (
-          <li key={`${item.at_ms}-${index}`} className="flex gap-2 text-[12px]">
-            <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
-            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-[11.5px] text-ink" : "text-ink")}>{item.text}</span>
+          <li key={`${item.at_ms}-${index}`} className="flex gap-2 text-label">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">{ITEM_WORDS[item.kind] ?? item.kind}</span>
+            <span className={"min-w-0 whitespace-pre-wrap break-words " + (item.kind === "command" ? "font-mono text-label text-ink" : "text-ink")}>{item.text}</span>
           </li>
         ))}
         {view?.streaming && (
-          <li className="flex gap-2 text-[12px]" aria-live="polite">
-            <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-muted">Agent</span>
+          <li className="flex gap-2 text-label" aria-live="polite">
+            <span className="w-14 shrink-0 text-label uppercase tracking-wider text-muted">Agent</span>
             <span className="min-w-0 whitespace-pre-wrap break-words text-muted">{view.streaming}</span>
           </li>
         )}
@@ -149,7 +149,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           <input
             aria-label={runtime?.can_steer ? "Add to the running turn" : "Message"}
             placeholder={runtime?.can_steer ? "Add to what it's doing…" : "Message…"}
-            className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-[13px] text-ink outline-none focus:border-accent/60"
+            className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60"
             value={text}
             disabled={busy !== null || state === "asks_you"}
             onChange={(event) => {
@@ -164,10 +164,10 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           </Button>
         </form>
       )}
-      {runtime?.error && <p className="text-[11px] text-warning">{runtime.error}</p>}
+      {runtime?.error && <p className="text-label text-warning">{runtime.error}</p>}
       {trust.element}
       {error && (
-        <p role="alert" className="text-[11px] text-danger">
+        <p role="alert" className="text-label text-danger">
           {error}
         </p>
       )}

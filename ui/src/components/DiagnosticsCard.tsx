@@ -88,7 +88,7 @@ export function DiagnosticsCard(): JSX.Element {
                     <span className="text-muted"> · {file.about} · {size(bytesOf(file.text))}</span>
                   </summary>
                   <pre
-                    className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-[10.5px] text-ink"
+                    className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-label text-ink"
                     aria-label={`${file.name} (read-only)`}
                     tabIndex={0}
                   >
@@ -99,7 +99,7 @@ export function DiagnosticsCard(): JSX.Element {
             ))}
           </ul>
           {preview.left_out.length > 0 && (
-            <p className="text-[11px] leading-relaxed text-muted" data-testid="diagnostics-left-out">
+            <p className="text-label leading-relaxed text-muted" data-testid="diagnostics-left-out">
               Left out: {preview.left_out.length} {preview.left_out.length === 1 ? "setting" : "settings"} that hold
               tokens, addresses or paths ({preview.left_out.join(", ")}).
             </p>

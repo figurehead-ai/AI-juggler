@@ -119,13 +119,13 @@ function AgentRules({ now = Date.now() }: { now?: number }): JSX.Element {
             <li key={rule.id} className="flex items-center gap-2 rounded-lg border border-hairline/60 px-2.5 py-1.5 text-xs" data-testid="agent-access-rule">
               <span className="min-w-0 flex-1 truncate text-ink">{ACTION_WORDS[rule.action] ?? rule.action}</span>
               <span className="shrink-0 truncate text-muted">{pool}</span>
-              <span className="shrink-0 text-[11px] text-faint">you, {agoWords(rule.created_at, now)}</span>
+              <span className="shrink-0 text-label text-faint">you, {agoWords(rule.created_at, now)}</span>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void run(() => agentRuleRevoke(rule.id))}
                 aria-label={`Take back: ${ACTION_WORDS[rule.action] ?? rule.action} in ${pool}`}
-                className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                 data-testid="agent-access-rule-revoke"
               >
                 Take back

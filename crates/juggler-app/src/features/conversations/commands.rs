@@ -46,14 +46,8 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .collect();
         let sessions: HashMap<String, String> = storage
             .sessions()
-            .list(None)?
+            .conversation_links()?
             .into_iter()
-            .filter_map(|record| {
-                Some((
-                    record.conversation?.as_str().to_owned(),
-                    record.id.to_string(),
-                ))
-            })
             .collect();
         (labels, folders, projects, sessions, homes)
     };
@@ -179,8 +173,12 @@ fn place_info(
     }
 }
 
-/// Every account's conversations (AJ-E1529): the rail, a project's page,
-/// Accounts' running counts and the go-to palette read this.
+/// The conversations the window holds (AJ-E1529: the rail, a project's
+/// page, Accounts' running counts, the go-to palette): every one open now
+/// or in an app's sidebar, and the newest [`RECENT`] of the last week
+/// (0.1.5 review: it sent every conversation ever had, every few
+/// seconds). History and the Sessions tabs page the rest
+/// (`sessions_page`).
 ///
 /// # Errors
 ///
@@ -189,7 +187,61 @@ fn place_info(
 pub async fn conversations_list(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ConversationInfo>> {
-    crate::ipc::blocking(state.inner(), "the conversations", list_impl).await
+    crate::ipc::blocking(state.inner(), "the conversations", |state| {
+        Ok(working(list_impl(state)?, crate::commands::now_millis()))
+    })
+    .await
+}
+
+/// One conversation, by its account and id, as [`conversations_list`]
+/// has it: a page opened for one past the window's working set (an old
+/// one, from History or a project's Sessions). `None` when it's gone.
+///
+/// # Errors
+///
+/// As [`list_impl`].
+#[tauri::command]
+pub async fn conversations_get(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: String,
+    conversation_id: String,
+) -> AppResult<Option<ConversationInfo>> {
+    crate::ipc::blocking(state.inner(), "the conversation", move |state| {
+        Ok(list_impl(state)?
+            .into_iter()
+            .find(|c| c.account_id == account_id && c.id == conversation_id))
+    })
+    .await
+}
+
+/// How many recent conversations (not open) the window holds.
+pub const RECENT: usize = 200;
+/// How far back they go.
+pub const RECENT_MS: i64 = 7 * 24 * 3_600_000;
+
+/// The working set of `all` (newest first, as [`list_impl`] gives it):
+/// open or in a sidebar, and the newest [`RECENT`] of the last week.
+#[must_use]
+pub fn working(all: Vec<ConversationInfo>, now_ms: i64) -> Vec<ConversationInfo> {
+    let mut recent = 0;
+    all.into_iter()
+        .filter(|conversation| {
+            if conversation.live || conversation.inactive {
+                return true;
+            }
+            let at = conversation.last_activity_ms.or(conversation.started_ms);
+            // Every one of the last day: the rail's "ended today" stays true.
+            if at.is_some_and(|at| at >= now_ms - crate::commands::DAY_MS) {
+                return true;
+            }
+            let fresh = at.is_some_and(|at| at >= now_ms - RECENT_MS);
+            if fresh && recent < RECENT {
+                recent += 1;
+                return true;
+            }
+            false
+        })
+        .collect()
 }
 
 /// The copyable resume line for a conversation started outside AI Juggler
@@ -275,9 +327,11 @@ pub async fn conversations_bring_forward(
     .await
 }
 
-/// AJ-E2108: a session's last 2–3 messages, read from the end of its
-/// transcript when its page opens, with keys and tokens taken out; kept
-/// nowhere. Nothing is read when the setting is off.
+/// AJ-E2108: a session's last messages (up to 30 turns), read from the
+/// end of its transcript while its page shows, with keys and tokens taken
+/// out; kept nowhere. `before` pages back, `from` follows along, `known`
+/// (the stamp the page shows) answers `unchanged` without a read. Nothing
+/// is read when the setting is off.
 ///
 /// # Errors
 ///
@@ -287,9 +341,81 @@ pub async fn conversations_last_messages(
     state: tauri::State<'_, Arc<AppState>>,
     account_id: String,
     conversation_id: String,
+    known: Option<String>,
+    before: Option<u64>,
+    from: Option<u64>,
+    max: Option<u32>,
 ) -> AppResult<super::last_messages::LastMessagesInfo> {
+    let ask = super::last_messages::Ask {
+        known,
+        before,
+        from,
+        max: max.and_then(|max| usize::try_from(max).ok()),
+    };
     crate::ipc::blocking(state.inner(), "the last messages", move |state| {
-        super::last_messages::last_messages_impl(state, &account_id, &conversation_id)
+        super::last_messages::last_messages_impl(state, &account_id, &conversation_id, &ask)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn conversation(id: &str, last_ms: i64, live: bool, inactive: bool) -> ConversationInfo {
+        ConversationInfo {
+            id: id.to_owned(),
+            tool: "t".to_owned(),
+            account_id: "a".to_owned(),
+            account_label: "A".to_owned(),
+            project_id: None,
+            cwd: None,
+            title: None,
+            git_branch: None,
+            started_ms: Some(last_ms),
+            last_activity_ms: Some(last_ms),
+            tokens: None,
+            live,
+            session_id: None,
+            places: Vec::new(),
+            pid: None,
+            state: None,
+            probably: false,
+            viewed_ms: None,
+            background: false,
+            inactive,
+        }
+    }
+
+    #[test]
+    fn the_window_holds_what_is_open_and_the_newest_of_the_last_week() {
+        let now = 100 * RECENT_MS;
+        let mut all = vec![
+            conversation("old-but-open", 0, true, false),
+            conversation("in-a-sidebar", 0, false, true),
+        ];
+        // Newest first, as the index gives them: 10 today, 300 this week, older.
+        let day = crate::commands::DAY_MS;
+        all.extend((0..10).map(|n| conversation(&format!("today-{n}"), now - n, false, false)));
+        all.extend(
+            (0..300).map(|n| conversation(&format!("week-{n}"), now - day - 1 - n, false, false)),
+        );
+        all.push(conversation(
+            "last-month",
+            now - 2 * RECENT_MS,
+            false,
+            false,
+        ));
+        let kept = working(all, now);
+        let ids: Vec<&str> = kept.iter().map(|c| c.id.as_str()).collect();
+        assert!(ids.contains(&"old-but-open") && ids.contains(&"in-a-sidebar"));
+        assert_eq!(
+            kept.len(),
+            2 + 10 + RECENT,
+            "all of today's, 200 of the week's"
+        );
+        assert!(
+            ids.contains(&"week-0") && !ids.contains(&"week-250") && !ids.contains(&"last-month")
+        );
+    }
 }

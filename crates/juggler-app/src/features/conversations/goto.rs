@@ -6,7 +6,9 @@
 //! terminal's tab (only when the user allowed terminal tabs in Settings),
 //! the window count (only when the user turned on window focus). A click
 //! never raises a permission prompt, and the outcome names the step
-//! reached.
+//! reached. "Forward" is said only once the app is frontmost
+//! ([`crate::activation`]); otherwise the outcome says that macOS kept it
+//! behind.
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -18,29 +20,18 @@ use juggler_adapter::live::{HostKind, same_start};
 use super::dto::GoToOutcomeInfo;
 use super::places::{Host, HostRegistry};
 use super::scan::Place;
+use crate::activation::{self, Activation, Front, Request, Why};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 /// How long Go to it waits before saying it's still on it.
 pub const LIMIT: Duration = Duration::from_millis(1500);
 
-/// What activating an app's process did.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Activation {
-    /// Asked to come forward (unhidden first when it was hidden).
-    Done,
-    /// No such app process.
-    Gone,
-    /// macOS didn't let it come forward.
-    Refused,
-}
-
 /// What Go to it needs from the Mac (a seam: the tests script it).
-pub trait Desktop: Send + Sync {
+/// [`Front`] asks for an app to come forward and reads the frontmost one.
+pub trait Desktop: Front {
     /// The process's start time now; `None` when it's gone.
     fn start_of(&self, pid: u32) -> Option<i64>;
-    /// Brings the app whose process is `pid` forward.
-    fn activate(&self, pid: u32) -> Activation;
     /// Opens a link with the app that handles it.
     fn open_link(&self, link: &str) -> bool;
     /// Runs `command <folder>` (an editor's own command).
@@ -134,21 +125,75 @@ pub fn go(
     if !same_start(host.start, desktop.start_of(host.pid)) {
         return outcome(format!("{name} isn't open now"), "none");
     }
-    match desktop.activate(host.pid) {
-        Activation::Gone => return outcome(format!("{name} isn't open now"), "none"),
-        Activation::Refused => {
-            return outcome(
-                format!("macOS didn't let {name} come forward; click it in the Dock"),
-                "none",
-            );
-        }
-        Activation::Done => {}
+    let in_front = match desktop.request(host.pid) {
+        Request::Gone => return outcome(format!("{name} isn't open now"), "none"),
+        Request::Refused => return outcome(activation::behind_text(&name, Why::Refused), "none"),
+        Request::Asked { in_front } => in_front,
+    };
+    // The step the app allows, then whether it really came forward.
+    let done = match step(target, host, &name, hosts, desktop, gates) {
+        Step::Final(said) => return said,
+        Step::Done(done) => done,
+    };
+    match activation::settle(desktop, host.pid, in_front) {
+        Activation::Forward => outcome(done.forward, done.reached),
+        Activation::Gone => outcome(format!("{name} isn't open now"), "none"),
+        Activation::Behind(why) => match done.kept {
+            // The step itself held (the link opened, the tab selected).
+            Some(kept) => outcome(
+                format!("{kept}, but {}", activation::behind_text("it", why)),
+                done.reached,
+            ),
+            None => outcome(activation::behind_text(&name, why), "none"),
+        },
     }
+}
+
+/// A step's words: when the app is in front, and what still holds when
+/// it isn't (`None`: nothing beyond the request).
+struct Done {
+    forward: String,
+    kept: Option<String>,
+    reached: &'static str,
+}
+
+/// What the step after the request came to.
+enum Step {
+    /// Its words; whether the app came forward is checked next.
+    Done(Done),
+    /// The answer, whatever is in front (every window minimised).
+    Final(GoToOutcomeInfo),
+}
+
+/// The words for coming forward and nothing more.
+fn app_only(forward: String) -> Step {
+    Step::Done(Done {
+        forward,
+        kept: None,
+        reached: "app",
+    })
+}
+
+/// The step the app allows after the request: a thread by its link, a
+/// folder in an editor, a terminal's tab, the window count.
+fn step(
+    target: &Target,
+    host: &Host,
+    name: &str,
+    hosts: &HostRegistry,
+    desktop: &dyn Desktop,
+    gates: Gates,
+) -> Step {
     let app = host.app_id.as_deref().and_then(|id| hosts.by_id(id));
     if let Some(link) = app.and_then(|app| app.thread_link_for(&target.session_id))
         && desktop.open_link(&link)
     {
-        return outcome(format!("Opened the thread in {}", host.name), "thread");
+        let opened = format!("Opened the thread in {}", host.name);
+        return Step::Done(Done {
+            forward: opened.clone(),
+            kept: Some(opened),
+            reached: "thread",
+        });
     }
     match host.kind {
         Some(HostKind::Editor) => {
@@ -165,10 +210,15 @@ pub fn go(
                         || folder.display().to_string(),
                         |n| n.to_string_lossy().into_owned(),
                     );
-                    return outcome(format!("Opened {shown} in {}", host.name), "folder");
+                    let opened = format!("Opened {shown} in {}", host.name);
+                    return Step::Done(Done {
+                        forward: opened.clone(),
+                        kept: Some(opened),
+                        reached: "folder",
+                    });
                 }
             }
-            outcome(format!("Brought {name} forward"), "app")
+            app_only(format!("Brought {name} forward"))
         }
         Some(HostKind::Terminal) => {
             if gates.tabs
@@ -178,15 +228,15 @@ pub fn go(
                     .osascript(&script.replace("{tty}", &tty))
                     .is_ok_and(|said| said.trim() == "ok")
             {
-                return outcome(
-                    format!("Brought {name} forward and selected its tab"),
-                    "tab",
-                );
+                return Step::Done(Done {
+                    forward: format!("Brought {name} forward and selected its tab"),
+                    kept: Some(format!("Selected its tab in {name}")),
+                    reached: "tab",
+                });
             }
-            outcome(
-                format!("Brought {name} forward; the session is in one of its tabs"),
-                "app",
-            )
+            app_only(format!(
+                "Brought {name} forward; the session is in one of its tabs"
+            ))
         }
         Some(HostKind::Desktop) | None => {
             let mut text = format!("Brought {name} forward");
@@ -194,7 +244,10 @@ pub fn go(
                 && let Some((all, minimised)) = windows(desktop, host.pid)
             {
                 if all > 0 && minimised == all {
-                    return outcome(format!("{name} is minimised — click it in the Dock"), "app");
+                    return Step::Final(outcome(
+                        format!("{name} is minimised — click it in the Dock"),
+                        "app",
+                    ));
                 }
                 if all > 1 {
                     let _ = write!(text, " ({all} windows)");
@@ -203,7 +256,7 @@ pub fn go(
             if host.kind == Some(HostKind::Desktop) {
                 text.push_str("; pick the session in its sidebar");
             }
-            outcome(text, "app")
+            app_only(text)
         }
     }
 }
@@ -310,56 +363,32 @@ pub fn bring_forward_impl(
     )
 }
 
-/// Brings `host` forward by its process, when it's still the one seen.
+/// Brings `host` forward by its process, when it's still the one seen,
+/// and says so only once it's in front.
 #[must_use]
 pub fn bring_forward(host: &Host, desktop: &dyn Desktop) -> GoToOutcomeInfo {
     let name = label(host);
     if !same_start(host.start, desktop.start_of(host.pid)) {
         return outcome(format!("{name} isn't open now"), "none");
     }
-    match desktop.activate(host.pid) {
-        Activation::Done => outcome(format!("Brought {name} forward"), "app"),
+    match activation::bring(desktop, host.pid) {
+        Activation::Forward => outcome(format!("Brought {name} forward"), "app"),
         Activation::Gone => outcome(format!("{name} isn't open now"), "none"),
-        Activation::Refused => outcome(
-            format!("macOS didn't let {name} come forward; click it in the Dock"),
-            "none",
-        ),
+        Activation::Behind(why) => outcome(activation::behind_text(&name, why), "none"),
     }
 }
 
-/// The real Mac: `NSRunningApplication` by process, `open` for links.
+/// The real Mac: [`activation::Mac`] to come forward, `open` for links.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MacDesktop;
 
-/// Brings the app whose process is `pid` forward (`NSRunningApplication`,
-/// safe calls, no permission).
-#[must_use]
-pub fn activate_pid(pid: u32) -> Activation {
-    #[cfg(target_os = "macos")]
-    {
-        use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication};
-        let Ok(pid) = i32::try_from(pid) else {
-            return Activation::Gone;
-        };
-        let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(pid) else {
-            return Activation::Gone;
-        };
-        if app.isTerminated() {
-            return Activation::Gone;
-        }
-        if app.isHidden() {
-            let _ = app.unhide();
-        }
-        if app.activateWithOptions(NSApplicationActivationOptions::ActivateAllWindows) {
-            Activation::Done
-        } else {
-            Activation::Refused
-        }
+impl Front for MacDesktop {
+    fn request(&self, pid: u32) -> Request {
+        activation::Mac.request(pid)
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = pid;
-        Activation::Refused
+
+    fn frontmost(&self) -> Option<u32> {
+        activation::Mac.frontmost()
     }
 }
 
@@ -368,10 +397,6 @@ impl Desktop for MacDesktop {
         super::procs::some(&[pid])
             .get(&pid)
             .and_then(|process| process.start)
-    }
-
-    fn activate(&self, pid: u32) -> Activation {
-        activate_pid(pid)
     }
 
     fn open_link(&self, link: &str) -> bool {

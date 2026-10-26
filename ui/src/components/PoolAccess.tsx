@@ -44,7 +44,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
             />
             <span className="flex flex-col">
               <span className="font-medium text-ink">{entry.label}</span>
-              <span className="text-[11px] text-muted">{entry.words}</span>
+              <span className="text-label text-muted">{entry.words}</span>
             </span>
           </label>
         ))}
@@ -54,7 +54,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
         <fieldset className="ml-6 grid grid-cols-1 gap-0.5 sm:grid-cols-2" disabled={busy} data-testid="pool-custom">
           <legend className="sr-only">Actions</legend>
           {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (
-            <label key={action} className="flex items-center gap-2 text-[11.5px] text-ink">
+            <label key={action} className="flex items-center gap-2 text-label text-ink">
               <input
                 type="checkbox"
                 checked={allowed.has(action)}
@@ -71,7 +71,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
       )}
 
       <details className="rounded-lg border border-hairline/60 px-2.5 py-1.5" data-testid="pool-delivery">
-        <summary className="cursor-pointer select-none text-[12px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
+        <summary className="cursor-pointer select-none text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
           Messages put into sessions
         </summary>
         <div className="mt-2 flex flex-col gap-2 text-xs">
@@ -81,7 +81,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
               value={pool.access.hop_limit}
               disabled={busy}
               onChange={(event) => void run(() => poolSetDelivery(pool.id, Number(event.target.value), pool.access.delivery_stopped))}
-              className="h-7 rounded-lg border border-hairline bg-surface-2 px-1.5 text-[11.5px] text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="h-7 rounded-lg border border-hairline bg-surface-2 px-1.5 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
               data-testid="pool-hop-limit"
             >
               {Array.from({ length: 20 }, (_, index) => index + 1).map((hops) => (
@@ -108,18 +108,18 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
 
       {pool.rules.length > 0 && (
         <section aria-label="Always allowed" className="flex flex-col gap-1" data-testid="pool-rules">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-faint">Always allowed here</p>
+          <p className="text-label uppercase tracking-[0.14em] text-faint">Always allowed here</p>
           <ul className="flex flex-col gap-1">
             {pool.rules.map((rule) => (
               <li key={rule.id} className="flex items-center gap-2 rounded-lg border border-hairline/60 px-2.5 py-1.5 text-xs" data-testid="pool-rule">
                 <span className="min-w-0 flex-1 truncate text-ink">{ACTION_WORDS[rule.action] ?? rule.action}</span>
-                <span className="shrink-0 text-[11px] text-faint">you, {agoWords(rule.created_at, now)}</span>
+                <span className="shrink-0 text-label text-faint">you, {agoWords(rule.created_at, now)}</span>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void run(() => agentRuleRevoke(rule.id))}
                   aria-label={`Take back: ${ACTION_WORDS[rule.action] ?? rule.action}`}
-                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
                   data-testid="pool-rule-revoke"
                 >
                   Take back

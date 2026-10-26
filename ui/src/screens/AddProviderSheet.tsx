@@ -138,7 +138,7 @@ export function AddProviderSheet({
                       {/* 0.0.11 walk, Q4: plain words here; the version and
                           what it was tested with are in the tool's own view. */}
                       {desktop && <Chip tone="accent">Desktop</Chip>}
-                      <span className="text-[10px] text-muted" data-testid="provider-state">
+                      <span className="text-label text-muted" data-testid="provider-state">
                         {(row.status === "installed" || row.status === "unverified") && "Installed"}
                         {row.status === "not_installed" && "Not installed"}
                         {versionUnchecked(row) && FOUND_UNCHECKED}
@@ -146,7 +146,7 @@ export function AddProviderSheet({
                       </span>
                     </div>
                     {desktop && row.single_instance_note && (
-                      <span className="text-[10px] leading-relaxed text-muted">
+                      <span className="text-label leading-relaxed text-muted">
                         {row.single_instance_note} — one session at a time with this tool.
                       </span>
                     )}
@@ -170,7 +170,7 @@ export function AddProviderSheet({
                         href={row.install_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="shrink-0 text-[11px] text-accent underline-offset-2 hover:underline"
+                        className="shrink-0 text-label text-accent underline-offset-2 hover:underline"
                       >
                         Install {row.display_name} →
                       </a>
@@ -186,7 +186,7 @@ export function AddProviderSheet({
                 More
               </summary>
               <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
-                <p className="text-[11px] uppercase tracking-wider text-muted">Through another service</p>
+                <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
                 <p className="text-xs leading-relaxed text-muted">
                   A subscription that answers for your tools at the address it publishes. You paste its key once.
                 </p>
@@ -196,7 +196,7 @@ export function AddProviderSheet({
                       <LetterMark name={row.service.name} size={16} className="text-muted" />
                       <div className="flex min-w-0 flex-1 flex-col">
                         <span className="text-xs font-medium text-ink">{row.service.name}</span>
-                        <span className="text-[10px] text-muted">{row.tools.map((tool) => providerDisplayName(tool.tool)).join(", ")}</span>
+                        <span className="text-label text-muted">{row.tools.map((tool) => providerDisplayName(tool.tool)).join(", ")}</span>
                       </div>
                       <Button size="sm" variant="secondary" onClick={() => setServiceFor(row.service.id)} data-testid="service-choose">
                         {row.service.name} →

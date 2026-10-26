@@ -66,6 +66,7 @@ const ANCHORS: Record<string, SettingsTarget> = {
   sessions: { pane: "sessions" },
   cleanup: { pane: "advanced", anchor: "cleanup" },
   renewal: { pane: "accounts", anchor: "renewal" },
+  tools: { pane: "accounts", anchor: "tools" },
   notifications: { pane: "notifications" },
   fleet: { pane: "macs", anchor: "fleet" },
   data: { pane: "advanced", anchor: "data" },

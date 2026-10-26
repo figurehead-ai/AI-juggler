@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, openOutsidePage, projectLens } from "./fixtures";
+import { allStatuses, goTo, openOutsidePage, projectLens, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/79-pages");
 const REPLICA = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -84,7 +84,7 @@ for (const viewport of VIEWPORTS) {
     test(`a session's page: its terminal — ${at}`, gate("79-pages"), async ({ page }) => {
       await seed(page, theme, viewport);
       await openSession(page);
-      await page.getByRole("tab", { name: "Terminal" }).click();
+      await page.getByTestId("page-tab-terminal").click();
       await shoot(page, "session-terminal", theme, viewport);
     });
 
@@ -100,7 +100,8 @@ for (const viewport of VIEWPORTS) {
       await seed(page, theme, viewport);
       await openProject(page);
       await page.getByRole("tab", { name: "Sessions" }).click();
-      await expect(page.getByTestId("page-sessions")).toBeVisible();
+      // The Sessions tab's list (Overview's Open sessions pages one too).
+      await expect(page.getByTestId("page-panel-sessions").getByTestId("page-sessions")).toBeVisible();
       await shoot(page, "project-sessions", theme, viewport);
     });
 
@@ -120,17 +121,18 @@ for (const viewport of VIEWPORTS) {
       await shoot(page, "account", theme, viewport);
     });
 
-    test(`a tool's page, from More › Tools — ${at}`, async ({ page }) => {
+    // 0.1.5: the tool page folded into Settings › Accounts (Tools on this Mac).
+    test(`a tool, in Settings › Accounts — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "More", exact: true }).click();
-      await page.getByTestId("more-tool").first().click();
-      await expect(page.getByTestId("page-type")).toHaveText("Tool");
+      await goTo(page, "Settings");
+      await settingsPane(page, "Accounts");
+      await expect(page.getByTestId("settings-tool").first()).toBeVisible();
       await shoot(page, "tool", theme, viewport);
     });
 
     test(`a session started outside AI Juggler — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
-      // AJ-E2102: a rail row of an open one goes to it; Home's row opens its page.
+      // A rail row opens its page here; its ↗ goes to its app.
       await openOutsidePage(page);
       await expect(page.getByTestId("conversation-page")).toBeVisible();
       await shoot(page, "outside-session", theme, viewport);

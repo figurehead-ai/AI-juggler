@@ -285,11 +285,12 @@ fn default_install_signals_nothing() {
         state.audit.history(0).unwrap().is_empty(),
         "no audit rows without opt-in"
     );
-    // Manual cleanup still works at Tier 0 (the sheet is always there).
-    let outcome = commands::orphan_stop_inner(&state, &session, dev.pid.unwrap()).unwrap();
-    assert_eq!(
-        outcome.state, "refused - not a recorded descendant",
-        "the E410 allow-list no longer knows this pid — the manual sheet (AJ-E507) is the path"
+    // Manual cleanup still works at Tier 0: the verified sheet is
+    // always there, and it vouches for the dev server.
+    let verify = commands::kill_verify_inner(&state, session.as_str(), dev.pid.unwrap()).unwrap();
+    assert!(
+        verify.verified,
+        "the sheet verifies the dev server at Tier 0"
     );
     kill9(dev.pid.unwrap());
     kill9(mcp.pid.unwrap());

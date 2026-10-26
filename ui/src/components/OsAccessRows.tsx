@@ -57,11 +57,11 @@ export function OsAccessRows({
               data-testid={`${testIdPrefix}-${entry.id}`}
             >
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className={(large ? "text-[15px]" : "text-sm") + " font-semibold text-ink"}>{entry.title}</span>
-                <span className={(large ? "text-sm" : "text-[13px]") + " leading-relaxed text-muted"}>
-                  {entry.why} <span className="text-faint">The system calls this {entry.system_name}.</span>
+                <span className={(large ? "text-section" : "text-sm") + " font-semibold text-ink"}>{entry.title}</span>
+                <span className={(large ? "text-sm" : "text-meta") + " leading-relaxed text-muted"}>
+                  {entry.why} <span className="text-muted">The system calls this {entry.system_name}.</span>
                 </span>
-                {card.note && <span className={card.noteLeads ? "text-sm text-ink" : "text-xs text-faint"}>{card.note}</span>}
+                {card.note && <span className={card.noteLeads ? "text-sm text-ink" : "text-xs text-muted"}>{card.note}</span>}
                 {card.state === "reopen" && reopenBlock && (
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid={`${testIdPrefix}-reopen-block`}>
                     <span className="text-ink">{reopenBlock.reason}</span>

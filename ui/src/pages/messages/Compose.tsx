@@ -73,12 +73,12 @@ export function Compose({
       {!reply && (
         <div className="flex flex-wrap items-center gap-2">
           {!fixedTo && (
-            <label className="flex items-center gap-2 text-[13px] text-muted">
+            <label className="flex items-center gap-2 text-meta text-muted">
               To
               <select
                 value={to}
                 onChange={(event) => setTo(event.target.value)}
-                className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent/60"
+                className="h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
                 data-testid="compose-to"
               >
                 <option value="pool">Everyone in the pool</option>
@@ -96,13 +96,13 @@ export function Compose({
             value={subject}
             maxLength={120}
             onChange={(event) => setSubject(event.target.value)}
-            className="h-8 min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-[13px] text-ink outline-none focus:border-accent/60"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-meta text-ink outline-none focus:border-accent/60"
           />
           <select
             aria-label="Kind"
             value={kind}
             onChange={(event) => setKind(event.target.value)}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent/60"
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
           >
             {KINDS.map((word) => (
               <option key={word} value={word}>
@@ -125,11 +125,11 @@ export function Compose({
             send();
           }
         }}
-        className="min-h-[56px] resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-[14px] leading-relaxed text-ink outline-none focus:border-accent/60"
+        className="min-h-[56px] resize-y rounded-lg border border-hairline bg-surface px-3 py-2 text-body leading-relaxed text-ink outline-none focus:border-accent/60"
         data-testid="compose-body"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label htmlFor={`${ids}-deliver`} className="flex items-center gap-2 text-[13px] text-muted" title="Into the sessions AI Juggler runs, as their next prompt, between turns. A session in a terminal reads its messages itself.">
+        <label htmlFor={`${ids}-deliver`} className="flex items-center gap-2 text-meta text-muted" title="Into the sessions AI Juggler runs, as their next prompt, between turns. A session in a terminal reads its messages itself.">
           <input id={`${ids}-deliver`} type="checkbox" checked={deliver} onChange={(event) => setDeliver(event.target.checked)} className="size-4 accent-accent" />
           Deliver to their sessions
         </label>
@@ -146,7 +146,7 @@ export function Compose({
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

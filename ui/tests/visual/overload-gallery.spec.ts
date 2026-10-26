@@ -26,7 +26,20 @@ const MEMORY = {
   // The backend sends only what's high: a memory alert carries no CPU.
   subject_cpu: null,
   subject_windows: null,
+  other_apps: [],
   since_ms: T0 - 45_000,
+};
+/** The 0.1.4 review: other apps hold most of the memory, so the alert
+ * names them and no AI tool. */
+const OTHERS = {
+  ...MEMORY,
+  session_id: null,
+  subject_bytes: null,
+  other_apps: [
+    { name: "next-server", rss_bytes: 6_400_000_000, processes: 1 },
+    { name: "Docker", rss_bytes: 4_000_000_000, processes: 3 },
+    { name: "fseventsd", rss_bytes: 1_500_000_000, processes: 1 },
+  ],
 };
 const CPU = {
   key: "cpu",
@@ -40,6 +53,7 @@ const CPU = {
   subject_estimate: false,
   subject_cpu: 140,
   subject_windows: null,
+  other_apps: [],
   since_ms: T0 - 150_000,
 };
 const HISTORY = [
@@ -106,6 +120,16 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
     await expect(page.getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
     await page.screenshot({ path: resolve(OUT, `memory-pressure-1280x800-${theme}.png`) });
+    await axeClean(page);
+  });
+
+  test(`overload — memory pressure from other apps — ${theme}`, async ({ page }) => {
+    await seed(page, "others", [OTHERS], theme);
+    const item = page.getByTestId("home-need-mac");
+    await expect(item).toContainText("Your Mac is under memory pressure");
+    await expect(item).toContainText("Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB");
+    await expect(item).not.toContainText("Claude app");
+    await page.screenshot({ path: resolve(OUT, `memory-pressure-other-apps-1280x800-${theme}.png`) });
     await axeClean(page);
   });
 

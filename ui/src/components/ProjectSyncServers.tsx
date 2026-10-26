@@ -55,7 +55,7 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
               <dt className="text-ink">
                 {account.label} <span className="text-muted">· {account.tool}</span>
               </dt>
-              <dd className="font-mono text-[11px] text-muted">{account.servers.length > 0 ? account.servers.join(", ") : "None"}</dd>
+              <dd className="font-mono text-label text-muted">{account.servers.length > 0 ? account.servers.join(", ") : "None"}</dd>
             </div>
           ))}
         </dl>
@@ -68,14 +68,14 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
                 <span className="font-mono">{offer.server}</span> for {offer.to_label}
                 <span className="text-muted"> · from {offer.from_label}</span>
               </span>
-              {offer.note && <span className="basis-full text-[11px] text-muted">{offer.note}</span>}
+              {offer.note && <span className="basis-full text-label text-muted">{offer.note}</span>}
               {offer.verdict !== "impossible" && (
                 <button
                   type="button"
                   disabled={busy !== null}
                   onClick={() => void copy(offer)}
                   aria-label={`Copy ${offer.server} to ${offer.to_label}`}
-                  className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-[10px] hover:bg-surface-2 disabled:opacity-50"
+                  className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2 disabled:opacity-50"
                 >
                   {busy === `${offer.offer}|${offer.to}` ? "Copying…" : "Copy"}
                 </button>

@@ -354,8 +354,11 @@ pub fn fleet_reset_identity_impl(state: &Arc<AppState>) -> AppResult<FleetSelfIn
 ///
 /// Returns the typed [`AppError`] when the identity cannot be loaded.
 #[tauri::command]
-pub fn fleet_self(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
-    fleet_self_impl(state.inner())
+pub async fn fleet_self(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
+    crate::ipc::blocking(state.inner(), "fleet self", move |state| {
+        fleet_self_impl(state)
+    })
+    .await
 }
 
 /// AJ-E702: the pinned peers.
@@ -364,8 +367,11 @@ pub fn fleet_self(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelf
 ///
 /// Returns the typed [`AppError`] when the identity cannot be loaded.
 #[tauri::command]
-pub fn fleet_peers(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<FleetPeerInfo>> {
-    fleet_peers_impl(state.inner())
+pub async fn fleet_peers(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<FleetPeerInfo>> {
+    crate::ipc::blocking(state.inner(), "fleet peers", move |state| {
+        fleet_peers_impl(state)
+    })
+    .await
 }
 
 /// AJ-E702: unpairs one machine (deletes its pin).
@@ -374,8 +380,14 @@ pub fn fleet_peers(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Flee
 ///
 /// Returns the typed [`AppError`] per [`fleet_unpair_impl`].
 #[tauri::command]
-pub fn fleet_unpair(state: tauri::State<'_, Arc<AppState>>, machine_id: String) -> AppResult<()> {
-    fleet_unpair_impl(state.inner(), &machine_id)
+pub async fn fleet_unpair(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "fleet unpair", move |state| {
+        fleet_unpair_impl(state, &machine_id)
+    })
+    .await
 }
 
 /// AJ-E702: renames this Mac locally (id and key unchanged).
@@ -384,11 +396,14 @@ pub fn fleet_unpair(state: tauri::State<'_, Arc<AppState>>, machine_id: String) 
 ///
 /// Returns the typed [`AppError`] per [`fleet_set_label_impl`].
 #[tauri::command]
-pub fn fleet_set_label(
+pub async fn fleet_set_label(
     state: tauri::State<'_, Arc<AppState>>,
     label: String,
 ) -> AppResult<FleetSelfInfo> {
-    fleet_set_label_impl(state.inner(), &label)
+    crate::ipc::blocking(state.inner(), "fleet set label", move |state| {
+        fleet_set_label_impl(state, &label)
+    })
+    .await
 }
 
 /// AJ-E702: clears a broken registry so pairing can start again.
@@ -397,8 +412,11 @@ pub fn fleet_set_label(
 ///
 /// Returns the typed [`AppError`] per [`fleet_reset_trust_impl`].
 #[tauri::command]
-pub fn fleet_reset_trust(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
-    fleet_reset_trust_impl(state.inner())
+pub async fn fleet_reset_trust(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
+    crate::ipc::blocking(state.inner(), "fleet reset trust", move |state| {
+        fleet_reset_trust_impl(state)
+    })
+    .await
 }
 
 /// AJ-E702: generates a new identity for this Mac; every peer must pair
@@ -408,8 +426,13 @@ pub fn fleet_reset_trust(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Fl
 ///
 /// Returns the typed [`AppError`] per [`fleet_reset_identity_impl`].
 #[tauri::command]
-pub fn fleet_reset_identity(state: tauri::State<'_, Arc<AppState>>) -> AppResult<FleetSelfInfo> {
-    fleet_reset_identity_impl(state.inner())
+pub async fn fleet_reset_identity(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<FleetSelfInfo> {
+    crate::ipc::blocking(state.inner(), "fleet reset identity", move |state| {
+        fleet_reset_identity_impl(state)
+    })
+    .await
 }
 
 /// A pinned peer's local label.
@@ -475,13 +498,16 @@ pub fn fleet_set_permission_impl(
 ///
 /// Returns the typed [`AppError`] per [`fleet_set_permission_impl`].
 #[tauri::command]
-pub fn fleet_set_permission(
+pub async fn fleet_set_permission(
     state: tauri::State<'_, Arc<AppState>>,
     machine_id: String,
     permission: String,
     ask_each_time: bool,
 ) -> AppResult<Vec<FleetPeerInfo>> {
-    fleet_set_permission_impl(state.inner(), &machine_id, &permission, ask_each_time)
+    crate::ipc::blocking(state.inner(), "fleet set permission", move |state| {
+        fleet_set_permission_impl(state, &machine_id, &permission, ask_each_time)
+    })
+    .await
 }
 
 /// The peer pinned with `key`, as the link node sees it (per request,

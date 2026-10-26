@@ -148,7 +148,8 @@ impl Supervisor {
         let session_for_thread = session.clone();
         let journal = self.journal.clone();
         let ledger = self.ledger.clone();
-        let events = self.events_tx.clone();
+        // `Started` first, before this thread can send the exit.
+        let events = self.announce(session, pid);
         let done = Arc::clone(finished);
         std::thread::spawn(move || {
             let status = child.lock().ok().and_then(|mut c| c.wait().ok());

@@ -215,6 +215,18 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// D-39 (needs the maintainer's ruling; AI Juggler keeps it off until
+    /// then): a short headless run of the tool's own usage command for the
+    /// profile at `state_dir`. The tool asks its vendor with its own
+    /// sign-in, which AI Juggler never sees, and keeps the answer where
+    /// the tool's limit records are read. No model turn, no transcript.
+    /// `None`: the tool has no such command, or isn't installed.
+    #[must_use]
+    fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
+        let _ = state_dir;
+        None
+    }
+
     /// QA batch 10: a quick read of a large conversation file, from its
     /// start and end only (`conversation::file_ends`): its id, folder,
     /// branch, first and last activity and, when the start has it, its
@@ -369,6 +381,17 @@ pub trait HarnessAdapter: Send + Sync {
     /// a session whose tool records no such word itself. Default: nothing.
     #[must_use]
     fn pending_ask(&self, tail: &str) -> Option<crate::live::Ask> {
+        let _ = tail;
+        None
+    }
+
+    /// What the tail of an open session's transcript (`tail`: at most its
+    /// last 64 KB, cut at a line start) says of its last turn: running,
+    /// waiting on the user, or ended. For a session whose tool records no
+    /// state for it (the Codex app's threads, its CLI in a terminal).
+    /// `None` when the tail doesn't say. Default: nothing.
+    #[must_use]
+    fn tail_turn(&self, tail: &str) -> Option<crate::live::TailTurn> {
         let _ = tail;
         None
     }

@@ -44,7 +44,9 @@ export function PageHeader({
   const title = (
     <h2
       tabIndex={-1}
-      className={"min-w-0 truncate tracking-tight outline-none " + (session ? "text-[24px] font-bold leading-tight" : "text-lg font-semibold")}
+      className={"min-w-0 truncate tracking-tight outline-none " + (session ? "text-title font-semibold leading-tight" : "text-lg font-semibold")}
+      // A long name ends in an ellipsis; all of it on hover.
+      title={name}
       data-testid="page-name"
     >
       {name}
@@ -52,7 +54,7 @@ export function PageHeader({
   );
   return (
     <header className="flex flex-col gap-1" data-testid="page-header" data-page-kind={kind}>
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[11px] text-muted" data-testid="page-crumbs">
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-meta text-muted" data-testid="page-crumbs">
         {crumbs.map((crumb) => (
           <span key={crumb.label} className="flex min-w-0 items-center gap-1">
             {crumb.onOpen ? (
@@ -65,17 +67,20 @@ export function PageHeader({
             <span aria-hidden="true">›</span>
           </span>
         ))}
-        <span className="font-medium uppercase tracking-wider" data-testid="page-type">
+        <span className="font-medium" data-testid="page-type">
           {PAGE_LABELS[kind]}
         </span>
       </nav>
       <div className={session ? "flex items-start gap-4 pt-1" : "flex flex-wrap items-center gap-3"}>
         <span className={session ? "shrink-0" : "text-accent-hi"}>{mark}</span>
         {session ? (
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="@container flex min-w-0 flex-1 flex-col gap-2">
             {title}
             {!folded && chips && (
-              <div className="flex flex-wrap items-center gap-1.5" data-testid="page-chips">
+              // One line (the review of 0.1.5: two rows at 1280): chips
+              // shrink to an ellipsis, and the less telling ones fold
+              // behind "…" where it's narrow.
+              <div className="flex min-w-0 flex-nowrap items-center gap-2" data-testid="page-chips">
                 {chips}
               </div>
             )}
@@ -96,7 +101,7 @@ export function PageHeader({
               aria-label={folded ? "Unfold the inspector" : "Fold the inspector"}
               title={folded ? "Unfold the inspector (⌘⇧I)" : "Fold the inspector (⌘⇧I)"}
               data-testid="inspector-fold"
-              className="rounded-lg p-1 text-faint transition-colors hover:bg-surface-2 hover:text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+              className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d={folded ? "M6 9l6 6 6-6" : "M6 15l6-6 6 6"} />
@@ -106,7 +111,7 @@ export function PageHeader({
         </div>
       </div>
       {!folded && facts && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted" data-testid="page-facts">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-muted" data-testid="page-facts">
           {facts}
         </div>
       )}
@@ -197,7 +202,9 @@ export function PageShell({
     // WCAG 1.4.10: when the window is too short for the header and a
     // usable body (200 % zoom, a short window), the page scrolls as a
     // whole instead of squeezing its body to nothing.
-    <div ref={rootRef} className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
+    // The shared page frame (0.1.5): header, tabs and body in one centred
+    // 1440 px column, so a wide window never strands the header.
+    <div ref={rootRef} className="mx-auto flex h-full min-h-0 w-full max-w-content flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
@@ -220,7 +227,7 @@ export function PageShell({
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
               className={
-                "rounded-lg px-2.5 py-1 text-[11.5px] font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                "rounded-lg px-2.5 py-1 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (tab === entry.id ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
               }
             >

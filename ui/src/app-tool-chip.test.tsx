@@ -26,7 +26,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-it("Enter on About Claude Code opens the tool's page with focus on its name (a page that is its body alone)", async () => {
+it("Enter on About Claude Code opens Settings › Accounts at its tools, with focus on that section", async () => {
   const user = userEvent.setup();
   const view = render(<App />);
   const rail = await waitFor(() => {
@@ -43,9 +43,12 @@ it("Enter on About Claude Code opens the tool's page with focus on its name (a p
   const chip = await view.findByRole("button", { name: "About Claude Code" });
   chip.focus();
   await user.keyboard("{Enter}");
-  await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Claude Code"));
+  // 0.1.5: the tool page folded into Settings › Accounts (its install
+  // and accounts), where the chip now leads.
+  const tool = await view.findByTestId("settings-tool");
+  expect(tool.textContent).toContain("Claude Code");
   expect(view.queryByRole("button", { name: "About Claude Code" })).toBeNull();
-  // The opener went away: focus lands on the page, never on <body>.
-  await waitFor(() => expect(document.activeElement?.getAttribute("data-testid")).toBe("page-name"));
-  expect(document.activeElement?.textContent).toBe("Claude Code");
+  // The opener went away: focus lands on the section, never on <body>.
+  await waitFor(() => expect(document.activeElement?.id).toBe("settings-tools-title"));
+  expect(document.activeElement?.textContent).toBe("Tools on this Mac");
 });

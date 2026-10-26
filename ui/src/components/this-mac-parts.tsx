@@ -1,6 +1,6 @@
 /**
- * E14 — This Mac's shared parts: the Mac's state in words, the memory
- * meter and a process tree's row. Home's panel (a summary) and the This
+ * E14 — This Mac's shared parts: the Mac's state in words and a process
+ * tree's row (the memory meter is in this-mac-memory.tsx). Home's panel (a summary) and the This
  * Mac page (AJ-E1528, the detail) draw them the same way (D-25).
  */
 import type { JSX } from "react";
@@ -45,14 +45,14 @@ export function TreeRow({
   const title = ours ? nameOf(tree.session_id!) : placeWords(tree.place);
   const detail = [tree.account_label, ours ? null : "not started by AI Juggler"].filter(Boolean).join(" · ");
   const numbers = (
-    <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 font-mono text-xs">
+    <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
       <span
-        className={tree.heavy_note ? "font-semibold text-warning" : "text-ink"}
+        className={`text-body ${tree.heavy_note ? "font-semibold text-warning" : "text-ink"}`}
         title={tree.memory_estimate ? ESTIMATE_WORDS : undefined}
       >
         {tree.memory_estimate ? `about ${bytesWords(tree.rss_bytes)}` : bytesWords(tree.rss_bytes)}
       </span>
-      <span className="text-faint" title="As Activity Monitor counts it: 100% is one core busy">
+      <span className="text-meta text-muted" title="As Activity Monitor counts it: 100% is one core busy">
         {cpuWords(tree.cpu_pct)}
       </span>
     </span>
@@ -60,12 +60,12 @@ export function TreeRow({
   const body = (
     <>
       <span className="flex min-w-0 flex-1 basis-28 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink">
-          {tree.tool && <ToolMark tool={tree.tool} size={12} className="text-muted" />}
+        <span className="flex min-w-0 items-center gap-1.5 text-body text-ink">
+          {tree.tool && <ToolMark tool={tree.tool} size={14} className="text-muted" />}
           <span className="truncate">{title}</span>
           {tree.heavy_note && <span className="sr-only"> — heavy: {tree.heavy_note}</span>}
         </span>
-        {detail && <span className="truncate text-[11px] text-muted">{detail}</span>}
+        {detail && <span className="truncate text-meta text-muted">{detail}</span>}
       </span>
       {numbers}
     </>
@@ -99,61 +99,17 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
   const reasons = info.machine.summary.reasons.slice(0, reasonsShown).map((reason) => reason.words);
   return (
     <div className="flex flex-col gap-0.5" role="status">
-          <span className="flex items-center gap-2 text-sm font-medium text-ink">
-            <span aria-hidden="true" className={`text-[11px] ${level.tone}`}>{level.glyph}</span>
+          <span className="flex items-center gap-2 text-section font-semibold text-ink">
+            <span aria-hidden="true" className={`text-label ${level.tone}`}>{level.glyph}</span>
             {nothing && calm ? "Nothing running — your Mac has room" : level.words}
           </span>
           {!calm && reasons.length > 0 && (
-            <span className="text-xs text-muted" data-testid="this-mac-reasons">
+            <span className="text-body text-muted" data-testid="this-mac-reasons">
               {reasonSentence(reasons)}
             </span>
           )}
         </div>
 
-  );
-}
-
-/** Memory: what's in use (on its stated basis), the AI tools' share. */
-export function MemoryMeter({ info }: { info: ThisMacInfo }): JSX.Element | null {
-  const machine = info.machine;
-  const total = machine.memory_total;
-  const toolsShare = total > 0 ? Math.min(100, (info.tools.rss_bytes / total) * 100) : 0;
-  // Memory in use only when it was read, on its stated basis — never a
-  // different measure under the same name.
-  const used = machine.memory_used;
-  const basis = memoryBasisWords(machine.memory_basis);
-  const usedShare = total > 0 && used !== null ? Math.min(100, (used / total) * 100) : 0;
-  const otherShare = Math.max(0, usedShare - toolsShare);
-  const nothing = info.tools.count === 0;
-  if (total <= 0) return null;
-  return (
-          <div className="flex flex-col gap-1.5">
-            {used !== null && (
-            <div
-              className="flex h-1.5 overflow-hidden rounded-full bg-surface-3"
-              role="meter"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(usedShare)}
-              aria-label={`Memory: ${bytesWords(used)} of ${bytesWords(total)} in use (${basis}), ${bytesWords(info.tools.rss_bytes)} by AI tools`}
-              title={`In use: ${basis}`}
-            >
-              {/* The tools' share keeps its own colour: the Mac's state is
-                  the status line's to say, not a blame on this segment. */}
-              <div className="h-full bg-accent" style={{ width: `${toolsShare}%` }} />
-              <div className="h-full bg-faint/40" style={{ width: `${otherShare}%` }} />
-            </div>
-            )}
-            <span className="text-[11px] text-muted" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
-              {nothing
-                ? used !== null
-                  ? `Memory: ${bytesWords(used)} of ${bytesWords(total)} in use`
-                  : `Memory: ${bytesWords(total)}`
-                : `AI tools: ${info.tools.memory_estimate ? "about " : ""}${bytesWords(info.tools.rss_bytes)} of ${bytesWords(total)} memory · ${
-                    info.tools.cpu_pct === null ? "CPU —" : `${Math.round(info.tools.cpu_pct)}% of all CPU cores`
-                  }`}
-            </span>
-          </div>
   );
 }
 
@@ -172,18 +128,21 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
       ? `On battery, so not kept awake while ${sessions}`
       : `Not kept awake while ${sessions} (off in Settings)`;
   return (
-    <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
-      <span aria-hidden="true" className={`size-1.5 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
-      <span>{words}</span>
-      <button
-        type="button"
-        className="text-muted underline-offset-2 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-        onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
-        data-testid="this-mac-awake-settings"
-      >
-        Change{" "}
-        <span className="sr-only">when the Mac is kept awake</span>
-      </button>
+    <p className="flex items-start gap-2 text-meta text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
+      <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
+      {/* The dot beside the words, never on a line of its own. */}
+      <span>
+        {words}{" "}
+        <button
+          type="button"
+          className="text-ink underline underline-offset-2 hover:no-underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          onClick={() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "sessions" } }))}
+          data-testid="this-mac-awake-settings"
+        >
+          Change{" "}
+          <span className="sr-only">when the Mac is kept awake</span>
+        </button>
+      </span>
     </p>
   );
 }
@@ -199,7 +158,7 @@ export function OwnLine({ info }: { info: ThisMacInfo }): JSX.Element {
     atLogin ? "opens at login" : null,
   ].filter(Boolean);
   return (
-    <p className="text-[11px] text-muted" data-testid="this-mac-own">
+    <p className="text-meta text-muted" data-testid="this-mac-own">
       {parts.join(" · ")}
     </p>
   );

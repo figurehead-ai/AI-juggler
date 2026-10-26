@@ -450,18 +450,27 @@ pub fn parked_end_snooze_for_test(state: &Arc<AppState>, session_id: &str) {
 ///
 /// Returns the typed [`AppError`] per [`instance_park_impl`].
 #[tauri::command]
-pub fn instance_park(
+pub async fn instance_park(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<ParkedInfo> {
-    instance_park_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "instance park", move |state| {
+        instance_park_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E1003: every parked Instance.
 #[tauri::command]
-#[must_use]
-pub fn parked_list(state: tauri::State<'_, Arc<AppState>>) -> Vec<ParkedInfo> {
-    parked_list_impl(state.inner())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn parked_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<ParkedInfo>> {
+    crate::ipc::blocking(state.inner(), "parked list", move |state| {
+        Ok(parked_list_impl(state))
+    })
+    .await
 }
 
 /// AJ-E1003: the resume offers due now.
@@ -470,8 +479,13 @@ pub fn parked_list(state: tauri::State<'_, Arc<AppState>>) -> Vec<ParkedInfo> {
 ///
 /// Returns the typed [`AppError`] per [`parked_offers_impl`].
 #[tauri::command]
-pub fn parked_offers(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<ParkedOfferInfo>> {
-    parked_offers_impl(state.inner())
+pub async fn parked_offers(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<ParkedOfferInfo>> {
+    crate::ipc::blocking(state.inner(), "parked offers", move |state| {
+        parked_offers_impl(state)
+    })
+    .await
 }
 
 /// AJ-E1003: "Not now" (snooze once, then quiet).
@@ -480,8 +494,14 @@ pub fn parked_offers(state: tauri::State<'_, Arc<AppState>>) -> AppResult<Vec<Pa
 ///
 /// Returns the typed [`AppError`] per [`parked_dismiss_impl`].
 #[tauri::command]
-pub fn parked_dismiss(state: tauri::State<'_, Arc<AppState>>, session_id: String) -> AppResult<()> {
-    parked_dismiss_impl(state.inner(), &session_id)
+pub async fn parked_dismiss(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "parked dismiss", move |state| {
+        parked_dismiss_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E1003: re-read an Estimated reset.
@@ -490,11 +510,14 @@ pub fn parked_dismiss(state: tauri::State<'_, Arc<AppState>>, session_id: String
 ///
 /// Returns the typed [`AppError`] per [`parked_check_now_impl`].
 #[tauri::command]
-pub fn parked_check_now(
+pub async fn parked_check_now(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<ParkedInfo> {
-    parked_check_now_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "parked check now", move |state| {
+        parked_check_now_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E1003: resume a parked Instance (the user's click).
@@ -503,9 +526,12 @@ pub fn parked_check_now(
 ///
 /// Returns the typed [`AppError`] per [`parked_resume_impl`].
 #[tauri::command]
-pub fn parked_resume(
+pub async fn parked_resume(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<crate::commands::LaunchResult> {
-    parked_resume_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "parked resume", move |state| {
+        parked_resume_impl(state, &session_id)
+    })
+    .await
 }

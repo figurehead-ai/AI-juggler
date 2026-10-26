@@ -49,21 +49,21 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
     >
       <RowDetails id={detailsId} session={session} />
       <span className="flex min-w-0 items-center gap-2">
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-ink">
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-meta font-medium text-ink">
           <mark.Icon width={12} height={12} className="text-accent-hi" />
           {mark.abbrev}
         </span>
         <AccountAvatar accountId={session.account_id} label={session.account_label} size={20} />
-        <span className="min-w-0 truncate text-[12px] text-ink">{session.account_label}</span>
-        <span className="min-w-0 shrink-0 truncate text-[11px] text-muted">
-          {session.model ?? <span className="text-faint">default model</span>}
+        <span className="min-w-0 truncate text-label text-ink">{session.account_label}</span>
+        <span className="min-w-0 shrink-0 truncate text-label text-muted">
+          {session.model ?? <span className="text-muted">default model</span>}
         </span>
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">
           {badge ? (
             <span
               title={attentionTooltip(session)}
               className={
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label font-medium " +
                 chipToneClasses[badge.tone]
               }
             >
@@ -73,7 +73,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           ) : (
             <span
               className={
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium " +
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label font-medium " +
                 chipToneClasses[chip.tone]
               }
             >
@@ -83,7 +83,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           )}
         </span>
       </span>
-      <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+      <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted">
         {badge && suffix ? (
           <span
             className={
@@ -106,7 +106,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           />
           {resources ? <span className="tabular-nums">{resources}</span> : null}
         </span>
-        <span className="shrink-0 whitespace-nowrap tabular-nums text-faint">
+        <span className="shrink-0 whitespace-nowrap tabular-nums text-muted">
           {ageSummary(session.started_at_ms, session.last_activity_ms)}
         </span>
       </span>

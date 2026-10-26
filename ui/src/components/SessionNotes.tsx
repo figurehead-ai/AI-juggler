@@ -11,7 +11,7 @@ import { WorktreeGit } from "./WorktreeGit";
 export function SessionNotes({ session, live, now }: { session: InstanceInfo; live: boolean; now: number }): JSX.Element {
   return (
     <>
-      <div className="flex flex-col gap-1 text-[11px] text-muted">
+      <div className="flex flex-col gap-1 text-label text-muted">
         <WorktreeGit sessionId={session.id} live={live} />
         <ParkCard session={session} now={now} />
       </div>

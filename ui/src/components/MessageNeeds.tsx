@@ -98,12 +98,12 @@ export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Eleme
         <ul className="flex flex-col">
           {rest.map((need) => (
             <li key={need.key} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0" data-testid={`message-need-${need.kind}`} data-home-item>
-              <span aria-hidden="true" className={"flex size-[22px] shrink-0 items-center justify-center rounded-lg text-[12px] " + (need.kind.endsWith("paused") ? "bg-warning-soft text-warning" : "bg-accent-soft text-accent-hi")}>
+              <span aria-hidden="true" className={"flex size-[22px] shrink-0 items-center justify-center rounded-lg text-label " + (need.kind.endsWith("paused") ? "bg-warning-soft text-warning" : "bg-accent-soft text-accent-hi")}>
                 ✉
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[13px] font-medium text-ink">{need.title}</span>
-                <span className="truncate text-[12px] text-muted">{need.detail}</span>
+                <span className="truncate text-meta font-medium text-ink">{need.title}</span>
+                <span className="truncate text-label text-muted">{need.detail}</span>
               </span>
               {need.kind !== "question" && need.thread_id && (
                 <Button size="sm" variant="ghost" onClick={() => open(need)}>

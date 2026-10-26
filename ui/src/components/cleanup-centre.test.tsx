@@ -16,7 +16,7 @@ function row(overrides: Partial<CleanupRowInfo> = {}): CleanupRowInfo {
     role: "helper",
     state: "orphaned",
     state_label: "Still running after its session closed",
-    role_guess: "python3 (guess)",
+    role_guess: "dev server",
     exe_path: "/usr/bin/python3",
     cmdline: "python3 -m http.server 5173",
     age_ms: 9_000_000,
@@ -47,10 +47,16 @@ function data(overrides: Partial<CleanupInventoryData> = {}): CleanupInventoryDa
       {
         session: "sess-orphan",
         provider: "claude-code",
-        account: "Work Max",
-        project: "web",
+        account: "acc-1",
+        project: "proj-web",
         machine: "machine-local",
         healthy: false,
+        account_label: "Work Max",
+        project_name: "web",
+        label: "Fix the login test",
+        status: "failed",
+        live: false,
+        ended_at_ms: Date.now() - 2 * 3_600_000,
         rows: [row()],
       },
       {
@@ -98,11 +104,64 @@ describe("CleanupCentre (AJ-E506)", () => {
     );
     // Icon+text badge (never colour alone).
     expect(view.getByTestId("cleanup-state-8123").textContent ?? "").toMatch(/⚑/);
-    // Attribution columns.
-    expect(view.getByTestId("cleanup-group-sess-orphan").textContent ?? "").toContain(
-      "Claude Code · Work Max · web",
+    // The title names the session and how it ended — never ids.
+    expect(view.getByTestId("cleanup-group-title-sess-orphan").textContent).toBe(
+      "web · Fix the login test · ended 2 h ago (crashed)",
     );
+    const group = view.getByTestId("cleanup-group-sess-orphan").textContent ?? "";
+    expect(group).toContain("Claude Code · Work Max");
+    expect(group).not.toContain("acc-1");
+    expect(group).not.toContain("proj-web");
+    // One Mac: no machine words anywhere.
+    expect(group).not.toContain("machine-local");
+    expect(view.queryByTestId("cleanup-machine-8123")).toBeNull();
     expect(view.getByTestId("cleanup-row-8123").textContent ?? "").toContain(":5173");
+    view.unmount();
+  });
+
+  it("names each column once, and a row reads as its columns", async () => {
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(data()) }} />);
+    await waitFor(() => expect(view.getByTestId("cleanup-group-sess-orphan")).toBeTruthy());
+    const header = within(view.getByTestId("cleanup-group-sess-orphan")).getByTestId("process-rows-header");
+    expect([...header.children].map((cell) => cell.textContent)).toEqual([
+      "Process", "State", "CPU", "Memory", "Ports", "Age", "",
+    ]);
+    // The process is named, with what it probably is — a guess in words.
+    expect(view.getByTestId("cleanup-name-8123").textContent).toBe("http.server");
+    expect(view.getByTestId("cleanup-role-8123").textContent).toBe("probably a dev server");
+    // Each value cell names itself to a screen reader.
+    const text = view.getByTestId("cleanup-row-8123").textContent ?? "";
+    expect(text).toContain("CPU 1%");
+    expect(text).toContain("Memory 48 MB");
+    expect(text).toContain("Age 2h");
+    view.unmount();
+  });
+
+  it("offers no Stop on a live session's own main process (its session's Stop ends it)", async () => {
+    const live = data({
+      groups: [
+        {
+          session: "sess-live",
+          provider: "codex",
+          account: null,
+          project: null,
+          machine: "machine-local",
+          healthy: false,
+          live: true,
+          rows: [
+            row({ pid: 4400, role: "root", state: "running", state_label: "Running" }),
+            row({ pid: 4412, state: "running", state_label: "Running" }),
+            row({ pid: 5500, role: "root", state: "adopted", state_label: "Running — picked up after restart" }),
+          ],
+        },
+      ],
+    });
+    const view = render(<CleanupCentre bridge={{ load: () => Promise.resolve(live) }} />);
+    await waitFor(() => expect(view.getByTestId("cleanup-row-4400")).toBeTruthy());
+    expect(view.queryByTestId("cleanup-kill-4400")).toBeNull();
+    expect(view.getByTestId("cleanup-kill-4412")).toBeTruthy();
+    // A root picked up after a restart has no session Stop: the sheet is the way.
+    expect(view.getByTestId("cleanup-kill-5500")).toBeTruthy();
     view.unmount();
   });
 
@@ -173,10 +232,10 @@ describe("CleanupCentre (AJ-E506)", () => {
     const toggle = view
       .getByTestId("cleanup-row-8123")
       .querySelector("button") as HTMLButtonElement;
-    expect(toggle.title).toContain("Why does Juggler think this is mine?");
+    expect(toggle.title).toContain("Why AI Juggler counts it as your session's");
     fireEvent.click(toggle);
     expect(view.getByTestId("cleanup-evidence-8123").textContent ?? "").toContain(
-      "Why does Juggler think this is mine?",
+      "Why AI Juggler counts it as your session's",
     );
     view.unmount();
   });
@@ -403,11 +462,17 @@ describe("ProcessRow evidence expansion (AJ-E506 Req.4)", () => {
     fireEvent.click(view.getByTestId("cleanup-row-8123").querySelector("button")!);
     const panel = view.getByTestId("cleanup-evidence-8123");
     const text = panel.textContent ?? "";
-    expect(text).toContain("Session root PID 8100");
-    expect(text).toContain("first-seen parent 8100");
-    expect(text).toContain("matches the root (contained)");
-    expect(text).toContain("verified — start-time and exe match the live process");
+    // Plain words; the technical value on hover.
+    expect(text).toContain("The session's main process");
+    expect(text).toContain("Stays with the session's other processes.");
+    expect(text).toContain("Matches what AI Juggler recorded");
+    expect(text).toContain("Probably a dev server");
     expect(text).toContain("never a one-click kill");
+    expect(text).not.toMatch(/PGID|first-seen|\d{4}-\d{2}-\d{2}T/);
+    const titles = [...panel.querySelectorAll("[title]")].map((node) => node.getAttribute("title"));
+    expect(titles).toContain("Root PID 8100 · first-seen parent PID 8100");
+    expect(titles).toContain("Process group (PGID) 8100");
+    expect(titles).toContain("start-time and exe match the live process");
     view.unmount();
   });
 
@@ -436,7 +501,7 @@ describe("ProcessRow evidence expansion (AJ-E506 Req.4)", () => {
     );
     fireEvent.click(view.getByTestId("cleanup-row-9100").querySelector("button")!);
     expect(view.getByTestId("cleanup-evidence-9100").textContent ?? "").toContain(
-      "escaped its process group",
+      "Left the session's process group",
     );
     view.unmount();
   });
@@ -727,14 +792,22 @@ describe("AJ-E511 fleet machine dimension", () => {
         },
       ],
     });
-    const view = render(<CleanupCentre bridge={{ load: async () => data() }} />);
+    // Another Mac is paired: rows name their Mac in a quiet chip of its
+    // own (never inside the state badge), by name, never by id.
+    const machines = {
+      others: async () => 1,
+      names: async () => ({ "machine-other": "Mac Studio" }),
+    };
+    const view = render(<CleanupCentre bridge={{ load: async () => data() }} machinesBridge={machines} />);
     await waitFor(() => expect(view.getByTestId("cleanup-machine-8123")).toBeTruthy());
     expect(view.getByTestId("cleanup-machine-8123").textContent).toBe("This Mac");
+    expect(view.getByTestId("cleanup-state-8123").textContent ?? "").not.toContain("This Mac");
+    expect(view.getByTestId("cleanup-group-sess-orphan").textContent ?? "").not.toContain("machine-local");
     view.unmount();
 
-    const view2 = render(<CleanupCentre bridge={{ load: async () => foreign }} />);
+    const view2 = render(<CleanupCentre bridge={{ load: async () => foreign }} machinesBridge={machines} />);
     await waitFor(() => expect(view2.getByTestId("cleanup-machine-9001")).toBeTruthy());
-    expect(view2.getByTestId("cleanup-machine-9001").textContent).toBe("machine-other");
+    expect(view2.getByTestId("cleanup-machine-9001").textContent).toBe("Mac Studio");
     view2.unmount();
   });
 

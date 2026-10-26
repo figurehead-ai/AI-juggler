@@ -24,8 +24,8 @@ use std::time::{Duration, Instant};
 
 use juggler_core::model::{
     AccountId, ConversationId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId,
-    InstanceKind, InstanceRecord, MachineId, ProjectId, SessionId, SessionStatus, SwitchEdge,
-    SwitchEdgeId, SwitchMechanism, Timestamp, TranscriptRef, WorkItemId,
+    InstanceRecord, MachineId, ProjectId, SessionId, SessionStatus, SwitchEdge, SwitchEdgeId,
+    SwitchMechanism, Timestamp, TranscriptRef, WorkItemId,
 };
 use juggler_link::node::{HandoverAccepted, HandoverRejection, PeerAccess};
 use juggler_link::proto;
@@ -1321,52 +1321,29 @@ pub(crate) fn launch_here(
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // AJ-E1001: the receiving Account must be who it was here too.
     let assertion = crate::identity::assert_identity(state, account)?;
-    let mut spec = adapter.launch_spec(account, profile, &project.root, mode)?;
+    let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let project_id = Some(project.id.as_str());
-    let bridge = crate::features::agent_bridge::prepare;
-    bridge(
+    // The one path: the row first (ADR-0010 §1), then the bridge and the
+    // account's key in the launch, under the supervisor.
+    let started = crate::features::sessions::spawn::start_session(
         state,
-        adapter.as_ref(),
-        &mut spec,
-        &session,
-        project_id,
-        account.id.as_str(),
-    );
-    let spawned = crate::features::sessions::spawn::spawn_account_session(
-        state,
-        &session,
-        &spec,
-        account,
-        Some(project.id.to_string()),
+        &crate::features::sessions::spawn::NewSession {
+            id: &session,
+            account,
+            profile: &profile.id,
+            project: Some(project.id.clone()),
+            cwd: spec.cwd.clone(),
+            conversation: transcript
+                .as_ref()
+                .and_then(|reference| reference.native_id.clone())
+                .map(ConversationId::new),
+            transcript_ref: transcript,
+            origin: "switch",
+        },
+        crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
-    let machine = crate::commands::local_machine_id(state);
-    let storage = crate::commands::lock_storage_arc(state)?;
-    let usage = crate::commands::engine_usage_snapshot(&storage, &profile.id);
-    storage.sessions().insert(&InstanceRecord {
-        id: session.clone(),
-        conversation: transcript
-            .as_ref()
-            .and_then(|reference| reference.native_id.clone())
-            .map(ConversationId::new),
-        profile: profile.id.clone(),
-        machine,
-        kind: InstanceKind::Terminal,
-        project: Some(project.id.clone()),
-        cwd: spec.cwd.clone(),
-        status: SessionStatus::Starting,
-        started_at: Timestamp::now(),
-        last_activity: None,
-        usage,
-        attention: None,
-        running: None,
-        window: None,
-        transcript_ref: transcript,
-    })?;
-    crate::usage_stats::instance_started(account.harness.as_str(), false, "switch");
-    drop(storage);
     crate::identity::record(state, &session, account, &assertion, moment);
-    Ok((session, spawned.pid))
+    Ok((session, started.spawned.pid))
 }
 
 /// Records the edge here under the console's ids: the work item, a
@@ -1445,11 +1422,14 @@ pub const EVENT_FLEET_SWITCH_PROGRESS: &str = "fleet://switch-progress";
 ///
 /// Returns the typed [`AppError`] per [`fleet_switch_targets_impl`].
 #[tauri::command]
-pub fn fleet_switch_targets(
+pub async fn fleet_switch_targets(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Vec<RemoteSwitchTargetInfo>> {
-    fleet_switch_targets_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "fleet switch targets", move |state| {
+        fleet_switch_targets_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E706: runs one confirmed cross-machine switch (progress arrives as
@@ -1484,9 +1464,18 @@ pub async fn fleet_switch_execute(
 
 /// AJ-E706: cancels the push to `machine_id` (within one chunk).
 #[tauri::command]
-#[must_use]
-pub fn fleet_switch_cancel(state: tauri::State<'_, Arc<AppState>>, machine_id: String) -> bool {
-    fleet_switch_cancel_impl(state.inner(), &machine_id)
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn fleet_switch_cancel(
+    state: tauri::State<'_, Arc<AppState>>,
+    machine_id: String,
+) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "fleet switch cancel", move |state| {
+        Ok(fleet_switch_cancel_impl(state, &machine_id))
+    })
+    .await
 }
 
 pub mod switch_back;

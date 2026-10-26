@@ -161,7 +161,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
 function Group({ title, empty, children }: { title: string; empty: string; children: JSX.Element[] }): JSX.Element {
   return (
     <div className="flex flex-col gap-1.5" role="group" aria-label={title}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-faint">{title}</p>
+      <p className="text-label font-medium uppercase tracking-wide text-faint">{title}</p>
       {children.length === 0 ? <p className="text-xs text-muted">{empty}</p> : children}
     </div>
   );

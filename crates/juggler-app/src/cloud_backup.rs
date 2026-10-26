@@ -332,9 +332,20 @@ pub fn cloud_backup_prepare_restore_impl(
 
 /// AJ-E1205: where Cloud backup stands.
 #[tauri::command]
-#[must_use]
-pub fn cloud_backup_status(state: tauri::State<'_, Arc<AppState>>) -> CloudBackupStatusInfo {
-    cloud_backup_status_impl(state.inner(), &crate::edition::current().vault_keychain())
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+pub async fn cloud_backup_status(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<CloudBackupStatusInfo> {
+    crate::ipc::blocking(state.inner(), "cloud backup status", move |state| {
+        Ok(cloud_backup_status_impl(
+            state,
+            &crate::edition::current().vault_keychain(),
+        ))
+    })
+    .await
 }
 
 /// AJ-E1205: sets the schedule.
@@ -343,15 +354,18 @@ pub fn cloud_backup_status(state: tauri::State<'_, Arc<AppState>>) -> CloudBacku
 ///
 /// Per [`cloud_backup_set_schedule_impl`].
 #[tauri::command]
-pub fn cloud_backup_set_schedule(
+pub async fn cloud_backup_set_schedule(
     state: tauri::State<'_, Arc<AppState>>,
     schedule: String,
 ) -> AppResult<CloudBackupStatusInfo> {
-    cloud_backup_set_schedule_impl(
-        state.inner(),
-        &crate::edition::current().vault_keychain(),
-        &schedule,
-    )
+    crate::ipc::blocking(state.inner(), "cloud backup set schedule", move |state| {
+        cloud_backup_set_schedule_impl(
+            state,
+            &crate::edition::current().vault_keychain(),
+            &schedule,
+        )
+    })
+    .await
 }
 
 async fn blocking<T: Send + 'static>(

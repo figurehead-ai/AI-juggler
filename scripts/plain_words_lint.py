@@ -50,6 +50,13 @@ BANNED: dict[str, tuple[re.Pattern[str], str]] = {
     "unvalidated": (re.compile(r"\b[Uu]nvalidated\b"), "\"not proven yet\""),
     "imported-sessions": (re.compile(r"\bimported sessions\b"), "say what they are"),
     "no-folder-picked": (re.compile(r"No folder picked"), "show the footer only where it applies"),
+    # The review of 0.1.4 (the readability pass): developer words and tags
+    # still on screen.
+    "orphan-helper": (re.compile(r"\b(?:[Aa]n?|\d+|[Mm]anaged) (?:orphan|helper)s?\b"), "\"left running after its session closed\", \"a process it started\""),
+    "reset-colon": (re.compile(r"\b[Rr]eset:(?=\s*$|\s*\d)"), "\"resets in 2 h\""),
+    "model-api-prices": (re.compile(r"'s API prices"), "\"at list prices for <model>\""),
+    "latest-session": (re.compile(r"From the latest session"), "\"Last read in a session\""),
+    "calendar-emoji": (re.compile("\U0001F4C5"), "the words alone (\"Renews 23 Oct\")"),
 }
 # A one-word literal that is a banned tag on its own still counts.
 TAGS = {"COMP", "MEAS", "EST", "Comp", "Meas", "Est", "tok"}

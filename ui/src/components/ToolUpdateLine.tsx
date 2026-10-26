@@ -26,7 +26,7 @@ export function ToolUpdateLine({ tool, name }: { tool: string; name: string }) {
     );
   };
   return (
-    <div className="flex flex-col gap-1 text-[11px]" data-testid="provider-update">
+    <div className="flex flex-col gap-1 text-label" data-testid="provider-update">
       {info.newer && info.latest && (
         <p className="text-ink" data-testid="provider-update-available">
           {name} {info.latest} is out{info.verified ? "" : "; not tested with AI Juggler yet"}.

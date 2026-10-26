@@ -116,16 +116,16 @@ export function DesktopPreview({
           </span>
         ) : null}
         {ageSec !== null ? (
-          <span className="text-[11px] text-faint" data-testid="preview-frame-age">
+          <span className="text-label text-muted" data-testid="preview-frame-age">
             frame age {ageSec}s
           </span>
         ) : null}
-        <span className="ml-auto text-[10.5px] text-faint">
+        <span className="ml-auto text-label text-muted">
           read-only mirror · click to focus the real window
         </span>
       </div>
       {phase?.phase === "paused" ? (
-        <p className="text-[11.5px] text-muted" data-testid="preview-paused">
+        <p className="text-meta text-muted" data-testid="preview-paused">
           {PAUSED_NOT_VISIBLE}
         </p>
       ) : null}
@@ -134,14 +134,14 @@ export function DesktopPreview({
           className="flex flex-col gap-1.5 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
           data-testid="preview-denied"
         >
-          <p className="text-[11.5px] leading-relaxed text-ink">{phase.text}</p>
-          <p className="text-[10.5px] text-faint">
+          <p className="text-meta leading-relaxed text-ink">{phase.text}</p>
+          <p className="text-label text-muted">
             Status and transcript data below keep working without it.
           </p>
         </div>
       ) : null}
       {phase?.phase === "unsupported" ? (
-        <p className="text-[11.5px] text-muted" data-testid="preview-unsupported">
+        <p className="text-meta text-muted" data-testid="preview-unsupported">
           {phase.text}
         </p>
       ) : null}
@@ -162,7 +162,7 @@ export function DesktopPreview({
           />
         </button>
       ) : phase?.phase === "live" ? (
-        <p className="text-[11px] text-faint" data-testid="preview-connecting">
+        <p className="text-label text-muted" data-testid="preview-connecting">
           Connecting the preview…
         </p>
       ) : null}

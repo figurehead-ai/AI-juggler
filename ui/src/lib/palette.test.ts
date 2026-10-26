@@ -6,6 +6,7 @@
  * accounts with a shared first word apart.
  */
 import { describe, expect, it } from "vitest";
+import { forgetProfilesForTests, profileColor } from "./profile-marks";
 import { accountColor, accountInitials, assignPalette, distinctInitials, initialsOf, paletteIndex, PALETTE, PALETTE_HUES, swatchColor } from "./palette";
 import { contrast, deltaE, inGamut, luminance } from "./oklch";
 
@@ -46,11 +47,14 @@ describe("the palette", () => {
 describe("the accounts' colours", () => {
   const accounts = (ids: string[]) => ids.map((id) => ({ id, label: id }));
 
-  it("gives each of up to twelve accounts its own, whatever the order", () => {
-    const ids = Array.from({ length: 12 }, (_, n) => `account-${n}`);
+  it("gives each of up to eight profiles its own, whatever the order: its badge's", () => {
+    forgetProfilesForTests();
+    const ids = Array.from({ length: 8 }, (_, n) => `account-${n}`);
     assignPalette(accounts(ids));
     const colours = ids.map(accountColor);
-    expect(new Set(colours).size).toBe(12);
+    expect(new Set(colours).size).toBe(8);
+    // One colour system: a profile's chart colour is its badge's.
+    expect(colours).toEqual(ids.map((id) => profileColor(id)));
     assignPalette(accounts([...ids].reverse()));
     expect(ids.map(accountColor)).toEqual(colours);
   });

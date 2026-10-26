@@ -58,6 +58,11 @@ same_as: string,
  */
 desktop_app: string | null, 
 /**
+ * D-38: the host registry's id for the tool's own app (the first of
+ * its adapter's host apps), whose icon stands for the tool.
+ */
+host_app?: string | null, 
+/**
  * `cli` and/or `desktop`.
  */
 kinds: Array<string>, 

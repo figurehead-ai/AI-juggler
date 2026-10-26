@@ -33,8 +33,15 @@ pub enum UsageSource {
     Rollout,
     /// A vendor SQLite store (`ZCode` `model_usage`).
     Sqlite,
-    /// A retry-after signal observed on an API error (429 class).
+    /// A retry-after signal observed on an API error (429 class): the
+    /// tool's own record that a limit was hit, with the vendor's reset.
     ApiRetry,
+    /// The tool's desktop app's own record of the account's limits (the
+    /// readings behind its usage meter). Percent used, no reset time.
+    DesktopApp,
+    /// The tool's own last reading of the account's limits, kept in its
+    /// state file (what its usage command showed last).
+    UsageCache,
 }
 
 impl UsageSource {
@@ -47,6 +54,8 @@ impl UsageSource {
             UsageSource::Rollout => "rollout",
             UsageSource::Sqlite => "sqlite",
             UsageSource::ApiRetry => "api_retry",
+            UsageSource::DesktopApp => "desktop_app",
+            UsageSource::UsageCache => "usage_cache",
         }
     }
 
@@ -59,8 +68,24 @@ impl UsageSource {
             "rollout" => Some(UsageSource::Rollout),
             "sqlite" => Some(UsageSource::Sqlite),
             "api_retry" => Some(UsageSource::ApiRetry),
+            "desktop_app" => Some(UsageSource::DesktopApp),
+            "usage_cache" => Some(UsageSource::UsageCache),
             _ => None,
         }
+    }
+
+    /// True when a reading from this source names every window the plan
+    /// has, so a window it leaves out isn't there (a limit hit names only
+    /// the window it hit).
+    #[must_use]
+    pub const fn names_its_windows(self) -> bool {
+        matches!(
+            self,
+            UsageSource::Statusline
+                | UsageSource::Rollout
+                | UsageSource::DesktopApp
+                | UsageSource::UsageCache
+        )
     }
 }
 
@@ -294,6 +319,10 @@ pub struct WindowReading {
     /// When the vendor reading behind this window was taken (its "as
     /// of"), when one is.
     pub measured_at: Option<i64>,
+    /// In `ResetSinceReading` only: what that last reading said, as
+    /// history ("40% used, 13 h ago; that window has reset since"), never
+    /// as the window's state now.
+    pub last_used_pct: Option<f64>,
 }
 
 /// Readings of one window whose `resets_at` differ by less than this are
@@ -310,28 +339,71 @@ pub const SAME_WINDOW_MS: i64 = 3_600_000;
 ///   window, so the newest line can describe a window already gone;
 /// - inside it, the highest `used_pct`: use only rises within a window,
 ///   and a concurrent session's reading can lag by a point;
-/// - readings with no `resets_at` count only when none has one (newest).
+/// - a reading with no `resets_at` (a desktop app's meter) is newer news
+///   when it was taken after every reading of that window: taken before
+///   the window's reset, it is the same window (the higher of the two,
+///   with the known reset); taken after it, it describes a newer window
+///   on its own. The newest source wins, never an older one.
 #[must_use]
-pub fn current_reading(samples: &[QuotaSample]) -> Option<&QuotaSample> {
+pub fn current_reading(samples: &[QuotaSample]) -> Option<QuotaSample> {
     let measured = || {
         samples
             .iter()
             .filter(|sample| sample.confidence == Confidence::Measured)
     };
+    let newest_unreset = measured()
+        .filter(|sample| sample.resets_at.is_none())
+        .max_by_key(|sample| sample.ts)
+        .copied();
     let Some(latest_reset) = measured().filter_map(|sample| sample.resets_at).max() else {
-        return measured().max_by_key(|sample| sample.ts);
+        return newest_unreset;
     };
-    measured()
-        .filter(|sample| {
+    let in_window = || {
+        measured().filter(move |sample| {
             sample
                 .resets_at
                 .is_some_and(|at| latest_reset - at < SAME_WINDOW_MS)
         })
+    };
+    let highest = in_window()
         .max_by(|a, b| {
             a.used_pct
                 .total_cmp(&b.used_pct)
                 .then_with(|| a.ts.cmp(&b.ts))
         })
+        .copied()?;
+    let Some(unreset) = newest_unreset else {
+        return Some(highest);
+    };
+    let newest_in_window = in_window()
+        .map(|sample| sample.ts)
+        .max()
+        .unwrap_or(highest.ts);
+    if unreset.ts <= newest_in_window {
+        return Some(highest);
+    }
+    match highest.resets_at {
+        // Read inside the window the reset closes: the same window.
+        Some(reset) if unreset.ts < reset => Some(QuotaSample {
+            ts: unreset.ts,
+            used_pct: unreset.used_pct.max(highest.used_pct),
+            resets_at: Some(reset),
+            confidence: Confidence::Measured,
+        }),
+        _ => Some(unreset),
+    }
+}
+
+/// True when the window `sample` described has certainly ended by
+/// `now_ms`: its reset has passed, or, with no reset known, a whole window
+/// length has gone by since it was read (a 5-hour reading 6 hours old says
+/// nothing about now).
+#[must_use]
+pub fn reading_window_ended(sample: &QuotaSample, kind: WindowKind, now_ms: i64) -> bool {
+    match sample.resets_at {
+        Some(reset) => reset <= now_ms,
+        None => now_ms.saturating_sub(sample.ts) >= kind.width_ms(),
+    }
 }
 
 /// Where a window's reset time came from. There is no "estimated":
@@ -552,28 +624,11 @@ pub fn evaluate_window(
         .chain(latest_sample.map(|sample| sample.ts))
         .max();
 
-    // Exhausted: a Measured sample says the pool is spent and the
-    // vendor reset has not passed yet.
+    // The reading's window has ended and nothing newer describes the new
+    // one: no percentage and no reset time (D-06). What it said stays as
+    // history only.
     if let Some(sample) = latest_sample
-        && sample.used_pct >= 100.0
-        && sample.resets_at.is_none_or(|reset| reset > now_ms)
-    {
-        return WindowReading {
-            state: QuotaState::Exhausted,
-            percentage: Some(100.0),
-            basis: Some(PercentageBasis::Measured),
-            confidence: Confidence::Measured,
-            burn,
-            resets_at: sample.resets_at,
-            reset_basis: sample.resets_at.map(|_| ResetBasis::Measured),
-            measured_at: Some(sample.ts),
-        };
-    }
-
-    // The reading's window has reset and nothing newer describes the new
-    // one: no percentage and no reset time (D-06).
-    if let Some(sample) = latest_sample
-        && sample.resets_at.is_some_and(|reset| reset <= now_ms)
+        && reading_window_ended(&sample, kind, now_ms)
     {
         return WindowReading {
             state: QuotaState::ResetSinceReading,
@@ -584,6 +639,25 @@ pub fn evaluate_window(
             resets_at: None,
             reset_basis: None,
             measured_at: Some(sample.ts),
+            last_used_pct: Some(sample.used_pct.clamp(0.0, 100.0)),
+        };
+    }
+
+    // Exhausted: a Measured sample says the pool is spent and its window
+    // hasn't ended yet.
+    if let Some(sample) = latest_sample
+        && sample.used_pct >= 100.0
+    {
+        return WindowReading {
+            state: QuotaState::Exhausted,
+            percentage: Some(100.0),
+            basis: Some(PercentageBasis::Measured),
+            confidence: Confidence::Measured,
+            burn,
+            resets_at: sample.resets_at,
+            reset_basis: sample.resets_at.map(|_| ResetBasis::Measured),
+            measured_at: Some(sample.ts),
+            last_used_pct: None,
         };
     }
 
@@ -607,7 +681,7 @@ pub fn evaluate_window(
             (None, None, Confidence::default(), None)
         } else if let Some(sample) = latest_sample {
             (
-                Some(measured_percentage(samples, sample, &account_events)),
+                Some(measured_percentage(samples, &sample, kind, &account_events)),
                 Some(PercentageBasis::Measured),
                 Confidence::Measured,
                 sample.resets_at,
@@ -643,15 +717,30 @@ pub fn evaluate_window(
         measured_at: (basis == Some(PercentageBasis::Measured))
             .then(|| latest_sample.map(|sample| sample.ts))
             .flatten(),
+        last_used_pct: None,
+    }
+}
+
+/// True when `prev` (read before `sample`) can be the same window as far
+/// as is known: both resets agree, or `prev`'s window was still open when
+/// `sample` was read, or, with no reset on `prev`, it was read less than a
+/// window's length before.
+fn same_window_as_known(prev: &QuotaSample, sample: &QuotaSample, kind: WindowKind) -> bool {
+    match (prev.resets_at, sample.resets_at) {
+        (Some(a), Some(b)) => (a - b).abs() < SAME_WINDOW_MS,
+        (Some(a), None) => a > sample.ts,
+        (None, _) => sample.ts.saturating_sub(prev.ts) < kind.width_ms(),
     }
 }
 
 /// The Measured path: the vendor's % verbatim, interpolated toward now
 /// with locally observed request deltas scaled by the slope from the
-/// previous reading of the same window.
+/// previous reading of the same window. Use only rises inside a window,
+/// so a falling pair (a reset between them) gives no slope.
 fn measured_percentage(
     samples: &[QuotaSample],
     sample: &QuotaSample,
+    kind: WindowKind,
     events: &[&UsageEvent],
 ) -> f64 {
     let previous = samples
@@ -659,14 +748,12 @@ fn measured_percentage(
         .filter(|s| {
             s.confidence == Confidence::Measured
                 && s.ts < sample.ts
-                && s.resets_at
-                    .zip(sample.resets_at)
-                    .is_none_or(|(a, b)| (a - b).abs() < SAME_WINDOW_MS)
+                && same_window_as_known(s, sample, kind)
         })
         .max_by_key(|s| s.ts);
     let slope = previous.and_then(|prev| {
         let between = count_requests_between(events.iter().copied(), prev.ts, sample.ts);
-        slope_pct_per_request(prev, sample, between)
+        slope_pct_per_request(prev, sample, between).filter(|slope| *slope >= 0.0)
     });
     let requests_since = count_requests_between(events.iter().copied(), sample.ts, i64::MAX);
     interpolate_percentage(sample, slope, requests_since)
