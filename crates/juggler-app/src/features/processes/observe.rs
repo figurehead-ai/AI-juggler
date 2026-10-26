@@ -177,6 +177,7 @@ pub(crate) fn theirs_sessions(
     ours: &HashSet<u32>,
     view: &CollectorView,
     titles: &HashMap<(String, String), String>,
+    folders: &HashMap<(String, String), std::path::PathBuf>,
 ) -> (Vec<TheirsInput>, Vec<ObservedRoot>) {
     let roots: HashSet<u32> = model
         .entries
@@ -242,6 +243,9 @@ pub(crate) fn theirs_sessions(
                 session_id: entry.session_id.clone(),
                 account_id: entry.account_id.clone(),
                 title,
+                folder: folders
+                    .get(&(entry.tool.clone(), entry.session_id.clone()))
+                    .cloned(),
                 app: AppRef {
                     app_id: host.and_then(|host| host.app_id.clone()),
                     name: host.map_or_else(|| "Terminal".to_owned(), |host| host.name.clone()),
@@ -276,6 +280,8 @@ pub struct OursMeta {
     pub title: String,
     /// The tool's id for its conversation, when known.
     pub conversation: Option<String>,
+    /// Its folder.
+    pub folder: Option<std::path::PathBuf>,
     /// Its stored status says it ended.
     pub marked_ended: bool,
 }
@@ -301,6 +307,7 @@ pub fn ours_meta(state: &Arc<AppState>, sessions: &[String]) -> HashMap<String, 
             id.clone(),
             OursMeta {
                 title: folder,
+                folder: Some(record.cwd.clone()),
                 conversation: record
                     .conversation
                     .as_ref()
@@ -356,6 +363,7 @@ pub(crate) fn ours_sessions(
                 account_id: first.and_then(|row| row.account_id.clone()),
                 project_id: first.and_then(|row| row.project_id.clone()),
                 title,
+                folder: meta.folder.clone(),
                 finished: finished.get(session_id.as_str()).copied().unwrap_or(true),
                 adopted: adopted.contains(&session_id),
                 marked_ended: meta.marked_ended,

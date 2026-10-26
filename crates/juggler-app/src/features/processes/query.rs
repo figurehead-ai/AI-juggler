@@ -202,6 +202,11 @@ fn session_row(
             account_id: session.account_id.clone(),
             project_id: session.project_id.clone(),
             title: session.title.clone(),
+            folder_name: session
+                .folder
+                .as_ref()
+                .and_then(|folder| folder.file_name())
+                .map(|name| name.to_string_lossy().into_owned()),
             state: session.state.into(),
             alive: session.alive,
             root_pid: session.root_pid,

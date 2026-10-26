@@ -350,6 +350,8 @@ macro_rules! app_commands {
             Read  features::processes::commands::processes_dry_run,
             Read  features::processes::commands::processes_policy,
             Read  features::processes::commands::processes_snapshot,
+            Write features::processes::commands::processes_reveal,
+            Write features::processes::commands::processes_activity_monitor,
             Read  features::runtime::commands::runtime_asks,
             Write features::runtime::commands::runtime_answer,
             Write features::runtime::commands::runtime_send,

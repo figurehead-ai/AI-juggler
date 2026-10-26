@@ -157,6 +157,8 @@ pub struct OursInput {
     pub project_id: Option<String>,
     /// Its title, as best known (the conversation's, else its folder).
     pub title: String,
+    /// Its folder, when known.
+    pub folder: Option<std::path::PathBuf>,
     /// Its own process has ended (the supervisor saw it exit).
     pub finished: bool,
     /// Picked up again after AI Juggler restarted.
@@ -199,6 +201,8 @@ pub struct TheirsInput {
     pub account_id: Option<String>,
     /// Its title, as best known.
     pub title: String,
+    /// Its folder, when known.
+    pub folder: Option<std::path::PathBuf>,
     /// Where it runs.
     pub app: AppRef,
     /// Its own process.
@@ -259,6 +263,8 @@ pub struct Inputs {
     /// Other apps' sessions' titles, by `(tool, session id)`, for the
     /// ones that ended (their leftovers' sessions).
     pub titles: HashMap<(String, String), String>,
+    /// Other apps' sessions' folders, by `(tool, session id)`.
+    pub folders: HashMap<(String, String), std::path::PathBuf>,
 }
 
 /// One process in the graph.
@@ -411,6 +417,8 @@ pub struct SessionNode {
     pub project_id: Option<String>,
     /// Its title.
     pub title: String,
+    /// Its folder, when known (Reveal folder opens it).
+    pub folder: Option<std::path::PathBuf>,
     /// Its own process still runs.
     pub alive: bool,
     /// `working`, `idle` or `ended`.
@@ -813,6 +821,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
             account_id: session.account_id.clone(),
             project_id: session.project_id.clone(),
             title: session.title.clone(),
+            folder: session.folder.clone(),
             alive: root_alive,
             state,
             processes,
@@ -898,6 +907,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
             account_id: session.account_id.clone(),
             project_id: None,
             title: session.title.clone(),
+            folder: session.folder.clone(),
             alive: true,
             state,
             processes,
@@ -911,6 +921,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
 
 /// Other apps' ended sessions, from their leftovers: one session node per
 /// `(tool, session)`, with the app the sighting names.
+#[allow(clippy::too_many_lines)] // one node per leftover, then one session each
 fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
     let inputs = ctx.inputs;
     let mut by_session: HashMap<(String, String), (AppRef, Vec<ProcNode>)> = HashMap::new();
@@ -1001,6 +1012,10 @@ fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
                         .get(&(tool.clone(), session_id.clone()))
                         .cloned()
                         .unwrap_or_default(),
+                    folder: inputs
+                        .folders
+                        .get(&(tool.clone(), session_id.clone()))
+                        .cloned(),
                     alive: false,
                     state: "ended",
                     processes,

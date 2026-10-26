@@ -158,3 +158,16 @@ export function onProcessesChanged(on: (change: ProcessGraphChangedInfo) => void
     stop?.();
   };
 }
+
+/** Reveal folder: the session's folder in Finder (the one the backend
+ * knows for it). False when it has none. */
+export async function processesReveal(sessionKey: string): Promise<boolean> {
+  if (!hasLiveBackend()) return false;
+  return invoke<boolean>("processes_reveal", { sessionKey });
+}
+
+/** Show in Activity Monitor (macOS's own). */
+export async function processesActivityMonitor(): Promise<boolean> {
+  if (!hasLiveBackend()) return false;
+  return invoke<boolean>("processes_activity_monitor");
+}

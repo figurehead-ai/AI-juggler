@@ -79,6 +79,7 @@ struct Inner {
     heavy: HashSet<u32>,
     meta: HashMap<String, OursMeta>,
     titles: HashMap<(String, String), String>,
+    folders: HashMap<(String, String), std::path::PathBuf>,
     fingerprint: u64,
     /// Helpers the reconciler found left behind, by session, with when.
     orphaned: HashMap<String, (i64, u32)>,
@@ -409,9 +410,11 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             .into_iter()
             .map(|(key, (title, folder))| {
                 let words = title.filter(|t| !t.trim().is_empty()).or_else(|| {
-                    folder.and_then(|f| f.file_name().map(|n| n.to_string_lossy().into_owned()))
+                    folder
+                        .as_ref()
+                        .and_then(|f| f.file_name().map(|n| n.to_string_lossy().into_owned()))
                 });
-                (key, words.unwrap_or_default())
+                (key, (words.unwrap_or_default(), folder))
             })
             .collect::<HashMap<_, _>>()
     });
@@ -435,10 +438,15 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             inner.failed = failed;
         }
         if let Some(titles) = fresh_titles {
-            inner.titles.extend(titles);
+            for (key, (title, folder)) in titles {
+                if let Some(folder) = folder {
+                    inner.folders.insert(key.clone(), folder);
+                }
+                inner.titles.insert(key, title);
+            }
         }
         let (theirs, mut extra) =
-            observe::theirs_sessions(&model_now, &ours_pids, &view, &inner.titles);
+            observe::theirs_sessions(&model_now, &ours_pids, &view, &inner.titles, &inner.folders);
         let live_keys: HashSet<(String, String)> = model_now
             .entries
             .iter()
@@ -516,6 +524,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             zombie_since: inner.zombie_since.clone(),
             own_pid: std::process::id(),
             titles: inner.titles.clone(),
+            folders: inner.folders.clone(),
         };
         // Each process's CPU now joins its sparkline before the build.
         let mut seen: HashSet<(u32, i64)> = HashSet::new();

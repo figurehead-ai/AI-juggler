@@ -100,6 +100,8 @@ pub struct SessionRowInfo {
     pub project_id: Option<String>,
     /// Its title.
     pub title: String,
+    /// Its folder's name, when known (never the path).
+    pub folder_name: Option<String>,
     /// `working`, `idle` or `ended`.
     pub state: String,
     /// Its own process still runs.

@@ -407,3 +407,60 @@ pub async fn processes_snapshot(
 ) -> AppResult<ProcessSnapshotInfo> {
     crate::ipc::blocking(state.inner(), "the process snapshot", snapshot_impl).await
 }
+
+/// Opens a session's folder in Finder: the folder the graph knows for that
+/// session (never a path the window sends). False when there is none.
+///
+/// # Errors
+///
+/// None today.
+pub fn reveal_impl(state: &Arc<AppState>, session_key: &str) -> AppResult<bool> {
+    let graph = state.processes.graph();
+    let folder = graph
+        .apps
+        .iter()
+        .flat_map(|app| app.sessions.iter())
+        .find(|session| session.key == session_key || session.session_id == session_key)
+        .and_then(|session| session.folder.clone())
+        .filter(|folder| folder.is_dir());
+    let Some(folder) = folder else {
+        return Ok(false);
+    };
+    Ok(std::process::Command::new("/usr/bin/open")
+        .arg(folder)
+        .status()
+        .is_ok_and(|status| status.success()))
+}
+
+/// Reveal folder: a session's folder in Finder.
+///
+/// # Errors
+///
+/// As [`reveal_impl`].
+#[tauri::command]
+pub async fn processes_reveal(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_key: String,
+) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "the session's folder", move |state| {
+        reveal_impl(state, &session_key)
+    })
+    .await
+}
+
+/// Show in Activity Monitor: opens macOS's own Activity Monitor (another
+/// app's process is looked at there, in full).
+///
+/// # Errors
+///
+/// None today.
+#[tauri::command]
+pub async fn processes_activity_monitor(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
+    crate::ipc::blocking(state.inner(), "Activity Monitor", |_| {
+        Ok(std::process::Command::new("/usr/bin/open")
+            .args(["-b", "com.apple.ActivityMonitor"])
+            .status()
+            .is_ok_and(|status| status.success()))
+    })
+    .await
+}

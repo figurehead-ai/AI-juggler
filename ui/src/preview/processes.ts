@@ -181,6 +181,7 @@ export function previewRows(source: PreviewMac, input: ProcessQueryInput): Proce
           account_id: session.account_id,
           project_id: session.project_id,
           title: session.title,
+          folder_name: session.project_id?.replace(/^proj-/, "") ?? null,
           state: session.state,
           alive: session.alive,
           root_pid: session.root_pid,

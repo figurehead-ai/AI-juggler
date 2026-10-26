@@ -29,6 +29,10 @@ project_id: string | null,
  */
 title: string, 
 /**
+ * Its folder's name, when known (never the path).
+ */
+folder_name: string | null, 
+/**
  * `working`, `idle` or `ended`.
  */
 state: string, 
