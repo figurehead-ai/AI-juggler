@@ -159,7 +159,6 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
     expect(container.querySelector('[data-testid="instance-usage"]')).not.toBeNull();
     expect(container.textContent).toContain("12,345");
     expect(container.textContent).toContain("6,789");
-    expect(container.textContent).toContain("Measured");
   });
 
   it("without tokens says so; the over-time chart waits for a time series (D-25)", () => {

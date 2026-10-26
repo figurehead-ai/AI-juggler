@@ -36,16 +36,19 @@ const VIEWS: { id: ViewId; label: string }[] = [
   { id: "history", label: "Cleanup history" },
 ];
 
-export function ViewTabs({ view, counts, onView }: { view: ViewId; counts: ProcessCountsInfo | null; onView: (view: ViewId) => void }): JSX.Element {
+/** The views: the page's own tabs; inside a page that has tabs of its
+ * own (a session's), a choice of one (radio buttons), never tabs in tabs. */
+export function ViewTabs({ view, counts, onView, embedded = false }: { view: ViewId; counts: ProcessCountsInfo | null; onView: (view: ViewId) => void; embedded?: boolean }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const views = embedded ? VIEWS.filter((item) => item.id !== "ports" && item.id !== "attention") : VIEWS;
   const move = (at: number) => {
-    const next = (at + VIEWS.length) % VIEWS.length;
-    onView(VIEWS[next]!.id);
+    const next = (at + views.length) % views.length;
+    onView(views[next]!.id);
     refs.current[next]?.focus();
   };
   return (
-    <div role="tablist" aria-label="Which processes" className="inline-flex rounded-xl border border-hairline bg-surface-2 p-0.5" data-testid="process-views">
-      {VIEWS.map((item, at) => {
+    <div role={embedded ? "radiogroup" : "tablist"} aria-label="Which processes" className="inline-flex rounded-xl border border-hairline bg-surface-2 p-0.5" data-testid="process-views">
+      {views.map((item, at) => {
         const selected = item.id === view;
         const count = item.id === "attention" ? counts?.attention : item.id === "running" ? counts?.processes : undefined;
         return (
@@ -55,8 +58,9 @@ export function ViewTabs({ view, counts, onView }: { view: ViewId; counts: Proce
               refs.current[at] = element;
             }}
             type="button"
-            role="tab"
-            aria-selected={selected}
+            role={embedded ? "radio" : "tab"}
+            aria-selected={embedded ? undefined : selected}
+            aria-checked={embedded ? selected : undefined}
             tabIndex={selected ? 0 : -1}
             onClick={() => onView(item.id)}
             onKeyDown={(event) => {

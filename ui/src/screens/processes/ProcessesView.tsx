@@ -158,7 +158,7 @@ export function ProcessesView({
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ViewTabs view={view} counts={counts} onView={chooseView} />
+        <ViewTabs view={view} counts={counts} onView={chooseView} embedded={embedded} />
         {view !== "history" && view !== "ports" && (
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={search} onChange={setSearch} />
