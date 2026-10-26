@@ -76,13 +76,13 @@ describe("PortInventoryList (AJ-E505)", () => {
     expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain("Not from AI Juggler");
     // Unmanaged rows say WHY they are muted — icon+text, not colour.
     expect((screen.getByTestId("port-row-8000")).textContent ?? "").toContain(
-      "listener outside Juggler's ledger",
+      "Not started by AI Juggler, so it is only shown",
     );
     // The port is the headline; the PID is evidence (Nielsen H2).
     expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain(":5173");
     expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("PID 8123");
     // Attribution + hint + humanized ages.
-    expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("claude-code · acc-1 · proj-1");
+    expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("Claude Code · acc-1 · proj-1");
     expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("2h");
     expect((screen.getByTestId("port-row-5173")).textContent ?? "").toContain("vite dev server port");
   });
