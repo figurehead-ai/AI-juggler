@@ -119,8 +119,12 @@ fn a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast()
             .is_empty()
     );
     println!("send {send_took:?}, read {read_took:?}");
-    assert!(send_took < Duration::from_millis(50), "{send_took:?}");
-    assert!(read_took < Duration::from_millis(50), "{read_took:?}");
+    // The 50 ms budget per call is held over the socket by juggler-agentbridge's
+    // `calls_answer_in_under_50_ms`; a send and a read here (a read marks
+    // the message delivered, so it can't be repeated) are single wall-clock
+    // samples, so they get a sanity bound that a loaded CI or Mac can't flip.
+    assert!(send_took < Duration::from_millis(500), "{send_took:?}");
+    assert!(read_took < Duration::from_millis(500), "{read_took:?}");
     // Every call reached the decision point and is audited.
     let audit = lab
         .state
