@@ -62,15 +62,15 @@ const rowText = (session: InstanceInfo, variant: "row" | "card" = "card"): strin
 
 describe("AJ-E402 SessionRow — the 9 SessionStatus states (icon + text + colour)", () => {
   const states: [string, string][] = [
-    ["starting", "Starting"],
-    ["running", "Running"],
-    ["waiting_user", "Needs you"],
-    ["stuck", "Stuck?"],
-    ["quota_blocked", "Quota blocked"],
-    ["finished", "Finished"],
-    ["stopped", "Stopped"],
-    ["failed", "Failed"],
-    ["handed_over", "Handed over"],
+    ["starting", "Working"],
+    ["running", "Working"],
+    ["waiting_user", "Asks you"],
+    ["stuck", "Probably stuck"],
+    ["quota_blocked", "Limit reached"],
+    ["finished", "Ended"],
+    ["stopped", "Ended"],
+    ["failed", "Stopped with an error"],
+    ["handed_over", "Ended"],
   ];
 
   for (const [status, label] of states) {
@@ -174,7 +174,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
       "Claude",
       "Work Max",
       "opus",
-      "Running",
+      "Working",
       "% left",
       "19.1k tokens",
       "feat/read-model",
@@ -196,7 +196,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
     render(<SessionRow session={mk()} selected={false} onSelect={() => {}} />);
     const { name, described } = announced();
     const all = `${name} ${described}`;
-    for (const part of ["Claude", "Work Max", "opus", "Running", "feat/read-model"]) {
+    for (const part of ["Claude", "Work Max", "opus", "Working", "feat/read-model"]) {
       expect(name).toContain(part);
     }
     for (const part of ["quota 58% left, worked out", "19.1k tokens", "cpu 4%, ram 121 KB", "2 children"]) {
@@ -223,7 +223,7 @@ describe("AJ-E402 card/row parity and screen-reader access", () => {
   it("renders an unknown provider by its id with the letter mark", () => {
     const { container } = render(<SessionCard session={mk({ provider: "some-new-harness" })} />);
     expect(container.textContent).toContain("some-new-harness");
-    expect(container.querySelector('[data-mark="letter"]')?.getAttribute("data-letters")).toBe("So");
+    expect(container.querySelector('[data-mark="letter"]')?.getAttribute("data-letters")).toBe("S");
   });
 });
 

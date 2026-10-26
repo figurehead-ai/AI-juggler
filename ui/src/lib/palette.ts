@@ -12,6 +12,7 @@
  * a rounded square and an account's avatar is round, so the two never
  * read as one.
  */
+import { assignProfiles, profileColor } from "./profile-marks";
 import type { ProjectInfo } from "./bridge";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { luminance, maxChroma, type Oklch } from "./oklch";
@@ -118,6 +119,8 @@ export function assignPalette(accounts: { id: string; label: string }[]): void {
   known = sorted.map(({ id, label }) => ({ id, label }));
   assigned.clear();
   sorted.forEach((account, index) => assigned.set(account.id, index % PALETTE.length));
+  // One colour per profile: its name joins the badges' set.
+  assignProfiles(sorted.map((account) => account.label));
   initials.clear();
   const letters = distinctInitials(sorted.map((account) => account.label));
   sorted.forEach((account, index) => initials.set(account.id, letters[index]!));
@@ -141,9 +144,11 @@ export function paletteIndex(key: string | null): number {
   return hash % PALETTE.length;
 }
 
-/** An account's colour, as CSS. */
+/** A profile's colour by its id, as CSS: its badge's (`profileColor` of
+ * its name), so a chart by profile, its avatar and its badge agree. */
 export function accountColor(accountId: string | null): string {
-  return swatchColor(paletteIndex(accountId));
+  const label = accountId === null ? null : (known.find((account) => account.id === accountId)?.label ?? null);
+  return profileColor(label ?? accountId ?? "unknown");
 }
 
 /** An account's initials: told apart from the user's other accounts when

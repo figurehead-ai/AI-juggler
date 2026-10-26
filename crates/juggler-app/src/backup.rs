@@ -370,6 +370,41 @@ pub fn backup_export_impl(
     dest: &Path,
     progress: Progress<'_>,
 ) -> AppResult<BackupExportInfo> {
+    backup_write(state, dest, progress, Purpose::LeavesTheMac)
+}
+
+/// The backup written before an update (and kept for Go back to an
+/// earlier version): it stays in AI Juggler's own folder on this Mac, as
+/// the database it copies does, so the check that stops a secret leaving
+/// the Mac in an export doesn't apply. A look-alike in a project's name
+/// stopped every update (0.1.1, 2026-10-25); an update never waits on it.
+///
+/// # Errors
+///
+/// As [`backup_export_impl`], without the secret check.
+pub fn backup_before_update(
+    state: &Arc<AppState>,
+    dest: &Path,
+    progress: Progress<'_>,
+) -> AppResult<BackupExportInfo> {
+    backup_write(state, dest, progress, Purpose::StaysOnThisMac)
+}
+
+/// Where a backup goes, which decides whether a secret look-alike stops it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Purpose {
+    /// An export or a cloud copy: anything secret-looking stops it.
+    LeavesTheMac,
+    /// The copy before an update, in AI Juggler's own folder.
+    StaysOnThisMac,
+}
+
+fn backup_write(
+    state: &Arc<AppState>,
+    dest: &Path,
+    progress: Progress<'_>,
+    purpose: Purpose,
+) -> AppResult<BackupExportInfo> {
     if dest.exists() {
         return Err(validation(
             "backup",
@@ -380,7 +415,7 @@ pub fn backup_export_impl(
         .data_dir
         .join(format!("backup-work-{}", Timestamp::now().millis()));
     std::fs::create_dir_all(&work).map_err(|e| io_error("backup staging", &e))?;
-    let result = export_from(state, dest, &work, progress);
+    let result = export_from(state, dest, &work, progress, purpose);
     let _ = std::fs::remove_dir_all(&work);
     result
 }
@@ -396,11 +431,36 @@ fn record_reads(state: &Arc<AppState>, sources: &[(String, PathBuf)]) {
     }
 }
 
+/// A backup that leaves the Mac stops on anything that looks like a
+/// secret; the one before an update stays here and isn't checked.
+fn secret_check(sources: &[(String, PathBuf)], purpose: Purpose) -> AppResult<()> {
+    if purpose == Purpose::StaysOnThisMac {
+        return Ok(());
+    }
+    let mut findings = Vec::new();
+    for (name, path) in sources {
+        for found in scan(path)? {
+            findings.push(format!("{name}: {found}"));
+        }
+    }
+    if findings.is_empty() {
+        return Ok(());
+    }
+    Err(validation(
+        "backup",
+        format!(
+            "stopped — something that looks like a secret is in {}; nothing was written",
+            findings.join("; ")
+        ),
+    ))
+}
+
 fn export_from(
     state: &Arc<AppState>,
     dest: &Path,
     work: &Path,
     progress: Progress<'_>,
+    purpose: Purpose,
 ) -> AppResult<BackupExportInfo> {
     let snapshot = work.join("juggler.sqlite");
     crate::commands::lock_storage_arc(state)?.snapshot_to(&snapshot)?;
@@ -409,21 +469,7 @@ fn export_from(
 
     let sources = sources(&state.data_dir, &snapshot);
     record_reads(state, &sources);
-    let mut findings = Vec::new();
-    for (name, path) in &sources {
-        for found in scan(path)? {
-            findings.push(format!("{name}: {found}"));
-        }
-    }
-    if !findings.is_empty() {
-        return Err(validation(
-            "backup",
-            format!(
-                "stopped — something that looks like a secret is in {}; nothing was written",
-                findings.join("; ")
-            ),
-        ));
-    }
+    secret_check(&sources, purpose)?;
 
     let total: u64 = sources
         .iter()

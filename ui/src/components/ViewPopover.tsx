@@ -67,7 +67,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const legend = "px-0.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted";
+  const legend = "px-0.5 pb-1 text-label font-semibold text-muted";
   return (
     <>
       <button
@@ -98,7 +98,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
             aria-label="View"
             data-testid="rail-view"
             style={{ left: at.left, top: at.top, maxHeight: window.innerHeight - at.top - 12 }}
-            className="fixed z-50 flex w-[280px] flex-col gap-3 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 text-[12px] text-ink shadow-card"
+            className="fixed z-50 flex w-[280px] flex-col gap-3 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 text-label text-ink shadow-card"
           >
             <fieldset className="flex flex-col gap-0.5">
               <legend className={legend}>Group by</legend>
@@ -108,14 +108,15 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
                 <label key={group.id} className={"flex items-baseline gap-2 rounded px-1 py-0.5 " + (waits ? "text-muted" : "hover:bg-surface-2")}>
                   <input
                     type="radio"
-                    className="accent-accent"
+                    // Not offered yet: a faint empty ring, never one that looks chosen.
+                    className="accent-accent disabled:opacity-40"
                     name={`${panelId}-group`}
                     checked={grouped === group.id}
                     disabled={waits}
                     onChange={() => setRailView((current) => ({ ...current, group: group.id }))}
                   />
                   <span>{group.label}</span>
-                  {group.note && (group.id !== "pool" || waits) && <span className="text-[10.5px] text-muted">{group.note}</span>}
+                  {group.note && (group.id !== "pool" || waits) && <span className="text-label text-muted">{group.note}</span>}
                 </label>
                 );
               })}
@@ -159,7 +160,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
               disabled={!changed}
               data-testid="rail-view-reset"
               onClick={() => setRailView(DEFAULT_VIEW)}
-              className="self-start rounded-md border border-hairline px-2 py-1 text-[11px] text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60"
+              className="self-start rounded-md border border-hairline px-2 py-1 text-label text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60"
             >
               Back to the defaults
             </button>

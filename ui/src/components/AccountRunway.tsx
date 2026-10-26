@@ -39,7 +39,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
   const left = Math.max(0, Math.round(100 - reading.used_percentage));
   return [
     {
-      label: "From the latest session",
+      label: "Last read in a session",
       left,
       words: `${left}% left${reading.resets_at_ms ? ` · resets ${resetClock(reading.resets_at_ms)}` : ""}`,
       tone: left === 0 ? "out" : left <= 25 ? "low" : "ok",
@@ -99,8 +99,10 @@ export function runwayOf(
   if (windows.some((entry) => entry.window?.state === "learning")) {
     return { left: null, words: "Measuring — shows after a little use", resets: null };
   }
-  if (windows.some((entry) => entry.window?.state === "reset")) {
-    return { left: null, words: "Not measured since the reset", resets: null };
+  const reset = windows.find((entry) => entry.window?.state === "reset");
+  if (reset) {
+    // The last reading, as history ("Last reading 13 h ago: 40% used; …").
+    return { left: null, words: windowView(reset.window).words, resets: null };
   }
   const used = windows.reduce((most, entry) => Math.max(most, entry.window?.burned_tokens ?? 0), 0);
   return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
@@ -177,7 +179,7 @@ const WORDS: Record<RunwayLine["tone"], string> = {
   ok: "text-muted",
   low: "text-warning",
   out: "text-danger",
-  none: "text-faint",
+  none: "text-muted",
 };
 
 export function AccountRunway({
@@ -202,24 +204,24 @@ export function AccountRunway({
       <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
         {lines.map((line) => (
           <div key={line.label} className="flex min-w-0 flex-col gap-1">
-            <span className="text-[11px] font-medium text-ink">{line.label}</span>
+            <span className="text-label font-medium text-ink">{line.label}</span>
             <span
               aria-hidden="true"
               className={"h-1.5 overflow-hidden rounded-full " + (line.left === null ? "border border-dashed border-hairline" : "bg-surface-2")}
             >
               <span className={"block h-full rounded-full " + BAR[line.tone]} style={{ width: `${line.left ?? 0}%` }} />
             </span>
-            <span className={"text-[11px] " + WORDS[line.tone]}>{line.words}</span>
+            <span className={"text-label " + WORDS[line.tone]}>{line.words}</span>
           </div>
         ))}
       </div>
       {credits && (
-        <p className="text-[11px] text-muted" data-testid="account-runway-credits">
+        <p className="text-label text-muted" data-testid="account-runway-credits">
           {credits}
         </p>
       )}
       {pace && (
-        <p className="text-[11px] text-warning" data-testid="account-runway-pace">
+        <p className="text-label text-warning" data-testid="account-runway-pace">
           {pace}
         </p>
       )}
@@ -233,7 +235,7 @@ export function RunwayWords({ display, sessions = [] }: { display?: QuotaDisplay
   // The same words as Home for the same account: its sessions' newest
   // reading when the account has none, else "Not measured yet" (AJ-E1535).
   return (
-    <span className="text-[11px] text-muted" data-testid="launch-runway">
+    <span className="text-label text-muted" data-testid="launch-runway">
       {runwayOf(display, sessions).words}
     </span>
   );

@@ -8,7 +8,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX, ReactNode } from "react";
 import { ActionHostProvider } from "./ItemMenu";
-import { ConversationPage } from "./ConversationPage";
+import { ConversationPage, GONE_MS } from "./ConversationPage";
 import { ConversationRow, railSlice, RECENT_SHOWN, stateWord, withOutsideGroups } from "./OutsideConversations";
 import { GoToPalette } from "./GoToPalette";
 import { ConversationsProvider } from "../lib/conversations";
@@ -99,13 +99,13 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(row.textContent).toContain("Claude Code on Work Max");
     // AJ-E1532: the account at a glance — its avatar, initials and colour —
     // beside the tool's mark.
-    expect(row.querySelector("[data-testid='account-avatar']")?.textContent).toBe("WM");
+    expect(row.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
     expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
   });
 
-  it("AJ-E2102: an open one's click goes to it; an ended one's opens its page", () => {
+  it("a click or ↩ opens its page, never its app; ↗ and ⌘↩ go to it, never the page (the maintainer's review of 0.1.4)", () => {
     const goTo = vi.fn();
     const open = vi.fn();
     const live = conversation("c", { live: true, state: "working", places: [place("Claude · Work", 1), place("Terminal", 2)] });
@@ -116,13 +116,38 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(screen.getByTestId("outside-places").textContent).toContain("open in 2 places");
     expect(row.textContent).toContain("open in Claude · Work and Terminal");
     fireEvent.click(row);
-    expect(goTo).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
-    expect(open).not.toHaveBeenCalled();
-    cleanup();
-    render(withFixture([], <ConversationRow conversation={conversation("e")} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
-    fireEvent.click(screen.getByTestId("rail-outside"));
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "e" }));
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
+    expect(goTo).not.toHaveBeenCalled();
+    // ↗: named for where it goes, a 24 px target, never the row's click.
+    const arrow = screen.getByRole("button", { name: "Go to it in Claude · Work Max" });
+    expect(arrow.className).toContain("size-6");
+    fireEvent.click(arrow);
     expect(goTo).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledTimes(1);
+    // ⌘↩ on the focused row goes to it; ↩ is the button's own click (its page).
+    fireEvent.keyDown(row, { key: "Enter", metaKey: true });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    cleanup();
+    // An ended one has nowhere to go: no ↗, and ⌘↩ does nothing.
+    render(withFixture([], <ConversationRow conversation={conversation("e")} selected={false} density="comfortable" now={NOW} onOpen={open} />, { goToConversation: goTo }));
+    expect(screen.queryByRole("button", { name: /^Go to it/ })).toBeNull();
+    fireEvent.keyDown(screen.getByTestId("rail-outside"), { key: "Enter", metaKey: true });
+    fireEvent.click(screen.getByTestId("rail-outside"));
+    expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "e" }));
+    expect(goTo).toHaveBeenCalledTimes(2);
+  });
+
+  it("its ↗ always shows while it asks you, and on hover or focus otherwise", () => {
+    const host: ActionHost = { goToConversation: vi.fn(), openConversation: vi.fn() };
+    render(withFixture([], <ConversationRow conversation={conversation("a", { live: true, state: "asks_you" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
+    expect(screen.getByTestId("row-go-to").className).not.toContain("opacity-0");
+    cleanup();
+    render(withFixture([], <ConversationRow conversation={conversation("w", { live: true, state: "working" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
+    expect(screen.getByTestId("row-go-to").className).toMatch(/opacity-0 .*group-hover:opacity-100/);
+    expect(screen.getByTestId("row-go-to").className).toContain("group-focus-within:opacity-100");
   });
 
   it("states read in E21's words, the rail's own (AJ-E2104 Req.3)", () => {
@@ -167,7 +192,7 @@ describe("AJ-E1529 a conversation's page", () => {
     const host: ActionHost = { continueConversation: vi.fn(), copyConversationResume: vi.fn() };
     render(withFixture([conversation("c")], <ConversationPage accountId="a1" id="c" now={NOW} />, host));
     await waitFor(() => expect(screen.getByTestId("conversation-page")).toBeTruthy());
-    expect(screen.getByTestId("outside-chip").textContent).toBe("outside AI Juggler");
+    expect((await screen.findByTestId("outside-chip")).textContent).toBe("outside AI Juggler");
     expect(screen.getByTestId("conversation-page").textContent).toContain("/w/app");
     fireEvent.click(screen.getByTestId("conversation-continue"));
     fireEvent.click(screen.getByTestId("conversation-copy-resume"));
@@ -187,9 +212,15 @@ describe("AJ-E1529 a conversation's page", () => {
     expect(screen.getByTestId("continue-on").textContent).toContain("It's open in its app now");
   });
 
-  it("a conversation that went away says so", async () => {
+  it("a conversation that went away says so, once it has stayed away", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(withFixture([], <ConversationPage accountId="a1" id="gone" now={NOW} />));
-    expect(await screen.findByTestId("conversation-gone")).toBeTruthy();
+    expect(await screen.findByTestId("conversation-loading")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(GONE_MS + 100);
+    });
+    expect(screen.getByTestId("conversation-gone")).toBeTruthy();
+    vi.useRealTimers();
   });
 });
 
@@ -210,7 +241,7 @@ describe("AJ-E1529 outside sessions count as running", () => {
     );
     const row = await screen.findByTestId("goto-row-outside::a1::c");
     expect(row.textContent).toContain("Fix the login test");
-    expect(row.textContent).toContain("outside AI Juggler");
+    expect(row.textContent).toContain("in Claude Code");
     expect(screen.queryByTestId("goto-row-outside::a1::ended")).toBeNull();
     await act(async () => {
       fireEvent.click(row);

@@ -45,24 +45,24 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
     );
   return (
     <section className="flex flex-col gap-3" aria-labelledby={`docs-${poolId}`} data-testid="shared-docs">
-      <h3 id={`docs-${poolId}`} className="text-[14px] font-semibold text-ink">
+      <h3 id={`docs-${poolId}`} className="text-body font-semibold text-ink">
         Shared documents
       </h3>
       {docs === null ? (
         <span className="h-10 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Loading the documents" />
       ) : docs.length === 0 ? (
-        <p className="text-[13px] text-muted">None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for packs.</p>
+        <p className="text-meta text-muted">None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for packs.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-hairline/60 rounded-xl border border-hairline">
           {docs.map((doc) => (
             <li key={doc.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="shared-doc">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate font-mono text-[13px] text-ink">{doc.name}</span>
-                <span className="text-[12px] text-muted">
+                <span className="truncate font-mono text-meta text-ink">{doc.name}</span>
+                <span className="text-label text-muted">
                   {doc.shared_by} · {ago(doc.at_ms, now)} ago · {sizeWords(doc.size_bytes)}
                 </span>
               </div>
-              <span className={"text-[12px] " + (doc.withheld.length > 0 && doc.policy !== "keep" ? "text-ink" : "text-muted")} data-testid="shared-doc-withheld">
+              <span className={"text-label " + (doc.withheld.length > 0 && doc.policy !== "keep" ? "text-ink" : "text-muted")} data-testid="shared-doc-withheld">
                 {withheldWords(doc)}
               </span>
               <Button size="sm" variant="secondary" onClick={() => show(doc)} aria-expanded={open?.doc.id === doc.id}>
@@ -81,20 +81,20 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
       {open && (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-2/60 p-3" data-testid="shared-doc-text">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[13px] text-ink">
+            <span className="text-meta text-ink">
               <span className="font-mono">{open.doc.name}</span> · {open.doc.policy_words}
             </span>
             <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>
               Close
             </Button>
           </div>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-ink" tabIndex={0} aria-label={`${open.doc.name} (read-only)`}>
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-canvas p-3 font-mono text-meta leading-relaxed text-ink" tabIndex={0} aria-label={`${open.doc.name} (read-only)`}>
             {open.text}
           </pre>
         </div>
       )}
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

@@ -137,7 +137,7 @@ describe("AJ-E1502 the session row's menu", () => {
 
     fireEvent.click(getByRole("button", { name: "Session actions for branch-a" }));
     const menu = getByRole("menu", { name: "Actions for branch-a" });
-    const lines = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.textContent);
+    const lines = [...menu.querySelectorAll("[role='menuitem']")].map((item) => item.querySelector("[data-label]")?.textContent);
     expect(lines.slice(0, 2)).toEqual(["Open its page", "Rename…"]);
     expect(lines).toContain("Pin to top");
     fireEvent.click(within(menu).getByText("Rename…"));

@@ -93,16 +93,15 @@ export function RowMenu({
       if (active === null || active === document.body || menu?.contains(active)) opener?.focus?.();
     };
   }, []);
-  // Where it fits: measured once it's drawn, so a long menu opened low
-  // in the window moves up instead of running off it.
+  // Where it fits, measured once it's drawn. Like the Mac's own menus it
+  // keeps a corner at the pointer: below and to the right when there's
+  // room, else above it (or to its left). Pushed up against the window's
+  // edge instead, a menu opened low put the pointer over its middle lines.
   const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    setStyle({
-      left: Math.max(4, Math.min(at.x, window.innerWidth - box.width - 4)),
-      top: Math.max(4, Math.min(at.y, window.innerHeight - box.height - 4)),
-    });
+    setStyle({ left: menuEdge(at.x, box.width, window.innerWidth), top: menuEdge(at.y, box.height, window.innerHeight) });
   }, [at.x, at.y]);
   // On the page itself: a blurred rail is the containing block of
   // anything fixed inside it, which would clip the menu to the rail.
@@ -114,11 +113,20 @@ export function RowMenu({
       style={style}
       className="fixed z-50 flex max-h-[calc(100vh-8px)] w-64 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
     >
-      <span className="truncate px-2 pb-1 pt-0.5 text-[9.5px] font-medium uppercase tracking-wide text-faint">{heading}</span>
+      <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>
       {children}
     </div>,
     document.body,
   );
+}
+
+/** Where a menu of `size` opened at `at` starts along one axis of a
+ * window `room` long: at the point when it fits after it, else ending at
+ * the point when it fits before it, else as far in as the window allows. */
+export function menuEdge(at: number, size: number, room: number): number {
+  const start = at + size <= room - 4 ? at : at - size >= 4 ? at - size : room - size - 4;
+  // Never off the window, even for a point outside it.
+  return Math.max(4, Math.min(start, room - size - 4));
 }
 
 /** One action in a {@link RowMenu}. */
@@ -155,7 +163,7 @@ export function MenuItem({
       aria-haspopup={submenu ? "menu" : undefined}
       aria-expanded={submenu ? submenu.open : undefined}
       className={
-        "rounded-lg px-2 py-1 text-left text-[11.5px] outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-faint disabled:hover:bg-transparent " +
+        "rounded-lg px-2 py-1 text-left text-meta outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent " +
         (danger ? "text-danger" : "text-ink")
       }
     >

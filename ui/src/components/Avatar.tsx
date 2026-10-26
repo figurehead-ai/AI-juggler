@@ -10,6 +10,10 @@
 import type { JSX } from "react";
 import { accountColor, accountInitials } from "../lib/palette";
 
+/** Below this size an avatar is its colour alone: its letters would be
+ * under 12 px, and its name is always beside it. */
+export const AVATAR_LETTERS_FROM = 24;
+
 export function AccountAvatar({
   accountId,
   label,
@@ -28,9 +32,10 @@ export function AccountAvatar({
       data-testid="account-avatar"
       data-live={live ? "true" : undefined}
       className={"inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold leading-none text-white " + (live ? "avatar-live" : "")}
-      style={{ width: size, height: size, background: accountColor(accountId), fontSize: Math.max(8, Math.round(size * 0.46)) }}
+      data-letters={size >= AVATAR_LETTERS_FROM ? "true" : undefined}
+      style={{ width: size, height: size, background: accountColor(accountId), fontSize: Math.max(12, Math.round(size * 0.46)) }}
     >
-      {accountInitials(accountId, label)}
+      {size >= AVATAR_LETTERS_FROM ? accountInitials(accountId, label) : null}
     </span>
   );
 }
@@ -51,7 +56,7 @@ export function AccountStack({ accounts, max = 3, size = 16 }: { accounts: Stack
           <AccountAvatar accountId={account.id} label={account.label} size={size} live={account.live} />
         </span>
       ))}
-      {more > 0 && <span className="ml-1 text-[10px] font-medium tabular-nums text-muted">+{more}</span>}
+      {more > 0 && <span className="ml-1 text-label font-medium tabular-nums text-muted">+{more}</span>}
     </span>
   );
 }

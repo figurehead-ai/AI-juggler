@@ -139,7 +139,7 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     expect(focus.textContent).toContain("Open / Focus window");
     expect(container.querySelector('[data-testid="instance-terminal"]')).toBeNull();
     // Status, account, project, resources — measured values, verbatim.
-    expect(surface.textContent).toContain("Running");
+    expect(surface.textContent).toContain("Working");
     expect(surface.textContent).toContain("fake-desktop");
     expect(surface.textContent).toContain("Fake Desk · sacrificial");
     expect(surface.textContent).toContain("84 MB"); // 88e6 bytes, 1024-based

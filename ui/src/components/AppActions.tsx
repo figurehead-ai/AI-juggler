@@ -32,6 +32,7 @@ export function AppActions({
   selectTool,
   selectPool,
   openAccounts,
+  openHome,
   stopSession,
   newSessionIn,
   refresh,
@@ -45,6 +46,7 @@ export function AppActions({
   /** AJ-E1703: a pool's page. */
   selectPool: (id: string) => void;
   openAccounts: () => void;
+  openHome: () => void;
   stopSession: (row: InstanceInfo) => void;
   newSessionIn: (project: ProjectInfo) => void;
   refresh: () => void;
@@ -61,6 +63,8 @@ export function AppActions({
       openSession: (row) => selectSession(row.id),
       openSessionById: selectSession,
       openProjectById: selectProject,
+      openAccountById: selectAccount,
+      openHome,
       openHistory: (row) => selectSession(row.id),
       // A desktop session's own window; a terminal one's terminal here.
       focusSession: async (row) => {
@@ -109,6 +113,6 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, selectPool, openAccounts, stopSession, newSessionIn, refresh]);
+  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
   return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
 }

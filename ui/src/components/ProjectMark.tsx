@@ -68,7 +68,7 @@ export function MarkTile({ mark, icon, size }: { mark: ProjectMarkInfo | null; i
         borderRadius: radius,
         background: icon ? "var(--color-surface-3)" : color,
         boxShadow: icon ? `inset 0 0 0 1.5px ${color}` : undefined,
-        fontSize: Math.max(8, Math.round(size * (mark.emoji ? 0.62 : 0.46))),
+        fontSize: Math.max(mark.emoji ? 8 : 12, Math.round(size * (mark.emoji ? 0.62 : 0.46))),
       }}
       data-testid="mark-project"
       data-swatch={mark.swatch}
@@ -77,12 +77,14 @@ export function MarkTile({ mark, icon, size }: { mark: ProjectMarkInfo | null; i
       {icon ? (
         <img src={icon} alt="" draggable={false} className="object-contain" style={{ width: size - 6, height: size - 6 }} />
       ) : (
-        (mark.emoji ?? mark.letters)
+        // Letters only where they reach 12 px; smaller, the colour says it
+        // (its name is beside it).
+        (mark.emoji ?? (size >= 24 ? mark.letters : null))
       )}
-      {mark.clone !== undefined && size >= 14 && (
+      {mark.clone !== undefined && size >= 24 && (
         <span
           className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full border border-hairline bg-surface-3 font-semibold tabular-nums text-ink"
-          style={{ minWidth: Math.round(size * 0.55), height: Math.round(size * 0.55), fontSize: Math.max(7, Math.round(size * 0.36)) }}
+          style={{ minWidth: Math.max(16, Math.round(size * 0.55)), height: Math.max(16, Math.round(size * 0.55)), fontSize: 12 }}
           data-testid="mark-clone"
         >
           {mark.clone}

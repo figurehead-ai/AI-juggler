@@ -163,3 +163,148 @@ fn readings_without_a_reset_time_take_the_newest() {
     ];
     assert_eq!(current_reading(&samples).unwrap().used_pct, 29.0);
 }
+
+// ---------------------------------------------------------------------
+// The maintainer's third report: Claude's own records (the Claude app's
+// meter, with no reset time; a limit hit, used up until its reset; the
+// last `/usage`). The newest source wins; an old reading is history.
+
+fn meter(ts: i64, used_pct: f64) -> QuotaSample {
+    QuotaSample {
+        ts,
+        used_pct,
+        resets_at: None,
+        confidence: Confidence::Measured,
+    }
+}
+
+fn five_hour(samples: &[QuotaSample]) -> juggler_core::quota::WindowReading {
+    evaluate_window(
+        &[],
+        samples,
+        "acc",
+        WindowKind::FiveHour,
+        QuotaCap::default(),
+        NOW,
+    )
+}
+
+#[test]
+fn a_meter_reading_inside_a_known_window_keeps_its_reset() {
+    let reset = NOW + 2 * HOUR;
+    // A limit hit named the reset; the app's meter read later.
+    let samples = [
+        reading(NOW - 2 * HOUR, 100.0, reset),
+        meter(NOW - 30 * MIN, 100.0),
+    ];
+    let window = five_hour(&samples);
+    assert_eq!(window.state, QuotaState::Exhausted);
+    assert_eq!(window.resets_at, Some(reset), "the hit's reset stays");
+    assert_eq!(
+        window.measured_at,
+        Some(NOW - 30 * MIN),
+        "the newest reading's age"
+    );
+
+    // A lower meter reading in the same window: use only rises.
+    let samples = [
+        reading(NOW - 2 * HOUR, 60.0, reset),
+        meter(NOW - 30 * MIN, 58.0),
+    ];
+    let window = five_hour(&samples);
+    assert_eq!(window.percentage, Some(60.0));
+    assert_eq!(window.resets_at, Some(reset));
+}
+
+#[test]
+fn a_meter_reading_after_the_known_reset_is_the_new_window_on_its_own() {
+    // A hit three days ago, long reset; the meter read 20 min ago.
+    let old_reset = NOW - 3 * DAY + 3 * HOUR;
+    let samples = [
+        reading(NOW - 3 * DAY, 100.0, old_reset),
+        meter(NOW - 20 * MIN, 12.0),
+    ];
+    let window = five_hour(&samples);
+    assert_eq!(window.state, QuotaState::Stale);
+    assert_eq!(window.percentage, Some(12.0));
+    assert_eq!(
+        window.resets_at, None,
+        "no reset is known for the new window"
+    );
+}
+
+#[test]
+fn an_older_meter_reading_never_beats_a_newer_one_with_a_reset() {
+    let reset = NOW + 4 * HOUR;
+    let samples = [
+        meter(NOW - 40 * MIN, 30.0),
+        reading(NOW - 5 * MIN, 35.0, reset),
+    ];
+    let window = five_hour(&samples);
+    assert_eq!(window.percentage, Some(35.0));
+    assert_eq!(window.measured_at, Some(NOW - 5 * MIN));
+}
+
+#[test]
+fn a_five_hour_reading_older_than_five_hours_is_history() {
+    let window = five_hour(&[meter(NOW - 13 * HOUR, 40.0)]);
+    assert_eq!(window.state, QuotaState::ResetSinceReading);
+    assert_eq!(window.percentage, None, "never the state now");
+    assert_eq!(window.last_used_pct, Some(40.0), "kept as history");
+    assert_eq!(window.measured_at, Some(NOW - 13 * HOUR));
+    // A used-up reading too: it isn't "used up" any more.
+    assert_eq!(
+        five_hour(&[meter(NOW - 6 * HOUR, 100.0)]).state,
+        QuotaState::ResetSinceReading
+    );
+    // Under five hours it stands, with its age.
+    let window = five_hour(&[meter(NOW - 55 * MIN, 40.0)]);
+    assert_eq!(window.state, QuotaState::Stale);
+    assert_eq!(window.percentage, Some(40.0));
+}
+
+#[test]
+fn a_weekly_reading_stands_until_its_week_could_have_ended() {
+    let window = weekly(&[meter(NOW - 3 * DAY, 61.0)]);
+    assert_eq!(window.percentage, Some(61.0));
+    let window = weekly(&[meter(NOW - 8 * DAY, 61.0)]);
+    assert_eq!(window.state, QuotaState::ResetSinceReading);
+    assert_eq!(window.last_used_pct, Some(61.0));
+}
+
+#[test]
+fn a_falling_pair_of_meter_readings_never_interpolates_downwards() {
+    use juggler_core::model::TokenCounts;
+    use juggler_core::quota::{UsageEvent, UsageSource};
+    let event = |ts: i64| UsageEvent {
+        account: "acc".into(),
+        session: Some("s".into()),
+        ts,
+        model: None,
+        tokens: TokenCounts {
+            input: 10,
+            ..TokenCounts::default()
+        },
+        credits: None,
+        usd_est: None,
+        source: UsageSource::Transcript,
+        confidence: Confidence::Measured,
+        msg_uuid: None,
+    };
+    // 80% then 5% (a reset between them), then more use.
+    let events = [
+        event(NOW - 50 * MIN),
+        event(NOW - 10 * MIN),
+        event(NOW - 5 * MIN),
+    ];
+    let samples = [meter(NOW - 60 * MIN, 80.0), meter(NOW - 20 * MIN, 5.0)];
+    let window = evaluate_window(
+        &events,
+        &samples,
+        "acc",
+        WindowKind::FiveHour,
+        QuotaCap::default(),
+        NOW,
+    );
+    assert_eq!(window.percentage, Some(5.0), "the vendor number stands");
+}

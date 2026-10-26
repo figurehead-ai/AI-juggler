@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use super::dto::{
-    AppRowInfo, ProcRowInfo, ProcessGraphRowInfo, ProcessQueryInput, RollupInfo, SessionRowInfo,
+    AppRowInfo, ProcRowInfo, ProcessGraphRowInfo, ProcessQueryInput, RollupInfo, ProcessSessionInfo,
 };
 use super::model::{AppNode, Graph, Origin, ProcNode, ProcState, Rollup, SessionNode, StopPath};
 
@@ -195,7 +195,7 @@ fn session_row(
         rss_bytes: session.rollup.rss_bytes,
         ports: session.rollup.ports.iter().copied().take(8).collect(),
         app: None,
-        session: Some(SessionRowInfo {
+        session: Some(ProcessSessionInfo {
             session_id: session.session_id.clone(),
             origin: origin_word(session.origin).into(),
             tool: session.tool.clone(),

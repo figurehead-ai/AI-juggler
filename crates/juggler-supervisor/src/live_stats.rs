@@ -316,6 +316,19 @@ pub struct ProcessBrief {
     pub start_time: i64,
 }
 
+/// One process outside every AI tool's tree, as This Mac's "other apps"
+/// needs it: its name, where it runs from (only to find the app it belongs
+/// to; never shown) and its memory. No command line, no environment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcessMemory {
+    /// Process name.
+    pub name: String,
+    /// Executable path, when the OS reports it.
+    pub exe: Option<std::path::PathBuf>,
+    /// Resident memory, bytes.
+    pub rss_bytes: u64,
+}
+
 /// One AI tool AI Juggler did not start, measured over its whole process
 /// tree (AJ-E1402). Read-only by construction: it has no session, no
 /// ledger row and no stop path.
@@ -1154,6 +1167,36 @@ impl LiveStatsCollector {
             .collect()
     }
 
+    /// Every process outside the AI tools' trees (our sessions', the
+    /// observed tools') and AI Juggler itself, from the table the ticks
+    /// already read (its full scans: names, executables and memory, every
+    /// 10 s): nothing new is measured. Processes using no memory are left
+    /// out.
+    #[must_use]
+    pub fn other_processes(&self) -> Vec<ProcessMemory> {
+        let tools: std::collections::HashSet<u32> = self
+            .trees
+            .values()
+            .flat_map(|tree| tree.rows.iter().map(|row| row.pid))
+            .chain(
+                self.observed
+                    .values()
+                    .flat_map(|tree| tree.pids.iter().copied()),
+            )
+            .chain(std::iter::once(std::process::id()))
+            .collect();
+        self.system
+            .processes()
+            .values()
+            .filter(|process| !tools.contains(&process.pid().as_u32()) && process.memory() > 0)
+            .map(|process| ProcessMemory {
+                name: process.name().to_string_lossy().into_owned(),
+                exe: process.exe().map(std::path::Path::to_path_buf),
+                rss_bytes: process.memory(),
+            })
+            .collect()
+    }
+
     /// The other tools' trees, measured from the listing.
     fn rebuild_observed(&mut self, now_ms: i64) {
         let parents = parents_map(&self.listing);
@@ -1461,7 +1504,10 @@ fn tree_rows(
 
 #[cfg(test)]
 mod tests {
-    use super::{LiveStatsCollector, RING_CAPACITY, RING_SPAN_MS, TreeSample, push_ring_sample};
+    use super::{
+        LiveStatsCollector, ProcessMemory, RING_CAPACITY, RING_SPAN_MS, TreeSample,
+        push_ring_sample,
+    };
     use crate::supervisor::Supervisor;
 
     fn sample(at_ms: i64) -> TreeSample {
@@ -1488,6 +1534,46 @@ mod tests {
         assert!(collector.stats_snapshot().is_empty());
         assert!(collector.refresh(&supervisor).is_empty());
         assert!(collector.observed_snapshot().is_empty());
+    }
+
+    /// This Mac's other apps come from the table the tick already read:
+    /// a name, where it runs from and its memory per process — no command
+    /// line, no environment (the destructuring breaks if a field is
+    /// added) — and never AI Juggler itself.
+    #[test]
+    fn other_processes_carry_a_name_and_memory_only_and_leave_ai_juggler_out() {
+        let supervisor = Supervisor::default();
+        let mut collector = LiveStatsCollector::new();
+        collector.tick(&supervisor, 1_000);
+        let others = collector.other_processes();
+        assert!(
+            !others.is_empty(),
+            "the full scan listed this Mac's processes"
+        );
+        let own = collector
+            .system
+            .process(sysinfo::Pid::from_u32(std::process::id()))
+            .map(|process| process.memory());
+        assert!(own.is_some(), "the test's own process is in the table");
+        let listed = collector
+            .system
+            .processes()
+            .values()
+            .filter(|process| process.memory() > 0)
+            .count();
+        assert_eq!(
+            others.len(),
+            listed - 1,
+            "every process but AI Juggler's own"
+        );
+        for process in others {
+            let ProcessMemory {
+                name: _,
+                exe: _,
+                rss_bytes,
+            } = process;
+            assert!(rss_bytes > 0, "a process using no memory is left out");
+        }
     }
 
     #[test]

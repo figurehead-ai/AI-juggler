@@ -141,7 +141,7 @@ function SignedOut({
         and finding your own Macs for Fleet without a pairing code. Your sign-ins to Claude,
         Codex and other tools never leave this Mac.
       </p>
-      <label className="flex flex-col gap-1 text-[11px] font-medium">
+      <label className="flex flex-col gap-1 text-label font-medium">
         This Mac's name on Figurehead
         <input
           value={name}
@@ -172,7 +172,7 @@ function SignedOut({
             if (code.trim() && validName) onClaim(code.trim(), name.trim());
           }}
         >
-          <p className="text-[11px] leading-relaxed text-muted">
+          <p className="text-label leading-relaxed text-muted">
             On figurehead.ai, open Devices and choose <span className="text-ink">Generate pairing code</span>,
             then type it here. Codes work once, for 10 minutes.{" "}
             <button
@@ -247,7 +247,7 @@ function Linking({
       >
         {link.user_code}
       </p>
-      <p className="text-[11px] text-muted" role="status">
+      <p className="text-label text-muted" role="status">
         Waiting for approval…
       </p>
       <div className="flex flex-wrap gap-2">

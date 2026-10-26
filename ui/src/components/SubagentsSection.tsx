@@ -68,17 +68,17 @@ export function SubagentsSection({
   if (!info || info.items.length === 0) return null;
   return (
     <details className="group flex flex-col gap-2" data-testid="subagents-section">
-      <summary className="cursor-pointer list-none text-[11px] uppercase tracking-wider text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+      <summary className="cursor-pointer list-none text-section font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
         <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
-        Subagents <span className="normal-case tracking-normal text-faint">{subagentsSummary(info.items)}</span>
+        Subagents <span className="normal-case tracking-normal text-muted">{subagentsSummary(info.items)}</span>
       </summary>
-      <ul className="mt-1 flex flex-col gap-1 border-l border-hairline pl-2.5 text-[11px]" aria-label="Subagents">
+      <ul className="mt-1 flex flex-col gap-1 border-l border-hairline pl-2.5 text-label" aria-label="Subagents">
         {info.items.map((item) => (
           <li key={item.id} className="flex items-baseline gap-2" data-testid="subagent-row">
             <span className="min-w-0 flex-1 truncate text-ink" title={item.label}>
               {item.label || "a subagent"}
             </span>
-            {item.kind && <span className="shrink-0 text-faint">{item.kind}</span>}
+            {item.kind && <span className="shrink-0 text-muted">{item.kind}</span>}
             <span className={`shrink-0 ${STATE_TONE[item.state]}`} data-testid="subagent-state">
               {STATE_WORDS[item.state]}
             </span>

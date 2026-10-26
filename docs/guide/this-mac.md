@@ -9,18 +9,32 @@ in the list on the left, or from More › This Mac.
 
 ## What it shows
 
-- **Now:** how your Mac is doing, in words, with each reason. Then memory,
-  CPU and swap.
+- **Now:** how your Mac is doing, in words, with each reason. Then a card
+  each for memory, the processor, swap and AI Juggler itself.
+  - **Memory** shows how much of the whole Mac's memory is in use, and a
+    gauge split into the AI tools, other apps and macOS, what macOS keeps
+    compressed, and what's available.
+  - **Memory pressure** is macOS's own measure of how hard it is working
+    to make room: it compresses memory and moves some of it to disk
+    (swap). Pressure can be high while some memory still looks available,
+    and everything slows down while it lasts. Whenever macOS reports it,
+    This Mac says so beside the figures; **What it means** says more.
   - CPU is counted the way Activity Monitor counts it: 100% is one core
     busy.
   - The Claude app's memory is an estimate: the sum of its helpers, so
     memory they share is counted more than once.
 - **What's using it:** each AI tool, with its sessions or windows. Sessions
   AI Juggler didn't start are marked "not started by AI Juggler". AI
-  Juggler itself is listed too, with its crash watchdog.
+  Juggler itself is listed too, with its crash watchdog. Last, folded,
+  **Other apps and macOS** lists the biggest apps that aren't AI tools, by
+  name only (never their folders or how they were started). AI Juggler
+  only reads these, and never stops them.
 - **Working your Mac hard:** each session or window using a lot right now.
   A session AI Juggler started links to its page.
-- **Alerts and advice:** recent alerts and what to do about them.
+- **Alerts and advice:** recent alerts and what to do about them. When
+  your Mac is short of memory, an alert names what holds most of it: an
+  AI tool only while the AI tools hold a third or more of what's in use,
+  otherwise the biggest other apps.
 - **Left behind:** processes and ports a finished session left running,
   such as a dev server.
 

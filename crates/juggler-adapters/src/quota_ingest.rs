@@ -464,7 +464,7 @@ pub fn statusline_samples(ts: i64, payload: &serde_json::Value) -> Vec<(WindowKi
 /// A status line's `resets_at` as epoch ms: epoch seconds (×1000), epoch
 /// milliseconds, or an RFC 3339 string. Anything else is no reset time
 /// (never a guessed one).
-fn reset_ms(value: &serde_json::Value) -> Option<i64> {
+pub(crate) fn reset_ms(value: &serde_json::Value) -> Option<i64> {
     // Epoch seconds stay below 10^11 until the year 5138; ms are above.
     const SECONDS_BELOW: i64 = 100_000_000_000;
     if let Some(number) = value.as_i64() {
@@ -506,6 +506,11 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             outcome.parse_errors += 1;
             continue;
         };
+        // A limit hit: Claude Code's own record of which window ran out
+        // and when it resets (only those, `claude_limits`).
+        if let Some(hit) = crate::claude_limits::limit_hit_sample(&value) {
+            outcome.samples.push(hit);
+        }
         let Some(usage) = value
             .get("message")
             .and_then(|message| message.get("usage"))

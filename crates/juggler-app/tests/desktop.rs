@@ -407,6 +407,8 @@ fn real_desktop_launch_record_textedit() {
 /// re-discovers (pid 42424).
 struct FocusFixture {
     permission_denied: std::sync::atomic::AtomicBool,
+    /// The frontmost app: the last one asked to come forward.
+    front: std::sync::Mutex<Option<u32>>,
 }
 
 impl juggler_app::focus::ScriptRunner for FocusFixture {
@@ -431,8 +433,15 @@ impl juggler_app::focus::ScriptRunner for FocusFixture {
         }
         Ok(String::new())
     }
-    fn activate(&self, _pid: u32) -> Result<(), String> {
-        Ok(())
+}
+
+impl juggler_app::activation::Front for FocusFixture {
+    fn request(&self, pid: u32) -> juggler_app::activation::Request {
+        *self.front.lock().unwrap() = Some(pid);
+        juggler_app::activation::Request::Asked { in_front: true }
+    }
+    fn frontmost(&self) -> Option<u32> {
+        *self.front.lock().unwrap()
     }
 }
 
@@ -461,6 +470,7 @@ fn desktop_focus_runs_tiers_and_persists_first_sight_identity() {
     }
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
+        front: std::sync::Mutex::default(),
     });
     let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
     assert_eq!(outcome.outcome, "Focused window");
@@ -507,6 +517,7 @@ fn desktop_focus_on_a_ended_instance_reports_not_running_without_scripts() {
     drop(storage);
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
+        front: std::sync::Mutex::default(),
     });
     let outcome = commands::desktop_focus_with(&state, "sess-desk-done", runner, true).unwrap();
     assert_eq!(outcome.outcome, "App not running — Relaunch?");
@@ -519,6 +530,7 @@ fn desktop_focus_refuses_terminal_instances_by_name() {
     let state = desktop_state(dir.path());
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
+        front: std::sync::Mutex::default(),
     });
     // A terminal-kind row (the read model forbids window focus).
     let storage = state.storage.lock().unwrap();
@@ -577,6 +589,7 @@ fn desktop_focus_without_recorded_identity_redisovers_by_bundle() {
     }
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(false),
+        front: std::sync::Mutex::default(),
     });
     let outcome = commands::desktop_focus_with(&state, "sess-desk-legacy", runner, true).unwrap();
     assert_eq!(outcome.outcome, "Focused window");
@@ -599,6 +612,7 @@ fn desktop_focus_permission_denial_degrades_with_flag() {
     let _launched = Launched(info.pid);
     let runner = std::sync::Arc::new(FocusFixture {
         permission_denied: std::sync::atomic::AtomicBool::new(true),
+        front: std::sync::Mutex::default(),
     });
     let outcome = commands::desktop_focus_with(&state, &info.session_id, runner, true).unwrap();
     assert_eq!(outcome.outcome, "App opened — window not found");

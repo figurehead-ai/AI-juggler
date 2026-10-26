@@ -229,60 +229,46 @@ fn continue_as(
             delta_prompt: None,
         },
     )?;
+    // The one path: its row first, then the runtime asked for.
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    let start = super::launch::Start {
-        account,
-        profile,
-        project: from.project.as_ref().map(ToString::to_string),
-        resume: Some(native_id.to_owned()),
-        requested: Some(runtime),
-    };
-    let started = super::launch::start(state, adapter.as_ref(), session, &start, terminal)?;
-    record_continuation(state, from, profile, account, native_id, &started.session)?;
+    let started = crate::features::sessions::spawn::start_session(
+        state,
+        &crate::features::sessions::spawn::NewSession {
+            id: &session,
+            account,
+            profile: &profile.id,
+            project: from.project.clone(),
+            cwd: from.cwd.clone(),
+            conversation: Some(juggler_core::model::ConversationId::new(native_id)),
+            transcript_ref: from.transcript_ref.clone(),
+            origin: "resume",
+        },
+        crate::features::sessions::spawn::Runs::Planned {
+            profile,
+            resume: Some(native_id.to_owned()),
+            requested: Some(runtime),
+            terminal,
+        },
+    )?;
+    record_continuation(state, from)?;
     Ok(HandoverInfo {
         session_id: started.session.to_string(),
     })
 }
 
-/// `started` holds `from`'s conversation now: `from` is marked handed
-/// over and `started` recorded beside it.
+/// A new session holds `from`'s conversation now (its row was written
+/// by the one path before it started): `from` is marked handed over.
 pub(super) fn record_continuation(
     state: &Arc<AppState>,
     from: &juggler_core::model::SessionRecord,
-    profile: &juggler_core::model::Profile,
-    account: &juggler_core::model::Account,
-    native_id: &str,
-    started: &SessionId,
 ) -> AppResult<()> {
-    use juggler_core::model::{ConversationId, SessionStatus, Timestamp};
-    let machine = crate::commands::local_machine_id(state);
+    use juggler_core::model::SessionStatus;
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     if let Ok(mut old) = storage.sessions().get(&from.id) {
         old.status = SessionStatus::HandedOver;
         old.attention = None;
         storage.sessions().update(&old)?;
     }
-    let usage = crate::commands::engine_usage_snapshot(&storage, &profile.id);
-    storage
-        .sessions()
-        .insert(&juggler_core::model::SessionRecord {
-            id: started.clone(),
-            conversation: Some(ConversationId::new(native_id)),
-            profile: profile.id.clone(),
-            machine,
-            kind: juggler_core::model::InstanceKind::Terminal,
-            project: from.project.clone(),
-            cwd: from.cwd.clone(),
-            status: SessionStatus::Starting,
-            started_at: Timestamp::now(),
-            last_activity: None,
-            usage,
-            attention: None,
-            running: None,
-            window: None,
-            transcript_ref: from.transcript_ref.clone(),
-        })?;
-    crate::usage_stats::instance_started(account.harness.as_str(), false, "resume");
     Ok(())
 }
 

@@ -43,7 +43,7 @@ function kindWords(ask: AskInfo): string {
 
 function Approval({ ask, busy, answer }: { ask: AskInfo; busy: boolean; answer: (option: string) => void }): JSX.Element {
   if (ask.options.length === 0) {
-    return <p className="text-[11px] text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>;
+    return <p className="text-label text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>;
   }
   return (
     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="The tool's own options">
@@ -84,8 +84,8 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
     >
       {ask.parts.map((part) => (
         <fieldset key={part.id} className="flex flex-col gap-1.5">
-          <legend className="text-[12px] text-ink">
-            {part.header && <span className="mr-1.5 text-[10px] uppercase tracking-wider text-muted">{part.header}</span>}
+          <legend className="text-label text-ink">
+            {part.header && <span className="mr-1.5 text-label uppercase tracking-wider text-muted">{part.header}</span>}
             {part.question}
           </legend>
           {part.choices.length > 0 && (
@@ -119,7 +119,7 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
               type={part.secret ? "password" : "text"}
               aria-label={part.choices.length > 0 ? `Or your own answer to: ${part.question}` : `Your answer to: ${part.question}`}
               placeholder={part.choices.length > 0 ? "Or your own answer…" : "Your answer…"}
-              className="h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-[12px] text-ink outline-none focus:border-accent/60"
+              className="h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-label text-ink outline-none focus:border-accent/60"
               value={typed[part.id] ?? ""}
               disabled={busy}
               onChange={(event) => setTyped((was) => ({ ...was, [part.id]: event.target.value }))}
@@ -176,30 +176,30 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered }: { ask: As
       aria-label={`${kindLabel ?? kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-warning">
+        <span className="text-label font-semibold uppercase tracking-wider text-warning">
           {kindLabel ?? kindWords(ask)}
           {title ? ` · ${title}` : ""}
         </span>
         {kindLabel ? (
-          <span className="text-[14px] text-ink">{ask.summary}</span>
+          <span className="text-body text-ink">{ask.summary}</span>
         ) : ask.kind === "approval" ? (
-          <code className="truncate font-mono text-[12px] text-ink" title={ask.summary}>
+          <code className="truncate font-mono text-label text-ink" title={ask.summary}>
             {ask.summary}
           </code>
         ) : (
-          ask.parts.length === 0 && <span className="text-[12px] text-ink">{ask.summary}</span>
+          ask.parts.length === 0 && <span className="text-label text-ink">{ask.summary}</span>
         )}
-        {ask.reason && <span className="whitespace-pre-wrap text-[13px] text-muted">{ask.reason}</span>}
+        {ask.reason && <span className="whitespace-pre-wrap text-meta text-muted">{ask.reason}</span>}
       </div>
       {ask.kind === "approval" ? (
         <Approval ask={ask} busy={busy} answer={(option) => send({ option })} />
       ) : ask.parts.length > 0 ? (
         <QuestionForm ask={ask} busy={busy} reply={(replies) => send({ replies })} />
       ) : (
-        <p className="text-[11px] text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>
+        <p className="text-label text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>
       )}
       {error && (
-        <p role="alert" className="text-[12px] text-danger">
+        <p role="alert" className="text-label text-danger">
           {error}
         </p>
       )}
@@ -215,7 +215,7 @@ export function AskBatch({ titleOf }: { titleOf: (sessionId: string) => string |
   if (asks.length === 0) return null;
   return (
     <div className="flex flex-col gap-2" data-testid="ask-batch">
-      <span className="text-[11px] text-muted">
+      <span className="text-label text-muted">
         {asks.length === 1 ? "1 question from a session" : `${asks.length} questions from your sessions`}
         {" · answer here, or go to the session"}
       </span>

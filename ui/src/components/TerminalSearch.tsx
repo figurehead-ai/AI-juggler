@@ -68,16 +68,16 @@ export function TerminalSearch({ search, onClose }: { search: SearchAddon; onClo
         }}
         data-testid="terminal-search-input"
       />
-      <span className="w-20 shrink-0 text-right font-mono text-[11px] text-muted" aria-live="polite" data-testid="terminal-search-count">
+      <span className="w-20 shrink-0 text-right font-mono text-label text-muted" aria-live="polite" data-testid="terminal-search-count">
         {words}
       </span>
-      <button type="button" className="rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface-2 hover:text-ink" title="Previous (Shift+Enter)" onClick={() => find(true)}>
+      <button type="button" className="rounded-md px-1.5 py-0.5 text-label text-muted hover:bg-surface-2 hover:text-ink" title="Previous (Shift+Enter)" onClick={() => find(true)}>
         ↑<span className="sr-only"> previous match</span>
       </button>
-      <button type="button" className="rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface-2 hover:text-ink" title="Next (Enter)" onClick={() => find(false)}>
+      <button type="button" className="rounded-md px-1.5 py-0.5 text-label text-muted hover:bg-surface-2 hover:text-ink" title="Next (Enter)" onClick={() => find(false)}>
         ↓<span className="sr-only"> next match</span>
       </button>
-      <button type="button" className="rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface-2 hover:text-ink" title="Close (Esc)" onClick={onClose} data-testid="terminal-search-close">
+      <button type="button" className="rounded-md px-1.5 py-0.5 text-label text-muted hover:bg-surface-2 hover:text-ink" title="Close (Esc)" onClick={onClose} data-testid="terminal-search-close">
         Done
       </button>
     </div>

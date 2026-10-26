@@ -38,11 +38,11 @@ export function SettingSwitch({
         <label htmlFor={`pref-${id}-input`} className="font-medium text-ink">
           {label}
         </label>
-        <span id={`pref-${id}-hint`} className="text-[11px] leading-relaxed text-muted">
+        <span id={`pref-${id}-hint`} className="text-label leading-relaxed text-muted">
           {hint}
         </span>
         {note && (
-          <span className="text-[11px] text-ink" role="status">
+          <span className="text-label text-ink" role="status">
             {note}
           </span>
         )}

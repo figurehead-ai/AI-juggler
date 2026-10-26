@@ -160,16 +160,37 @@ fn binary_is_this_builds() -> bool {
 /// folder, so `target/debug/juggler-app` is whichever checkout built it
 /// last; another session's build could swap it mid-run and these tests
 /// would launch its older code (the intermittent failures in full runs).
+///
+/// A static is never dropped, so a `TempDir` here leaked a 150 MB copy per
+/// run (53 found in `$TMPDIR`, 2026-10-25). The copies now live in one
+/// folder, named after the test process, and each run removes the copies
+/// whose process has ended (never another checkout's running copy).
 fn app_binary() -> &'static std::path::Path {
-    static COPY: std::sync::OnceLock<(tempfile::TempDir, PathBuf)> = std::sync::OnceLock::new();
-    &COPY
-        .get_or_init(|| {
-            let dir = tempfile::tempdir().unwrap();
-            let copy = dir.path().join("juggler-app");
-            std::fs::copy(env!("CARGO_BIN_EXE_juggler-app"), &copy).unwrap();
-            (dir, copy)
-        })
-        .1
+    static COPY: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    COPY.get_or_init(|| {
+        let dir = std::env::temp_dir().join("aij-second-launch-bin");
+        std::fs::create_dir_all(&dir).unwrap();
+        for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            let pid = entry
+                .file_name()
+                .to_string_lossy()
+                .strip_prefix("juggler-app-")
+                .and_then(|pid| pid.parse::<u32>().ok());
+            let ended = pid.is_some_and(|pid| {
+                !Command::new("/bin/kill")
+                    .args(["-0", &pid.to_string()])
+                    .stderr(Stdio::null())
+                    .status()
+                    .is_ok_and(|status| status.success())
+            });
+            if ended {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+        let copy = dir.join(format!("juggler-app-{}", std::process::id()));
+        std::fs::copy(env!("CARGO_BIN_EXE_juggler-app"), &copy).unwrap();
+        copy
+    })
 }
 
 /// Where every checkout's second-launch tests queue: beside the

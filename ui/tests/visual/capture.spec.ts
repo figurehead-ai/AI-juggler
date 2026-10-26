@@ -338,13 +338,13 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/empty-${vp.name}.png`) });
   });
 
-  // AJ-E1533: a session's page opens on its body, the Terminal tab.
+  // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
   test(`inspector — Session / Terminal — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Terminal", "Overview", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Overview", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
@@ -453,7 +453,9 @@ test("inspector — Account Overview rings + forecast", gate("08-inspector-aggre
   await goTo(page, "Accounts");
   await page.getByTestId("profile-open").first().click();
   await expect(page.getByTestId("account-rings")).toBeVisible();
-  await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+  // 0.1.5: the profile page's Limits are gauges of what's left (68% used).
+  await expect(page.getByTestId("window-gauge").first()).toBeVisible();
+  await expect(page.getByTestId("account-rings")).toContainText("32%");
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-overview-1440x900.png") });
 });
 
@@ -516,40 +518,48 @@ test("inspector — Quality tab View as table", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "09-quality/as-table-1440x900.png") });
 });
 
-// AJ-E410 processes-tab captures: live tree (3 levels), orphan section
-// with the PID-named confirm, the `gone` verification state, and the
-// good empty state.
-test("inspector — Processes tab live tree + orphans", gate("10-processes"), async ({ page }) => {
+// AJ-E410 processes-tab captures: live tree (3 levels), what the
+// session left behind as the shared Cleanup rows (G-1), the verified
+// sheet a Stop opens, its refusal for a recycled pid, and the good
+// empty state.
+test("inspector — Processes tab live tree + left behind", gate("10-processes"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
   await expect(page.getByTestId("processes-spark")).toBeVisible();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
+  await expect(page.getByTestId("cleanup-row-39871")).toBeVisible();
+  await expect(page.getByTestId("leftovers-open-cleanup")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "10-processes/live-tree-1440x900.png") });
 });
 
-test("inspector — Processes tab Stop confirm popover (PID named)", async ({ page }) => {
+test("inspector — Processes tab Stop opens the verified sheet", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __AIJ_KILL_VERIFY__: (session: string, pid: number) => unknown }).__AIJ_KILL_VERIFY__ = (session, pid) => ({
+      pid, session, verified: true, refusal: null, exe_path: "/usr/local/bin/node",
+      cmdline: "node node_modules/.bin/vite dev --port 5173", cwd: "/Users/me/code/web-app", ports: [5173],
+      pgid: 40100, escaped_group: false, members: [], tree_pids: [pid], platform: "TERM → grace → KILL",
+      grace_secs: 5, provider: "claude-code", account_id: "Work Max", project_id: "web-app",
+    });
+  });
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
-  await page.getByRole("button", { name: "Stop process 39871" }).click();
-  await expect(page.getByTestId("orphan-confirm-39871")).toBeVisible();
+  await page.getByTestId("cleanup-kill-39871").click();
+  await expect(page.getByTestId("kill-confirm-39871")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "10-processes/stop-confirm-1440x900.png") });
 });
 
-test("inspector — Processes tab gone verification state", async ({ page }) => {
+test("inspector — Processes tab refuses a recycled pid", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("orphan-row-39871")).toBeVisible();
-  await page.getByRole("button", { name: "Stop process 39871" }).click();
-  await page.getByRole("button", { name: "Stop 39871" }).click();
-  await expect(page.getByTestId("orphan-state-39871")).toHaveText("gone ✓");
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/gone-state-1440x900.png") });
+  await page.getByTestId("cleanup-kill-39871").click();
+  await expect(page.getByRole("dialog")).toContainText("belongs to a different program");
+  await expect(page.getByTestId("kill-confirm-39871")).toHaveCount(0);
+  await page.screenshot({ path: resolve(GALLERY, "10-processes/refused-1440x900.png") });
 });
 
 test("inspector — Processes tab good empty state", async ({ page }) => {
@@ -693,7 +703,7 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
     .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-surface")).toContainText("Running");
+  await expect(page.getByTestId("desktop-surface")).toContainText("Working");
   await expect(page.getByTestId("desktop-focus")).toBeVisible();
   await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-running-1280x800.png") });
@@ -1114,11 +1124,13 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
-      await page.getByRole("tab", { name: "Processes" }).click();
+      // 0.1.5: the machine-wide port map lives in Cleanup › Ports, not in
+      // each session's Processes tab.
+      await goTo(page, "Cleanup");
+      await page.getByRole("radio", { name: "Ports", exact: true }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
-      await expect(page.getByTestId("port-row-5173")).toContainText("Managed orphan");
-      await expect(page.getByTestId("port-row-8000")).toContainText("Not managed by Juggler");
+      await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
+      await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
       await page.screenshot({ path: resolve(GALLERY, `18-ports/inventory-${vp.name}-${theme}.png`) });
     });
   }
@@ -1200,7 +1212,7 @@ for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiab
           await expect(page.getByTestId("cleanup-row-8123")).toContainText(
             "Still running after its session closed",
           );
-          await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+          await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
         }
         if (state === "empty") {
           await expect(page.getByTestId("cleanup-empty")).toContainText(
@@ -1902,7 +1914,7 @@ for (const theme of THEMES) {
       await goTo(page, "Cleanup");
       await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
       await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("cleanup-row-8124")).toContainText("hog");
+      await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/mixed-${vp.name}-${theme}.png`) });
     });
   }
@@ -2033,7 +2045,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("cleanup-row-9101")).toHaveCount(0);
       // Widen: the foreign row appears, display-only (no kill control).
       await page.getByRole("combobox", { name: "Machine filter" }).selectOption("all");
-      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("machine-studio");
+      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("Mac Studio");
       await expect(page.getByTestId("cleanup-kill-9101")).toHaveCount(0);
       await expect(page.getByTestId("cleanup-kill-8123")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `24-fleet/machine-filter-${vp.name}-${theme}.png`) });
@@ -2096,8 +2108,10 @@ for (const theme of THEMES) {
             (window as never as { __AIJ_COST_ROLLUPS__: unknown }).__AIJ_COST_ROLLUPS__ = rollups;
             (window as never as { __AIJ_COST_CSV__: unknown }).__AIJ_COST_CSV__ =
               "/tmp/ai-juggler-costs.csv";
+            // Prices and details shows once an account is in.
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = {
-              accounts: [], recipes: [], sessions: [], projects: [],
+              accounts: [{ id: "claude-work", provider: "claude-code", label: "Work Max", plan: "max-20x", login_state: "logged_in" }],
+              recipes: [], sessions: [], projects: [],
             };
             localStorage.setItem("aij.theme", themeName);
             localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -2109,8 +2123,9 @@ for (const theme of THEMES) {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        // The matrix lives on the Usage screen.
+        // The matrix is Usage's Prices and details (0.1.5: its rows paged).
         await goTo(page, "Usage");
+        await page.getByTestId("usage-prices-open").click();
         await expect(
           page.getByText("USD is Estimated — list pricing, not your subscription fee."),
         ).toBeVisible();
@@ -2173,13 +2188,17 @@ for (const theme of THEMES) {
         await expectRail(page); // D-25: the list, or its icon column when narrow
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("tab", { name: "Usage" }).click();
-        await expect(page.getByTestId("two-clock-card")).toBeVisible();
-        // Copy conformance before capture: the badge sits adjacent.
+        // 0.1.5: a session's Usage tab shows its account's window as every
+        // session page does (the old two-clock card left with the strips;
+        // the renewal clock lives on the profile's page).
+        const window_ = page.getByTestId("session-usage-runway");
+        await expect(window_).toBeVisible();
+        // Copy conformance before capture: what's left, in words, never 0%.
         if (state === "measured") {
-          await expect(page.getByText(/5-hour window · Measured/)).toBeVisible();
+          await expect(window_).toContainText("18% left");
         }
         if (state === "no-data") {
-          await expect(page.getByText("Start a session to measure")).toBeVisible();
+          await expect(window_).not.toContainText("0% left");
         }
         await page.screenshot({
           path: resolve(GALLERY, `26-quota/usage-${state}-${vp.name}-${theme}.png`),
@@ -3275,8 +3294,10 @@ for (const theme of THEMES) {
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
+      // E16 (AJ-E1602) brings a tool more, so the fixture's matrix has a
+      // fifth switch.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 4 switches is proven yet",
+        "None of the 5 switches is proven yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not proven yet",
@@ -3882,6 +3903,10 @@ for (const theme of THEMES) {
       await page.goto("/");
       await goTo(page, "Accounts");
       await page.getByTestId("add-account").click();
+      // AJ-E1601: a service the found tool runs through puts the chooser
+      // (its More) first; the tool itself opens the fresh account.
+      const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+      await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
       await expect(page.getByTestId("first-run-fresh")).toBeVisible();
       await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
       await page.screenshot({ path: resolve(GALLERY, `71-add-account/fresh-${vp.name}-${theme}.png`), fullPage: true });
@@ -3922,20 +3947,14 @@ for (const theme of THEMES) {
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
-      await expect(page.getByRole("heading", { level: 1, name: "Claude Code" })).toBeVisible();
+      // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
+      const tool = page.getByTestId("settings-tool").filter({ hasText: "Claude Code" });
+      await expect(tool).toBeVisible();
       await expect(chip).toHaveCount(0); // the view doesn't link to itself
-      await expect(page.getByTestId("provider-install")).toHaveText(/^Version \S+/);
+      await expect(tool).toContainText(/Version \S+/);
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      // AJ-E1533: a tool's page is its body alone (no tabs); its actions
-      // are the header's Add account… and its ⋯ menu.
-      const inspector = page.getByTestId("right-inspector");
-      await expect(inspector.getByRole("tablist")).toHaveCount(0);
-      const text = (await page.getByTestId("provider-overview").innerText()) ?? "";
+      const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
-      await expect(page.getByTestId("header-add-account")).toBeVisible();
-      await page.getByTestId("header-menu").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await page.screenshot({ path: resolve(GALLERY, `72-tool-view/header-menu-${vp.name}-${theme}.png`), fullPage: true });
     });
   }
 }

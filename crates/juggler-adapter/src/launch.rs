@@ -63,6 +63,18 @@ pub struct LaunchSpec {
 /// real environment value, so this never collides with one.
 pub const ENV_UNSET: &str = "\u{0}unset";
 
+/// A launch env overlay onto a command: each value set, or the variable
+/// removed for [`ENV_UNSET`].
+pub fn apply_env(command: &mut std::process::Command, env: &EnvMap) {
+    for (key, value) in env {
+        if value == ENV_UNSET {
+            command.env_remove(key);
+        } else {
+            command.env(key, value);
+        }
+    }
+}
+
 /// Convenience constructor used by adapters.
 #[must_use]
 pub fn headless_spec(program: PathBuf, args: Vec<String>, env: EnvMap, cwd: PathBuf) -> LaunchSpec {

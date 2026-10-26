@@ -287,6 +287,52 @@ fn pty_spawn_captures_output() {
     wait_for_exit(&supervisor, &session);
 }
 
+/// A process that exits at once: its Started still comes before its
+/// Exited, piped and PTY alike (the app's status mapping relies on it; a
+/// late Started used to leave a finished session looking live).
+#[test]
+fn a_start_is_never_received_after_its_exit() {
+    let workdir = tempfile::tempdir().unwrap();
+    // With a journal, as the app runs it: spawn() writes it after the
+    // process is up, which is the window a late Started fell into.
+    let supervisor = Supervisor::with_journal(&workdir.path().join("journal")).unwrap();
+    let sessions: Vec<SessionId> = (0..40)
+        .map(|n| SessionId::new(format!("s-order-{n}")))
+        .collect();
+    for (n, session) in sessions.iter().enumerate() {
+        let mut spec = sh_spec("exit 0", workdir.path());
+        spec.needs_pty = n % 2 == 1;
+        supervisor
+            .spawn(session, &spec, &ledger_test_ctx())
+            .unwrap();
+    }
+    let mut seen: Vec<(SessionId, bool)> = Vec::new();
+    let deadline = std::time::Instant::now() + Duration::from_secs(20);
+    while seen.iter().filter(|(_, exit)| *exit).count() < sessions.len() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "not every session exited"
+        );
+        match supervisor.recv_timeout(Duration::from_millis(100)) {
+            Some(LifecycleEvent::Started { session, .. }) => seen.push((session, false)),
+            Some(LifecycleEvent::Exited { session, .. }) => seen.push((session, true)),
+            _ => {}
+        }
+    }
+    for session in &sessions {
+        let order: Vec<bool> = seen
+            .iter()
+            .filter(|(id, _)| id == session)
+            .map(|(_, exit)| *exit)
+            .collect();
+        assert_eq!(
+            order,
+            vec![false, true],
+            "{session:?}: Started, then Exited"
+        );
+    }
+}
+
 #[test]
 fn unknown_sessions_error_cleanly() {
     let supervisor = Supervisor::new();

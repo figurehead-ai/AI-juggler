@@ -73,9 +73,9 @@ export function SettingsScreen({
   const panes = shownPanes({ pairedMacs }, pane);
   const Body = PANE_BODIES[pane];
   return (
-    <div className="mx-auto flex w-full max-w-5xl gap-8" data-testid="settings-screen">
+    <div className="mx-auto flex w-full max-w-[1040px] gap-8 pb-10" data-testid="settings-screen">
       <nav aria-label="Settings" className="sticky top-0 w-52 shrink-0 self-start pt-1">
-        <h2 className="mb-3 px-2 text-lg font-semibold tracking-tight">Settings</h2>
+        <h2 className="mb-3 px-2 text-title text-ink">Settings</h2>
         <ul className="flex flex-col gap-0.5" data-testid="settings-nav">
           {panes.map((entry) => (
             <li key={entry.id}>
@@ -87,7 +87,7 @@ export function SettingsScreen({
                 }}
                 aria-current={pane === entry.id ? "page" : undefined}
                 className={
-                  "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                  "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                   (pane === entry.id ? "bg-accent-soft font-medium text-ink" : "text-ink hover:bg-surface-2")
                 }
                 data-pane={entry.id}

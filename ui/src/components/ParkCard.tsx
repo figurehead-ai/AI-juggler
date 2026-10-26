@@ -31,7 +31,7 @@ export function ParkCard({
     }
   };
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline px-2.5 py-2 text-[11px]" data-testid="park-card">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline px-2.5 py-2 text-label" data-testid="park-card">
       {words ? (
         <>
           <span className="min-w-0 flex-1 text-ink" data-testid="park-state">

@@ -239,24 +239,29 @@ fn come_back(
                 delta_prompt: None,
             },
         )?;
-        let start = super::launch::Start {
-            account: &account,
-            profile: &profile,
-            project: record.project.as_ref().map(ToString::to_string),
-            resume: Some(native_id.to_owned()),
-            requested: Some(Runtime::Driven),
-        };
-        let started =
-            super::launch::start(state, adapter.as_ref(), session.clone(), &start, terminal)?;
+        // The one path: its own row is starting again before its process
+        // does (intent before spawn), then the runtime.
+        let started = crate::features::sessions::spawn::start_session(
+            state,
+            &crate::features::sessions::spawn::NewSession {
+                id: session,
+                account: &account,
+                profile: &profile.id,
+                project: record.project.clone(),
+                cwd: record.cwd.clone(),
+                conversation: Some(juggler_core::model::ConversationId::new(native_id)),
+                transcript_ref: record.transcript_ref.clone(),
+                origin: "resume",
+            },
+            crate::features::sessions::spawn::Runs::Planned {
+                profile: &profile,
+                resume: Some(native_id.to_owned()),
+                requested: Some(Runtime::Driven),
+                terminal,
+            },
+        )?;
         if started.session != *session {
-            super::commands::record_continuation(
-                state,
-                &record,
-                &profile,
-                &account,
-                native_id,
-                &started.session,
-            )?;
+            super::commands::record_continuation(state, &record)?;
         }
         Ok::<_, AppError>(started)
     })();
@@ -273,14 +278,6 @@ fn come_back(
         if started.session != *session {
             // Its conversation went on under a new id: the old one is done.
             note(&storage, session, None);
-        }
-        if started.session == *session
-            && let Ok(mut record) = storage.sessions().get(session)
-        {
-            record.status = SessionStatus::Starting;
-            record.attention = None;
-            record.last_activity = Some(Timestamp::now());
-            let _ = storage.sessions().update(&record);
         }
         let words = match started.runtime {
             Runtime::Driven => format!("{how}: its conversation resumed"),

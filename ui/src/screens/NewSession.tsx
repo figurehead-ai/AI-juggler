@@ -237,7 +237,7 @@ export function NewSessionModal({
           <div className="ml-auto flex items-center gap-2">
             {directory && (
               <Chip tone="accent">
-                <span className="max-w-64 truncate font-mono text-[10px]">
+                <span className="max-w-64 truncate font-mono text-label">
                   {directory.split("/").pop()}
                 </span>
               </Chip>
@@ -264,7 +264,7 @@ export function NewSessionModal({
           {runtimePick.element}
           <PackPicker pack={pack} />
           {/* Step 1 — where */}
-          <p className="text-[11px] uppercase tracking-wider text-muted">
+          <p className="text-section font-semibold text-ink">
             Where do you want to work?
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -289,7 +289,7 @@ export function NewSessionModal({
                     <span className="dot-live ml-auto size-1.5 rounded-full bg-live" />
                   )}
                 </span>
-                <span className="truncate text-[10px] text-muted">
+                <span className="truncate text-label text-muted">
                   {project.history_sessions > 0 ? `${project.history_sessions} prior session${project.history_sessions === 1 ? "" : "s"} · ${project.accounts_used.join(", ")}` : homeRelative(project.root)}
                 </span>
               </button>
@@ -309,13 +309,13 @@ export function NewSessionModal({
             >
               <IconProjects width={14} height={14} />
               <span className="text-xs font-medium">Choose folder…</span>
-              <span className="text-[10px] text-muted">or drop it anywhere</span>
+              <span className="text-label text-muted">or drop it anywhere</span>
             </button>
           </div>
 
           {/* Step 2 — who (AJ-E306 flow (e)): the recommended Launch
               settings preselected; the full list under Customise ▸. */}
-          <p className="mt-5 text-[11px] uppercase tracking-wider text-muted">
+          <p className="mt-5 text-section font-semibold text-ink">
             {ranked.length > 0 && (
               <RankedRows
                 rows={ranked}
@@ -338,13 +338,13 @@ export function NewSessionModal({
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
                   {preselected.model && (
-                    <span className="font-mono text-[10px] text-muted">{preselected.model}</span>
+                    <span className="font-mono text-label text-muted">{preselected.model}</span>
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
                   {/* AJ-E1501: why this one, when the user picked it. */}
                   {(project?.default_account_id === preselected.account_id ||
                     accounts.find((account) => account.is_default)?.id === preselected.account_id) && (
-                    <span className="ml-auto text-[10px] text-muted" data-testid="launch-default">
+                    <span className="ml-auto text-label text-muted" data-testid="launch-default">
                       {project?.default_account_id === preselected.account_id ? "this project's default" : "your default"}
                     </span>
                   )}
@@ -389,7 +389,7 @@ export function NewSessionModal({
                 ref={customise.hideRef}
                 type="button"
                 onClick={() => customise.toggle(false)}
-                className="self-start text-[11px] text-muted underline-offset-2 hover:text-ink hover:underline"
+                className="self-start text-label text-muted underline-offset-2 hover:text-ink hover:underline"
                 aria-expanded={customiseOpen}
               >
                 Customise ▾ (hide Launch settings)
@@ -473,7 +473,7 @@ export function NewSessionModal({
 
         <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
           {/* AJ-E1535: the footer speaks only when a folder is picked. */}
-          <span className="text-[11px] text-muted">{directory ? `Launching in ${directory.split("/").pop()}` : null}</span>
+          <span className="text-label text-muted">{directory ? `Launching in ${directory.split("/").pop()}` : null}</span>
           <Button size="sm" variant="secondary" onClick={onClose}>
             Close
           </Button>

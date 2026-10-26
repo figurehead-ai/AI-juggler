@@ -1542,6 +1542,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Fleet");
+    // 0.1.5: the fingerprint folds away while Link is off; open it to check it.
+    const fold = page.locator("#fleet-fingerprint-label");
+    if (!(await page.getByLabel("Machine fingerprint").isVisible())) await fold.click();
     const fingerprint = page.getByLabel("Machine fingerprint");
     await expect(fingerprint).toBeVisible();
     await fingerprint.focus();
@@ -1802,6 +1805,8 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("goto-row-remote-inst-desk").click();
     await page.getByRole("tab", { name: "Actions" }).click();
+    // 0.1.5: a row opens the session; focusing it on its Mac is its own button.
+    await page.getByTestId("remote-focus").click();
     await expect(page.getByTestId("remote-outcome")).toContainText("Focused window");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });

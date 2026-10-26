@@ -48,13 +48,13 @@ export function WorktreeGit({ sessionId, live }: { sessionId: string; live: bool
   }, [sessionId, tick]);
   if (!status) return null;
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted" data-testid="instance-git">
+    <div className="flex flex-wrap items-center gap-2 text-label text-muted" data-testid="instance-git">
       <span className="text-ink">{words(status)}</span>
       {status.created_by_juggler && !live && (
         <button
           type="button"
           onClick={() => setRemoving(true)}
-          className="rounded border border-hairline px-1.5 py-0.5 text-[10px] text-ink hover:border-danger/50"
+          className="rounded border border-hairline px-1.5 py-0.5 text-label text-ink hover:border-danger/50"
           data-testid="worktree-remove"
         >
           Remove worktree…
@@ -118,22 +118,22 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
         </h3>
         {info && (
           <>
-            <p className="break-all font-mono text-[11px] text-muted">{info.path}</p>
-            <p id="worktree-remove-summary" className="text-[11px] text-ink" data-testid="worktree-remove-summary">
+            <p className="break-all font-mono text-label text-muted">{info.path}</p>
+            <p id="worktree-remove-summary" className="text-label text-ink" data-testid="worktree-remove-summary">
               {info.needs_confirmation && <span aria-hidden="true">⚠ </span>}
               {info.summary}
             </p>
             {info.in_use && (
-              <p className="text-[11px] text-ink">A session still runs in it — stop it first.</p>
+              <p className="text-label text-ink">A session still runs in it — stop it first.</p>
             )}
             {info.needs_confirmation && !info.in_use && (
-              <label className="flex flex-col gap-1 text-[11px] text-ink">
+              <label className="flex flex-col gap-1 text-label text-ink">
                 Type «{info.folder}» to discard them
                 <input
                   type="text"
                   value={typed}
                   onChange={(event) => setTyped(event.target.value)}
-                  className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-[11px] text-ink"
+                  className="rounded border border-hairline bg-canvas px-2 py-1 font-mono text-label text-ink"
                   data-testid="worktree-remove-confirm"
                   aria-label={`Type ${info.folder} to confirm`}
                 />
@@ -142,13 +142,13 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
           </>
         )}
         {error && (
-          <p role="alert" className="text-[11px] text-ink">
+          <p role="alert" className="text-label text-ink">
             {error}
           </p>
         )}
         {done ? (
           <div className="flex justify-end">
-            <p className="flex-1 text-[11px] text-ink" aria-live="polite">
+            <p className="flex-1 text-label text-ink" aria-live="polite">
               Removed. The branch {info?.branch} stays.
             </p>
             <button type="button" onClick={onClose} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">

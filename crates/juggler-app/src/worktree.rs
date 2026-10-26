@@ -660,11 +660,14 @@ pub(crate) fn status_info(state: &Arc<AppState>, dir: &Path) -> Option<GitStatus
 ///
 /// Returns the typed [`AppError`] per [`isolation_offer_impl`].
 #[tauri::command]
-pub fn isolation_offer(
+pub async fn isolation_offer(
     state: tauri::State<'_, Arc<AppState>>,
     cwd: String,
 ) -> AppResult<Option<IsolationOfferInfo>> {
-    isolation_offer_impl(state.inner(), &cwd)
+    crate::ipc::blocking(state.inner(), "isolation offer", move |state| {
+        isolation_offer_impl(state, &cwd)
+    })
+    .await
 }
 
 /// AJ-E1002: creates the confirmed worktree.
@@ -673,13 +676,16 @@ pub fn isolation_offer(
 ///
 /// Returns the typed [`AppError`] per [`worktree_create_impl`].
 #[tauri::command]
-pub fn worktree_create(
+pub async fn worktree_create(
     state: tauri::State<'_, Arc<AppState>>,
     cwd: String,
     path: String,
     branch: String,
 ) -> AppResult<String> {
-    worktree_create_impl(state.inner(), &cwd, &path, &branch)
+    crate::ipc::blocking(state.inner(), "worktree create", move |state| {
+        worktree_create_impl(state, &cwd, &path, &branch)
+    })
+    .await
 }
 
 /// AJ-E1002: what removing a worktree would discard.
@@ -688,11 +694,14 @@ pub fn worktree_create(
 ///
 /// Returns the typed [`AppError`] per [`worktree_removal_preview_impl`].
 #[tauri::command]
-pub fn worktree_removal_preview(
+pub async fn worktree_removal_preview(
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
 ) -> AppResult<WorktreeRemovalInfo> {
-    worktree_removal_preview_impl(state.inner(), &path)
+    crate::ipc::blocking(state.inner(), "worktree removal preview", move |state| {
+        worktree_removal_preview_impl(state, &path)
+    })
+    .await
 }
 
 /// AJ-E1002: removes a worktree AI Juggler created.
@@ -701,12 +710,15 @@ pub fn worktree_removal_preview(
 ///
 /// Returns the typed [`AppError`] per [`worktree_remove_impl`].
 #[tauri::command]
-pub fn worktree_remove(
+pub async fn worktree_remove(
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
     confirm: Option<String>,
 ) -> AppResult<()> {
-    worktree_remove_impl(state.inner(), &path, confirm.as_deref())
+    crate::ipc::blocking(state.inner(), "worktree remove", move |state| {
+        worktree_remove_impl(state, &path, confirm.as_deref())
+    })
+    .await
 }
 
 /// AJ-E1002: an Instance's git status now (on focus).
@@ -715,11 +727,14 @@ pub fn worktree_remove(
 ///
 /// Returns the typed [`AppError`] per [`git_status_refresh_impl`].
 #[tauri::command]
-pub fn git_status_refresh(
+pub async fn git_status_refresh(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
 ) -> AppResult<Option<GitStatusInfo>> {
-    git_status_refresh_impl(state.inner(), &session_id)
+    crate::ipc::blocking(state.inner(), "git status refresh", move |state| {
+        git_status_refresh_impl(state, &session_id)
+    })
+    .await
 }
 
 #[cfg(test)]

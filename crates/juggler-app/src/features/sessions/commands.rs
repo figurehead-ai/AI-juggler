@@ -40,3 +40,65 @@ pub async fn sessions_restart_choice_set(
     })
     .await
 }
+
+/// History, a project's or an account's Sessions: every session (AI
+/// Juggler's and the ones started outside it), a page at a time, open
+/// first, then newest (0.1.5 review: they read every session at once).
+///
+/// # Errors
+///
+/// As [`super::rows::sessions_page_impl`].
+#[tauri::command]
+pub async fn sessions_page(
+    state: tauri::State<'_, Arc<AppState>>,
+    query: super::rows::SessionsQuery,
+    page: crate::paging::PageRequest,
+) -> AppResult<crate::paging::Page<super::rows::SessionRowInfo>> {
+    crate::ipc::blocking(state.inner(), "the sessions", move |state| {
+        super::rows::sessions_page_impl(state, &query, &page)
+    })
+    .await
+}
+
+/// How many sessions a list holds: open, ended and archived (a list's
+/// heading, History's Archived tab).
+///
+/// # Errors
+///
+/// As [`super::rows::sessions_counts_impl`].
+#[tauri::command]
+pub async fn sessions_counts(
+    state: tauri::State<'_, Arc<AppState>>,
+    query: super::rows::SessionsQuery,
+) -> AppResult<super::rows::SessionsCountsInfo> {
+    crate::ipc::blocking(state.inner(), "the session counts", move |state| {
+        super::rows::sessions_counts_impl(state, &query)
+    })
+    .await
+}
+
+/// These sessions, as the app's list has them: a page opened for a
+/// session past the working set (an old one, from History). At most
+/// [`crate::paging::MAX_LIMIT`] ids.
+///
+/// # Errors
+///
+/// Storage errors.
+#[tauri::command]
+pub async fn sessions_get(
+    state: tauri::State<'_, Arc<AppState>>,
+    ids: Vec<String>,
+) -> AppResult<Vec<super::dto::InstanceInfo>> {
+    crate::ipc::blocking(state.inner(), "the sessions asked for", move |state| {
+        let ids: Vec<juggler_core::model::SessionId> = ids
+            .iter()
+            .take(crate::paging::MAX_LIMIT)
+            .map(|id| juggler_core::model::SessionId::new(id.as_str()))
+            .collect();
+        let records = crate::commands::lock_storage_arc(state)?
+            .sessions()
+            .get_many(&ids)?;
+        crate::commands::instances_of(state, records)
+    })
+    .await
+}

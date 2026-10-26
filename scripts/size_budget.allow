@@ -17,14 +17,13 @@ ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/NotificationRegion.tsx 425
 ui/src/components/RemoteTabs.tsx 494
-ui/src/components/RightInspector.tsx 1829
+ui/src/components/RightInspector.tsx 1602
 ui/src/components/SwitchFlow.tsx 762
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
 ui/src/components/WorkflowRail.tsx 1038
 ui/src/components/indicator.tsx 490
 ui/src/lib/bridge.ts 4952
-ui/src/lib/machine.ts 426
 ui/src/screens/CleanupCentre.tsx 809
 ui/src/screens/FirstRun.tsx 1301
 ui/src/screens/FleetScreen.tsx 765

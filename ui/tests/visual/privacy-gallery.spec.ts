@@ -41,9 +41,10 @@ async function axeClean(page: Page, what: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`the Privacy page — ${theme}`, gate("84-privacy"), async ({ page }) => {
     await open(page, theme);
+    // 0.1.5: one place for Privacy: More's Privacy opens Settings › Privacy.
     await goTo(page, "Privacy");
-    const privacy = page.getByTestId("privacy-page");
-    await expect(privacy.getByRole("heading", { level: 1 })).toHaveText("Privacy");
+    await expect(page.getByTestId("settings-pane-privacy").getByRole("heading", { level: 2, name: "Privacy" })).toBeVisible();
+    await expect(page.getByTestId("privacy-page")).toBeVisible();
     await expect(page.getByTestId("privacy-claim").first()).toBeVisible();
     await page.screenshot({ path: resolve(OUT, `page-${theme}.png`) });
     await axeClean(page, "the Privacy page");
@@ -81,11 +82,11 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "Add account with the terms line");
   });
 
-  test(`Settings links to it — ${theme}`, async ({ page }) => {
+  test(`Settings › Privacy holds every line — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
     await settingsPane(page, "Privacy");
-    await page.getByTestId("settings-privacy-page").click();
     await expect(page.getByTestId("privacy-page")).toBeVisible();
+    await expect(page.getByTestId("privacy-claim").first()).toBeVisible();
   });
 }

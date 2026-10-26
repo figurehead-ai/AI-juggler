@@ -66,7 +66,7 @@ fn snapshot(dir: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
 
 #[test]
 fn kimi_code_is_a_listed_provider() {
-    let providers = commands::harnesses_list();
+    let providers = tauri::async_runtime::block_on(commands::harnesses_list());
     let kimi = providers
         .iter()
         .find(|p| p.id == KIMI_CODE_ID)

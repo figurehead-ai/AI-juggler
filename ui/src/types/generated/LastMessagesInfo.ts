@@ -6,9 +6,10 @@ import type { LastTurnInfo } from "./LastTurnInfo";
  */
 export type LastMessagesInfo = { 
 /**
- * `shown`; `off` (the setting); `none` (no transcript on this Mac:
- * a chat its app keeps on its servers); `compressed` (a finished
- * rollout the tool stored compressed); `unreadable`.
+ * `shown`; `unchanged` (the stamp the page has is current);
+ * `off` (the setting); `none` (no transcript on this Mac: a chat
+ * its app keeps on its servers); `compressed` (a finished rollout
+ * the tool stored compressed); `unreadable`.
  */
 state: string, 
 /**
@@ -18,4 +19,15 @@ turns: Array<LastTurnInfo>,
 /**
  * How many keys or tokens were taken out.
  */
-redacted: number, };
+redacted: number, 
+/**
+ * Where these turns start in the transcript: pass it as `before`
+ * for earlier ones, or as `from` to follow along; `null` when they
+ * reach its start.
+ */
+earlier: number | null, 
+/**
+ * The transcript's stamp when read: pass it as `known` to hear
+ * `unchanged` while it is.
+ */
+stamp: string | null, };

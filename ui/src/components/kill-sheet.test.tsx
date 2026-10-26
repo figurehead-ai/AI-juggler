@@ -34,7 +34,7 @@ function verifyData(overrides: Partial<KillVerifyData> = {}): KillVerifyData {
         pgid: 8100,
         exe: "node",
         cmdline: "node vite dev",
-        role_guess: "DevServer",
+        role_guess: "dev server",
         unsaved_state_warning: null,
         from_ledger: true,
       },
@@ -43,8 +43,8 @@ function verifyData(overrides: Partial<KillVerifyData> = {}): KillVerifyData {
         pgid: 8100,
         exe: "node",
         cmdline: "node mcp-server",
-        role_guess: "McpServer",
-        unsaved_state_warning: "Includes a McpServer that may hold unsaved state.",
+        role_guess: "MCP server",
+        unsaved_state_warning: "Includes an MCP server that may hold unsaved state.",
         from_ledger: true,
       },
     ],
@@ -99,9 +99,9 @@ describe("KillSheet (AJ-E507)", () => {
     expect(text).toContain("/srv/web");
     expect(text).toContain(":5173");
     expect(text).toContain("free :5173");
-    expect(view.getByTestId("kill-member-8124").textContent ?? "").toContain("McpServer");
+    expect(view.getByTestId("kill-member-8124").textContent ?? "").toContain("probably an MCP server");
     expect(view.getByTestId("kill-unsaved-8124").textContent).toBe(
-      "Includes a McpServer that may hold unsaved state.",
+      "Includes an MCP server that may hold unsaved state.",
     );
     // The ladder wording, verbatim platform string.
     expect(view.getByTestId("kill-platform-8123").textContent ?? "").toContain("TERM → grace → KILL");

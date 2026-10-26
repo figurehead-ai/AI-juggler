@@ -38,11 +38,11 @@ export function RankedRows({
   return (
     <div className="flex flex-col gap-1.5" data-testid="ranked-rows">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Ranked for you</p>
+        <p className="text-section font-semibold text-ink">Ranked for you</p>
         <button
           type="button"
           aria-expanded={whyOpen}
-          className="py-1 text-[11px] underline focus:outline-none focus:ring-2 focus:ring-accent"
+          className="py-1 text-label underline focus:outline-none focus:ring-2 focus:ring-accent"
           onClick={() => setWhyOpen((open) => !open)}
         >
           Why this order?
@@ -74,21 +74,21 @@ export function RankedRows({
                     {row.account_label}
                   </span>
                   {row.suggested && (
-                    <span className="rounded border border-accent/50 px-1 text-[10px] text-accent">
+                    <span className="rounded border border-accent/50 px-1 text-label text-accent">
                       Suggested
                     </span>
                   )}
-                  {!filtered && <span className="ml-auto text-[10px] text-muted">{forecastWords(row.tte_min, row.confidence)}</span>}
+                  {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(row.tte_min, row.confidence)}</span>}
                 </span>
                 {filtered ? (
-                  <span className="text-[10px] text-muted">{row.filtered_reason}</span>
+                  <span className="text-label text-muted">{row.filtered_reason}</span>
                 ) : (
-                  <span className="text-[10px] text-muted">
+                  <span className="text-label text-muted">
                     {row.top_factors.join(" · ")}
                   </span>
                 )}
                 {whyOpen && !filtered && (
-                  <span className="text-[10px] text-muted">
+                  <span className="text-label text-muted">
                     {row.factors.map(([words]) => words).join(" · ")}
                   </span>
                 )}

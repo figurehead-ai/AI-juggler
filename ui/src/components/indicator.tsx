@@ -49,23 +49,23 @@ export function stateChip(status: string): {
 } {
   switch (status) {
     case "starting":
-      return { label: "Starting", Icon: IconStateStarting, tone: "accent" };
+      return { label: "Working", Icon: IconStateStarting, tone: "accent" };
     case "running":
-      return { label: "Running", Icon: IconStateRunning, tone: "live" };
+      return { label: "Working", Icon: IconStateRunning, tone: "live" };
     case "waiting_user":
-      return { label: "Needs you", Icon: IconStateWaiting, tone: "warning" };
+      return { label: "Asks you", Icon: IconStateWaiting, tone: "warning" };
     case "stuck":
-      return { label: "Stuck?", Icon: IconStateStuck, tone: "warning" };
+      return { label: "Probably stuck", Icon: IconStateStuck, tone: "warning" };
     case "quota_blocked":
-      return { label: "Quota blocked", Icon: IconStateQuota, tone: "danger" };
+      return { label: "Limit reached", Icon: IconStateQuota, tone: "danger" };
     case "finished":
-      return { label: "Finished", Icon: IconStateFinished, tone: "success" };
+      return { label: "Ended", Icon: IconStateFinished, tone: "neutral" };
     case "stopped":
-      return { label: "Stopped", Icon: IconStateStopped, tone: "neutral" };
+      return { label: "Ended", Icon: IconStateStopped, tone: "neutral" };
     case "failed":
-      return { label: "Failed", Icon: IconStateFailed, tone: "danger" };
+      return { label: "Stopped with an error", Icon: IconStateFailed, tone: "danger" };
     case "handed_over":
-      return { label: "Handed over", Icon: IconStateHandover, tone: "accent" };
+      return { label: "Ended", Icon: IconStateHandover, tone: "neutral" };
     // Unknown wire value → `Unknown` chip, never a neutral dot.
     default:
       return { label: "Unknown", Icon: IconStateUnknown, tone: "neutral" };
@@ -152,20 +152,20 @@ export function waitingFor(
  * I-10 needs-attention badge. For the attention states the badge IS the
  * line-1 state indicator (icon + text + colour — the chip contract still
  * holds); `null` renders the plain I-04 chip instead. Exact copy:
- * `Needs you`, `Stuck?`, `Quota blocked`.
+ * the rail's words: `Asks you`, `Probably stuck`, `Limit reached`.
  */
 export function attentionBadge(
   session: InstanceInfo,
 ): { text: string; tone: StateChipTone } | null {
   switch (session.needs_attention) {
     case "waiting_user":
-      return { text: "Needs you", tone: "warning" };
+      return { text: "Asks you", tone: "warning" };
     case "stuck":
-      return { text: "Stuck?", tone: "warning" };
+      return { text: "Probably stuck", tone: "warning" };
     case "quota_blocked":
-      return { text: "Quota blocked", tone: "danger" };
+      return { text: "Limit reached", tone: "danger" };
     case "failed":
-      return { text: "Failed", tone: "danger" };
+      return { text: "Stopped with an error", tone: "danger" };
     default:
       return null;
   }
@@ -245,7 +245,7 @@ export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const subtasks = session.subtask_count ?? 0;
   if (children === 0 && subtasks === 0) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] text-muted">
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-label text-muted">
       {children > 0 && (
         <span className="inline-flex items-center gap-0.5" title={`${children} child processes`}>
           <IconFork width={10} height={10} /> {children}
@@ -280,7 +280,7 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
   const dirty = session.git_dirty_count;
   return (
     <span
-      className="inline-flex min-w-0 items-center gap-0.5 text-[10px] text-muted"
+      className="inline-flex min-w-0 items-center gap-0.5 text-label text-muted"
       title={gitWords(session)}
       data-testid="git-badge"
     >
@@ -305,7 +305,7 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
 export function StaleChip({ caption }: { caption: string | null }) {
   if (caption === null) return null;
   return (
-    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
+    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
       {caption}
     </span>
   );
@@ -317,15 +317,17 @@ export function StaleChip({ caption }: { caption: string | null }) {
  * detail (its page's header). Rows and the legend use the rail's states
  * (AJ-E2104 Req.3: `stateWord` in lib/rail-items). */
 export const STATE_WORDS: Record<string, string> = {
-  starting: "Starting",
-  running: "Running",
-  waiting_user: "Waiting for you",
-  stuck: "Looks stuck",
-  quota_blocked: "Hit its limit",
-  finished: "Done",
-  stopped: "Stopped",
-  failed: "Failed",
-  handed_over: "Handed over",
+  // The rail's words (`statusState`), never "Running" here and "Working"
+  // there (the review of 0.1.4).
+  starting: "Working",
+  running: "Working",
+  waiting_user: "Asks you",
+  stuck: "Probably stuck",
+  quota_blocked: "Limit reached",
+  finished: "Ended",
+  stopped: "Ended",
+  failed: "Stopped with an error",
+  handed_over: "Ended",
 };
 
 /** The rail's states, in its words and colours (AJ-E2104 Req.3). */
@@ -355,8 +357,8 @@ const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
  */
 export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={compact ? "flex flex-col gap-1.5 text-[10px]" : "flex flex-col gap-2 text-[11px]"}>
-      <span className="text-[11px] font-semibold text-ink">What the session list shows</span>
+    <div className={compact ? "flex flex-col gap-1.5 text-label" : "flex flex-col gap-2 text-label"}>
+      <span className="text-label font-semibold text-ink">What the session list shows</span>
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1" aria-label="States">
         {LEGEND_STATES.map((row) => (
           <div key={stateWord(row.state, row.probably)} className="contents">
@@ -377,7 +379,7 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
         ))}
         <div className="contents">
           <dt>
-            <span className="inline-flex items-center whitespace-nowrap rounded border border-warning/40 bg-warning-soft px-1 text-[9px] font-medium text-warning">stale - 3m</span>
+            <span className="inline-flex items-center whitespace-nowrap rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium text-warning">stale - 3m</span>
           </dt>
           <dd className="text-muted">a reading stopped updating</dd>
         </div>

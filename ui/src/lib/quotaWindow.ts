@@ -46,6 +46,23 @@ export function asOfWords(ms: number, now: number = Date.now()): string {
   return `as of ${new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
+/** "just now", "12 min ago", "13 h ago", "3 days ago": how old a reading is. */
+export function agoWords(ms: number, now: number = Date.now()): string {
+  const age = Math.max(0, now - ms);
+  if (age < 60_000) return "just now";
+  if (age < 3_600_000) return `${Math.round(age / 60_000)} min ago`;
+  if (age < 86_400_000) return `${Math.round(age / 3_600_000)} h ago`;
+  const days = Math.round(age / 86_400_000);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+/** When a reading was taken, with its source when the backend named one:
+ * "from the Claude app, 55 min ago", else "as of 12 min ago". */
+export function readingWords(window: WindowDisplay, now: number = Date.now()): string | null {
+  if (window.measured_at_ms == null) return null;
+  return window.source_words ? `from ${window.source_words}, ${agoWords(window.measured_at_ms, now)}` : asOfWords(window.measured_at_ms, now);
+}
+
 /** When an account runs out at this pace, with its basis — or that there
  * isn't enough use to say, never "≈0 min" (QA, P26: a null forecast read
  * as "exhausts ≈0 min · Estimate" on every row). */
@@ -88,11 +105,27 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
     return { left: null, words: "Measuring — shows after a little use", tone: "none", resets: null };
   }
   if (window.state === "reset") {
+    // The last reading stays as history only, never as the window now.
+    if (window.last_used_pct != null && window.measured_at_ms != null) {
+      const from = window.source_words ? ` (${window.source_words})` : "";
+      return {
+        left: null,
+        words: `Last reading ${agoWords(window.measured_at_ms)}${from}: ${Math.round(window.last_used_pct)}% used; that window has reset since`,
+        tone: "none",
+        resets: null,
+      };
+    }
     return { left: null, words: "Not measured since the reset", tone: "none", resets: null };
   }
   const resets = resetWords(window);
-  const asOf = window.measured_at_ms != null ? ` · ${asOfWords(window.measured_at_ms)}` : "";
+  const reading = readingWords(window);
+  const asOf = reading ? ` · ${reading}` : "";
   if (window.state === "exhausted") {
+    // Claude Code's own record of hitting the limit: when, and the reset.
+    if (window.source === "api_retry" && window.measured_at_ms != null) {
+      const hit = new Date(window.measured_at_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return { left: 0, words: `Hit its limit at ${hit}${resets ? ` · ${resets}` : ""}`, tone: "out", resets };
+    }
     const until = window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : "";
     return { left: 0, words: `Used up${until}${asOf}`, tone: "out", resets };
   }

@@ -93,7 +93,7 @@ function ProblemPanel({
         {copied === "failed" && (
           <div className="flex flex-col gap-1.5" role="status">
             <p className="text-xs text-muted">Couldn't copy the details. Select them here instead:</p>
-            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded-md bg-surface-2 p-2 font-mono text-[10px] text-ink" data-testid="screen-problem-details">
+            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded-md bg-surface-2 p-2 font-mono text-label text-ink" data-testid="screen-problem-details">
               {errorDetails(screen, error)}
             </pre>
           </div>

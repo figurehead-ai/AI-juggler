@@ -29,6 +29,7 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
         sign_in_short: spec.sign_in.short,
         same_as: spec.same_as,
         desktop_app: spec.desktop_app,
+        host_app: adapter.host_apps().into_iter().next().map(|app| app.id),
         kinds: spec
             .kinds
             .iter()

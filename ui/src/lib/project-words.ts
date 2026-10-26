@@ -40,3 +40,21 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
   const detail = [session.git_branch, session.account_label].filter(Boolean).join(" · ");
   return { title, detail };
 }
+
+/** Branches that name no piece of work. */
+const PLAIN_BRANCHES = new Set(["main", "master", "trunk", "develop", "development", "dev", "head", "default"]);
+
+/** The branch when it says what the work was ("fix/limits"), never one
+ * that says nothing ("main"). */
+export function tellingBranch(branch: string | null | undefined): string | null {
+  return branch && !PLAIN_BRANCHES.has(branch.toLowerCase()) ? branch : null;
+}
+
+/** A session's title from what's known when nothing named it (the review
+ * of 0.1.4: rows read "main"): a telling branch ("fix/limits"), else
+ * "Untitled session · <project or folder>". */
+export function untitled(branch: string | null | undefined, project: string): string {
+  const telling = tellingBranch(branch);
+  if (telling) return telling;
+  return project ? `Untitled session · ${project}` : "Untitled session";
+}

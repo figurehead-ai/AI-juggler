@@ -3,4 +3,5 @@
 #![allow(dead_code)]
 
 pub mod fake_harness;
+pub mod ledger;
 pub mod source;

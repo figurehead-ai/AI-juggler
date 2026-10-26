@@ -67,7 +67,7 @@ export function LegendPopover({
         // A 24 px target around the 16 px glyph (WCAG 2.5.8), same layout.
         className="group -my-1 flex p-1 outline-none"
       >
-        <span className="flex size-4 items-center justify-center rounded-full border border-hairline text-[9px] font-bold text-muted transition-colors group-hover:bg-surface group-hover:text-ink group-focus-visible:ring-1 group-focus-visible:ring-accent/60">
+        <span className="flex size-4 items-center justify-center rounded-full border border-hairline text-label font-bold text-muted transition-colors group-hover:bg-surface group-hover:text-ink group-focus-visible:ring-1 group-focus-visible:ring-accent/60">
           ?
         </span>
       </button>

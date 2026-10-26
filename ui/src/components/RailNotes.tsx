@@ -28,7 +28,7 @@ export function RailQuietNotes({ session }: { session: InstanceInfo }): JSX.Elem
         </span>
       )}
       {identityMark && (
-        <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="min-w-0 truncate">
+        <span title={identityMark.text} aria-label={identityMark.text} data-testid="rail-identity" data-state={identityMark.state} className="shrink-0 whitespace-nowrap">
           · {identityMark.state === "signed_out" ? "not signed in" : identityMark.state === "first_seen" ? "first sign-in" : "identity unchecked"}
         </span>
       )}

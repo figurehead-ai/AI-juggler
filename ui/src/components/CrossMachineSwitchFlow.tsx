@@ -143,7 +143,7 @@ export function CrossMachineSwitchFlow({
       >
         <h3 id="cross-switch-title" className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           Switch to {target.account_label} on {machine}
-          <span className="rounded border border-warning/60 px-1.5 py-px text-[10px] font-normal text-warning">
+          <span className="rounded border border-warning/60 px-1.5 py-px text-label font-normal text-warning">
             {mechanism === "transplant" ? target.badge : "Full story, fresh start · Not proven yet"}
           </span>
         </h3>
@@ -151,7 +151,7 @@ export function CrossMachineSwitchFlow({
         {phase.kind === "wizard" && (
           <>
             <div className="flex flex-col gap-1" aria-live="polite" data-testid="cross-switch-steps">
-              <p className="text-[11px] uppercase tracking-wider text-muted">
+              <p className="text-section font-semibold text-ink">
                 Step {step + 1} of {steps.length}: {current}
               </p>
               <ol className="flex flex-wrap gap-1">
@@ -159,7 +159,7 @@ export function CrossMachineSwitchFlow({
                   <li
                     key={title}
                     className={
-                      "rounded-full border px-2 py-0.5 text-[10px] " +
+                      "rounded-full border px-2 py-0.5 text-label " +
                       (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
                     }
                   >
@@ -172,7 +172,7 @@ export function CrossMachineSwitchFlow({
 
             {current === "Target" && (
               <div className="flex flex-col gap-2" data-testid="cross-switch-target">
-                <ul className="flex flex-col gap-1 text-[11px]" data-testid="cross-switch-preconditions">
+                <ul className="flex flex-col gap-1 text-label" data-testid="cross-switch-preconditions">
                   {target.provider === "" ? null : (
                     <li className={target.version_there && target.version_here === target.version_there ? "text-ink" : "text-muted"}>
                       <span aria-hidden="true">
@@ -192,7 +192,7 @@ export function CrossMachineSwitchFlow({
                 {target.blockers.length > 0 && (
                   <ul className="flex flex-col gap-1" data-testid="cross-switch-blockers">
                     {target.blockers.map((reason) => (
-                      <li key={reason} className="rounded border border-warning/40 px-2 py-1 text-[11px] text-ink">
+                      <li key={reason} className="rounded border border-warning/40 px-2 py-1 text-label text-ink">
                         <span aria-hidden="true">⚠ </span>
                         {reason}
                       </li>
@@ -202,7 +202,7 @@ export function CrossMachineSwitchFlow({
                 <div role="radiogroup" aria-label="How the work moves" className="flex flex-col gap-1.5">
                   <label
                     className={
-                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] " +
+                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
                       (mechanism === "transplant" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
                       (t2Possible ? "" : " opacity-70")
                     }
@@ -227,7 +227,7 @@ export function CrossMachineSwitchFlow({
                   </label>
                   <label
                     className={
-                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] " +
+                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
                       (mechanism === "replay" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
                       (target.replay_available ? "" : " opacity-70")
                     }
@@ -254,12 +254,12 @@ export function CrossMachineSwitchFlow({
 
             {current === "Project" && (
               <div className="flex flex-col gap-2" data-testid="cross-switch-project">
-                <p className="text-[11px] text-ink">
+                <p className="text-label text-ink">
                   The project isn't at the same path on {machine}. Pick its copy there — paths inside the
                   conversation are mapped to it only with your confirmation.
                 </p>
                 {orderedProjects.length === 0 ? (
-                  <p className="text-[11px] text-muted" data-testid="cross-switch-no-projects">
+                  <p className="text-label text-muted" data-testid="cross-switch-no-projects">
                     {machine} knows no projects yet — open the project there once, then try again.
                   </p>
                 ) : (
@@ -268,7 +268,7 @@ export function CrossMachineSwitchFlow({
                       <label
                         key={project.project_id}
                         className={
-                          "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] " +
+                          "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-label " +
                           (projectId === project.project_id ? "border-accent/60 bg-accent-soft" : "border-hairline")
                         }
                       >
@@ -289,7 +289,7 @@ export function CrossMachineSwitchFlow({
                   </div>
                 )}
                 {projectId !== null && mapped && (
-                  <label className="flex items-start gap-2 text-[11px] text-ink">
+                  <label className="flex items-start gap-2 text-label text-ink">
                     <input
                       type="checkbox"
                       checked={confirmed}
@@ -306,7 +306,7 @@ export function CrossMachineSwitchFlow({
             )}
 
             {current === "What's carried" && (
-              <div className="flex flex-col gap-2 text-[11px]" data-testid="cross-switch-carry">
+              <div className="flex flex-col gap-2 text-label" data-testid="cross-switch-carry">
                 {target.carried.length > 0 && (
                   <p className="text-ink">
                     <span className="font-medium">Carries:</span> {target.carried.join(", ")}
@@ -360,7 +360,7 @@ export function CrossMachineSwitchFlow({
             )}
 
             {current === "Confirm" && (
-              <div className="flex flex-col gap-2 text-[11px]" data-testid="cross-switch-confirm">
+              <div className="flex flex-col gap-2 text-label" data-testid="cross-switch-confirm">
                 <p className="text-ink">
                   {mechanism === "transplant" ? "Same conversation" : "Full story, fresh start"} under{" "}
                   {target.account_label} in {projectName} on {machine}.
@@ -429,7 +429,7 @@ export function CrossMachineSwitchFlow({
 
         {phase.kind === "pushing" && (
           <div className="flex flex-col gap-2" data-testid="cross-switch-pushing" aria-live="polite">
-            <p className="text-[11px] text-ink">
+            <p className="text-label text-ink">
               {phase.progress?.phase === "installing"
                 ? `${machine} is installing and starting it…`
                 : `Sending to ${machine}…`}
@@ -451,7 +451,7 @@ export function CrossMachineSwitchFlow({
                     }}
                   />
                 </div>
-                <p className="text-[11px] text-muted">
+                <p className="text-label text-muted">
                   {megabytes(phase.progress.received_bytes)} of {megabytes(phase.progress.total_bytes)}
                 </p>
               </>
@@ -471,7 +471,7 @@ export function CrossMachineSwitchFlow({
 
         {phase.kind === "done" && (
           <div className="flex flex-col gap-2" data-testid="cross-switch-done" aria-live="polite">
-            <p className="text-[11px] text-ink">
+            <p className="text-label text-ink">
               <span aria-hidden="true">✓ </span>
               {phase.outcome.message} — on {machine}. This session rests here as handed over.
             </p>
@@ -489,11 +489,11 @@ export function CrossMachineSwitchFlow({
 
         {phase.kind === "failed" && (
           <div className="flex flex-col gap-2" data-testid="cross-switch-failed" role="alert">
-            <p className="text-[11px] text-ink">
+            <p className="text-label text-ink">
               <span aria-hidden="true">✗ </span>
               {phase.message}
             </p>
-            <p className="text-[11px] text-muted">Nothing changed on this Mac.</p>
+            <p className="text-label text-muted">Nothing changed on this Mac.</p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"

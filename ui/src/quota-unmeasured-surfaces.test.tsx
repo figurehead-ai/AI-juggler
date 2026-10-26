@@ -102,13 +102,17 @@ it("Home's Runway and the Accounts cards", async () => {
 
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   const card = await view.findByTestId("account-runway");
-  expect(card.textContent).toContain("Not measured yet · 12k tokens used");
+  expect(card.textContent).toContain("Not measured yet");
+  expect(card.textContent).toContain("12k tokens used");
   expect(card.textContent).not.toContain("resets");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
-  // The bars are the dashed empty kind, never filled.
-  const fills = [...card.querySelectorAll<HTMLElement>("span[style]")].map((bar) => bar.style.width);
-  expect(fills.length).toBeGreaterThan(0);
-  expect(fills.every((width) => width === "0%")).toBe(true);
+  // 0.1.5: "not measured" in words, never a filled ring, and said once
+  // for both windows (one gauge), not once per window.
+  const gauges = [...card.querySelectorAll<HTMLElement>("[data-testid='window-gauge']")];
+  expect(gauges.length).toBe(1);
+  expect(gauges[0]!.dataset.state).toBe("unmeasured");
+  expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
+  expect(card.querySelectorAll("circle[stroke-dasharray]").length).toBe(0);
 });
 
 /** QA walking main through the Dev bridge (2026-10-21): the backend sent
@@ -126,7 +130,8 @@ it("serde's tracking-with-null payload: no '% left' on Home or Accounts", async 
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   const card = await view.findByTestId("account-runway");
-  expect(card.textContent).toContain("Not measured yet · 9k tokens used");
+  expect(card.textContent).toContain("Not measured yet");
+  expect(card.textContent).toContain("9k tokens used");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
 });
 

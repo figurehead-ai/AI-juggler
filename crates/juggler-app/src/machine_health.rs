@@ -118,6 +118,10 @@ pub struct MachineHealthInfo {
     /// under the same name).
     #[ts(type = "number | null")]
     pub memory_used: Option<u64>,
+    /// Of `memory_used`, what macOS keeps compressed to make room, bytes;
+    /// `null` where it isn't read.
+    #[ts(type = "number | null")]
+    pub memory_compressed: Option<u64>,
     /// What `memory_used` measures: `app_wired_compressed` (macOS: app
     /// memory + wired + the compressor's data — close to Activity Monitor's
     /// "Memory Used", a few percent lower) | `total_minus_available`
@@ -203,6 +207,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         cpu_pct: latest.cpu_pct,
         memory_total: latest.memory_total,
         memory_used: latest.memory_used,
+        memory_compressed: latest.memory_used.and(latest.memory_compressed),
         memory_basis: latest
             .memory_used
             .and(basis_key(latest.memory_basis))
@@ -894,6 +899,9 @@ pub struct ThisMacInfo {
     pub others: Vec<ToolTreeInfo>,
     /// Every heavy tree (the rail's notes, Home's Needs you).
     pub heavy: Vec<ToolTreeInfo>,
+    /// The biggest apps that aren't AI tools, by name only, heaviest
+    /// first (the 0.1.4 review: what else is using the memory).
+    pub other_apps: Vec<crate::machine_memory::OtherAppInfo>,
     /// Processes left running after their session closed.
     pub leftover_processes: u32,
     /// Ports those leftovers hold.
@@ -1073,6 +1081,7 @@ pub fn assemble(
             .map(|tree| tree_info(tree))
             .filter(|info| info.heavy_note.is_some())
             .collect(),
+        other_apps: Vec::new(),
         leftover_processes: leftovers.0,
         leftover_ports: leftovers.1,
         alerts: Vec::new(),
@@ -1222,6 +1231,15 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .unwrap_or(u32::MAX),
     ));
     let mut info = assemble(machine, &trees, leftovers);
+    // The other apps, from the table the collector already holds: copied
+    // out under its lock, grouped outside it.
+    let processes = state
+        .resources
+        .lock()
+        .map(|collector| collector.other_processes())
+        .unwrap_or_default();
+    info.other_apps =
+        crate::machine_memory::other_apps(&processes, crate::machine_memory::OTHER_APPS_SHOWN);
     info.recommendations =
         crate::machine_recommendations::recommendations_for(state, &info, now_ms);
     info.awake = crate::features::app::awake::current(&state.awake);
@@ -1377,6 +1395,7 @@ mod tests {
                 memory_available: 5 * G,
                 memory_used: Some(30 * G),
                 memory_basis: MemoryBasis::TotalMinusAvailable,
+                memory_compressed: None,
                 pressure: Some(PressureLevel::Warning),
                 swap_total: 4 * G,
                 swap_used: G,
@@ -1430,6 +1449,7 @@ mod tests {
             memory_available: 20 * G,
             memory_used: Some(26 * G),
             memory_basis: MemoryBasis::AppWiredCompressed,
+            memory_compressed: Some(9 * G),
             ..MachineSample::default()
         };
         let snapshot = MachineSnapshot {
@@ -1446,6 +1466,7 @@ mod tests {
         );
         assert_eq!(info.memory_basis.as_deref(), Some("app_wired_compressed"));
         assert_eq!(info.memory_available, 6 * G, "used + free = total");
+        assert_eq!(info.memory_compressed, Some(9 * G), "part of what's in use");
         assert_eq!(info.series[0].memory_used, Some(26 * G));
     }
 
@@ -1456,6 +1477,7 @@ mod tests {
             memory_available: 20 * G,
             memory_used: None,
             memory_basis: MemoryBasis::Unknown,
+            memory_compressed: Some(9 * G),
             ..MachineSample::default()
         };
         let snapshot = MachineSnapshot {
@@ -1467,6 +1489,7 @@ mod tests {
         let info = health_of(&snapshot, &RoomThresholds::default());
         assert_eq!(info.memory_used, None);
         assert_eq!(info.memory_basis, None);
+        assert_eq!(info.memory_compressed, None, "no part of an unread whole");
         assert_eq!(info.series[0].memory_used, None);
     }
 
@@ -2026,6 +2049,7 @@ mod live {
             subject_estimate: true,
             subject_cpu: None,
             subject_windows: Some(3),
+            other_apps: Vec::new(),
             since_ms: 0,
         };
         let mut during = tight();

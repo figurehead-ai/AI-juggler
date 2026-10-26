@@ -127,6 +127,9 @@ pub struct AppState {
     /// AJ-E1532: the icon each project's mark uses, as the project list
     /// last found it: the only files `projects_icon_read` reads.
     pub project_icons: std::sync::Mutex<std::collections::HashMap<String, PathBuf>>,
+    /// D-38: the apps' icons read from their bundles, in memory and under
+    /// `icons/` in the data folder.
+    pub app_icons: crate::features::app_icons::IconCache,
     /// AJ-E1509: the restarts of crashed sessions so far, by lineage.
     pub restarts: std::sync::Mutex<crate::features::sessions::restart::Restarts>,
     /// AJ-E1509: what keeps the Mac awake and App Nap off for the sessions.
@@ -340,6 +343,7 @@ impl AppState {
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
+            app_icons: crate::features::app_icons::IconCache::new(data_dir.join("icons")),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),

@@ -15,6 +15,11 @@ letters, in a rounded square). The rules:
 - The marks folder is not under the MIT licence (its `NOTICE.md`; the
   repository's `TRADEMARKS.md`).
 
+These rules are for the marks of tools and companies. The icons of the
+apps a session runs in (the Claude app, ChatGPT, Terminal, an editor)
+are another thing (D-38): AI Juggler reads each one at run time from the
+app installed on the user's Mac, and none is in this repository.
+
 `simple-icons` (CC0-1.0 for its SVG data) is the preferred source where it
 has the brand. CC0 covers the drawing, not the trademark: its own
 disclaimer leaves the trademark rules to each owner, so each owner's

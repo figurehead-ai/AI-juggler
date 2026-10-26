@@ -258,6 +258,13 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
+| AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
+| AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
+| AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
+| AJ-E2204 | Usage, a dashboard | E22-visual-usage.md | P0 | L | AJ-E2202, AJ-E2203 |
+| AJ-E2205 | A project's page, visual | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
+| AJ-E2206 | A profile's page and the account cards | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
+| AJ-E2207 | A session's usage | E22-visual-usage.md | P1 | S | AJ-E2202, AJ-E2203 |
 | AJ-E2301 | The runtime lab on real tools | E23-session-runtime.md | P0 | S | — |
 | AJ-E2302 | The runtime contract | E23-session-runtime.md | P0 | M | — |
 | AJ-E2303 | Codex through app-server, by default | E23-session-runtime.md | P0 | L | AJ-E2302 |
@@ -275,5 +282,5 @@
 | AJ-E2405 | Automatic rules shown, previewed and told | E24-processes.md | P1 | M | AJ-E2401 |
 | AJ-E2407 | One source: the session tab, Cleanup and This Mac on the graph | E24-processes.md | P0 | M | AJ-E2401, AJ-E2404 |
 | AJ-E2406 | Privacy lines, guide, and the processes lab | E24-processes.md | P0 | S | AJ-E2402, AJ-E2403, AJ-E2404 |
-Total: 273 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 280 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

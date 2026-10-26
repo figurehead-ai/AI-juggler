@@ -37,7 +37,7 @@ describe("AJ-E1526 tool marks", () => {
     const { container } = render(<ToolMark tool="never-heard-of" />);
     expect((container.firstElementChild as HTMLElement).dataset.mark).toBe("letter");
     // Drawn by CSS from data-letters: never text, so never a visible label.
-    expect((container.firstElementChild as HTMLElement).dataset.letters).toBe("Ne");
+    expect((container.firstElementChild as HTMLElement).dataset.letters).toBe("N");
     expect(container.textContent).toBe("");
   });
 
@@ -52,10 +52,10 @@ describe("AJ-E1526 tool marks", () => {
     delete MARKS.test;
   });
 
-  it("the letters: a two-word name's initials, else its first two letters", () => {
-    expect(markLetters("Claude Code")).toBe("CC");
-    expect(markLetters("Codex")).toBe("Co");
-    expect(markLetters("OpenAI")).toBe("Op");
+  it("the letter: the name's first, one letter as an app's fallback", () => {
+    expect(markLetters("Claude Code")).toBe("C");
+    expect(markLetters("Codex")).toBe("C");
+    expect(markLetters("OpenAI")).toBe("O");
   });
 
   it("a mark sits beside the visible name, never instead of it (Add account)", async () => {

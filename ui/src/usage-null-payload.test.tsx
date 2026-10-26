@@ -66,10 +66,13 @@ it("CostMatrix renders null fields: no crash, words for the unpriced model, neve
   expect(matrix.textContent).not.toContain("Total (all sessions)");
 });
 
-it("Usage renders with the same payload (the screen the maintainer clicked)", async () => {
+it("Usage renders with the same payload (the screen the maintainer clicked), never from its rows", async () => {
   const view = render(<UsageScreen accounts={ACCOUNTS} sessions={[]} onAddAccounts={() => null} />);
   expect(await view.findByTestId("usage-screen")).toBeTruthy();
-  await view.findByText("No price for gpt-5-codex yet");
+  // 0.1.5: Usage draws from the usage history's summaries; the cost rows
+  // (read a page at a time elsewhere) are never summed on this screen.
+  expect(view.queryByTestId("cost-matrix")).toBeNull();
+  expect(await view.findByTestId("tile-cost")).toBeTruthy();
 });
 
 it("with nothing stored at all, the preview's own payload is the real one (nulls)", async () => {

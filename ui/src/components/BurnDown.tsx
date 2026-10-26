@@ -92,13 +92,13 @@ function WindowRunway({ name, runway }: { name: string; runway: RunwayDisplay })
           {sessionsLeftWords(runway)}
         </span>
         {runway.sessions_left !== null && (
-          <span className="text-[10px] text-muted" data-testid="sessions-left-tier">
+          <span className="text-label text-muted" data-testid="sessions-left-tier">
             {quotaTierTag(runway.badge)}
           </span>
         )}
       </span>
       <BurnDownChart runway={runway} label={label} />
-      <span className="text-[11px] text-muted" data-testid="burn-down-pace">
+      <span className="text-label text-muted" data-testid="burn-down-pace">
         {paceWords(runway)}
       </span>
     </div>

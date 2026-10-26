@@ -65,7 +65,7 @@ export function channelLabel(channel: string): string {
 export function ChannelChip({ channel, testId }: { channel: string; testId?: string }): JSX.Element {
   return (
     <span
-      className="rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-ink"
+      className="rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-label font-medium text-ink"
       data-testid={testId}
     >
       {channelLabel(channel)}
@@ -132,7 +132,7 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
     }
   };
   return (
-    <details className="text-[11px]" data-testid="going-back">
+    <details className="text-label" data-testid="going-back">
       <summary className="w-fit cursor-pointer text-ink underline">Go back to an earlier version</summary>
       <div className="mt-2 flex flex-col gap-2">
         {options.map((option) =>
@@ -254,18 +254,18 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
         </CardTitle>
         <ChannelChip channel="beta" testId="beta-label" />
       </div>
-      <p className="text-[11px] text-ink" data-testid="update-version">
+      <p className="text-label text-ink" data-testid="update-version">
         {status.app_name} {status.current_version} ·{" "}
         {status.edition === "dev" ? "built on this Mac" : `${status.channel} channel`}
       </p>
       {EDITION_NOTE[status.edition] && (
-        <p className="text-[11px] text-muted" data-testid="update-edition-note">
+        <p className="text-label text-muted" data-testid="update-edition-note">
           {EDITION_NOTE[status.edition]}
         </p>
       )}
       {!status.configured ? (
         status.edition === "dev" ? null : (
-          <p className="text-[11px] text-muted" data-testid="update-unconfigured">
+          <p className="text-label text-muted" data-testid="update-unconfigured">
             This is a development build: it does not update itself and never checks. Releases are on GitHub.
           </p>
         )
@@ -273,9 +273,9 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
         <>
           {status.channels.length > 1 && (
             <fieldset className="flex flex-col gap-1.5" data-testid="update-channel" disabled={working}>
-              <legend className="mb-1 text-[11px] font-medium text-ink">Update channel</legend>
+              <legend className="mb-1 text-label font-medium text-ink">Update channel</legend>
               {CHANNELS.filter((option) => status.channels.includes(option.id)).map((option) => (
-                <label key={option.id} className="flex items-start gap-2 text-[11px]">
+                <label key={option.id} className="flex items-start gap-2 text-label">
                   <input
                     type="radio"
                     name="update-channel"
@@ -293,13 +293,13 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                   </span>
                 </label>
               ))}
-              <p className="text-[11px] text-muted">
+              <p className="text-label text-muted">
                 Moving to a steadier channel never goes back to an older version: you get that channel's next release
                 once it's newer than this one.
               </p>
             </fieldset>
           )}
-          <label className="flex items-center gap-2 text-[11px] text-ink">
+          <label className="flex items-center gap-2 text-label text-ink">
             <input
               type="checkbox"
               checked={status.check_on_launch}
@@ -308,11 +308,11 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
             />
             Check for updates when {status.app_name} starts
           </label>
-          <p className="text-[11px] text-muted">
+          <p className="text-label text-muted">
             A check only looks. Nothing is downloaded or installed until you choose Install, and {status.app_name} never restarts
             by itself.
           </p>
-          <div aria-live="polite" className="flex flex-col gap-2 text-[11px]" data-testid="update-state">
+          <div aria-live="polite" className="flex flex-col gap-2 text-label" data-testid="update-state">
             {status.state === "checking" && <p className="text-ink">Checking…</p>}
             {status.state === "up_to_date" && (
               <p className="text-ink">
@@ -375,7 +375,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                 {status.error_detail && (
                   <details className="text-muted" data-testid="update-failed-details">
                     <summary className="w-fit cursor-pointer text-ink underline">Details</summary>
-                    <p className="mt-1 break-all font-mono text-[10px]">{status.error_detail}</p>
+                    <p className="mt-1 break-all font-mono text-label">{status.error_detail}</p>
                   </details>
                 )}
               </div>

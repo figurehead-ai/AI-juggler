@@ -105,6 +105,22 @@ fn wait_for_new_session(state: &Arc<AppState>, seen: &[String]) -> String {
     }
 }
 
+/// Waits until `session`'s history has an event starting with `prefix`.
+fn wait_for_history(state: &Arc<AppState>, session: &str, prefix: &str) {
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while !history(state, session)
+        .iter()
+        .any(|event| event.starts_with(prefix))
+    {
+        assert!(
+            Instant::now() < deadline,
+            "no {prefix:?} in {:?}",
+            history(state, session)
+        );
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 fn history(state: &Arc<AppState>, session: &str) -> Vec<String> {
     state
         .storage
@@ -324,13 +340,10 @@ fn after_a_crash_its_sessions_say_so_and_resume_after_a_quit_they_stop() {
         // Up again: restarting is on, so it resumes.
         juggler_app::features::app::crash::resume_after_crash(&state);
         let next = wait_for_new_session(&state, &before);
-        assert!(
-            history(&state, &crashed)
-                .iter()
-                .any(|event| event.starts_with("restarted after a crash (try 1 of 3")),
-            "{:?}",
-            history(&state, &crashed)
-        );
+        // The new row is written before its process starts (intent before
+        // spawn), and the restart notes it on the crashed one's history
+        // once the start returns: wait for that note.
+        wait_for_history(&state, &crashed, "restarted after a crash (try 1 of 3");
         let _ = state
             .supervisor
             .stop(&SessionId::new(next), Duration::from_secs(2));

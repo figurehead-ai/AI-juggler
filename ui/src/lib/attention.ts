@@ -28,6 +28,9 @@ export function attentionWords(rule: string | null | undefined): string {
     // AJ-E2310: a driven session AI Juggler stopped during its turn.
     case "turn_cut_off":
       return "its turn was cut off when AI Juggler stopped";
+    // A session whose process never started (the reason is its input).
+    case "launch_failed":
+      return "couldn't start";
     default:
       return "needs attention";
   }

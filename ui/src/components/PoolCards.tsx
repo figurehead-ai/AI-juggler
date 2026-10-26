@@ -70,7 +70,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
             {/* The place line names the profile; the tool stands alone here. */}
             <span>{card.tool}</span>
           </span>
-          {card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-[10.5px] text-accent-hi">Lead</span>}
+          {card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>}
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
             {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
           </span>
@@ -90,7 +90,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
         </button>
       </div>
       {open && (
-        <dl id={detailId} className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 border-t border-hairline/40 px-4 py-2.5 text-[12px]" data-testid="pool-card-detail">
+        <dl id={detailId} className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 border-t border-hairline/40 px-4 py-2.5 text-label" data-testid="pool-card-detail">
           <dt className="text-muted">Role</dt>
           <dd className="text-ink">{roleLabel(card.role)}</dd>
           <dt className="text-muted">It says</dt>
@@ -108,7 +108,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
             ) : card.files.length === 0 ? (
               <span className="text-muted">None yet</span>
             ) : (
-              <ul className="flex flex-col gap-0.5 font-mono text-[11.5px] text-ink">
+              <ul className="flex flex-col gap-0.5 font-mono text-label text-ink">
                 {card.files.map((file) => (
                   <li key={file} className="truncate">
                     {file}
@@ -130,7 +130,7 @@ function Field({ field, said = false }: { field: CardField; said?: boolean }): J
   return (
     <span className="text-ink">
       {said ? `“${field.value}”` : field.value}
-      {said && <span className="ml-1.5 text-[11px] text-faint">said by the agent</span>}
+      {said && <span className="ml-1.5 text-label text-faint">said by the agent</span>}
     </span>
   );
 }

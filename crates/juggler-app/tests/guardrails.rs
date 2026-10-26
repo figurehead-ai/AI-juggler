@@ -659,7 +659,7 @@ fn manual_pgid_scope_is_warned_and_confined_to_the_group() {
         .expect("the shell sibling is listed on the sheet");
     assert_eq!(
         shell_member.unsaved_state_warning.as_deref(),
-        Some("Includes a TerminalShell that may hold unsaved state.")
+        Some("Includes a terminal shell that may hold unsaved state.")
     );
     let mcp_member = verify
         .members
@@ -1467,4 +1467,160 @@ fn foreign_machine_row_is_refused_with_zero_signals_and_listed_display_only() {
         kill9(pid);
     }
     kill9(foreign_pid);
+}
+
+/// G-1 (D-01, AJ-E507): a recycled PID — the same number now naming a
+/// different process (another start time, or another program) — is
+/// refused from EVERY entry point that can signal a pid: the sheet's
+/// verify and its ladder in all three scopes, the automatic tiers, a
+/// paired Mac's clean, and the sweep. Zero signals, zero audit rows.
+/// The retired E410 `orphan_stop` path (an allow-list check only) no
+/// longer exists to bypass this.
+#[test]
+fn recycled_pid_is_refused_from_every_entry_point() {
+    let _serial = serialize();
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed_account(&state, dir.path(), "acc-guard", true, true);
+    let helper = fixtures::write_helper(dir.path());
+    let probe = juggler_supervisor::tree::OsIdentityProbe;
+    let mut reaper = fixtures::Reaper::default();
+
+    // Each stranger: a live process whose ledger row was recorded for
+    // an EARLIER process with the same pid.
+    // The control (its own process: a ledger row's identity is frozen
+    // at first record) proves the refusals come from the recycled facts,
+    // not from a broken fixture.
+    let cases = [
+        ("control", "sess-recycled-control"),
+        ("start-time", "sess-recycled-start"),
+        ("exe", "sess-recycled-exe"),
+    ];
+    let mut strangers = Vec::new();
+    for (leg, session_id) in cases {
+        let trap = dir.path().join(format!("{leg}.traps"));
+        let ready = dir.path().join(format!("{leg}.ready"));
+        let pid = fixtures::spawn_detached(&helper, &[], &trap, &ready);
+        // Reaped even when an assertion fails.
+        reaper.pid(pid);
+        let live = juggler_supervisor::tree::IdentityProbe::probe(&probe, pid)
+            .expect("the stranger is readable");
+        let live_exe = live.exe.to_string_lossy().into_owned();
+        let (started_at, exe) = match leg {
+            "control" => (live.start_time, live_exe.clone()),
+            "start-time" => (live.start_time - 3_600, live_exe.clone()),
+            _ => (live.start_time, "/bin/not-the-program-it-was".to_string()),
+        };
+        let session = SessionId::new(session_id.to_string());
+        let row = |started_at: i64, exe: &str| juggler_core::storage::LedgerRow {
+            pid: Some(pid),
+            pgid: None,
+            started_at: Some(started_at),
+            exe_path: exe.to_string(),
+            cmdline_hash: format!("recycled-{leg}"),
+            cmdline_trunc: format!("python3 trap_helper.py (recycled {leg})"),
+            boot_id: state.ledger.boot_id().to_string(),
+            session_id: session.as_str().to_string(),
+            instance_id: None,
+            provider: "claude-code".into(),
+            account_id: Some("acc-guard".into()),
+            project_id: Some("proj-guard".into()),
+            machine_id: commands::local_machine_id(&state).as_str().to_string(),
+            root_pid: None,
+            parent_pid: None,
+            depth: 1,
+            role: "helper".into(),
+            state: "orphaned".into(),
+            listens_on: None,
+            cwd: dir.path().to_string_lossy().to_string(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: false,
+            down_period: false,
+            // Long past the exec-settle window: every leg is checked.
+            first_seen: now_ms() - 3_600_000,
+            last_seen: now_ms() - 3_600_000,
+        };
+        state
+            .ledger
+            .upsert_helpers(&session, &[row(started_at, &exe)])
+            .unwrap();
+        if leg == "control" {
+            let verified = commands::kill_verify_inner(&state, session.as_str(), pid)
+                .unwrap()
+                .verified;
+            kill9(pid);
+            assert!(verified, "control: the live identity verifies");
+            continue;
+        }
+        strangers.push((leg, session, pid, trap));
+    }
+
+    for (leg, session, pid, _) in &strangers {
+        let pid = *pid;
+        // 1. The sheet's verify: refused with the exact copy, no members.
+        let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
+        assert!(!verify.verified, "{leg}: verify refuses a recycled pid");
+        assert_eq!(verify.refusal.as_deref(), Some(commands::KILL_REFUSAL_COPY));
+        assert!(verify.members.is_empty());
+        // 2. The sheet's ladder, every scope.
+        for scope in ["pid", "pgid", "tree"] {
+            let outcome = commands::kill_execute_audited(
+                &state,
+                state.audit.as_ref(),
+                session.as_str(),
+                pid,
+                scope,
+                &cancel_flag(),
+                None,
+            )
+            .unwrap();
+            assert_eq!(
+                outcome.refusal.as_deref(),
+                Some(commands::KILL_REFUSAL_COPY),
+                "{leg}/{scope}: the ladder refuses"
+            );
+            assert_eq!(outcome.members.len(), 1);
+            assert_eq!(outcome.members[0].outcome, "refused");
+        }
+        // 3. The automatic tiers and a paired Mac's clean: their actors
+        //    ride the same entry.
+        for actor in ["auto:tier-1", "auto:tier-2", "fleet:Mac Studio"] {
+            let outcome = commands::kill_execute_as(
+                &state,
+                state.audit.as_ref(),
+                actor,
+                session.as_str(),
+                pid,
+                "pid",
+                &cancel_flag(),
+                None,
+            )
+            .unwrap();
+            assert!(outcome.refusal.is_some(), "{leg}/{actor}: refused");
+        }
+    }
+    // 4. The sweep, long after every grace window.
+    commands::auto_cleanup_sweep(&state, now_ms() + 3_600_000);
+
+    for (leg, _, pid, trap) in &strangers {
+        let traps = std::fs::read_to_string(trap).unwrap_or_default();
+        assert!(
+            traps.trim().is_empty(),
+            "{leg}: the recycled pid was signalled: {traps}"
+        );
+        assert!(fixtures::alive(*pid), "{leg}: the stranger still runs");
+    }
+    assert!(
+        state.audit.history(0).unwrap().is_empty(),
+        "nothing was killed, so nothing was audited"
+    );
+    println!(
+        "[recycled] start-time and exe strangers refused from every entry point, zero signals"
+    );
+    for (_, _, pid, _) in strangers {
+        kill9(pid);
+    }
 }

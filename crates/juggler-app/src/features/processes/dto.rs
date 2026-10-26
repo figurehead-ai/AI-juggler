@@ -87,7 +87,7 @@ pub struct AppRowInfo {
 /// A session's row.
 #[derive(Clone, Debug, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct SessionRowInfo {
+pub struct ProcessSessionInfo {
     /// The session's id (the supervisor's for ours, the tool's for theirs).
     pub session_id: String,
     /// `ours` or `theirs`.
@@ -195,7 +195,7 @@ pub struct ProcessGraphRowInfo {
     /// The app's details, for an app row.
     pub app: Option<AppRowInfo>,
     /// The session's details, for a session row.
-    pub session: Option<SessionRowInfo>,
+    pub session: Option<ProcessSessionInfo>,
     /// The process's details, for a process row.
     pub process: Option<ProcRowInfo>,
     /// Totals, for an app or a session row.

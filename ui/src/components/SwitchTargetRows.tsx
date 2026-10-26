@@ -24,7 +24,7 @@ function FidelityBadge({ badge, validated }: { badge: string; validated: boolean
       data-testid="fidelity-badge"
       data-validated={validated ? "true" : "false"}
       className={
-        "inline-flex items-center rounded border px-1.5 py-px text-[10px] " +
+        "inline-flex items-center rounded border px-1.5 py-px text-label " +
         (validated ? "border-accent/60 text-accent-hi" : "border-warning/60 text-warning")
       }
       style={
@@ -83,11 +83,11 @@ export function SwitchTargetRows({
   return (
     <div className="flex flex-col gap-1.5" data-testid="switch-target-rows">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-wider text-muted">Ranked for you</p>
+        <p className="text-section font-semibold text-ink">Ranked for you</p>
         <button
           type="button"
           aria-expanded={whyOpen}
-          className="py-1 text-[11px] underline focus:outline-none focus:ring-2 focus:ring-accent"
+          className="py-1 text-label underline focus:outline-none focus:ring-2 focus:ring-accent"
           onClick={() => setWhyOpen((open) => !open)}
         >
           Why this order?
@@ -121,26 +121,26 @@ export function SwitchTargetRows({
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && (
-                    <span className="rounded border border-accent/50 px-1 text-[10px] text-accent">
+                    <span className="rounded border border-accent/50 px-1 text-label text-accent">
                       Suggested
                     </span>
                   )}
-                  {!filtered && <span className="ml-auto text-[10px] text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
+                  {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
                 {target.cross_provider && target.drops.length > 0 && (
-                  <span className="text-[10px] text-warning" data-testid="target-drop-list">
+                  <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}
                   </span>
                 )}
                 {filtered ? (
-                  <span className="text-[10px] text-muted">{target.filtered_reason}</span>
+                  <span className="text-label text-muted">{target.filtered_reason}</span>
                 ) : (
-                  <span className="text-[10px] text-muted">
+                  <span className="text-label text-muted">
                     {target.top_factors.join(" · ")}
                   </span>
                 )}
                 {whyOpen && !filtered && (
-                  <span className="text-[10px] text-muted">
+                  <span className="text-label text-muted">
                     {target.factors.map(([words]) => words).join(" · ")}
                   </span>
                 )}
@@ -149,7 +149,7 @@ export function SwitchTargetRows({
           );
         })}
       </ul>
-      <p className="text-[10px] text-faint">
+      <p className="text-label text-muted">
         What carries is checked for each pair of tools, never assumed.
       </p>
     </div>

@@ -31,13 +31,13 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
   return (
     <div className="flex flex-col gap-2" data-testid="pool-links">
       <div className="flex flex-col gap-0.5">
-        <span className="text-[14px] font-medium text-ink">Messages to other pools</span>
-        <span className="text-[13px] text-muted">Agents here can write only to this pool, unless you link another one. Agents can't link pools.</span>
+        <span className="text-body font-medium text-ink">Messages to other pools</span>
+        <span className="text-meta text-muted">Agents here can write only to this pool, unless you link another one. Agents can't link pools.</span>
       </div>
       {links.length > 0 && (
         <ul className="flex flex-col gap-1">
           {links.map((id) => (
-            <li key={id} className="flex items-center gap-2 text-[13px] text-ink">
+            <li key={id} className="flex items-center gap-2 text-meta text-ink">
               <span className="min-w-0 flex-1 truncate">Linked with «{name(id)}»</span>
               <Button size="sm" variant="ghost" onClick={() => change(id, false)}>
                 Unlink
@@ -53,7 +53,7 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
             aria-label="A pool to link"
             value={adding}
             onChange={(event) => setAdding(event.target.value)}
-            className="h-8 rounded-lg border border-hairline bg-surface-2 px-2 text-[13px] text-ink outline-none focus:border-accent/60"
+            className="h-8 rounded-lg border border-hairline bg-surface-2 px-2 text-meta text-ink outline-none focus:border-accent/60"
           >
             <option value="">Link with another pool…</option>
             {others.map((pool) => (
@@ -68,7 +68,7 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
         </div>
       )}
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

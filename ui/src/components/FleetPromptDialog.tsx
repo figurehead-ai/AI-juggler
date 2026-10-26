@@ -85,7 +85,7 @@ export function FleetPromptDialog(): JSX.Element | null {
           It wants to <span className="text-ink">{prompt.action}</span>. Nothing happens unless you
           allow it. If you don't answer, it's denied in {left} s.
         </p>
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="mt-2 text-label text-muted">
           You chose "Ask each time" for {prompt.peer_label}; change it in Fleet.
         </p>
         <div className="mt-4 flex justify-end gap-2">

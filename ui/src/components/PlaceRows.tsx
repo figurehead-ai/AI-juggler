@@ -1,29 +1,35 @@
 /**
  * AJ-E2104 — the new rail's rows and place headers.
  *
- * - A **Needs you** row: the app's icon with the profile's badge, the
- *   title in bold, "project · app · profile", and why it needs you in
- *   amber.
+ * - A **Needs you** row: the app's icon (D-38) with the profile's dot, the
+ *   title in bold, then "project · app · profile" and why it needs you
+ *   in amber; its ↗ always shows.
  * - An **Open now** row, under its place: indented, with a left edge in
  *   the profile's colour, a state dot, the title, "project · viewed N min
  *   ago", and the state word in its colour. Runway shows only when low.
- * - A **place header**: the app's icon and name, the profile chip, a
- *   count, and Open, which brings the running app forward (never
- *   launches it).
+ * - A **place header**: a fold chevron, the app's icon and name, the
+ *   profile's badge and name, and a count (a click opens the profile's page here), and
+ *   its ↗ (Open), which brings the running app forward (never launches it).
  *
- * Labels lead with the state (screen readers hear "Asks you, …" first);
- * a click or Enter goes to it when it's open in another app, and opens
- * its page otherwise; right-click, ⋯ or ⇧F10 opens its menu. Message
- * text never shows here (D-37).
+ * The maintainer's review of 0.1.4: everything here is a way into AI
+ * Juggler. A row's click or ↩ opens the session's page; its project's
+ * name opens the project's page; its ↗ (or ⌘↩) is the one way out, to
+ * the app and profile it runs in. Right-click, ⋯ or ⇧F10 open its menu,
+ * which repeats these. Labels lead with the state (screen readers hear
+ * "Asks you, …" first). Message text never shows here (D-37).
  */
 import type { JSX, ReactNode } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { PlaceMark, AppIcon, ProfileChip } from "./PlaceMarks";
+import { PlaceMark } from "./PlaceMarks";
+import { ProfileBadge } from "./ProfileBadge";
+import { AppIcon } from "./AppIcon";
 import { PinMark } from "./RailProjectRows";
+import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
+import { IconAlert } from "./icons";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
-import { STATE_TONE, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
+import { STATE_TONE, goToWhere, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
 import { agoWords } from "../lib/time-words";
 import { markSeen } from "../lib/seen";
 import { profileColor } from "../lib/profile-marks";
@@ -35,7 +41,7 @@ export function whereWords(item: RailItem): string {
   return [item.project, item.place.app, item.place.profile].filter(Boolean).join(" · ");
 }
 
-/** Its primary: Go to it when open in another app, its page otherwise. */
+/** Its primary (a click, ↩): its page here, whichever app runs it. */
 export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
   const host = useActionHost();
   return () => {
@@ -43,10 +49,48 @@ export function usePrimary(item: RailItem, onSelect: (id: string) => void): () =
     if (item.session) onSelect(item.session.id);
     else if (c) {
       markSeen(c.account_id, c.id);
-      if (c.live && host.goToConversation) void host.goToConversation(c);
-      else host.openConversation?.(c);
+      host.openConversation?.(c);
     }
   };
+}
+
+/** A row's project, its own way in: the project's page here. Text only
+ * when it has no page (a folder no project holds). */
+export function RowProject({ item, rest }: { item: RailItem; rest: string }): JSX.Element {
+  const host = useActionHost();
+  const id = item.projectId;
+  const linked = item.project !== null && id !== null && !!host.openProjectById;
+  // Its 24 px target reaches down from the line, never up over the row's
+  // middle (where the row's own click is).
+  return (
+    <span className="flex min-w-0 items-start text-label leading-[14px] text-muted">
+      {linked ? (
+        <button
+          type="button"
+          data-testid="row-project"
+          aria-label={`Open project ${item.project}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            host.openProjectById!(id!);
+          }}
+          className="pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 max-w-[65%] shrink-0 truncate rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+        >
+          {item.project}
+        </button>
+      ) : (
+        item.project && (
+          <span aria-hidden="true" className="max-w-[65%] shrink-0 truncate">
+            {item.project}
+          </span>
+        )
+      )}
+      {rest && (
+        <span aria-hidden="true" className="min-w-0 truncate whitespace-pre">
+          {item.project ? ` · ${rest}` : rest}
+        </span>
+      )}
+    </span>
+  );
 }
 
 interface RowProps {
@@ -58,12 +102,21 @@ interface RowProps {
   subagents?: boolean;
 }
 
-function RowShell({ item, selected, onSelect, label, children, className, style, indent = false }: RowProps & { label: string; children: ReactNode; className: string; style?: React.CSSProperties; indent?: boolean }): JSX.Element {
+/**
+ * One row: a button the size of the row (its page; ↑↓ move between
+ * them), the visible line over it (pointer-free but for the project's
+ * name), the ↗ and the ⋯. `shape` rounds both layers.
+ */
+function RowShell({ item, selected, onSelect, label, children, className, shape, style, indent = false }: RowProps & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   // One hook either way: the session's menu, or the conversation's.
   const menu = useItemMenu(item.session ? "session" : "conversation", (item.session ?? item.conversation) as never, item.title);
+  const where = goToWhere(item);
+  // Needs you: its ↗ always shows; elsewhere on hover and focus.
+  const shown = item.need !== null;
+  const goTo = where === null ? null : menu.goTo({ where, shown, className: "absolute right-1 top-1/2 -translate-y-1/2" });
   return (
-    <div className={"group relative " + (indent ? "ml-3" : "")} {...menu.triggerProps}>
+    <div className={"group relative " + (indent ? "ml-3" : "")} data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         data-rail-item={item.key}
@@ -72,16 +125,18 @@ function RowShell({ item, selected, onSelect, label, children, className, style,
         aria-current={selected ? "true" : undefined}
         data-rail-selected={selected ? "true" : undefined}
         onClick={primary}
-        style={style}
         className={
-          "relative flex w-full min-w-0 items-center gap-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface " : "hover:bg-surface/60 ") +
-          className
+          "absolute inset-0 w-full text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          (selected ? "bg-surface " : "group-hover:bg-surface/60 ") +
+          shape
         }
       >
         <span className="sr-only">{label}</span>
-        {children}
       </button>
+      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
+        {children}
+      </div>
+      {goTo}
       {menu.button({ label: `${item.session ? "Session" : "Conversation"} actions for ${item.title}`, className: "absolute bottom-0 left-0" })}
       {menu.element}
     </div>
@@ -94,16 +149,21 @@ export function NeedRow(props: RowProps): JSX.Element {
   const word = needWord(item);
   const where = whereWords(item);
   return (
-    <RowShell {...props} label={`${word}, ${item.title}, ${where}`} className="h-[44px] rounded-lg py-1.5 pl-2 pr-2">
-      <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-2.5">
-        <PlaceMark place={item.place} profile={item.accountLabel} size={22} />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
-          <span className="truncate text-[10.5px] text-muted">{where}</span>
+    <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2 pt-2">
+      <span aria-hidden="true" className="mt-0.5 flex shrink-0">
+        <PlaceMark place={item.place} profile={item.accountLabel} size={24} />
+      </span>
+      {/* Three lines, each its own width (the review of 0.1.4: the state
+          beside the place cut both to "ai-jug… · T…"): what, why it
+          needs you, where. */}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
+          {item.title}
         </span>
-        <span className="shrink-0 text-[10.5px] font-semibold text-warning" data-testid="need-word">
+        <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
           {word}
         </span>
+        <RowProject item={item} rest={[item.place.app, item.place.profile].filter(Boolean).join(" · ")} />
       </span>
     </RowShell>
   );
@@ -123,7 +183,8 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
   const low = item.session ? lowLeftWords(item.session) : null;
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
-  const line = [item.project, whenWords(item, now)].filter(Boolean).join(" · ");
+  const when = whenWords(item, now);
+  const line = [item.project, when].filter(Boolean).join(" · ");
   const also = item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
   const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
@@ -133,35 +194,37 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
       {...props}
       label={[word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ")}
       indent
-      className="h-[40px] rounded-r-lg border-l-2 py-1 pl-2.5 pr-2"
+      shape="rounded-r-lg"
+      className="h-[44px] gap-2 border-l-2 py-1 pl-2.5"
       style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}
     >
-      <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-2">
-        <span data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-center gap-1">
-            <span className="truncate text-[12.5px] font-semibold text-ink">{item.title}</span>
-            {pinned && <PinMark />}
-          </span>
-          <span className="truncate text-[10.5px] text-muted">
-            {line}
-            {also && <span data-testid="row-also"> · {also}</span>}
-            {helpers && <span> · {helpers}</span>}
-          </span>
+      <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
+      {/* The title has its line to itself; its state ends the line under
+          it, after the project and the time (the review of 0.1.4). */}
+      <span className="flex min-w-0 flex-1 flex-col gap-px">
+        <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-meta font-semibold text-ink">{item.title}</span>
+          {pinned && <PinMark />}
+          {low && <span className="ml-auto shrink-0 text-label text-warning">{low}</span>}
+          {!low && heavy && <span className="ml-auto shrink-0 text-label text-warning" data-testid="rail-heavy">{heavy}</span>}
         </span>
-        <span className="flex shrink-0 flex-col items-end">
-          <span className={"text-[10.5px] font-medium " + tone.text} data-testid="state-word">
+        <span className="flex min-w-0 items-center gap-2 text-label text-muted">
+          <span className="flex min-w-0 flex-1 items-center">
+            <RowProject item={item} rest={when} />
+            {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
+            {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
+          </span>
+          <span aria-hidden="true" className={"shrink-0 text-label font-medium leading-[14px] " + tone.text} data-testid="state-word">
             {word}
           </span>
-          {low && <span className="text-[10px] text-warning">{low}</span>}
-          {!low && heavy && <span className="text-[10px] text-warning" data-testid="rail-heavy">{heavy}</span>}
         </span>
       </span>
     </RowShell>
   );
 }
 
-/** A place's header: app, profile, count, Open; or, folded, "Work · 4 idle". */
+/** A place's header: the fold chevron; app, profile, count (its page);
+ * Open. Folded, it reads "Work · 4 idle". */
 export function PlaceHeader({
   place,
   label,
@@ -171,6 +234,7 @@ export function PlaceHeader({
   onToggle,
   onOpen,
   openWords = "Bring it forward",
+  onPage,
   shortcut,
   children,
 }: {
@@ -183,6 +247,8 @@ export function PlaceHeader({
   onOpen?: () => void;
   /** What Open does, when it isn't bringing an app forward (a pool's page). */
   openWords?: string;
+  /** Its page here: the profile's (Home for AI Juggler's own place). */
+  onPage?: () => void;
   /** Its ⌘ digit, when it has one. */
   shortcut?: number;
   /** A header of another lens (an account's avatar). */
@@ -190,23 +256,41 @@ export function PlaceHeader({
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   return (
-    <div className="flex h-[30px] min-w-0 items-center gap-1 pl-1 pr-1" data-testid="place-header" data-place={place?.key}>
+    <div className="flex h-[30px] min-w-0 items-center gap-0.5 pr-1" data-testid="place-header" data-place={place?.key}>
+      <FoldButton open={folded === null} label={name} onToggle={onToggle} />
       <button
         type="button"
-        onClick={onToggle}
+        onClick={onPage ?? onToggle}
         data-rail-nav
-        aria-expanded={folded === null}
+        data-testid="place-page"
         aria-keyshortcuts={shortcut ? `Meta+${shortcut}` : undefined}
-        className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
+        title={onPage ? `Open ${name}'s page` : undefined}
+        className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
-          {children ?? (place && <AppIcon place={place} size={16} />)}
-          <span className="shrink-0 truncate text-[11.5px] font-semibold text-ink">{label}</span>
-          {place?.profile && <ProfileChip name={place.profile} />}
-          {folded !== null && <span className="min-w-0 truncate text-[10.5px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-          {needs > 0 && <span className="shrink-0 rounded-full bg-warning-soft px-1 text-[10px] font-semibold text-warning">{needs}</span>}
-          {folded === null && <span className="shrink-0 text-[10px] tabular-nums text-faint">{count}</span>}
+        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
+          {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
+          <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
+          {/* The profile: its dot and name, beside the icon (D-38). The
+              folded summary gives way first. */}
+          {place?.profile && (
+            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
+              <ProfileBadge name={place.profile} size={6} />
+              <span className="truncate">{place.profile}</span>
+            </span>
+          )}
+          {/* Folded, its summary ("4 idle"), unless the amber chip needs
+              the room (the profile's name keeps it). */}
+          {folded !== null && needs === 0 && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+          {/* What the amber count is, on the chip itself (the review of
+              0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
+          {needs > 0 && (
+            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
+              <IconAlert width={10} height={10} aria-hidden="true" />
+              {needs}
+            </span>
+          )}
+          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
         </span>
       </button>
       {onOpen && (
@@ -216,10 +300,11 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
           data-testid="place-open"
-          className="flex shrink-0 items-center gap-0.5 rounded-md border border-hairline px-1.5 py-0.5 text-[10.5px] font-medium text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
-          Open
-          <IconUpRight width={11} height={11} />
+          {/* Its ↗, as a row's: the way out to the app. The words are its
+              name; the room goes to the place's app and profile. */}
+          <IconUpRight width={12} height={12} />
         </button>
       )}
     </div>

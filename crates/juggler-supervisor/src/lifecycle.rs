@@ -23,6 +23,9 @@ impl ExitKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LifecycleEvent {
     /// The process was spawned and is running under this supervisor.
+    /// Sent before the thread that waits for the process (and sends its
+    /// [`LifecycleEvent::Exited`]) exists, so a start is never received
+    /// after its exit.
     Started {
         /// Which session.
         session: SessionId,
@@ -50,6 +53,15 @@ pub enum LifecycleEvent {
 }
 
 impl LifecycleEvent {
+    /// A [`LifecycleEvent::Started`] for `session`'s process `pid`.
+    #[must_use]
+    pub fn started(session: &SessionId, pid: u32) -> Self {
+        LifecycleEvent::Started {
+            session: session.clone(),
+            pid,
+        }
+    }
+
     /// The session this event belongs to.
     #[must_use]
     pub fn session(&self) -> &SessionId {
