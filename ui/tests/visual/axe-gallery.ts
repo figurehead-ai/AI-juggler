@@ -93,12 +93,16 @@ export function gate(family: string): { tag?: string } {
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
 
-/** A page settled for a capture: what loads after the first paint (lazy
- * screens, the prefetch, data) has landed. A capture taken before it
- * raced it: the capture spec's determinism test differed 1 run in 3.
- * Cheap once landed (it waits only on the page's first load). */
+/** A page settled for a capture: what loads after the first paint has
+ * landed (the capture spec's determinism test, shot as soon as the rail
+ * showed, differed 1 run in 3), no part is still loading behind its empty
+ * placeholder (lib/lazy's `data-loading-parts`: a terminal pane was empty
+ * in some renders of a state and drawn in others), and the frame that
+ * draws it has run. Cheap when there's nothing to wait for. */
 export async function settle(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
+  await page.locator("html:not([data-loading-parts])").waitFor({ state: "attached" });
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 }
 
 /** In the gate's `gallery` project, a capture (the page's or one

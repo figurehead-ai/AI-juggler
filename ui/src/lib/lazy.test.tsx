@@ -27,8 +27,11 @@ describe("lazyNamed and prefetchLazy", () => {
     // While it loads, what's beside it is there, and the part isn't.
     expect(view.getByTestId("beside").textContent).toBe("Home");
     expect(view.queryByTestId("panel")).toBeNull();
+    // The page says a part is loading (the visual gate waits on it).
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(true);
     release();
     expect((await view.findByTestId("panel")).textContent).toBe("Settings");
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
   });
 
   it("fetches every part after the first paint, the likeliest first, once", async () => {
