@@ -307,7 +307,7 @@ fn fixture() -> Inputs {
     inputs
 }
 
-fn node<'a>(graph: &'a model::Graph, pid: u32) -> &'a model::ProcNode {
+fn node(graph: &model::Graph, pid: u32) -> &model::ProcNode {
     graph
         .apps
         .iter()

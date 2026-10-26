@@ -1200,8 +1200,8 @@ impl LiveStatsCollector {
             .retain(|pinned| !reused.contains(&pinned.pid));
     }
 
-    /// AJ-E2401: the listening sockets as last enumerated (every
-    /// [`PORT_PROBE_EVERY`] ticks), every process's: the Processes view
+    /// AJ-E2401: the listening sockets as last enumerated (every few
+    /// ticks), every process's: the Processes view
     /// joins them by pid. No probe of its own.
     #[must_use]
     pub fn listeners(&self) -> Vec<crate::ports::Listener> {

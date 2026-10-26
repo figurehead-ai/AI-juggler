@@ -1,7 +1,7 @@
 //! Sightings (AJ-E2402, D-41a, schema v34): what AI Juggler saw of the
 //! processes in sessions other apps run (the Claude app, the Codex app, a
 //! terminal `claude`), so a helper that outlives its session can show as
-//! "left behind by <session>".
+//! "left behind by" its session.
 //!
 //! - A sighting is a process's pid, start time and boot, its program's
 //!   name, the session and tool it belonged to, the app that ran that

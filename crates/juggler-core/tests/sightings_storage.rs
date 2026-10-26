@@ -2,6 +2,9 @@
 //! process in a session another app runs is its name, times and a hashed
 //! command line, for 7 days; never its environment or its command line.
 
+// Test crates are pragmatic by policy (QUALITY.md §2).
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+
 use juggler_core::storage::{
     MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_KEEP_MS, Sighting, Storage,
 };
@@ -128,5 +131,5 @@ fn a_reminder_lapses_and_keep_stays() {
     assert_eq!(later.len(), 1);
     assert_eq!(later[0].kind, MarkKind::Keep);
     repo.clear_mark(1, 1, "boot-1").unwrap();
-    assert!(repo.marks("boot-1", 5_000).unwrap().len() == 1);
+    assert_eq!(repo.marks("boot-1", 5_000).unwrap().len(), 1);
 }

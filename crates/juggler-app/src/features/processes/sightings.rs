@@ -4,7 +4,7 @@
 //! program name, session, first and last seen, a keyed hash of its command
 //! line), its last seen at most once a minute after. A helper still alive
 //! when its session's own process has ended is a leftover: "left behind
-//! by <session>". Kept 7 days; never the environment, never the command
+//! by" its session. Kept 7 days; never the environment, never the command
 //! line itself, nothing sent anywhere.
 
 use std::collections::{HashMap, HashSet};
