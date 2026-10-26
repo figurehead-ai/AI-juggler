@@ -126,10 +126,19 @@ fn command_ask(id: &AskId, params: &Value) -> (RuntimeEvent, Answering) {
     ];
     if let Some(prefix) = amendment.as_ref().and_then(Value::as_array) {
         let words: Vec<&str> = prefix.iter().filter_map(Value::as_str).collect();
-        let rule = format!("commands starting with `{}`", words.join(" "));
+        // Codex proposes the prefix as it runs it: through the user's shell
+        // (`/bin/zsh -lc <script>`, lab 2026-10-26). The rule sent back is
+        // Codex's own, unchanged; the words name the script, as the summary
+        // does. A prefix that ends with the whole script is that command.
+        let rule = crate::tool_summary::shell_script(&words).map_or_else(
+            || format!("commands starting with `{}`", words.join(" ")),
+            |script| format!("the command `{script}`, each time it runs"),
+        );
+        let shown = crate::tool_summary::shell_script(&words)
+            .map_or_else(|| words.join(" "), str::to_owned);
         options.push(option(
             "acceptWithExecpolicyAmendment",
-            &format!("Always allow `{}`", words.join(" ")),
+            &format!("Always allow `{shown}`"),
             OptionEffect::AllowRule { rule },
         ));
     }
@@ -427,6 +436,42 @@ mod tests {
             )
             .unwrap(),
             json!({"decision": "cancel"})
+        );
+    }
+
+    #[test]
+    fn always_allow_names_the_command_not_the_shell_wrapping_it() {
+        // Lab 2026-10-26 (messaging, finding 2): Codex 0.163.0 proposes the
+        // prefix with its shell wrapper. The words drop the wrapper; the
+        // rule sent back is still Codex's own.
+        let params = json!({"threadId": "t", "turnId": "u", "itemId": "i", "startedAtMs": 1,
+            "command": "/bin/zsh -lc \"printf '%s' lab > lab.txt\"",
+            "commandActions": [{"type": "unknown", "command": "printf '%s' lab > lab.txt"}],
+            "proposedExecpolicyAmendment": ["/bin/zsh", "-lc", "printf '%s' lab > lab.txt"]});
+        let (event, how) = ask_of(&id(), "item/commandExecution/requestApproval", &params).unwrap();
+        let RuntimeEvent::ApprovalRequested { approval } = &event else {
+            unreachable!()
+        };
+        let always = approval
+            .options
+            .iter()
+            .find(|o| o.id == "acceptWithExecpolicyAmendment")
+            .unwrap();
+        assert_eq!(always.label, "Always allow `printf '%s' lab > lab.txt`");
+        let OptionEffect::AllowRule { rule } = &always.effect else {
+            unreachable!()
+        };
+        assert!(!rule.contains("zsh"), "the rule's words drop the wrapper");
+        assert_eq!(
+            response(
+                &how,
+                &AskAnswer::Choose {
+                    option: "acceptWithExecpolicyAmendment".into()
+                }
+            )
+            .unwrap(),
+            json!({"decision": {"acceptWithExecpolicyAmendment": {"execpolicy_amendment":
+                ["/bin/zsh", "-lc", "printf '%s' lab > lab.txt"]}}})
         );
     }
 

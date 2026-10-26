@@ -179,6 +179,19 @@ fn strip_shell_wrapper(command: &str) -> &str {
     command
 }
 
+/// The script inside a shell wrapper given as an argument vector
+/// (`["/bin/zsh", "-lc", "npm test"]` → `npm test`), when it is one: a
+/// shell by its name, `-c` or `-lc`, then the script.
+#[must_use]
+pub(crate) fn shell_script<'a>(argv: &[&'a str]) -> Option<&'a str> {
+    let [shell, flag, script] = argv else {
+        return None;
+    };
+    let name = shell.rsplit('/').next().unwrap_or(shell);
+    (matches!(name, "sh" | "bash" | "zsh" | "dash") && matches!(*flag, "-c" | "-lc"))
+        .then_some(*script)
+}
+
 /// The files a Codex patch touches (`*** Update File: x`, `*** Add File:
 /// x`, `*** Delete File: x`), last two path parts each.
 fn patched_files(patch: &str) -> Vec<String> {
