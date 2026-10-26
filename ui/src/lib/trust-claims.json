@@ -169,7 +169,7 @@
         },
         {
           "id": "agent-tools",
-          "text": "Once you say yes, sessions it starts get its agent tools, added to that launch only and never written into your setup: who they are, who's in their pool, what each says it's doing, and their own status line. You can switch them off for a project or a profile.",
+          "text": "Once you say yes, sessions it starts get its agent tools, added to that launch only and never written into your setup: who they are, who's in their pool, what each says it's doing, their own status line, and messages and shared documents with their pool. You can switch them off for a project or a profile.",
           "tests": [
             "crates/juggler-agentbridge/tests/bridge.rs::nothing_is_added_before_the_question_is_answered",
             "crates/juggler-agentbridge/tests/bridge.rs::the_key_is_in_the_environment_only_and_nothing_lands_in_the_account_folder",
@@ -178,11 +178,30 @@
         },
         {
           "id": "agent-tools-sees",
-          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool and their cards; at Work together and Full, also its own status line. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
+          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool, their cards, its own messages and the pool's shared documents; at Work together and Full, also its own status line, sending messages and sharing documents. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
           "tests": [
             "crates/juggler-agentbridge/tests/bridge.rs::each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited",
             "crates/juggler-agentbridge/tests/bridge.rs::agents_see_account_labels_never_emails_or_plans",
             "crates/juggler-agentbridge/tests/bridge.rs::the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys"
+          ]
+        },
+        {
+          "id": "agent-messages",
+          "text": "Agents in a pool can write to each other and to you. A message waits in its recipient's inbox; it goes into a session as its next prompt only when you click Deliver, or the pool is at Full or you made a rule, and then only between turns, never at a tool's own question or while you type. A session in a terminal is never typed into. Every message says who sent it and that it can't approve anything or change settings.",
+          "tests": [
+            "crates/juggler-app/tests/messages.rs::delivery_waits_for_the_users_click_at_work_together",
+            "crates/juggler-app/tests/messages.rs::at_full_it_goes_in_between_turns_never_at_a_permission_prompt_or_over_typing",
+            "crates/juggler-app/tests/messages_guardrails.rs::a_message_reaches_a_sessions_input_only_through_its_turn_and_only_with_permission",
+            "crates/juggler-app/tests/messages_guardrails.rs::provenance_is_on_every_message_an_agent_reads_and_every_delivery"
+          ]
+        },
+        {
+          "id": "agent-messages-stay",
+          "text": "Messages and shared documents stay in AI Juggler's own data on this Mac, with secrets handled as you chose for packs: anything but Keep replaces them with •••. Loops are capped: a thread pauses after 6 agent messages in a row without you, and two agents answering each other pause the pool until you resume it. Nothing about messages goes over Fleet.",
+          "tests": [
+            "crates/juggler-app/tests/messages.rs::shared_docs_are_redacted_content_addressed_and_only_the_pools",
+            "crates/juggler-app/tests/messages.rs::a_ping_pong_between_two_fake_agents_stops_at_the_cap",
+            "crates/juggler-app/tests/messages_guardrails.rs::nothing_about_messages_leaves_the_mac"
           ]
         },
         {

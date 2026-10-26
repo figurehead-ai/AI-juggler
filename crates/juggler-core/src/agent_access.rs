@@ -29,6 +29,9 @@ pub enum AgentAction {
     ReadCards,
     /// See the pool's tasks.
     ReadTasks,
+    /// E18: read its own messages and the pool's shared docs (a message
+    /// to it is the user's or a member's; reading never sends anything).
+    ReadMessages,
     /// Say what it's doing (its card's status line).
     SetStatus,
     /// Post a message to a member or the pool.
@@ -55,10 +58,11 @@ pub enum AgentAction {
 
 impl AgentAction {
     /// Every action, in the order the app lists them.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::ReadRoster,
         Self::ReadCards,
         Self::ReadTasks,
+        Self::ReadMessages,
         Self::SetStatus,
         Self::PostMessage,
         Self::ShareDoc,
@@ -77,6 +81,7 @@ impl AgentAction {
             Self::ReadRoster => "read_roster",
             Self::ReadCards => "read_cards",
             Self::ReadTasks => "read_tasks",
+            Self::ReadMessages => "read_messages",
             Self::SetStatus => "set_status",
             Self::PostMessage => "post_message",
             Self::ShareDoc => "share_doc",
@@ -98,14 +103,18 @@ impl AgentAction {
     /// Only looks: what an observer may do without asking.
     #[must_use]
     pub const fn reads_only(self) -> bool {
-        matches!(self, Self::ReadRoster | Self::ReadCards | Self::ReadTasks)
+        matches!(
+            self,
+            Self::ReadRoster | Self::ReadCards | Self::ReadTasks | Self::ReadMessages
+        )
     }
 }
 
 /// A pool's access level, set by the user in the app only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AccessLevel {
-    /// See the roster, the cards and the tasks.
+    /// See the roster, the cards and the tasks, and read its own messages
+    /// and the pool's shared docs (E18).
     Read,
     /// Read, plus set its own status, post messages, share documents,
     /// create, claim and update tasks, and stage a launch for the user's
@@ -147,7 +156,7 @@ impl AccessLevel {
     #[must_use]
     pub fn actions(self, custom: &BTreeSet<AgentAction>) -> BTreeSet<AgentAction> {
         use AgentAction as A;
-        let read = [A::ReadRoster, A::ReadCards, A::ReadTasks];
+        let read = [A::ReadRoster, A::ReadCards, A::ReadTasks, A::ReadMessages];
         let work = [
             A::SetStatus,
             A::PostMessage,

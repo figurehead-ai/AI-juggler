@@ -11,6 +11,11 @@ import { poolCards, poolSetSpansMacs, type ContextCard } from "../lib/ipc/pools"
 import { levelLabel, openPoolSheet, poolById, setPools, usePools } from "../lib/pools";
 import { PageHeader, PageShell } from "./PageShell";
 import { pageTabs } from "./registry";
+import { lazyNamed } from "../lib/lazy";
+import { PoolLinks } from "./messages/PoolLinks";
+
+// E18: the Messages tab loads only when it opens.
+const PoolMessages = lazyNamed(() => import("./messages/PoolMessages"), "PoolMessages");
 
 /** How often an open pool page reads its cards again: they change on the
  * read model's 2 s tick, and a page left open needn't ask more often. */
@@ -79,7 +84,9 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
           />
         }
         render={(tab) =>
-          tab === "members" ? (
+          tab === "messages" ? (
+            <PoolMessages poolId={poolId} members={(cards ?? []).map((card) => ({ session_id: card.session_id, name: card.name }))} now={now} />
+          ) : tab === "members" ? (
             <div className="flex flex-col gap-2">
               {/* D-30: asked once, the first time pools are used. */}
               <AgentToolsQuestion className="mb-2" />
@@ -105,6 +112,7 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
                 checked={pool.spans_macs}
                 onChange={(on) => void poolSetSpansMacs(pool.id, on).then(setPools, (cause) => setError(errorText(cause)))}
               />
+              <PoolLinks poolId={pool.id} />
             </Card>
           ) : null
         }

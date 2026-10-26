@@ -15,6 +15,8 @@ import { primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { AskBatch } from "./AskCard";
+import { MessageNeeds } from "./MessageNeeds";
+import type { MessageNeedInfo } from "../lib/ipc/messages";
 
 export interface NeedHandlers {
   onOpenSession: (id: string) => void;
@@ -80,16 +82,18 @@ function secondWords(need: HomeNeed): string | null {
   return null;
 }
 
-export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNeed[]; handlers: NeedHandlers; bubble?: ReactNode; children?: ReactNode }): JSX.Element | null {
+export function HomeNeeds({ needs, messages = [], handlers, bubble, children }: { needs: HomeNeed[]; messages?: MessageNeedInfo[]; handlers: NeedHandlers; bubble?: ReactNode; children?: ReactNode }): JSX.Element | null {
   const run = useRun(handlers);
   const [first, ...rest] = needs;
   // Nothing waits: the heading says so, and the card stays away.
-  if (!first && !children) return null;
+  if (!first && !children && messages.length === 0) return null;
   return (
     <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <SectionTitle id="home-needs">Needs you</SectionTitle>
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
         <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+        {/* E18: agents' messages that wait on you. */}
+        <MessageNeeds needs={messages} />
         {first ? (
           <div className="flex flex-col gap-3" data-home-item data-testid={`home-need-${first.kind}`} data-first="true" data-kind={first.kind}>
             <div className="flex min-w-0 items-start gap-3">
@@ -115,7 +119,7 @@ export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNe
               )}
             </div>
           </div>
-        ) : (
+        ) : messages.length > 0 ? null : (
           <p className="text-sm text-muted" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>

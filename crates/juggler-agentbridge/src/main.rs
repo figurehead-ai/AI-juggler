@@ -2,11 +2,12 @@
 //! a session. See the library's docs; this only wires stdin, stdout and
 //! the exit code.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::ExitCode;
 
 use juggler_agentbridge::cli::{App, Command, USAGE, exit_code, parse, serve};
 use juggler_agentbridge::mcp::Backend;
+use juggler_agentbridge::wire::{Args, Call, DOC_MAX, DocArgs};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -25,31 +26,58 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(Command::Hook(event)) => {
-            // Silent and always 0: a hook never decides for the tool.
-            juggler_agentbridge::hook::run(&event, std::io::stdin().lock());
+            // Always 0, and never a decision: at most a facts-only note
+            // for the tool's context (E18), on the events that take one.
+            if let Some(note) = juggler_agentbridge::hook::run(&event, std::io::stdin().lock()) {
+                let _ = writeln!(std::io::stdout(), "{note}");
+            }
             ExitCode::SUCCESS
+        }
+        Ok(Command::Share(name)) => {
+            let mut content = String::new();
+            let read = std::io::stdin()
+                .lock()
+                .take(u64::try_from(DOC_MAX + 1).unwrap_or(u64::MAX))
+                .read_to_string(&mut content);
+            if read.is_err() || content.len() > DOC_MAX {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "A shared document is text of at most {} KiB.",
+                    DOC_MAX / 1024
+                );
+                return ExitCode::from(64);
+            }
+            let args = Args {
+                doc: Some(DocArgs { name, content }),
+                ..Args::default()
+            };
+            print_outcome(app.call(Call::ShareDoc, args))
         }
         Ok(Command::Version) => {
             println!("juggler-agent {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(Command::Call(call, text)) => {
-            let outcome = app.call(call, text);
-            let code = exit_code(&outcome);
-            match outcome {
-                Ok(result) => {
-                    let text = serde_json::to_string_pretty(&result).unwrap_or_default();
-                    let _ = writeln!(std::io::stdout(), "{text}");
-                }
-                Err(error) => {
-                    let _ = writeln!(std::io::stderr(), "{}", error.words());
-                }
-            }
-            ExitCode::from(code)
-        }
+        Ok(Command::Call(call, args)) => print_outcome(app.call(call, *args)),
         Err(words) => {
             let _ = writeln!(std::io::stderr(), "{words}");
             ExitCode::from(64)
         }
     }
+}
+
+/// Prints a call's result (stdout) or why not (stderr), and its code.
+fn print_outcome(
+    outcome: Result<serde_json::Value, juggler_agentbridge::client::CallError>,
+) -> ExitCode {
+    let code = exit_code(&outcome);
+    match outcome {
+        Ok(result) => {
+            let text = serde_json::to_string_pretty(&result).unwrap_or_default();
+            let _ = writeln!(std::io::stdout(), "{text}");
+        }
+        Err(error) => {
+            let _ = writeln!(std::io::stderr(), "{}", error.words());
+        }
+    }
+    ExitCode::from(code)
 }

@@ -11,10 +11,12 @@
 //!   in its arguments) and renews on every switch or resume. The program
 //!   reads it from its own environment ([`wire::TOKEN_ENV`]); nothing
 //!   else carries it.
-//! - Read-only, plus the agent's own status line: `whoami`,
-//!   `pool_roster`, `set_status` and the pool's cards as a resource
-//!   ([`wire::TOOLS`]). What a call may do is the pool's access level,
-//!   decided in the app (D-28); this program only asks.
+//! - The roster and the agent's own status line: `whoami`,
+//!   `pool_roster`, `set_status` and the pool's cards as a resource; E18's
+//!   messages and shared docs: `send_message`, `read_inbox`, `ack`,
+//!   `share_doc`, `read_doc` ([`wire::TOOLS`]). What a call may do is the
+//!   pool's access level, decided in the app (D-28); this program only
+//!   asks.
 
 // Test code is pragmatic by policy (QUALITY.md §2).
 #![cfg_attr(

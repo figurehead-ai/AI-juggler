@@ -322,6 +322,21 @@ macro_rules! app_commands {
             Write features::pools::commands::pools_set_delivery,
             Write features::pools::commands::pools_set_spans_macs,
             Write features::pools::commands::pools_revoke_rule,
+            Read  features::messages::commands::messages_threads,
+            Write features::messages::commands::messages_thread,
+            Write features::messages::commands::messages_send,
+            Write features::messages::commands::messages_deliver,
+            Write features::messages::commands::messages_deliver_waiting,
+            Write features::messages::commands::messages_set_thread,
+            Write features::messages::commands::messages_set_pool,
+            Read  features::messages::commands::messages_needs,
+            Write features::messages::commands::messages_answer,
+            Read  features::messages::commands::messages_docs,
+            Read  features::messages::commands::messages_doc,
+            Write features::messages::commands::messages_typing,
+            Read  features::messages::commands::messages_search,
+            Read  features::messages::commands::messages_links,
+            Write features::messages::commands::messages_link,
             Read  features::agent_bridge::commands::agent_bridge_get,
             Write features::agent_bridge::commands::agent_bridge_answer,
             Write features::agent_bridge::commands::agent_bridge_set,
@@ -741,6 +756,11 @@ pub fn run() {
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
+            // E18: messages tell the window what changed.
+            features::messages::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
                 app.handle().clone(),
             );

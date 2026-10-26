@@ -274,6 +274,11 @@ read_routes! {
     // AJ-E1702/E1703: the pools and a pool's cards (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
     "pools_cards" => async_result features::pools::commands::pools_cards(state; pool_id: String);
+    // E18: messages' lists (reads only; opening a thread marks it read).
+    "messages_threads" => async_result features::messages::commands::messages_threads(state; pool_id: Option<String>, session_id: Option<String>, cursor: Option<String>);
+    "messages_needs" => async_result features::messages::commands::messages_needs(state);
+    "messages_docs" => async_result features::messages::commands::messages_docs(state; pool_id: String, cursor: Option<String>);
+    "messages_links" => async_result features::messages::commands::messages_links(state; pool_id: String);
     // AJ-E1704: whether sessions get the agent tools (a read).
     "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
     // AJ-E2302..E2307: a driven session's runtime and the open asks, the
@@ -298,6 +303,14 @@ read_routes! {
 /// checks it).
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
+    (
+        "features::messages::commands::messages_doc",
+        "a shared document's whole text; the list of documents is served",
+    ),
+    (
+        "features::messages::commands::messages_search",
+        "searches agents' message words; the threads are served",
+    ),
     (
         "usage_stats::usage_stats_report",
         "a usage-statistics report the user reviews before it's sent",

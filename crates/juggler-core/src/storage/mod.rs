@@ -23,6 +23,7 @@ mod cleanup_settings;
 mod fleet_sync;
 mod footprints;
 mod identity;
+mod messages;
 mod pools;
 mod process_ledger;
 mod projects;
@@ -49,6 +50,10 @@ pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
+pub use messages::{
+    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, NewMessage, Recipient,
+    RecipientState, SENDER_USER, Thread, ThreadState,
+};
 pub use pools::{
     MemberRef, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
     default_pool_id, default_pool_name, resolve_memberships,
@@ -576,15 +581,20 @@ CREATE TABLE worktree_homes (
 /// ([`pools::MIGRATION`]); they take their place in the one sequence here.
 const V33: &str = pools::MIGRATION;
 
-/// v34 (AJ-E2402, D-41a): sightings of the processes in sessions other
+/// v34 (E18): messages between agents, their recipients and threads, the
+/// append-only event log, shared docs, pool links, held asks and pool
+/// pauses. The messages module owns its tables ([`messages::MIGRATION`]).
+const V34: &str = messages::MIGRATION;
+
+/// v35 (AJ-E2402, D-41a): sightings of the processes in sessions other
 /// apps run (names, times and a hashed command line only), and the user's
 /// marks on processes (Keep, Remind me later). The sightings module owns
 /// its tables ([`sightings::MIGRATION`]).
-const V34: &str = sightings::MIGRATION;
+const V35: &str = sightings::MIGRATION;
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -935,8 +945,15 @@ impl Storage {
         AgentAccessRepo::new(&self.conn)
     }
 
+    /// Repository for messages between agents, their docs, links, held
+    /// asks and pauses (schema v34, E18).
+    #[must_use]
+    pub fn messages(&self) -> MessagesRepo<'_> {
+        MessagesRepo::new(&self.conn)
+    }
+
     /// Repository for sightings of other apps' sessions' processes and the
-    /// user's marks on processes (schema v34, AJ-E2402).
+    /// user's marks on processes (schema v35, AJ-E2402).
     #[must_use]
     pub fn sightings(&self) -> SightingsRepo<'_> {
         SightingsRepo::new(&self.conn)

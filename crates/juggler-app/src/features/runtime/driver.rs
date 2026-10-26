@@ -13,7 +13,7 @@ use std::time::Duration;
 use juggler_adapter::AdapterError;
 use juggler_adapter::runtime::{
     AskAnswer, AskId, DrivenSession, ItemKind, LimitsSnapshot, LiveStatusWord, OptionEffect,
-    Release, ReleaseOutcome, RuntimeEvent, TurnInput,
+    Release, ReleaseOutcome, RuntimeEvent, TurnInput, TurnOrigin,
 };
 use juggler_core::model::{AttentionReason, SessionId, SessionStatus, Timestamp};
 
@@ -232,9 +232,13 @@ impl Snapshot {
                 self.status = Some(*status);
                 changed
             }
-            RuntimeEvent::TurnStarted { .. } => {
+            RuntimeEvent::TurnStarted { origin, .. } => {
                 self.turn_running = true;
                 self.streaming.clear();
+                // D-29: a delivered turn says what started it.
+                if let Some(TurnOrigin::Delivered { sender }) = origin {
+                    self.push("delivered", format!("Started by a message from {sender}"));
+                }
                 false
             }
             RuntimeEvent::TurnEnded { .. } => {
@@ -650,6 +654,31 @@ pub(super) fn link(
     true
 }
 
+/// AJ-E2310: the events that change the session's come-back mark.
+const fn moves_the_mark(event: &RuntimeEvent) -> bool {
+    matches!(
+        event,
+        RuntimeEvent::Started { .. }
+            | RuntimeEvent::TurnStarted { .. }
+            | RuntimeEvent::TurnEnded { .. }
+            | RuntimeEvent::Exited
+    )
+}
+
+/// E18: a turn boundary (or an ask closed): queued messages may go in
+/// now; the delivery worker checks, off this thread.
+const fn at_a_boundary(event: &RuntimeEvent) -> bool {
+    matches!(
+        event,
+        RuntimeEvent::Started { .. }
+            | RuntimeEvent::TurnEnded { .. }
+            | RuntimeEvent::AskResolved { .. }
+            | RuntimeEvent::State {
+                status: LiveStatusWord::Idle
+            }
+    )
+}
+
 fn run(
     state: &std::sync::Weak<AppState>,
     session: &SessionId,
@@ -725,14 +754,11 @@ fn run(
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });
-                if matches!(
-                    event,
-                    RuntimeEvent::Started { .. }
-                        | RuntimeEvent::TurnStarted { .. }
-                        | RuntimeEvent::TurnEnded { .. }
-                        | RuntimeEvent::Exited
-                ) {
+                if moves_the_mark(&event) {
                     mark(&state);
+                }
+                if at_a_boundary(&event) {
+                    crate::features::messages::delivery::kick(&state, session);
                 }
                 if stored {
                     let snap = snapshot.lock().map(|s| s.clone()).unwrap_or_default();

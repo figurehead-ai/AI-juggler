@@ -4,7 +4,7 @@ Task: `docs/tasks/E24-processes.md` AJ-E2402, Sightings of other apps' sessions'
 
 ## What exists now
 
-`crates/juggler-core/src/storage/sightings.rs` (schema v34, module-owned) and `crates/juggler-app/src/features/processes/sightings.rs` (in memory, written once and at most once a minute, keyed hash).
+`crates/juggler-core/src/storage/sightings.rs` (schema v35, module-owned) and `crates/juggler-app/src/features/processes/sightings.rs` (in memory, written once and at most once a minute, keyed hash).
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|
@@ -13,7 +13,7 @@ Task: `docs/tasks/E24-processes.md` AJ-E2402, Sightings of other apps' sessions'
 | Req.1 the hash is keyed and never the line | `cargo test -p juggler-app --lib processes::sightings::tests::the_hash_is_keyed_and_never_the_line` | two keys → two hashes; no word of the line | pass | PASS | — | 2026-10-25 | agent |
 | Req.2 written once, then once a minute; waits for its own command line | `cargo test -p juggler-app --lib processes::sightings::tests::a_sighting_waits_for_its_own_command_line_and_is_written_once_a_minute` | as asserted | pass | PASS | — | 2026-10-25 | agent |
 | Req.3 a helper alive after its session ended is left behind; a reused pid never | `cargo test -p juggler-app --lib processes::sightings::tests::a_helper_alive_after_its_session_ended_is_left_behind` | as asserted | pass | PASS | — | 2026-10-25 | agent |
-| Req.5 v34 migrates once | `cargo test -p juggler-core --test busy_timeout --test storage_roundtrip` | pass | pass | PASS | — | 2026-10-25 | agent |
+| Req.5 v35 migrates once, after E18's v34 | `cargo test -p juggler-core --test busy_timeout --test storage_roundtrip` | pass | pass | PASS | — | 2026-10-25 | agent |
 | Live: another app's session's leftover named by its session | `docs/qa/processes-lab.md` step 7 | as written there | not run yet | UNPROVEN | — | 2026-10-25 | agent |
 
 ## Redaction checklist (tick before commit)

@@ -41,7 +41,19 @@ pub const fn action_of(call: Call) -> AgentAction {
         Call::Whoami | Call::PoolRoster => AgentAction::ReadRoster,
         Call::Cards => AgentAction::ReadCards,
         Call::SetStatus => AgentAction::SetStatus,
+        Call::SendMessage => AgentAction::PostMessage,
+        Call::ReadInbox | Call::Ack | Call::ReadDoc => AgentAction::ReadMessages,
+        Call::ShareDoc => AgentAction::ShareDoc,
     }
+}
+
+/// E18: the calls the messages feature answers (it decides through
+/// `allowed` itself, where an ask can hold a message for the user).
+const fn is_messaging(call: Call) -> bool {
+    matches!(
+        call,
+        Call::SendMessage | Call::ReadInbox | Call::Ack | Call::ShareDoc | Call::ReadDoc
+    )
 }
 
 /// What a call asks, in words (for a refusal).
@@ -50,6 +62,9 @@ const fn asks(call: Call) -> &'static str {
         Call::Whoami | Call::PoolRoster => "Seeing who's in the pool",
         Call::Cards => "Seeing the pool's cards",
         Call::SetStatus => "Setting its own status",
+        Call::SendMessage => "Sending messages",
+        Call::ReadInbox | Call::Ack | Call::ReadDoc => "Reading its messages",
+        Call::ShareDoc => "Sharing a document",
     }
 }
 
@@ -189,6 +204,15 @@ fn answer(
     request: &Request,
 ) -> Result<Value, Response> {
     let place = place_of(state, session)?;
+    if is_messaging(request.call) {
+        let caller = crate::features::messages::agent::Caller {
+            session: session.clone(),
+            pool_id: place.pool_id,
+            pool_name: place.pool_name,
+            member_ref: place.member,
+        };
+        return crate::features::messages::agent::answer(state, &caller, request);
+    }
     let action = action_of(request.call);
     match pools::access::allowed(state, session.as_str(), &place.pool_id, action, None) {
         Decision::Allow => {}
@@ -258,6 +282,9 @@ fn answer(
                 .collect();
             Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
         }
+        Call::SendMessage | Call::ReadInbox | Call::Ack | Call::ShareDoc | Call::ReadDoc => Err(
+            Response::refused(Refusal::Bad, "AI Juggler couldn't answer that."),
+        ),
         Call::Cards => {
             let cards: Vec<Value> = cards(state, &place.pool_id)?
                 .into_iter()

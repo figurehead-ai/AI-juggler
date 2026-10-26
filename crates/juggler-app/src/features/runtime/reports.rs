@@ -212,5 +212,11 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
         );
     }
     state.runtime.observe(state, &session, &report.hook);
-    Response::ok(serde_json::json!({}))
+    // E18 (AJ-E1803): "N unread messages from …" at a turn boundary, once
+    // per change; facts only, never a message's words.
+    let note = juggler_agentbridge::hook::NOTE_EVENTS
+        .contains(&report.hook.event.as_str())
+        .then(|| crate::features::messages::delivery::note_for(state, &session))
+        .flatten();
+    Response::ok(serde_json::json!({"note": note}))
 }

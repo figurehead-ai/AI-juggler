@@ -69,6 +69,9 @@ pub struct AppState {
     /// the drivers of driven sessions, and why a session fell back to the
     /// terminal. Held in memory only.
     pub runtime: crate::features::runtime::Runtimes,
+    /// E18: messages between agents — the delivery worker, who is typing
+    /// where, and the last note each session got. The rest is storage.
+    pub messages: crate::features::messages::Messages,
     /// AJ-E2401: the Processes view's one model of apps, sessions and
     /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
     /// lock is never held while another is taken.
@@ -318,6 +321,7 @@ impl AppState {
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
             runtime: crate::features::runtime::Runtimes::default(),
+            messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),

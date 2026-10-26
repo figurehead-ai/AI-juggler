@@ -1,4 +1,4 @@
-//! Sightings (AJ-E2402, D-41a, schema v34): what AI Juggler saw of the
+//! Sightings (AJ-E2402, D-41a, schema v35): what AI Juggler saw of the
 //! processes in sessions other apps run (the Claude app, the Codex app, a
 //! terminal `claude`), so a helper that outlives its session can show as
 //! "left behind by" its session.
@@ -26,7 +26,7 @@ pub const SIGHTING_DAYS: i64 = 7;
 /// The same, in milliseconds.
 pub const SIGHTING_KEEP_MS: i64 = SIGHTING_DAYS * 24 * 3_600_000;
 
-/// v34: sightings of other apps' sessions' processes, and the user's marks
+/// v35: sightings of other apps' sessions' processes, and the user's marks
 /// on processes (Keep, Remind me later). Both keyed by a process's
 /// identity: pid, kernel start time and boot.
 pub(super) const MIGRATION: &str = "

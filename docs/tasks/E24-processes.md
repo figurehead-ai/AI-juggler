@@ -84,7 +84,7 @@
 2. Kept 7 days after last seen; written once when first seen, then at most once a minute; a process alive less than 10 s is never sighted.
 3. A sighted helper alive after every sighting of its session's own process ended (and the live view no longer lists the session) SHALL be Left behind.
 4. Guardrail tests: the table's columns are exactly the reviewed list and none could hold an environment or a line; the 7-day expiry; the hash is keyed and never the line.
-5. Schema v34 (module-owned migration).
+5. Schema v35 (module-owned migration; E18 holds v34).
 **UI/UX reasoning**: Nielsen #6 recognition rather than recall: the session's name, not a pid.
 **Performance budget**: writes batched in one transaction per tick; memory bounded to the live sessions and their leftovers.
 **Quality gates**: `cargo test -p juggler-core --test sightings_storage`; `cargo test -p juggler-app --lib features::processes::sightings`.
@@ -92,7 +92,7 @@
 **Visual testing**: the Left behind rows of another app's session.
 **Files to touch**: `crates/juggler-core/src/storage/sightings.rs`, `crates/juggler-core/src/storage/mod.rs`, `crates/juggler-app/src/features/processes/sightings.rs`.
 **Research basis**: D-41a; D-37.
-**Handover note**: E18 also claims schema v34 on its branch: whichever merges second renumbers its module-owned migration to v35 (one line in `storage/mod.rs`, two test constants).
+**Handover note**: E18 took v34 first; sightings are v35 (renumbered at the merge: one line in `storage/mod.rs`, the version constants in `busy_timeout.rs` and `storage_roundtrip.rs`).
 
 ### AJ-E2403 The user's stop of another app's leftover (D-41b) | Status: IN-PROGRESS (agent, 2026-10-25) | Priority P0 | Effort M | Depends: AJ-E2402
 **Goal**: The user can clean up what another app's ended session left, safely and on record.

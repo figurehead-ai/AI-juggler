@@ -43,8 +43,17 @@ pub const SUMMARY_MAX: usize = 300;
 pub const SERVER_NAME: &str = "juggler";
 
 /// AI Juggler's own tools, all of them: the ones a launch pre-allows
-/// (D-30) and nothing else.
-pub const TOOLS: [&str; 3] = ["whoami", "pool_roster", "set_status"];
+/// (D-30) and nothing else. E18 adds messages and shared docs.
+pub const TOOLS: [&str; 8] = [
+    "whoami",
+    "pool_roster",
+    "set_status",
+    "send_message",
+    "read_inbox",
+    "ack",
+    "share_doc",
+    "read_doc",
+];
 
 /// The resource with the caller's pool's context cards (AJ-E1703).
 pub const CARDS_URI: &str = "juggler://pool/cards";
@@ -52,8 +61,19 @@ pub const CARDS_URI: &str = "juggler://pool/cards";
 /// The longest status line an agent may set (a line, not a note).
 pub const STATUS_MAX: usize = 140;
 
-/// The longest request the app reads.
-pub const MAX_REQUEST: usize = 8 * 1024;
+/// E18: the longest message body, in characters (the app's rule,
+/// `juggler_core::messaging::BODY_MAX`; a test keeps them equal).
+pub const BODY_MAX: usize = 4_000;
+
+/// E18: the longest subject, in characters (`messaging::SUBJECT_MAX`).
+pub const SUBJECT_MAX: usize = 120;
+
+/// E18: the largest shared doc, in bytes (`messaging::DOC_MAX`).
+pub const DOC_MAX: usize = 64 * 1024;
+
+/// The longest request the app reads (a shared doc of 64 KiB, written
+/// out as JSON, fits; everything else is a few hundred bytes).
+pub const MAX_REQUEST: usize = 256 * 1024;
 
 /// The longest answer the bridge reads.
 pub const MAX_RESPONSE: usize = 512 * 1024;
@@ -73,6 +93,16 @@ pub enum Call {
     SetStatus,
     /// My pool's context cards.
     Cards,
+    /// E18: write to a member, the pool or the user.
+    SendMessage,
+    /// E18: my messages, one page (or one message in full).
+    ReadInbox,
+    /// E18: say I handled messages.
+    Ack,
+    /// E18: share a document with the pool.
+    ShareDoc,
+    /// E18: the pool's shared docs, or one of them.
+    ReadDoc,
 }
 
 impl Call {
@@ -83,9 +113,97 @@ impl Call {
             "whoami" => Some(Self::Whoami),
             "pool_roster" => Some(Self::PoolRoster),
             "set_status" => Some(Self::SetStatus),
+            "send_message" => Some(Self::SendMessage),
+            "read_inbox" => Some(Self::ReadInbox),
+            "ack" => Some(Self::Ack),
+            "share_doc" => Some(Self::ShareDoc),
+            "read_doc" => Some(Self::ReadDoc),
             _ => None,
         }
     }
+}
+
+/// E18: `send_message`'s arguments. `to` is a member's `session_id`
+/// (from `pool_roster`), `pool` for everyone in the pool, or `user`; it
+/// can name a member of another pool only when the user linked the two.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SendArgs {
+    /// Who it's for.
+    pub to: String,
+    /// Its kind (`note`, `question`, `answer`, `handoff`,
+    /// `review_request`, `status`); a note when not said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    /// Its subject (a new thread's; a reply keeps its thread's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    /// What it says.
+    pub body: String,
+    /// The thread it belongs to (a new one when not said).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread: Option<String>,
+    /// The message it answers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<String>,
+}
+
+/// E18: `read_inbox`'s arguments.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InboxArgs {
+    /// Read ones too (unread only when not said).
+    #[serde(default)]
+    pub all: bool,
+    /// Only this thread.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread: Option<String>,
+    /// One message, in full.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// The `next` of the previous page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+}
+
+/// E18: `share_doc`'s arguments.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DocArgs {
+    /// Its name (`api-schema.md`).
+    pub name: String,
+    /// Its text.
+    pub content: String,
+}
+
+/// E18: `read_doc`'s arguments: none for the list, a doc's id for it.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadDocArgs {
+    /// The doc (the list when not said).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+    /// Where to go on reading it, or the list's `next`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+}
+
+/// What a call carries besides what it is: at most one of these is used,
+/// by the call it belongs to.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Args {
+    /// `set_status`'s line.
+    pub text: Option<String>,
+    /// `send_message`'s.
+    pub send: Option<SendArgs>,
+    /// `read_inbox`'s.
+    pub inbox: Option<InboxArgs>,
+    /// `ack`'s message ids.
+    pub ack: Option<Vec<String>>,
+    /// `share_doc`'s.
+    pub doc: Option<DocArgs>,
+    /// `read_doc`'s.
+    pub read_doc: Option<ReadDocArgs>,
 }
 
 /// One call, bridge to app.
@@ -101,6 +219,39 @@ pub struct Request {
     /// `set_status`'s line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// `send_message`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub send: Option<SendArgs>,
+    /// `read_inbox`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inbox: Option<InboxArgs>,
+    /// `ack`'s message ids.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ack: Option<Vec<String>>,
+    /// `share_doc`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc: Option<DocArgs>,
+    /// `read_doc`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_doc: Option<ReadDocArgs>,
+}
+
+impl Request {
+    /// A call with its arguments.
+    #[must_use]
+    pub fn new(token: String, call: Call, args: Args) -> Self {
+        Self {
+            v: VERSION,
+            token,
+            call,
+            text: args.text,
+            send: args.send,
+            inbox: args.inbox,
+            ack: args.ack,
+            doc: args.doc,
+            read_doc: args.read_doc,
+        }
+    }
 }
 
 /// AJ-E2306: what a tool's hook reports about its own session, from the
@@ -147,8 +298,9 @@ pub struct Report {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Refusal {
-    /// Above the pool's level: the user decides (D-28). Until a pending
-    /// ask exists (E18), it's a refusal that says so.
+    /// Above the pool's level: the user decides (D-28). A message is held
+    /// for the user's OK in Needs you (E18); anything else is a refusal
+    /// that says so.
     Ask,
     /// Not at all: not in the pool, or the pool is gone.
     Deny,
@@ -219,12 +371,14 @@ mod tests {
 
     #[test]
     fn a_request_round_trips_and_refuses_strangers() {
-        let request = Request {
-            v: 1,
-            token: "t".into(),
-            call: Call::SetStatus,
-            text: Some("Fixing checkout".into()),
-        };
+        let request = Request::new(
+            "t".into(),
+            Call::SetStatus,
+            super::Args {
+                text: Some("Fixing checkout".into()),
+                ..super::Args::default()
+            },
+        );
         let line = serde_json::to_string(&request).unwrap();
         assert_eq!(serde_json::from_str::<Request>(&line).unwrap(), request);
         assert!(
@@ -243,12 +397,34 @@ mod tests {
     }
 
     #[test]
-    fn only_the_three_tools_name_calls() {
+    fn only_the_tools_name_calls() {
+        for tool in super::TOOLS {
+            assert!(Call::of_tool(tool).is_some(), "{tool}");
+        }
         assert_eq!(Call::of_tool("whoami"), Some(Call::Whoami));
-        assert_eq!(Call::of_tool("pool_roster"), Some(Call::PoolRoster));
-        assert_eq!(Call::of_tool("set_status"), Some(Call::SetStatus));
+        assert_eq!(Call::of_tool("send_message"), Some(Call::SendMessage));
         assert_eq!(Call::of_tool("cards"), None, "the cards are a resource");
         assert_eq!(Call::of_tool("set_level"), None);
+        assert_eq!(Call::of_tool("deliver"), None, "only the user delivers");
+    }
+
+    #[test]
+    fn a_message_names_its_recipient_and_nothing_else() {
+        let send: super::SendArgs =
+            serde_json::from_str(r#"{"to":"sess-2","body":"Start on the API","kind":"handoff"}"#)
+                .unwrap();
+        assert_eq!(send.to, "sess-2");
+        for sneaky in [
+            r#"{"to":"sess-2","body":"x","from":"user"}"#,
+            r#"{"to":"sess-2","body":"x","hop":0}"#,
+            r#"{"to":"sess-2","body":"x","deliver":true}"#,
+            r#"{"to":"sess-2","body":"x","pool":"other"}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<super::SendArgs>(sneaky).is_err(),
+                "{sneaky}"
+            );
+        }
     }
 
     #[test]

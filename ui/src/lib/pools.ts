@@ -36,6 +36,7 @@ export const ACTION_WORDS: Record<string, string> = {
   read_roster: "See who's in the pool",
   read_cards: "See what each one is working on",
   read_tasks: "See the tasks",
+  read_messages: "Read their messages and the shared docs",
   set_status: "Say what it's doing",
   post_message: "Post messages",
   share_doc: "Share documents",

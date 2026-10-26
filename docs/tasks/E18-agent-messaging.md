@@ -22,7 +22,7 @@
 > - **Docs are redacted.** Shared docs go through the D-14 pipeline before
 >   they're stored.
 
-### AJ-E1801 Messages and threads | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1704
+### AJ-E1801 Messages and threads | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; the live lab open) | Priority P0 | Effort M | Depends: AJ-E1704
 **Goal**: Agents in a pool can write to one member or to the whole pool, within their permissions.
 **User story**: As a planner agent, I send a builder "start on the API; the schema is in the shared doc", and it reads that on its next turn.
 **Requirements**:
@@ -37,8 +37,9 @@
 **Files to touch**: `crates/juggler-core/src/storage/` (messages), `crates/juggler-agentbridge/`.
 **Research basis**: `pools-messaging-tasks.md` §2.3 (message store) and §2.5.
 **Handover note**: A schema bump: downgrade note and `SCHEMA_RELEASES`.
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1801/manifest.md`): schema v34; reading one's own messages is a new `read_messages` action in Read (D-42 point 2). `e24-processes` also takes v34: whichever merges second renumbers.
 
-### AJ-E1802 Your Inbox and compose | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1801
+### AJ-E1802 Your Inbox and compose | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; notifications not wired) | Priority P0 | Effort M | Depends: AJ-E1801
 **Goal**: The user sees every thread and can write to any agent or pool.
 **User story**: As the user, I read the planner's handoff, then tell the builders "pause; review first".
 **Requirements**:
@@ -52,8 +53,9 @@
 **Files to touch**: `ui/src/screens/` (Inbox), `commands.rs`.
 **Research basis**: as above.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1802/manifest.md`): the Inbox is each pool's and each session's **Messages** tab plus Needs you, no new screen (D-42 point 3). Notifications for a question to the user (AJ-E1510) are not wired yet.
 
-### AJ-E1803 Delivery (a click, or allowed by the pool), and the turn note | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1801
+### AJ-E1803 Delivery (a click, or allowed by the pool), and the turn note | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; the live lab open) | Priority P0 | Effort S | Depends: AJ-E1801
 **Goal**: A message reaches an idle agent when the user says so or the pool allows it (D-29), and a busy Claude agent hears about unread messages.
 **User story**: As the user, I click Deliver on a message to an idle builder, and it becomes that builder's next prompt.
 **Requirements**:
@@ -68,8 +70,9 @@
 **Files to touch**: `crates/juggler-supervisor/`, the adapters' launch settings.
 **Research basis**: `pools-messaging-tasks.md` §2.2.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1803/manifest.md`): into driven sessions through `send_turn` only; terminal sessions pull, Claude's hear the note (also on `PostToolUse`, D-42 point 5). Claude Code's own messages between sessions are not used in v1 (D-42 point 4). Live: `docs/qa/messaging-lab.md`.
 
-### AJ-E1804 Shared docs | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1801
+### AJ-E1804 Shared docs | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1801
 **Goal**: Agents share files and notes with the pool, safely.
 **User story**: As a planner agent, I share the API schema with the builders.
 **Requirements**:
@@ -83,8 +86,9 @@
 **Files to touch**: `crates/juggler-handover/src/redaction.rs` (reused), the bridge.
 **Research basis**: as above.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1804/manifest.md`): secrets as the user chose for packs, Ask each time and unset stripping (D-42 point 1).
 
-### AJ-E1805 The messaging guardrail suite | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1801..AJ-E1804
+### AJ-E1805 The messaging guardrail suite | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort S | Depends: AJ-E1801..AJ-E1804
 **Goal**: The safety promises are proven, and they stay proven.
 **User story**: As the maintainer, one suite tells me messaging can't be turned into automation.
 **Requirements**:
@@ -103,3 +107,4 @@
 **Files to touch**: `crates/juggler-app/tests/`.
 **Research basis**: `pools-messaging-tasks.md` §2.5.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1805/manifest.md`): `crates/juggler-app/tests/messages_guardrails.rs`; "without a UI command" read as D-29 ruled it (a click, Full or a rule).

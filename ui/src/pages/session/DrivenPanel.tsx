@@ -17,6 +17,7 @@ import { AskCard } from "../../components/AskCard";
 import { errorText, type InstanceInfo } from "../../lib/bridge";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 import { useFolderTrust } from "../../components/FolderTrustAsk";
+import { messagesTyping } from "../../lib/ipc/messages";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -25,6 +26,8 @@ const ITEM_WORDS: Record<string, string> = {
   file_change: "Changed",
   tool: "Used",
   note: "Note",
+  // E18 (D-29): a turn a delivered message started.
+  delivered: "Message",
 };
 
 const STATE_WORDS: Record<string, string> = {
@@ -140,7 +143,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
             event.preventDefault();
             const message = text.trim();
             if (!message) return;
-            act("send", () => runtimeSend(session.id, message).then(() => setText("")));
+            act("send", () => runtimeSend(session.id, message).then(() => (setText(""), void messagesTyping(session.id, false))));
           }}
         >
           <input
@@ -149,7 +152,12 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
             className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-surface-2 px-3 text-[13px] text-ink outline-none focus:border-accent/60"
             value={text}
             disabled={busy !== null || state === "asks_you"}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => {
+              // E18: a delivered message waits while you type here.
+              const next = event.target.value;
+              if ((next.trim() !== "") !== (text.trim() !== "")) void messagesTyping(session.id, next.trim() !== "");
+              setText(next);
+            }}
           />
           <Button type="submit" size="md" variant="primary" disabled={busy !== null || !text.trim() || state === "asks_you"}>
             Send
