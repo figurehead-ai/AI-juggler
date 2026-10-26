@@ -17,9 +17,34 @@
  *   the window it describes has reset with no newer reading, the window
  *   says "Not measured since the reset" — never 0%, never the old number.
  */
-import type { WindowDisplay } from "./bridge";
+import type { QuotaDisplayData, WindowDisplay } from "./bridge";
 
 export type WindowTone = "ok" | "low" | "out" | "none";
+
+/** One limit an account shows, with its name on screen. `model` is set for
+ * a week on one model only. */
+export interface LimitWindow {
+  key: string;
+  label: string;
+  window: WindowDisplay | null | undefined;
+  omitted: string | null | undefined;
+  model: string | null;
+}
+
+/** Every limit of an account, in the order every surface shows them: the
+ * 5 hours, the week, then each week on one model only ("This week · Fable
+ * only", the maintainer's report on 0.1.6: a team seat's only week read
+ * as "no weekly limit"). With no all-models week but a model's, the
+ * model's weeks stand alone: its line would only say why it's absent. */
+export function limitWindows(display: QuotaDisplayData | undefined): LimitWindow[] {
+  const models = display?.model_weeks ?? [];
+  const week: LimitWindow = { key: "weekly", label: "This week", window: display?.weekly, omitted: display?.weekly_omitted_reason, model: null };
+  return [
+    { key: "five_hour", label: "5-hour window", window: display?.five_hour, omitted: display?.five_hour_omitted_reason, model: null },
+    ...(display?.weekly == null && models.length > 0 ? [] : [week]),
+    ...models.map((entry) => ({ key: `model:${entry.model}`, label: `This week · ${entry.model} only`, window: entry.window, omitted: null, model: entry.model })),
+  ];
+}
 
 export interface WindowView {
   /** Percent left — ONLY when a percentage was measured or computed. */

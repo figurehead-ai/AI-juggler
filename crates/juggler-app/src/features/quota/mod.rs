@@ -196,6 +196,24 @@ pub struct QuotaDisplayInfo {
     pub unavailable_reason: Option<String>,
     /// Codex's credits, from its own rollouts (the 0.0.12 report).
     pub credits: Option<CreditsDisplay>,
+    /// Weekly limits on one model only, by model (Claude's "Fable only"):
+    /// each a real limit, shown beside the all-models windows (the
+    /// maintainer's report, 0.1.6: a team seat's only week read as "no
+    /// weekly limit"). Empty when the tool reports none.
+    pub model_weeks: Vec<ModelWeekDisplay>,
+}
+
+/// A weekly limit on one model only ("This week · Fable only"). It limits
+/// that model alone, so it never ranks the account or alerts on it: a
+/// session on another model doesn't touch it, and which model new work
+/// will use isn't known. Every surface that shows the windows shows it.
+#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+pub struct ModelWeekDisplay {
+    /// The model, as the tool names it ("Fable").
+    pub model: String,
+    /// Its window, as every window is shown (the vendor's percent and
+    /// reset, its source and age; reset since when it has).
+    pub window: WindowDisplay,
 }
 
 /// An account's credits, as its tool reports them.
@@ -275,6 +293,16 @@ pub fn quota_display_inner(
         .map(|(sample, _)| *sample)
         .collect();
     let samples_weekly: Vec<_> = sourced_weekly.iter().map(|(sample, _)| *sample).collect();
+    // The weeks on one model only that are current (read in the last week,
+    // and still in the newest reading of their source).
+    let model_week_rows: Vec<(String, Vec<_>)> = usage
+        .model_week_samples_for_account(account_id)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|(_, rows)| {
+            sources::model_week_current(rows, &[&sourced_five_hour, &sourced_weekly], now_ms)
+        })
+        .collect();
     let spec = adapter_spec(account.harness.as_str());
     let cap = |kind: WindowKind| -> QuotaCap {
         settings
@@ -502,8 +530,9 @@ pub fn quota_display_inner(
                 (!weekly_reported).then(|| reason("weekly")),
             )
         }
-        // A plan whose own records leave the week out (a team seat) has
-        // none: said, never shown as "not measured".
+        // A plan whose own records leave the all-models week out (a team
+        // seat) has none: said, never shown as "not measured", and never
+        // as "no weekly limit" while a model's own week is there.
         _ if sources::week_not_reported(&sourced_five_hour, &sourced_weekly, now_ms) => (
             Some(window_display(
                 &evaluation.five_hour,
@@ -512,9 +541,16 @@ pub fn quota_display_inner(
             )),
             None,
             None,
-            Some(format!(
-                "{} reports no weekly limit for this account",
-                provider_name(provider)
+            Some(sources::week_omitted_words(
+                &spec
+                    .clone()
+                    .unwrap_or_else(|| juggler_adapter::ToolSpec::generic(provider)),
+                &model_week_rows
+                    .iter()
+                    .map(|(model, _)| model.as_str())
+                    .collect::<Vec<_>>(),
+                &sourced_five_hour,
+                now_ms,
             )),
         ),
         _ => (
@@ -549,6 +585,36 @@ pub fn quota_display_inner(
     };
     let five_hour = named(five_hour, &sourced_five_hour);
     let weekly = named(weekly, &sourced_weekly);
+    // Each model's own week, evaluated on its own readings alone: the
+    // account's use of every model says nothing about one model's share.
+    let model_weeks = if unavailable_reason.is_some() {
+        Vec::new()
+    } else {
+        model_week_rows
+            .iter()
+            .filter_map(|(model, rows)| {
+                let samples: Vec<_> = rows.iter().map(|(sample, _)| *sample).collect();
+                let week = WindowKind::Weekly { anchor_ms: None };
+                let reading = quota::evaluate_window(
+                    &[],
+                    &samples,
+                    account_id,
+                    week,
+                    QuotaCap::default(),
+                    now_ms,
+                );
+                let runway = runway_display(&samples, &[], week, now_ms);
+                let mut window = window_display(&reading, QuotaCap::default(), &runway);
+                window.stale_note_ms = reading
+                    .measured_at
+                    .filter(|ts| now_ms.saturating_sub(*ts) > quota::STALE_AFTER_MS);
+                Some(ModelWeekDisplay {
+                    model: model.clone(),
+                    window: named(Some(window), rows)?,
+                })
+            })
+            .collect()
+    };
     QuotaDisplayInfo {
         account: account_id.to_owned(),
         five_hour,
@@ -559,6 +625,7 @@ pub fn quota_display_inner(
         forecast,
         unavailable_reason,
         credits: credits_of(storage, account),
+        model_weeks,
     }
 }
 
