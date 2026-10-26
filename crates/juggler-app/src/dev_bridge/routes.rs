@@ -274,6 +274,15 @@ read_routes! {
     // AJ-E1702/E1703: the pools and a pool's cards (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
     "pools_cards" => async_result features::pools::commands::pools_cards(state; pool_id: String);
+    // AJ-E1704: whether sessions get the agent tools (a read).
+    "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
+    // AJ-E2302..E2307: a driven session's runtime and the open asks, the
+    // runtime choices and a folder's trust (reads only; answers stay in the
+    // app).
+    "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
+    "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
+    "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
+    "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other
