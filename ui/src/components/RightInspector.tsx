@@ -26,8 +26,10 @@ import { ProcessRow } from "./ProcessRow";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import { useSessionMessages } from "../pages/messages/useSessionMessages";
-// E18: a session's Messages tab, loaded when it opens.
+import { useSessionTasks } from "../pages/tasks/useSessionTasks";
+// E18, E19: a session's Messages and Tasks tabs, loaded when they open.
 const SessionMessages = lazyNamed(() => import("../pages/messages/PoolMessages"), "SessionMessages");
+const SessionTasks = lazyNamed(() => import("../pages/tasks/PoolTasks"), "SessionTasks");
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
 import { TwoClocks } from "./QuotaRings";
@@ -42,14 +44,7 @@ import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
-import {
-  fleetDivergences,
-  fleetSwitchBackPlan,
-  fleetSwitchTargets,
-  type DivergenceRecordInfo,
-  type FleetSwitchBackPlanInfo,
-  type RemoteSwitchTargetInfo,
-} from "../lib/bridge";
+import { fleetDivergences, fleetSwitchBackPlan, fleetSwitchTargets, type DivergenceRecordInfo, type FleetSwitchBackPlanInfo, type RemoteSwitchTargetInfo } from "../lib/bridge";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 
@@ -197,6 +192,7 @@ export function RightInspector({
   }, [remote, onRemoteBack]);
 
   const messagesPool = useSessionMessages(data.instance?.id ?? null);
+  const hasTasks = useSessionTasks(data.instance?.id ?? null);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
   const kind = selection.kind;
@@ -204,6 +200,7 @@ export function RightInspector({
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
     hasMessages: messagesPool !== null,
+    hasTasks,
     hasUsage: data.project ? projectHasUsage(data.project.id, sessions, conversations) : false,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
@@ -322,6 +319,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
           return <ProcessesTab {...props} readOnly={false} />;
         case "messages":
           return props.data.instance ? <SessionMessages session={props.data.instance} now={props.now} /> : null;
+        case "tasks":
+          return props.data.instance ? <SessionTasks session={props.data.instance} now={props.now} /> : null;
         default:
           return null;
       }

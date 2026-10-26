@@ -2588,6 +2588,8 @@ export interface EpochNodeData {
    * Resume action's honest gate). */
   resumable: boolean;
   session_id?: string | null;
+  /** AJ-E1904: its session's task (`aj-7f3c · title`). */
+  task?: string | null;
 }
 
 /** AJ-E209: one labelled timeline edge. */

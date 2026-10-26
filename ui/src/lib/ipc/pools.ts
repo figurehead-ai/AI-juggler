@@ -12,6 +12,7 @@
 import { invoke } from "./transport";
 import { hasLiveBackend, MOCK_PROJECTS, MOCK_SESSIONS, refused, type InstanceInfo } from "../bridge";
 import { providerDisplayName } from "../providers";
+import { previewHeldBy } from "./tasks";
 import type { PoolsInfo } from "../../types/generated/PoolsInfo";
 import type { PoolInfo } from "../../types/generated/PoolInfo";
 import type { PoolMemberInfo } from "../../types/generated/PoolMemberInfo";
@@ -312,7 +313,7 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
     account: profile,
     state: session.status,
     role,
-    task: unavailable("AI Juggler doesn't keep tasks yet"),
+    task: { value: previewHeldBy(session.id), unavailable: null }, // E19
     said: activity
       ? activity.said
         ? { value: activity.said, unavailable: null }

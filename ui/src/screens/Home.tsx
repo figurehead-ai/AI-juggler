@@ -65,6 +65,7 @@ import {
 } from "../lib/bridge";
 import { CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
 import { useMessageNeeds } from "../lib/ipc/messages"; // E18: messages that wait on you
+import { useTaskNeeds } from "../lib/ipc/tasks"; // E19: and tasks
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -157,6 +158,7 @@ export function HomeScreen({
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
   const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
   const messageNeeds = useMessageNeeds();
+  const taskNeeds = useTaskNeeds();
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   useEffect(() => {
     let alive = true;
@@ -387,7 +389,7 @@ export function HomeScreen({
     }),
     leftovers: thisMac?.leftover_processes ?? 0,
   });
-  const headline = needsHeading(allNeeds.length + capNeeds.caps.length + messageNeeds.length, {
+  const headline = needsHeading(allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length, {
     runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,
@@ -462,10 +464,11 @@ export function HomeScreen({
 
       <div className="flex flex-wrap gap-6">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-6">
-          {allNeeds.length + capNeeds.caps.length + messageNeeds.length > 0 && (
+          {allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length > 0 && (
           <HomeNeeds
             needs={allNeeds}
             messages={messageNeeds}
+            tasks={{ needs: taskNeeds, projects }}
             handlers={{
               onOpenSession,
               onLimit,

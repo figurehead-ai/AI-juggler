@@ -60,22 +60,16 @@ function GraphNode({
         <span className="font-mono">{mark.abbrev}</span>
         <span aria-hidden="true">·</span>
         <span>{epoch.kind}</span>
-        {shape.fork && (
-          <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">
-            fork
-          </span>
-        )}
-        {shape.merge && (
-          <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">
-            merge
-          </span>
-        )}
+        {shape.fork && <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">fork</span>}
+        {shape.merge && <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">merge</span>}
       </span>
       <span className={`text-[10px] ${epoch.resumable ? "text-success" : "text-muted"}`}>
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
+      {/* AJ-E1904: the task this session worked; a switch keeps it. */}
+      {epoch.task && <span className="max-w-[12rem] truncate text-[12px] text-ink" title={epoch.task} data-testid="node-task">{epoch.task}</span>}
       <span className="sr-only">
-        {`, ${providerDisplayName(epoch.provider)}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
+        {`, ${providerDisplayName(epoch.provider)}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}${epoch.task ? `, its task ${epoch.task}` : ""}`}
       </span>
     </button>
   );

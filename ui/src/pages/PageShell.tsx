@@ -9,6 +9,13 @@ import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
 import { PAGE_LABELS, rememberTab, rememberedTab, type PageKind, type PageTab, type PageTabId } from "./registry";
 
+const SHOW_TAB = "aij:page-tab";
+
+/** Shows another tab of the open page, when it has it. */
+export function showTab(tab: PageTabId): void {
+  window.dispatchEvent(new CustomEvent<PageTabId>(SHOW_TAB, { detail: tab }));
+}
+
 /** A link to the page's parent (its project, its tool, Accounts). */
 export type Crumb = { label: string; onOpen?: () => void; testId?: string };
 
@@ -156,6 +163,17 @@ export function PageShell({
     const toBody = () => setPicked(tabs[0]!.id);
     window.addEventListener("aij:focus-handover", toBody);
     return () => window.removeEventListener("aij:focus-handover", toBody);
+  });
+
+  // E19: a tab's link asks for another of this page's tabs (a task's
+  // thread opens in Messages).
+  useEffect(() => {
+    const to = (event: Event) => {
+      const next = (event as CustomEvent<PageTabId>).detail;
+      if (tabs.some((entry) => entry.id === next)) choose(next);
+    };
+    window.addEventListener(SHOW_TAB, to);
+    return () => window.removeEventListener(SHOW_TAB, to);
   });
 
   // ⌥⌘1…n picks a tab; focus follows.

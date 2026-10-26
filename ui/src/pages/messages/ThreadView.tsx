@@ -12,6 +12,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { Pill } from "../../components/Pill";
 import { errorText } from "../../lib/bridge";
 import {
   messagesDeliver,
@@ -23,16 +24,6 @@ import {
 } from "../../lib/ipc/messages";
 import { Compose, type Member } from "./Compose";
 import { KIND_WORDS, THREAD_WORDS, hopWords, recipientWords, when } from "./words";
-
-function Pill({ tone, children }: { tone: "neutral" | "warning" | "danger" | "accent"; children: string }): JSX.Element {
-  const tones = {
-    neutral: "border-hairline bg-surface-2 text-muted",
-    warning: "border-warning/30 bg-warning-soft text-warning",
-    danger: "border-danger/30 bg-danger-soft text-danger",
-    accent: "border-accent/25 bg-accent-soft text-accent-hi",
-  };
-  return <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[12px] font-medium ${tones[tone]}`}>{children}</span>;
-}
 
 function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: number; onDeliver: (recipient: string) => void; busy: boolean }): JSX.Element {
   const you = message.from_kind === "user";
