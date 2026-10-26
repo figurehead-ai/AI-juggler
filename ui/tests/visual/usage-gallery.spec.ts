@@ -26,8 +26,13 @@ const VIEWPORTS = [
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
 async function seed(page: Page, theme: "dark" | "light", viewport: { width: number; height: number }, project = false) {
+  // The gate's clock seam (axe-gallery.ts), at this world's own T0:
+  // Date.now() and new Date() both read it, in the gate and in the
+  // evidence gallery alike (Date.now alone left new Date() on the gate's
+  // 2024 instant, two years before the world's data).
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ world, quota, git, theme, t0, project }) => {
+    ({ world, quota, git, theme, project }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = world;
       w.__AIJ_QUOTA_DISPLAY__ = quota;
@@ -36,9 +41,8 @@ async function seed(page: Page, theme: "dark" | "light", viewport: { width: numb
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       if (project) localStorage.setItem("aij.rail.view.v1", JSON.stringify({ group: "project" }));
-      Date.now = () => t0;
     },
-    { world: USAGE_WORLD, quota: QUOTA_DISPLAY, git: PROJECT_GIT, theme, t0: T0, project },
+    { world: USAGE_WORLD, quota: QUOTA_DISPLAY, git: PROJECT_GIT, theme, project },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize(viewport);

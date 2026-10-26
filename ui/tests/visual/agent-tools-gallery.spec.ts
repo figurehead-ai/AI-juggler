@@ -14,7 +14,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo, openFilters } from "./fixtures";
@@ -22,7 +22,8 @@ import { goTo, openFilters } from "./fixtures";
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/92-agent-tools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-const T0 = 1_728_800_000_000;
+/** The gate's one clock (axe-gallery.ts). */
+const T0 = GATE_NOW;
 
 const POOLS = {
   pools: [{ id: "pool-checkout", name: "Checkout redesign" }],
@@ -30,8 +31,11 @@ const POOLS = {
 };
 
 async function open(page: Page, theme: "dark" | "light", bridge: Record<string, unknown> | null) {
+  // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
+  // both read T0, in the gate and in the evidence gallery alike.
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ theme, t0, pools, bridge }) => {
+    ({ theme, pools, bridge }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_POOLS__ = pools;
       if (bridge) w.__AIJ_AGENT_BRIDGE__ = bridge;
@@ -39,9 +43,8 @@ async function open(page: Page, theme: "dark" | "light", bridge: Record<string, 
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
-      Date.now = () => t0;
     },
-    { theme, t0: T0, pools: POOLS, bridge },
+    { theme, pools: POOLS, bridge },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });

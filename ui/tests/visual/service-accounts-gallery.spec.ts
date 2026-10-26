@@ -8,13 +8,14 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/94-service-accounts");
-const T0 = 1_728_800_000_000;
+/** The gate's one clock (axe-gallery.ts). */
+const T0 = GATE_NOW;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
@@ -94,8 +95,11 @@ function fixture(missing: boolean) {
 }
 
 async function seed(page: Page, theme: "dark" | "light", data: unknown) {
+  // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
+  // both read T0, in the gate and in the evidence gallery alike.
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ data, theme, t0, installs, burned }) => {
+    ({ data, theme, installs, burned }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = data;
       w.__AIJ_PROVIDER_INSTALLS__ = installs;
@@ -111,9 +115,8 @@ async function seed(page: Page, theme: "dark" | "light", data: unknown) {
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
-      Date.now = () => t0;
     },
-    { data, theme, t0: T0, installs: INSTALLS, burned: { five: 420_000, week: 3_100_000 } },
+    { data, theme, installs: INSTALLS, burned: { five: 420_000, week: 3_100_000 } },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });

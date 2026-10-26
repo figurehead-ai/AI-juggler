@@ -10,13 +10,14 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, type FixtureSet } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/90-processes");
-const T0 = 1_728_800_000_000;
+/** The gate's one clock (axe-gallery.ts). */
+const T0 = GATE_NOW;
 const THEMES = ["dark", "light"] as const;
 const WIDTHS = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -35,8 +36,11 @@ const fixture: FixtureSet = {
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
 async function seed(page: Page, theme: "dark" | "light", vp: { width: number; height: number }, query = "") {
+  // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
+  // both read T0, in the gate and in the evidence gallery alike.
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ fixture, theme, t0 }) => {
+    ({ fixture, theme }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       // The verify step reads each of the made-up Mac's leftovers as it
@@ -60,9 +64,8 @@ async function seed(page: Page, theme: "dark" | "light", vp: { width: number; he
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.removeItem("aij.processes.view");
       sessionStorage.setItem("aij.ready.skipped", "1");
-      Date.now = () => t0;
     },
-    { fixture, theme, t0: T0 },
+    { fixture, theme },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: vp.width, height: vp.height });

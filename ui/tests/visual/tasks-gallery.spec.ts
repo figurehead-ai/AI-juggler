@@ -18,7 +18,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { openFilters, projectLens } from "./fixtures";
@@ -26,7 +26,8 @@ import { openFilters, projectLens } from "./fixtures";
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/95-tasks");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-const T0 = 1_728_800_000_000;
+/** The gate's one clock (axe-gallery.ts). */
+const T0 = GATE_NOW;
 const MIN = 60_000;
 const POOL = "pool-checkout";
 
@@ -134,8 +135,11 @@ const SIZES = [
 ] as const;
 
 async function open(page: Page, theme: "dark" | "light", width: number, height: number, withNeeds = true) {
+  // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
+  // both read T0, in the gate and in the evidence gallery alike.
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ theme, t0, pools, seed, graph }) => {
+    ({ theme, pools, seed, graph }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_POOLS__ = pools;
       w.__AIJ_TASKS__ = seed;
@@ -145,9 +149,8 @@ async function open(page: Page, theme: "dark" | "light", width: number, height: 
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
-      Date.now = () => t0;
     },
-    { theme, t0: T0, pools: POOLS, seed: { tasks: TASKS, details: DETAILS, needs: withNeeds ? NEEDS : [], sessions: { "sess-live-1": ["aj-1a2b"], "sess-done-1": ["aj-1a2b"] } }, graph: GRAPH },
+    { theme, pools: POOLS, seed: { tasks: TASKS, details: DETAILS, needs: withNeeds ? NEEDS : [], sessions: { "sess-live-1": ["aj-1a2b"], "sess-done-1": ["aj-1a2b"] } }, graph: GRAPH },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height });
@@ -179,7 +182,7 @@ async function poolTasks(page: Page) {
 for (const theme of ["dark", "light"] as const) {
   for (const [width, height] of SIZES) {
     const size = `${width}x${height}`;
-    test(`a pool's tasks — ${size} ${theme}`, async ({ page }) => {
+    test(`a pool's tasks — ${size} ${theme}`, width === 1280 ? gate("95-tasks") : {}, async ({ page }) => {
       await open(page, theme, width, height);
       await poolTasks(page);
       await expect(page.getByTestId("task-row").first()).toHaveAttribute("data-status", "ready");

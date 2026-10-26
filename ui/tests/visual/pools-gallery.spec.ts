@@ -17,7 +17,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo, openFilters } from "./fixtures";
@@ -25,7 +25,8 @@ import { goTo, openFilters } from "./fixtures";
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-pools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-const T0 = 1_728_800_000_000;
+/** The gate's one clock (axe-gallery.ts). */
+const T0 = GATE_NOW;
 
 /** "Checkout redesign": the live session leads, a finished one works in
  * it; "Docs" is made, nobody in it yet. One rule the user made. */
@@ -50,8 +51,11 @@ const ACTIVITY = {
 };
 
 async function open(page: Page, theme: "dark" | "light") {
+  // The gate's clock seam (axe-gallery.ts): Date.now() and new Date()
+  // both read T0, in the gate and in the evidence gallery alike.
+  await page.clock.setFixedTime(T0);
   await page.addInitScript(
-    ({ theme, t0, pools, activity }) => {
+    ({ theme, pools, activity }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_POOLS__ = pools;
       w.__AIJ_POOL_ACTIVITY__ = activity;
@@ -62,10 +66,8 @@ async function open(page: Page, theme: "dark" | "light") {
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
-      // AJ-E1522: a pinned clock, so the capture is the same every run.
-      Date.now = () => t0;
     },
-    { theme, t0: T0, pools: POOLS, activity: ACTIVITY },
+    { theme, pools: POOLS, activity: ACTIVITY },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });

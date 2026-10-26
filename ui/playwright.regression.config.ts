@@ -13,6 +13,10 @@ const GALLERY_SPECS = [
   "notifications", "open-pack", "outside-gallery", "overload-gallery", "pages-gallery",
   "privacy-gallery", "processes-gallery", "project-manage-gallery", "project-sync-gallery", "rail-narrow",
   "rail-projects", "terminal-tools", "this-mac-gallery", "this-mac-page",
+  // 0.2's own families: pools, agent tools, messages, tasks, more tools,
+  // service accounts, and the Usage dashboard.
+  "agent-tools-gallery", "messages-gallery", "more-tools-gallery", "pools-gallery",
+  "service-accounts-gallery", "tasks-gallery", "usage-gallery",
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the
