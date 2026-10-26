@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Apps show their own icons (0.1.5, D-38): the rail's rows and place
+- Apps show their own icons (0.1.6, D-38): the rail's rows and place
   headers, Home's apps and Needs you, History, a project's sessions and
   the palette show each app's icon as it is installed on your Mac (the
   Claude app, ChatGPT, Terminal, an editor, AI Juggler), read from the
