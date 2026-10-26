@@ -43,8 +43,9 @@ pub const SUMMARY_MAX: usize = 300;
 pub const SERVER_NAME: &str = "juggler";
 
 /// AI Juggler's own tools, all of them: the ones a launch pre-allows
-/// (D-30) and nothing else. E18 adds messages and shared docs.
-pub const TOOLS: [&str; 8] = [
+/// (D-30) and nothing else. E18 adds messages and shared docs; E19 the
+/// pool's tasks.
+pub const TOOLS: [&str; 14] = [
     "whoami",
     "pool_roster",
     "set_status",
@@ -53,6 +54,12 @@ pub const TOOLS: [&str; 8] = [
     "ack",
     "share_doc",
     "read_doc",
+    "tasks_list",
+    "task_get",
+    "task_create",
+    "task_claim",
+    "task_update",
+    "task_assign",
 ];
 
 /// The resource with the caller's pool's context cards (AJ-E1703).
@@ -70,6 +77,16 @@ pub const SUBJECT_MAX: usize = 120;
 
 /// E18: the largest shared doc, in bytes (`messaging::DOC_MAX`).
 pub const DOC_MAX: usize = 64 * 1024;
+
+/// E19: the longest task title, in characters (`tasks::TITLE_MAX`).
+pub const TASK_TITLE_MAX: usize = 120;
+
+/// E19: the longest acceptance criteria, in characters
+/// (`tasks::ACCEPTANCE_MAX`).
+pub const ACCEPTANCE_MAX: usize = 2_000;
+
+/// E19: the longest note with a task's change (`tasks::NOTE_MAX`).
+pub const NOTE_MAX: usize = 500;
 
 /// The longest request the app reads (a shared doc of 64 KiB, written
 /// out as JSON, fits; everything else is a few hundred bytes).
@@ -103,6 +120,19 @@ pub enum Call {
     ShareDoc,
     /// E18: the pool's shared docs, or one of them.
     ReadDoc,
+    /// E19: the pool's tasks, one page (ready work first).
+    TasksList,
+    /// E19: one task in full.
+    TaskGet,
+    /// E19: a new task (an epic or a story: the lead's).
+    TaskCreate,
+    /// E19: take a ready task.
+    TaskClaim,
+    /// E19: say where a task is, change it, or give it back.
+    TaskUpdate,
+    /// E19: the lead gives a task to a member, to no one, or asks the
+    /// user for a new session for it.
+    TaskAssign,
 }
 
 impl Call {
@@ -118,6 +148,12 @@ impl Call {
             "ack" => Some(Self::Ack),
             "share_doc" => Some(Self::ShareDoc),
             "read_doc" => Some(Self::ReadDoc),
+            "tasks_list" => Some(Self::TasksList),
+            "task_get" => Some(Self::TaskGet),
+            "task_create" => Some(Self::TaskCreate),
+            "task_claim" => Some(Self::TaskClaim),
+            "task_update" => Some(Self::TaskUpdate),
+            "task_assign" => Some(Self::TaskAssign),
             _ => None,
         }
     }
@@ -188,6 +224,119 @@ pub struct ReadDocArgs {
     pub cursor: Option<String>,
 }
 
+/// E19: `tasks_list`'s arguments.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TasksListArgs {
+    /// Only this session's (what it holds or was given).
+    #[serde(default)]
+    pub mine: bool,
+    /// Only those ready to claim.
+    #[serde(default)]
+    pub ready: bool,
+    /// Only those in this status (`todo`, `ready`, `in_progress`,
+    /// `blocked`, `in_review`, `done`, `cancelled`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Only those under this epic or story.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    /// The `next` of the previous page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+}
+
+/// E19: `task_get`'s and `task_claim`'s argument: the task.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskArgs {
+    /// Its short id (`aj-7f3c`).
+    pub task: String,
+}
+
+/// E19: `task_create`'s arguments. Nothing names who makes it, its pool
+/// or who it's given to: the caller makes it, in its own pool, for no one.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCreateArgs {
+    /// One line.
+    pub title: String,
+    /// What it asks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    /// When it's done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance: Option<String>,
+    /// `task` (the default), `story` or `epic`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    /// The epic or story it belongs to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    /// `urgent`, `high`, `normal` (the default) or `low`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    /// `ready` (the default) or `todo` (not ready to start).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// The tasks that must be done first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_by: Vec<String>,
+    /// The issue it comes from (`https://…`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// E19: `task_update`'s arguments.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskUpdateArgs {
+    /// The task.
+    pub task: String,
+    /// Its new status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Give it back to the pool (no one holds it; ready again).
+    #[serde(default)]
+    pub release: bool,
+    /// A note for its history (a hand-off's: what's done, what's left).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// A new title.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// A new body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    /// New acceptance criteria.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance: Option<String>,
+    /// A new priority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    /// More tasks that must be done first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_by: Vec<String>,
+    /// The issue it comes from (`https://…`; empty removes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// E19: `task_assign`'s arguments. `to` is a member's `session_id` (from
+/// `pool_roster`), `nobody`, or `new_session`: a request the user sees,
+/// to start a session for it on the account they pick (D-31).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskAssignArgs {
+    /// The task.
+    pub task: String,
+    /// Who.
+    pub to: String,
+    /// What the new session should know (with `new_session`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
 /// What a call carries besides what it is: at most one of these is used,
 /// by the call it belongs to.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -204,6 +353,16 @@ pub struct Args {
     pub doc: Option<DocArgs>,
     /// `read_doc`'s.
     pub read_doc: Option<ReadDocArgs>,
+    /// E19: `tasks_list`'s.
+    pub tasks: Option<TasksListArgs>,
+    /// E19: `task_get`'s and `task_claim`'s.
+    pub task: Option<TaskArgs>,
+    /// E19: `task_create`'s.
+    pub new_task: Option<TaskCreateArgs>,
+    /// E19: `task_update`'s.
+    pub task_change: Option<TaskUpdateArgs>,
+    /// E19: `task_assign`'s.
+    pub assign: Option<TaskAssignArgs>,
 }
 
 /// One call, bridge to app.
@@ -234,6 +393,21 @@ pub struct Request {
     /// `read_doc`'s arguments.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub read_doc: Option<ReadDocArgs>,
+    /// E19: `tasks_list`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tasks: Option<TasksListArgs>,
+    /// E19: `task_get`'s and `task_claim`'s argument.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task: Option<TaskArgs>,
+    /// E19: `task_create`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_task: Option<TaskCreateArgs>,
+    /// E19: `task_update`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_change: Option<TaskUpdateArgs>,
+    /// E19: `task_assign`'s arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assign: Option<TaskAssignArgs>,
 }
 
 impl Request {
@@ -250,6 +424,11 @@ impl Request {
             ack: args.ack,
             doc: args.doc,
             read_doc: args.read_doc,
+            tasks: args.tasks,
+            task: args.task,
+            new_task: args.new_task,
+            task_change: args.task_change,
+            assign: args.assign,
         }
     }
 }
@@ -425,6 +604,41 @@ mod tests {
                 "{sneaky}"
             );
         }
+    }
+
+    #[test]
+    fn a_task_call_names_its_task_and_nothing_else() {
+        let create: super::TaskCreateArgs = serde_json::from_str(
+            r#"{"title":"Build the API","kind":"story","blocked_by":["aj-1a2b"]}"#,
+        )
+        .unwrap();
+        assert_eq!(create.blocked_by, ["aj-1a2b"]);
+        for sneaky in [
+            r#"{"title":"x","pool":"other"}"#,
+            r#"{"title":"x","assignee":"sess-2"}"#,
+            r#"{"title":"x","created_by":"user"}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<super::TaskCreateArgs>(sneaky).is_err(),
+                "{sneaky}"
+            );
+        }
+        for sneaky in [
+            r#"{"task":"aj-1","to":"new_session","account":"Work"}"#,
+            r#"{"task":"aj-1","to":"new_session","profile":"p-1"}"#,
+            r#"{"task":"aj-1","to":"sess-2","start":true}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<super::TaskAssignArgs>(sneaky).is_err(),
+                "no account, profile or start: {sneaky}"
+            );
+        }
+        assert!(serde_json::from_str::<super::TaskArgs>(r#"{"task":"aj-1","as":"user"}"#).is_err());
+        assert!(
+            serde_json::from_str::<super::TaskUpdateArgs>(r#"{"task":"aj-1","assignee":"x"}"#)
+                .is_err(),
+            "assigning is task_assign's"
+        );
     }
 
     #[test]

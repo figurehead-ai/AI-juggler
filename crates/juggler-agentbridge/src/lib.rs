@@ -14,7 +14,9 @@
 //! - The roster and the agent's own status line: `whoami`,
 //!   `pool_roster`, `set_status` and the pool's cards as a resource; E18's
 //!   messages and shared docs: `send_message`, `read_inbox`, `ack`,
-//!   `share_doc`, `read_doc` ([`wire::TOOLS`]). What a call may do is the
+//!   `share_doc`, `read_doc`; E19's tasks: `tasks_list`, `task_get`,
+//!   `task_create`, `task_claim`, `task_update`, `task_assign`
+//!   ([`wire::TOOLS`]). What a call may do is the
 //!   pool's access level, decided in the app (D-28); this program only
 //!   asks.
 
@@ -33,4 +35,6 @@ pub mod cli;
 pub mod client;
 pub mod hook;
 pub mod mcp;
+pub mod plugin;
+pub mod task_tools;
 pub mod wire;

@@ -279,6 +279,19 @@ read_routes! {
     "messages_needs" => async_result features::messages::commands::messages_needs(state);
     "messages_docs" => async_result features::messages::commands::messages_docs(state; pool_id: String, cursor: Option<String>);
     "messages_links" => async_result features::messages::commands::messages_links(state; pool_id: String);
+    // AJ-E1704 and E23's reads, found unserved when E19 ran the gate.
+    "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
+    "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
+    "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
+    "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
+    "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);
+    // E19: tasks' lists (reads only).
+    "tasks_list" => async_result features::tasks::commands::tasks_list(state; pool_id: String, filter: Option<String>, words: Option<String>, cursor: Option<String>);
+    "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String);
+    "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, cursor: Option<String>);
+    "tasks_session" => async_result features::tasks::commands::tasks_session(state; session_id: String);
+    "tasks_detail" => async_result features::tasks::commands::tasks_detail(state; task_id: String, cursor: Option<String>);
+    "tasks_needs" => async_result features::tasks::commands::tasks_needs(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other

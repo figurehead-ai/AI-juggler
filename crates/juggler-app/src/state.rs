@@ -72,6 +72,9 @@ pub struct AppState {
     /// E18: messages between agents — the delivery worker, who is typing
     /// where, and the last note each session got. The rest is storage.
     pub messages: crate::features::messages::Messages,
+    /// E19: tasks shared by pools — what tells the window. The rest is
+    /// storage.
+    pub tasks: crate::features::tasks::Tasks,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -318,6 +321,7 @@ impl AppState {
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
             runtime: crate::features::runtime::Runtimes::default(),
             messages: crate::features::messages::Messages::default(),
+            tasks: crate::features::tasks::Tasks::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

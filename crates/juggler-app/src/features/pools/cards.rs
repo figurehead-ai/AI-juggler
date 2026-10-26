@@ -10,7 +10,8 @@
 //!   the read model's 2 s tick, only what was appended since the last
 //!   read (`juggler_adapters::activity`, each tool's parser). A session
 //!   that ended keeps what was read while it ran, until AI Juggler quits.
-//! - The task it claimed: tasks are E19, so it's unavailable here.
+//! - The task it's on (E19): the one it holds in progress, in review or
+//!   blocked, through its Work item (so a switch keeps it).
 //! - What the agent said of itself: its `set_status` line through the
 //!   agent bridge (AJ-E1704) when it set one, else the step its own task
 //!   list has in progress.
@@ -37,8 +38,10 @@ use crate::state::AppState;
 const OWN_APP: &str = "AI Juggler";
 /// Why a card's activity isn't known.
 const NOT_READ: &str = "read only while it runs in AI Juggler";
-/// Why a card's task isn't known.
-const NO_TASKS: &str = "AI Juggler doesn't keep tasks yet";
+/// What a card says when its member holds no task (known: none).
+const NO_TASK: &str = "None";
+/// Why a card's task can't be read.
+const NO_TASKS: &str = "AI Juggler is busy: its tasks couldn't be read";
 
 /// Each session's activity, read on the tick. The tick reads transcripts
 /// into its own map; readers see the last published view.
@@ -168,6 +171,24 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
     })
 }
 
+/// The task a session's member is on (E19), as `aj-7f3c · title`.
+fn task_of(state: &Arc<AppState>, session: &str) -> CardField {
+    let Ok(storage) = state.storage.lock() else {
+        return CardField::unavailable(NO_TASKS);
+    };
+    let refs = crate::features::messages::refs_of(&storage, &SessionId::new(session));
+    match storage.tasks().held_by(&refs) {
+        Ok(Some(task)) => CardField::known(format!(
+            "{} · {} ({})",
+            task.id,
+            task.title,
+            task.status.words().to_lowercase()
+        )),
+        Ok(None) => CardField::known(NO_TASK),
+        Err(_) => CardField::unavailable(NO_TASKS),
+    }
+}
+
 fn role_rank(role: &str) -> u8 {
     match role {
         "lead" => 0,
@@ -243,7 +264,7 @@ fn card_of(
         account: profile,
         state: row.status.clone(),
         role,
-        task: CardField::unavailable(NO_TASKS),
+        task: task_of(state, &row.id),
         said,
         last_activity_ms: row.last_activity_ms,
         files,

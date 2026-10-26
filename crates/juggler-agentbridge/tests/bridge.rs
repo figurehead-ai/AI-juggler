@@ -513,6 +513,33 @@ fn calls_answer_in_under_50_ms() {
             slowest = slowest.max(started.elapsed());
         }
     }
+    // E19 (AJ-E1902): the task tools, over the socket, under 50 ms too.
+    for n in 0..3 {
+        let create = wire::Args {
+            new_task: Some(wire::TaskCreateArgs {
+                title: format!("Step {n}"),
+                ..wire::TaskCreateArgs::default()
+            }),
+            ..wire::Args::default()
+        };
+        let started = Instant::now();
+        let made = juggler_agentbridge::client::call(&target, Call::TaskCreate, create).unwrap();
+        slowest = slowest.max(started.elapsed());
+        let id = made["task"]["id"].as_str().unwrap().to_owned();
+        let list = wire::Args {
+            tasks: Some(wire::TasksListArgs::default()),
+            ..wire::Args::default()
+        };
+        let claim = wire::Args {
+            task: Some(wire::TaskArgs { task: id }),
+            ..wire::Args::default()
+        };
+        for (call, args) in [(Call::TasksList, list), (Call::TaskClaim, claim)] {
+            let started = Instant::now();
+            juggler_agentbridge::client::call(&target, call, args).unwrap();
+            slowest = slowest.max(started.elapsed());
+        }
+    }
     println!("slowest call over the socket: {slowest:?}");
     assert!(slowest < Duration::from_millis(50), "{slowest:?}");
 }
@@ -546,6 +573,79 @@ fn the_command_line_reads_the_key_from_its_environment_only() {
     pools::access::set_level_impl(&world.state, &pool, "read", &[]).unwrap();
     let refused = run(&["status", "hello"], true);
     assert_eq!(refused.status.code(), Some(2), "refused by the level");
+}
+
+/// E19 (AJ-E1902): the task commands, through the real binary and its
+/// socket, each decided by the pool's level.
+#[test]
+fn the_task_commands_go_through_the_real_binary_and_the_level() {
+    let world = world(&[]);
+    settings::answer_impl(&world.state, true).unwrap();
+    let session = session(&world, "s-1", SessionStatus::Running);
+    let (_, spec) = prepare(&world, &session);
+    let run = |args: &[&str]| {
+        Command::new(BRIDGE)
+            .args(args)
+            .env_clear()
+            .env(wire::TOKEN_ENV, token(&spec))
+            .env(wire::SOCKET_ENV, spec.env.get(wire::SOCKET_ENV).unwrap())
+            .output()
+            .unwrap()
+    };
+    let json = |out: &std::process::Output| -> serde_json::Value {
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        serde_json::from_slice(&out.stdout).unwrap()
+    };
+    // Work together: add, list, take, say where it is.
+    let made = json(&run(&["task-create", "Build", "the", "API"]));
+    let id = made["task"]["id"].as_str().unwrap().to_owned();
+    assert!(id.starts_with("aj-"), "{made}");
+    let listed = json(&run(&["tasks", "--ready"]));
+    assert_eq!(listed["tasks"][0]["id"], id.as_str());
+    assert_eq!(listed["tasks"][0]["written_by"], "shop");
+    let took = json(&run(&["claim", &id]));
+    assert_eq!(took["task"]["status"], "in_progress");
+    let review = json(&run(&["task-update", &id, "in_review", "PR", "is", "up"]));
+    assert_eq!(review["task"]["status"], "in_review");
+    let one = json(&run(&["task", &id]));
+    assert!(one["history"].to_string().contains("PR is up"));
+    // A member can't give tasks out; asking for a session is the lead's.
+    let assign = run(&["assign", &id, "new_session"]);
+    assert_eq!(assign.status.code(), Some(2), "refused: only the lead");
+    // Read: looking is fine, a change is held for the user (exit 2).
+    let pool = juggler_core::storage::default_pool_id(Some(&world.project));
+    pools::access::set_level_impl(&world.state, &pool, "read", &[]).unwrap();
+    assert!(run(&["tasks"]).status.success());
+    let held = run(&["task-create", "Write", "docs"]);
+    assert_eq!(held.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&held.stderr).contains("held for the user's OK"));
+    assert_eq!(
+        juggler_app::features::tasks::needs::needs(&world.state)
+            .unwrap()
+            .len(),
+        1
+    );
+    // Every call reached the decision point and is in the audit.
+    let audit = world
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .agent_access()
+        .audit(100)
+        .unwrap();
+    for action in ["create_task", "read_tasks", "claim_task", "update_task"] {
+        assert!(
+            audit
+                .iter()
+                .any(|row| row.actor == "session:s-1" && row.action == action),
+            "{action}"
+        );
+    }
 }
 
 #[test]

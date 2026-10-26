@@ -9,7 +9,10 @@ use serde_json::Value;
 
 use crate::client::{CallError, Target, call};
 use crate::mcp::{Backend, handle_line};
-use crate::wire::{Args, Call, InboxArgs, ReadDocArgs, Refusal, SendArgs, clean_status};
+use crate::wire::{
+    Args, Call, InboxArgs, ReadDocArgs, Refusal, SendArgs, TaskArgs, TaskAssignArgs,
+    TaskCreateArgs, TaskUpdateArgs, TasksListArgs, clean_status,
+};
 
 /// The app, reached with this process's own key.
 pub struct App {
@@ -49,7 +52,20 @@ pub const USAGE: &str = "juggler-agent: AI Juggler's pool tools for the agent in
   juggler-agent share <name>    share the text on stdin with the pool
   juggler-agent docs            the pool's shared documents
   juggler-agent doc <id>        one shared document
+  juggler-agent tasks [--mine | --ready]
+                                the pool's tasks, ready work first
+  juggler-agent task <id>       one task in full
+  juggler-agent task-create <title>
+                                add a task to the pool (ready, no one's)
+  juggler-agent claim <id>      take a ready task for this session
+  juggler-agent task-update <id> <status> [note]
+                                say where a task is (in_review when it's ready for a look)
+  juggler-agent release <id> [note]
+                                give a task back to the pool, with a note
+  juggler-agent assign <id> <to>
+                                (the lead) give a task to a member, \"nobody\" or \"new_session\"
   juggler-agent --mcp           serve the same as an MCP server on stdin and stdout
+  juggler-agent --mcp --plugin  the same, as the Claude Code plugin's server
   juggler-agent hook <event>    (run by the tool's own hooks) report this session's state
 
 Works in sessions AI Juggler started with its agent tools on. What the pool
@@ -60,6 +76,8 @@ lets agents do is set by the user, in AI Juggler.";
 pub enum Command {
     /// `--mcp`.
     Mcp,
+    /// E19: `--mcp --plugin` (the Claude Code plugin's server).
+    McpPlugin,
     /// `--help`.
     Help,
     /// `--version`.
@@ -82,6 +100,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
     let words: Vec<&str> = args.iter().map(String::as_str).collect();
     match words.as_slice() {
         ["--mcp"] => Ok(Command::Mcp),
+        ["--mcp", "--plugin"] => Ok(Command::McpPlugin),
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
         ["hook", event] => Ok(Command::Hook((*event).to_owned())),
@@ -143,8 +162,91 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
                 ..Args::default()
             },
         )),
-        _ => Err(format!("{USAGE}\n\nNot a command: {}", words.join(" "))),
+        _ => task_command(words.as_slice())
+            .ok_or_else(|| format!("{USAGE}\n\nNot a command: {}", words.join(" "))),
     }
+}
+
+/// E19: the task commands.
+fn task_command(words: &[&str]) -> Option<Command> {
+    let task = |id: &str| TaskArgs {
+        task: id.to_owned(),
+    };
+    let note = |rest: &[&str]| (!rest.is_empty()).then(|| rest.join(" "));
+    let args = match words {
+        ["tasks"] | ["tasks", "--mine" | "--ready"] => (
+            Call::TasksList,
+            Args {
+                tasks: Some(TasksListArgs {
+                    mine: words.get(1) == Some(&"--mine"),
+                    ready: words.get(1) == Some(&"--ready"),
+                    ..TasksListArgs::default()
+                }),
+                ..Args::default()
+            },
+        ),
+        ["task", id] => (
+            Call::TaskGet,
+            Args {
+                task: Some(task(id)),
+                ..Args::default()
+            },
+        ),
+        ["claim", id] => (
+            Call::TaskClaim,
+            Args {
+                task: Some(task(id)),
+                ..Args::default()
+            },
+        ),
+        ["task-create", title @ ..] if !title.is_empty() => (
+            Call::TaskCreate,
+            Args {
+                new_task: Some(TaskCreateArgs {
+                    title: title.join(" "),
+                    ..TaskCreateArgs::default()
+                }),
+                ..Args::default()
+            },
+        ),
+        ["task-update", id, status, rest @ ..] => (
+            Call::TaskUpdate,
+            Args {
+                task_change: Some(TaskUpdateArgs {
+                    task: (*id).to_owned(),
+                    status: Some((*status).to_owned()),
+                    note: note(rest),
+                    ..TaskUpdateArgs::default()
+                }),
+                ..Args::default()
+            },
+        ),
+        ["release", id, rest @ ..] => (
+            Call::TaskUpdate,
+            Args {
+                task_change: Some(TaskUpdateArgs {
+                    task: (*id).to_owned(),
+                    release: true,
+                    note: note(rest),
+                    ..TaskUpdateArgs::default()
+                }),
+                ..Args::default()
+            },
+        ),
+        ["assign", id, to] => (
+            Call::TaskAssign,
+            Args {
+                assign: Some(TaskAssignArgs {
+                    task: (*id).to_owned(),
+                    to: (*to).to_owned(),
+                    note: None,
+                }),
+                ..Args::default()
+            },
+        ),
+        _ => return None,
+    };
+    Some(call_of(args.0, args.1))
 }
 
 /// One call with its arguments.
@@ -174,12 +276,31 @@ fn send(to: &str, thread: Option<&str>, text: &[&str]) -> Command {
 /// When stdin or stdout fails.
 pub fn serve(
     input: impl BufRead,
+    output: impl Write,
+    backend: &mut dyn Backend,
+) -> std::io::Result<()> {
+    serve_as(input, output, backend, None)
+}
+
+/// [`serve`], as the Claude Code plugin's server when `plugin` says
+/// whether the launch already gave this session its tools (E19).
+///
+/// # Errors
+///
+/// When stdin or stdout fails.
+pub fn serve_as(
+    input: impl BufRead,
     mut output: impl Write,
     backend: &mut dyn Backend,
+    plugin: Option<bool>,
 ) -> std::io::Result<()> {
     for line in input.lines() {
         let line = line?;
-        if let Some(reply) = handle_line(&line, backend) {
+        let reply = match plugin {
+            Some(given) => crate::plugin::handle_line(&line, backend, given),
+            None => handle_line(&line, backend),
+        };
+        if let Some(reply) = reply {
             output.write_all(reply.as_bytes())?;
             output.write_all(b"\n")?;
             output.flush()?;
@@ -242,6 +363,19 @@ mod tests {
             Ok(Command::Share("schema.md".into()))
         );
         assert!(parse(&words("send sess-2")).is_err(), "nothing to say");
+        let Ok(Command::Call(Call::TaskUpdate, change)) =
+            parse(&words("release aj-7f3c the schema moved"))
+        else {
+            panic!("release");
+        };
+        let change = change.task_change.unwrap();
+        assert!(change.release);
+        assert_eq!(change.note.as_deref(), Some("the schema moved"));
+        assert!(matches!(
+            parse(&words("claim aj-7f3c")),
+            Ok(Command::Call(Call::TaskClaim, _))
+        ));
+        assert!(parse(&words("assign aj-7f3c new_session --account Work")).is_err());
         for bad in [
             "--token abc",
             "--mcp --token abc",
