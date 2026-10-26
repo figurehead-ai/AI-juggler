@@ -116,7 +116,7 @@ export function CheckoutCallout({ project, sharedBy, className = "" }: { project
             title={rules.words}
             words={rules.inSync ? "Every tool works from the same rules." : "One tool works from rules the others don't have."}
             action={
-              <button type="button" className={BUTTON} onClick={() => setCompare(true)} data-testid="project-rules">
+              <button type="button" className={BUTTON} onClick={() => setCompare(true)} data-testid="project-rules-compare">
                 {rules.inSync ? "Show rules" : "Compare…"}
               </button>
             }

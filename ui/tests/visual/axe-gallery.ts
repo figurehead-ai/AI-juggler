@@ -78,8 +78,9 @@ async function scanAsIs(page: import("@playwright/test").Page): Promise<Finding[
  * worker registers the tests in the same order). */
 const gated = new Set<string>();
 
-/** The gate's clock: `regression.spec.ts`'s T0 (2024-10-13). */
-const GATE_NOW = 1_728_800_000_000;
+/** The gate's clock (2024-10-13): one instant for every gate screen,
+ * the regression screens' and the gallery's gate states alike. */
+export const GATE_NOW = 1_728_800_000_000;
 
 /** Tags the first test `family` registers as its gate state: in a loop,
  * its first cell (themes list dark first). */
@@ -92,10 +93,24 @@ export function gate(family: string): { tag?: string } {
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
 
+/** A page settled for a capture: what loads after the first paint (lazy
+ * screens, the prefetch, data) has landed. A capture taken before it
+ * raced it: the capture spec's determinism test differed 1 run in 3.
+ * Cheap once landed (it waits only on the page's first load). */
+export async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+}
+
 /** In the gate's `gallery` project, a capture (the page's or one
  * element's) is compared with its approved baseline as the regression
  * screens are (≤ 0.1 % of pixels). Returns how many it has compared so
- * far, and how to put element captures back once the test is done. */
+ * far, and how to put element captures back once the test is done.
+ *
+ * Each comparison is soft: a differing capture fails the test but the
+ * flow goes on to its next capture, so one run writes the actual of
+ * every capture that changed. A hard stop at the first one hid the rest
+ * behind it, and baselines approved from that run's actuals left those
+ * stale for the next run to find (0.1.5: 43 of 45 "diffs"). */
 function compareInstead(page: Page): { compared: () => number; restore: () => void } {
   let compared = 0;
   const baseline = (path: string | undefined): string[] => {
@@ -105,7 +120,9 @@ function compareInstead(page: Page): { compared: () => number; restore: () => vo
   const same = { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" } as const;
   page.screenshot = (async (options?: Parameters<Page["screenshot"]>[0]) => {
     const name = baseline(options?.path);
-    await expect(page).toHaveScreenshot(name, { ...same, fullPage: options?.fullPage, clip: options?.clip });
+    // What loads after the first paint has landed (see settle()).
+    await settle(page);
+    await expect.soft(page).toHaveScreenshot(name, { ...same, fullPage: options?.fullPage, clip: options?.clip });
     compared += 1;
     return Buffer.alloc(0);
   }) as Page["screenshot"];
@@ -114,7 +131,8 @@ function compareInstead(page: Page): { compared: () => number; restore: () => vo
   const own = locators.screenshot;
   locators.screenshot = async function (this: Locator, options?: Parameters<Locator["screenshot"]>[0]) {
     const name = baseline(options?.path);
-    await expect(this).toHaveScreenshot(name, same);
+    await settle(this.page());
+    await expect.soft(this).toHaveScreenshot(name, same);
     compared += 1;
     return Buffer.alloc(0);
   };
@@ -128,11 +146,19 @@ function compareInstead(page: Page): { compared: () => number; restore: () => vo
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
+    if (testInfo.project.name === "regression") {
+      // The gate's one clock seam: `Date.now()` and `new Date()` both read
+      // GATE_NOW, so a screen that reads the clock ("5 h ago", a chart's
+      // days, the month a budget counts from) renders the same any day.
+      await page.clock.setFixedTime(GATE_NOW);
+      await use(page);
+      return;
+    }
     if (testInfo.project.name === "gallery") {
       const gate = compareInstead(page);
-      // One instant for every gate state, the regression screens' T0: a
-      // state that reads the clock ("740 d ago") would differ tomorrow. A
-      // spec that pins its own clock still wins (its init script runs later).
+      // The same clock for every gate state: a state that reads the clock
+      // ("740 d ago") would differ tomorrow. A spec that pins its own
+      // `Date.now` still wins (its init script runs later).
       await page.clock.setFixedTime(GATE_NOW);
       // The gate's self-test, as the regression screens have it: a 2 px
       // shift of every button must fail the comparison (AJ-E803).

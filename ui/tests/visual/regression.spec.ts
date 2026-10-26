@@ -8,15 +8,19 @@
  * machine. Thresholds: whole screens ≤ 0.1 % differing pixels; text-
  * bearing chrome (the rail's quick filters, a nav button, a status badge)
  * 0 pixels. A failure leaves expected/actual/diff (the triptych) in
- * `test-results/`, which CI uploads and summarises.
+ * `test-results/`, which CI uploads and summarises. Comparisons are soft:
+ * a screen that differs doesn't hide the ones after it in its test, so
+ * one run leaves the actual of every capture that changed.
  *
  * Run: `just visual-gate` (or `visual-baselines` to approve changes,
  * with a per-screen note in the PR — scripts/check_baseline_notes.py).
  */
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, GATE_NOW, settle, test } from "./axe-gallery";
 import { allStatuses, goTo, projectLens, railViewAs, settingsPane } from "./fixtures";
 
-const T0 = 1_728_800_000_000;
+/** The instant the harness pins the clock to (axe-gallery.ts). */
+const T0 = GATE_NOW;
 const THEMES = ["dark", "light"] as const;
 const DENSITIES = ["comfortable", "compact"] as const;
 const VIEWPORTS = [
@@ -82,7 +86,7 @@ async function open(
   options: { firstRun?: boolean; seams?: Record<string, unknown> } = {},
 ) {
   await page.addInitScript(
-    ({ fixture, t, d, t0, selftest, firstRun, seams }) => {
+    ({ fixture, t, d, selftest, firstRun, seams }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       for (const [key, value] of Object.entries(seams)) w[key] = value;
@@ -92,7 +96,6 @@ async function open(
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
       }
-      Date.now = () => t0;
       // The gate's self-test: a seeded 2 px shift of every button must
       // fail the comparison (AJ-E803 quality gate).
       if (selftest) {
@@ -107,7 +110,6 @@ async function open(
       fixture,
       t: theme,
       d: density,
-      t0: T0,
       selftest: process.env.AIJ_VISUAL_SELFTEST === "1",
       firstRun: options.firstRun ?? false,
       seams: options.seams ?? {},
@@ -117,6 +119,7 @@ async function open(
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
   if (!options.firstRun) await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  await settle(page);
 }
 
 for (const theme of THEMES) {
@@ -126,10 +129,10 @@ for (const theme of THEMES) {
 
       test(`rail + home — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await expect(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
         // AJ-E2104: the rail's search and View.
-        if (density !== "minimal") await expect(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
-        await expect(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
+        if (density !== "minimal") await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
+        await expect.soft(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
         );
@@ -146,7 +149,7 @@ for (const theme of THEMES) {
           scroller.scrollTop = scroller.scrollHeight;
         });
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`home-scrolled-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`home-scrolled-${cell}.png`, SCREEN);
       });
 
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
@@ -158,7 +161,7 @@ for (const theme of THEMES) {
         // The terminal loads on first use (#173): a slow runner shot its
         // empty pane (#175).
         await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
-        await expect(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`inspector-instance-${cell}.png`, SCREEN);
       });
 
       // AJ-E803 (wider coverage): the views and sheets the D-25 rebuild added or changed,
@@ -170,8 +173,12 @@ for (const theme of THEMES) {
         await page.getByRole("button", { name: "About Claude Code" }).click();
         // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
         await expect(page.getByTestId("settings-tool").first()).toBeVisible();
+        // It opens on that section once its rows are drawn (the jump
+        // focuses the section's title), and with what's installed read.
+        await expect(page.locator("#settings-tools-title")).toBeFocused();
+        await expect(page.getByTestId("settings-tool").first()).not.toContainText("checking what's installed");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);
       });
 
       test(`inspector — account view — ${cell}`, async ({ page }) => {
@@ -181,7 +188,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("account-overview")).toBeVisible();
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`inspector-account-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`inspector-account-${cell}.png`, SCREEN);
       });
 
       test(`inspector — project view — ${cell}`, async ({ page }) => {
@@ -194,7 +201,7 @@ for (const theme of THEMES) {
         // AJ-E1533: a project's page opens on its body, its sessions.
         await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);
       });
 
       test(`add account — ${cell}`, async ({ page }) => {
@@ -203,7 +210,7 @@ for (const theme of THEMES) {
         await page.getByTestId("add-account").click();
         await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`add-account-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`add-account-${cell}.png`, SCREEN);
       });
 
       test(`limit dialog — ${cell}`, async ({ page }) => {
@@ -213,7 +220,7 @@ for (const theme of THEMES) {
         await expect(dialog).toBeVisible();
         await expect(dialog.getByRole("button", { name: /^Continue on / })).toBeVisible();
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`limit-dialog-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`limit-dialog-${cell}.png`, SCREEN);
       });
 
       test(`new session — ${cell}`, async ({ page }) => {
@@ -222,7 +229,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("new-session-sheet")).toBeVisible();
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`new-session-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`new-session-${cell}.png`, SCREEN);
       });
 
       test(`first run — ${cell}`, async ({ page }) => {
@@ -232,7 +239,7 @@ for (const theme of THEMES) {
         });
         await expect(page.getByTestId("first-run-found")).toBeVisible();
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`first-run-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`first-run-${cell}.png`, SCREEN);
       });
 
       test(`legend — ${cell}`, async ({ page }) => {
@@ -240,7 +247,7 @@ for (const theme of THEMES) {
         await page.getByTestId("rail").getByRole("button", { name: "Indicator legend" }).click();
         const legend = page.getByTestId("indicator-legend").first();
         await expect(legend).toBeVisible();
-        await expect(legend).toHaveScreenshot(`chrome-legend-${cell}.png`, SCREEN);
+        await expect.soft(legend).toHaveScreenshot(`chrome-legend-${cell}.png`, SCREEN);
       });
 
       // AJ-E1503: the one toast (a held Stop), the quit sheet, and the
@@ -252,7 +259,7 @@ for (const theme of THEMES) {
         await page.getByTestId("inspector-stop").click();
         await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`toast-stop-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`toast-stop-${cell}.png`, SCREEN);
       });
 
       test(`quit sheet — ${cell}`, async ({ page }) => {
@@ -261,16 +268,16 @@ for (const theme of THEMES) {
           window.dispatchEvent(new CustomEvent("aij:quit-requested", { detail: { live: 3, end_on_quit: 3, keep_running: 0 } })),
         );
         await expect(page.getByTestId("quit-sheet")).toBeVisible();
-        await expect(page).toHaveScreenshot(`quit-sheet-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`quit-sheet-${cell}.png`, SCREEN);
       });
 
       test(`loading placeholders — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_LOAD_HANG__: true } });
         await expect(page.getByTestId("home-loading")).toBeVisible();
-        await expect(page).toHaveScreenshot(`loading-home-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`loading-home-${cell}.png`, SCREEN);
         await goTo(page, "Accounts");
         await expect(page.getByTestId("placeholder-card")).toBeVisible();
-        await expect(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`loading-accounts-${cell}.png`, SCREEN);
       });
 
       // AJ-E1524: the welcome Home for a new install (no accounts).
@@ -278,7 +285,7 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp, { accounts: [], profiles: [], sessions: [], projects: [] });
         await expect(page.getByTestId("welcome-found")).not.toContainText("Looking");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`welcome-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`welcome-${cell}.png`, SCREEN);
       });
 
       // AJ-E1505: Settings › Sessions, the Terminal disclosure open.
@@ -289,7 +296,7 @@ for (const theme of THEMES) {
         await page.getByTestId("settings-terminal").locator("summary").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
         await page.mouse.move(0, 0);
-        await expect(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
+        await expect.soft(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
       });
 
       // AJ-E1504: the ? sheet and the folded inspector.
@@ -297,7 +304,7 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await page.keyboard.press("Shift+Slash");
         await expect(page.getByTestId("shortcut-sheet")).toBeVisible();
-        await expect(page).toHaveScreenshot(`shortcut-sheet-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`shortcut-sheet-${cell}.png`, SCREEN);
       });
 
       test(`inspector folded — ${cell}`, async ({ page }) => {
@@ -311,7 +318,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
         await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
         await page.mouse.move(0, 0);
-        await expect(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);
+        await expect.soft(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);
       });
 
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
@@ -326,7 +333,7 @@ for (const theme of THEMES) {
           await expect(page.getByRole("main")).toHaveText(/\S/);
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
-          await expect(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
+          await expect.soft(page).toHaveScreenshot(`${screen.toLowerCase().replace(" ", "-")}-${cell}.png`, SCREEN);
         });
       }
     }
@@ -350,7 +357,7 @@ for (const theme of THEMES) {
     await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
     await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
+    await expect.soft(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
   });
 
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
@@ -360,7 +367,7 @@ for (const theme of THEMES) {
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot(`remove-account-copy-${cell}.png`, SCREEN);
+    await expect.soft(page).toHaveScreenshot(`remove-account-copy-${cell}.png`, SCREEN);
   });
 }
 
@@ -382,7 +389,9 @@ for (const theme of THEMES) {
     const rail = page.getByTestId("rail");
     const pinned = rail.locator('[data-instance-id="sess-6"]');
     await expect(pinned).toContainText("the login fix");
-    await expect(pinned.getByTestId("pin-mark")).toBeVisible();
+    // A row is two layers (its page's button, and the visible line over
+    // it): the mark is on the line, the row's other child.
+    await expect(rail.locator("[data-rail-row]").filter({ has: pinned }).getByTestId("pin-mark")).toBeVisible();
     await expect(pinned).toHaveAccessibleName(/^Ended, the login fix, pinned, /);
     // Under AI Juggler's place in Open now, its first row — not folded
     // into "Also: n ended today".
@@ -393,14 +402,14 @@ for (const theme of THEMES) {
     });
     expect(lead, "the pinned session leads its place").toBe("sess-6");
     await page.mouse.move(0, 0);
-    await expect(rail).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
+    await expect.soft(rail).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);
 
     await projectLens(page);
     await expect(rail.getByTestId("rail-project").first()).toContainText("storefront");
     await expect(rail.getByTestId("rail-project").first().getByTestId("pin-mark")).toBeVisible();
     await expect(rail.locator('[data-instance-id="sess-6"]')).toContainText("the login fix");
     await page.mouse.move(0, 0);
-    await expect(rail).toHaveScreenshot(`rail-pins-project-${cell}.png`, SCREEN);
+    await expect.soft(rail).toHaveScreenshot(`rail-pins-project-${cell}.png`, SCREEN);
   });
 
   test(`project menu — ${cell}`, async ({ page }) => {
@@ -409,7 +418,7 @@ for (const theme of THEMES) {
     await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
     await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot(`project-menu-${cell}.png`, SCREEN);
+    await expect.soft(page).toHaveScreenshot(`project-menu-${cell}.png`, SCREEN);
   });
 }
 
