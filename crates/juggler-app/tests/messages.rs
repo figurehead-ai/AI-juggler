@@ -416,6 +416,23 @@ fn delivery_waits_for_the_users_click_at_work_together() {
             .iter()
             .any(|line| line == "Started by a message from Planner")
     });
+    // Needs you's one click delivers everything waiting for it.
+    wait_for("its turn to end", || {
+        delivery::between_turns(&lab.state, &builder)
+    });
+    let second = field(&lab.say(&a, &builder, "And the tests", None), "/message");
+    let third = field(&lab.say(&a, &builder, "And the docs", None), "/message");
+    assert_eq!(
+        views::deliver_waiting(&lab.state, builder.as_str()).unwrap(),
+        2
+    );
+    wait_for("both in one turn", || {
+        state_for(&lab, &second) == ["delivered"] && state_for(&lab, &third) == ["delivered"]
+    });
+    assert!(
+        views::deliver_waiting(&lab.state, "s-a").is_err(),
+        "a terminal session: never"
+    );
 }
 
 #[test]

@@ -21,6 +21,13 @@ use serde_json::{Value, json};
 
 use super::agent::Caller;
 use super::dto::{DocContent, DocInfo, DocsPage, WithheldInfo};
+
+/// What the detector found, as kept with a doc.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Found {
+    kind: String,
+    count: u32,
+}
 use super::send::{redacted, secrets_policy};
 use super::{new_id, sha256_hex};
 use crate::commands::lock_storage_arc;
@@ -68,7 +75,15 @@ fn path_of(state: &Arc<AppState>, sha: &str) -> std::path::PathBuf {
 
 /// A doc as the app shows it.
 pub(crate) fn info_of(doc: Doc) -> DocInfo {
-    let withheld: Vec<WithheldInfo> = serde_json::from_str(&doc.withheld).unwrap_or_default();
+    let found: Vec<Found> = serde_json::from_str(&doc.withheld).unwrap_or_default();
+    let withheld: Vec<WithheldInfo> = found
+        .into_iter()
+        .filter(|found| found.count > 0)
+        .map(|found| WithheldInfo {
+            what: crate::features::packs::withheld_words(&found.kind),
+            count: found.count,
+        })
+        .collect();
     DocInfo {
         policy_words: if doc.policy == "keep" {
             "Kept as written — your choice for secrets".to_owned()
@@ -172,9 +187,9 @@ fn store(
             context: "the shared document",
             message: error.to_string(),
         })?;
-    let withheld: Vec<WithheldInfo> = counts
+    let withheld: Vec<Found> = counts
         .into_iter()
-        .map(|(kind, count)| WithheldInfo { kind, count })
+        .map(|(kind, count)| Found { kind, count })
         .collect();
     let doc = Doc {
         id: new_id("doc"),

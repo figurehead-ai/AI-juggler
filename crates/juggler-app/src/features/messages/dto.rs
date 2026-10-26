@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+pub use crate::features::packs::WithheldInfo;
+
 /// One page of threads.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -176,18 +178,8 @@ pub struct DocInfo {
     pub policy: String,
     /// The choice in words, as the Privacy settings say it.
     pub policy_words: String,
-    /// What was found in it and how it was treated.
+    /// What was found in it (the packs' words; withheld unless `keep`).
     pub withheld: Vec<WithheldInfo>,
-}
-
-/// What kind of secret, and how many.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct WithheldInfo {
-    /// The kind (`sk-key`, `bearer`, `env-value`, `private-key`, …).
-    pub kind: String,
-    /// How many.
-    pub count: u32,
 }
 
 /// One page of a pool's docs.

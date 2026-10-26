@@ -151,10 +151,9 @@ fn a_message_reaches_a_sessions_input_only_through_its_turn_and_only_with_permis
         "the only places a message is queued"
     );
     let views = code.iter().find(|(name, _)| name == "views.rs").unwrap();
-    assert_eq!(
-        views.1.matches("Some(super::delivery::BY_USER)").count(),
-        1,
-        "views queues only as the user's click (deliver)"
+    assert!(
+        views.1.contains("Some(super::delivery::BY_USER)") && !views.1.contains("BY_POOL"),
+        "views queues only as the user's click (Deliver)"
     );
     let delivery = code.iter().find(|(name, _)| name == "delivery.rs").unwrap();
     assert!(delivery.1.contains("AgentAction::DeliverToSession"));

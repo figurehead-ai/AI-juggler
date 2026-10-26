@@ -85,6 +85,23 @@ pub async fn messages_deliver(
     .await
 }
 
+/// The user's Deliver for every message waiting for a session (Needs
+/// you's one click).
+///
+/// # Errors
+///
+/// As [`super::views::deliver_waiting`].
+#[tauri::command]
+pub async fn messages_deliver_waiting(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<u32> {
+    crate::ipc::blocking(state.inner(), "the delivery", move |state| {
+        super::views::deliver_waiting(state, &session_id)
+    })
+    .await
+}
+
 /// The user pauses, stops or resumes a thread.
 ///
 /// # Errors

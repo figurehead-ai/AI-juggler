@@ -326,6 +326,7 @@ macro_rules! app_commands {
             Write features::messages::commands::messages_thread,
             Write features::messages::commands::messages_send,
             Write features::messages::commands::messages_deliver,
+            Write features::messages::commands::messages_deliver_waiting,
             Write features::messages::commands::messages_set_thread,
             Write features::messages::commands::messages_set_pool,
             Read  features::messages::commands::messages_needs,

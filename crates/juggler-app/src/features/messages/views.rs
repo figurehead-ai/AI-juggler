@@ -358,6 +358,49 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
     thread(state, &message.thread_id, None)
 }
 
+/// The user's Deliver for every message waiting for a session run in AI
+/// Juggler (Needs you's one click): queued for its next turn boundary,
+/// at most a page; each thread's hops reset (a person's click). How many.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a session that isn't run from AI Juggler.
+pub fn deliver_waiting(state: &Arc<AppState>, session_id: &str) -> AppResult<u32> {
+    let session = SessionId::new(session_id);
+    if !state.runtime.is_driven(&session) {
+        return Err(AppError::Refused(
+            "That session isn't run from AI Juggler: it reads its messages itself".to_owned(),
+        ));
+    }
+    let (count, pools) = {
+        let storage = lock_storage_arc(state)?;
+        let refs = refs_of(&storage, &session);
+        let repo = storage.messages();
+        let rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, MESSAGES_PAGE)?;
+        let mut pools = HashSet::new();
+        for row in &rows {
+            repo.reset_hop(&row.message.thread_id)?;
+            pools.insert(row.message.pool_id.clone());
+        }
+        let ids: Vec<String> = rows.iter().map(|row| row.message.id.clone()).collect();
+        let moved = repo.set_state(
+            &ids,
+            &refs,
+            &[RecipientState::Unread],
+            RecipientState::Queued,
+            Some(super::delivery::BY_USER),
+            SENDER_USER,
+            "queued",
+        )?;
+        (u32::try_from(moved).unwrap_or(u32::MAX), pools)
+    };
+    super::delivery::kick(state, &session);
+    for pool in pools {
+        state.messages.notify(&pool);
+    }
+    Ok(count)
+}
+
 /// The user pauses, stops or resumes a thread (resuming resets its hops).
 ///
 /// # Errors
