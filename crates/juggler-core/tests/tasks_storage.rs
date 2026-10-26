@@ -1,8 +1,9 @@
 //! E19 storage (AJ-E1901): the tasks migration, and claims under load.
 //!
 //! - Upgrading from schema 34 (0.2's messages) keeps a copy of the
-//!   database as it was, adds the tasks tables, and leaves every pool,
-//!   rule and message as it was.
+//!   database as it was, adds v35's sightings (D-41) and then v36's tasks,
+//!   and leaves every pool, rule and message as it was; upgrading from 35
+//!   (a database the Processes view made first) adds the tasks.
 //! - N connections claiming one task at once: exactly one wins (the claim
 //!   is one statement; SQLite's write lock orders them).
 
@@ -42,6 +43,17 @@ fn database_at(path: &Path, upto: i64) {
     )
     .unwrap();
 }
+
+/// v35's tables (D-41's sightings, `e24-processes`).
+const V35_TABLES: &[&str] = &["process_sightings", "process_marks"];
+/// v36's tables (E19's tasks).
+const V36_TABLES: &[&str] = &[
+    "tasks",
+    "task_links",
+    "task_sessions",
+    "task_events",
+    "task_needs",
+];
 
 fn tables(path: &Path) -> Vec<String> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
@@ -86,6 +98,12 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);
+    // Both migrations ran: v35's sightings (D-41), then v36's tasks.
+    let after = tables(&db);
+    for table in [V35_TABLES, V36_TABLES].concat() {
+        assert!(after.contains(&(*table).to_owned()), "{table} missing");
+    }
+    assert_eq!(storage.sightings().count().unwrap(), 0);
 
     let access = storage.agent_access().access("pool-team").unwrap();
     assert_eq!(access.level.unwrap().as_str(), "full");
@@ -112,6 +130,34 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
         .unwrap();
     assert_eq!(listed[0].id, "aj-7f3c");
     assert_eq!(listed[0].status, TaskStatus::Ready);
+}
+
+#[test]
+fn upgrading_from_sightings_adds_the_tasks() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    database_at(&db, 35);
+    let before = tables(&db);
+    for table in V35_TABLES {
+        assert!(
+            before.contains(&(*table).to_owned()),
+            "{table} missing at v35"
+        );
+    }
+    assert!(!before.contains(&"tasks".to_owned()));
+
+    let storage = Storage::open(&db).unwrap();
+    assert_eq!(storage.user_version().unwrap(), 36);
+    assert_eq!(pre_migration_copies(&db)[0].0, 35);
+    let after = tables(&db);
+    for table in [V35_TABLES, V36_TABLES].concat() {
+        assert!(after.contains(&(*table).to_owned()), "{table} missing");
+    }
+    storage
+        .tasks()
+        .create(&new("aj-7f3c", "pool-team"))
+        .unwrap();
+    assert!(storage.tasks().get("aj-7f3c").unwrap().is_some());
 }
 
 #[test]

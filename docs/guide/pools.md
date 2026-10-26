@@ -176,7 +176,8 @@ optionally the issue it comes from.
   again by itself. Only one session can take a task: if two agents try at
   once, one gets it and the other is told who has it.
 - **A task in full** shows who has it and their session (**Open its
-  session**), the sessions that worked it, the threads whose messages name
+  session**, or **Its processes**: that session on its **Processes** tab),
+  the sessions that worked it, the threads whose messages name
   its id, what it waits on and what waits on it, its items, the issue it
   comes from, and its history: every change, by whom. You can change any of
   it: its status, who has it (**With**: a member, you, or no one), its

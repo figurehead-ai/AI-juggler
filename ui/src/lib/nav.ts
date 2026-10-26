@@ -13,7 +13,7 @@ export const GLOBAL_NAV = [
   { id: "fleet", label: "Fleet" },
   // AJ-E506: the Cleanup Centre is a GLOBAL surface (ADR-0007) —
   // never a rail peer of Projects/Instances/Sessions.
-  { id: "cleanup", label: "Cleanup" },
+  { id: "cleanup", label: "Processes" },
   // AJ-E1203: Appearance + the optional Account & Cloud (⌘,).
   { id: "settings", label: "Settings" },
   // AJ-E1528: what Home's This Mac panel sums up, in full.
@@ -67,7 +67,7 @@ export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
 export const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
   { id: "thismac", label: "This Mac", hint: "What your AI tools use on this Mac" },
   { id: "fleet", label: "Fleet", hint: "Your other Macs" },
-  { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
+  { id: "cleanup", label: "Processes", hint: "What your sessions run and left behind, and the cleanup history" },
   // One place for Privacy: this opens Settings › Privacy.
   { id: "privacy", label: "Privacy", hint: "In Settings: what AI Juggler reads, changes and sends" },
 ];

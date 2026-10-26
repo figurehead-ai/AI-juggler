@@ -21,6 +21,7 @@ const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; o
   { id: "stuck", label: "A session looks stuck", hint: "No output for a while, with its work unfinished.", on: "looks stuck" },
   { id: "limit", label: "A session hits its usage limit", hint: "Its account ran out until the limit resets.", on: "hits its usage limit" },
   { id: "finished", label: "A session finishes", hint: "It ended on its own, not stopped by you.", on: "finishes" },
+  { id: "left_behind", label: "A session leaves something running", hint: "It ended and left processes running, such as a dev server. Once per session.", on: "leaves something running" },
   { id: "this_mac", label: "This Mac is getting tight", hint: "Memory, disk or heat near its limit, as This Mac shows it.", on: "" },
 ];
 

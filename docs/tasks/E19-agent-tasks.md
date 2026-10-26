@@ -38,7 +38,7 @@
 **Files to touch**: `crates/juggler-core/src/storage/` (tasks).
 **Research basis**: `pools-messaging-tasks.md` §2.3 (tasks).
 **Handover note**: A schema bump: downgrade note and `SCHEMA_RELEASES`.
-*Built 2026-10-25* (`docs/qa/evidence/AJ-E1901/manifest.md`): schema **v36** (v35 kept for D-41's sightings on `e24-processes`); the status shown is the honest one (blocked while an open task blocks it); the roles under the level (the lead plans and assigns, a member works what it holds) are D-43 point 3.
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1901/manifest.md`): schema **v36**, after D-41's v35 sightings (`e24-processes`, merged before it: a v34 database gets both); the status shown is the honest one (blocked while an open task blocks it); the roles under the level (the lead plans and assigns, a member works what it holds) are D-43 point 3.
 
 ### AJ-E1902 Agent task tools | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; the live lab open) | Priority P0 | Effort S | Depends: AJ-E1901, AJ-E1704
 **Goal**: Agents in any tool work the pool's tasks.

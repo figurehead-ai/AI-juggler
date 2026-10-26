@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { providerDisplayName } from "../lib/providers";
 import type { EpochNodeData, GraphEdgeData, WorkGraphData } from "../lib/bridge";
+import type { EpochTask } from "../lib/ipc/tasks";
 import { epochResume, packExport, switchGraphOverview, errorText,} from "../lib/bridge";
 import { providerMark } from "./indicator";
 
@@ -28,7 +29,7 @@ function GraphNode({
   shape,
   onToggle,
 }: {
-  epoch: EpochNodeData;
+  epoch: EpochNodeData & EpochTask;
   open: boolean;
   shape: { fork: boolean; merge: boolean };
   onToggle: () => void;

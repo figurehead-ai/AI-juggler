@@ -11,6 +11,7 @@ use juggler_core::model::SessionId;
 
 use crate::cpu_since::CpuSince;
 use crate::lifecycle::LifecycleEvent;
+use crate::listing::Listing;
 use crate::stats::LiveProcessStats;
 use crate::supervisor::{OUTPUT_RETENTION_AFTER_EXIT_MS, Supervisor};
 
@@ -53,6 +54,12 @@ pub struct ProcessRow {
     /// tier's role gate decides on the true command line, never a
     /// bare process name — a name like `Python` guesses nothing).
     pub cmd: Option<String>,
+    /// AJ-E2401: the process has finished and waits for its parent to
+    /// collect it (`Z`): it holds no memory or CPU, and only its parent
+    /// can clear it.
+    pub zombie: bool,
+    /// AJ-E2401: the CPU time it has used, ms (the kernel's count).
+    pub cpu_time_ms: u64,
 }
 
 /// The reconciler's cached process table (AJ-E504 Req.1): the ppid map
@@ -82,6 +89,10 @@ pub struct ProcessFacts {
     pub exe: Option<String>,
     /// Resident memory, bytes.
     pub rss_bytes: u64,
+    /// AJ-E2401: finished, waiting for its parent to collect it (`Z`).
+    pub zombie: bool,
+    /// AJ-E2401: the CPU time it has used, ms.
+    pub cpu_time_ms: u64,
 }
 
 /// True when `pid`'s parent chain (capped walk) never reaches a
@@ -124,6 +135,8 @@ fn process_table(system: &sysinfo::System) -> ProcessTable {
                 start_time: i64::try_from(process.start_time()).unwrap_or_default(),
                 exe: process.exe().map(|exe| exe.to_string_lossy().into_owned()),
                 rss_bytes: process.memory(),
+                zombie: process.status() == sysinfo::ProcessStatus::Zombie,
+                cpu_time_ms: process.accumulated_cpu_time(),
             },
         );
     }
@@ -245,6 +258,13 @@ pub struct LiveStatsCollector {
     observed_roots: Vec<ObservedRoot>,
     /// The observed trees' latest stats and rings, by root pid.
     observed: HashMap<u32, ObservedTree>,
+    /// AJ-E2401: the Processes view's own roots — other apps' sessions
+    /// outside the observed tools' trees, and their leftovers. Measured
+    /// read-only like the observed tools, kept apart from them (This Mac's
+    /// tools and footprints read only `observed`).
+    observed_extra_roots: Vec<ObservedRoot>,
+    /// Those roots' trees, by root pid.
+    observed_extra: HashMap<u32, ObservedTree>,
     /// What the ticks have done so far (the monitoring budget's measure).
     work: CollectorWork,
     /// The listing (see [`LIST_EVERY`]): every process's parent, start time,
@@ -326,6 +346,11 @@ pub struct ObservedTree {
     /// refresh call — a helper refreshed only on full scans read ~5× high
     /// and then froze).
     pub pids: Vec<u32>,
+    /// AJ-E2401: the tree's processes at the last listing (root first,
+    /// breadth-first), as the Processes view shows them. Read from the
+    /// listing: no executable or command line here (those come from the
+    /// collector's table, [`LiveStatsCollector::process_briefs`]).
+    pub rows: Vec<ProcessRow>,
 }
 
 /// A root to observe, pinned to the process the scan saw: a pid reused by
@@ -360,6 +385,8 @@ impl Default for LiveStatsCollector {
             last_port_probe_tick: 0,
             observed_roots: Vec::new(),
             observed: HashMap::new(),
+            observed_extra_roots: Vec::new(),
+            observed_extra: HashMap::new(),
             work: CollectorWork::default(),
             listing: sysinfo::System::new(),
             listing_cpu: CpuSince::default(),
@@ -1068,6 +1095,41 @@ impl LiveStatsCollector {
         self.observed_roots = roots;
     }
 
+    /// AJ-E2401: sets the Processes view's own roots to observe (other
+    /// apps' sessions the observed tools' trees don't hold, and their
+    /// leftovers). Read-only: never in the ledger, never signalled.
+    pub fn set_observed_extra(&mut self, roots: Vec<ObservedRoot>) {
+        self.observed_extra
+            .retain(|root, _| roots.iter().any(|pinned| pinned.pid == *root));
+        self.observed_extra_roots = roots;
+    }
+
+    /// AJ-E2401: the Processes view's own observed trees, by root pid.
+    #[must_use]
+    pub fn observed_extra_snapshot(&self) -> HashMap<u32, ObservedTree> {
+        self.observed_extra.clone()
+    }
+
+    /// AJ-E2401: one process's brief from the collector's table (its
+    /// program and command line, for its role in words), when it is there.
+    #[must_use]
+    pub fn brief(&self, pid: u32) -> Option<ProcessBrief> {
+        let process = self.system.process(sysinfo::Pid::from_u32(pid))?;
+        Some(ProcessBrief {
+            pid,
+            ppid: process.parent().map(sysinfo::Pid::as_u32),
+            name: process.name().to_string_lossy().into_owned(),
+            exe: process.exe().map(|exe| exe.to_string_lossy().into_owned()),
+            cmd: process
+                .cmd()
+                .iter()
+                .map(|part| part.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" "),
+            start_time: i64::try_from(process.start_time()).unwrap_or_default(),
+        })
+    }
+
     /// What the ticks have done so far.
     #[must_use]
     pub fn work(&self) -> CollectorWork {
@@ -1107,7 +1169,7 @@ impl LiveStatsCollector {
     }
 
     /// Every process outside the AI tools' trees (our sessions', the
-    /// observed tools') and AI Juggler itself, from the table the ticks
+    /// observed tools', the Processes view's) and AI Juggler itself, from the table the ticks
     /// already read (its full scans: names, executables and memory, every
     /// 10 s): nothing new is measured. Processes using no memory are left
     /// out.
@@ -1120,6 +1182,7 @@ impl LiveStatsCollector {
             .chain(
                 self.observed
                     .values()
+                    .chain(self.observed_extra.values())
                     .flat_map(|tree| tree.pids.iter().copied()),
             )
             .chain(std::iter::once(std::process::id()))
@@ -1147,50 +1210,47 @@ impl LiveStatsCollector {
             .flat_map(|tree| tree.rows.iter().map(|row| row.pid))
             .chain(std::iter::once(std::process::id()))
             .collect();
-        let roots = self.observed_roots.clone();
         let sampled = self.listing_sampled;
         self.listing_sampled = true;
-        let mut reused = Vec::new();
-        for pinned in roots {
-            let root = pinned.pid;
-            let process = self.listing.process(sysinfo::Pid::from_u32(root));
-            let alive =
-                process.is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
-            // The pid now names another process: never measure it as the
-            // tool (and stop watching it until the next scan).
-            let same = process.is_none_or(|process| {
-                pinned.start_time.is_none_or(|started| {
-                    i64::try_from(process.start_time()).is_ok_and(|now| now == started)
-                })
-            });
-            if !same {
-                reused.push(root);
-            }
-            if supervised.contains(&root) || !alive || !same {
-                self.observed.remove(&root);
-                continue;
-            }
-            let (rows, _) = tree_rows(&self.listing, &self.listing_cpu, &parents, root);
-            self.work.targeted_observed += rows.len() as u64;
-            // A supervised subtree never also counts as observed.
-            let mut stats = observed_sums(&rows, &supervised);
-            if !sampled {
-                stats.cpu_pct = None; // no delta yet — never a fake idle
-            }
-            let tree = self.observed.entry(root).or_default();
-            tree.stats = stats;
-            tree.pids = rows.iter().map(|row| row.pid).collect();
-            push_ring_sample(
-                &mut tree.ring,
-                TreeSample {
-                    at_ms: now_ms,
-                    cpu_pct: stats.cpu_pct,
-                    rss_bytes: stats.rss_bytes,
-                },
-            );
-        }
+        let listing = Listing {
+            system: &self.listing,
+            cpu: &self.listing_cpu,
+            parents: &parents,
+            supervised: &supervised,
+            sampled,
+            now_ms,
+        };
+        let roots = self.observed_roots.clone();
+        let reused = listing.measure(&roots, &mut self.observed, &mut self.work);
         self.observed_roots
             .retain(|pinned| !reused.contains(&pinned.pid));
+        // AJ-E2401: the Processes view's own roots (other apps' sessions
+        // not inside a tool's tree, their leftovers), from the same read.
+        // A root an observed tool's tree already holds is measured there.
+        let held: std::collections::HashSet<u32> = self
+            .observed
+            .values()
+            .flat_map(|tree| tree.pids.iter().copied())
+            .collect();
+        let extra: Vec<ObservedRoot> = self
+            .observed_extra_roots
+            .iter()
+            .filter(|pinned| !held.contains(&pinned.pid))
+            .copied()
+            .collect();
+        self.observed_extra
+            .retain(|root, _| extra.iter().any(|pinned| pinned.pid == *root));
+        let reused = listing.measure(&extra, &mut self.observed_extra, &mut self.work);
+        self.observed_extra_roots
+            .retain(|pinned| !reused.contains(&pinned.pid));
+    }
+
+    /// AJ-E2401: the listening sockets as last enumerated (every few
+    /// ticks), every process's: the Processes view
+    /// joins them by pid. No probe of its own.
+    #[must_use]
+    pub fn listeners(&self) -> Vec<crate::ports::Listener> {
+        self.cached_listeners.clone()
     }
 
     /// The listener-probe degrade note for the LAST tick, when the
@@ -1319,7 +1379,7 @@ pub fn observed_sums<S: std::hash::BuildHasher>(
 
 /// Per-process rows (root first, breadth-first over descendants) plus
 /// the tree aggregate, read from a table the caller already refreshed.
-fn tree_rows(
+pub(crate) fn tree_rows(
     system: &sysinfo::System,
     cpu_since: &CpuSince,
     parents: &HashMap<u32, Vec<u32>>,
@@ -1361,6 +1421,8 @@ fn tree_rows(
                     .collect::<Vec<_>>()
                     .join(" ")
             }),
+            zombie: process.status() == sysinfo::ProcessStatus::Zombie,
+            cpu_time_ms: process.accumulated_cpu_time(),
         });
         cpu += cpu_since.pct(process).unwrap_or(0.0);
         rss += process.memory();

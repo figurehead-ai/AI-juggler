@@ -725,7 +725,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .unwrap();
     assert_eq!(
         version, 36,
-        "v4 → current (v36, E19 tasks) exactly once, on open"
+        "v4 → current (v36, E19 tasks, after v35's sightings) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -1281,7 +1281,7 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .unwrap();
     assert_eq!(
         version, 36,
-        "v12 → current (v36, E19) exactly once, on open"
+        "v12 → current (v36, E19, after v35's sightings) exactly once, on open"
     );
     drop(storage);
 

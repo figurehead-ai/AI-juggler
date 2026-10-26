@@ -22,6 +22,10 @@ import type { TaskEdit } from "../../types/generated/TaskEdit";
 import type { TaskNeedInfo } from "../../types/generated/TaskNeedInfo";
 import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
 
+/** AJ-E1904: what a switch-history epoch adds for tasks: its session's
+ * task (`aj-7f3c · title`), from the backend's `task` field. */
+export type EpochTask = { task?: string | null };
+
 export type { TaskInfo, TaskCounts, TaskDetail, TaskInput, TaskEdit, TaskNeedInfo, TaskStartedInfo };
 
 /** The event the backend sends when tasks change (the pools' ids). */

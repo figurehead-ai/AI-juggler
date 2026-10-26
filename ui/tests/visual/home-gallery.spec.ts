@@ -108,8 +108,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "More", exact: true }).click();
     const menu = page.locator("#nav-more");
     // Every item is reachable — the menu paints above the page (D-25 fix).
-    // 0.1.5: Usage is in the header now; More keeps This Mac, Fleet, Cleanup.
-    for (const name of ["This Mac", "Fleet", "Cleanup"]) {
+    // 0.1.5: Usage is in the header now; More keeps This Mac, Fleet, Processes.
+    for (const name of ["This Mac", "Fleet", "Processes"]) {
       await expect(menu.getByRole("button", { name: new RegExp(`^${name}\\b`) })).toBeInViewport({ ratio: 1 });
       // AJ-E2106: each screen with its icon, decoration only.
       await expect(menu.getByRole("button", { name: new RegExp(`^${name}\\b`) }).locator('svg[aria-hidden="true"]')).toHaveCount(1);

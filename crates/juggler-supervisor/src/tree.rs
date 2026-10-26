@@ -218,6 +218,49 @@ impl CoreLedgerStore {
     ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
         self.repo.rows_for_session(session.as_str())
     }
+
+    /// AJ-E2401: the rows the Processes view shows alive on `machine`
+    /// (running, left behind, won't be touched).
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn live_rows(
+        &self,
+        machine: &MachineId,
+    ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
+        self.repo.live_rows(machine.as_str())
+    }
+
+    /// AJ-E2401: one page of the processes that ended on `machine` since
+    /// `since_ms`, newest first, after `after` (`(last_seen, pid)`).
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn ended_rows(
+        &self,
+        machine: &MachineId,
+        since_ms: i64,
+        after: Option<(i64, u32)>,
+        limit: usize,
+    ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
+        self.repo
+            .ended_rows(machine.as_str(), since_ms, after, limit)
+    }
+
+    /// AJ-E2401: how many processes ended on `machine` since `since_ms`.
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn ended_count(
+        &self,
+        machine: &MachineId,
+        since_ms: i64,
+    ) -> Result<u64, juggler_core::error::CoreError> {
+        self.repo.ended_count(machine.as_str(), since_ms)
+    }
 }
 
 use std::time::{Duration, SystemTime};

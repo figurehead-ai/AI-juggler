@@ -200,6 +200,16 @@ describe("a pool's tasks", () => {
     expect((await findByTestId("task-processes")).textContent).toBe("Its processes");
   });
 
+  it("the session page's Processes tab is what a task's Processes link opens", async () => {
+    // Loading the session page's tabs registers it (D-41's tab is there).
+    await import("../session/session-tabs");
+    const { processesLinkFor } = await import("../../lib/task-links");
+    const link = processesLinkFor(live.id)!;
+    expect(link.label).toBe("Its processes");
+    link.open();
+    expect(localStorage.getItem("aij.page.tab.session")).toBe("processes");
+  });
+
   it("renders 200 tasks in under 100 ms", async () => {
     seams().__AIJ_TASKS__!.tasks = Array.from({ length: 200 }, (_, n) => task({ id: `aj-${(0x1000 + n).toString(16)}`, title: `Task ${n}` }));
     const started = performance.now();

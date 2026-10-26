@@ -1,16 +1,19 @@
 /**
  * E19 — where a task links out to views other features own. A task shows
  * its sessions and its messages itself; its processes are the Processes
- * view's (D-41, built in `e24-processes`), so the task shows a Processes
- * link only once that view says it's there, through this hook. Until
- * then nothing shows: no link to a view that doesn't exist.
+ * view's (D-41), so the task shows a Processes link only once that view
+ * says it's there, through this hook: the session page that holds the
+ * Processes tab registers it (`RightInspector`). The task view opens the
+ * holder's session after `open` picks the tab. Without a provider nothing
+ * shows: no link to a view that isn't there.
  */
 
 /** A link from a task's session to its processes. */
 export interface ProcessesLink {
   /** The words on it ("Its processes"). */
   label: string;
-  /** Opens the session's processes. */
+  /** Picks the session's Processes tab (the task view then opens the
+   * session). */
   open: () => void;
 }
 

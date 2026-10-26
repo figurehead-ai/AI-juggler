@@ -107,6 +107,41 @@ describe("the This Mac page", () => {
     for (const row of theirs) expect(within(row).queryByRole("button")).toBeNull();
   });
 
+  // AJ-E2407: the groups come from the Processes view's graph, so another
+  // app's AI sessions (any tool) are listed by app and session title.
+  it("lists another app's AI sessions by app, each by its title, and names it in an alert", () => {
+    const chatgpt = tree({ root_pid: 7300, place: "desktop", tool: "codex", group: "app:ChatGPT:codex", title: "Landing page", rss_bytes: 195_000_000 });
+    const value = info([ours("a"), chatgpt], {
+      by_tool: [
+        { tool: "claude-code", label: "Claude Code", ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
+        { tool: "app:ChatGPT:codex", label: "ChatGPT", ours: false, totals: totals([chatgpt]), cpu_one_core_pct: 1 },
+      ],
+    });
+    renderPage(value);
+    const groups = screen.getAllByTestId("this-mac-group");
+    expect(groups[1]!.textContent).toContain("ChatGPT");
+    expect(groups[1]!.textContent).toContain("1 session · not started by AI Juggler");
+    expect(within(groups[1]!).getByTestId("this-mac-tree").textContent).toContain("Landing page");
+    cleanup();
+    const alert = {
+      key: "cpu",
+      kind: "cpu",
+      title: "The processor has been flat out for minutes",
+      detail: "97% busy for over two minutes",
+      session_id: null,
+      place: "app:ChatGPT:codex",
+      subject_name: "ChatGPT",
+      subject_bytes: null,
+      subject_estimate: false,
+      subject_cpu: 140,
+      subject_windows: 2,
+      other_apps: [],
+      since_ms: NOW - 60_000,
+    } as OverloadAlertInfo;
+    renderPage(info([ours("a"), chatgpt], { alerts: [alert] }));
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("ChatGPT is using CPU 140% across 2 sessions");
+  });
+
   it("links what's working it hard, and leads to Cleanup for leftovers", () => {
     const open = vi.fn();
     const clean = vi.fn();

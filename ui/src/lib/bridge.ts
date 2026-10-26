@@ -79,8 +79,6 @@ import type { DesktopLaunchInfo } from "../types/generated/DesktopLaunchInfo";
 import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
-import type { ProcessesInfo } from "../types/generated/ProcessesInfo";
-import { MOCK_PROCESSES, MOCK_SESSION_CLEANUP } from "./preview-processes";
 import type { LaunchResult } from "../types/generated/LaunchResult";
 import type { NeedsAttention } from "../types/generated/NeedsAttention";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -97,7 +95,6 @@ export type {
   PreviewFrameInfo,
   PreviewStateInfo,
   QualitySignalsInfo,
-  ProcessesInfo,
   AccountInfo,
   AccountRemovedInfo,
   DiscoveredInfo,
@@ -1328,17 +1325,6 @@ export async function instanceQuality(sessionId: string): Promise<QualitySignals
   return invoke<QualitySignalsInfo>("instance_quality", { sessionId });
 }
 
-/**
- * AJ-E410: the Processes tab payload — live tree rows, the 2 s spark
- * ring, and the confirmed orphans for one Instance.
- */
-export async function instanceProcesses(sessionId: string): Promise<ProcessesInfo | null> {
-  if (!hasBackend) {
-    return MOCK_PROCESSES[sessionId] ?? null;
-  }
-  return invoke<ProcessesInfo>("instance_processes", { sessionId });
-}
-
 /** AJ-E505: one port-inventory row (classification is the key). */
 export interface PortRowInfo {
   port: number;
@@ -1403,11 +1389,6 @@ export async function cleanupAuditExport(): Promise<string> {
   return invoke<string>("cleanup_audit_export");
 }
 
-/** AJ-E506: the read-only Cleanup Centre DTOs (zero kill fields). */
-export type { CleanupRowInfo, EvidenceChainInfo, VerificationBadgeInfo } from "../components/ProcessRow";
-import type { CleanupRowInfo } from "../components/ProcessRow";
-export type { CleanupGroupInfo } from "../screens/CleanupCentre";
-import type { CleanupInventoryData } from "../screens/CleanupCentre";
 
 /** AJ-E512: one passive Cleanup Centre alert (hog / idle nudge). */
 export interface CleanupAlertData {
@@ -1722,57 +1703,6 @@ import type {
   KillScope,
   KillVerifyData,
 } from "../components/KillSheet";
-
-/** AJ-E506: the read-only inventory (Tier 0). */
-export async function cleanupInventory(
-  filter: string,
-  machineScope: "this" | "all" = "this",
-): Promise<CleanupInventoryData> {
-  if (!hasBackend) {
-    const seeded = (window as unknown as { __AIJ_CLEANUP__?: CleanupInventoryData })
-      .__AIJ_CLEANUP__;
-    if (seeded === undefined) {
-      return {
-        groups: [],
-        clean_instances: 0,
-        local_machine: "",
-        ledger_degraded: false,
-        history: null,
-      };
-    }
-    // Mirror the backend contract for the seam (AJ-E511): the
-    // default scope lists THIS machine's rows only; "all" widens.
-    if (machineScope !== "all" && seeded.local_machine !== "") {
-      const local = seeded.local_machine;
-      const groups = seeded.groups
-        .map((group) => ({
-          ...group,
-          rows: group.rows.filter(
-            (row) => row.machine_id === undefined || row.machine_id === local,
-          ),
-        }))
-        .filter((group) => group.rows.length > 0);
-      return { ...seeded, groups };
-    }
-    return seeded;
-  }
-  return invoke<CleanupInventoryData>("cleanup_inventory", { filter, machineScope });
-}
-
-/** One session's rows from the shared Cleanup inventory (the session's
- * Processes tab: the same data, rows and verified Stop as Cleanup). */
-export async function sessionCleanup(
-  sessionId: string,
-): Promise<{ rows: CleanupRowInfo[]; localMachine: string }> {
-  if (!hasBackend && (window as unknown as { __AIJ_CLEANUP__?: unknown }).__AIJ_CLEANUP__ === undefined) {
-    return { rows: MOCK_SESSION_CLEANUP[sessionId] ?? [], localMachine: "" };
-  }
-  const data = await cleanupInventory("all-managed");
-  return {
-    rows: data.groups.find((group) => group.session === sessionId)?.rows ?? [],
-    localMachine: data.local_machine,
-  };
-}
 
 /** AJ-E507: the kill sheet's step-1 verify (zero signalling). */
 export async function killVerify(sessionId: string, pid: number): Promise<KillVerifyData> {
@@ -2580,8 +2510,6 @@ export interface EpochNodeData {
    * Resume action's honest gate). */
   resumable: boolean;
   session_id?: string | null;
-  /** AJ-E1904: its session's task (`aj-7f3c · title`). */
-  task?: string | null;
 }
 
 /** AJ-E209: one labelled timeline edge. */

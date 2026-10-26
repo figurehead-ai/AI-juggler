@@ -275,5 +275,12 @@
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
 | AJ-E2309 | Docs, Privacy and terms lines, evidence | E23-session-runtime.md | P0 | S | AJ-E2303, AJ-E2306, AJ-E2308 |
-Total: 273 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2401 | The process graph: one model of apps, sessions and processes | E24-processes.md | P0 | L | — |
+| AJ-E2402 | Sightings of other apps' sessions' processes (D-41a) | E24-processes.md | P0 | M | AJ-E2401 |
+| AJ-E2403 | The user's stop of another app's leftover (D-41b) | E24-processes.md | P0 | M | AJ-E2402 |
+| AJ-E2404 | The Processes page | E24-processes.md | P0 | XL | AJ-E2401, AJ-E2403 |
+| AJ-E2405 | Automatic rules shown, previewed and told | E24-processes.md | P1 | M | AJ-E2401 |
+| AJ-E2407 | One source: the session tab, Cleanup and This Mac on the graph | E24-processes.md | P0 | M | AJ-E2401, AJ-E2404 |
+| AJ-E2406 | Privacy lines, guide, and the processes lab | E24-processes.md | P0 | S | AJ-E2402, AJ-E2403, AJ-E2404 |
+Total: 280 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

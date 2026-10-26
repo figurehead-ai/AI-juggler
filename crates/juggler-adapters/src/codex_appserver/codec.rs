@@ -538,6 +538,14 @@ impl Codec {
                 item: text(params, "/itemId").unwrap_or_default(),
                 text: bounded(&text(params, "/delta").unwrap_or_default()),
             }],
+            // A command is named when it starts: a server Codex starts runs
+            // on, and its `item/completed` may never come.
+            "item/started" => params
+                .get("item")
+                .and_then(|value| Some((text(value, "/id")?, item(value)?)))
+                .filter(|(_, summary)| summary.kind == ItemKind::Command)
+                .map(|(item, summary)| vec![RuntimeEvent::ItemStarted { item, summary }])
+                .unwrap_or_default(),
             "item/completed" => params
                 .get("item")
                 .and_then(item)

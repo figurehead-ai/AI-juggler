@@ -42,7 +42,8 @@ export function TreeRow({
   onOpenSession: (id: string) => void;
 }): JSX.Element {
   const ours = tree.session_id !== null;
-  const title = ours ? nameOf(tree.session_id!) : placeWords(tree.place);
+  // Another app's session (AJ-E2407) carries its own title.
+  const title = ours ? nameOf(tree.session_id!) : (tree.title ?? placeWords(tree.place));
   const detail = [tree.account_label, ours ? null : "not started by AI Juggler"].filter(Boolean).join(" · ");
   const numbers = (
     <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">

@@ -109,7 +109,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       shortcutUsed("other");
       d.openSettings();
     },
-    // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
+    // AJ-E506/E2404: ⌘⇧C opens Processes; ⌘F focuses its search.
     cleanup: () => {
       shortcutUsed("other");
       d.goTo("cleanup");

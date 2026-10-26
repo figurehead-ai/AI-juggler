@@ -28,6 +28,7 @@ mod pools;
 mod process_ledger;
 mod projects;
 mod settings;
+mod sightings;
 mod switch_graph;
 mod tasks;
 mod transcript_index;
@@ -68,6 +69,10 @@ pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use sessions::{SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
+pub use sightings::{
+    MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
+    SightingsRepo,
+};
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
 pub use tasks::{
     Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
@@ -591,11 +596,11 @@ const V33: &str = pools::MIGRATION;
 /// pauses. The messages module owns its tables ([`messages::MIGRATION`]).
 const V34: &str = messages::MIGRATION;
 
-/// v35: kept for D-41's sightings (`e24-processes`, built at the same
-/// time): that branch's migration takes this place when it merges, so
-/// the numbers stay one sequence. Until then it is a no-op (a database
-/// made on this branch alone is a test's, never a release's).
-const V35: &str = "";
+/// v35 (AJ-E2402, D-41a): sightings of the processes in sessions other
+/// apps run (names, times and a hashed command line only), and the user's
+/// marks on processes (Keep, Remind me later). The sightings module owns
+/// its tables ([`sightings::MIGRATION`]).
+const V35: &str = sightings::MIGRATION;
 
 /// v36 (E19): the tasks a pool shares, their links, the sessions that
 /// worked them, the append-only event log, and what waits on the user.
@@ -968,6 +973,13 @@ impl Storage {
     #[must_use]
     pub fn messages(&self) -> MessagesRepo<'_> {
         MessagesRepo::new(&self.conn)
+    }
+
+    /// Repository for sightings of other apps' sessions' processes and the
+    /// user's marks on processes (schema v35, AJ-E2402).
+    #[must_use]
+    pub fn sightings(&self) -> SightingsRepo<'_> {
+        SightingsRepo::new(&self.conn)
     }
 
     /// Repository for the tasks a pool shares (schema v36, E19).

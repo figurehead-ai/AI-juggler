@@ -28,8 +28,10 @@
   another account or tool, what carries over, and switching back.
 - [Rules and MCP servers](rules-and-servers.md): keeping `CLAUDE.md` and
   `AGENTS.md` the same, and your accounts' MCP servers.
-- [This Mac](this-mac.md): what your AI tools use, and cleaning up what's
-  left behind.
+- [This Mac](this-mac.md): what your AI tools use, and how your Mac is
+  doing.
+- [Processes](processes.md): what each session and app runs, what it left
+  behind, stopping a process after a check, and automatic cleanup.
 - [Notifications](notifications.md): being told when a session needs you,
   while you're in another app.
 - [Keep work going](keep-work-going.md): restarting crashed sessions,

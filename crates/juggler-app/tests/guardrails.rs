@@ -991,7 +991,7 @@ fn hog_is_never_auto_signalled_and_alerts_with_exact_copy() {
         .unwrap_or_else(|| panic!("template instance segment: {}", hog.text));
     assert!(!head.is_empty(), "names the helper: {}", hog.text);
     let rss = tail
-        .strip_suffix(" — review it in Cleanup.")
+        .strip_suffix(" — review it in Processes.")
         .unwrap_or_else(|| panic!("template tail: {}", hog.text));
     assert!(
         rss.ends_with(" MiB") || rss.ends_with(" GiB"),
@@ -1132,7 +1132,7 @@ fn idle_nudge_fires_exactly_once_per_orphan() {
         .expect("the idle nudge fired");
     assert!(
         nudge.text.contains(" has been idle for ")
-            && nudge.text.ends_with(" — review it in Cleanup."),
+            && nudge.text.ends_with(" — review it in Processes."),
         "nudge copy: {}",
         nudge.text
     );

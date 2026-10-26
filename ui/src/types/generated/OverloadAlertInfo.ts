@@ -27,9 +27,16 @@ detail: string,
  */
 session_id: string | null, 
 /**
- * … or a tool AI Juggler didn't start (`desktop` | `terminal`).
+ * … or a tool AI Juggler didn't start: its This Mac group (`desktop`
+ * and `terminal` for the Claude tools, an app's group for another
+ * app's sessions, AJ-E2407).
  */
 place: string | null, 
+/**
+ * That group in words, for another app's (`ChatGPT`); the Claude
+ * tools' words are the UI's.
+ */
+subject_name?: string | null, 
 /**
  * The contributor's memory, bytes — only when memory is what's high.
  */

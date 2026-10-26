@@ -162,7 +162,7 @@ export function TaskView({
             Open its session
           </Button>
           {processes && (
-            <Button size="sm" variant="ghost" onClick={processes.open} data-testid="task-processes">
+            <Button size="sm" variant="ghost" onClick={() => (processes.open(), openSession(task.holder_session_id))} data-testid="task-processes">
               {processes.label}
             </Button>
           )}

@@ -24,7 +24,8 @@ in the list on the left, or from More › This Mac.
   - The Claude app's memory is an estimate: the sum of its helpers, so
     memory they share is counted more than once.
 - **What's using it:** each AI tool, with its sessions or windows. Sessions
-  AI Juggler didn't start are marked "not started by AI Juggler". AI
+  AI Juggler didn't start are marked "not started by AI Juggler", grouped
+  by the app they run in (the Claude app, ChatGPT, Codex in Terminal). AI
   Juggler itself is listed too, with its crash watchdog. Last, folded,
   **Other apps and macOS** lists the biggest apps that aren't AI tools, by
   name only (never their folders or how they were started). AI Juggler
@@ -43,18 +44,18 @@ opened yourself has none.
 
 ## Clean up what's left behind
 
-Under **Left behind**, choose **Clean up** (or press ⌘⇧C). The Cleanup
-screen lists what each session left running, what it costs, and why AI
-Juggler thinks it belongs to that session. Choose **Terminate…** on a
-process to stop it: AI Juggler checks it again and tells you what stopping
-it will do before you confirm. A process AI Juggler can't be sure of has no
-button.
+Under **Left behind**, choose **Clean up** (or press ⌘⇧C). It opens
+[Processes](processes.md), on what needs you: what each session left
+running, what it costs, and whose it is. Choose **Stop…** on a process to
+stop it: AI Juggler checks it again and tells you what stopping it will do
+before you confirm. A process AI Juggler can't be sure of has no button.
 
 Automatic cleanup is off by default: AI Juggler stops nothing by itself.
-To let it tidy left-behind dev servers, turn on **Automatically tidy
-left-behind dev servers** for a profile on the Accounts page. Settings ›
-Advanced › Cleanup sets what new profiles start with, and **Pause automatic
-cleanup** stops it for every profile until you resume it.
+To let it tidy left-behind dev servers, turn it on for a profile under
+**Automatic cleanup** on the Processes page, or on the Accounts page.
+Settings › Advanced › Cleanup sets what new profiles start with, and
+**Pause automatic cleanup** stops it for every profile until you resume
+it.
 
 ## Kept awake
 

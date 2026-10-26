@@ -6,8 +6,9 @@
  *   it comes from, the messages that name it, its history) with an
  *   agent's request for a session waiting on you.
  * - The plan: the epic, its stories and their tasks behind folds.
- * - A task someone has: its session one click away, the sessions that
- *   worked it; "Start a session for it" with the launch settings picker.
+ * - A task someone has: its session one click away (and its Processes
+ *   tab, D-41), the sessions that worked it; "Start a session for it"
+ *   with the launch settings picker.
  * - Home's Needs you: an agent's held change (the approval card) and an
  *   agent's request for a session (you pick, then Start).
  * - A session's Tasks tab; the switch history with each session's task;
@@ -295,4 +296,12 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);
   expect(calls).toContain("answer:tneed-1:once");
   expect(calls).toContain("start:aj-7f3c:p-3:tneed-2");
+});
+
+test("a held task's Processes link opens its session on the Processes tab (D-41)", async ({ page }) => {
+  await open(page, "dark", 1680, 1050, false);
+  await poolTasks(page);
+  await page.getByTestId("task-row").filter({ hasText: "Cart endpoints" }).click();
+  await page.getByTestId("task-processes").click();
+  await expect(page.getByRole("tab", { name: "Processes" })).toHaveAttribute("aria-selected", "true");
 });

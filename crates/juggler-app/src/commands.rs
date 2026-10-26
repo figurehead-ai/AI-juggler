@@ -7481,24 +7481,6 @@ pub struct ProcessesInfo {
     pub unavailable_reason: Option<String>,
 }
 
-/// The live Processes tab payload for one Instance (rows + spark;
-/// what it left behind is the shared Cleanup inventory's); rollups above Instance level aggregate several of these
-/// read-only in the UI (Req.2).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message when the Instance is unknown.
-#[tauri::command]
-pub async fn instance_processes(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-) -> AppResult<ProcessesInfo> {
-    crate::ipc::blocking(state.inner(), "instance processes", move |state| {
-        instance_processes_arc(state, &session_id)
-    })
-    .await
-}
-
 /// The Arc-based core (tests call this directly).
 ///
 /// # Errors
@@ -7971,28 +7953,6 @@ pub fn cleanup_state_label(state: &str) -> &'static str {
         "starting" => "Starting",
         _ => "Unknown",
     }
-}
-
-/// The read-only Cleanup Centre inventory (Tier 0 — zero signalling:
-/// this command registers no kill surface and its DTOs carry none).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub async fn cleanup_inventory(
-    state: tauri::State<'_, Arc<AppState>>,
-    filter: String,
-    machine_scope: Option<String>,
-) -> AppResult<CleanupInventoryInfo> {
-    crate::ipc::blocking(state.inner(), "cleanup inventory", move |state| {
-        Ok(cleanup_inventory_inner(
-            state,
-            &filter,
-            machine_scope.as_deref() == Some("all"),
-        ))
-    })
-    .await
 }
 
 /// `cleanup_inventory` sans-Tauri (tests + dogfood evidence).
@@ -8590,7 +8550,7 @@ impl AuditWriter for juggler_core::storage::CleanupAuditRepo {
 }
 
 /// The ports a pid holds RIGHT NOW (the audit's before/after facts).
-fn ports_held_by(pid: u32) -> Option<String> {
+pub(crate) fn ports_held_by(pid: u32) -> Option<String> {
     let listeners = os_listeners().ok()?;
     let ports: Vec<String> = listeners
         .iter()
@@ -8617,7 +8577,7 @@ pub const KILL_WRONG_MACHINE_COPY: &str =
     "This process record belongs to another machine — Juggler will not touch it.";
 
 /// A Clean refused before any signal, with its copy.
-fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
+pub(crate) fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
     KillExecuteInfo {
         refusal: Some(copy.to_string()),
         members: vec![KillMemberOutcome {
@@ -9385,7 +9345,7 @@ fn scope_members(
 /// The post-ladder port re-probe (FMEA C2): who STILL holds each of
 /// the target's ports, and the pid-only re-offer when an escapee —
 /// not the killed pid — keeps one. Never a success claim.
-fn still_holding_report(
+pub(crate) fn still_holding_report(
     ports_before: Option<&str>,
     pid: u32,
     cancelled: bool,
@@ -9512,9 +9472,9 @@ pub fn account_set_renewal_arc(
     Ok(account_info_of(&state.registry, &account))
 }
 
-/// The exit-snapshot hook (AJ-E410 Req.3): freezes the pre-exit
-/// descendant rows into the tracker and journals the durable
-/// allow-list. Called by the lifecycle forwarder on every Exited event
+/// The exit-snapshot hook (AJ-E410 Req.3): journals the pre-exit
+/// descendant rows (the durable allow-list). AJ-E2407: the in-memory
+/// tracker it once fed is retired; leftovers are the ledger's. Called by the lifecycle forwarder on every Exited event
 /// (clean exits are recorded too — they simply never surface orphans).
 pub fn record_exit_snapshot(
     state: &Arc<AppState>,
@@ -9523,17 +9483,10 @@ pub fn record_exit_snapshot(
     kind: &ExitKind,
 ) {
     let (rows, root_program) = snapshot_descendants(state, session, root_pid);
+    let _ = root_program;
     if let Some(journal) = state.supervisor.journal_ref() {
         let _ = journal.record_descendants(session, root_pid, kind.is_success(), &rows);
     }
-    state.orphans.record_exit(juggler_supervisor::ExitSnapshot {
-        session: session.clone(),
-        root_pid,
-        root_program,
-        clean: kind.is_success(),
-        taken_ms: Timestamp::now().millis(),
-        rows,
-    });
 }
 
 /// The frozen pre-exit rows, split into (descendants, root program name).
@@ -9575,24 +9528,10 @@ pub fn processes_tick(state: &Arc<AppState>) {
             return;
         };
         collector.tick(&state.supervisor, now);
-        // The E410 tracker's own confirmations advance here (the
-        // Processes tab's orphan section); the AJ-E508 sweep reads
-        // the LEDGER's orphan verdicts instead — the tracker
-        // deliberately drops clean exits and cannot serve Tier 1.
-        let tracked = state.orphans.tracked_pids();
-        if !tracked.is_empty() {
-            collector.refresh_pids(&tracked);
-            let confirmed = state.orphans.poll(now, |pid| collector.lookup(pid));
-            for orphan in &confirmed {
-                crate::usage_stats::count(
-                    "leftover.detected",
-                    &[(
-                        "category",
-                        crate::usage_stats::leftover_category(&orphan.name, ""),
-                    )],
-                );
-            }
-        }
+        // AJ-E2407: the E410 tracker's own detection (its ppid snapshot,
+        // its 10 s clock) is retired: what a session left behind is the
+        // reconciler's verdict in the ledger, which the Processes view
+        // reads (and counts, `features::processes::helper_orphaned`).
     }
     // AJ-E1401: the machine's own signals, on the same tick (its own
     // lock — never under the collector's).
@@ -9706,6 +9645,13 @@ pub fn auto_cleanup_sweep(state: &Arc<AppState>, now: i64) {
             let Some(orphan_pid) = row.pid else { continue };
             if hog_pids.contains(&orphan_pid) || hog_sessions.contains(&session_id) {
                 continue; // hog: alert + staged sheet only, never a signal
+            }
+            // AJ-E2404: the user said Keep (not a leftover): never tidied.
+            if state
+                .processes
+                .is_kept(orphan_pid, row.started_at.unwrap_or_default())
+            {
+                continue;
             }
             let candidate = juggler_supervisor::tree::TierCandidate {
                 pid: orphan_pid,
@@ -9866,7 +9812,7 @@ fn demote_with_audit_note(state: &Arc<AppState>, row: &juggler_core::storage::Le
 
 /// True when the global `Pause automatic cleanup` kill-switch is on
 /// (Req.4): the sweep stands down within one tick of the flag.
-fn cleanup_paused(state: &Arc<AppState>) -> bool {
+pub(crate) fn cleanup_paused(state: &Arc<AppState>) -> bool {
     let Ok(storage) = state.storage.lock() else {
         return true; // a lock failure pauses — never signals
     };
@@ -9880,7 +9826,7 @@ fn cleanup_paused(state: &Arc<AppState>) -> bool {
 
 /// The 24 h crash-suspension deadline (Req.5), if active: Tiers 1-2
 /// stand down until the user re-confirms in the Cleanup Centre.
-fn cleanup_suspended_until(state: &Arc<AppState>) -> Option<i64> {
+pub(crate) fn cleanup_suspended_until(state: &Arc<AppState>) -> Option<i64> {
     let storage = state.storage.lock().ok()?;
     let until = storage
         .app_settings()
@@ -9925,7 +9871,7 @@ pub struct Tier2NoticeInfo {
 
 /// Reads a u64 app setting with a default (AJ-E512 test seams for
 /// the hog/idle thresholds; production defaults are the arguments).
-fn setting_u64(state: &Arc<AppState>, key: &str, default: u64) -> u64 {
+pub(crate) fn setting_u64(state: &Arc<AppState>, key: &str, default: u64) -> u64 {
     state
         .storage
         .lock()
@@ -10029,7 +9975,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             alerts.push(CleanupAlertInfo {
                 kind: "hog".into(),
                 text: format!(
-                    "{helper} under {instance} holds {} — review it in Cleanup.",
+                    "{helper} under {instance} holds {} — review it in Processes.",
                     rss_text(top.rss_bytes)
                 ),
                 pid: top.pid,
@@ -10082,7 +10028,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
         alerts.push(CleanupAlertInfo {
             kind: "idle".into(),
             text: format!(
-                "{helper} has been idle for {} — review it in Cleanup.",
+                "{helper} has been idle for {} — review it in Processes.",
                 age_text(age)
             ),
             pid,

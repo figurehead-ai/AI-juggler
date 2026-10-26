@@ -296,6 +296,7 @@ fn migration_up_from_earlier_schema_preserves_rows() {
             .execute_batch(
                 "DROP TABLE task_needs; DROP TABLE task_events; DROP TABLE task_sessions;
                  DROP TABLE task_links; DROP TABLE tasks;
+                 DROP TABLE process_marks; DROP TABLE process_sightings;
                  DROP TABLE agent_messages_fts; DROP TABLE agent_events; DROP TABLE agent_recipients;
                  DROP TABLE agent_messages; DROP TABLE agent_threads; DROP TABLE agent_docs;
                  DROP TABLE pool_links; DROP TABLE agent_asks; DROP TABLE pool_pauses;

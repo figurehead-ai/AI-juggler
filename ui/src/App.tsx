@@ -8,10 +8,11 @@ import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { MainNav } from "./components/MainNav";
+import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage,
 } from "./lazyParts";
@@ -42,7 +43,7 @@ import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { ToastHost } from "./components/Toast";
-import { cleanupAlerts, fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
+import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -193,13 +194,14 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
-  // D-25: Cleanup and Fleet surface only when they're relevant.
-  const [cleanupCount, setCleanupCount] = useState(0);
+  // D-25: Fleet surfaces only when it's relevant. AJ-E2404: the pill
+  // counts what is left to clean up, the Processes view's own count (the
+  // same as This Mac's), and hears of every change.
+  const cleanupCount = useCleanupCount();
   const [pairedCount, setPairedCount] = useState(0);
   useEffect(() => {
     let alive = true;
     const load = () => {
-      void cleanupAlerts().then((data) => alive && setCleanupCount(data.alerts.length), () => null);
       void fleetPeers().then((peers) => alive && setPairedCount(peers.length), () => null);
     };
     load();
@@ -544,7 +546,7 @@ export default function App() {
     goTo: setGlobal,
     openSettings: () => { setSettingsFocusCloud(false); setSettingsSection(undefined); setGlobal("settings"); },
     onCleanup: () => global === "cleanup",
-    focusCleanupFilter: () => void import("./screens/CleanupCentre").then((module) => module.focusCleanupFilter()),
+    focusCleanupFilter: () => document.querySelector<HTMLElement>('[data-testid="process-search"]')?.focus(),
     stopSelected: () => stopSelectedRef.current(),
   });
 
@@ -749,8 +751,16 @@ export default function App() {
          * recovery summary) dismiss and return focus to the board. */}
         <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
           {global === "cleanup" ? (
-            <ScrollingScreen key="cleanup" screen="cleanup" label="Cleanup">
-              <CleanupCentre sessions={sessions} />
+            <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
+              <ProcessesScreen
+                onOpenSession={selectSession}
+                onOpenConversation={(accountId, id) => {
+                  setGlobal(null);
+                  setSelection({ kind: "conversation", accountId, id, projectId: null });
+                }}
+                accounts={accounts.map((account) => ({ id: account.id, label: account.label }))}
+                projects={projects.map((project) => ({ id: project.id, label: project.name }))}
+              />
             </ScrollingScreen>
           ) : global === "accounts" ? (
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">

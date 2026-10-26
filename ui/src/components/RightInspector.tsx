@@ -12,27 +12,21 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { ToolUpdateLine } from "./ToolUpdateLine";
 import { identityWords } from "../lib/identity";
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
 // The verified stop sheet loads when a Stop is chosen (lazy-load rule).
-const KillSheet = lazyNamed(() => import("./KillSheet"), "KillSheet");
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const DrivenPanel = lazyNamed(() => import("../pages/session/DrivenPanel"), "DrivenPanel");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
-import { ProcessRow, ProcessRowsHeader, type CleanupRowInfo } from "./ProcessRow";
-import type { KillBridge } from "./KillSheet";
+import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
-import { useSessionMessages } from "../pages/messages/useSessionMessages";
-import { useSessionTasks } from "../pages/tasks/useSessionTasks";
-// E18, E19: a session's Messages and Tasks tabs, loaded when they open.
-const SessionMessages = lazyNamed(() => import("../pages/messages/PoolMessages"), "SessionMessages");
-const SessionTasks = lazyNamed(() => import("../pages/tasks/PoolTasks"), "SessionTasks");
+import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
@@ -131,7 +125,6 @@ export function RightInspector({
   // Kept on the props for callers; the empty work area (which used it)
   // is Home now (D-25).
   onNew: _onNew,
-  processesBridge = defaultProcessesBridge,
   focusBridge = defaultFocusBridge,
   onRemoteBack,
   onRemoteSelect,
@@ -161,7 +154,6 @@ export function RightInspector({
   /** AJ-E207: opens the switch-back review for the away instance. */
   onSwitchBack?: (sessionId: string) => void;
   onNew: () => void;
-  processesBridge?: ProcessesBridge;
   focusBridge?: FocusBridge;
   /** AJ-E705: back to Fleet from a remote selection (⌘[). */
   onRemoteBack?: () => void;
@@ -192,16 +184,14 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [remote, onRemoteBack]);
 
-  const messagesPool = useSessionMessages(data.instance?.id ?? null);
-  const hasTasks = useSessionTasks(data.instance?.id ?? null);
+  const sessionTabs = useSessionTabs(data.instance?.id ?? null);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
   const kind = selection.kind;
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
-    hasMessages: messagesPool !== null,
-    hasTasks,
+    ...sessionTabs,
     hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
@@ -211,7 +201,6 @@ export function RightInspector({
   const panelProps = {
     kind,
     data,
-    processesBridge,
     sessions,
     projects,
     accounts,
@@ -337,9 +326,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
         case "messages":
-          return props.data.instance ? <SessionMessages session={props.data.instance} now={props.now} /> : null;
         case "tasks":
-          return props.data.instance ? <SessionTasks session={props.data.instance} now={props.now} /> : null;
+          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} /> : null;
         default:
           return null;
       }
@@ -370,32 +358,12 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
   }
 }
 
-/// The Processes-tab data/action seam (AJ-E410): production resolves the
-/// real bridge lazily; tests inject a deterministic source. (Extracted
-/// because vitest 5's mocker did not intercept this tab's dynamic
-/// import site — the seam keeps the component testable either way.)
-export type ProcessesBridge = {
-  load: (sessionId: string) => Promise<import("../lib/bridge").ProcessesInfo | null>;
-  /** This session's rows in the shared Cleanup inventory (G-1: one data
-   * path, one row, one verified Stop). */
-  cleanup: (sessionId: string) => Promise<{ rows: CleanupRowInfo[]; localMachine: string }>;
-  /** The verified sheet's calls; absent = the real bridge. */
-  kill?: KillBridge;
-};
-
-const defaultProcessesBridge: ProcessesBridge = {
-  load: async (sessionId) => (await import("../lib/bridge")).instanceProcesses(sessionId),
-  cleanup: async (sessionId) => (await import("../lib/bridge")).sessionCleanup(sessionId),
-};
-
 type PanelProps = {
   kind: InspectorKind;
   /** True while this panel's tab is the shown one (previews pause
    *  otherwise — AJ-E415 Req.1 "not visible"). */
   visible: boolean;
   data: InspectorData;
-  /** AJ-E410 seam: the Processes-tab data/actions source (tests inject). */
-  processesBridge: ProcessesBridge;
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
   accounts: AccountInfo[];
@@ -1253,290 +1221,25 @@ function QualityTab(props: PanelProps) {
   );
 }
 
-/// Formats bytes as MB/GB for the RAM column.
-function formatRss(bytes: number): string {
-  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
-  return `${Math.round(bytes / 1_000_000)} MB`;
-}
-
-/// Formats an age in ms as `42m` / `12s` / `2h 3m`.
-function formatAge(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
-/// The session's own rows from the shared Cleanup inventory (G-1): the
-/// same ProcessRow and labels as Cleanup, and the same verified sheet
-/// behind every Stop — never a second kill path. Rows the live tree
-/// above already shows are left out; what remains is what the session
-/// left behind (or, with no tree to read, everything it runs).
-function SessionLeftovers(props: {
-  sessionId: string;
-  livePids: ReadonlySet<number>;
-  bridge: ProcessesBridge;
-  reloadKey: number;
-  onStopped: () => void;
-}) {
-  const [data, setData] = useState<{ rows: CleanupRowInfo[]; localMachine: string } | null>(null);
-  const [killTarget, setKillTarget] = useState<{ pid: number; goalPort: number | null; trigger: HTMLElement } | null>(null);
-  const [refresh, setRefresh] = useState(0);
-  const { bridge, sessionId } = props;
-  useEffect(() => {
-    let alive = true;
-    bridge
-      .cleanup(sessionId)
-      .then((result) => alive && setData(result))
-      .catch(() => alive && setData({ rows: [], localMachine: "" }));
-    return () => {
-      alive = false;
-    };
-  }, [sessionId, bridge, props.reloadKey, refresh]);
-
-  const rows = (data?.rows ?? []).filter((row) => !props.livePids.has(row.pid));
-  const localMachine = data?.localMachine ?? "";
-  const openCleanup = () =>
-    window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "cleanup" } }));
-  return (
-    <Card className="flex flex-col gap-2 p-3" data-testid="session-leftovers">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-section font-semibold text-ink" data-testid="leftovers-heading">
-          {rows.length > 0 ? `Left behind (${rows.length})` : "Nothing left behind"}
-        </h3>
-        <button
-          type="button"
-          onClick={openCleanup}
-          className="text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
-          data-testid="leftovers-open-cleanup"
-        >
-          Open in Cleanup
-        </button>
-      </div>
-      {data !== null && rows.length === 0 ? (
-        <p className="text-meta text-muted">Nothing this session started is still running after it.</p>
-      ) : (
-        <div>
-          <ProcessRowsHeader />
-          <ul data-testid="instance-cleanup-rows">
-            {rows.map((row) => (
-              <ProcessRow
-                key={row.pid}
-                row={row}
-                onKill={
-                  // AJ-E511: another Mac's row is display-only.
-                  row.machine_id !== undefined && localMachine !== "" && row.machine_id !== localMachine
-                    ? undefined
-                    : (target, trigger) =>
-                        setKillTarget({
-                          pid: target.pid,
-                          goalPort:
-                            target.ports !== null && target.ports.split(",").length === 1
-                              ? Number(target.ports)
-                              : null,
-                          trigger,
-                        })
-                }
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-      {killTarget !== null && (
-        <Suspense fallback={null}>
-          <KillSheet
-            session={sessionId}
-            pid={killTarget.pid}
-            goalPort={killTarget.goalPort}
-            trigger={killTarget.trigger}
-            bridge={bridge.kill}
-            onClose={(stopped) => {
-              setKillTarget(null);
-              if (stopped) {
-                setRefresh((key) => key + 1);
-                props.onStopped();
-              }
-            }}
-          />
-        </Suspense>
-      )}
-    </Card>
-  );
-}
-
-/// The live Processes tab (AJ-E410): the tree table (PID / Process /
-/// CPU / RAM / Age / ⑂), the I-07 sparkline, and what the session left
-/// behind as the shared Cleanup rows, whose Stop is the verified sheet
-/// (G-1). Refreshes every 5 s; failures render a banner with a manual
-/// Retry — never a silently empty table.
+/// AJ-E2404/E2407: a session's Processes tab is the Processes view for
+/// that session alone (its tree, what it left behind, its history): one
+/// model and one stop path with the Processes page, never a second list.
 function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   const instance = props.data.instance;
-  const [info, setInfo] = useState<import("../lib/bridge").ProcessesInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const readOnly = props.readOnly ?? false;
-
-  // Load shape mirrors QualityTab (top-level import in the effect):
-  // the vitest mocker intercepts this form; a wrapped `load()` closure
-  // resolved the unmocked module in vitest 5 (see processes-tab tests).
-  const bridge = props.processesBridge;
-  useEffect(() => {
-    if (!instance) return;
-    let alive = true;
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const load = () => {
-      bridge
-        .load(instance.id)
-        .then((result) => {
-          if (alive) {
-            setInfo(result);
-            setError(null);
-          }
-        })
-        .catch((cause: unknown) => {
-          if (alive) setError(errorText(cause));
-        });
-    };
-    load();
-    timer = setInterval(load, 5_000);
-    return () => {
-      alive = false;
-      if (timer) clearInterval(timer);
-    };
-  }, [instance?.id, reloadKey, bridge]);
-
   if (!instance) return <HonestEmpty tab="processes" />;
-
-  // AJ-E510 Req.4: the detached notice for re-adopted Instances — the
-  // pre-crash terminal output is gone; the verified stop path (the
-  // E507 sheet) is the way to end it.
-  const adoptedNotice = instance.adopted ? (
-    <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
-      <p className="text-meta font-medium text-ink">Running — picked up after restart</p>
-      <p className="text-label text-muted">
-        The terminal is detached: output from before the app closed is not available. Stop
-        runs through the verified sheet (Terminate… on a row below).
-      </p>
-    </Card>
-  ) : null;
-
-  if (error) {
-    return (
-      <Card className="flex flex-col gap-2 p-4" data-testid="processes-error" role="alert">
-        <p className="text-meta font-medium text-ink">Process tree read failed</p>
-        <p className="text-label break-all text-muted">{error}</p>
-        <Button size="sm" variant="secondary" onClick={() => setReloadKey((key) => key + 1)}>
-          Retry
-        </Button>
-      </Card>
-    );
-  }
-
-  const leftovers = (livePids: ReadonlySet<number>) =>
-    readOnly ? null : (
-      <SessionLeftovers
-        sessionId={instance.id}
-        livePids={livePids}
-        bridge={bridge}
-        reloadKey={reloadKey}
-        onStopped={() => setReloadKey((key) => key + 1)}
-      />
-    );
-
-  if (info?.unavailable_reason) {
-    return (
-      <div className="flex flex-col gap-3" data-testid="processes-tab">
-        {adoptedNotice}
-        <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
-          <p className="text-meta text-muted">{info.unavailable_reason}</p>
-          <p className="text-label text-muted">
-            Adopted or desktop-kind sessions have no readable process tree — resources are
-            unavailable, never flat zero.
-          </p>
-        </Card>
-        {leftovers(new Set())}
-      </div>
-    );
-  }
-
-  const rows = info?.rows ?? [];
-  const spark = info?.spark ?? [];
-  const lastSpark = spark.at(-1);
-
   return (
     <div className="flex flex-col gap-3" data-testid="processes-tab">
-      {adoptedNotice}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-meta text-muted">Measured every 2 seconds</p>
-        {lastSpark && (
-          // Named and on a baseline, so a quiet minute reads as a chart,
-          // not a dotted line.
-          <span className="flex items-end gap-2 text-label text-muted" aria-hidden="true">
-            CPU, last minute
-            <span className="flex h-[18px] items-end gap-[2px] border-b border-hairline" data-testid="processes-spark">
-              {spark.slice(-30).map((sample, i) => (
-                <span
-                  key={i}
-                  className="w-[3px] rounded-sm bg-accent/70"
-                  style={{
-                    height: `${Math.max(2, ((sample.cpu_pct ?? 0) / 100) * 18)}px`,
-                  }}
-                />
-              ))}
-            </span>
-          </span>
-        )}
-      </div>
-
-      {/* AJ-E804: a scrollable region is reachable by keyboard. */}
-      <Card className="flex flex-col gap-1 overflow-x-auto p-3" tabIndex={0} role="region" aria-label="Process table">
-        <table className="w-full min-w-[420px] text-left text-meta">
-          <thead>
-            <tr className="text-meta text-muted">
-              <th scope="col" className="py-1 pr-2 font-medium">PID</th>
-              <th scope="col" className="py-1 pr-2 font-medium">Process</th>
-              <th scope="col" className="py-1 pr-2 font-medium">CPU</th>
-              <th scope="col" className="py-1 pr-2 font-medium">Memory</th>
-              <th scope="col" className="py-1 pr-2 font-medium">Age</th>
-              <th scope="col" className="py-1 font-medium">More processes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-3 text-center text-meta text-muted" data-testid="processes-empty">
-                  {/* One source per fact: never "none" while the header counts helpers. */}
-                  {(instance.child_count ?? 0) > 0 ? "Reading the process tree…" : "No subprocesses"}
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.pid} className="border-t border-hairline">
-                  <td className="py-1.5 pr-2 font-mono text-meta tabular-nums text-muted">{row.pid}</td>
-                  <td className="py-1.5 pr-2 text-ink">
-                    <span aria-hidden="true" className="text-muted">{"│ ".repeat(row.depth)}{row.depth > 0 ? "└ " : ""}</span>
-                    {row.name}
-                  </td>
-                  <td className="py-1.5 pr-2 tabular-nums text-ink">
-                    {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-muted">measuring…</span>}
-                  </td>
-                  <td className="py-1.5 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
-                  <td className="py-1.5 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
-                  <td className="py-1.5 tabular-nums text-muted">{row.child_count}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        {readOnly && (
-          <p className="pt-1 text-label text-muted">
-            Read-only — ended conversation; stop actions live on the session&apos;s Processes tab.
+      {instance.adopted && (
+        // AJ-E510 Req.4: the pre-crash terminal output is gone; stopping
+        // it is the verified sheet's (Stop… on its row below).
+        <Card className="flex flex-col gap-1 p-3" data-testid="instance-detached-notice">
+          <p className="text-meta font-medium text-ink">Running — picked up after restart</p>
+          <p className="text-label text-muted">
+            The terminal is detached: output from before the app closed is not available. Stop it with Stop… on its row below.
           </p>
-        )}
-      </Card>
-
-      {leftovers(new Set(rows.map((row) => row.pid)))}
+        </Card>
+      )}
+      <ProcessesView sessionId={instance.id} onOpenSession={props.onOpenSession} height="calc(100vh - 22rem)" testId="session-processes" />
     </div>
   );
 }

@@ -12,7 +12,7 @@ Design: `crates/juggler-core/src/tasks.rs` (the rules), `crates/juggler-core/src
 3. **A claim is one statement** (`UPDATE … WHERE status = 'ready' AND (no assignee OR the claimer) AND kind != 'epic' AND no open blocker`), logged and linked to the claimer's session in the same transaction. Every change goes into `task_events`, append-only (update and delete triggers refuse).
 4. **The permission table**: every agent call goes through `allowed(pool, action)` (AJ-E1902); under the level, the task rules (`may_plan`, `may_change`): the lead plans epics and stories, gives tasks out and changes or cancels any task; a member makes tasks, works what it holds, and edits what it made that no one holds (D-43 point 3).
 5. **What waits on the user** (`task_needs`): a held change, and an agent's request for a new session.
-6. Pre-migration copy kept; RELEASING.md's 0.2.x row names 36 (v35 is D-41's sightings, built on `e24-processes`: an empty `V35` keeps the place until it merges).
+6. Pre-migration copy kept; RELEASING.md's 0.2.x row names 36 (v35 is D-41's sightings from `e24-processes`, merged first). A v34 database gets both migrations, a v35 one gets the tasks (`tasks_storage.rs`: `upgrading_from_messages_keeps_a_copy_and_everything_as_it_was`, `upgrading_from_sightings_adds_the_tasks`).
 
 ## Proof
 
@@ -28,6 +28,6 @@ Design: `crates/juggler-core/src/tasks.rs` (the rules), `crates/juggler-core/src
 
 ## Not covered here
 
-- Merge order: `e24-processes` takes v35. Merge it first, or replace the empty `V35` in `storage/mod.rs` with its migration; a database made on `e19-tasks` alone has no sightings tables.
+- Merge order: `e24-processes` (v35) is on release/0.2 first; `e19-tasks` carries its real migration and adds v36 after it.
 
 Last updated: 2026-10-25.
