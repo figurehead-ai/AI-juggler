@@ -1434,13 +1434,18 @@ impl Supervisor {
         self.events_rx.lock().ok().and_then(|rx| rx.try_recv().ok())
     }
 
-    /// Blocks up to `timeout` for the next lifecycle event.
+    /// Blocks up to `timeout` for the next lifecycle event; `None` when
+    /// none came in that time. The supervisor holds the sending end, so
+    /// the channel never closes while it lives: a caller can wait again
+    /// on `None` without ever spinning (a reader that panicked leaves the
+    /// lock poisoned, never the events unreadable).
     #[must_use]
     pub fn recv_timeout(&self, timeout: Duration) -> Option<LifecycleEvent> {
         self.events_rx
             .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .recv_timeout(timeout)
             .ok()
-            .and_then(|rx| rx.recv_timeout(timeout).ok())
     }
 }
 
