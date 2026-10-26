@@ -350,6 +350,21 @@ macro_rules! app_commands {
             Read  features::messages::commands::messages_search,
             Read  features::messages::commands::messages_links,
             Write features::messages::commands::messages_link,
+            Read  features::tasks::commands::tasks_list,
+            Read  features::tasks::commands::tasks_counts,
+            Read  features::tasks::commands::tasks_plan,
+            Read  features::tasks::commands::tasks_children,
+            Read  features::tasks::commands::tasks_session,
+            Read  features::tasks::commands::tasks_detail,
+            Write features::tasks::commands::tasks_create,
+            Write features::tasks::commands::tasks_edit,
+            Write features::tasks::commands::tasks_assign,
+            Write features::tasks::commands::tasks_link,
+            Read  features::tasks::commands::tasks_needs,
+            Write features::tasks::commands::tasks_answer,
+            Write features::tasks::commands::tasks_dismiss,
+            Write features::tasks::commands::tasks_start,
+            Write features::tasks::commands::tasks_look_up,
             Read  features::agent_bridge::commands::agent_bridge_get,
             Write features::agent_bridge::commands::agent_bridge_answer,
             Write features::agent_bridge::commands::agent_bridge_set,
@@ -781,6 +796,11 @@ pub fn run() {
             );
             // E18: messages tell the window what changed.
             features::messages::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
+            // E19: and so do tasks.
+            features::tasks::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
                 app.handle().clone(),
             );

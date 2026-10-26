@@ -981,6 +981,9 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
 
 - D-42 below, proposed with E18 (2026-10-25) and built as recommended so
   it can be tried; each point is the maintainer's to keep or change.
+- D-43 below, proposed with E19 (2026-10-25), the same way. Point 6 (the
+  Claude Code plugin outside AI Juggler's launches) is the one that needs
+  a ruling before the plugin is worth publishing.
   D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
   on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 and D-38..D-41 on 2026-10-25. All follow the same law.
@@ -1047,3 +1050,94 @@ covered by tests, so changing one is a small, local change.
      isn't built, so nothing travels yet; a guardrail test proves messages
      never reach the Fleet link. Recommendation: say "will travel once pools
      across Macs ship" until AJ-E1705 lands.
+
+### D-43 Tasks shared by pools: held changes, honest states, a session for a task, issue titles, and the plugin — PROPOSED (2026-10-25)
+
+Context: E19 (`docs/tasks/E19-agent-tasks.md`) built on D-28 and D-31.
+Seven choices weren't ruled by them. Each is built as recommended here and
+covered by tests, so changing one is a small, local change.
+
+1. **An agent's task change above its pool's level is held, not refused.**
+   - What the user sees: in Needs you, "«Planner» wants to give aj-9e41 to
+     Reviewer" with Allow once, Always allow in this pool (from the second
+     time) and Deny, the same card as a held message (E18). A yes applies
+     it as the agent's own, logged on the task; a no logs "you said no".
+     The agent is told it's held and goes on with other work.
+   - Options: (a) hold it (as E18 holds a message); (b) refuse it, and the
+     agent tells the user in words.
+   - Cost and risk: (a) one more kind of card in Needs you; giving a task to
+     someone else (`assign_task`, in no named level) always asks until the
+     user makes the rule, which is D-28's design. (b) loses the agent's
+     intent and makes the user redo it by hand.
+   - Recommendation: **(a)** (built).
+2. **Honest states.** A task is claimable only when its status is
+   **Ready**, no open task blocks it and no one else has it (one SQL
+   statement: of N agents, one wins). A ready or to-do task that an open
+   task blocks shows **Blocked**, and is ready again by itself when its
+   blocker is done. **To do** means "not ready yet" (not claimable). An
+   epic is never claimed; a task "in progress" needs someone on it (epics
+   and stories may be in progress with no one).
+   - Recommendation: **keep** (built).
+3. **Roles under the level.** The level (D-28) decides whether an agent may
+   act at all; under it, the pool's **lead** plans epics and stories, gives
+   tasks to others and changes or cancels any task; a **member** makes
+   tasks, works the ones it holds (in review, done, blocked, give it back),
+   and edits the ones it made that no one holds. This is the research's
+   permission table (`pools-messaging-tasks.md` §2.3).
+   - Risk: a pool with no lead can't give tasks out through agents (the user
+     still can, on the task). Alternative: everyone may assign (then every
+     assignment asks the user anyway, by D-28).
+   - Recommendation: **keep** (built).
+4. **A session for a task.** "Start a session for it…" asks for launch
+   settings (and so the account), lists them in name order, and picks
+   nothing for the user except the project's own default account when the
+   user set one; nothing ranks by usage (D-31). The session starts in the
+   pool's project with the task's brief as its first prompt: as the tool's
+   own first prompt in a terminal (so its words are in that process's
+   arguments, visible to `ps` on this Mac, like a pack's pointer prompt),
+   or as the user's first message for a session run in AI Juggler. The
+   task is then that session's, in progress, linked "started for".
+   - Options: (a) as built; (b) a pointer only ("work on aj-7f3c; read it
+     with task_get"), so no task words are in a process's arguments, at the
+     cost of needing the agent tools on.
+   - Recommendation: **(a)**, revisit after the tasks lab.
+5. **Issue titles through the user's own `gh`.** A GitHub issue or pull
+   request link's title and state are looked up only on the user's click
+   ("Look up its title"), by running the user's installed `gh api` with
+   the owner, repository and number; AI Juggler never reads `gh`'s sign-in
+   and opens no connection of its own. Linear links show their id from the
+   link. No sync.
+   - Options: (a) `gh` on click (built); (b) AI Juggler calls
+     api.github.com itself (a new network address on the Privacy page, and
+     no private repositories without a token); (c) no titles, links only.
+   - Recommendation: **(a)**.
+6. **The Claude Code plugin outside AI Juggler's launches (AJ-E1905).**
+   E1905 asks for the bridge "even outside AI Juggler's launches", but
+   ADR-0020 gives a session its identity only with a launch (a key in its
+   environment), and D-30 says sessions started elsewhere can't call the
+   tools until continued in AI Juggler. Built: the plugin (a skill for
+   working tasks, and the bridge as its server) which, in a session AI
+   Juggler started, lists no tools (the launch already added them) and,
+   anywhere else, answers each call with why it can't.
+   - What the user sees today: installing it adds the skill; outside AI
+     Juggler's sessions the tools say "This session wasn't started by AI
+     Juggler with its agent tools…".
+   - Options: (a) publish as built (the skill's value now; the tools'
+     value only inside AI Juggler's sessions, where they're already there);
+     (b) a new way in: a session started elsewhere asks AI Juggler to join
+     its pool, the user approves it once in the app, and a key reaches that
+     session without argv or a file (a new ADR: how the key gets there is
+     the hard part); (c) skill only, no server.
+   - Recommendation: **don't publish yet; decide (b) or (c) after the tasks
+     lab.** The bundle and its install test are in the repo; publishing it
+     with the app's releases is a release-workflow change for the release
+     PR once ruled.
+7. **Smaller points, built as stated:** the pool's list shows tasks (the
+   work), and epics and stories are in **Plan**, behind its own fold; a
+   card's task says **None** when its member holds none (known, not
+   "Unavailable"); messages "about" a task are the threads whose words name
+   its id (`aj-7f3c`), no extra link to keep; tasks never travel to other
+   Macs until AJ-E1705; schema **v36**, with v35 kept for D-41's sightings
+   (`e24-processes`): merge that branch first, or replace the empty `V35`
+   with its migration when it lands (a database made on `e19-tasks` alone
+   is a test's).

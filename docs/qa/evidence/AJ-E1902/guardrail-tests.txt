@@ -1,0 +1,7 @@
+test assignment_never_reads_quota ... ok
+test nothing_about_tasks_leaves_the_mac ... ok
+test no_task_reaches_a_sessions_input ... ok
+test every_call_is_decided_and_audited_and_grants_cant_change_through_the_bridge ... ok
+test a_tasks_words_are_data_and_change_nothing ... ok
+test no_agent_starts_a_session_or_picks_an_account ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s

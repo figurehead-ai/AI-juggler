@@ -18,7 +18,10 @@ import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { AskBatch } from "./AskCard";
 import { MessageNeeds } from "./MessageNeeds";
+import { TaskNeeds } from "./TaskNeeds";
 import type { MessageNeedInfo } from "../lib/ipc/messages";
+import type { TaskNeedInfo } from "../lib/ipc/tasks";
+import type { ProjectInfo } from "../lib/bridge";
 import { goToWhere, type RailItem } from "../lib/rail-items";
 
 export interface NeedHandlers {
@@ -110,11 +113,27 @@ function secondWords(need: HomeNeed): string | null {
   return null;
 }
 
-export function HomeNeeds({ needs, messages = [], handlers, bubble, children }: { needs: HomeNeed[]; messages?: MessageNeedInfo[]; handlers: NeedHandlers; bubble?: ReactNode; children?: ReactNode }): JSX.Element | null {
+export function HomeNeeds({
+  needs,
+  messages = [],
+  tasks = { needs: [], projects: [] },
+  handlers,
+  bubble,
+  children,
+}: {
+  needs: HomeNeed[];
+  messages?: MessageNeedInfo[];
+  /** E19: tasks that wait on you, and the projects (for a launch's place). */
+  tasks?: { needs: TaskNeedInfo[]; projects: ProjectInfo[] };
+  handlers: NeedHandlers;
+  bubble?: ReactNode;
+  children?: ReactNode;
+}): JSX.Element | null {
   const run = useRun(handlers);
   const [first, ...rest] = needs;
   // Nothing waits: the heading says so, and the card stays away.
-  if (!first && !children && messages.length === 0) return null;
+  const waiting = messages.length + tasks.needs.length;
+  if (!first && !children && waiting === 0) return null;
   return (
     <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <SectionTitle id="home-needs">Needs you</SectionTitle>
@@ -122,6 +141,7 @@ export function HomeNeeds({ needs, messages = [], handlers, bubble, children }: 
         <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
         {/* E18: agents' messages that wait on you. */}
         <MessageNeeds needs={messages} />
+        <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
         {first ? (
           <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind }}>
             {(goTo) => (
@@ -152,7 +172,7 @@ export function HomeNeeds({ needs, messages = [], handlers, bubble, children }: 
             </>
             )}
           </NeedBox>
-        ) : messages.length > 0 ? null : (
+        ) : waiting > 0 ? null : (
           <p className="text-sm text-muted" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>

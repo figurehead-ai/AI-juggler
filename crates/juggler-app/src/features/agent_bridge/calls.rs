@@ -44,7 +44,26 @@ pub const fn action_of(call: Call) -> AgentAction {
         Call::SendMessage => AgentAction::PostMessage,
         Call::ReadInbox | Call::Ack | Call::ReadDoc => AgentAction::ReadMessages,
         Call::ShareDoc => AgentAction::ShareDoc,
+        Call::TasksList | Call::TaskGet => AgentAction::ReadTasks,
+        Call::TaskCreate => AgentAction::CreateTask,
+        Call::TaskClaim => AgentAction::ClaimTask,
+        Call::TaskUpdate => AgentAction::UpdateTask,
+        Call::TaskAssign => AgentAction::AssignTask,
     }
+}
+
+/// E19: the calls the tasks feature answers (it decides through `allowed`
+/// itself, where an ask can hold a change for the user).
+const fn is_tasks(call: Call) -> bool {
+    matches!(
+        call,
+        Call::TasksList
+            | Call::TaskGet
+            | Call::TaskCreate
+            | Call::TaskClaim
+            | Call::TaskUpdate
+            | Call::TaskAssign
+    )
 }
 
 /// E18: the calls the messages feature answers (it decides through
@@ -65,6 +84,11 @@ const fn asks(call: Call) -> &'static str {
         Call::SendMessage => "Sending messages",
         Call::ReadInbox | Call::Ack | Call::ReadDoc => "Reading its messages",
         Call::ShareDoc => "Sharing a document",
+        Call::TasksList | Call::TaskGet => "Seeing the tasks",
+        Call::TaskCreate => "Adding tasks",
+        Call::TaskClaim => "Taking tasks",
+        Call::TaskUpdate => "Changing tasks",
+        Call::TaskAssign => "Giving tasks to others",
     }
 }
 
@@ -198,20 +222,49 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
     })
 }
 
+/// The calls a feature answers itself (E18's messages, E19's tasks):
+/// each decides through `allowed` there, where an ask can hold what the
+/// agent asked for the user. `None` for the bridge's own calls.
+fn by_feature(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    place: &Place,
+    request: &Request,
+) -> Option<Result<Value, Response>> {
+    if is_messaging(request.call) {
+        let caller = crate::features::messages::agent::Caller {
+            session: session.clone(),
+            pool_id: place.pool_id.clone(),
+            pool_name: place.pool_name.clone(),
+            member_ref: place.member.clone(),
+        };
+        return Some(crate::features::messages::agent::answer(
+            state, &caller, request,
+        ));
+    }
+    if is_tasks(request.call) {
+        let caller = crate::features::tasks::agent::Caller {
+            session: session.clone(),
+            pool_id: place.pool_id.clone(),
+            pool_name: place.pool_name.clone(),
+            member_ref: place.member.clone(),
+            role: place.role.clone(),
+        };
+        return Some(crate::features::tasks::agent::answer(
+            state, &caller, request,
+        ));
+    }
+    None
+}
+
 fn answer(
     state: &Arc<AppState>,
     session: &SessionId,
     request: &Request,
 ) -> Result<Value, Response> {
     let place = place_of(state, session)?;
-    if is_messaging(request.call) {
-        let caller = crate::features::messages::agent::Caller {
-            session: session.clone(),
-            pool_id: place.pool_id,
-            pool_name: place.pool_name,
-            member_ref: place.member,
-        };
-        return crate::features::messages::agent::answer(state, &caller, request);
+    if let Some(answered) = by_feature(state, session, &place, request) {
+        return answered;
     }
     let action = action_of(request.call);
     match pools::access::allowed(state, session.as_str(), &place.pool_id, action, None) {
@@ -282,9 +335,20 @@ fn answer(
                 .collect();
             Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
         }
-        Call::SendMessage | Call::ReadInbox | Call::Ack | Call::ShareDoc | Call::ReadDoc => Err(
-            Response::refused(Refusal::Bad, "AI Juggler couldn't answer that."),
-        ),
+        Call::SendMessage
+        | Call::ReadInbox
+        | Call::Ack
+        | Call::ShareDoc
+        | Call::ReadDoc
+        | Call::TasksList
+        | Call::TaskGet
+        | Call::TaskCreate
+        | Call::TaskClaim
+        | Call::TaskUpdate
+        | Call::TaskAssign => Err(Response::refused(
+            Refusal::Bad,
+            "AI Juggler couldn't answer that.",
+        )),
         Call::Cards => {
             let cards: Vec<Value> = cards(state, &place.pool_id)?
                 .into_iter()

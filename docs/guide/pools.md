@@ -40,12 +40,14 @@ a pool's own view is its page.
   The arrow on a row shows more:
   - **It says**: the step the agent's own task list has in progress, in its
     words and marked as said by the agent.
-  - **Task**: the task it took. Tasks come in a later release, so this says
-    "Unavailable" for now.
+  - **Task**: the task it's on (in progress, in review or blocked), with
+    its id, or **None**. See [Tasks](#tasks) below.
   - **Files changed**: the files it changed most recently.
   - What AI Juggler doesn't know says **Unavailable** and why. It never
     guesses. What a session says and changes is read from its transcript
     while it runs in AI Juggler.
+- **Tasks**: the pool's work, ready work first, and its plan; see
+  [Tasks](#tasks) below.
 - **Messages**: the pool's threads and shared documents; see
   [Messages](#messages) below.
 - **Agent access**: see below.
@@ -155,6 +157,79 @@ members, the whole pool or you; a member of another pool only when you
 link the two pools on the pool's Agent access tab (**Messages to other
 pools**). Messages and documents stay in AI Juggler's own data on this
 Mac.
+
+## Tasks
+
+A pool keeps its work as tasks: you write them, and so can its agents,
+with AI Juggler's agent tools. A pool's **Tasks** tab lists them, ready
+work first: **Ready** (anyone can take it), **In progress** (someone is
+on it), **In review**, **Blocked**, **To do** (not ready yet), and
+**Done**, each with how many. Each task has a short id such as `aj-7f3c`,
+a title, what it asks, when it's done, a priority, who has it, and
+optionally the issue it comes from.
+
+- **The plan.** Bigger work is an **epic**, broken into **stories**, broken
+  into tasks. **Plan** (beside **List**) shows each epic, its stories and
+  their tasks behind folds, with how many are done.
+- **Honest states.** A task that waits on another (**Waits on aj-…**) is
+  **Blocked** until that one is done, whatever was set; then it's ready
+  again by itself. Only one session can take a task: if two agents try at
+  once, one gets it and the other is told who has it.
+- **A task in full** shows who has it and their session (**Open its
+  session**, or **Its processes**: that session on its **Processes** tab),
+  the sessions that worked it, the threads whose messages name
+  its id, what it waits on and what waits on it, its items, the issue it
+  comes from, and its history: every change, by whom. You can change any of
+  it: its status, who has it (**With**: a member, you, or no one), its
+  links.
+- **New task** adds one: its title and what it asks first; when it's done,
+  its epic or story, what it waits on and an issue link under **More**. It
+  starts ready for anyone (or to do).
+- A session's own page has a **Tasks** tab once it has taken or worked one.
+
+### What agents do with tasks
+
+Agents check for work when they start and when they finish a task: they
+list the pool's tasks, **take** a ready one (it's theirs, in progress),
+say where it is (**in review** when it's ready for a look), or **give it
+back** with a note for whoever takes it next. A member works the tasks it
+holds and edits the ones it made that no one has; the pool's **lead** plans
+epics and stories, gives tasks to others and closes anyone's. What a pool
+at each level lets agents do is above; at **Work together** they add,
+take and change tasks, and giving a task to someone else always asks you
+first (Needs you: **Allow once**, **Always allow in this pool** from the
+second time, or **Deny**). A task's words are its writer's: when an agent
+wrote it, it says so, and they're never your instructions.
+
+### A session for a task
+
+Only you start sessions. **Start a session for it…** on a task asks which
+launch settings (and so which account) to use, then starts a session in the
+pool's project with the task as its first prompt; the task is then that
+session's, in progress. Nothing is picked for you by how much an account
+has left: the list is yours in name order, and only your project's own
+default account, if you set one, is chosen to start with.
+
+An agent can only **ask** for a session for a task. Its request waits in
+Home's **Needs you**, with the same picker and **Start session**, or **Not
+now**. Nothing starts by itself.
+
+### A switch keeps the task
+
+A task belongs to its holder's line of work, not to one account. When you
+continue a session on another account or tool, the new session holds the
+same tasks, sees them as its own and carries on; the project's **How this
+work travelled** shows each session's task.
+
+### The issue a task comes from
+
+Paste a GitHub issue or pull request link, or a Linear one, into a task.
+A Linear link shows its id (`ENG-123`). A GitHub one can show its title and
+state (open, closed, merged): click **Look up its title**, and AI Juggler
+asks GitHub's own command line, `gh`, with your own sign-in there (AI
+Juggler never reads it). Offline, or without `gh`, the link still opens and
+the task says it couldn't look it up. Nothing is looked up or synced by
+itself.
 
 ## Your other Macs
 

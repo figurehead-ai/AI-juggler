@@ -164,6 +164,14 @@ unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices 
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_list  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded tasks_assign  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_create  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_detail  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_edit  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_link  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_look_up  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_needs  # bounded: the oldest 40 open needs (needs::EACH)
+unbounded tasks_start  # bounded: one task, its blockers named up to 20 (BLOCKERS_SHOWN)
 unbounded terminal_windows  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded this_mac  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded tools_catalog  # bounded: one row per account, tool, launch setting or paired Mac

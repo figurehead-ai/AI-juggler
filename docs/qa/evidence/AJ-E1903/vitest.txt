@@ -1,0 +1,16 @@
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > lists ready work first with how many in each state, and opens a task in full
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > a blocked task says what it waits on, honestly
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > filters to done ones, and shows the plan
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > you add a task, change its status and give it to someone
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > starts a session for a task only on your pick: your project's default, never by usage
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > a held task's session is one click away; Processes shows only once that view is there
+ ✓ src/pages/tasks/tasks.test.tsx > a pool's tasks > renders 200 tasks in under 100 ms
+ ✓ src/pages/tasks/tasks.test.tsx > Needs you > an agent's held change is the same approval card, answered from the keyboard
+ ✓ src/pages/tasks/tasks.test.tsx > Needs you > offers the rule from the second time
+ ✓ src/pages/tasks/tasks.test.tsx > Needs you > an agent's request for a session: you start it on your pick, or leave it
+ ✓ src/pages/tasks/tasks.test.tsx > a session's tasks and the pages > a session shows what it holds
+ ✓ src/pages/tasks/tasks.test.tsx > a session's tasks and the pages > the switch history shows each session's task
+ ✓ src/pages/tasks/tasks.test.tsx > a session's tasks and the pages > a pool always has its Tasks tab; a session only once it has a task
+ ✓ src/pages/tasks/tasks.test.tsx > readability > no text smaller than 12 px in the task views
+ Test Files  1 passed (1)
+      Tests  14 passed (14)

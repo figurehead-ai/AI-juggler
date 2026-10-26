@@ -210,13 +210,10 @@ fn a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest() {
             .unwrap()
             .starts_with("Unavailable — ")
     );
-    // Tasks are E19: never a guess.
+    // E19: no task held is known, never a guess.
     for card in &result.cards {
-        assert_eq!(card.task.value, None);
-        assert_eq!(
-            card.task.unavailable.as_deref(),
-            Some("Unavailable — AI Juggler doesn't keep tasks yet")
-        );
+        assert_eq!(card.task.value.as_deref(), Some("None"));
+        assert_eq!(card.task.unavailable, None);
     }
 }
 

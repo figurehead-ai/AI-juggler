@@ -210,7 +210,7 @@
         },
         {
           "id": "agent-tools",
-          "text": "Once you say yes, sessions it starts get its agent tools, added to that launch only and never written into your setup: who they are, who's in their pool, what each says it's doing, their own status line, and messages and shared documents with their pool. You can switch them off for a project or a profile.",
+          "text": "Once you say yes, sessions it starts get its agent tools, added to that launch only and never written into your setup: who they are, who's in their pool, what each says it's doing, their own status line, messages and shared documents with their pool, and the pool's tasks. You can switch them off for a project or a profile.",
           "tests": [
             "crates/juggler-agentbridge/tests/bridge.rs::nothing_is_added_before_the_question_is_answered",
             "crates/juggler-agentbridge/tests/bridge.rs::the_key_is_in_the_environment_only_and_nothing_lands_in_the_account_folder",
@@ -219,11 +219,12 @@
         },
         {
           "id": "agent-tools-sees",
-          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool, their cards, its own messages and the pool's shared documents; at Work together and Full, also its own status line, sending messages and sharing documents. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
+          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool, their cards, the pool's tasks, its own messages and the pool's shared documents; at Work together and Full, also its own status line, sending messages, sharing documents, and adding, taking and changing tasks. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
           "tests": [
             "crates/juggler-agentbridge/tests/bridge.rs::each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited",
             "crates/juggler-agentbridge/tests/bridge.rs::agents_see_account_labels_never_emails_or_plans",
-            "crates/juggler-agentbridge/tests/bridge.rs::the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys"
+            "crates/juggler-agentbridge/tests/bridge.rs::the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys",
+            "crates/juggler-agentbridge/tests/bridge.rs::the_task_commands_go_through_the_real_binary_and_the_level"
           ]
         },
         {
@@ -243,6 +244,26 @@
             "crates/juggler-app/tests/messages.rs::shared_docs_are_redacted_content_addressed_and_only_the_pools",
             "crates/juggler-app/tests/messages.rs::a_ping_pong_between_two_fake_agents_stops_at_the_cap",
             "crates/juggler-app/tests/messages_guardrails.rs::nothing_about_messages_leaves_the_mac"
+          ]
+        },
+        {
+          "id": "agent-tasks",
+          "text": "A pool's agents can add tasks, take a ready one and say where it is, and only one session gets a task. A change above what the pool allows waits for your OK in Needs you, and giving a task to someone else asks you first unless you made a rule. No agent starts a session or picks an account: it can only ask, and you pick the launch settings and start it. Nothing about tasks looks at how much an account has left.",
+          "tests": [
+            "crates/juggler-app/tests/tasks.rs::n_fake_agents_claim_one_task_and_exactly_one_wins",
+            "crates/juggler-app/tests/tasks.rs::each_level_decides_and_a_change_above_it_waits_on_the_user",
+            "crates/juggler-app/tests/tasks_guardrails.rs::no_agent_starts_a_session_or_picks_an_account",
+            "crates/juggler-app/tests/tasks_guardrails.rs::assignment_never_reads_quota"
+          ]
+        },
+        {
+          "id": "agent-tasks-stay",
+          "text": "Tasks stay in AI Juggler's own data on this Mac, with every change in a history that can't be rewritten. A task's words are its writer's and change nothing. The title and state of a GitHub issue a task links to are looked up only when you click, by GitHub's own command line with your own sign-in there. Nothing about tasks goes over Fleet.",
+          "tests": [
+            "crates/juggler-core/src/storage/tasks.rs::a_claim_takes_a_ready_task_once",
+            "crates/juggler-app/tests/tasks_guardrails.rs::a_tasks_words_are_data_and_change_nothing",
+            "crates/juggler-app/tests/tasks.rs::the_issue_is_looked_up_only_on_a_click_and_offline_says_so",
+            "crates/juggler-app/tests/tasks_guardrails.rs::nothing_about_tasks_leaves_the_mac"
           ]
         },
         {

@@ -71,6 +71,9 @@ pub struct AppState {
     /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
     /// lock is never held while another is taken.
     pub processes: crate::features::processes::Processes,
+    /// E19: tasks shared by pools — what tells the window. The rest is
+    /// storage.
+    pub tasks: crate::features::tasks::Tasks,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -320,6 +323,7 @@ impl AppState {
             runtime: crate::features::runtime::Runtimes::default(),
             messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
+            tasks: crate::features::tasks::Tasks::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

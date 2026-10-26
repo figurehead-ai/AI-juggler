@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
 
 import { Button, Card, Chip } from "../components/primitives";
 import { IconSessions } from "../components/icons";
@@ -16,6 +16,15 @@ import { PoolLinks } from "./messages/PoolLinks";
 
 // E18: the Messages tab loads only when it opens.
 const PoolMessages = lazyNamed(() => import("./messages/PoolMessages"), "PoolMessages");
+// E19: and so does the Tasks tab (its code and its first read).
+const PoolTasks = lazyNamed(() => import("./tasks/PoolTasks"), "PoolTasks");
+
+/** Keeps a tab mounted once it was shown (its scroll and its open task
+ * stay when you look at another tab and back). */
+function TasksOnce({ onShown, children }: { onShown: () => void; children: ReactNode }): JSX.Element {
+  useEffect(onShown, [onShown]);
+  return <>{children}</>;
+}
 
 /** How often an open pool page reads its cards again: they change on the
  * read model's 2 s tick, and a page left open needn't ask more often. */
@@ -33,6 +42,7 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
   const pool = poolById(pools, poolId);
   const [cards, setCards] = useState<ContextCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tasksShown, setTasksShown] = useState(false);
   const members = pools?.members.filter((row) => row.pool_id === poolId).length ?? 0;
 
   useEffect(() => {
@@ -83,8 +93,14 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
             }
           />
         }
-        render={(tab) =>
-          tab === "messages" ? (
+        render={(tab, visible) =>
+          tab === "tasks" ? (
+            visible || tasksShown ? (
+              <TasksOnce onShown={() => setTasksShown(true)}>
+                <PoolTasks poolId={poolId} members={(cards ?? []).map((card) => ({ session_id: card.session_id, name: card.name }))} sessions={sessions} projects={projects} now={now} />
+              </TasksOnce>
+            ) : null
+          ) : tab === "messages" ? (
             <PoolMessages poolId={poolId} members={(cards ?? []).map((card) => ({ session_id: card.session_id, name: card.name }))} now={now} />
           ) : tab === "members" ? (
             <div className="flex flex-col gap-2">

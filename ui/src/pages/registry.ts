@@ -34,6 +34,7 @@ export type PageTabId =
   | "actions"
   | "members"
   | "messages"
+  | "tasks"
   | "access";
 
 export type PageTab = {
@@ -55,6 +56,7 @@ const TAB: Record<PageTabId, PageTab> = {
   actions: { id: "actions", label: "Actions", source: "the paired Mac" },
   members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
   messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this Mac" },
+  tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this Mac" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
 };
 
@@ -70,6 +72,8 @@ export type TabFacts = {
   hasSessions?: boolean;
   /** E18: a session with messages to or from it. */
   hasMessages?: boolean;
+  /** E19: a session that holds or worked a task. */
+  hasTasks?: boolean;
   /** AJ-E2404: another app's session, open now (its processes show). */
   live?: boolean;
 };
@@ -101,8 +105,8 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "session":
       // E18: its Messages, once it has any.
       return facts.desktop
-        ? [TAB.window, TAB.overview, ...when(facts.hasMessages, "messages"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
-        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasMessages, "messages"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+        ? [TAB.window, TAB.overview, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
+        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     case "project":
       return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
     case "account":
@@ -116,7 +120,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
     case "pool":
-      return [TAB.members, TAB.messages, TAB.access];
+      return [TAB.members, TAB.tasks, TAB.messages, TAB.access];
   }
 }
 

@@ -316,8 +316,9 @@ fn the_summaries_hold_their_budget_on_a_million_messages() {
 
 /// 0.1.5 → 0.2: a 0.1.5 database is schema 32 with the derived tables
 /// beside it (no migration of their own). Opened by 0.2 it migrates to
-/// pools (v33) and messages (v34); the derived tables keep their rows and
-/// their triggers are made again. A fresh v34 database has them too.
+/// pools (v33), messages (v34) and on (tasks: v36); the derived tables
+/// keep their rows and their triggers are made again. A fresh database at
+/// the latest schema has them too.
 #[test]
 fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
     let dir = tempfile::tempdir().unwrap();
@@ -345,8 +346,8 @@ fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
         .unwrap();
     }
     let storage = Storage::open(&db).unwrap();
-    assert_eq!(Storage::schema_version(), 34);
-    assert_eq!(storage.user_version().unwrap(), 34);
+    assert!(Storage::schema_version() >= 34);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     let kept = storage
         .usage()
         .sourced_samples_for_account("work", WindowKind::FiveHour)
@@ -364,7 +365,7 @@ fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
     drop(storage);
     // A fresh database at the latest schema has them from its first open.
     let fresh = Storage::open_in_memory().unwrap();
-    assert_eq!(fresh.user_version().unwrap(), 34);
+    assert_eq!(fresh.user_version().unwrap(), Storage::schema_version());
     fresh
         .usage()
         .insert_sourced_samples(&[(

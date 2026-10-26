@@ -165,7 +165,11 @@ let focused: string | null = null;
 /** The thread a pool's Messages tab opens on next (from Needs you). */
 export function focusThread(threadId: string | null): void {
   focused = threadId;
+  // E19: a Messages tab already open (a task's thread) takes it now.
+  window.dispatchEvent(new Event(FOCUS_THREAD));
 }
+/** The event a Messages tab already open listens for. */
+export const FOCUS_THREAD = "aij:focus-thread";
 /** …taken once. */
 export function takeFocusedThread(): string | null {
   const thread = focused;

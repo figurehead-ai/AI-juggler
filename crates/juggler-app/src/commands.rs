@@ -2901,6 +2901,24 @@ pub fn launch_profile_as(
     cwd: Option<String>,
     runtime: Option<juggler_adapter::Runtime>,
 ) -> AppResult<LaunchResult> {
+    launch_profile_primed(state, profile_id, cwd, runtime, None)
+}
+
+/// E19: [`launch_profile_as`] with the user's first prompt (a session
+/// the user starts for a task): a terminal launch takes it as the tool's
+/// own first prompt; a driven one gets it from its caller as the user's
+/// first message.
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on failure.
+pub fn launch_profile_primed(
+    state: &Arc<AppState>,
+    profile_id: &str,
+    cwd: Option<String>,
+    runtime: Option<juggler_adapter::Runtime>,
+    first: Option<String>,
+) -> AppResult<LaunchResult> {
     use juggler_adapter::LaunchMode;
 
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
@@ -2931,7 +2949,11 @@ pub fn launch_profile_as(
         .map_or_else(std::env::temp_dir, std::path::PathBuf::from);
     // AJ-E1001: who this Account is signed in as — before anything runs.
     let assertion = crate::identity::assert_identity(state, &account)?;
-    let spec = adapter.launch_spec(&account, &profile, &effective_cwd, &LaunchMode::Interactive)?;
+    let mode = first.map_or(LaunchMode::Interactive, |prompt| LaunchMode::Primed {
+        prompt,
+        read_dirs: Vec::new(),
+    });
+    let spec = adapter.launch_spec(&account, &profile, &effective_cwd, &mode)?;
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
     // The juggling anchor: this launch's cwd becomes (or refreshes) the
     // tracked project, and the session is linked to it (ADR-0007).
@@ -13065,6 +13087,8 @@ pub struct EpochNodeInfo {
     pub resumable: bool,
     /// The live session id, when one is attached.
     pub session_id: Option<String>,
+    /// AJ-E1904: its session's task (`aj-7f3c · title`), when it has one.
+    pub task: Option<String>,
 }
 
 /// One labelled edge on the timeline.
@@ -13188,6 +13212,7 @@ fn work_graph_info(
         .unwrap_or(0);
     let collapsed = u32::try_from(visible_start).unwrap_or_default();
     let mut nodes = Vec::new();
+    let newest = epochs.last().map(|epoch| epoch.id.clone());
     for epoch in &epochs[visible_start.min(epochs.len())..] {
         let resumable = epoch.native_id.as_deref().is_some_and(|id| !id.is_empty())
             && epoch
@@ -13211,6 +13236,10 @@ fn work_graph_info(
             kind: "terminal".to_owned(),
             resumable,
             session_id: epoch.session_ref.as_ref().map(ToString::to_string),
+            task: epoch.session_ref.as_ref().and_then(|session| {
+                let last = newest.as_ref() == Some(&epoch.id);
+                crate::features::tasks::views::epoch_task(storage, session.as_str(), last)
+            }),
         });
     }
     let (wire_edges, hops, tokens) = graph_edge_summary(&edges);

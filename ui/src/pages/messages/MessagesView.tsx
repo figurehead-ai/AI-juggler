@@ -13,6 +13,7 @@ import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
 import { ago } from "../../lib/time-words";
 import {
+  FOCUS_THREAD,
   messagesSearch,
   messagesSetPool,
   messagesThreads,
@@ -107,6 +108,16 @@ export function MessagesView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId, sessionId]);
+
+  // E19: a task's thread, asked for while this tab is already open.
+  useEffect(() => {
+    const take = () => {
+      const thread = takeFocusedThread();
+      if (thread) (setOpen(thread), setWriting(false));
+    };
+    window.addEventListener(FOCUS_THREAD, take);
+    return () => window.removeEventListener(FOCUS_THREAD, take);
+  }, []);
 
   useEffect(() => {
     const words = query.trim();

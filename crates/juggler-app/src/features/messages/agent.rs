@@ -98,9 +98,16 @@ pub fn answer(
             let args = request.read_doc.clone().unwrap_or_default();
             super::docs::read_for_agent(state, caller, args.doc.as_deref(), args.cursor.as_deref())
         }
-        Call::Whoami | Call::PoolRoster | Call::SetStatus | Call::Cards => {
-            Err(refuse(Refusal::Bad, "That isn't a messaging call."))
-        }
+        Call::Whoami
+        | Call::PoolRoster
+        | Call::SetStatus
+        | Call::Cards
+        | Call::TasksList
+        | Call::TaskGet
+        | Call::TaskCreate
+        | Call::TaskClaim
+        | Call::TaskUpdate
+        | Call::TaskAssign => Err(refuse(Refusal::Bad, "That isn't a messaging call.")),
     }
 }
 

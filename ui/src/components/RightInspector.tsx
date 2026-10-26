@@ -26,9 +26,7 @@ import { DesktopPreview } from "./DesktopPreview";
 import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
-import { useSessionMessages } from "../pages/messages/useSessionMessages";
-// E18: a session's Messages tab, loaded when it opens.
-const SessionMessages = lazyNamed(() => import("../pages/messages/PoolMessages"), "SessionMessages");
+import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
@@ -186,14 +184,14 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [remote, onRemoteBack]);
 
-  const messagesPool = useSessionMessages(data.instance?.id ?? null);
+  const sessionTabs = useSessionTabs(data.instance?.id ?? null);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
   const kind = selection.kind;
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
-    hasMessages: messagesPool !== null,
+    ...sessionTabs,
     hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
@@ -328,7 +326,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
         case "messages":
-          return props.data.instance ? <SessionMessages session={props.data.instance} now={props.now} /> : null;
+        case "tasks":
+          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} /> : null;
         default:
           return null;
       }

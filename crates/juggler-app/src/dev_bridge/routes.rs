@@ -304,6 +304,14 @@ read_routes! {
     "processes_history" => async_result features::processes::commands::processes_history(state; session_id: Option<String>, project_id: Option<String>, page: crate::paging::PageRequest);
     "processes_dry_run" => async_result features::processes::commands::processes_dry_run(state; account_id: String, tier: u8);
     "processes_policy" => async_result features::processes::commands::processes_policy(state);
+    // E19: tasks' lists (reads only).
+    "tasks_list" => async_result features::tasks::commands::tasks_list(state; pool_id: String, filter: Option<String>, words: Option<String>, page: crate::paging::PageRequest);
+    "tasks_counts" => async_result features::tasks::commands::tasks_counts(state; pool_id: String);
+    "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String, page: crate::paging::PageRequest);
+    "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, page: crate::paging::PageRequest);
+    "tasks_session" => async_result features::tasks::commands::tasks_session(state; session_id: String, page: crate::paging::PageRequest);
+    "tasks_detail" => async_result features::tasks::commands::tasks_detail(state; task_id: String, cursor: Option<String>);
+    "tasks_needs" => async_result features::tasks::commands::tasks_needs(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other

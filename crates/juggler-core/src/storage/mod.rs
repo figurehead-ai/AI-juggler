@@ -30,6 +30,7 @@ mod projects;
 mod settings;
 mod sightings;
 mod switch_graph;
+mod tasks;
 mod transcript_index;
 mod usage;
 mod usage_history;
@@ -73,6 +74,10 @@ pub use sightings::{
     SightingsRepo,
 };
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
+pub use tasks::{
+    Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
+    TaskQuery, TaskSession, TasksRepo,
+};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
@@ -597,9 +602,14 @@ const V34: &str = messages::MIGRATION;
 /// its tables ([`sightings::MIGRATION`]).
 const V35: &str = sightings::MIGRATION;
 
+/// v36 (E19): the tasks a pool shares, their links, the sessions that
+/// worked them, the append-only event log, and what waits on the user.
+/// The tasks module owns its tables ([`tasks::MIGRATION`]).
+const V36: &str = tasks::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -970,6 +980,12 @@ impl Storage {
     #[must_use]
     pub fn sightings(&self) -> SightingsRepo<'_> {
         SightingsRepo::new(&self.conn)
+    }
+
+    /// Repository for the tasks a pool shares (schema v36, E19).
+    #[must_use]
+    pub fn tasks(&self) -> TasksRepo<'_> {
+        TasksRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

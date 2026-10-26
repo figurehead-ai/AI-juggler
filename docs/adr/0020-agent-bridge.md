@@ -150,6 +150,44 @@ without MCP). The pools, their access levels and the one decision point
   the ping-pong check and the breaker (`messages.rs`). **I** secrets in a
   message or doc: the packs' redaction before storing (`shared_docs_…`).
 
+## E19 addendum: tasks (2026-10-25)
+
+- **Six more tools**, pre-allowed like the rest (D-30): `tasks_list`,
+  `task_get` (read-only, annotated so), `task_create`, `task_claim`,
+  `task_update`, `task_assign` (`wire::TOOLS`, fourteen in all). The
+  command line has `tasks [--mine|--ready]`, `task`, `task-create`,
+  `claim`, `task-update`, `release` and `assign`.
+- **One shape per tool's arguments** (`TasksListArgs`, `TaskArgs`,
+  `TaskCreateArgs`, `TaskUpdateArgs`, `TaskAssignArgs`, all
+  `deny_unknown_fields`): nothing an agent passes names who it is, another
+  pool, an assignee at creation, an account, a profile or a start.
+  `task_assign`'s `to` is a member's `session_id`, `nobody`, or
+  `new_session` (a request the user sees; D-31).
+- **Decisions:** `tasks_list` and `task_get` are `read_tasks`;
+  `task_create` `create_task`; `task_claim` `claim_task`; `task_update`
+  `update_task`; `task_assign` `assign_task` (in no named level, so it
+  asks unless the user made a rule), or `prepare_launch` for
+  `new_session`. The calls go to `features/tasks`, which alone decides
+  (through `allowed`) and holds a change above the level for the user's
+  OK in Needs you, applied as the agent's own when allowed. The task rules
+  (`juggler_core::tasks`) sit under the level: the lead plans epics and
+  stories and gives tasks out; a member works what it holds.
+- **A claim is one statement** (`UPDATE … WHERE status = 'ready' AND
+  assignee is no one else AND no open blocker`): of N agents, one wins.
+- **The Claude Code plugin** (`plugins/claude-code/`, AJ-E1905) runs the
+  same program as `juggler-agent --mcp --plugin`: in a session AI Juggler
+  started (a key in its environment) it lists no tools, so the launch's
+  own aren't listed twice; anywhere else each call says why it can't. It
+  never carries a key: identity still comes only with a launch.
+- STRIDE, added: **E** an agent starts a session or picks an account
+  through a task: no tool argument names one, an agent's request only
+  waits in Needs you, and only the user's command reaches the launch
+  (`tasks_guardrails.rs`). **T** a task's words that tell its reader to
+  change grants: provenance (`written_by`) on every task, words as data
+  fields, no call that changes a grant. **D** claim storms: the call rate
+  limit (30 in 10 s) and one statement per claim. **I** quota: nothing in
+  tasks reads it (`assignment_never_reads_quota`).
+
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 
 - That a server from `--mcp-config` loads in Claude Code without an

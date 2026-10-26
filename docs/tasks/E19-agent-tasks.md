@@ -16,7 +16,7 @@
 > - **Tasks follow the work.** A switch keeps the task, and the switch
 >   history shows it.
 
-### AJ-E1901 Task storage and rules | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1702
+### AJ-E1901 Task storage and rules | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: AJ-E1702
 **Goal**: Epics, stories and tasks live in a pool, with honest states and atomic claims.
 **User story**: As a lead agent, I break an epic into stories and tasks; builders claim the ready ones.
 **Requirements**:
@@ -38,8 +38,9 @@
 **Files to touch**: `crates/juggler-core/src/storage/` (tasks).
 **Research basis**: `pools-messaging-tasks.md` §2.3 (tasks).
 **Handover note**: A schema bump: downgrade note and `SCHEMA_RELEASES`.
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1901/manifest.md`): schema **v36**, after D-41's v35 sightings (`e24-processes`, merged before it: a v34 database gets both); the status shown is the honest one (blocked while an open task blocks it); the roles under the level (the lead plans and assigns, a member works what it holds) are D-43 point 3.
 
-### AJ-E1902 Agent task tools | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1901, AJ-E1704
+### AJ-E1902 Agent task tools | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; the live lab open) | Priority P0 | Effort S | Depends: AJ-E1901, AJ-E1704
 **Goal**: Agents in any tool work the pool's tasks.
 **User story**: As a builder agent, I call `tasks_list` for ready work, claim one, and mark it in review when done.
 **Requirements**:
@@ -53,8 +54,9 @@
 **Files to touch**: `crates/juggler-agentbridge/`.
 **Research basis**: as above.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1902/manifest.md`, ADR-0020's E19 addendum): a change above the pool's level is held for the user's OK in Needs you (D-43 point 1); `task_assign` with `new_session` only asks the user (D-31). Live: `docs/qa/tasks-lab.md`.
 
-### AJ-E1903 The task list and tree in the app | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1901
+### AJ-E1903 The task list and tree in the app | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: AJ-E1901
 **Goal**: The user plans and follows work in one place.
 **User story**: As the user, I write an epic with three stories, see what's ready, who has what, and what's blocked.
 **Requirements**:
@@ -69,8 +71,9 @@
 **Files to touch**: `ui/src/screens/` (Tasks), `commands.rs`.
 **Research basis**: as above.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1903/manifest.md`): each pool's **Tasks** tab (the list; **Plan** for the epic and story tree) and each session's **Tasks** tab, no new screen (as D-42 point 3 for messages); Needs you for what waits on the user. "Start a session for it" is D-43 point 4.
 
-### AJ-E1904 Tasks follow sessions and switches | Status: TODO | Priority P1 | Effort S | Depends: AJ-E1901, AJ-E201
+### AJ-E1904 Tasks follow sessions and switches | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1901, AJ-E201
 **Goal**: Continuing on another account or tool carries the task.
 **User story**: As a user whose builder hit its limit, I continue it on another account, and the task stays with it.
 **Requirements**:
@@ -84,8 +87,9 @@
 **Files to touch**: `crates/juggler-core/src/storage/switch_graph.rs`.
 **Research basis**: as above.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1904/manifest.md`): a task's holder is its member ref (the Work item once it has one), so nothing needs carrying at a switch; `task_sessions` links each session that worked it, and the Switch Graph's nodes show it (`switch_graph.rs` unchanged).
 
-### AJ-E1905 A Claude Code plugin | Status: TODO | Priority P2 | Effort S | Depends: AJ-E1902
+### AJ-E1905 A Claude Code plugin | Status: IN-PROGRESS (built and tested; not published until D-43 point 6 is ruled) | Priority P2 | Effort S | Depends: AJ-E1902
 **Goal**: Claude Code users can add the bridge and a task skill in one step, even outside AI Juggler's launches.
 **User story**: As a Claude Code user, I install the plugin, and my sessions can read and update the pool's tasks.
 **Requirements**:
@@ -99,8 +103,9 @@
 **Files to touch**: `plugins/claude-code/` (new).
 **Research basis**: `pools-messaging-tasks.md` §1.3.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1905/manifest.md`): the bundle and its install test in a fixture home. "Even outside AI Juggler's launches" conflicts with ADR-0020 (a key only with a launch) and D-30, so outside them each tool says why it can't; publishing it with the releases waits on D-43 point 6.
 
-### AJ-E1906 Links to GitHub issues and Linear | Status: TODO | Priority P2 | Effort S | Depends: AJ-E1901
+### AJ-E1906 Links to GitHub issues and Linear | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P2 | Effort S | Depends: AJ-E1901
 **Goal**: A task can point to the issue it comes from.
 **User story**: As a user, I paste a GitHub issue link into a task, and it shows the issue's title and state.
 **Requirements**:
@@ -113,3 +118,4 @@
 **Files to touch**: `commands.rs`, the task view.
 **Research basis**: `pools-messaging-tasks.md` §1.6.
 **Handover note**: —
+*Built 2026-10-25* (`docs/qa/evidence/AJ-E1906/manifest.md`): GitHub titles and states through the user's own `gh`, on the user's click only (D-43 point 5); Linear links show their id from the link.

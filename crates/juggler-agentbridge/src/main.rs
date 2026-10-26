@@ -5,7 +5,7 @@
 use std::io::{Read, Write};
 use std::process::ExitCode;
 
-use juggler_agentbridge::cli::{App, Command, USAGE, exit_code, parse, serve};
+use juggler_agentbridge::cli::{App, Command, USAGE, exit_code, parse, serve, serve_as};
 use juggler_agentbridge::mcp::Backend;
 use juggler_agentbridge::wire::{Args, Call, DOC_MAX, DocArgs};
 
@@ -17,6 +17,18 @@ fn main() -> ExitCode {
             let stdin = std::io::stdin();
             let stdout = std::io::stdout();
             match serve(stdin.lock(), stdout.lock(), &mut app) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(_) => ExitCode::FAILURE,
+            }
+        }
+        Ok(Command::McpPlugin) => {
+            // E19: in a session AI Juggler started, its launch already
+            // added the tools; the plugin's copy then stays empty.
+            let given = std::env::var(juggler_agentbridge::wire::TOKEN_ENV)
+                .is_ok_and(|token| !token.is_empty());
+            let stdin = std::io::stdin();
+            let stdout = std::io::stdout();
+            match serve_as(stdin.lock(), stdout.lock(), &mut app, Some(given)) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(_) => ExitCode::FAILURE,
             }

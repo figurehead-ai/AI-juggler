@@ -1,0 +1,29 @@
+test tasks::tests::the_lead_plans_and_members_work_what_they_hold ... ok
+test tasks::tests::a_brief_says_whose_words_they_are ... ok
+test tasks::tests::words_round_trip_and_strangers_dont ... ok
+test tasks::tests::text_is_kept_clean_and_bounded ... ok
+test tasks::tests::no_loops_in_blocks_or_parents ... ok
+test tasks::tests::links_name_github_and_linear_and_refuse_the_rest ... ok
+test tasks::tests::short_ids_look_like_beads ... ok
+test tasks::tests::ready_means_no_open_blocker_and_the_list_puts_it_first ... ok
+test storage::tasks::tests::a_claim_takes_a_ready_task_once ... ok
+test storage::tasks::tests::ready_is_honest_about_open_blockers ... ok
+test storage::tasks::tests::releasing_gives_it_back_and_epics_hold_stories ... ok
+test storage::tasks::tests::a_thousand_tasks_list_quickly ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.13s
+test storage::messages::tests::a_task_finds_the_threads_that_name_it ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 75 filtered out; finished in 0.01s
+test the_timeout_is_long_enough_for_a_long_write ... ok
+test a_storage_write_waits_for_another_connections_write ... ok
+test a_migration_waits_for_another_connection_that_changes_the_database ... ok
+test the_ledger_audit_and_cleanup_settings_wait_too ... ok
+test a_usage_write_waits_for_another_connection_that_changes_the_database ... ok
+test opening_the_database_waits_while_another_connection_writes ... ok
+test every_store_write_waits_for_another_connection_that_changes_the_database ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.96s
+test upgrading_from_0_1_runs_both_and_keeps_0_1s_copy ... ok
+test upgrading_from_pools_keeps_a_copy_and_every_pool_as_it_was ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test n_connections_claim_one_task_and_exactly_one_wins ... ok
+test upgrading_from_messages_keeps_a_copy_and_everything_as_it_was ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s

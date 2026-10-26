@@ -39,8 +39,8 @@
 - [Your other Macs](fleet.md) (beta): pairing your Macs, what each one sees,
   starting a session on another Mac, and usage by machine.
 - [Pools](pools.md): grouping sessions that work together, what each
-  member is working on, what agents may do in a pool, and their messages
-  and shared documents.
+  member is working on, what agents may do in a pool, their messages and
+  shared documents, and the pool's tasks.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.
