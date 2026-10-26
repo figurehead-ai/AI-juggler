@@ -77,7 +77,9 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
     : alert.place
       ? alert.place === "desktop"
         ? "The Claude app"
-        : "claude in a terminal"
+        : alert.place === "terminal"
+          ? "claude in a terminal"
+          : (alert.subject_name ?? "Another app")
       : null;
   if (!who) return null;
   const figures = [
@@ -92,7 +94,9 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
   const what = figures.join(" and ");
   // A tool AI Juggler didn't start is named as a whole: its windows'
   // figure, and how many it sums (the 0.0.12 report).
-  const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} windows` : "";
+  // Another app's group sums its sessions (AJ-E2407).
+  const unit = alert.subject_name ? "sessions" : "windows";
+  const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} ${unit}` : "";
   // A session's name keeps its own case ("feat/read-model").
   return `${who} is using ${what}${windows}`;
 }

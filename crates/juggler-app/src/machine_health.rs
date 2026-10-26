@@ -868,6 +868,10 @@ pub struct ToolTreeInfo {
     pub helpers: u32,
     /// "CPU 95%", "3.2 GB" — only when the tree is heavy.
     pub heavy_note: Option<String>,
+    /// For another app's session the Processes view found (AJ-E2407): its
+    /// title, else its app's name; for a whole group, the group's words.
+    #[ts(optional = nullable)]
+    pub title: Option<String>,
     /// The memory is an estimate: helper RSS summed, so memory those
     /// helpers share is counted once per helper (a tool AI Juggler didn't
     /// start, whose exact footprint needs an unsafe OS call). Show it as
@@ -936,6 +940,12 @@ pub struct TreeInput {
     pub ring: Vec<TreeSample>,
     /// AJ-E512 hog rules that fired for it.
     pub hog_rules: Vec<String>,
+    /// For another app's session the Processes view found (AJ-E2407): the
+    /// app it runs in (`ChatGPT`, `Terminal`); `None` for the Claude tools
+    /// their own scan finds.
+    pub app: Option<String>,
+    /// That session's title, when it has one.
+    pub title: Option<String>,
 }
 
 /// Heavy with hysteresis, from the ring alone. A tree turns heavy once a
@@ -1031,6 +1041,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         rss_bytes: tree.stats.rss_bytes,
         helpers: tree.stats.child_count,
         heavy_note: heavy_note(tree),
+        title: tree.title.clone().or_else(|| tree.app.clone()),
         memory_estimate: tree.place.is_some(),
     }
 }
@@ -1160,6 +1171,8 @@ fn tree_inputs(
                 session_id: Some(id),
                 place: None,
                 stats,
+                app: None,
+                title: None,
             });
         }
         let observed = collector.observed_snapshot();
@@ -1176,8 +1189,17 @@ fn tree_inputs(
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
                 hog_rules: Vec::new(),
+                app: None,
+                title: None,
             });
         }
+        // AJ-E2407: every other app's AI session the Processes view found
+        // (any tool, any app), unless a row above already counts its tree.
+        trees.extend(crate::machine_tools::graph_trees(
+            &state.processes.graph(),
+            &observed,
+            &collector.observed_extra_snapshot(),
+        ));
     }
     Ok(trees)
 }
@@ -1702,6 +1724,8 @@ mod tests {
             },
             ring: ring(cpu, rss, seconds),
             hog_rules: Vec::new(),
+            app: None,
+            title: None,
         }
     }
 
@@ -2049,6 +2073,7 @@ mod live {
             subject_estimate: true,
             subject_cpu: None,
             subject_windows: Some(3),
+            subject_name: None,
             other_apps: Vec::new(),
             since_ms: 0,
         };
