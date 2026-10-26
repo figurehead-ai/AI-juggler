@@ -1195,6 +1195,36 @@ impl MessagesRepo<'_> {
         collect(stmt.query_map(params![expression, pool_id, page(limit)], message_of)?)
     }
 
+    /// E19: a pool's threads where a message names `id` (a task's short
+    /// id, `aj-7f3c`, as one phrase), newest first.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn threads_naming(
+        &self,
+        pool_id: &str,
+        id: &str,
+        limit: u32,
+    ) -> Result<Vec<Thread>, CoreError> {
+        let words: Vec<String> = id
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|word| !word.is_empty())
+            .map(str::to_lowercase)
+            .collect();
+        if words.is_empty() {
+            return Ok(Vec::new());
+        }
+        let phrase = format!("\"{}\"", words.join(" "));
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {THREAD_COLUMNS} FROM agent_threads WHERE pool_id = ?2 AND id IN (
+                 SELECT m.thread_id FROM agent_messages_fts f JOIN agent_messages m ON m.seq = f.rowid
+                  WHERE agent_messages_fts MATCH ?1 AND m.pool_id = ?2)
+              ORDER BY last_seq DESC LIMIT ?3"
+        ))?;
+        collect(stmt.query_map(params![phrase, pool_id, page(limit)], thread_of)?)
+    }
+
     /// Records a shared doc, and logs it.
     ///
     /// # Errors
@@ -1577,6 +1607,35 @@ mod tests {
         assert!(repo.search(&pool, "billing", 10).unwrap().is_empty());
         assert!(
             repo.search("pool-default:none", "schema", 10)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_task_finds_the_threads_that_name_it() {
+        let storage = storage();
+        let pool = pool(&storage);
+        let repo = storage.messages();
+        repo.create_thread("thr-1", &pool, "Start", "session:a")
+            .unwrap();
+        send(
+            &repo,
+            "msg-1",
+            "thr-1",
+            &pool,
+            "session:a",
+            "session:b",
+            "aj-7f3c is yours: the schema is in the doc",
+        );
+        assert_eq!(repo.threads_naming(&pool, "aj-7f3c", 10).unwrap().len(), 1);
+        assert!(
+            repo.threads_naming(&pool, "aj-7f3d", 10)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            repo.threads_naming("pool-default:none", "aj-7f3c", 10)
                 .unwrap()
                 .is_empty()
         );
