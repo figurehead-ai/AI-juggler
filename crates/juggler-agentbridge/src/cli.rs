@@ -65,7 +65,7 @@ pub enum Command {
     /// `--version`.
     Version,
     /// One call.
-    Call(Call, Args),
+    Call(Call, Box<Args>),
     /// E18: share the text on stdin as a doc called this.
     Share(String),
     /// AJ-E2306: a tool's hook reporting its session's state
@@ -85,10 +85,10 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
         ["hook", event] => Ok(Command::Hook((*event).to_owned())),
-        ["whoami"] => Ok(Command::Call(Call::Whoami, Args::default())),
-        ["roster" | "pool_roster"] => Ok(Command::Call(Call::PoolRoster, Args::default())),
-        ["cards"] => Ok(Command::Call(Call::Cards, Args::default())),
-        ["status" | "set_status", text @ ..] => Ok(Command::Call(
+        ["whoami"] => Ok(call_of(Call::Whoami, Args::default())),
+        ["roster" | "pool_roster"] => Ok(call_of(Call::PoolRoster, Args::default())),
+        ["cards"] => Ok(call_of(Call::Cards, Args::default())),
+        ["status" | "set_status", text @ ..] => Ok(call_of(
             Call::SetStatus,
             Args {
                 text: Some(clean_status(&text.join(" "))),
@@ -97,7 +97,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         )),
         ["send", to, text @ ..] if !text.is_empty() => Ok(send(to, None, text)),
         ["reply", thread, to, text @ ..] if !text.is_empty() => Ok(send(to, Some(thread), text)),
-        ["inbox"] | ["inbox", "--all"] => Ok(Command::Call(
+        ["inbox"] | ["inbox", "--all"] => Ok(call_of(
             Call::ReadInbox,
             Args {
                 inbox: Some(InboxArgs {
@@ -107,7 +107,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
                 ..Args::default()
             },
         )),
-        ["read", message] => Ok(Command::Call(
+        ["read", message] => Ok(call_of(
             Call::ReadInbox,
             Args {
                 inbox: Some(InboxArgs {
@@ -118,7 +118,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
                 ..Args::default()
             },
         )),
-        ["ack", ids @ ..] if !ids.is_empty() => Ok(Command::Call(
+        ["ack", ids @ ..] if !ids.is_empty() => Ok(call_of(
             Call::Ack,
             Args {
                 ack: Some(ids.iter().map(|id| (*id).to_owned()).collect()),
@@ -126,14 +126,14 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
             },
         )),
         ["share", name] => Ok(Command::Share((*name).to_owned())),
-        ["docs"] => Ok(Command::Call(
+        ["docs"] => Ok(call_of(
             Call::ReadDoc,
             Args {
                 read_doc: Some(ReadDocArgs::default()),
                 ..Args::default()
             },
         )),
-        ["doc", id] => Ok(Command::Call(
+        ["doc", id] => Ok(call_of(
             Call::ReadDoc,
             Args {
                 read_doc: Some(ReadDocArgs {
@@ -147,8 +147,13 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
     }
 }
 
+/// One call with its arguments.
+fn call_of(what: Call, args: Args) -> Command {
+    Command::Call(what, Box::new(args))
+}
+
 fn send(to: &str, thread: Option<&str>, text: &[&str]) -> Command {
-    Command::Call(
+    call_of(
         Call::SendMessage,
         Args {
             send: Some(SendArgs {
@@ -195,7 +200,7 @@ pub fn exit_code(outcome: &Result<Value, CallError>) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, parse, serve};
+    use super::{Command, call_of, parse, serve};
     use crate::client::CallError;
     use crate::mcp::Backend;
     use crate::wire::{Args, Call};
@@ -210,11 +215,11 @@ mod tests {
         assert_eq!(parse(&words("--mcp")), Ok(Command::Mcp));
         assert_eq!(
             parse(&words("whoami")),
-            Ok(Command::Call(Call::Whoami, Args::default()))
+            Ok(call_of(Call::Whoami, Args::default()))
         );
         assert_eq!(
             parse(&words("status Fixing   the checkout")),
-            Ok(Command::Call(
+            Ok(call_of(
                 Call::SetStatus,
                 Args {
                     text: Some("Fixing the checkout".into()),

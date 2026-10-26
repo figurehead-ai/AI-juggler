@@ -151,7 +151,7 @@ fn about(version: &str) -> Value {
 pub fn tools() -> Value {
     let looks = json!({"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false});
     let writes = json!({"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false});
-    json!([
+    let mut tools = json!([
         {
             "name": "whoami",
             "title": "Who am I",
@@ -178,6 +178,19 @@ pub fn tools() -> Value {
             },
             "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
         },
+    ]);
+    if let (Some(all), Some(more)) = (
+        tools.as_array_mut(),
+        message_tools(&looks, &writes).as_array(),
+    ) {
+        all.extend(more.iter().cloned());
+    }
+    tools
+}
+
+/// E18's tools: messages and shared docs.
+fn message_tools(looks: &Value, writes: &Value) -> Value {
+    json!([
         {
             "name": "send_message",
             "title": "Message the pool",

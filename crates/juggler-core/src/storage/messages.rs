@@ -1588,7 +1588,10 @@ mod tests {
         let pool = pool(&storage);
         let repo = storage.messages();
         repo.link(&pool, "pool-default:none").unwrap();
-        assert_eq!(repo.links("pool-default:none").unwrap(), [pool.clone()]);
+        assert_eq!(
+            repo.links("pool-default:none").unwrap(),
+            std::slice::from_ref(&pool)
+        );
         assert!(repo.link(&pool, &pool).is_err());
         repo.unlink("pool-default:none", &pool).unwrap();
         assert!(repo.links(&pool).unwrap().is_empty());

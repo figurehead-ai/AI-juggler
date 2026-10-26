@@ -59,10 +59,13 @@ fn clean_name(name: &str) -> String {
 
 /// Its type, from its name.
 fn mime_of(name: &str) -> &'static str {
-    let lower = name.to_lowercase();
-    if lower.ends_with(".md") || lower.ends_with(".markdown") {
+    let extension = std::path::Path::new(name)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default();
+    if extension.eq_ignore_ascii_case("md") || extension.eq_ignore_ascii_case("markdown") {
         "text/markdown"
-    } else if lower.ends_with(".json") {
+    } else if extension.eq_ignore_ascii_case("json") {
         "application/json"
     } else {
         "text/plain"

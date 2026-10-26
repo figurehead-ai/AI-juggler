@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use juggler_core::agent_access::AgentAction;
-use juggler_core::storage::{RecipientState, SENDER_USER, ThreadState};
+use juggler_core::storage::{Message, RecipientState, SENDER_USER, ThreadState};
 
 use super::dto::MessageNeedInfo;
 use super::send::{Author, route};
@@ -241,81 +241,92 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
         // The same answer as every agent ask (counted, or a rule).
         crate::features::pools::access::answer_impl(state, &ask.pool_id, &ask.action, answer)?;
     }
-    {
-        let storage = lock_storage_arc(state)?;
-        let repo = storage.messages();
-        repo.close_ask(&ask.id, answer)?;
-        let refs: Vec<String> = repo
-            .recipients(&message.id)?
-            .into_iter()
-            .map(|r| r.recipient_ref)
-            .collect();
-        match (deliver, answer) {
-            (false, "deny") => {
-                repo.set_state(
-                    std::slice::from_ref(&message.id),
-                    &refs,
-                    &[RecipientState::Held],
-                    RecipientState::Refused,
-                    Some("user"),
-                    SENDER_USER,
-                    "refused",
-                )?;
-            }
-            (false, _) => {
-                repo.set_state(
-                    std::slice::from_ref(&message.id),
-                    &refs,
-                    &[RecipientState::Held],
-                    RecipientState::Unread,
-                    None,
-                    SENDER_USER,
-                    "allowed",
-                )?;
-            }
-            (true, "deny") => {
-                repo.log(
-                    &message.pool_id,
-                    SENDER_USER,
-                    "not_delivered",
-                    &message.id,
-                    None,
-                )?;
-            }
-            (true, _) => {
-                // A person's click: the chain starts again from 0.
-                repo.reset_hop(&message.thread_id)?;
-                repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
-            }
-        }
-    }
-    match (deliver, answer) {
-        (false, "deny") | (true, "deny") => {}
-        (false, _) => {
-            let sender = super::live_session_of(&*lock_storage_arc(state)?, &message.sender_ref);
-            if let Some(session) = sender {
-                let from = Author::Agent {
-                    session,
-                    member_ref: message.sender_ref.clone(),
-                    name: message.sender_name.clone(),
-                    tool: String::new(),
-                };
-                route(state, &message, &from, false);
-            }
-        }
-        (true, _) => {
-            let recipients = lock_storage_arc(state)?
-                .messages()
-                .recipients(&message.id)?;
-            for recipient in recipients {
-                let session =
-                    super::live_session_of(&*lock_storage_arc(state)?, &recipient.recipient_ref);
-                if let Some(session) = session.filter(|s| state.runtime.is_driven(s)) {
-                    super::delivery::queue(state, &message.id, &session);
-                }
-            }
-        }
+    lock_storage_arc(state)?
+        .messages()
+        .close_ask(&ask.id, answer)?;
+    settle(state, deliver, answer, &message)?;
+    if answer != "deny" {
+        go_on(state, deliver, &message)?;
     }
     state.messages.notify(&message.pool_id);
+    Ok(())
+}
+
+/// What the answer changes in storage: a held message released or
+/// refused; a hop-limit delivery's chain reopened from 0 (a person's
+/// click), or logged as not delivered.
+fn settle(state: &Arc<AppState>, deliver: bool, answer: &str, message: &Message) -> AppResult<()> {
+    let storage = lock_storage_arc(state)?;
+    let repo = storage.messages();
+    let refs: Vec<String> = repo
+        .recipients(&message.id)?
+        .into_iter()
+        .map(|r| r.recipient_ref)
+        .collect();
+    let id = std::slice::from_ref(&message.id);
+    match (deliver, answer) {
+        (false, "deny") => {
+            repo.set_state(
+                id,
+                &refs,
+                &[RecipientState::Held],
+                RecipientState::Refused,
+                Some("user"),
+                SENDER_USER,
+                "refused",
+            )?;
+        }
+        (false, _) => {
+            repo.set_state(
+                id,
+                &refs,
+                &[RecipientState::Held],
+                RecipientState::Unread,
+                None,
+                SENDER_USER,
+                "allowed",
+            )?;
+        }
+        (true, "deny") => repo.log(
+            &message.pool_id,
+            SENDER_USER,
+            "not_delivered",
+            &message.id,
+            None,
+        )?,
+        (true, _) => {
+            repo.reset_hop(&message.thread_id)?;
+            repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
+        }
+    }
+    Ok(())
+}
+
+/// After a yes: a released message goes where it would have (the pool's
+/// level and the hop limit decide its delivery); a hop-limit delivery is
+/// queued as the user's click.
+fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
+    if !deliver {
+        let sender = super::live_session_of(&*lock_storage_arc(state)?, &message.sender_ref);
+        if let Some(session) = sender {
+            let from = Author::Agent {
+                session,
+                member_ref: message.sender_ref.clone(),
+                name: message.sender_name.clone(),
+                tool: String::new(),
+            };
+            route(state, message, &from, false);
+        }
+        return Ok(());
+    }
+    let recipients = lock_storage_arc(state)?
+        .messages()
+        .recipients(&message.id)?;
+    for recipient in recipients {
+        let session = super::live_session_of(&*lock_storage_arc(state)?, &recipient.recipient_ref);
+        if let Some(session) = session.filter(|s| state.runtime.is_driven(s)) {
+            super::delivery::queue(state, &message.id, &session);
+        }
+    }
     Ok(())
 }

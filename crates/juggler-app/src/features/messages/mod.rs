@@ -151,8 +151,8 @@ pub(crate) struct Member {
     pub name: String,
     /// Its tool, in words.
     pub tool: String,
-    /// Its member ref (its Work item, else its session).
-    pub member_ref: String,
+    /// What it stands for (its Work item, else its session).
+    pub anchor: String,
 }
 
 /// A pool's members, by their cards (names, tools, roles).
@@ -167,7 +167,7 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
         .map(|card| {
             let session = SessionId::new(card.session_id.as_str());
             Member {
-                member_ref: MemberRef::of_session(&session, works.get(&session)).to_wire(),
+                anchor: MemberRef::of_session(&session, works.get(&session)).to_wire(),
                 session_id: card.session_id,
                 name: card.name,
                 tool: card.tool,

@@ -69,7 +69,7 @@ pub fn answer(
                 AgentAction::ReadMessages,
                 "Reading its messages",
             )?;
-            read_inbox(state, caller, request.inbox.clone().unwrap_or_default())
+            read_inbox(state, caller, &request.inbox.clone().unwrap_or_default())
         }
         Call::Ack => {
             allow(
@@ -222,12 +222,12 @@ fn shown(row: &InboxRow, pool_name: &str, tool: Option<&str>, full: bool) -> Val
     })
 }
 
-fn read_inbox(state: &Arc<AppState>, caller: &Caller, args: InboxArgs) -> Result<Value, Response> {
+fn read_inbox(state: &Arc<AppState>, caller: &Caller, args: &InboxArgs) -> Result<Value, Response> {
     let bad = |_| refuse(Refusal::Bad, "AI Juggler couldn't read the messages.");
     let tools: std::collections::HashMap<String, String> = roster(state, &caller.pool_id)
         .unwrap_or_default()
         .into_iter()
-        .map(|member| (member.member_ref, member.tool))
+        .map(|member| (member.anchor, member.tool))
         .collect();
     let storage = lock_storage_arc(state)
         .map_err(|_| refuse(Refusal::Bad, "AI Juggler is busy: try again."))?;

@@ -57,7 +57,7 @@ fn main() -> ExitCode {
             println!("juggler-agent {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(Command::Call(call, args)) => print_outcome(app.call(call, args)),
+        Ok(Command::Call(call, args)) => print_outcome(app.call(call, *args)),
         Err(words) => {
             let _ = writeln!(std::io::stderr(), "{words}");
             ExitCode::from(64)

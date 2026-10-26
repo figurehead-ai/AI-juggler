@@ -119,7 +119,7 @@ fn recipients(
     let me = from.sender_ref();
     let named = |member: &Member| {
         (
-            member.member_ref.clone(),
+            member.anchor.clone(),
             member.name.clone(),
             Some(member.session_id.clone()),
         )
@@ -132,7 +132,7 @@ fn recipients(
         "pool" => {
             let all: Vec<_> = mine
                 .iter()
-                .filter(|member| member.member_ref != me)
+                .filter(|member| member.anchor != me)
                 .map(named)
                 .collect();
             if all.is_empty() {
@@ -143,7 +143,7 @@ fn recipients(
         }
         who => {
             if let Some(member) = mine.iter().find(|m| m.session_id == who) {
-                if member.member_ref == me {
+                if member.anchor == me {
                     return Err(refuse(Refusal::Bad, "That's this session itself."));
                 }
                 return Ok(vec![named(member)]);
@@ -414,14 +414,13 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     let held = matches!(decision, Decision::Ask { .. });
     let (texts, withheld, _) = redacted(&storage, &[subject, body]);
     let repo = storage.messages();
-    let thread_id = match &thread {
-        Some(thread) => thread.id.clone(),
-        None => {
-            let id = new_id("thr");
-            repo.create_thread(&id, &out.pool_id, &texts[0], out.from.sender_ref())
-                .map_err(|_| busy())?;
-            id
-        }
+    let thread_id = if let Some(thread) = &thread {
+        thread.id.clone()
+    } else {
+        let id = new_id("thr");
+        repo.create_thread(&id, &out.pool_id, &texts[0], out.from.sender_ref())
+            .map_err(|_| busy())?;
+        id
     };
     let start = if held {
         RecipientState::Held

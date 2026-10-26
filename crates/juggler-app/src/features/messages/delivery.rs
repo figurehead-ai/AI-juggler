@@ -212,6 +212,65 @@ pub fn between_turns(state: &Arc<AppState>, session: &SessionId) -> bool {
     idle(state, session) && !typing(state, session)
 }
 
+/// What may go into `session` now (oldest first, one pool, at most
+/// [`PER_TURN`]): queued by the user's click, or by the pool's level or a
+/// rule while the pool, the thread and the pool's delivery are open.
+/// With the refs, the pool's name and each member's tool.
+type Due = (
+    Vec<String>,
+    Vec<juggler_core::storage::InboxRow>,
+    String,
+    std::collections::HashMap<String, String>,
+);
+
+fn due(state: &Arc<AppState>, session: &SessionId) -> Option<Due> {
+    let Ok(storage) = state.storage.lock() else {
+        return None;
+    };
+    let refs = refs_of(&storage, session);
+    let repo = storage.messages();
+    let rows: Vec<_> = repo
+        .inbox(&refs, &[RecipientState::Queued], None, None, 50)
+        .unwrap_or_default()
+        .into_iter()
+        .rev() // oldest first
+        .filter(|row| {
+            row.recipient.via.as_deref() == Some(BY_USER) || {
+                let paused = repo
+                    .pool_pause(&row.message.pool_id)
+                    .ok()
+                    .flatten()
+                    .is_some();
+                let thread_open = repo
+                    .thread(&row.message.thread_id)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|thread| thread.state == ThreadState::Open);
+                let stopped = storage
+                    .agent_access()
+                    .access(&row.message.pool_id)
+                    .is_ok_and(|access| access.delivery_stopped);
+                !paused && thread_open && !stopped
+            }
+        })
+        .collect();
+    let first = rows.first()?;
+    let pool_id = first.message.pool_id.clone();
+    let rows: Vec<_> = rows
+        .into_iter()
+        .filter(|row| row.message.pool_id == pool_id)
+        .take(PER_TURN)
+        .collect();
+    let pool_name = super::pool_name(&storage, &pool_id).unwrap_or_default();
+    drop(storage);
+    let tools: std::collections::HashMap<String, String> = super::roster(state, &pool_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|member| (member.anchor, member.tool))
+        .collect();
+    Some((refs, rows, pool_name, tools))
+}
+
 /// Delivers what is queued for `session` as one turn, when it is between
 /// turns; otherwise leaves it queued for the next boundary.
 pub fn pump(state: &Arc<AppState>, session: &SessionId) {
@@ -221,54 +280,8 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
     let Some(driver) = state.runtime.driver(session.as_str()) else {
         return;
     };
-    let (refs, rows, pool_name, tools) = {
-        let Ok(storage) = state.storage.lock() else {
-            return;
-        };
-        let refs = refs_of(&storage, session);
-        let repo = storage.messages();
-        let rows: Vec<_> = repo
-            .inbox(&refs, &[RecipientState::Queued], None, None, 50)
-            .unwrap_or_default()
-            .into_iter()
-            .rev() // oldest first
-            .filter(|row| {
-                row.recipient.via.as_deref() == Some(BY_USER) || {
-                    let paused = repo
-                        .pool_pause(&row.message.pool_id)
-                        .ok()
-                        .flatten()
-                        .is_some();
-                    let thread_open = repo
-                        .thread(&row.message.thread_id)
-                        .ok()
-                        .flatten()
-                        .is_some_and(|thread| thread.state == ThreadState::Open);
-                    let stopped = storage
-                        .agent_access()
-                        .access(&row.message.pool_id)
-                        .is_ok_and(|access| access.delivery_stopped);
-                    !paused && thread_open && !stopped
-                }
-            })
-            .collect();
-        let Some(first) = rows.first() else {
-            return;
-        };
-        let pool_id = first.message.pool_id.clone();
-        let rows: Vec<_> = rows
-            .into_iter()
-            .filter(|row| row.message.pool_id == pool_id)
-            .take(PER_TURN)
-            .collect();
-        let pool_name = super::pool_name(&storage, &pool_id).unwrap_or_default();
-        drop(storage);
-        let tools: std::collections::HashMap<String, String> = super::roster(state, &pool_id)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|member| (member.member_ref, member.tool))
-            .collect();
-        (refs, rows, pool_name, tools)
+    let Some((refs, rows, pool_name, tools)) = due(state, session) else {
+        return;
     };
     let unknown = "a tool".to_owned();
     let delivered: Vec<Delivered<'_>> = rows

@@ -342,7 +342,7 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
         repo.reset_hop(&message.thread_id)?;
         repo.set_state(
             &[message_id.to_owned()],
-            &[row.recipient_ref.clone()],
+            std::slice::from_ref(&row.recipient_ref),
             &[RecipientState::Unread, RecipientState::Read],
             RecipientState::Queued,
             Some(super::delivery::BY_USER),
