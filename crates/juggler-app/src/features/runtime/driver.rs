@@ -707,6 +707,17 @@ fn run(
                 {
                     unlinked = Some((native_id, Some(path.clone())));
                 }
+                // AJ-E2401: a command the tool ran names what it started
+                // on the Processes page (from memory only).
+                if let RuntimeEvent::Item { item } = &event
+                    && item.kind == ItemKind::Command
+                {
+                    state.processes.note_label(
+                        session.as_str(),
+                        &format!("a command: {}", item.text),
+                        Timestamp::now().millis(),
+                    );
+                }
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });
