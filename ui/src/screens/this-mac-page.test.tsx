@@ -16,6 +16,7 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   root_pid: null,
   session_id: null,
   place: "desktop",
+  label: overrides.session_id ? null : "Claude app",
   tool: null,
   group: overrides.session_id ? "claude-code" : (overrides.place ?? "desktop"),
   account_label: "Personal",
@@ -43,8 +44,8 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     ours: totals(ours),
     theirs: totals(desktop),
     by_tool: [
-      { tool: "claude-code", label: "Claude Code", ours: true, totals: totals(ours), cpu_one_core_pct: 30 },
-      { tool: "desktop", label: "Claude app", ours: false, totals: totals(desktop), cpu_one_core_pct: 14 },
+      { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals(ours), cpu_one_core_pct: 30 },
+      { tool: "desktop", label: "Claude app", who: "The Claude app", ours: false, totals: totals(desktop), cpu_one_core_pct: 14 },
     ],
     top: trees.slice(0, 3),
     others: trees.slice(3),
@@ -105,6 +106,32 @@ describe("the This Mac page", () => {
     // D-08: a window AI Juggler didn't start is shown, never offered.
     const theirs = within(groups[1]!).getAllByTestId("this-mac-tree");
     for (const row of theirs) expect(within(row).queryByRole("button")).toBeNull();
+  });
+
+  // The maintainer's report (0.1.6): the Codex app was running and This
+  // Mac listed only the Claude app and other apps. Each tool's app is its
+  // own group, in its adapter's words, and so is each tool in a terminal.
+  it("lists every tool's app and terminal sessions in their own groups", () => {
+    const codex = tree({ root_pid: 601, group: "codex-app", label: "ChatGPT (Codex)", tool: "codex", account_label: null });
+    const terminal = tree({ root_pid: 701, place: "terminal", group: "terminal:claude-code", label: "claude in a terminal", tool: "claude-code" });
+    const value = info([ours("a"), tree({ root_pid: 501, group: "claude-app" }), codex, terminal], {
+      by_tool: [
+        { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
+        { tool: "claude-app", label: "Claude app", who: "The Claude app", ours: false, totals: totals([tree({})]), cpu_one_core_pct: 14 },
+        { tool: "codex-app", label: "ChatGPT (Codex)", who: "ChatGPT (Codex)", ours: false, totals: totals([codex]), cpu_one_core_pct: 14 },
+        { tool: "terminal:claude-code", label: "claude in a terminal", who: "claude in a terminal", ours: false, totals: totals([terminal]), cpu_one_core_pct: 14 },
+      ],
+    });
+    renderPage(value);
+    const groups = screen.getAllByTestId("this-mac-group");
+    expect(groups.map((group) => group.querySelector("summary")?.textContent ?? "")).toEqual([
+      expect.stringContaining("Claude Code"),
+      expect.stringContaining("Claude app"),
+      expect.stringContaining("ChatGPT (Codex)"),
+      expect.stringContaining("claude in a terminal"),
+    ]);
+    expect(within(groups[2]!).getByTestId("this-mac-tree").textContent).toContain("ChatGPT (Codex)");
+    expect(within(groups[3]!).getByTestId("this-mac-tree").textContent).toContain("claude in a terminal");
   });
 
   it("links what's working it hard, and leads to Cleanup for leftovers", () => {
@@ -169,6 +196,7 @@ describe("the This Mac page", () => {
       detail: "Memory is getting tight",
       session_id: "a",
       place: null,
+      subject_name: null,
       subject_bytes: 3_200_000_000,
       subject_estimate: false,
       subject_cpu: null,

@@ -17,7 +17,7 @@ import type { LastTurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
 import { agoWords } from "../../lib/time-words";
 import { Markdown, plainWords } from "./Markdown";
 import { useLastMessages, type Chat } from "./useLastMessages";
-import { appWords, isDesktopApp, speakerName, type SessionModel } from "./model";
+import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
 const NONE: Record<string, string> = {
@@ -305,7 +305,7 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
   const answer = app ? (
     <p className={META} data-testid="last-messages-answer">
       {model.state.asks ? `Answer it in ${app}. ` : ""}Go to it brings {place?.label || app} to the front
-      {isDesktopApp(place, model.tool) ? "; if another session is showing there, pick this one in its sidebar." : "."}
+      {picksInSidebar(place, model.tool) ? "; if another session is showing there, pick this one in its sidebar." : "."}
     </p>
   ) : null;
   const last = chat.state === "shown" ? chat.turns[chat.turns.length - 1] : undefined;

@@ -92,6 +92,13 @@ export function isDesktopApp(place: PlaceInfo | undefined, tool: string): boolea
   return place !== undefined && toolSpec(tool).desktop_app === place.app;
 }
 
+/** Whether this session may still need picking in its app's sidebar once
+ * the app is in front: a tool's own app that Go to it can't open the
+ * session in by a link (the Codex app's thread link opens it). */
+export function picksInSidebar(place: PlaceInfo | undefined, tool: string): boolean {
+  return isDesktopApp(place, tool) && !toolSpec(tool).supports.thread_link;
+}
+
 /** The tool's short name ("Claude"), for the turns' labels. */
 export function speakerName(tool: string): string {
   const spec = toolSpec(tool);

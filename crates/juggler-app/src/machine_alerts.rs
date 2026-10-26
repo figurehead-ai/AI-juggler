@@ -32,8 +32,12 @@ pub struct OverloadAlertInfo {
     pub detail: String,
     /// The biggest contributor, when there is one: a session id …
     pub session_id: Option<String>,
-    /// … or a tool AI Juggler didn't start (`desktop` | `terminal`).
+    /// … or a tool AI Juggler didn't start: its This Mac group (an app's
+    /// id, `terminal:<tool>`).
     pub place: Option<String>,
+    /// That tool, named as the alert says it ("The Claude app",
+    /// `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+    pub subject_name: Option<String>,
     /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
     pub subject_bytes: Option<u64>,
@@ -165,7 +169,7 @@ fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
 /// Who an alert may name: each session of ours, and each tool AI Juggler
 /// didn't start as a whole ("The Claude app" is all its windows — the
 /// figure its This Mac line and menu-bar line show, never one window
-/// worded as the app).
+/// worded as the app). A group's tool is its trees' (from the adapters).
 fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
     let mut seen = std::collections::HashSet::new();
     let mut out: Vec<ToolTreeInfo> = mac
@@ -176,25 +180,27 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
         .filter(|tree| seen.insert(tree.session_id.clone()))
         .cloned()
         .collect();
-    out.extend(
-        mac.by_tool
-            .iter()
-            .filter(|group| !group.ours)
-            .map(|group| ToolTreeInfo {
-                root_pid: None,
-                session_id: None,
-                place: Some(group.tool.clone()),
-                // The Claude tools AI Juggler didn't start (desktop | terminal).
-                tool: Some(crate::machine_health::OBSERVED_TOOL.to_string()),
-                group: group.tool.clone(),
-                account_label: None,
-                cpu_pct: group.cpu_one_core_pct,
-                rss_bytes: group.totals.rss_bytes,
-                memory_estimate: group.totals.memory_estimate,
-                helpers: 0,
-                heavy_note: None,
-            }),
-    );
+    out.extend(mac.by_tool.iter().filter(|group| !group.ours).map(|group| {
+        ToolTreeInfo {
+            root_pid: None,
+            session_id: None,
+            place: Some(group.tool.clone()),
+            label: Some(group.label.clone()),
+            tool: mac
+                .top
+                .iter()
+                .chain(mac.others.iter())
+                .find(|tree| tree.session_id.is_none() && tree.group == group.tool)
+                .and_then(|tree| tree.tool.clone()),
+            group: group.tool.clone(),
+            account_label: None,
+            cpu_pct: group.cpu_one_core_pct,
+            rss_bytes: group.totals.rss_bytes,
+            memory_estimate: group.totals.memory_estimate,
+            helpers: 0,
+            heavy_note: None,
+        }
+    }));
     out
 }
 
@@ -419,6 +425,17 @@ impl AlertEngine {
             if now_ms - since < condition.hold_ms {
                 continue;
             }
+            // A tool AI Juggler didn't start: its This Mac group.
+            let group = condition
+                .subject
+                .as_ref()
+                .filter(|s| s.session_id.is_none())
+                .and_then(|s| s.place.as_deref())
+                .and_then(|place| {
+                    mac.by_tool
+                        .iter()
+                        .find(|group| !group.ours && group.tool == place)
+                });
             let alert = OverloadAlertInfo {
                 key: condition.key.clone(),
                 kind: condition.kind.to_string(),
@@ -429,6 +446,7 @@ impl AlertEngine {
                     .as_ref()
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
+                subject_name: group.and_then(|group| group.who.clone()),
                 subject_bytes: condition
                     .subject
                     .as_ref()
@@ -443,17 +461,7 @@ impl AlertEngine {
                     .as_ref()
                     .filter(|_| condition.tell_cpu)
                     .and_then(|s| s.cpu_pct),
-                subject_windows: condition
-                    .subject
-                    .as_ref()
-                    .filter(|s| s.session_id.is_none())
-                    .and_then(|s| s.place.as_deref())
-                    .and_then(|place| {
-                        mac.by_tool
-                            .iter()
-                            .find(|group| !group.ours && group.tool == place)
-                    })
-                    .map(|group| group.totals.count),
+                subject_windows: group.map(|group| group.totals.count),
                 other_apps: condition.other_apps,
                 since_ms: since,
             };
@@ -512,6 +520,7 @@ mod tests {
         ToolGroupInfo {
             tool: "desktop".into(),
             label: "Claude app".into(),
+            who: Some("The Claude app".into()),
             ours: false,
             totals: ToolTotalsInfo {
                 count: windows,
@@ -649,6 +658,11 @@ mod tests {
         mac.by_tool = vec![app(6, 40 * G, 9.0)];
         let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(
+            told[0].subject_name.as_deref(),
+            Some("The Claude app"),
+            "named in its adapter's words"
+        );
         assert_eq!(told[0].subject_bytes, Some(40 * G));
         assert!(told[0].other_apps.is_empty());
     }
@@ -686,6 +700,7 @@ mod tests {
             root_pid: None,
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
+            label: place.map(|_| "Claude app".to_string()),
             tool: None,
             group: place.unwrap_or("claude-code").to_string(),
             account_label: None,

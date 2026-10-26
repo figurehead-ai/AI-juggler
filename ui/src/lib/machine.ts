@@ -137,11 +137,11 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_name: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
     ];
   return [];
 }

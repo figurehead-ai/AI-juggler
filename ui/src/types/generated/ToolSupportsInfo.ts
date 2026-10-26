@@ -11,4 +11,15 @@ in_place: boolean,
 /**
  * It reports its usage limits.
  */
-limits: boolean, };
+limits: boolean, 
+/**
+ * Its desktop app keeps a meter of the account's limits AI Juggler
+ * reads.
+ */
+app_meter: boolean, 
+/**
+ * Go to it opens one of its sessions in its desktop app by the app's
+ * own link (the Codex app's `codex://threads/…`), so nothing is left
+ * to pick in the app's sidebar.
+ */
+thread_link: boolean, };

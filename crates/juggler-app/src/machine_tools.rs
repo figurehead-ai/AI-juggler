@@ -1,7 +1,9 @@
 //! This Mac's AI tools on their own (#120): AI Juggler's sessions grouped
-//! by tool (heaviest first), then the Claude app, then `claude` in a
-//! terminal, with each group's totals. Split from `machine_health` (the
-//! size budget: a feature to a module).
+//! by tool (heaviest first), then each tool's desktop app (the Claude app,
+//! the Codex app in `ChatGPT.app`), then each tool in a terminal, with each
+//! group's totals. The groups and their words come from the adapters'
+//! shapes (`running_setups`), never from a list here. Split from
+//! `machine_health` (the size budget: a feature to a module).
 
 use crate::machine_health::{OBSERVED_TOOL, TreeInput};
 
@@ -25,12 +27,16 @@ pub struct ToolTotalsInfo {
 #[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ToolGroupInfo {
-    /// The tool's id (its adapter's) for sessions AI Juggler started;
-    /// `desktop` | `terminal` for the Claude tools it didn't.
+    /// The tool's id (its adapter's) for sessions AI Juggler started; for
+    /// the tools it didn't, the group's key: an app's id (`claude-app`,
+    /// `codex-app`) or `terminal:<tool>`.
     pub tool: String,
-    /// The tool in words ("Claude Code", "Claude app", "claude in a
-    /// terminal").
+    /// The tool in words ("Claude Code", "Claude app", `ChatGPT (Codex)`,
+    /// "claude in a terminal").
     pub label: String,
+    /// How an alert names a tool AI Juggler didn't start ("The Claude
+    /// app"); `null` for our sessions (each is named by its own name).
+    pub who: Option<String>,
     /// Whether these are sessions AI Juggler started.
     pub ours: bool,
     /// The tool's figures, as [`ToolTotalsInfo`].
@@ -63,21 +69,24 @@ pub(crate) fn one_core(trees: &[&TreeInput]) -> Option<f64> {
         .sum::<Option<f64>>()
 }
 
-/// Each AI tool on its own: our sessions grouped by Provider (heaviest
-/// first), then the Claude app, then `claude` in a terminal.
 /// The group a tree is listed under: its [`ToolGroupInfo::tool`] — the
 /// tool of a session AI Juggler started (the observed tool when its tool
-/// isn't known yet), or the place of one it didn't (`desktop`, `terminal`).
+/// isn't known yet), or the group of one it didn't (its app, or its tool
+/// in a terminal).
 pub(crate) fn group_of(tree: &TreeInput) -> String {
-    match tree.place {
-        Some(place) => place.to_string(),
-        None => tree
+    match (&tree.observed, tree.place) {
+        (Some(words), _) => words.group.clone(),
+        (None, Some(place)) => place.to_string(),
+        (None, None) => tree
             .tool
             .clone()
             .unwrap_or_else(|| OBSERVED_TOOL.to_string()),
     }
 }
 
+/// Each AI tool on its own: our sessions grouped by Provider (heaviest
+/// first), then each tool's desktop app, then each tool in a terminal
+/// (each heaviest first).
 pub(crate) fn by_tool(
     ours: &[&TreeInput],
     theirs: &[&TreeInput],
@@ -93,30 +102,39 @@ pub(crate) fn by_tool(
         .map(|(provider, trees)| ToolGroupInfo {
             label: crate::commands::provider_name(&provider),
             tool: provider,
+            who: None,
             ours: true,
             totals: totals(&trees, cores),
             cpu_one_core_pct: one_core(&trees),
         })
         .collect();
     groups.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
-    for (place, label) in [
-        ("desktop", "Claude app"),
-        ("terminal", "claude in a terminal"),
-    ] {
-        let trees: Vec<&TreeInput> = theirs
+    for place in ["desktop", "terminal"] {
+        let mut keyed: std::collections::BTreeMap<String, Vec<&TreeInput>> =
+            std::collections::BTreeMap::new();
+        for tree in theirs
             .iter()
             .copied()
             .filter(|tree| tree.place == Some(place))
-            .collect();
-        if !trees.is_empty() {
-            groups.push(ToolGroupInfo {
-                tool: place.to_string(),
-                label: label.to_string(),
-                ours: false,
-                totals: totals(&trees, cores),
-                cpu_one_core_pct: one_core(&trees),
-            });
+        {
+            keyed.entry(group_of(tree)).or_default().push(tree);
         }
+        let mut found: Vec<ToolGroupInfo> = keyed
+            .into_iter()
+            .map(|(key, trees)| {
+                let words = trees.iter().find_map(|tree| tree.observed.as_ref());
+                ToolGroupInfo {
+                    label: words.map_or_else(|| key.clone(), |words| words.label.clone()),
+                    who: words.map(|words| words.who.clone()),
+                    tool: key,
+                    ours: false,
+                    totals: totals(&trees, cores),
+                    cpu_one_core_pct: one_core(&trees),
+                }
+            })
+            .collect();
+        found.sort_by_key(|group| std::cmp::Reverse(group.totals.rss_bytes));
+        groups.extend(found);
     }
     groups
 }

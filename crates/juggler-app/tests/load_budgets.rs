@@ -758,7 +758,15 @@ fn monitoring_beside_a_busy_claude_app() {
     let _alone = alone();
     let dir = tempfile::tempdir().unwrap();
     seed(dir.path());
-    let state = open(dir.path());
+    // The built-in adapters: which processes are the Claude app comes
+    // from Claude Code's adapter (ADR-0019), never a list in This Mac.
+    let state = Arc::new(
+        AppState::init_with_registry(
+            dir.path().to_path_buf(),
+            juggler_app::state::default_registry(),
+        )
+        .unwrap(),
+    );
     let _app = BusyClaudeApp::start(dir.path(), 290);
     // The running-tools scan finds the app; the warm-up's full scans read it.
     juggler_app::machine_health::tick(&state, Timestamp::now().millis());

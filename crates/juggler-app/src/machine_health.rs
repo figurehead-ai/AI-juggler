@@ -370,16 +370,23 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
     if briefs.is_empty() {
         return; // no table yet: try again next tick
     }
-    // A `claude` AI Juggler started is ours even after its session ended
-    // and launchd adopted it: a pid with a ledger row is never "a tool AI
+    // A session AI Juggler started is ours even after it ended and
+    // launchd adopted it: a pid with a ledger row is never "a tool AI
     // Juggler didn't start" (it's a leftover, in the leftovers count).
     let ours: std::collections::HashSet<u32> = crate::commands::local_ledger_rows(state)
         .into_iter()
         .filter_map(|row| row.pid)
         .collect();
+    // Which processes are which tool's: the adapters' shapes (ADR-0019).
+    let shapes = crate::running_setups::ToolShapes::of(&state.registry);
     let tools = not_ours(
         dirs::home_dir().map_or_else(Vec::new, |home| {
-            crate::running_setups::tools_from(&briefs, &home, &state.conversations.pid_dirs())
+            crate::running_setups::tools_from(
+                &briefs,
+                &shapes,
+                &home,
+                &state.conversations.pid_dirs(),
+            )
         }),
         &ours,
     );
@@ -700,24 +707,23 @@ fn track_footprints(state: &Arc<AppState>, now_ms: i64, periodic: bool, prune: b
         for (id, peak) in fresh {
             watch.peaks.insert(id, peak);
         }
-        let places: std::collections::HashMap<u32, &'static str> = watch
+        // Each observed tree's footprint is kept by its group (an app,
+        // or a tool in a terminal) and tool, as the scan found it.
+        let groups: std::collections::HashMap<u32, (String, String)> = watch
             .tools
             .iter()
-            .map(|tool| (tool.pid, tool.place))
+            .map(|tool| (tool.pid, (tool.group.clone(), tool.tool.clone())))
             .collect();
         for (root, tree) in &observed {
+            let Some((group, tool)) = groups.get(root) else {
+                continue; // a root the last scan no longer lists
+            };
             let id = format!("observed:{root}");
-            let place = places.get(root).copied().unwrap_or("desktop");
             watch
                 .peaks
                 .entry(id)
                 .or_insert_with(|| {
-                    TreePeaks::new(
-                        format!("observed:{place}"),
-                        OBSERVED_TOOL.into(),
-                        None,
-                        now_ms,
-                    )
+                    TreePeaks::new(format!("observed:{group}"), tool.clone(), None, now_ms)
                 })
                 .observe(&tree.stats, now_ms);
         }
@@ -832,8 +838,9 @@ const HEAVY_EXIT_RATIO: f64 = 0.8;
 /// leave Needs you, the rail and the header and come back a minute later.
 const HEAVY_EXIT_MS: i64 = 45_000;
 
-/// The tool the observed trees are: `running_setups` finds the Claude app
-/// and `claude` outside it, nothing else yet.
+/// The tool a session of ours is listed under while its own isn't known
+/// yet (its spawn context not read). Trees AI Juggler didn't start carry
+/// their tool from the adapters' shapes (`running_setups`).
 pub(crate) const OBSERVED_TOOL: &str = "claude-code";
 
 /// One process tree on This Mac: a session AI Juggler started, or an AI
@@ -847,9 +854,12 @@ pub struct ToolTreeInfo {
     /// The session id for a session AI Juggler started; `null` for a tool
     /// it did not start.
     pub session_id: Option<String>,
-    /// For a tool AI Juggler did not start: `desktop` (the Claude app) or
-    /// `terminal` (`claude` in a terminal).
+    /// For a tool AI Juggler did not start: `desktop` (its desktop app)
+    /// or `terminal` (the tool outside it).
     pub place: Option<String>,
+    /// For a tool AI Juggler did not start: it in words ("Claude app",
+    /// `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+    pub label: Option<String>,
     /// The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
     pub tool: Option<String>,
     /// The `by_tool` group it is listed under (that group's `tool`, with
@@ -885,12 +895,12 @@ pub struct ThisMacInfo {
     pub tools: ToolTotalsInfo,
     /// The sessions AI Juggler started.
     pub ours: ToolTotalsInfo,
-    /// The AI tools it did not start (the Claude app, `claude` in a
-    /// terminal).
+    /// The AI tools it did not start (each tool's desktop app, each tool
+    /// in a terminal).
     pub theirs: ToolTotalsInfo,
     /// Each AI tool on its own (the menu bar's per-tool lines): our
-    /// sessions by Provider, heaviest first, then the Claude app, then
-    /// `claude` in a terminal. Only tools that are running.
+    /// sessions by Provider, heaviest first, then each tool's desktop app,
+    /// then each tool in a terminal. Only tools that are running.
     pub by_tool: Vec<ToolGroupInfo>,
     /// The heaviest trees by memory, at most three.
     pub top: Vec<ToolTreeInfo>,
@@ -926,6 +936,9 @@ pub struct TreeInput {
     pub session_id: Option<String>,
     /// `desktop` | `terminal` for observed trees.
     pub place: Option<&'static str>,
+    /// For observed trees: the group they're listed under (an app's id,
+    /// `terminal:<tool>`), it in words, and how an alert names it.
+    pub observed: Option<ObservedWords>,
     /// The tool's id, when known.
     pub tool: Option<String>,
     /// The matched Account's label.
@@ -936,6 +949,17 @@ pub struct TreeInput {
     pub ring: Vec<TreeSample>,
     /// AJ-E512 hog rules that fired for it.
     pub hog_rules: Vec<String>,
+}
+
+/// An observed tree's group and words, from its adapter's shape.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ObservedWords {
+    /// The group it's listed under: an app's id, `terminal:<tool>`.
+    pub group: String,
+    /// It in words ("Claude app", "codex in a terminal").
+    pub label: String,
+    /// How an alert names it ("The Claude app").
+    pub who: String,
 }
 
 /// Heavy with hysteresis, from the ring alone. A tree turns heavy once a
@@ -1024,6 +1048,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         root_pid: tree.root_pid,
         session_id: tree.session_id.clone(),
         place: tree.place.map(str::to_string),
+        label: tree.observed.as_ref().map(|words| words.label.clone()),
         tool: tree.tool.clone(),
         group: crate::machine_tools::group_of(tree),
         account_label: tree.account_label.clone(),
@@ -1159,6 +1184,7 @@ fn tree_inputs(
                 hog_rules: hogs.remove(&id).unwrap_or_default(),
                 session_id: Some(id),
                 place: None,
+                observed: None,
                 stats,
             });
         }
@@ -1171,7 +1197,12 @@ fn tree_inputs(
                 root_pid: Some(tool.pid),
                 session_id: None,
                 place: Some(tool.place),
-                tool: Some(OBSERVED_TOOL.to_string()),
+                observed: Some(ObservedWords {
+                    group: tool.group.clone(),
+                    label: tool.label.clone(),
+                    who: tool.who.clone(),
+                }),
+                tool: Some(tool.tool.clone()),
                 account_label: account_for(tool, accounts, &home),
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
@@ -1690,6 +1721,11 @@ mod tests {
             root_pid: None,
             session_id: session.map(str::to_string),
             place: session.is_none().then_some("desktop"),
+            observed: session.is_none().then(|| ObservedWords {
+                group: "claude-app".into(),
+                label: "Claude app".into(),
+                who: "The Claude app".into(),
+            }),
             tool: session.map(|_| OBSERVED_TOOL.to_string()),
             account_label: Some("Work Max".into()),
             stats: LiveProcessStats {
@@ -1822,6 +1858,10 @@ mod tests {
         let tool = |pid| RunningTool {
             pid,
             place: "terminal",
+            tool: "claude-code".into(),
+            group: "terminal:claude-code".into(),
+            label: "claude in a terminal".into(),
+            who: "claude in a terminal".into(),
             config_dir: Some(std::path::PathBuf::from("/Users/you/.claude")),
             start_time: None,
         };
@@ -1864,6 +1904,128 @@ mod tests {
             Some("CPU 95% · 3.0 GB")
         );
         assert_eq!((info.leftover_processes, info.leftover_ports), (2, 1));
+    }
+
+    /// The maintainer's report (0.1.6): the Codex app running beside the
+    /// Claude app read as "Claude app" and "Other apps and macOS" only.
+    /// Each tool's app, and each tool in a terminal, is its own group, in
+    /// its adapter's words.
+    #[test]
+    fn each_tools_app_and_terminal_is_its_own_group_in_its_words() {
+        let machine = health_of(
+            &MachineSnapshot {
+                cores: 10,
+                ..MachineSnapshot::default()
+            },
+            &RoomThresholds::default(),
+        );
+        let observed = |pid: u32,
+                        place: &'static str,
+                        tool: &str,
+                        group: &str,
+                        label: &str,
+                        who: &str,
+                        rss: u64| TreeInput {
+            root_pid: Some(pid),
+            place: Some(place),
+            observed: Some(ObservedWords {
+                group: group.into(),
+                label: label.into(),
+                who: who.into(),
+            }),
+            tool: Some(tool.into()),
+            ..tree(None, 5.0, rss, 2)
+        };
+        let trees = vec![
+            tree(Some("s1"), 50.0, G, 60),
+            observed(
+                10,
+                "desktop",
+                "claude-code",
+                "claude-app",
+                "Claude app",
+                "The Claude app",
+                3 * G,
+            ),
+            observed(
+                11,
+                "desktop",
+                "claude-code",
+                "claude-app",
+                "Claude app",
+                "The Claude app",
+                G,
+            ),
+            observed(
+                20,
+                "desktop",
+                "codex",
+                "codex-app",
+                "ChatGPT (Codex)",
+                "ChatGPT (Codex)",
+                2 * G,
+            ),
+            observed(
+                30,
+                "terminal",
+                "claude-code",
+                "terminal:claude-code",
+                "claude in a terminal",
+                "claude in a terminal",
+                G / 2,
+            ),
+            observed(
+                31,
+                "terminal",
+                "codex",
+                "terminal:codex",
+                "codex in a terminal",
+                "codex in a terminal",
+                G / 4,
+            ),
+        ];
+        let info = assemble(machine, &trees, (0, 0));
+        let groups: Vec<(&str, &str, Option<&str>, u32)> = info
+            .by_tool
+            .iter()
+            .map(|group| {
+                (
+                    group.tool.as_str(),
+                    group.label.as_str(),
+                    group.who.as_deref(),
+                    group.totals.count,
+                )
+            })
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                ("claude-code", "Claude Code", None, 1),
+                ("claude-app", "Claude app", Some("The Claude app"), 2),
+                ("codex-app", "ChatGPT (Codex)", Some("ChatGPT (Codex)"), 1),
+                (
+                    "terminal:claude-code",
+                    "claude in a terminal",
+                    Some("claude in a terminal"),
+                    1
+                ),
+                (
+                    "terminal:codex",
+                    "codex in a terminal",
+                    Some("codex in a terminal"),
+                    1
+                ),
+            ]
+        );
+        let codex = info
+            .top
+            .iter()
+            .chain(&info.others)
+            .find(|tree| tree.root_pid == Some(20))
+            .unwrap();
+        assert_eq!(codex.group, "codex-app");
+        assert_eq!(codex.label.as_deref(), Some("ChatGPT (Codex)"));
+        assert_eq!(codex.tool.as_deref(), Some("codex"));
     }
 
     #[test]
@@ -1951,6 +2113,7 @@ mod live {
             let started = std::time::Instant::now();
             tools = crate::running_setups::tools_from(
                 &collector.process_briefs(),
+                &crate::running_setups::ToolShapes::of(&crate::state::default_registry()),
                 &home,
                 &std::collections::BTreeMap::new(),
             );
@@ -2002,10 +2165,13 @@ mod live {
             costs[4], costs[7]
         );
         let observed = collector.observed_snapshot();
-        for place in ["desktop", "terminal"] {
+        let mut groups: Vec<&str> = tools.iter().map(|tool| tool.label.as_str()).collect();
+        groups.sort_unstable();
+        groups.dedup();
+        for place in groups {
             let trees: Vec<_> = tools
                 .iter()
-                .filter(|tool| tool.place == place)
+                .filter(|tool| tool.label == place)
                 .filter_map(|tool| observed.get(&tool.pid))
                 .collect();
             let rss: u64 = trees.iter().map(|tree| tree.stats.rss_bytes).sum();
@@ -2041,7 +2207,8 @@ mod live {
             title: "Your Mac is under memory pressure".into(),
             detail: "macOS reports memory pressure".into(),
             session_id: None,
-            place: Some("desktop".into()),
+            place: Some("claude-app".into()),
+            subject_name: Some("The Claude app".into()),
             subject_bytes: Some(16_000_000_000),
             subject_estimate: true,
             subject_cpu: None,
