@@ -30,7 +30,7 @@ use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
     ProfileId, ProjectId, SessionId, SessionStatus, Timestamp, TranscriptRef,
 };
-use juggler_core::storage::NO_PROJECT_POOL_ID;
+use juggler_core::storage::{NO_PROJECT_POOL_ID, default_pool_id};
 
 const ACCOUNT_LABEL: &str = "Work Max";
 const PLAN: &str = "Max 20x plan";
@@ -400,6 +400,155 @@ fn a_live_session_whose_tool_never_named_its_file_is_found_and_read() {
         Some(file.canonicalize().unwrap()),
         "linked, so every reader has it"
     );
+}
+
+/// 0.2 lab (Builder): a driven Codex session's thread names its rollout
+/// before Codex has written it, so the link was never kept and the card
+/// stayed "Unavailable". The tick finds the rollout by the thread's id
+/// once it is there, links it and reads it.
+#[test]
+fn a_driven_session_is_found_by_its_conversations_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::with_bin(
+        "/bin/true",
+    )));
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), registry).unwrap());
+    let home = state.accounts_dir().join("acc-codex");
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&Account {
+                id: AccountId::new("acc-codex"),
+                harness: HarnessId::new(juggler_adapters::CODEX_ID),
+                label: "Codex Plus".into(),
+                plan: None,
+                state_dir: home.clone(),
+                cleanup_opt_in: false,
+                renewal_date: None,
+                preview_opt_in: false,
+                import_source_path: None,
+                import_origin: None,
+                imported_at: None,
+                in_place: false,
+            })
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&LaunchRecipe {
+                id: ProfileId::new("rec-codex"),
+                name: "Main".into(),
+                account: AccountId::new("acc-codex"),
+                settings_overlay: Default::default(),
+                default_cwd: None,
+            })
+            .unwrap();
+    }
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root);
+    let thread = "019a0000-0000-7000-8000-0000000000b1";
+    let builder = SessionId::new("s-builder");
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .insert(&InstanceRecord {
+            id: builder.clone(),
+            // What the driver keeps when the thread starts: its id only.
+            conversation: Some(juggler_core::model::ConversationId::new(thread)),
+            profile: ProfileId::new("rec-codex"),
+            machine: MachineId::new("this-mac"),
+            kind: InstanceKind::Terminal,
+            project: Some(shop.clone()),
+            cwd: root.clone(),
+            status: SessionStatus::Running,
+            started_at: Timestamp::now(),
+            last_activity: Some(Timestamp::now()),
+            usage: Default::default(),
+            attention: None,
+            running: None,
+            transcript_ref: None,
+            window: None,
+        })
+        .unwrap();
+    let pool = default_pool_id(Some(&shop));
+    let cwd = root.to_string_lossy();
+    // Codex writes the rollout with the first turn.
+    let day = home.join("sessions/2026/10/20");
+    std::fs::create_dir_all(&day).unwrap();
+    let rollout = day.join(format!("rollout-2026-10-20T08-00-00-{thread}.jsonl"));
+    std::fs::write(
+        &rollout,
+        format!(
+            "{{\"timestamp\":\"2026-10-20T08:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{thread}\",\"cwd\":\"{cwd}\"}}}}\n\
+             {{\"timestamp\":\"2026-10-20T08:00:01.000Z\",\"type\":\"response_item\",\"payload\":{{\"type\":\"message\",\"role\":\"user\",\"content\":[{{\"type\":\"input_text\",\"text\":\"hello\"}}]}}}}\n"
+        ),
+    )
+    .unwrap();
+    // Planner (this Mac's): its link names a file that isn't there; its
+    // rollout is elsewhere.
+    let planner = SessionId::new("s-planner");
+    let planner_thread = "019a0000-0000-7000-8000-0000000000c2";
+    let here = juggler_app::commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage.sessions().get(&builder).unwrap();
+        record.id = planner.clone();
+        record.machine = here;
+        record.conversation = Some(juggler_core::model::ConversationId::new(planner_thread));
+        record.transcript_ref = Some(TranscriptRef {
+            path: home.join("gone.jsonl"),
+            native_id: None,
+        });
+        storage.sessions().insert(&record).unwrap();
+    }
+    let planner_rollout = day.join(format!(
+        "rollout-2026-10-20T09-00-00-{planner_thread}.jsonl"
+    ));
+    std::fs::write(
+        &planner_rollout,
+        format!(
+            "{{\"timestamp\":\"2026-10-20T09:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{planner_thread}\",\"cwd\":\"{cwd}\"}}}}\n"
+        ),
+    )
+    .unwrap();
+
+    cards::tick(&state);
+    let result = cards::cards_impl(&state, &pool).unwrap();
+    assert_eq!(
+        card(&result.cards, "s-planner").files_unavailable,
+        None,
+        "a link whose file is gone is looked for again"
+    );
+    let relinked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&planner)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path.canonicalize().unwrap());
+    assert_eq!(relinked, Some(planner_rollout.canonicalize().unwrap()));
+    let card = card(&result.cards, "s-builder");
+    assert_eq!(card.files_unavailable, None, "its rollout was read");
+    assert_eq!(
+        card.said.unavailable.as_deref(),
+        Some("Unavailable — it hasn't said")
+    );
+    let linked = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&builder)
+        .unwrap()
+        .transcript_ref
+        .map(|reference| reference.path.canonicalize().unwrap());
+    assert_eq!(linked, Some(rollout.canonicalize().unwrap()));
 }
 
 #[test]

@@ -97,17 +97,20 @@ impl Activity {
 /// named it, else the one file made in its folder since it started; never
 /// a guess) and linked, so the next tick and every other reader have it.
 ///
-/// 0.2 lab: a headless Claude Code session names its conversation but not
-/// its file, and a terminal one names it only through its hooks; the card
-/// said "read only while it runs in AI Juggler" for sessions running here.
+/// 0.2 lab: the card said "read only while it runs in AI Juggler" for
+/// sessions running here. A headless Claude Code session names its
+/// conversation but not its file; a driven Codex thread names its rollout
+/// before Codex writes it (so the link wasn't kept); a terminal session
+/// names it only through its hooks; and a link whose file is gone was
+/// never looked for again.
 fn transcript_of(
     state: &Arc<AppState>,
     session: &SessionId,
     linked: Option<PathBuf>,
     live: &[SessionId],
 ) -> Option<PathBuf> {
-    if linked.is_some() {
-        return linked;
+    if let Some(path) = linked.filter(|path| path.exists()) {
+        return Some(path);
     }
     if !state.pool_activity.may_look(session, live) {
         return None;
