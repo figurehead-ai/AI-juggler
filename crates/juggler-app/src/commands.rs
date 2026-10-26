@@ -8570,6 +8570,22 @@ pub const KILL_GRACE_SECS: u64 = 5;
 /// (Req.2 — the sheet renders it with the kill button REMOVED).
 pub const KILL_REFUSAL_COPY: &str =
     "This PID now belongs to a different program — Juggler will not touch it.";
+/// The refusal when the process has simply ended (processes lab
+/// 2026-10-26: a shell that exited with its server was called "a
+/// different program").
+pub const KILL_GONE_COPY: &str = "This process has already ended — there's nothing to stop.";
+
+/// Why a target didn't verify, in the words that are true now: it has
+/// ended, it's a zombie only its parent clears, or the pid is another
+/// program's. Read after the verdict, never instead of it: every case
+/// sends zero signals.
+fn unverified_copy(pid: u32) -> &'static str {
+    match crate::features::processes::stop::read_now(pid) {
+        None => KILL_GONE_COPY,
+        Some(now) if now.zombie => crate::features::processes::stop::refusal::ZOMBIE,
+        Some(_) => KILL_REFUSAL_COPY,
+    }
+}
 /// The AJ-E511 foreign-machine refusal (Req.2): typed
 /// [`juggler_supervisor::SupervisorError::WrongMachine`] under the
 /// hood — this is its sheet-facing copy.
@@ -8905,7 +8921,7 @@ pub fn kill_verify_inner(
         pid,
         session: session_id.to_string(),
         verified,
-        refusal: (!verified).then(|| KILL_REFUSAL_COPY.to_string()),
+        refusal: (!verified).then(|| unverified_copy(pid).to_string()),
         exe_path: row.exe_path.clone(),
         cmdline: truncate_cmdline(&cmdline),
         cwd,
@@ -8958,12 +8974,22 @@ fn kill_collateral(
             });
         }
     }
-    // Scope 3's enumeration: the Instance tree's live pids.
-    let tree_pids = rows
+    // Scope 3's enumeration: the Instance tree's live pids, each once,
+    // and only those still running as the process the row recorded (a
+    // row whose exit isn't confirmed yet names no process to stop).
+    let mut tree_pids: Vec<u32> = rows
         .iter()
-        .filter(|row| row.pid.is_some() && (row.state == "running" || row.state == "orphaned"))
+        .filter(|row| row.state == "running" || row.state == "orphaned")
+        .filter(|row| {
+            row.pid.zip(row.started_at).is_some_and(|(pid, start)| {
+                crate::features::processes::stop::read_now(pid)
+                    .is_some_and(|now| now.start_time == start && !now.zombie)
+            })
+        })
         .filter_map(|row| row.pid)
         .collect();
+    tree_pids.sort_unstable();
+    tree_pids.dedup();
     (members, tree_pids)
 }
 
@@ -9168,7 +9194,7 @@ pub fn kill_execute_as(
             &[("reason", "ownership_unverified")],
         );
         return Ok(KillExecuteInfo {
-            refusal: Some(KILL_REFUSAL_COPY.to_string()),
+            refusal: Some(unverified_copy(pid).to_string()),
             members: vec![KillMemberOutcome {
                 pid,
                 outcome: "refused".into(),

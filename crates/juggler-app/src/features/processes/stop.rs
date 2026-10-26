@@ -457,6 +457,20 @@ mod tests {
         assert_eq!(check(4242, &facts()), Ok(()));
     }
 
+    /// Processes lab 2026-10-26, bug 3: Homebrew's python runs from a
+    /// `Python.app` inside its framework. That is a command-line program,
+    /// not an app the user quits, so its leftover may be stopped.
+    #[test]
+    fn a_framework_bundled_interpreter_is_no_app() {
+        let mut case = facts();
+        case.sighting.as_mut().unwrap().exe_name = "Python".into();
+        case.now.as_mut().unwrap().exe = Some(
+            "/opt/homebrew/Cellar/python@3.14/3.14.0/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python".into(),
+        );
+        case.now.as_mut().unwrap().name = "Python".into();
+        assert_eq!(check(4242, &case), Ok(()));
+    }
+
     /// Every leg of the identity check fails closed.
     #[test]
     fn the_identity_check_fails_closed_on_every_leg() {

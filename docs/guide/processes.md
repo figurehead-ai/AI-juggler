@@ -45,6 +45,12 @@ Each process shows:
 AI Juggler's own helpers, such as the hook that tells it what a session is
 doing, are hidden. **Filters › Show AI Juggler's own** shows them.
 
+One kind of process isn't shown under its session: a server an agent
+starts in the background from a one-line command (`nohup npm run dev &`).
+The command's shell ends at once and the server is handed to macOS, so
+nothing left says which session started it. A tool's own background tasks
+(Claude Code's "run in background") are shown.
+
 ## The states
 
 | State | What it means |

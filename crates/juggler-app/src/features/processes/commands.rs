@@ -102,12 +102,20 @@ fn ended_page(
         .and_then(|storage| storage.sightings().page(since, after, limit).ok())
         .unwrap_or_default();
     let mut rows: Vec<(i64, u32, ProcessGraphRowInfo)> = Vec::new();
+    // Each process once: a ledger from before one process kept one row
+    // could hold two ended rows for it (processes lab 2026-10-26, bug 1).
+    let mut listed: HashSet<(u32, i64)> = HashSet::new();
     for row in ours {
         let Some(pid) = row.pid else { continue };
+        if !listed.insert((pid, row.started_at.unwrap_or_default())) {
+            continue;
+        }
         rows.push((row.last_seen, pid, super::ended::ours_row(&row, now)));
     }
     for sighting in theirs {
-        if running.contains(&(sighting.pid, sighting.start_time)) {
+        if running.contains(&(sighting.pid, sighting.start_time))
+            || !listed.insert((sighting.pid, sighting.start_time))
+        {
             continue;
         }
         rows.push((

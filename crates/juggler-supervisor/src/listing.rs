@@ -19,6 +19,7 @@ pub(crate) struct Listing<'a> {
     pub(crate) supervised: &'a std::collections::HashSet<u32>,
     pub(crate) sampled: bool,
     pub(crate) now_ms: i64,
+    pub(crate) zombies: &'a crate::zombies::Zombies,
 }
 
 impl Listing<'_> {
@@ -50,7 +51,7 @@ impl Listing<'_> {
                 trees.remove(&root);
                 continue;
             }
-            let (rows, _) = tree_rows(self.system, self.cpu, self.parents, root);
+            let (rows, _) = tree_rows(self.system, self.cpu, self.parents, root, self.zombies);
             work.targeted_observed += rows.len() as u64;
             // A supervised subtree never also counts as observed.
             let mut stats = observed_sums(&rows, self.supervised);
