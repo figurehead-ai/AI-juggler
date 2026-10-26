@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProcessesScreen } from "./processes/ProcessesScreen";
-import { forgetProcessRows } from "./processes/useProcessRows";
+import { forgetProcessRows, prefetchProcessRows } from "./processes/useProcessRows";
 
 /**
  * AJ-E2404/E2405: the Processes page on the preview's made-up Mac (the
@@ -44,6 +44,14 @@ describe("AJ-E2404 the Processes page", () => {
     expect(container.textContent).toContain("only its parent can clear it");
   });
 
+  it("opens with its rows at once when they were read after the first paint", async () => {
+    await prefetchProcessRows();
+    const { container } = page();
+    // No wait: the kept rows paint with the page, and are read again behind it.
+    expect(container.querySelector('[data-testid="processes-loading"]')).toBeNull();
+    expect(rowKeys(container)).toContain("s:ours:s-pay");
+  });
+
   it("Everything running folds a healthy session to one line until it's opened", async () => {
     const { container, getByTestId } = page();
     fireEvent.click(getByTestId("process-view-running"));
@@ -84,6 +92,15 @@ describe("AJ-E2404 the Processes page", () => {
     expect(document.querySelector('[data-testid="menu-stop"]')).toBeNull();
     expect(document.querySelector('[data-testid="menu-copy-pid"]')).toBeNull();
     expect(document.querySelector('[data-testid="menu-reveal"]')).toBeNull();
+  });
+
+  it("another app's leftover is stopped alone: no scope to widen (D-41b)", async () => {
+    const { container } = page();
+    await waitFor(() => expect(container.querySelector('[data-testid="process-stop-7301"]')).not.toBeNull());
+    fireEvent.click(container.querySelector('[data-testid="process-stop-7301"]')!);
+    await waitFor(() => expect(document.querySelector('[data-testid="kill-only-7301"]')).not.toBeNull());
+    expect(document.querySelector('[data-testid="kill-only-7301"]')!.textContent).toContain("Only this process");
+    expect(document.querySelector('[data-testid^="kill-scope-"]')).toBeNull();
   });
 
   it("Ports lists every open port with what it is", async () => {

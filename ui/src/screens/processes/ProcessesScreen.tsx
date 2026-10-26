@@ -20,7 +20,7 @@ function Tally({ value, label, tone, testId }: { value: number; label: string; t
   const color = value === 0 ? "text-muted" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-ink";
   return (
     <div className="flex min-w-[9rem] flex-col gap-0.5 rounded-card border border-hairline bg-surface px-4 py-3" data-testid={testId}>
-      <span className={`text-stat tabular-nums ${color}`}>{value}</span>
+      <span className={`text-stat tabular-nums ${color}`}>{value.toLocaleString("en-US")}</span>
       <span className="text-meta text-muted">{label}</span>
     </div>
   );

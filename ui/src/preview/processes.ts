@@ -276,6 +276,12 @@ export function previewMark(pid: number, startTime: number, mark: "keep" | "snoo
   window.dispatchEvent(new CustomEvent("aij:processes-changed", { detail: { version: source.version, counts: previewCounts(source) } }));
 }
 
+/** What the sheet reads from the live process (shown, never kept). */
+const COMMANDS: Record<number, string> = {
+  7301: "node node_modules/.bin/astro dev --port 4321",
+  7302: "esbuild --service=0.21.5 --ping",
+};
+
 export function previewObservedVerify(pid: number, _start: number | null): KillVerifyData {
   const node = mac().apps.flatMap((app) => app.sessions.flatMap((session) => session.processes)).find((n) => n.pid === pid);
   const seeded = (window as unknown as { __AIJ_OBSERVED_VERIFY__?: (pid: number) => KillVerifyData }).__AIJ_OBSERVED_VERIFY__;
@@ -287,12 +293,12 @@ export function previewObservedVerify(pid: number, _start: number | null): KillV
     verified: node?.stop === "observed",
     refusal: node?.stop === "observed" ? null : (node?.stop_reason ?? "AI Juggler never saw this process in a session, so it won't touch it."),
     exe_path: "/usr/local/bin/node",
-    cmdline: node?.name ?? "",
+    cmdline: COMMANDS[pid] ?? node?.name ?? "",
     cwd: "/Users/you/Dev/landing",
     ports: node?.ports ?? [],
     pgid: null,
     escaped_group: false,
-    members: [{ pid, pgid: null, exe: "node", cmdline: node?.name ?? "", role_guess: "DevServer", unsaved_state_warning: null, from_ledger: false }],
+    members: [{ pid, pgid: null, exe: "node", cmdline: COMMANDS[pid] ?? node?.name ?? "", role_guess: "DevServer", unsaved_state_warning: null, from_ledger: false }],
     tree_pids: [pid],
     platform: "TERM → grace → KILL",
     grace_secs: 5,

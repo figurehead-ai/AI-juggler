@@ -131,6 +131,9 @@ export function KillSheet(props: {
   trigger?: HTMLElement | null;
   onClose: (refresh: boolean) => void;
   bridge?: KillBridge;
+  /** The one scope there is, in words, when no choice is offered (D-41b:
+   * another app's leftover is stopped alone). */
+  onlyThisProcess?: string;
 }) {
   const bridge = props.bridge ?? defaultKillBridge;
   const goalPort = props.goalPort ?? null;
@@ -393,27 +396,33 @@ export function KillSheet(props: {
                 )}
               </dl>
 
-              <fieldset className="mt-3">
-                <legend className="text-label font-medium text-ink">Scope</legend>
-                <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="Kill scope">
-                  {KILL_SCOPES.map((entry) => (
-                    <label
-                      key={entry.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-2 py-1.5"
-                    >
-                      <input
-                        type="radio"
-                        name={`kill-scope-${props.pid}`}
-                        checked={scope === entry.id}
-                        onChange={() => setScope(entry.id)}
-                        data-testid={`kill-scope-${entry.id}-${props.pid}`}
-                      />
-                      <span className="text-ink">{entry.label}</span>
-                      <span className="text-muted">— {entry.hint}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              {props.onlyThisProcess ? (
+                <p className="mt-3 text-label text-muted" data-testid={`kill-only-${props.pid}`}>
+                  {props.onlyThisProcess}
+                </p>
+              ) : (
+                <fieldset className="mt-3">
+                  <legend className="text-label font-medium text-ink">Scope</legend>
+                  <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="Kill scope">
+                    {KILL_SCOPES.map((entry) => (
+                      <label
+                        key={entry.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-2 py-1.5"
+                      >
+                        <input
+                          type="radio"
+                          name={`kill-scope-${props.pid}`}
+                          checked={scope === entry.id}
+                          onChange={() => setScope(entry.id)}
+                          data-testid={`kill-scope-${entry.id}-${props.pid}`}
+                        />
+                        <span className="text-ink">{entry.label}</span>
+                        <span className="text-muted">— {entry.hint}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
 
               {verify.members.length > 1 && (
                 <div className="mt-3" data-testid={`kill-members-${props.pid}`}>

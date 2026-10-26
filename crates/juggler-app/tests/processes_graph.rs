@@ -550,6 +550,46 @@ fn search_filters_and_one_session_narrow_the_rows() {
     assert_eq!(pids, [402]);
 }
 
+/// AJ-E2405 Req.6: the snapshot holds names, states, numbers and keyed
+/// hashes, never a session's title or folder, or a command line.
+#[test]
+fn the_snapshot_holds_names_and_hashes_and_never_a_title_folder_or_line() {
+    let inputs = fixture();
+    let graph = model::build(&inputs);
+    let json = juggler_app::features::processes::ended::snapshot_json(&graph, &|pid, _| {
+        Some(format!("hash-{pid}"))
+    });
+    assert!(json.contains("\"command_hash\": \"hash-102\""), "{json}");
+    assert!(json.contains("\"name\": \"node (vite)\""), "{json}");
+    for session in graph.apps.iter().flat_map(|app| app.sessions.iter()) {
+        if !session.title.trim().is_empty() {
+            assert!(
+                !json.contains(&session.title),
+                "title {:?} leaked",
+                session.title
+            );
+        }
+        if let Some(folder) = &session.folder {
+            assert!(!json.contains(&*folder.to_string_lossy()), "folder leaked");
+        }
+    }
+    for (_, cmdline) in inputs.commands.values() {
+        if cmdline.contains(' ') {
+            assert!(
+                !json.contains(cmdline.as_str()),
+                "command line {cmdline:?} leaked"
+            );
+        }
+    }
+    for line in [
+        "node node_modules/.bin/vite dev",
+        "npm run dev",
+        "juggler-agent hook",
+    ] {
+        assert!(!json.contains(line), "{line:?} leaked");
+    }
+}
+
 /// "Include other apps": the rest of this Mac, by program, in Everything
 /// running only when asked for: names and memory, no pid, nothing to stop.
 #[test]

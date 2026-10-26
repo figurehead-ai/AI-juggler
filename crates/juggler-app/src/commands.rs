@@ -9953,7 +9953,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
             alerts.push(CleanupAlertInfo {
                 kind: "hog".into(),
                 text: format!(
-                    "{helper} under {instance} holds {} — review it in Cleanup.",
+                    "{helper} under {instance} holds {} — review it in Processes.",
                     rss_text(top.rss_bytes)
                 ),
                 pid: top.pid,
@@ -10006,7 +10006,7 @@ pub fn cleanup_alerts_inner(state: &Arc<AppState>) -> CleanupAlertsInfo {
         alerts.push(CleanupAlertInfo {
             kind: "idle".into(),
             text: format!(
-                "{helper} has been idle for {} — review it in Cleanup.",
+                "{helper} has been idle for {} — review it in Processes.",
                 age_text(age)
             ),
             pid,

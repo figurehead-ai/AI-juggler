@@ -152,7 +152,8 @@ export function ProcessesView({
 
   const stopRow = stopping?.row;
   const stopSession = stopRow ? sessionOf(stopRow) : null;
-  const zombies = counts?.zombies ?? 0;
+  // Explained when one shows (its row is listed), not when one is elsewhere.
+  const zombies = rows.filter((row) => row.state === "zombie").length;
   const empty =
     view === "attention"
       ? "Nothing needs you: no process is left behind, stuck stopping or waiting on its parent."
@@ -162,7 +163,7 @@ export function ProcessesView({
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ViewTabs view={view} counts={counts} onView={chooseView} embedded={embedded} />
+        <ViewTabs view={view} counts={embedded ? null : counts} onView={chooseView} embedded={embedded} />
         {view !== "history" && view !== "ports" && (
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={search} onChange={setSearch} />
@@ -220,6 +221,7 @@ export function ProcessesView({
           goalPort={stopRow.ports[0] ?? null}
           trigger={stopping.trigger ?? undefined}
           bridge={stopRow.process.stop === "observed" ? observedBridge(stopRow.process.start_time) : undefined}
+          onlyThisProcess={stopRow.process.stop === "observed" ? "Only this process: the app's session and its other processes are never touched." : undefined}
           onClose={() => {
             setStopping(null);
             refresh();

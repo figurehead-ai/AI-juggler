@@ -13,6 +13,7 @@ import {
   onProcessesChanged,
   processesPage,
   processesStatus,
+  processQuery,
   type ProcessCountsInfo,
   type ProcessGraphRowInfo,
   type ProcessQueryInput,
@@ -34,6 +35,18 @@ export function forgetProcessRows(): void {
 
 function keyOf(query: ProcessQueryInput): string {
   return JSON.stringify(query);
+}
+
+/** The page's first view (Needs attention, no filter), read in idle time
+ * after the first paint, so opening Processes shows its rows at once and
+ * reads them again behind them. Kept only if nothing newer was. */
+export async function prefetchProcessRows(): Promise<void> {
+  const query = processQuery({ view: "attention" });
+  const key = keyOf(query);
+  if (kept.has(key)) return;
+  const [status, page] = await Promise.all([processesStatus(), processesPage(query, { cursor: null, limit: PAGE_ROWS })]);
+  if (kept.has(key)) return;
+  kept.set(key, { rows: page.items, total: page.total ?? page.items.length, counts: status.counts, next: page.next_cursor, degraded: status.ledger_degraded });
 }
 
 export interface ProcessRows {

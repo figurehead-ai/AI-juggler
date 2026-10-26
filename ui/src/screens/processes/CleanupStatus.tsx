@@ -119,16 +119,19 @@ export function CleanupStatus({ degraded, onFind }: { degraded: boolean; onFind:
         </p>
       )}
       {alerts.length > 0 && (
-        <ul role="status" aria-label="Alerts about processes" className="flex flex-col gap-1.5" data-testid="cleanup-alerts">
-          {alerts.map((alert) => (
-            <li key={`${alert.kind}-${alert.pid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-meta text-ink" data-testid={`${alert.kind === "hog" ? "hog-alert" : "idle-nudge"}-${alert.pid}`}>
-              <span className="min-w-0 flex-1">{alert.text}</span>
-              <Button size="sm" variant="ghost" onClick={() => onFind(alert.pid)} data-testid={`alert-find-${alert.pid}`}>
-                Show it
-              </Button>
-            </li>
-          ))}
-        </ul>
+        // A live region around a list (a list's own role must stay "list").
+        <div role="status" aria-live="polite" aria-label="Alerts about processes" data-testid="cleanup-alerts">
+          <ul className="flex flex-col gap-1.5">
+            {alerts.map((alert) => (
+              <li key={`${alert.kind}-${alert.pid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-meta text-ink" data-testid={`${alert.kind === "hog" ? "hog-alert" : "idle-nudge"}-${alert.pid}`}>
+                <span className="min-w-0 flex-1">{alert.text}</span>
+                <Button size="sm" variant="ghost" onClick={() => onFind(alert.pid)} data-testid={`alert-find-${alert.pid}`}>
+                  Show it
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
