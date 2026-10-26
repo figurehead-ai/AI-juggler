@@ -183,10 +183,31 @@ fn send_message(
             ),
         ));
     }
+    // Two different numbers: the pool's hop limit (how many agent messages
+    // in a row may start a turn before the user decides, D-29) and the
+    // thread's cap (how many it takes in all). When the pool's limit is
+    // what paused this one, the answer names it (lab 2026-10-26: an agent
+    // read "hop 3 of a cap of 6" beside "reached the hop limit").
+    let hop_limit = lock_storage_arc(state)
+        .ok()
+        .and_then(|storage| storage.agent_access().access(&caller.pool_id).ok())
+        .map(|access| access.hop_limit);
+    let paused = sent
+        .routes
+        .iter()
+        .any(|(_, how)| *how == super::delivery::AT_HOP_LIMIT);
+    let why = hop_limit.filter(|_| paused).map(|limit| {
+        format!(
+            "Paused at this pool's hop limit, {limit}: after {limit} agent messages in a row, the user decides whether this one (hop {}) starts a turn. A person's message or click starts the count again.",
+            sent.message.hop
+        )
+    });
     Ok(json!({
         "message": sent.message.id,
         "thread": sent.message.thread_id,
         "hop": sent.message.hop,
+        "hop_limit": hop_limit,
+        "paused": why,
         "hop_cap": messaging::MAX_THREAD_HOPS,
         "to": sent.routes.iter().map(|(name, how)| json!({"name": name, "gets_it": how})).collect::<Vec<_>>(),
         "secrets_withheld": sent.message.redacted,

@@ -78,6 +78,10 @@ fn pool_delivers(state: &Arc<AppState>, pool_id: &str) -> bool {
     })
 }
 
+/// How a message reaches a session when its chain is paused at the pool's
+/// hop limit (the sender's answer names the limit beside it).
+pub(crate) const AT_HOP_LIMIT: &str = "when the user says (the chain reached the hop limit)";
+
 /// An agent's message to a driven session: delivered at its next turn
 /// boundary when the pool allows it (D-29), within the hop limit; at the
 /// limit, the thread pauses and the user is asked. How, in words.
@@ -134,7 +138,7 @@ pub(crate) fn decide(
                     created_at: Timestamp::now().millis(),
                 });
             }
-            "when the user says (the chain reached the hop limit)"
+            AT_HOP_LIMIT
         }
         Decision::Ask { .. } => "in its inbox (the user can deliver it)",
         Decision::Deny => "in its inbox (delivery is stopped in this pool)",
