@@ -233,14 +233,14 @@ fn sessions_come_a_page_at_a_time_in_a_stable_order() {
         assert!(page.items.len() <= 200);
         pages += 1;
         for row in &page.items {
-            assert!(seen.insert(row.key.clone()), "{} twice", row.key);
+            assert!(seen.insert(row.key.clone()), "a row came twice");
             let session = row.session.as_ref().unwrap();
             let here = (
                 session.status != "running",
                 -session.last_activity_ms.unwrap(),
             );
             if let Some(before) = last {
-                assert!(before <= here, "out of order at {}", row.key);
+                assert!(before <= here, "rows out of order");
             }
             last = Some(here);
         }
@@ -344,7 +344,7 @@ fn scope_kind_and_search_narrow_the_list_server_side() {
         sessions_page_impl(state, &day, &PageRequest::default()).unwrap()
     });
     assert!(took < Duration::from_secs(1), "search took {took:?}");
-    assert!(matched.total.unwrap() >= 240, "{:?}", matched.total);
+    assert!(matched.total.unwrap() >= 240, "too few matches");
     let words = SessionsQuery {
         text: Some(format!("echo {}", second_day())),
         utc_offset_min: Some(0),
@@ -427,11 +427,11 @@ fn the_app_and_the_rail_hold_the_working_set_never_the_history() {
     let ended = rows.len() - open;
     assert!(
         ended >= last_day,
-        "{ended} ended rows, {last_day} ended in the last day"
+        "fewer ended rows than ended in the last day"
     );
     assert!(
         ended <= last_day + commands::RECENT_ENDED,
-        "{ended} ended rows"
+        "more ended rows than the working set holds"
     );
     assert!(rows.iter().all(|row| row.last_activity_ms.unwrap()
         >= now - commands::RECENT_ENDED_MS
