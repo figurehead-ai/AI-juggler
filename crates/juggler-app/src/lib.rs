@@ -326,6 +326,15 @@ macro_rules! app_commands {
             Write features::agent_bridge::commands::agent_bridge_answer,
             Write features::agent_bridge::commands::agent_bridge_set,
             Read  features::runtime::commands::runtime_get,
+            Read  features::processes::commands::processes_page,
+            Read  features::processes::commands::processes_counts,
+            Write features::processes::commands::processes_mark,
+            Read  features::processes::commands::processes_observed_verify,
+            Write features::processes::commands::processes_observed_stop,
+            Read  features::processes::commands::processes_history,
+            Read  features::processes::commands::processes_dry_run,
+            Read  features::processes::commands::processes_policy,
+            Read  features::processes::commands::processes_snapshot,
             Read  features::runtime::commands::runtime_asks,
             Write features::runtime::commands::runtime_answer,
             Write features::runtime::commands::runtime_send,
@@ -1070,6 +1079,12 @@ fn spawn_read_model_ticks(
         loop {
             std::thread::sleep(std::time::Duration::from_secs(2));
             commands::processes_tick(&processes_state);
+            // AJ-E2401: the Processes view's graph, from what the tick
+            // just read (no scan of its own); the page hears of changes.
+            if let Some(change) = features::processes::tick(&processes_state) {
+                use tauri::Emitter;
+                let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
+            }
             commands::detect_running_models(&processes_app, &processes_state, None);
             // AJ-E1703: what each live session is working on (its card).
             features::pools::cards::tick(&processes_state);
@@ -1154,6 +1169,11 @@ fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
             .recv_timeout(std::time::Duration::from_millis(500))
         {
             let stopped_by_user = state.supervisor.was_stopped(event.session());
+            // AJ-E2405: a helper left behind shows in the Processes view at
+            // once, and the user hears of it once per session.
+            if let juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } = &event {
+                state.processes.helper_orphaned(session, *pid, now_millis());
+            }
             // AJ-E405: classify non-zero exits against the captured
             // output tail BEFORE the status mapping runs — a rate-limit
             // signature is QuotaBlocked (immediate), not a crash.

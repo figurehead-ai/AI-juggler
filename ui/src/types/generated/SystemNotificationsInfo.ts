@@ -23,4 +23,8 @@ finished: boolean,
 /**
  * This Mac is getting tight or under pressure.
  */
-this_mac: boolean, };
+this_mac: boolean, 
+/**
+ * AJ-E2405: a session ended and left something running.
+ */
+left_behind: boolean, };

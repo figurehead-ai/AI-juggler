@@ -8817,7 +8817,7 @@ fn audit_kill_intent(
 }
 
 /// The ports a pid holds RIGHT NOW (the audit's before/after facts).
-fn ports_held_by(pid: u32) -> Option<String> {
+pub(crate) fn ports_held_by(pid: u32) -> Option<String> {
     let listeners = os_listeners().ok()?;
     let ports: Vec<String> = listeners
         .iter()
@@ -8844,7 +8844,7 @@ pub const KILL_WRONG_MACHINE_COPY: &str =
     "This process record belongs to another machine — Juggler will not touch it.";
 
 /// A Clean refused before any signal, with its copy.
-fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
+pub(crate) fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
     KillExecuteInfo {
         refusal: Some(copy.to_string()),
         members: vec![KillMemberOutcome {
@@ -9576,7 +9576,7 @@ fn scope_members(
 /// The post-ladder port re-probe (FMEA C2): who STILL holds each of
 /// the target's ports, and the pid-only re-offer when an escapee —
 /// not the killed pid — keeps one. Never a success claim.
-fn still_holding_report(
+pub(crate) fn still_holding_report(
     ports_before: Option<&str>,
     pid: u32,
     cancelled: bool,
@@ -9943,6 +9943,13 @@ pub fn auto_cleanup_sweep(state: &Arc<AppState>, now: i64) {
             if hog_pids.contains(&orphan_pid) || hog_sessions.contains(&session_id) {
                 continue; // hog: alert + staged sheet only, never a signal
             }
+            // AJ-E2404: the user said Keep (not a leftover): never tidied.
+            if state
+                .processes
+                .is_kept(orphan_pid, row.started_at.unwrap_or_default())
+            {
+                continue;
+            }
             let candidate = juggler_supervisor::tree::TierCandidate {
                 pid: orphan_pid,
                 role_guess: guess_role(&row.exe_path, &row.cmdline_trunc).to_string(),
@@ -10102,7 +10109,7 @@ fn demote_with_audit_note(state: &Arc<AppState>, row: &juggler_core::storage::Le
 
 /// True when the global `Pause automatic cleanup` kill-switch is on
 /// (Req.4): the sweep stands down within one tick of the flag.
-fn cleanup_paused(state: &Arc<AppState>) -> bool {
+pub(crate) fn cleanup_paused(state: &Arc<AppState>) -> bool {
     let Ok(storage) = state.storage.lock() else {
         return true; // a lock failure pauses — never signals
     };
@@ -10116,7 +10123,7 @@ fn cleanup_paused(state: &Arc<AppState>) -> bool {
 
 /// The 24 h crash-suspension deadline (Req.5), if active: Tiers 1-2
 /// stand down until the user re-confirms in the Cleanup Centre.
-fn cleanup_suspended_until(state: &Arc<AppState>) -> Option<i64> {
+pub(crate) fn cleanup_suspended_until(state: &Arc<AppState>) -> Option<i64> {
     let storage = state.storage.lock().ok()?;
     let until = storage
         .app_settings()
@@ -10161,7 +10168,7 @@ pub struct Tier2NoticeInfo {
 
 /// Reads a u64 app setting with a default (AJ-E512 test seams for
 /// the hog/idle thresholds; production defaults are the arguments).
-fn setting_u64(state: &Arc<AppState>, key: &str, default: u64) -> u64 {
+pub(crate) fn setting_u64(state: &Arc<AppState>, key: &str, default: u64) -> u64 {
     state
         .storage
         .lock()

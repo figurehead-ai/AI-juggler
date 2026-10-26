@@ -69,6 +69,10 @@ pub struct AppState {
     /// the drivers of driven sessions, and why a session fell back to the
     /// terminal. Held in memory only.
     pub runtime: crate::features::runtime::Runtimes,
+    /// AJ-E2401: the Processes view's one model of apps, sessions and
+    /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
+    /// lock is never held while another is taken.
+    pub processes: crate::features::processes::Processes,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -314,6 +318,7 @@ impl AppState {
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
             runtime: crate::features::runtime::Runtimes::default(),
+            processes: crate::features::processes::Processes::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

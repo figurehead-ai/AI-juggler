@@ -1208,7 +1208,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .iter()
         .filter(|row| row.state == "orphaned" && row.role == "helper")
         .collect();
-    let leftovers = (
+    // AJ-E2401: This Mac's "Left behind" is the Processes view's count, the
+    // top bar's (ours and other apps' leftovers, didn't-stop, less what the
+    // user kept); the ledger's count only until the graph's first tick.
+    let leftovers = state.processes.leftovers().unwrap_or((
         u32::try_from(orphaned.len()).unwrap_or(u32::MAX),
         u32::try_from(
             orphaned
@@ -1217,7 +1220,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
                 .count(),
         )
         .unwrap_or(u32::MAX),
-    );
+    ));
     let mut info = assemble(machine, &trees, leftovers);
     info.recommendations =
         crate::machine_recommendations::recommendations_for(state, &info, now_ms);

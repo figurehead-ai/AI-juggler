@@ -65,6 +65,8 @@ pub struct Notifier {
     utc_offset_hours: AtomicI32,
     /// This Mac's room in words, as last seen (title, reason).
     mac_words: Mutex<Option<(String, String)>>,
+    /// AJ-E2405: how many processes each session left running, as told.
+    left: Mutex<HashMap<String, u32>>,
 }
 
 impl Default for Notifier {
@@ -77,6 +79,7 @@ impl Default for Notifier {
             in_front: AtomicBool::new(false),
             utc_offset_hours: AtomicI32::new(UNKNOWN_OFFSET),
             mac_words: Mutex::new(None),
+            left: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -158,6 +161,23 @@ pub fn this_mac_room(state: &Arc<AppState>, room: &crate::machine_health::RoomSu
     observe(state, Target::ThisMac, tight.then_some(Kind::MacTight));
 }
 
+/// AJ-E2405: a session ended and left `count` processes running (told
+/// once; a click opens the session's page).
+pub fn left_behind(state: &Arc<AppState>, session_id: &str, count: u32) {
+    if let Ok(mut left) = state.notifier.left.lock() {
+        left.insert(session_id.to_owned(), count);
+    }
+    let target = Target::Session(session_id.to_owned());
+    observe(state, target.clone(), Some(Kind::LeftBehind));
+    // Told (or held for quiet hours): the next ending can be told again.
+    let now = crate::commands::now_millis();
+    if let Ok(mut engine) = state.notifier.engine.lock()
+        && !engine.pending()
+    {
+        engine.observe(target, None, now);
+    }
+}
+
 fn observe(state: &Arc<AppState>, target: Target, kind: Option<Kind>) {
     let now = crate::commands::now_millis();
     if let Ok(mut engine) = state.notifier.engine.lock() {
@@ -237,8 +257,25 @@ fn words(state: &Arc<AppState>, due: &Due) -> (String, String) {
                 Kind::Stuck => "No output for a while",
                 Kind::Limit => "Hit its usage limit",
                 Kind::Finished => "Finished",
-                Kind::MacTight => "",
+                Kind::MacTight | Kind::LeftBehind => "",
             };
+            if due.kind == Kind::LeftBehind {
+                let count = state
+                    .notifier
+                    .left
+                    .lock()
+                    .ok()
+                    .and_then(|left| left.get(id).copied())
+                    .unwrap_or(1);
+                let mut line = vec![if count == 1 {
+                    "Left 1 process running".to_owned()
+                } else {
+                    format!("Left {count} processes running")
+                }];
+                line.extend(about.place);
+                line.extend(about.account);
+                return (about.name, line.join(" · "));
+            }
             let mut line = vec![state_words.to_owned()];
             line.extend(about.place);
             line.extend(about.account);

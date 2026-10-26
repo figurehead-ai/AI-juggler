@@ -13,6 +13,7 @@ pub mod notifications;
 pub mod outside_search;
 pub mod packs;
 pub mod pools;
+pub mod processes;
 pub mod project_sync;
 pub mod projects;
 pub mod quota;

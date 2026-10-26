@@ -14,6 +14,7 @@ const STUCK_KEY: &str = "notify.stuck";
 const LIMIT_KEY: &str = "notify.limit";
 const FINISHED_KEY: &str = "notify.finished";
 const THIS_MAC_KEY: &str = "notify.this_mac";
+const LEFT_BEHIND_KEY: &str = "notify.left_behind";
 
 /// Settings › Notifications › Tell me outside AI Juggler.
 #[derive(
@@ -32,6 +33,9 @@ pub struct SystemNotificationsInfo {
     pub finished: bool,
     /// This Mac is getting tight or under pressure.
     pub this_mac: bool,
+    /// AJ-E2405: a session ended and left something running.
+    #[serde(default)]
+    pub left_behind: bool,
 }
 
 impl SystemNotificationsInfo {
@@ -44,16 +48,18 @@ impl SystemNotificationsInfo {
             Kind::Limit => self.limit,
             Kind::Finished => self.finished,
             Kind::MacTight => self.this_mac,
+            Kind::LeftBehind => self.left_behind,
         }
     }
 }
 
-const KEYS: [&str; 5] = [
+const KEYS: [&str; 6] = [
     WAITING_KEY,
     STUCK_KEY,
     LIMIT_KEY,
     FINISHED_KEY,
     THIS_MAC_KEY,
+    LEFT_BEHIND_KEY,
 ];
 
 fn on(storage: &Storage, key: &str) -> bool {
@@ -63,13 +69,14 @@ fn on(storage: &Storage, key: &str) -> bool {
 /// The kinds as stored (all off when unset).
 #[must_use]
 pub fn read(storage: &Storage) -> SystemNotificationsInfo {
-    let [waiting, stuck, limit, finished, this_mac] = KEYS.map(|key| on(storage, key));
+    let [waiting, stuck, limit, finished, this_mac, left_behind] = KEYS.map(|key| on(storage, key));
     SystemNotificationsInfo {
         waiting,
         stuck,
         limit,
         finished,
         this_mac,
+        left_behind,
     }
 }
 
@@ -92,6 +99,7 @@ pub fn notifications_set_impl(
         kinds.limit,
         kinds.finished,
         kinds.this_mac,
+        kinds.left_behind,
     ];
     for (key, value) in KEYS.into_iter().zip(values) {
         storage.app_settings().set(key, &value.to_string())?;

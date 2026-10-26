@@ -18,6 +18,7 @@ export const NOTIFY_DEFAULT: SystemNotificationsInfo = {
   limit: false,
   finished: false,
   this_mac: false,
+  left_behind: false,
 };
 
 /** What a clicked notification opens. */

@@ -248,6 +248,61 @@ impl ConversationIndex {
             .map(|model| model.pid_dirs.clone())
             .unwrap_or_default()
     }
+
+    /// AJ-E2401: what is open now, as the live refresher last saw it (the
+    /// Processes view's sessions other apps run).
+    #[must_use]
+    pub fn live_model(&self) -> scan::LiveModel {
+        self.model
+            .lock()
+            .map(|model| model.clone())
+            .unwrap_or_default()
+    }
+
+    /// AJ-E2401: the titles of these conversations, `(tool, id)` →
+    /// `(title, folder)`, from one pass over the index (the newest file of
+    /// each).
+    #[must_use]
+    pub fn titles_of(
+        &self,
+        wanted: &std::collections::HashSet<(String, String)>,
+    ) -> HashMap<(String, String), (Option<String>, Option<PathBuf>)> {
+        type Newest = (i64, Option<String>, Option<PathBuf>);
+        let mut out: HashMap<(String, String), Newest> = HashMap::new();
+        if wanted.is_empty() {
+            return HashMap::new();
+        }
+        let Ok(files) = self.files.lock() else {
+            return HashMap::new();
+        };
+        for conversation in files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+        {
+            let key = (conversation.tool.clone(), conversation.summary.id.clone());
+            if !wanted.contains(&key) {
+                continue;
+            }
+            let last = conversation.summary.last_ms.unwrap_or_default();
+            let newer = out.get(&key).is_none_or(|(known, _, _)| last >= *known);
+            if newer {
+                out.insert(
+                    key,
+                    (
+                        last,
+                        conversation.summary.title.clone(),
+                        conversation
+                            .folder
+                            .clone()
+                            .or_else(|| conversation.summary.cwd.clone()),
+                    ),
+                );
+            }
+        }
+        out.into_iter()
+            .map(|(key, (_, title, folder))| (key, (title, folder)))
+            .collect()
+    }
 }
 
 /// One conversation per `(account, tool, id)`. A resumed or forked thread
