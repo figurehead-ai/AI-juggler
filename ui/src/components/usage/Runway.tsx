@@ -6,7 +6,7 @@
  * measured, and never measured (which still shows the tokens used).
  */
 import type { JSX } from "react";
-import { asOfWords, measured, tokenWords } from "../../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, tokenWords } from "../../lib/quotaWindow";
 import { useCached } from "../../lib/usage/cached";
 import { daysBetween } from "../../lib/usage/range";
 import { usageLimits } from "../../lib/ipc/usageHistory";
@@ -87,9 +87,11 @@ export function BothUnread({ display }: { display: QuotaDisplayData | undefined 
   return <Gauge name="5-hour window and this week" left={null} state="unmeasured" note={note} testId="window-gauge" />;
 }
 
-/** The newest reading's age, for the line under both gauges. */
+/** The newest reading's age, for the line under the gauges. */
 export function readingLine(display: QuotaDisplayData | undefined, now: number): string | null {
-  const windows = [display?.five_hour, display?.weekly].filter((window): window is WindowDisplay => window != null && window.measured_at_ms != null);
+  const windows = limitWindows(display)
+    .map((entry) => entry.window)
+    .filter((window): window is WindowDisplay => window != null && window.measured_at_ms != null);
   const newest = windows.sort((a, b) => (b.measured_at_ms ?? 0) - (a.measured_at_ms ?? 0))[0];
   if (!newest) return null;
   const from = newest.source_words ? ` from ${newest.source_words}` : "";
@@ -134,12 +136,13 @@ export function RunwayPanel({
   }
   return (
     <div className="flex flex-col gap-3.5" data-testid="account-runway">
-      {unread(display?.five_hour) && unread(display?.weekly) ? (
+      {limitWindows(display).every((entry) => unread(entry.window)) ? (
         <BothUnread display={display} />
       ) : (
         <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
-          <WindowGauge name="5-hour window" window={display?.five_hour} omitted={display?.five_hour_omitted_reason} now={now} />
-          <WindowGauge name="This week" window={display?.weekly} omitted={display?.weekly_omitted_reason} now={now} />
+          {limitWindows(display).map((entry) => (
+            <WindowGauge key={entry.key} name={entry.label} window={entry.window} omitted={entry.omitted} now={now} />
+          ))}
         </div>
       )}
       {readingLine(display, now) && <p className="-mt-1 text-label text-muted">{readingLine(display, now)}</p>}

@@ -87,11 +87,21 @@ with nothing to set up:
 - **Limit hits.** When Claude Code hits a limit, it records which limit it
   was and when it resets: "Hit its limit at 2:02 PM · resets 7:00 PM".
 - **Claude Code's last `/usage`.** When you run `/usage`, Claude Code keeps
-  its answer, with both windows and their resets.
+  its answer, with both windows and their resets, and any weekly limit on
+  one model only.
 
 A 5-hour reading older than five hours says nothing about now, so it shows
 as history: "Last reading 13 h ago: 40% used; that window has reset since".
-A team plan with no weekly limit says so instead of "Not measured yet".
+
+**A week on one model.** Some plans limit one model by the week, on its
+own: a team plan may have only that, with no weekly limit for all models.
+It shows as its own line, "This week · Fable only: 100% left · resets
+Thu", beside the 5-hour window and, when your plan has one, the week for
+all models. It limits only that model, so it doesn't change how much room
+the account has for other work; when it's running low, the account's line
+says so ("Fable: 8% left this week"). The Claude app's meter shows only the
+all-models windows, so until Claude Code's `/usage` has run, the week says
+that the meter shows no all-models week and when the rest will show.
 
 Sessions AI Juggler starts report their limits through Claude Code's status
 line. For sessions you start with `claude` in a terminal, there's an option

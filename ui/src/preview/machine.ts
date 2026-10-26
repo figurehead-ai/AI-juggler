@@ -1,8 +1,7 @@
 /**
  * The preview's This Mac: a tool AI Juggler didn't start, observed (the
- * catalog's primary tool, the only kind This Mac observes today); the
- * other apps; and the 0.1.4 review's state, where other apps hold most of
- * the memory.
+ * catalog's primary tool's app, in its adapter's words); the other apps;
+ * and the 0.1.4 review's state, where other apps hold most of the memory.
  */
 import type { MachineHealthInfo } from "../types/generated/MachineHealthInfo";
 import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
@@ -11,7 +10,7 @@ import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import { PREVIEW_TOOLS } from "./tools";
 
 export const PREVIEW_OBSERVED: ToolTreeInfo[] = [
-  { root_pid: 501, session_id: null, place: "desktop", tool: PREVIEW_TOOLS[0]!.id, group: "desktop", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
+  { root_pid: 501, session_id: null, place: "desktop", label: "Claude app", tool: PREVIEW_TOOLS[0]!.id, group: "claude-app", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
 ];
 
 // Memory, as macOS counts it (`lib/compact`'s memorySize): a 32 GB Mac
@@ -78,6 +77,7 @@ export function othersPreview(fixture: unknown): { apps: OtherAppInfo[]; alerts:
     detail,
     session_id: null,
     place: null,
+    subject_name: null,
     subject_bytes: null,
     subject_estimate: false,
     subject_cpu: null,

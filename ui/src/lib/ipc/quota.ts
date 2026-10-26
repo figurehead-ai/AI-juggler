@@ -86,6 +86,16 @@ export interface QuotaDisplayData {
   unavailable_reason: string | null;
   /** Codex's credits, from its own rollouts. */
   credits: CreditsDisplay | null;
+  /** Weekly limits on one model only ("This week · Fable only"), each a
+   * real limit shown beside the all-models windows; it limits that model
+   * alone, so it never ranks the account. */
+  model_weeks?: ModelWeekDisplay[];
+}
+
+/** A weekly limit on one model only, by the model's name ("Fable"). */
+export interface ModelWeekDisplay {
+  model: string;
+  window: WindowDisplay;
 }
 
 /** An account's credits, as its tool reports them. */
@@ -120,6 +130,7 @@ export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
         forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "estimated" },
         unavailable_reason: null,
         credits: null,
+        model_weeks: [],
       }
     );
   }

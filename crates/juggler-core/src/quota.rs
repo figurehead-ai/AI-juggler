@@ -87,6 +87,15 @@ impl UsageSource {
                 | UsageSource::UsageCache
         )
     }
+
+    /// True when a reading from this source names the weeks on one model
+    /// only too (the tool's own usage check does; a desktop app's meter
+    /// and a status line show only the all-models windows), so a model's
+    /// week it leaves out isn't there.
+    #[must_use]
+    pub const fn names_model_weeks(self) -> bool {
+        matches!(self, UsageSource::UsageCache)
+    }
 }
 
 /// One usage fact, append-only once stored (§Q3 event shape). Token
@@ -165,6 +174,18 @@ impl WindowKind {
             WindowKind::Weekly { .. } => WEEK_MS,
         }
     }
+}
+
+/// The stored window name of a weekly limit on one model only (Claude's
+/// per-model week: "Fable only"), before the model's name. It is a limit
+/// of its own: kept under its own name beside the all-models windows, so
+/// its readings never mix with theirs, and it counts only for that model.
+pub const MODEL_WEEK_PREFIX: &str = "weekly:model:";
+
+/// The stored window name of `model`'s own weekly limit.
+#[must_use]
+pub fn model_week_window(model: &str) -> String {
+    format!("{MODEL_WEEK_PREFIX}{model}")
 }
 
 /// The half-open-left, closed-right event interval `(t−W, t]` for a

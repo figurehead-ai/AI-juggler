@@ -54,6 +54,7 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   root_pid: null,
   session_id: null,
   place: "desktop",
+  label: overrides.session_id || overrides.place === null ? null : "Claude app",
   tool: null,
   group: overrides.place === null ? "claude-code" : (overrides.place ?? "desktop"),
   account_label: "Personal",
@@ -192,6 +193,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     detail: "macOS reports memory pressure",
     session_id: "busy-one",
     place: null,
+    subject_name: null as string | null,
     subject_bytes: 3_200_000_000,
     subject_estimate: false,
     subject_cpu: null,
@@ -227,8 +229,10 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
 
   it("says a tool we didn't start uses about its memory, since that sum is an estimate", async () => {
     const { alertSubject } = await import("../lib/machine");
-    const theirs = alert({ session_id: null, place: "desktop", subject_bytes: 2_000_000_000, subject_estimate: true });
+    const theirs = alert({ session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: 2_000_000_000, subject_estimate: true });
     expect(alertSubject(theirs, () => null)).toBe("The Claude app is using about 1.9 GB");
+    // Every tool's app in its adapter's words (the Codex app in ChatGPT.app).
+    expect(alertSubject({ ...theirs, place: "codex-app", subject_name: "ChatGPT (Codex)" }, () => null)).toBe("ChatGPT (Codex) is using about 1.9 GB");
     // The app as a whole: its windows' total, and how many (0.0.12).
     expect(alertSubject({ ...theirs, subject_bytes: 16_100_000_000, subject_windows: 3 }, () => null)).toBe(
       "The Claude app is using about 15 GB across 3 windows",
@@ -259,7 +263,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
   it("tells a fresh alert once in the notification region, and dismisses it", async () => {
     const { NotificationRegion } = await import("./NotificationRegion");
     (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__ = [
-      alert({ key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_cpu: 140 }),
+      alert({ key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: null, subject_cpu: 140 }),
     ];
     render(<NotificationRegion />);
     const notice = await screen.findByTestId("machine-alert");

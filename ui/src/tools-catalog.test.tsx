@@ -29,7 +29,7 @@ const ACME: ToolSpecInfo = {
   setup_groups: [{ id: "acme-homes", title: "Your Acme homes", path_contains: null, origin: null, shows_install: true }],
   default_label: "Acme",
   flow: { first_run: true, primary: true },
-  supports: { in_place: true, limits: false },
+  supports: { in_place: true, limits: false, app_meter: false, thread_link: false },
 };
 
 const acmeSetup = {

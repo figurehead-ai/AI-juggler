@@ -72,13 +72,8 @@ export function otherAppWords(app: OtherAppInfo): string {
  * AI tool (the 0.1.4 review). */
 export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: string) => string | null): string | null {
   if (alert.other_apps.length > 0) return `Other apps are using most of the memory: ${alert.other_apps.map(otherAppWords).join(", ")}`;
-  const who = alert.session_id
-    ? (nameOf(alert.session_id) ?? "a session")
-    : alert.place
-      ? alert.place === "desktop"
-        ? "The Claude app"
-        : "claude in a terminal"
-      : null;
+  // A tool AI Juggler didn't start: named in its adapter's words.
+  const who = alert.session_id ? (nameOf(alert.session_id) ?? "a session") : alert.place ? (alert.subject_name ?? null) : null;
   if (!who) return null;
   const figures = [
     alert.subject_cpu !== null ? `CPU ${Math.round(alert.subject_cpu)}%` : null,

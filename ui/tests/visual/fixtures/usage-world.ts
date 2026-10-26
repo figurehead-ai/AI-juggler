@@ -110,24 +110,38 @@ const window = (state: string, percentage: number | null, resetsInMin: number | 
   burned_credits: null,
   headroom_tokens: null,
 });
-const display = (id: string, five: unknown, weekly: unknown) => ({
+const display = (id: string, five: unknown, weekly: unknown, extra: Record<string, unknown> = {}) => ({
   account: id,
   five_hour: five,
   five_hour_omitted_reason: null,
   weekly,
   weekly_omitted_reason: null,
+  model_weeks: [],
+  ...extra,
   renewal: { state: "none", label: "", entered_by_user: false },
   forecast: { state: "wont-exhaust", tte_min: null, range_min: null, range_max: null, badge: "measured" },
   unavailable_reason: null,
   credits: null,
 });
 
-/** Every runway state: Max fresh, Codex fresh, Acme hit its 5-hour limit,
- * Pro's last reading is from before a reset. Lab is never measured. */
+/** A week on one model only (Claude's "Fable only"), read by Claude
+ * Code's usage check. */
+const fable = (percentage: number, resetsInMin: number) => ({
+  model: "Fable",
+  window: { ...window("tracking", percentage, resetsInMin, 12), source: "usage_cache", source_words: "Claude Code's last usage check" },
+});
+
+/** Every runway state: Max fresh, with Fable's own week beside its week;
+ * Codex fresh; Acme (a team seat) hit its 5-hour limit, and its only week
+ * is Fable's; Pro's last reading is from before a reset. Lab is never
+ * measured. */
 export const QUOTA_DISPLAY = [
-  display("claude-work", window("tracking", 38, 40, 12), window("tracking", 41, 3 * 24 * 60, 12)),
+  display("claude-work", window("tracking", 38, 40, 12), window("tracking", 41, 3 * 24 * 60, 12), { model_weeks: [fable(22, 3 * 24 * 60)] }),
   display("codex-main", { ...window("tracking", 22, 180, 5), source: "rollout", source_words: "Codex" }, { ...window("tracking", 47, 6 * 24 * 60, 5), source: "rollout", source_words: "Codex" }),
-  display("claude-client-a", window("exhausted", 100, 4 * 60 + 20, 38), window("tracking", 64, 2 * 24 * 60, 38)),
+  display("claude-client-a", window("exhausted", 100, 4 * 60 + 20, 38), null, {
+    weekly_omitted_reason: "Claude Code reports a weekly limit only for Fable",
+    model_weeks: [fable(36, 2 * 24 * 60)],
+  }),
   display("claude-personal", window("reset", 40, null, 13 * 60), window("tracking", 12, 5 * 24 * 60, 13 * 60)),
   display("claude-lab", window("unmeasured", null, null, null, 2_400_000), window("unmeasured", null, null, null, 9_100_000)),
 ];

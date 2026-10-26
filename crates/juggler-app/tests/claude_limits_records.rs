@@ -151,12 +151,96 @@ fn an_app_only_team_seat_is_measured_from_the_apps_meter_with_its_source_and_age
         five.resets_at_ms, None,
         "the meter has no reset, and none is made up"
     );
-    // A team seat's meter has no week: said, never "not measured".
+    // A team seat's meter has no week: said, never "not measured", and
+    // never "no weekly limit": the meter can't see a model's own week.
     assert!(info.weekly.is_none());
     assert_eq!(
         info.weekly_omitted_reason.as_deref(),
-        Some("Claude Code reports no weekly limit for this account")
+        Some(
+            "No all-models weekly limit in the Claude app; a weekly limit on one model shows once Claude Code checks its usage"
+        )
     );
+    assert!(info.model_weeks.is_empty());
+}
+
+/// The maintainer's report (0.1.6): "Claude runway 5 hour seems to be
+/// showing, but not the 7 day one". A team seat's week is on one model
+/// (`weekly_scoped`, "Fable"), with no all-models week: shown as that
+/// model's week, with its source and reset, beside the 5 hours.
+#[test]
+fn a_team_seats_week_on_one_model_is_shown_as_that_models_week() {
+    let dir = tempfile::tempdir().unwrap();
+    let setup = setup(dir.path());
+    let fetched = now() - 5 * MIN;
+    let week_reset = now() + 3 * 24 * HOUR;
+    std::fs::write(
+        setup.profile.join(".claude.json"),
+        format!(
+            r#"{{"oauthAccount":{{"accountUuid":"acct-a","organizationUuid":"org-team"}},
+            "cachedUsageUtilization":{{"fetchedAtMs":{fetched},"accountUuid":"acct-a","utilization":{{
+            "five_hour":{{"utilization":7,"resets_at":"{}"}},"seven_day":null,
+            "limits":[{{"kind":"session","group":"session","percent":7,"resets_at":"{}","scope":null,"is_active":true}},
+              {{"kind":"weekly_scoped","group":"weekly","percent":0,"resets_at":"{}","severity":"normal","scope":{{"model":{{"id":null,"display_name":"Fable"}},"surface":null}},"is_active":false}}],
+            "seven_day_breakdown":null,"weekly_scoped_shares":null}}}}}}"#,
+            iso(now() + 2 * HOUR),
+            iso(now() + 2 * HOUR),
+            iso(week_reset)
+        ),
+    )
+    .unwrap();
+    // The app's meter read since, with no week (it can't see one).
+    meter(&setup.instance, &[(now() - MIN, 9.0, None)]);
+    usage_pipeline::ingest_pass(&setup.state, 1);
+    let info = display(&setup);
+    assert!(info.five_hour.is_some());
+    assert!(info.weekly.is_none(), "no all-models week is made up");
+    assert_eq!(
+        info.weekly_omitted_reason.as_deref(),
+        Some("Claude Code reports a weekly limit only for Fable")
+    );
+    assert_eq!(info.model_weeks.len(), 1);
+    let fable = &info.model_weeks[0];
+    assert_eq!(fable.model, "Fable");
+    assert_eq!(
+        fable.window.percentage,
+        Some(0.0),
+        "100% left, a real reading"
+    );
+    assert_eq!(fable.window.resets_at_ms, Some(week_reset / 1000 * 1000));
+    assert_eq!(fable.window.source.as_deref(), Some("usage_cache"));
+    assert_eq!(
+        fable.window.source_words.as_deref(),
+        Some("Claude Code's last usage check")
+    );
+    assert_eq!(fable.window.measured_at_ms, Some(fetched));
+}
+
+/// A personal plan has the whole week and a model's week beside it; the
+/// model's week never stands in for the whole week.
+#[test]
+fn a_personal_plans_model_week_sits_beside_the_whole_week() {
+    let dir = tempfile::tempdir().unwrap();
+    let setup = setup(dir.path());
+    let fetched = now() - 5 * MIN;
+    let reset = iso(now() + 3 * 24 * HOUR);
+    std::fs::write(
+        setup.profile.join(".claude.json"),
+        format!(
+            r#"{{"oauthAccount":{{"accountUuid":"acct-a","organizationUuid":"org-team"}},
+            "cachedUsageUtilization":{{"fetchedAtMs":{fetched},"accountUuid":"acct-a","utilization":{{
+            "five_hour":{{"utilization":12,"resets_at":"{reset}"}},
+            "seven_day":{{"utilization":40,"resets_at":"{reset}"}},
+            "limits":[{{"kind":"weekly_all","percent":40,"resets_at":"{reset}"}},
+              {{"kind":"weekly_scoped","percent":55,"resets_at":"{reset}","scope":{{"model":{{"display_name":"Fable"}}}}}}]}}}}}}"#
+        ),
+    )
+    .unwrap();
+    usage_pipeline::ingest_pass(&setup.state, 1);
+    let info = display(&setup);
+    assert_eq!(info.weekly.unwrap().percentage, Some(40.0));
+    assert_eq!(info.weekly_omitted_reason, None);
+    assert_eq!(info.model_weeks.len(), 1);
+    assert_eq!(info.model_weeks[0].window.percentage, Some(55.0));
 }
 
 #[test]
@@ -467,8 +551,20 @@ fn qa_real_readonly_claude_limits_per_profile() {
             counts[2]
         );
         println!("    {}", describe("5-hour", &five, WindowKind::FiveHour));
+        // Each model's own week, by the name Claude shows (never an id).
+        for (model, sample) in limits.cache.iter().flat_map(|cache| &cache.model_weeks) {
+            let rows = [(*sample, Some(UsageSource::UsageCache))];
+            println!(
+                "    {}",
+                describe(
+                    &format!("week, {model} only"),
+                    &rows,
+                    WindowKind::Weekly { anchor_ms: None }
+                )
+            );
+        }
         if no_week {
-            println!("    week: the plan's own records report no weekly limit");
+            println!("    week: the plan's own records leave the all-models week out");
         } else {
             println!(
                 "    {}",

@@ -14397,8 +14397,9 @@ fn mark_in_use(state: &Arc<AppState>, installs: &mut [DiscoveredInfo]) {
         .map(|install| std::path::PathBuf::from(&install.path))
         .collect();
     let pid_dirs = crate::running_setups::pid_dirs_in(&adapters, &dirs, &processes);
-    crate::running_setups::with_folders(&mut processes, &pid_dirs);
-    let open = crate::running_setups::classify(&processes, &home);
+    let shapes = crate::running_setups::ToolShapes::from_adapters(&adapters);
+    crate::running_setups::with_folders(&mut processes, &shapes, &pid_dirs);
+    let open = crate::running_setups::classify(&processes, &shapes, &home);
     for install in installs {
         install.in_use = crate::running_setups::in_use_for(&open, &install.path, &home);
     }
@@ -14522,8 +14523,11 @@ pub fn environment_scan_full_impl(
         .collect();
     let seeds = juggler_adapters::scan_signals::project_seed_names(&config_dirs);
     tick(&mut done); // S9
-    let desktop_apps =
-        juggler_adapters::scan_signals::desktop_apps_present(std::path::Path::new("/Applications"));
+    // The tools' own desktop apps, from their adapters (ADR-0019).
+    let desktop_apps = juggler_adapters::scan_signals::desktop_apps_present(
+        std::path::Path::new("/Applications"),
+        &crate::running_setups::ToolShapes::of(&state.registry).app_bundles(),
+    );
     tick(&mut done); // S10
 
     let probes = scan_probe_rows(
