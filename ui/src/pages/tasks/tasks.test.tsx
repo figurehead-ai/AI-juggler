@@ -13,9 +13,11 @@
  *   session is a row you start or leave.
  * - A session's Tasks tab; the switch history's task per session; the
  *   Processes link only once that view says it's there.
- * - 200 tasks render in under 100 ms; nothing smaller than 12 px.
+ * - 200 tasks render in under 100 ms (timed on the load gate; elsewhere
+ *   each row renders once, under a sanity bound); nothing smaller than 12 px.
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import PoolTasksSource from "./PoolTasks.tsx?raw";
 import TaskViewSource from "./TaskView.tsx?raw";
@@ -210,12 +212,33 @@ describe("a pool's tasks", () => {
     expect(localStorage.getItem("aij.page.tab.session")).toBe("processes");
   });
 
+  // The 100 ms budget is a wall-clock one, so it is held where a clock is
+  // reliable: `just load-gate` on the reference Mac (AJ_LOAD_GATE=1, the
+  // median of five). Everywhere else (CI, a Mac with every core busy: it
+  // failed 2 of 2 so, 2026-10-26) this test holds the work instead (each
+  // row rendered once, in one commit) and a 500 ms sanity bound that load
+  // can't flip.
   it("renders 200 tasks in under 100 ms", async () => {
     seams().__AIJ_TASKS__!.tasks = Array.from({ length: 200 }, (_, n) => task({ id: `aj-${(0x1000 + n).toString(16)}`, title: `Task ${n}` }));
-    const started = performance.now();
-    const { findAllByTestId } = render(<SessionTasksList />);
-    expect((await findAllByTestId("task-row")).length).toBe(200);
-    expect(performance.now() - started).toBeLessThan(100);
+    const gate = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.AJ_LOAD_GATE === "1";
+    const runs: number[] = [];
+    for (let run = 0; run < (gate ? 5 : 1); run++) {
+      rowRenders = 0;
+      let commits = 0;
+      const started = performance.now();
+      const { findAllByTestId, unmount } = render(
+        <Profiler id="tasks" onRender={() => (commits += 1)}>
+          <SessionTasksList />
+        </Profiler>,
+      );
+      expect((await findAllByTestId("task-row")).length).toBe(200);
+      runs.push(performance.now() - started);
+      expect(rowRenders).toBe(200);
+      expect(commits).toBe(1);
+      unmount();
+    }
+    const median = [...runs].sort((a, b) => a - b)[Math.floor(runs.length / 2)]!;
+    expect(median).toBeLessThan(gate ? 100 : 500);
   });
 });
 
@@ -230,7 +253,10 @@ function SessionTasksList() {
     </ul>
   );
 }
+/** How many times a row rendered (the render budget's work). */
+let rowRenders = 0;
 function TaskRowFor({ task: t }: { task: TaskInfo }) {
+  rowRenders += 1;
   return <TaskRow task={t} now={NOW} selected={false} onOpen={() => undefined} />;
 }
 

@@ -18,6 +18,7 @@ verify:
     cargo test --workspace
     cargo test -p juggler-app --features dev-bridge --lib dev_bridge
     ./scripts/leaked_fixtures.sh
+    LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
@@ -49,6 +50,8 @@ dogfood-report:
 # writes docs/qa/evidence/AJ-E805/ui-load.json and the load captures.
 load-gate:
     cd ui && AJ_LOAD_GATE=1 pnpm exec playwright test tests/visual/load.spec.ts
+    # AJ-E1906: 200 task rows in under 100 ms (a wall clock, so timed here only).
+    cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/pages/tasks/tasks.test.tsx -t "200 tasks"
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
