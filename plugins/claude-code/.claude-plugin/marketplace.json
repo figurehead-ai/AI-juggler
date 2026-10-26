@@ -1,0 +1,13 @@
+{
+  "name": "ai-juggler",
+  "owner": {
+    "name": "Figurehead"
+  },
+  "plugins": [
+    {
+      "name": "ai-juggler",
+      "source": "./ai-juggler",
+      "description": "AI Juggler's pool tools and a skill for working the pool's tasks."
+    }
+  ]
+}

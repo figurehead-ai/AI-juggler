@@ -1,0 +1,22 @@
+#!/bin/sh
+# AI Juggler's pool tools for this Claude Code session (E19, AJ-E1905).
+#
+# Runs AI Juggler's own juggler-agent as this plugin's MCP server. In a
+# session AI Juggler started with its agent tools, its launch already added
+# them, and this copy lists none. Anywhere else each tool answers why it
+# can't: the session wasn't started by AI Juggler, or AI Juggler isn't
+# running. No key is read or written here: a key comes only with a launch.
+apps="${JUGGLER_APPS:-/Applications}"
+for agent in \
+  "$JUGGLER_AGENT" \
+  "$apps/AI Juggler.app/Contents/MacOS/juggler-agent" \
+  "$HOME/Applications/AI Juggler.app/Contents/MacOS/juggler-agent" \
+  "$apps/AI Juggler Nightly.app/Contents/MacOS/juggler-agent" \
+  "$HOME/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent" \
+  "$apps/AI Juggler Dev.app/Contents/MacOS/juggler-agent"; do
+  if [ -n "$agent" ] && [ -x "$agent" ]; then
+    exec "$agent" --mcp --plugin
+  fi
+done
+echo "AI Juggler isn't installed on this Mac (its juggler-agent wasn't found), so its pool tools aren't here." >&2
+exit 1
