@@ -219,7 +219,7 @@ describe("AJ-E1007 replay", () => {
     expect(container.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
     expect(container.textContent).toContain("user: fix the invoice export");
     expect(container.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Personal (codex)");
+    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Personal (Codex)");
     expect(container.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
   });
 });
