@@ -24,11 +24,11 @@ export function windowRows(total: number, rowHeight: number, scrollTop: number, 
 
 /** Where a key press moves the focus, from row `at`: the new index, and
  * whether the row at `at` should open or close instead. */
-export function treeKey(
-  rows: readonly TreeRowLike[],
+export function treeKey<T extends TreeRowLike>(
+  rows: readonly T[],
   at: number,
   key: string,
-  open: (row: TreeRowLike) => boolean,
+  open: (row: T) => boolean,
 ): { to: number } | { toggle: "open" | "close"; at: number } | null {
   const row = rows[at];
   if (!row) return null;
