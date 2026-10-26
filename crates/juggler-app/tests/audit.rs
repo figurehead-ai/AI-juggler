@@ -21,8 +21,8 @@ use juggler_app::commands::{self, AuditWriteError, AuditWriter};
 use juggler_app::error::AppError;
 use juggler_app::state::AppState;
 use juggler_core::storage::{CleanupAuditRecord, CleanupAuditRepo};
-use juggler_supervisor::ExitSnapshot;
-use juggler_supervisor::OrphanTracker;
+
+mod common;
 
 // The shared reaper (nothing else from the kit).
 #[allow(dead_code)]
@@ -137,8 +137,8 @@ fn fault_injection_no_audit_means_no_signal() {
         AppState::init_with_registry(dir.path().join("app-data"), AdapterRegistry::new()).unwrap(),
     );
 
-    // A REAL trapped process the tracker has recorded (the allow-list
-    // guard must pass so the audit gate is the ONLY thing refusing).
+    // A REAL trapped process with a VERIFIED ledger row (identity
+    // passes, so the audit gate is the ONLY thing refusing).
     let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
         .arg("trap 'echo term >> \"$0\"' TERM; sleep 300 & wait")
@@ -155,25 +155,20 @@ fn fault_injection_no_audit_means_no_signal() {
     let mut reaper = fixtures::Reaper::default();
     reaper.group(pid);
     let session = juggler_core::model::SessionId::new("sess-fault");
-    state.orphans.record_exit(ExitSnapshot {
-        session: session.clone(),
-        root_pid: 1,
-        root_program: "fake-harness".into(),
-        clean: false,
-        taken_ms: now_ms(),
-        rows: vec![juggler_supervisor::DescendantRow {
-            pid,
-            name: "sh".into(),
-            rss_bytes: 1024,
-        }],
-    });
-    // Poll past grace so the tracker confirms the orphan (allow-list ✔).
-    state.orphans.poll(now_ms() + 11_000, |pid| {
-        (pid == pid).then(|| ("sh".to_string(), 1024))
-    });
+    let (started, exe) = common::ledger::live_identity(pid).unwrap();
+    common::ledger::seed_helper(&state, &session, pid, Some(started), &exe, "orphaned").unwrap();
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     // The fault: intent fails ⇒ typed refusal, ZERO signals.
-    let refused = commands::orphan_stop_audited(&state, &FailingAudit, &session, pid);
+    let refused = commands::kill_execute_audited(
+        &state,
+        &FailingAudit,
+        session.as_str(),
+        pid,
+        "pid",
+        &cancel,
+        None,
+    );
     match refused {
         Err(AppError::AuditUnavailable) => {}
         other => panic!("expected AuditUnavailable, got {other:?}"),
@@ -194,15 +189,24 @@ fn fault_injection_no_audit_means_no_signal() {
 
     // Recovery: with the REAL audit the same kill proceeds and the
     // audit row completes with the honest outcome.
-    let outcome = commands::orphan_stop_inner(&state, &session, pid).unwrap();
-    println!("[fault-recovered] {}", outcome.state);
+    let outcome = commands::kill_execute_audited(
+        &state,
+        state.audit.as_ref(),
+        session.as_str(),
+        pid,
+        "pid",
+        &cancel,
+        None,
+    )
+    .unwrap();
+    println!("[fault-recovered] {:?}", outcome.members);
+    assert!(outcome.refusal.is_none(), "the verified kill proceeds");
     let rows = state.audit.history(0).unwrap();
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].actor, "user:orphan_stop");
+    assert_eq!(rows[0].actor, "user:kill_sheet");
     assert_ne!(rows[0].outcome, "TERM'd, outcome unknown");
     let _ = child.kill();
     let _ = child.wait();
-    let _ = OrphanTracker::new();
     let _ = Duration::from_secs(0);
     let _ = Path::new("/");
 }

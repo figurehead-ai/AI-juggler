@@ -1820,22 +1820,10 @@ pub const SITES: &[(&str, Site)] = &[
         "leftover.detected",
         Site::Backend("the orphan tracker's confirmations"),
     ),
-    (
-        "leftover.cleaned",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "leftover.verify_refused",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "cleanup.memory_freed_mb",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
-    (
-        "cleanup.ports_freed",
-        Site::Backend("kill_execute_as; orphan_stop_audited"),
-    ),
+    ("leftover.cleaned", Site::Backend("kill_execute_as")),
+    ("leftover.verify_refused", Site::Backend("kill_execute_as")),
+    ("cleanup.memory_freed_mb", Site::Backend("kill_execute_as")),
+    ("cleanup.ports_freed", Site::Backend("kill_execute_as")),
     (
         "resource.alert",
         Site::Both("cleanup_alerts_inner (shown); Cleanup Centre (acted)"),

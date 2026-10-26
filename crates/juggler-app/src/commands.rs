@@ -7468,29 +7468,6 @@ pub struct TreeSampleInfo {
     pub rss_bytes: u64,
 }
 
-/// One confirmed orphan row (`Orphaned - left behind (N)` section).
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct OrphanInfo {
-    /// Instance the process was left behind by.
-    pub session_id: String,
-    /// Orphan process id.
-    pub pid: u32,
-    /// Process name.
-    pub name: String,
-    /// Resident memory, bytes.
-    #[ts(type = "number")]
-    pub rss_bytes: u64,
-    /// Label of the dead parent (its program name).
-    pub parent_label: String,
-    /// Age since the parent exited, ms.
-    #[ts(type = "number")]
-    pub age_since_parent_exit_ms: i64,
-    /// Last stop state for this pid (`gone` / `still alive - escalated to
-    /// SIGKILL` / …), when one exists.
-    pub stop_state: Option<String>,
-}
-
 /// The Processes tab payload for one Instance (AJ-E410 Req.2/3).
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -7499,41 +7476,13 @@ pub struct ProcessesInfo {
     pub rows: Vec<ProcessRowInfo>,
     /// 5-minute 2 s resource ring (the I-07 sparkline source).
     pub spark: Vec<TreeSampleInfo>,
-    /// Confirmed orphans for this Instance.
-    pub orphans: Vec<OrphanInfo>,
     /// Honest unavailability note (adopted/deskto-kind without a tree):
     /// `resources unavailable`, never flat-zero rows.
     pub unavailable_reason: Option<String>,
 }
 
-/// Outcome payload for orphan stop actions.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct StopOutcomeInfo {
-    /// The pid the action targeted.
-    pub pid: u32,
-    /// UI state: `gone`, `still alive - escalated to SIGKILL`, or the
-    /// refusal reason.
-    pub state: String,
-}
-
-/// `Verify owner` payload: the re-checked ppid chain evidence.
-#[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct OrphanVerifyInfo {
-    /// The pid examined.
-    pub pid: u32,
-    /// True when the process is alive and non-zombie.
-    pub alive: bool,
-    /// Current parent pid, when readable.
-    #[ts(type = "number | null")]
-    pub parent_pid: Option<u32>,
-    /// Human note (e.g. `re-parented to init/launchd`).
-    pub note: String,
-}
-
-/// The live Processes tab payload for one Instance (rows + spark +
-/// orphans); rollups above Instance level aggregate several of these
+/// The live Processes tab payload for one Instance (rows + spark;
+/// what it left behind is the shared Cleanup inventory's); rollups above Instance level aggregate several of these
 /// read-only in the UI (Req.2).
 ///
 /// # Errors
@@ -7576,7 +7525,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
         }));
     }
     let session = SessionId::new(session_id.to_string());
-    let session_id = session_id.to_string();
     let (rows, spark, unavailable) = {
         let Ok(collector) = state.resources.lock() else {
             return Ok(unavailable_processes("resources unavailable"));
@@ -7589,24 +7537,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
             (!supervised && rows.is_empty()).then(|| "resources unavailable".to_string());
         (rows, spark, unavailable)
     };
-    let now = Timestamp::now().millis();
-    let orphans = state
-        .orphans
-        .orphans_of(&session)
-        .into_iter()
-        .map(|orphan| OrphanInfo {
-            session_id: session_id.clone(),
-            pid: orphan.pid,
-            name: orphan.name,
-            rss_bytes: orphan.rss_bytes,
-            parent_label: orphan.parent_label,
-            age_since_parent_exit_ms: now - orphan.parent_exit_ms,
-            stop_state: state
-                .orphans
-                .stop_state(orphan.pid)
-                .map(|outcome| outcome.state_label().to_string()),
-        })
-        .collect();
     Ok(ProcessesInfo {
         rows: rows
             .into_iter()
@@ -7629,7 +7559,6 @@ pub fn instance_processes_arc(state: &Arc<AppState>, session_id: &str) -> AppRes
                 rss_bytes: sample.rss_bytes,
             })
             .collect(),
-        orphans,
         unavailable_reason: unavailable,
     })
 }
@@ -7639,7 +7568,6 @@ fn unavailable_processes(reason: &str) -> ProcessesInfo {
     ProcessesInfo {
         rows: Vec::new(),
         spark: Vec::new(),
-        orphans: Vec::new(),
         unavailable_reason: Some(reason.to_string()),
     }
 }
@@ -7887,7 +7815,8 @@ pub struct CleanupRow {
     /// True for helpers of roots that died while Juggler was closed
     /// (AJ-E510 Req.2) — the distinct down-period marker.
     pub down_period: bool,
-    /// Role guess — always labelled a guess (E504 note).
+    /// Role guess in plain words ([`role_words`]: "dev server",
+    /// "watcher"; empty when unknown) — always labelled a guess (E504).
     pub role_guess: String,
     /// Executable path (truncated for display, full on expand).
     pub exe_path: String,
@@ -7924,8 +7853,82 @@ pub struct CleanupGroup {
     pub machine: String,
     /// True when the tree is healthy (collapse by default).
     pub healthy: bool,
+    /// The account's name ("Work Max"), when known — the group title
+    /// names things, never ids.
+    pub account_label: Option<String>,
+    /// The project's name ("web-app"), when known.
+    pub project_name: Option<String>,
+    /// The user's name for the session (AJ-E1502), when it has one.
+    pub label: Option<String>,
+    /// The session's lifecycle status (storage vocabulary: `failed`,
+    /// `stopped`, …) — how it ended; `None` without a session record.
+    pub status: Option<String>,
+    /// When the session started, epoch ms, when known.
+    pub started_at_ms: Option<i64>,
+    /// True while the session's own process runs.
+    pub live: bool,
+    /// When the session's own process ended, epoch ms (`None` while
+    /// it runs, or when nothing recorded it).
+    pub ended_at_ms: Option<i64>,
     /// The rows.
     pub rows: Vec<CleanupRow>,
+}
+
+/// What a Cleanup group's title is made of, read from storage once per
+/// inventory (names, not ids).
+#[derive(Default)]
+struct GroupNames {
+    account_label: Option<String>,
+    project_name: Option<String>,
+    label: Option<String>,
+    status: Option<String>,
+    started_at_ms: Option<i64>,
+}
+
+/// The names behind each session's group (one storage lock for all).
+fn group_names(
+    state: &Arc<AppState>,
+    keys: &[(String, Option<String>, Option<String>)],
+) -> std::collections::HashMap<String, GroupNames> {
+    let mut out = std::collections::HashMap::new();
+    let Ok(storage) = lock_storage_arc(state) else {
+        return out;
+    };
+    let marks = storage.sessions().marks().unwrap_or_default();
+    for (session, account, project) in keys {
+        let record = storage
+            .sessions()
+            .get(&SessionId::new(session.clone()))
+            .ok();
+        let project = project.clone().or_else(|| {
+            record
+                .as_ref()
+                .and_then(|r| r.project.as_ref().map(ToString::to_string))
+        });
+        out.insert(
+            session.clone(),
+            GroupNames {
+                account_label: account.as_ref().and_then(|id| {
+                    storage
+                        .accounts()
+                        .get(&AccountId::new(id.clone()))
+                        .ok()
+                        .map(|account| account.label)
+                }),
+                project_name: project.and_then(|id| {
+                    storage
+                        .projects()
+                        .get(&juggler_core::model::ProjectId::new(id))
+                        .ok()
+                        .map(|project| project.name)
+                }),
+                label: label_of(&marks, session),
+                status: record.as_ref().map(|r| r.status.as_str().to_string()),
+                started_at_ms: record.as_ref().map(|r| r.started_at.millis()),
+            },
+        );
+    }
+    out
 }
 
 /// One Cleanup Centre history row (AJ-E509: the audit log's read
@@ -8182,7 +8185,7 @@ pub fn cleanup_inventory_inner(
                 state: effective_state.to_string(),
                 state_label,
                 down_period,
-                role_guess: format!("{} (guess)", row.exe_path.rsplit('/').next().unwrap_or("?")),
+                role_guess: role_words(guess_role(&row.exe_path, &row.cmdline_trunc)).to_string(),
                 exe_path: row.exe_path.clone(),
                 cmdline: row.cmdline_trunc.clone(),
                 age_ms: row
@@ -8210,9 +8213,6 @@ pub fn cleanup_inventory_inner(
             continue;
         }
         let healthy = !any_attention && root_alive;
-        if healthy && filter == "needs-attention" {
-            // Healthy trees hold no attention rows by construction.
-        }
         if healthy
             && root_alive
             && rows_raw
@@ -8228,8 +8228,39 @@ pub fn cleanup_inventory_inner(
             project,
             machine,
             healthy,
+            account_label: None,
+            project_name: None,
+            label: None,
+            status: None,
+            started_at_ms: None,
+            live: root_alive || session_adopted,
+            ended_at_ms: (!root_alive && !session_adopted)
+                .then(|| root_row.map(|row| row.last_seen))
+                .flatten(),
             rows,
         });
+    }
+    // Names, not ids, for each group's title (storage only, after the
+    // collector reads: the two locks are never held together).
+    let keys: Vec<(String, Option<String>, Option<String>)> = groups
+        .iter()
+        .map(|group| {
+            (
+                group.session.clone(),
+                group.account.clone(),
+                group.project.clone(),
+            )
+        })
+        .collect();
+    let mut names = group_names(state, &keys);
+    for group in &mut groups {
+        if let Some(found) = names.remove(&group.session) {
+            group.account_label = found.account_label;
+            group.project_name = found.project_name;
+            group.label = found.label;
+            group.status = found.status;
+            group.started_at_ms = found.started_at_ms;
+        }
     }
     CleanupInventoryInfo {
         groups,
@@ -8493,146 +8524,6 @@ pub fn launch_port_warning_inner(
         })
 }
 
-/// Stops one orphan: the allow-list guard refuses PIDs that were not
-/// recorded as descendants (fail closed, PROPOSAL.md:47), then the
-/// TERM→KILL ladder runs with the post-stop re-read built in (Req.6).
-/// Every kill lands in the journal's audit trail (D-08) AND the
-/// append-only cleanup audit (AJ-E509: intent before signal).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill); otherwise the typed stop outcome.
-#[tauri::command]
-pub async fn orphan_stop(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-    pid: u32,
-) -> AppResult<StopOutcomeInfo> {
-    crate::ipc::blocking(state.inner(), "orphan stop", move |state| {
-        orphan_stop_inner(state, &SessionId::new(session_id), pid)
-    })
-    .await
-}
-
-/// Stops every confirmed orphan of one Instance (the confirm popover
-/// lists all PIDs before this runs; each kill is audited).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub async fn orphan_stop_all(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-) -> AppResult<Vec<StopOutcomeInfo>> {
-    crate::ipc::blocking(state.inner(), "orphan stop all", move |state| {
-        let session = SessionId::new(session_id);
-        let mut out = Vec::new();
-        for orphan in state.orphans.orphans_of(&session) {
-            // One kill at a time: a failed audit intent stands the run
-            // down HERE (typed error out) — never silently continue.
-            out.push(orphan_stop_inner(state, &session, orphan.pid)?);
-        }
-        Ok(out)
-    })
-    .await
-}
-
-/// Shared stop path for the command and `Stop all` (guard → audit
-/// intent → ladder → tracker).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill).
-pub fn orphan_stop_inner(
-    state: &Arc<AppState>,
-    session: &SessionId,
-    pid: u32,
-) -> Result<StopOutcomeInfo, AppError> {
-    orphan_stop_audited(state, state.audit.as_ref(), session, pid)
-}
-
-/// `orphan_stop_inner` with an injected audit writer (the
-/// fault-injection gate's seam; production passes the real repo).
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the audit intent fails (no
-/// audit, no kill); otherwise the typed stop outcome.
-pub fn orphan_stop_audited(
-    state: &Arc<AppState>,
-    audit: &dyn AuditWriter,
-    session: &SessionId,
-    pid: u32,
-) -> Result<StopOutcomeInfo, AppError> {
-    if !state.orphans.allows(session, pid) {
-        let outcome = juggler_supervisor::StopOutcome::RefusedNotRecorded;
-        state.orphans.record_stop(pid, outcome.clone());
-        crate::usage_stats::count(
-            "leftover.verify_refused",
-            &[("reason", "ownership_unverified")],
-        );
-        return Ok(StopOutcomeInfo {
-            pid,
-            state: outcome.state_label().to_string(),
-        });
-    }
-    // AJ-E509: NO AUDIT, NO KILL — the intent row is written BEFORE
-    // the first signal; a failed write refuses the kill with the
-    // typed error (never a silent `let _ =`), and the ladder runs
-    // only behind a recorded intent.
-    let (intent_id, ports_before) = audit_kill_intent(state, audit, session, pid)?;
-    // AJ-E1103: what it is and holds, read before it goes.
-    let before = if crate::usage_stats::recording() {
-        state
-            .resources
-            .lock()
-            .ok()
-            .and_then(|collector| collector.lookup(pid))
-    } else {
-        None
-    };
-    let outcome = juggler_supervisor::stop_pid_ladder(pid, Duration::from_secs(2), |pid| {
-        juggler_supervisor::process_alive(pid).is_some()
-    });
-    state.orphans.record_stop(pid, outcome.clone());
-    if let Some(journal) = state.supervisor.journal_ref() {
-        let _ = journal.record_killed(session, pid, "manual", outcome.state_label());
-    }
-    // Complete the audit with the per-PID outcome and the honest
-    // post-ladder port state (a still-held port is a fact, never a
-    // success claim).
-    let ports_after = ports_held_by(pid);
-    if let Some(id) = intent_id {
-        // Best-effort completion: the intent (the accountability
-        // floor) already exists; a failed completion degrades to the
-        // truthful pending record, read as `outcome unknown`.
-        let _ = audit.complete(id, outcome.state_label(), ports_after.as_deref());
-    }
-    if let (juggler_supervisor::StopOutcome::Gone { .. }, Some((name, rss))) = (&outcome, &before) {
-        let ports = |list: Option<&str>| {
-            list.unwrap_or_default()
-                .split(',')
-                .filter(|port| !port.trim().is_empty())
-                .count()
-        };
-        let freed = ports(ports_before.as_deref()).saturating_sub(ports(ports_after.as_deref()));
-        crate::usage_stats::leftover_cleaned(
-            name,
-            "",
-            false,
-            u64::try_from(freed).unwrap_or(0),
-            *rss,
-        );
-    }
-    Ok(StopOutcomeInfo {
-        pid,
-        state: outcome.state_label().to_string(),
-    })
-}
-
 /// The audit-writer seam (AJ-E509 Req.3's fault-injection gate):
 /// production is the repo; tests inject failures to prove NO AUDIT,
 /// NO KILL.
@@ -8698,48 +8589,6 @@ impl AuditWriter for juggler_core::storage::CleanupAuditRepo {
     }
 }
 
-/// Writes the audit intent for a manual kill (AJ-E509 Req.2/3) and
-/// captures the pre-ladder ports. `Err(AppError::AuditUnavailable)`
-/// REFUSES the kill — the caller surfaces it.
-///
-/// # Errors
-///
-/// [`AppError::AuditUnavailable`] when the intent write fails.
-fn audit_kill_intent(
-    state: &Arc<AppState>,
-    audit: &dyn AuditWriter,
-    session: &SessionId,
-    pid: u32,
-) -> Result<(Option<i64>, Option<String>), AppError> {
-    use juggler_core::storage::{ACTOR_PREFIX_USER, CleanupAuditRecord};
-    let now = now_millis();
-    let ports_before = ports_held_by(pid);
-    let record = CleanupAuditRecord {
-        id: 0,
-        at_ms: now,
-        actor: format!("{ACTOR_PREFIX_USER}orphan_stop"),
-        pid,
-        pgid: None,
-        exe_path: format!("pid:{pid}"),
-        cmdline_hash: format!("pid:{pid}"),
-        cmdline_trunc: format!("PID {pid} (recorded orphan)"),
-        session_id: session.as_str().to_string(),
-        provider: "unknown".into(),
-        account_id: None,
-        project_id: None,
-        machine_id: local_machine_id(state).as_str().to_string(),
-        identity: "allow-list guard (journal-recorded descendant)".into(),
-        scope: "pid".into(),
-        outcome: String::new(),
-        ports_before: ports_before.clone(),
-        ports_after: None,
-    };
-    match audit.intent(&record) {
-        Ok(id) => Ok((Some(id), ports_before)),
-        Err(AuditWriteError) => Err(AppError::AuditUnavailable),
-    }
-}
-
 /// The ports a pid holds RIGHT NOW (the audit's before/after facts).
 fn ports_held_by(pid: u32) -> Option<String> {
     let listeners = os_listeners().ok()?;
@@ -8785,9 +8634,31 @@ fn refused_kill(pid: u32, copy: &str) -> KillExecuteInfo {
 /// AJ-E708 Req.5: the refusal while an Instance's lineage diverged.
 pub const KILL_DIVERGED_COPY: &str = "This work diverged across machines — choose what to keep (Keep mine, Keep theirs or Keep both) first. Nothing was signalled.";
 
-/// The exact unsaved-state warning copy (Req.5).
+/// The exact unsaved-state warning copy (Req.5), in plain words
+/// ("Includes an MCP server that may hold unsaved state.").
 fn unsaved_state_copy(role: &str) -> String {
-    format!("Includes a {role} that may hold unsaved state.")
+    let what = match role {
+        "McpServer" => "an MCP server".to_string(),
+        other => format!("a {}", role_words(other)),
+    };
+    format!("Includes {what} that may hold unsaved state.")
+}
+
+/// A [`guess_role`] code in the words people use ("dev server",
+/// "MCP server"); empty when nothing is known. The UI says "probably"
+/// before it: a guess is never shown as a fact.
+#[must_use]
+pub fn role_words(role: &str) -> &'static str {
+    match role {
+        "McpServer" => "MCP server",
+        "Database" => "database",
+        "DevServer" => "dev server",
+        "Watcher" => "watcher",
+        "BuildTool" => "build tool",
+        "TerminalShell" => "terminal shell",
+        "Harness" => "AI tool",
+        _ => "",
+    }
 }
 
 /// Role guess, pass2 §5 vocabulary — inferred from exe/cmdline, always
@@ -8857,7 +8728,8 @@ pub struct KillMemberInfo {
     pub exe: String,
     /// Truncated command line (display).
     pub cmdline: String,
-    /// pass2 §5 role guess — always labelled a guess in the UI.
+    /// pass2 §5 role guess in plain words ([`role_words`]; empty when
+    /// unknown) — always labelled a guess in the UI.
     pub role_guess: &'static str,
     /// The exact Req.5 warning when the role may hold unsaved state.
     pub unsaved_state_warning: Option<String>,
@@ -9113,7 +8985,7 @@ fn kill_collateral(
                 pgid: juggler_supervisor::group::pgid_of(member_pid).ok(),
                 exe: member_exe.rsplit('/').next().unwrap_or("?").to_string(),
                 cmdline: truncate_cmdline(&member_cmd),
-                role_guess: role,
+                role_guess: role_words(role),
                 unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell")
                     .then(|| unsaved_state_copy(role)),
                 from_ledger: ledger_row.is_some(),
@@ -9541,60 +9413,6 @@ fn still_holding_report(
             .map(|held| held.pid)
     };
     (still_holding, reoffer_pid)
-}
-
-/// `Verify owner`: re-reads the ppid chain for one orphan pid (manual,
-/// honest evidence — never a silent re-check).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on failure.
-#[tauri::command]
-pub async fn orphan_verify(
-    state: tauri::State<'_, Arc<AppState>>,
-    session_id: String,
-    pid: u32,
-) -> AppResult<OrphanVerifyInfo> {
-    crate::ipc::blocking(state.inner(), "orphan verify", move |state| {
-        orphan_verify_arc(state, &session_id, pid)
-    })
-    .await
-}
-
-/// The Arc-based core (tests call this directly).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message on probe failure.
-pub fn orphan_verify_arc(
-    _state: &Arc<AppState>,
-    _session_id: &str,
-    pid: u32,
-) -> AppResult<OrphanVerifyInfo> {
-    // The probe itself is per-pid (the session scopes it in the UI).
-    match juggler_supervisor::verify_owner(pid) {
-        juggler_supervisor::OwnerState::Gone => Ok(OrphanVerifyInfo {
-            pid,
-            alive: false,
-            parent_pid: None,
-            note: "process is gone".to_string(),
-        }),
-        juggler_supervisor::OwnerState::Alive { ppid } => Ok(OrphanVerifyInfo {
-            pid,
-            alive: true,
-            parent_pid: ppid,
-            note: owner_note(ppid),
-        }),
-    }
-}
-
-/// Human note for a live pid's parent state.
-fn owner_note(ppid: Option<u32>) -> String {
-    match ppid {
-        Some(1 | 0) => "alive — re-parented to init/launchd (its parent exited)".to_string(),
-        Some(parent) => format!("alive — parent pid {parent}"),
-        None => "alive — parent not readable".to_string(),
-    }
 }
 
 /// Sets the per-Account Tier-1 cleanup opt-in (D-08: off by default;

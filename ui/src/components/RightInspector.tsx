@@ -11,17 +11,19 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", true);
+// The verified stop sheet loads when a Stop is chosen (lazy-load rule).
+const KillSheet = lazyNamed(() => import("./KillSheet"), "KillSheet");
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
-import { PortInventoryList } from "./PortMap";
-import { ProcessRow } from "./ProcessRow";
+import { ProcessRow, ProcessRowsHeader, type CleanupRowInfo } from "./ProcessRow";
+import type { KillBridge } from "./KillSheet";
 import { IconProjects, IconTerminal } from "./icons";
 import type {
   AccountInfo,
@@ -365,19 +367,16 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
 /// import site — the seam keeps the component testable either way.)
 export type ProcessesBridge = {
   load: (sessionId: string) => Promise<import("../lib/bridge").ProcessesInfo | null>;
-  stop: (sessionId: string, pid: number) => Promise<import("../lib/bridge").StopOutcomeInfo>;
-  stopAll: (sessionId: string) => Promise<import("../lib/bridge").StopOutcomeInfo[]>;
-  verify: (
-    sessionId: string,
-    pid: number,
-  ) => Promise<import("../lib/bridge").OrphanVerifyInfo>;
+  /** This session's rows in the shared Cleanup inventory (G-1: one data
+   * path, one row, one verified Stop). */
+  cleanup: (sessionId: string) => Promise<{ rows: CleanupRowInfo[]; localMachine: string }>;
+  /** The verified sheet's calls; absent = the real bridge. */
+  kill?: KillBridge;
 };
 
 const defaultProcessesBridge: ProcessesBridge = {
   load: async (sessionId) => (await import("../lib/bridge")).instanceProcesses(sessionId),
-  stop: async (sessionId, pid) => (await import("../lib/bridge")).orphanStop(sessionId, pid),
-  stopAll: async (sessionId) => (await import("../lib/bridge")).orphanStopAll(sessionId),
-  verify: async (sessionId, pid) => (await import("../lib/bridge")).orphanVerify(sessionId, pid),
+  cleanup: async (sessionId) => (await import("../lib/bridge")).sessionCleanup(sessionId),
 };
 
 type PanelProps = {
@@ -1251,54 +1250,112 @@ function formatAge(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-/// The Instance panel's Cleanup rows (AJ-E506 Req.6): the global
-/// Centre's data, filtered to this Instance — same ProcessRow, same
-/// labels, no second data path.
-function InstanceCleanupRows(props: { sessionId: string }) {
-  const [rows, setRows] = useState<Array<import("./ProcessRow").CleanupRowInfo> | null>(null);
+/// The session's own rows from the shared Cleanup inventory (G-1): the
+/// same ProcessRow and labels as Cleanup, and the same verified sheet
+/// behind every Stop — never a second kill path. Rows the live tree
+/// above already shows are left out; what remains is what the session
+/// left behind (or, with no tree to read, everything it runs).
+function SessionLeftovers(props: {
+  sessionId: string;
+  livePids: ReadonlySet<number>;
+  bridge: ProcessesBridge;
+  reloadKey: number;
+  onStopped: () => void;
+}) {
+  const [data, setData] = useState<{ rows: CleanupRowInfo[]; localMachine: string } | null>(null);
+  const [killTarget, setKillTarget] = useState<{ pid: number; goalPort: number | null; trigger: HTMLElement } | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const { bridge, sessionId } = props;
   useEffect(() => {
     let alive = true;
-    import("../lib/bridge")
-      .then((bridge) => bridge.cleanupInventory("all-managed"))
-      .then((data) => {
-        if (alive) {
-          setRows(
-            data.groups.find((group) => group.session === props.sessionId)?.rows ?? [],
-          );
-        }
-      })
-      .catch(() => {
-        if (alive) setRows([]);
-      });
+    bridge
+      .cleanup(sessionId)
+      .then((result) => alive && setData(result))
+      .catch(() => alive && setData({ rows: [], localMachine: "" }));
     return () => {
       alive = false;
     };
-  }, [props.sessionId]);
+  }, [sessionId, bridge, props.reloadKey, refresh]);
 
-  if (rows === null || rows.length === 0) return null;
+  const rows = (data?.rows ?? []).filter((row) => !props.livePids.has(row.pid));
+  const localMachine = data?.localMachine ?? "";
+  const openCleanup = () =>
+    window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "cleanup" } }));
   return (
-    <section className="mt-3" data-testid="instance-cleanup-rows">
-      <h4 className="text-label font-medium text-ink">Ledger rows (read-only)</h4>
-      <ul className="mt-1">
-        {rows.map((row) => (
-          <ProcessRow key={row.pid} row={row} />
-        ))}
-      </ul>
-    </section>
+    <Card className="flex flex-col gap-2 p-3" data-testid="session-leftovers">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-section font-semibold text-ink" data-testid="leftovers-heading">
+          {rows.length > 0 ? `Left behind (${rows.length})` : "Nothing left behind"}
+        </h3>
+        <button
+          type="button"
+          onClick={openCleanup}
+          className="text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="leftovers-open-cleanup"
+        >
+          Open in Cleanup
+        </button>
+      </div>
+      {data !== null && rows.length === 0 ? (
+        <p className="text-meta text-muted">Nothing this session started is still running after it.</p>
+      ) : (
+        <div>
+          <ProcessRowsHeader />
+          <ul data-testid="instance-cleanup-rows">
+            {rows.map((row) => (
+              <ProcessRow
+                key={row.pid}
+                row={row}
+                onKill={
+                  // AJ-E511: another Mac's row is display-only.
+                  row.machine_id !== undefined && localMachine !== "" && row.machine_id !== localMachine
+                    ? undefined
+                    : (target, trigger) =>
+                        setKillTarget({
+                          pid: target.pid,
+                          goalPort:
+                            target.ports !== null && target.ports.split(",").length === 1
+                              ? Number(target.ports)
+                              : null,
+                          trigger,
+                        })
+                }
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+      {killTarget !== null && (
+        <Suspense fallback={null}>
+          <KillSheet
+            session={sessionId}
+            pid={killTarget.pid}
+            goalPort={killTarget.goalPort}
+            trigger={killTarget.trigger}
+            bridge={bridge.kill}
+            onClose={(stopped) => {
+              setKillTarget(null);
+              if (stopped) {
+                setRefresh((key) => key + 1);
+                props.onStopped();
+              }
+            }}
+          />
+        </Suspense>
+      )}
+    </Card>
   );
 }
 
 /// The live Processes tab (AJ-E410): the tree table (PID / Process /
-/// CPU / RAM / Age / ⑂), the I-07 sparkline, and the orphan section
-/// with verified stop actions. Refreshes every 5 s; failures render a
-/// banner with a manual Retry — never a silently empty table.
+/// CPU / RAM / Age / ⑂), the I-07 sparkline, and what the session left
+/// behind as the shared Cleanup rows, whose Stop is the verified sheet
+/// (G-1). Refreshes every 5 s; failures render a banner with a manual
+/// Retry — never a silently empty table.
 function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
   const instance = props.data.instance;
   const [info, setInfo] = useState<import("../lib/bridge").ProcessesInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmPid, setConfirmPid] = useState<number | null>(null);
-  const [confirmAll, setConfirmAll] = useState(false);
-  const [verifyNotes, setVerifyNotes] = useState<Record<number, string>>({});
   const [reloadKey, setReloadKey] = useState(0);
   const readOnly = props.readOnly ?? false;
 
@@ -1358,74 +1415,36 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
     );
   }
 
+  const leftovers = (livePids: ReadonlySet<number>) =>
+    readOnly ? null : (
+      <SessionLeftovers
+        sessionId={instance.id}
+        livePids={livePids}
+        bridge={bridge}
+        reloadKey={reloadKey}
+        onStopped={() => setReloadKey((key) => key + 1)}
+      />
+    );
+
   if (info?.unavailable_reason) {
     return (
-      <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
-        <p className="text-meta text-muted">{info.unavailable_reason}</p>
-        <p className="text-label text-muted">
-          Adopted or desktop-kind sessions have no readable process tree — resources are
-          unavailable, never flat zero.
-        </p>
-      </Card>
+      <div className="flex flex-col gap-3" data-testid="processes-tab">
+        {adoptedNotice}
+        <Card className="flex flex-col gap-1 p-4" data-testid="processes-unavailable">
+          <p className="text-meta text-muted">{info.unavailable_reason}</p>
+          <p className="text-label text-muted">
+            Adopted or desktop-kind sessions have no readable process tree — resources are
+            unavailable, never flat zero.
+          </p>
+        </Card>
+        {leftovers(new Set())}
+      </div>
     );
   }
 
   const rows = info?.rows ?? [];
-  const orphans = info?.orphans ?? [];
   const spark = info?.spark ?? [];
   const lastSpark = spark.at(-1);
-
-  const stopOne = (pid: number) => {
-    setConfirmPid(null);
-    bridge
-      .stop(instance.id, pid)
-      .then((outcome) => {
-          setInfo((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  orphans: prev.orphans.map((orphan) =>
-                    orphan.pid === pid ? { ...orphan, stop_state: outcome.state } : orphan,
-                  ),
-                }
-              : prev,
-          );
-        })
-        .catch(() => {
-          /* the 5 s refresh re-reads the row state */
-        });
-  };
-
-  const stopAll = () => {
-    setConfirmAll(false);
-    bridge
-      .stopAll(instance.id)
-      .then((outcomes) => {
-          setInfo((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  orphans: prev.orphans.map((orphan) => {
-                    const outcome = outcomes.find((row) => row.pid === orphan.pid);
-                    return outcome ? { ...orphan, stop_state: outcome.state } : orphan;
-                  }),
-                }
-              : prev,
-          );
-        })
-        .catch(() => {
-          /* the 5 s refresh re-reads the row states */
-        });
-  };
-
-  const verifyOne = (pid: number) => {
-    bridge
-      .verify(instance.id, pid)
-      .then((result) => setVerifyNotes((notes) => ({ ...notes, [pid]: result.note })))
-      .catch(() => {
-        /* verification is manual — failures keep the row as-is */
-      });
-  };
 
   return (
     <div className="flex flex-col gap-3" data-testid="processes-tab">
@@ -1499,104 +1518,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
         )}
       </Card>
 
-      {!readOnly && (
-        <Card className="flex flex-col gap-2 p-3" data-testid="processes-orphans">
-          <p className="text-section font-semibold text-ink" data-testid="orphans-heading">
-            {orphans.length > 0 ? `Left behind (${orphans.length})` : "Nothing left behind"}
-          </p>
-          {orphans.length === 0 ? (
-            <p className="text-label text-muted">
-              Nothing this session started is still running after it.
-            </p>
-          ) : (
-            <>
-              {orphans.map((orphan) => (
-                <div key={orphan.pid} className="flex flex-col gap-1 border-t border-hairline pt-2" data-testid={`orphan-row-${orphan.pid}`}>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label">
-                    <span className="font-mono text-label tabular-nums text-muted">{orphan.pid}</span>
-                    <span className="text-ink">{orphan.name}</span>
-                    <span className="tabular-nums text-muted">{formatRss(orphan.rss_bytes)}</span>
-                    <span className="tabular-nums text-muted">since exit {formatAge(orphan.age_since_parent_exit_ms)}</span>
-                    <span className="text-muted">parent: {orphan.parent_label}</span>
-                    {orphan.stop_state && (
-                      <span
-                        data-testid={`orphan-state-${orphan.pid}`}
-                        className={orphan.stop_state === "gone" ? "text-success" : "text-warning"}
-                      >
-                        {orphan.stop_state === "gone" ? "gone ✓" : orphan.stop_state}
-                      </span>
-                    )}
-                  </div>
-                  {verifyNotes[orphan.pid] && (
-                    <p className="text-label text-muted" data-testid={`orphan-verify-${orphan.pid}`}>
-                      Verify owner: {verifyNotes[orphan.pid]}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => verifyOne(orphan.pid)}>
-                      Verify owner
-                    </Button>
-                    {!orphan.stop_state && (
-                      <Button size="sm" variant="danger" onClick={() => setConfirmPid(orphan.pid)}>
-                        Stop process {orphan.pid}
-                      </Button>
-                    )}
-                  </div>
-                  {confirmPid === orphan.pid && (
-                    <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid={`orphan-confirm-${orphan.pid}`} role="alertdialog" aria-label={`Stop process ${orphan.pid}`}>
-                      <p className="text-label text-ink">
-                        Stop process <span className="font-mono">{orphan.pid}</span> ({orphan.name})? SIGTERM
-                        first, SIGKILL after a grace period — only this journal-recorded PID.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="danger" onClick={() => stopOne(orphan.pid)}>
-                          Stop {orphan.pid}
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setConfirmPid(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {orphans.some((orphan) => !orphan.stop_state) && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button size="sm" variant="danger" onClick={() => setConfirmAll(true)}>
-                    Stop all orphans…
-                  </Button>
-                  {confirmAll && (
-                    <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/5 p-2" data-testid="orphans-confirm-all" role="alertdialog" aria-label="Stop all orphans">
-                      <p className="text-label text-ink">
-                        Stop all orphaned processes — {orphans.filter((orphan) => !orphan.stop_state).map((orphan) => orphan.pid).join(", ")}?
-                        Each gets the SIGTERM → SIGKILL ladder and a re-read.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="danger" onClick={stopAll}>
-                          Stop all
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setConfirmAll(false)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          {/* AJ-E506: the SAME Cleanup rows as the global Centre
-          (one data path, one label vocabulary — the shared ProcessRow;
-          divergence here is how T3 survivors get mislabelled). */}
-          <InstanceCleanupRows sessionId={instance.id} />
-          {/* AJ-E505: the machine-wide port occupancy map below the
-          Session tree — every listener classified, unmanaged rows
-          display-only (the F3 collateral guard). */}
-          <div className="mt-3">
-            <PortInventoryList />
-          </div>
-        </Card>
-      )}
+      {leftovers(new Set(rows.map((row) => row.pid)))}
     </div>
   );
 }

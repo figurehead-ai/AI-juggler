@@ -87,9 +87,17 @@ fn every_stop_path_refuses_a_tool_we_did_not_start() {
             execute.as_ref().map_or(true, |info| info.refusal.is_some()),
             "the kill sheet refuses it"
         );
-        let stop =
-            commands::orphan_stop_inner(&state, &SessionId::new(session.to_string()), pid).unwrap();
-        assert_ne!(stop.state, "stopped", "the leftover stop refuses it");
+        // The session stop refuses it too: nothing of this name is ours.
+        assert!(
+            state
+                .supervisor
+                .stop(
+                    &SessionId::new(session.to_string()),
+                    std::time::Duration::from_millis(100)
+                )
+                .is_err(),
+            "the session stop refuses it"
+        );
     }
     // The automatic tiers never see it either (no ledger row).
     commands::auto_cleanup_sweep(&state, i64::MAX / 2);

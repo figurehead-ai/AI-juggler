@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Page } from "../components/Page";
 import { RemoteCleanup } from "../components/RemoteCleanup";
 import { KillSheet, type KillBridge } from "../components/KillSheet";
-import { Button, CleanupEmpty, ProcessRow, type CleanupRowInfo } from "../components/ProcessRow";
-import { errorText, statsEvent } from "../lib/bridge";
-import { providerDisplayName } from "../lib/providers";
+import { Button, CleanupEmpty } from "../components/ProcessRow";
+import { GroupBlock, machineWords, type CleanupGroupInfo } from "../components/CleanupGroup";
+import { errorText, statsEvent, type InstanceInfo } from "../lib/bridge";
 
 /**
  * AJ-E506/E507: the global Cleanup screen (D-25: "Cleanup" on screen;
@@ -21,15 +21,7 @@ import { providerDisplayName } from "../lib/providers";
  * attention lands on orphans (Apple HIG clarity/deference).
  */
 
-export interface CleanupGroupInfo {
-  session: string;
-  provider: string;
-  account: string | null;
-  project: string | null;
-  machine: string;
-  healthy: boolean;
-  rows: CleanupRowInfo[];
-}
+export type { CleanupGroupInfo } from "../components/CleanupGroup";
 
 export interface AuditHistoryRowInfo {
   id: number;
@@ -111,6 +103,8 @@ export const defaultCleanupStatusBridge: CleanupStatusBridge = {
  * reporting) — the machine filter shows only when there is one. */
 export type CleanupMachinesBridge = {
   others: () => Promise<number>;
+  /** Paired Macs' names by machine id (their own labels). */
+  names?: () => Promise<Record<string, string>>;
 };
 
 // Dynamic import (the vi.mock TDZ rule).
@@ -123,6 +117,12 @@ export const defaultCleanupMachinesBridge: CleanupMachinesBridge = {
       ]);
       return Math.max(peers.length, remote.length);
     }),
+  names: () =>
+    import("../lib/bridge").then(async (bridge) =>
+      Object.fromEntries(
+        (await bridge.fleetPeers().catch(() => [])).map((peer) => [peer.machine_id, peer.label]),
+      ),
+    ),
 };
 
 // Dynamic import (the vi.mock TDZ rule).
@@ -133,74 +133,9 @@ export const defaultCleanupBridge: CleanupBridge = {
     ),
 };
 
-function GroupBlock(props: {
-  group: CleanupGroupInfo;
-  /** AJ-E511: this node's machine id — foreign rows are display-only. */
-  localMachine?: string;
-  onKill?: (row: CleanupRowInfo, session: string, trigger: HTMLElement) => void;
-}) {
-  const group = props.group;
-  const [collapsed, setCollapsed] = useState(group.healthy);
-  return (
-    <section
-      className="flex flex-col rounded-xl border border-hairline bg-panel p-3"
-      data-testid={`cleanup-group-${group.session}`}
-    >
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setCollapsed((open) => !open)}
-          aria-expanded={!collapsed}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          <span aria-hidden="true" className="w-3 text-center text-label text-muted">
-            {collapsed ? "▸" : "▾"}
-          </span>
-          <span className="truncate text-meta font-medium text-ink">
-            {providerDisplayName(group.provider)}
-            {group.account !== null ? ` · ${group.account}` : ""}
-            {group.project !== null ? ` · ${group.project}` : ""}
-          </span>
-          <span className="text-label tabular-nums text-muted">
-            {group.machine} · {group.rows.length}{" "}
-            {group.rows.length === 1 ? "process" : "processes"}
-          </span>
-          {group.healthy && (
-            <span className="ml-auto rounded-full border border-hairline px-1.5 py-[1px] text-label text-muted">
-              healthy
-            </span>
-          )}
-        </button>
-      </div>
-      {!collapsed && (
-        <ul className="mt-1">
-          {group.rows.map((row) => (
-            <ProcessRow
-              key={row.pid}
-              row={row}
-              localMachine={props.localMachine}
-              onKill={
-                // AJ-E511: foreign-machine rows are display-only —
-                // never even an affordance. Rows WITHOUT a machine id
-                // are legacy-local: the backend stamps every row now.
-                props.onKill !== undefined &&
-                !(
-                  row.machine_id !== undefined &&
-                  props.localMachine !== undefined &&
-                  row.machine_id !== props.localMachine
-                )
-                  ? (row, trigger) => props.onKill?.(row, group.session, trigger)
-                  : undefined
-              }
-            />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 export function CleanupCentre(props: {
+  /** The app's sessions (a group's title uses its session's). */
+  sessions?: InstanceInfo[];
   bridge?: CleanupBridge;
   killBridge?: KillBridge;
   statusBridge?: CleanupStatusBridge;
@@ -213,11 +148,16 @@ export function CleanupCentre(props: {
   const statusBridge = props.statusBridge ?? defaultCleanupStatusBridge;
   const machinesBridge = props.machinesBridge ?? defaultCleanupMachinesBridge;
   const [otherMacs, setOtherMacs] = useState(false);
+  const [macNames, setMacNames] = useState<Record<string, string>>({});
   useEffect(() => {
     let alive = true;
     machinesBridge
       .others()
       .then((count) => alive && setOtherMacs(count > 0))
+      .catch(() => undefined);
+    machinesBridge
+      .names?.()
+      .then((names) => alive && setMacNames(names))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -625,6 +565,14 @@ export function CleanupCentre(props: {
               key={`${group.session}-${group.machine}`}
               localMachine={data?.local_machine}
               group={group}
+              now={Date.now()}
+              session={props.sessions?.find((session) => session.id === group.session)}
+              machineName={
+                // One Mac needs no machine labels (D-25).
+                otherMacs || machineScope === "all"
+                  ? (id) => machineWords(id, data?.local_machine, macNames)
+                  : undefined
+              }
               onKill={(row, session, trigger) =>
                 setKillTarget({
                   session,
