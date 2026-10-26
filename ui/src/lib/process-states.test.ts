@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorWords, ageWords, cpuWords, outcomeWords, portWords, processState, roleWords, STATE_FILTERS, ZOMBIE_WORDS } from "./process-words";
+import { actorWords, ageWords, cpuWords, outcomeWords, portWords, processState, roleWords, STATE_FILTERS, ZOMBIE_WORDS } from "./process-states";
 import { treeKey, windowRows, type TreeRowLike } from "./tree-grid";
 
 describe("the Processes view's words", () => {
