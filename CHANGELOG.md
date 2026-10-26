@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   allow" rules you made, each taken back with a click, a hop limit for
   messages put into sessions, and a stop for all of them. Agents can't
   reach pools yet; this is ready for when they can.
+- **Tasks** (0.2): each pool keeps its work as tasks, ready work first,
+  with epics and stories in its **Plan**. Agents in the pool add tasks,
+  take a ready one (only one session gets it), say where it is and give it
+  back with a note; a change above what the pool allows waits for your OK
+  in Needs you. Only you start sessions: **Start a session for it…** on a
+  task, on the launch settings you pick; an agent can only ask. A switch
+  keeps the task, and a task can link the GitHub or Linear issue it comes
+  from (its title looked up with your own `gh`, when you click).
 
 ### Changed
 
