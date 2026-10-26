@@ -157,7 +157,7 @@
 | AJ-E2401 | PASS9 UNPROVEN1 | 2026-10-26 | [manifest](AJ-E2401/manifest.md) |
 | AJ-E2402 | PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2402/manifest.md) |
 | AJ-E2403 | PASS6 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E2403/manifest.md) |
-| AJ-E2404 | PASS11 UNPROVEN2 | 2026-10-26 | [manifest](AJ-E2404/manifest.md) |
+| AJ-E2404 | PASS13 UNPROVEN2 | 2026-10-26 | [manifest](AJ-E2404/manifest.md) |
 | AJ-E2405 | PASS7 | 2026-10-26 | [manifest](AJ-E2405/manifest.md) |
 | AJ-E2406 | PASS6 UNPROVEN2 | 2026-10-26 | [manifest](AJ-E2406/manifest.md) |
 | AJ-E2407 | PASS6 UNPROVEN1 | 2026-10-26 | [manifest](AJ-E2407/manifest.md) |

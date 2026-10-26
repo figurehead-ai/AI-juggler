@@ -3,9 +3,12 @@
     "rail: Instances tab painting all 50 Instances": 42,
     "inspector: select an Instance to its painted Overview": 45,
     "search: type to a filtered board": 8,
-    "cleanup: open the inventory": 33,
+    "cleanup: open the inventory": 45,
     "cold start: webview navigation to painted rail": 130,
     "rail: scroll the board to its last Instance": 16
   },
-  "waivers": []
+  "waivers": [],
+  "notes": {
+    "cleanup: open the inventory": "2026-10-26, AJ-E2404: Processes replaced Cleanup and paints every session's tree table (42 ms median measured), so this baseline moved from 33 to 45 ms."
+  }
 }

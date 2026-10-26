@@ -116,8 +116,8 @@ export const SHORTCUTS = [
   { id: "go-usage", owner: "app", area: "Screens", keys: ["⌘⇧U"], label: "Usage", match: cmd("u", { shift: true }) },
   { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }) },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
-  { id: "cleanup", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
-  { id: "cleanup-filter", owner: "app", area: "Screens", keys: ["⌘F"], label: "Filter Cleanup (on Cleanup)", match: cmd("f") },
+  { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
+  { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
   { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Switch account", match: cmd("h", { shift: true }) },

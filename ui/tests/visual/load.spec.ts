@@ -25,7 +25,7 @@ const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E805");
 const ROWS = '[data-testid="instance-board"] [data-instance-id]';
 const results: { name: string; budget_ms: number; median_ms: number; runs: number[] }[] = [];
 const BASELINE = resolve(process.cwd(), "tests/visual/load-baseline.json");
-type Baseline = { medians: Record<string, number>; waivers: { name: string; task: string; expires: string; reason: string }[] };
+type Baseline = { medians: Record<string, number>; waivers: { name: string; task: string; expires: string; reason: string }[]; notes?: Record<string, string> };
 const baseline: Baseline = existsSync(BASELINE)
   ? (JSON.parse(readFileSync(BASELINE, "utf8")) as Baseline)
   : { medians: {}, waivers: [] };

@@ -1695,7 +1695,7 @@ for (const theme of THEMES) {
 
 // The recorded keyboard-only pass (AJ-E512 visual testing, AJ-E2404):
 // open Processes → Tab to the hog alert's "Show it" → Enter finds the row
-// → Tab to the row → Enter opens the verified sheet → Esc closes it →
+// and focus moves to it → Enter opens the verified sheet → Esc closes it →
 // focus RETURNS to the row (2.4.3). No pointer input anywhere in the pass.
 test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
   await seedRecoveryPage(page, "dark", {
@@ -1727,14 +1727,7 @@ test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns f
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("process-search")).toHaveValue("pid:8123");
   await expect(page.locator('[data-testid^="process-row-p:"]')).toHaveCount(1);
-  // Then into the tree (one Tab stop), down to the found row, and Enter:
-  // its Stop….
-  await tabTo((id) => id.startsWith("process-row-"));
-  for (let i = 0; i < 10; i += 1) {
-    const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? "");
-    if (focused.startsWith("process-row-p:8123:")) break;
-    await page.keyboard.press("ArrowDown");
-  }
+  // Focus is on the found row; its Enter is Stop….
   const row = page.locator('[data-testid^="process-row-p:8123:"]');
   await expect(row).toBeFocused();
   await page.keyboard.press("Enter");

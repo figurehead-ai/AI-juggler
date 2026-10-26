@@ -110,11 +110,11 @@ export function useAppKeys(actions: AppKeyActions): void {
       d.openSettings();
     },
     // AJ-E506/E2404: ⌘⇧C opens Processes; ⌘F focuses its search.
-    cleanup: () => {
+    processes: () => {
       shortcutUsed("other");
       d.goTo("cleanup");
     },
-    "cleanup-filter": () => {
+    "processes-search": () => {
       if (!d.onCleanup()) return false;
       shortcutUsed("search");
       d.focusCleanupFilter();
