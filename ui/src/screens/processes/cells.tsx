@@ -6,13 +6,19 @@
  */
 import type { JSX } from "react";
 import { AppIcon, OWN_APP_ID } from "../../components/AppIcon";
+import { IconComputer } from "../../components/icons-actions";
 import { formatBytes } from "../../components/indicator";
 import { ageWords, cpuWords, portWords, processState, roleWords, sessionState, ZOMBIE_WORDS, type ProcessTone } from "../../lib/process-states";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 
 /** The table's columns: Process, State, CPU, Memory, Ports, Age, Owner,
- * and the row's actions. Owner folds away below 1440 px. */
-export const COLUMNS = "grid-cols-[minmax(16rem,1fr)_11rem_7.5rem_6rem_5.5rem_4.5rem_7.5rem] min-[1440px]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_11rem_7.5rem]";
+ * and the row's actions. The table is a container: Owner shows once the
+ * table itself is wide enough (whatever the window and the rail). */
+export const COLUMNS =
+  "grid-cols-[minmax(13.5rem,1fr)_10.5rem_7rem_5.5rem_5rem_4rem_9rem] @min-[72rem]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_12rem_9rem]";
+
+/** The Owner column: only in a wide table. */
+export const OWNER_CELL = "hidden @min-[72rem]:block";
 
 const TONE: Record<ProcessTone, string> = {
   neutral: "text-muted",
@@ -83,13 +89,38 @@ function Chevron({ row, open, onToggle }: { row: ProcessGraphRowInfo; open: bool
  * and its second line. */
 export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; open: boolean; onToggle: () => void }): JSX.Element {
   const indent = { paddingLeft: `${Math.min(row.depth, 8) * 16}px` };
-  if (row.app) {
+  if (row.kind === "program" && row.app) {
+    const count = row.rollup?.processes ?? 1;
     return (
       <div role="gridcell" className="flex min-w-0 items-center gap-2" style={indent}>
         <Chevron row={row} open={open} onToggle={onToggle} />
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-body text-ink">{row.app.name}</span>
+          <span className="truncate text-label text-muted">{count === 1 ? "1 process" : `${count} processes`}</span>
+        </span>
+      </div>
+    );
+  }
+  if (row.app?.kind === "other") {
+    const rollup = row.rollup;
+    return (
+      <div role="gridcell" aria-colspan={2} className="col-span-2 flex min-w-0 items-center gap-2" style={indent}>
+        <Chevron row={row} open={open} onToggle={onToggle} />
+        <IconComputer width={20} height={20} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="shrink-0 text-body font-semibold text-ink">{row.app.name}</span>
+        <span className="min-w-0 truncate text-meta text-muted">
+          {rollup ? `${rollup.processes} processes · ${formatBytes(rollup.rss_bytes)} · names and memory only` : ""}
+        </span>
+      </div>
+    );
+  }
+  if (row.app) {
+    return (
+      <div role="gridcell" aria-colspan={2} className="col-span-2 flex min-w-0 items-center gap-2" style={indent}>
+        <Chevron row={row} open={open} onToggle={onToggle} />
         <AppIcon appId={row.app.ours ? OWN_APP_ID : row.app.app_id} appPid={row.app.pid} name={row.app.name} size={20} />
-        <span className="truncate text-body font-semibold text-ink">{row.app.name}</span>
-        <span className="truncate text-meta text-muted">
+        <span className="shrink-0 text-body font-semibold text-ink">{row.app.name}</span>
+        <span className="min-w-0 truncate text-meta text-muted">
           {row.app.sessions} {row.app.sessions === 1 ? "session" : "sessions"} · {rollupWords(row)}
         </span>
       </div>
@@ -120,7 +151,7 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
         <span className="truncate text-body text-ink" title={`PID ${proc.pid}`}>
           {proc.name}
         </span>
-        <span className="truncate text-label text-muted" title={zombie ? ZOMBIE_WORDS : undefined}>
+        <span className="truncate text-label text-muted" title={zombie ? ZOMBIE_WORDS : second}>
           {second}
         </span>
       </span>
@@ -132,22 +163,29 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
 export function NumberCells({ row }: { row: ProcessGraphRowInfo }): JSX.Element {
   const proc = row.process;
   const age = proc?.age_ms ?? 0;
+  const ended = row.state === "ended";
   return (
     <>
       <div role="gridcell" className="flex items-center gap-2 text-body tabular-nums text-ink">
-        <span className="w-12 text-right">{row.kind === "app" ? "" : cpuWords(row.cpu_pct)}</span>
-        {proc && <CpuLine samples={proc.spark} />}
+        <span className="w-12 text-right">{row.kind === "app" || row.kind === "program" || ended ? "" : cpuWords(row.cpu_pct)}</span>
+        {proc && !ended && <CpuLine samples={proc.spark} />}
       </div>
-      <div role="gridcell" className="text-right text-body tabular-nums text-ink" title={proc && proc.peak_rss > row.rss_bytes ? `At most ${formatBytes(proc.peak_rss)}` : undefined}>
-        {row.kind === "app" || (row.rss_bytes === 0 && row.state === "zombie") ? "" : row.rss_bytes > 0 ? formatBytes(row.rss_bytes) : "—"}
-      </div>
+      {ended ? (
+        <div role="gridcell" className="text-right text-body tabular-nums text-muted" title={proc && proc.peak_rss > 0 ? "The most it used" : undefined}>
+          {proc && proc.peak_rss > 0 ? formatBytes(proc.peak_rss) : ""}
+        </div>
+      ) : (
+        <div role="gridcell" className="text-right text-body tabular-nums text-ink" title={proc && proc.peak_rss > row.rss_bytes ? `At most ${formatBytes(proc.peak_rss)}` : undefined}>
+          {row.kind === "app" || (row.rss_bytes === 0 && row.state === "zombie") ? "" : row.rss_bytes > 0 ? formatBytes(row.rss_bytes) : "—"}
+        </div>
+      )}
       <div role="gridcell" className="truncate text-body tabular-nums text-ink">
         {row.kind === "process" ? portWords(row.ports) : ""}
       </div>
-      <div role="gridcell" className="text-right text-body tabular-nums text-muted">
+      <div role="gridcell" className="text-right text-body tabular-nums text-muted" title={ended && age > 0 ? `Ran for ${ageWords(age)}` : undefined}>
         {proc && age > 0 ? ageWords(age) : ""}
       </div>
-      <div role="gridcell" className="hidden truncate text-meta text-muted min-[1440px]:block" title={row.owner_words}>
+      <div role="gridcell" className={`${OWNER_CELL} truncate text-meta text-muted`} title={row.owner_words}>
         {row.kind === "app" ? "" : row.owner_words}
       </div>
     </>

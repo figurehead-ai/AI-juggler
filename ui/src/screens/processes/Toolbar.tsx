@@ -16,12 +16,14 @@ export interface Filters {
   hasPort: boolean;
   heavy: boolean;
   showInternal: boolean;
+  /** The rest of this Mac (names and memory only), in Everything running. */
+  others: boolean;
   app: string | null;
   account: string | null;
   project: string | null;
 }
 
-export const NO_FILTERS: Filters = { states: [], hasPort: false, heavy: false, showInternal: false, app: null, account: null, project: null };
+export const NO_FILTERS: Filters = { states: [], hasPort: false, heavy: false, showInternal: false, others: false, app: null, account: null, project: null };
 
 export interface Choice {
   id: string;
@@ -107,7 +109,7 @@ function Pick({ label, value, choices, onChange, testId }: { label: string; valu
 
 /** How many filters are on. */
 export function filterCount(filters: Filters): number {
-  return filters.states.length + Number(filters.hasPort) + Number(filters.heavy) + Number(filters.showInternal) + Number(!!filters.app) + Number(!!filters.account) + Number(!!filters.project);
+  return filters.states.length + Number(filters.hasPort) + Number(filters.heavy) + Number(filters.showInternal) + Number(filters.others) + Number(!!filters.app) + Number(!!filters.account) + Number(!!filters.project);
 }
 
 export function FiltersButton({ filters, onChange, apps, accounts, projects }: { filters: Filters; onChange: (next: Filters) => void; apps: Choice[]; accounts: Choice[]; projects: Choice[] }): JSX.Element {
@@ -135,7 +137,7 @@ export function FiltersButton({ filters, onChange, apps, accounts, projects }: {
         Filters{count > 0 ? ` (${count})` : ""}
       </Button>
       {open && (
-        <div role="dialog" aria-label="Filters" className="absolute right-0 top-11 z-30 flex w-72 flex-col gap-1 rounded-card border border-hairline bg-surface p-2 shadow-card" data-testid="process-filters-panel">
+        <div role="dialog" aria-label="Filters" className="absolute right-0 top-11 z-30 flex max-h-[min(36rem,70vh)] w-72 flex-col gap-1 overflow-y-auto rounded-card border border-hairline bg-surface p-2 shadow-card" data-testid="process-filters-panel">
           <p className="px-2 pt-1 text-label font-medium text-muted">State</p>
           {STATE_FILTERS.map((word) => (
             <Check key={word} on={filters.states.includes(word)} label={processState(word).label} onChange={(on) => toggleState(word, on)} testId={`filter-state-${word}`} />
@@ -144,6 +146,8 @@ export function FiltersButton({ filters, onChange, apps, accounts, projects }: {
           <Check on={filters.hasPort} label="Listening on a port" onChange={(hasPort) => onChange({ ...filters, hasPort })} testId="filter-port" />
           <Check on={filters.heavy} label="Heavy" onChange={(heavy) => onChange({ ...filters, heavy })} testId="filter-heavy" />
           <Check on={filters.showInternal} label="Show AI Juggler's own" onChange={(showInternal) => onChange({ ...filters, showInternal })} testId="filter-internal" />
+          <Check on={filters.others} label="Include other apps" onChange={(others) => onChange({ ...filters, others })} testId="filter-others" />
+          <p className="px-2 pb-1 pl-9 text-label text-muted">The rest of this Mac, in Everything running: names and memory only.</p>
           <Pick label="App" value={filters.app} choices={apps} onChange={(app) => onChange({ ...filters, app })} testId="filter-app" />
           <Pick label="Profile" value={filters.account} choices={accounts} onChange={(account) => onChange({ ...filters, account })} testId="filter-account" />
           <Pick label="Project" value={filters.project} choices={projects} onChange={(project) => onChange({ ...filters, project })} testId="filter-project" />

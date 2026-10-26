@@ -78,7 +78,9 @@ pub struct AppRowInfo {
     pub pid: Option<u32>,
     /// AI Juggler itself.
     pub ours: bool,
-    /// `own`, `desktop`, `terminal` or `editor`, when known (its icon).
+    /// `own`, `desktop`, `terminal` or `editor`, when known (its icon);
+    /// `other` for the rest of this Mac's heading, `program` for one of
+    /// its programs.
     pub kind: Option<String>,
     /// Its sessions.
     pub sessions: u32,
@@ -170,7 +172,8 @@ pub struct ProcRowInfo {
 pub struct ProcessGraphRowInfo {
     /// Unique in the page (`a:…`, `s:…`, `p:<pid>:<start>`).
     pub key: String,
-    /// `app`, `session` or `process`.
+    /// `app`, `session`, `process`, or `program` (one program on the rest
+    /// of this Mac: its name and memory only).
     pub kind: String,
     /// Indent: 0 an app, 1 a session, 2 and on a process and its
     /// subprocesses.
@@ -228,6 +231,9 @@ pub struct ProcessQueryInput {
     pub heavy: bool,
     /// Also AI Juggler's own hooks and tools.
     pub show_internal: bool,
+    /// Also the rest of this Mac (Everything running): each program's name
+    /// and memory, nothing to stop.
+    pub others: bool,
     /// Words to find (`port:5173`, `pid:123`, a name, a role, a title).
     pub search: String,
     /// Sessions unfolded by the user (keys).
@@ -273,6 +279,9 @@ pub struct CleanupEventInfo {
     pub name: String,
     /// The session it was in.
     pub session_id: String,
+    /// That session's title (its conversation's, else its folder's
+    /// name), when known.
+    pub session_title: Option<String>,
     /// Its tool.
     pub tool: String,
     /// Its account.

@@ -165,6 +165,18 @@ impl Processes {
             .and_then(|inner| inner.sightings.get(pid, start).cloned())
     }
 
+    /// A conversation's title, when one was read (by `(tool, id)`).
+    #[must_use]
+    pub fn title_of(&self, tool: &str, id: &str) -> Option<String> {
+        self.inner.lock().ok().and_then(|inner| {
+            inner
+                .titles
+                .get(&(tool.to_owned(), id.to_owned()))
+                .filter(|title| !title.trim().is_empty())
+                .cloned()
+        })
+    }
+
     /// The install's command-line hash key.
     #[must_use]
     pub fn salt(&self) -> Vec<u8> {
@@ -265,6 +277,11 @@ fn fingerprint(graph: &Graph) -> u64 {
                 (node.rss_bytes >> 24).hash(&mut hasher);
             }
         }
+    }
+    for program in &graph.others {
+        program.name.hash(&mut hasher);
+        program.processes.hash(&mut hasher);
+        (program.rss_bytes >> 26).hash(&mut hasher);
     }
     hasher.finish().max(1)
 }
@@ -525,6 +542,7 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             own_pid: std::process::id(),
             titles: inner.titles.clone(),
             folders: inner.folders.clone(),
+            others: view.others.clone(),
         };
         // Each process's CPU now joins its sparkline before the build.
         let mut seen: HashSet<(u32, i64)> = HashSet::new();

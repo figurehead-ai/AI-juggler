@@ -19,13 +19,14 @@ import type { CleanupPolicyInfo } from "../types/generated/CleanupPolicyInfo";
 import type { ProcessSnapshotInfo } from "../types/generated/ProcessSnapshotInfo";
 import type { KillExecuteData, KillVerifyData } from "../components/KillSheet";
 import { type PreviewApp, type PreviewMac, type PreviewNode, type PreviewSession, previewMac } from "./processes-fixture";
+import { otherRows } from "./processes-mac";
 
-const CLEAN = new Set(["left_behind", "left_behind_closed", "didnt_stop"]);
+export const CLEAN = new Set(["left_behind", "left_behind_closed", "didnt_stop"]);
 const RANK = ["didnt_stop", "left_behind", "left_behind_closed", "zombie", "wont_touch", "picked_up", "working", "idle", "ended"];
 
 let made: PreviewMac | null = null;
 
-function mac(): PreviewMac {
+export function mac(): PreviewMac {
   const seeded = (window as unknown as { __AIJ_PROCESSES__?: PreviewMac }).__AIJ_PROCESSES__;
   made ??= previewMac();
   return seeded ?? made;
@@ -218,6 +219,7 @@ export function previewRows(source: PreviewMac, input: ProcessQueryInput): Proce
     });
     out.push(...rows);
   }
+  out.push(...otherRows(source, input, find));
   return out;
 }
 
@@ -303,6 +305,8 @@ export function previewObservedVerify(pid: number, _start: number | null): KillV
 export function previewObservedStop(pid: number): KillExecuteData {
   return { refusal: null, members: [{ pid, outcome: "exited on TERM" }], cancelled: false, all_succeeded: true, still_holding: [], reoffer_pid: null };
 }
+
+export { previewPorts } from "./processes-mac";
 
 export function previewHistory(sessionId: string | null, projectId: string | null, _cursor: string | null): Page<CleanupEventInfo> {
   const items = mac().history.filter(

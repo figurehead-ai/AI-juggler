@@ -550,6 +550,76 @@ fn search_filters_and_one_session_narrow_the_rows() {
     assert_eq!(pids, [402]);
 }
 
+/// "Include other apps": the rest of this Mac, by program, in Everything
+/// running only when asked for: names and memory, no pid, nothing to stop.
+#[test]
+fn the_rest_of_the_mac_shows_only_when_asked_for_and_only_names_and_memory() {
+    let mut inputs = fixture();
+    inputs.others = vec![
+        model::OtherProgram {
+            name: "Safari".into(),
+            processes: 14,
+            rss_bytes: 2 << 30,
+        },
+        model::OtherProgram {
+            name: "Finder".into(),
+            processes: 1,
+            rss_bytes: 90 << 20,
+        },
+    ];
+    let graph = model::build(&inputs);
+    // Off by default, and never in Needs attention.
+    assert!(
+        query::rows(&graph, &input("running"))
+            .iter()
+            .all(|row| row.origin != "other")
+    );
+    let mut asked = input("attention");
+    asked.others = true;
+    assert!(
+        query::rows(&graph, &asked)
+            .iter()
+            .all(|row| row.origin != "other")
+    );
+    // Asked for in Everything running: a heading, then most memory first.
+    asked.view = "running".into();
+    let rows = query::rows(&graph, &asked);
+    let others: Vec<_> = rows.iter().filter(|row| row.origin == "other").collect();
+    assert_eq!(others.len(), 3);
+    assert_eq!(others[0].key, "a:other");
+    assert_eq!(others[0].kind, "app");
+    assert_eq!(others[0].rollup.as_ref().unwrap().processes, 15);
+    assert_eq!(others[1].app.as_ref().unwrap().name, "Safari");
+    assert_eq!(others[2].app.as_ref().unwrap().name, "Finder");
+    for row in &others[1..] {
+        assert_eq!(row.kind, "program");
+        assert!(row.process.is_none() && row.session.is_none());
+        assert!(row.app.as_ref().unwrap().pid.is_none());
+        assert!(row.ports.is_empty() && row.cpu_pct.is_none());
+    }
+    // Search by name keeps a program; a port or pid search keeps none.
+    asked.search = "safari".into();
+    let found: Vec<_> = query::rows(&graph, &asked)
+        .into_iter()
+        .filter(|row| row.origin == "other")
+        .collect();
+    assert_eq!(found.len(), 2);
+    asked.search = "port:5173".into();
+    assert!(
+        query::rows(&graph, &asked)
+            .iter()
+            .all(|row| row.origin != "other")
+    );
+    // A state filter or one session's tab leaves them out.
+    asked.search.clear();
+    asked.states = vec!["left_behind".into()];
+    assert!(
+        query::rows(&graph, &asked)
+            .iter()
+            .all(|row| row.origin != "other")
+    );
+}
+
 #[test]
 fn pages_follow_a_cursor_without_repeats_or_gaps() {
     let graph = model::build(&large(50, 40));

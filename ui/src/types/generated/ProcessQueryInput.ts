@@ -41,6 +41,11 @@ heavy: boolean,
  */
 show_internal: boolean, 
 /**
+ * Also the rest of this Mac (Everything running): each program's name
+ * and memory, nothing to stop.
+ */
+others: boolean, 
+/**
  * Words to find (`port:5173`, `pid:123`, a name, a role, a title).
  */
 search: string, 

@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 import { treeKey, windowRows } from "../../lib/tree-grid";
-import { COLUMNS, NameCell, NumberCells, StateChip } from "./cells";
+import { COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
 
 /** Every row's height, px (two lines of text). */
 export const ROW_HEIGHT = 48;
@@ -46,6 +46,7 @@ export function ProcessTree({
   onNearEnd,
   height = "calc(100vh - 19rem)",
   empty,
+  ended = false,
   testId = "process-tree",
 }: {
   rows: readonly ProcessGraphRowInfo[];
@@ -64,6 +65,8 @@ export function ProcessTree({
   onNearEnd: () => void;
   height?: string;
   empty?: ReactNode;
+  /** The Ended view: Age reads as how long each ran. */
+  ended?: boolean;
   testId?: string;
 }): JSX.Element {
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
@@ -134,16 +137,18 @@ export function ProcessTree({
   };
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid={testId}>
+    <div className="@container flex min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid={testId}>
       <div role="treegrid" aria-label={label} aria-rowcount={total + 1} className="flex min-h-0 flex-col" onKeyDown={onKey}>
         <div role="row" aria-rowindex={1} className={`grid ${COLUMNS} items-center gap-3 border-b border-hairline bg-surface-2 px-3 py-2 text-meta font-medium text-muted`}>
           <div role="columnheader">Process</div>
           <div role="columnheader">State</div>
           <div role="columnheader" className="pl-2">CPU</div>
-          <div role="columnheader" className="text-right">Memory</div>
+          <div role="columnheader" className="text-right">{ended ? "Peak" : "Memory"}</div>
           <div role="columnheader">Ports</div>
-          <div role="columnheader" className="text-right">Age</div>
-          <div role="columnheader" className="hidden min-[1440px]:block">Owner</div>
+          <div role="columnheader" className="text-right">{ended ? "Ran for" : "Age"}</div>
+          <div role="columnheader" className={OWNER_CELL}>
+            Owner
+          </div>
           <div role="columnheader">
             <span className="sr-only">Actions</span>
           </div>
@@ -182,9 +187,11 @@ export function ProcessTree({
                     style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
                   >
                     <NameCell row={row} open={rowOpen} onToggle={() => toggle(row, !rowOpen)} />
-                    <div role="gridcell" className="min-w-0">
-                      {row.kind !== "app" && <StateChip word={row.state} session={row.kind === "session"} />}
-                    </div>
+                    {row.kind !== "app" && (
+                      <div role="gridcell" className="min-w-0">
+                        {row.kind !== "program" && <StateChip word={row.state} session={row.kind === "session"} />}
+                      </div>
+                    )}
                     <NumberCells row={row} />
                     <div role="gridcell" className="flex items-center justify-end gap-1">
                       {actions(row)}

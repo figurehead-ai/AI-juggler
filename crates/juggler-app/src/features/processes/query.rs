@@ -9,7 +9,9 @@ use std::collections::HashSet;
 use super::dto::{
     AppRowInfo, ProcRowInfo, ProcessGraphRowInfo, ProcessQueryInput, ProcessSessionInfo, RollupInfo,
 };
-use super::model::{AppNode, Graph, Origin, ProcNode, ProcState, Rollup, SessionNode, StopPath};
+use super::model::{
+    AppNode, Graph, Origin, OtherProgram, ProcNode, ProcState, Rollup, SessionNode, StopPath,
+};
 
 /// Rows in a page when none is asked for.
 pub const DEFAULT_LIMIT: usize = 100;
@@ -250,6 +252,91 @@ fn app_row(app: &AppNode, rollup: &Rollup, sessions: u32) -> ProcessGraphRowInfo
     }
 }
 
+/// The words of the rest of this Mac's heading.
+pub const OTHERS_NAME: &str = "Other apps on this Mac";
+/// Their owner words.
+pub const OTHERS_OWNER: &str = "Not in an AI session";
+
+fn other_app_row(
+    key: &str,
+    name: &str,
+    kind: &str,
+    depth: u8,
+    rollup: RollupInfo,
+) -> ProcessGraphRowInfo {
+    ProcessGraphRowInfo {
+        key: key.to_owned(),
+        kind: if depth == 0 { "app" } else { "program" }.into(),
+        depth,
+        parent_key: (depth > 0).then(|| "a:other".to_owned()),
+        has_children: depth == 0,
+        state: "idle".into(),
+        origin: "other".into(),
+        owner_words: OTHERS_OWNER.into(),
+        cpu_pct: None,
+        rss_bytes: rollup.rss_bytes,
+        ports: Vec::new(),
+        app: Some(AppRowInfo {
+            app_id: None,
+            name: name.to_owned(),
+            pid: None,
+            ours: false,
+            kind: Some(kind.to_owned()),
+            sessions: 0,
+        }),
+        session: None,
+        process: None,
+        rollup: Some(rollup),
+        session_key: None,
+    }
+}
+
+/// The rest of this Mac, when asked for in Everything running: a heading,
+/// then each program the search keeps (by name; a port or pid search
+/// keeps none, as their ports and pids aren't read).
+fn other_rows(others: &[OtherProgram], search: &Search) -> Vec<ProcessGraphRowInfo> {
+    if !search.ports.is_empty() || !search.pids.is_empty() {
+        return Vec::new();
+    }
+    let kept: Vec<&OtherProgram> = others
+        .iter()
+        .filter(|program| {
+            let name = program.name.to_lowercase();
+            search.words.iter().all(|word| name.contains(word.as_str()))
+        })
+        .collect();
+    if kept.is_empty() {
+        return Vec::new();
+    }
+    let total = |f: fn(&OtherProgram) -> u64| kept.iter().map(|program| f(program)).sum::<u64>();
+    let mut out = vec![other_app_row(
+        "a:other",
+        OTHERS_NAME,
+        "other",
+        0,
+        RollupInfo {
+            processes: u32::try_from(total(|program| u64::from(program.processes)))
+                .unwrap_or(u32::MAX),
+            rss_bytes: total(|program| program.rss_bytes),
+            ..RollupInfo::default()
+        },
+    )];
+    out.extend(kept.iter().map(|program| {
+        other_app_row(
+            &format!("o:{}", program.name),
+            &program.name,
+            "program",
+            1,
+            RollupInfo {
+                processes: program.processes,
+                rss_bytes: program.rss_bytes,
+                ..RollupInfo::default()
+            },
+        )
+    }));
+    out
+}
+
 /// Whether a session is the asked one: its id (the supervisor's for ours,
 /// the tool's for theirs).
 fn is_session(session: &SessionNode, id: &str) -> bool {
@@ -392,6 +479,17 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
         }
         out.push(app_row(app, &rollup, sessions));
         out.extend(app_rows);
+    }
+    let plain = input.states.is_empty() && !input.has_port && !input.heavy;
+    if input.others
+        && view == View::Running
+        && one_session.is_none()
+        && plain
+        && input.account_id.is_none()
+        && input.project_id.is_none()
+        && input.app.as_deref().is_none_or(|app| app == "a:other")
+    {
+        out.extend(other_rows(&graph.others, &search));
     }
     out
 }

@@ -1169,7 +1169,7 @@ impl LiveStatsCollector {
     }
 
     /// Every process outside the AI tools' trees (our sessions', the
-    /// observed tools') and AI Juggler itself, from the table the ticks
+    /// observed tools', the Processes view's) and AI Juggler itself, from the table the ticks
     /// already read (its full scans: names, executables and memory, every
     /// 10 s): nothing new is measured. Processes using no memory are left
     /// out.
@@ -1182,6 +1182,7 @@ impl LiveStatsCollector {
             .chain(
                 self.observed
                     .values()
+                    .chain(self.observed_extra.values())
                     .flat_map(|tree| tree.pids.iter().copied()),
             )
             .chain(std::iter::once(std::process::id()))

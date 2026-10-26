@@ -18,7 +18,7 @@ fn ended_row(
     ProcessGraphRowInfo {
         key,
         kind: "process".into(),
-        depth: 2,
+        depth: 0,
         parent_key: None,
         has_children: false,
         state: "ended".into(),

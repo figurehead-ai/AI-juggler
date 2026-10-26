@@ -299,11 +299,30 @@ pub fn history_impl(
     let next = (rows.len() == limit)
         .then(|| rows.last().map(|row| format!("{}:{}", row.at_ms, row.id)))
         .flatten();
+    let mut ours: Vec<String> = rows
+        .iter()
+        .filter(|record| record.actor != super::stop::ACTOR_OBSERVED)
+        .map(|record| record.session_id.clone())
+        .collect();
+    ours.sort_unstable();
+    ours.dedup();
+    let meta = super::observe::ours_meta(state, &ours);
     let items = rows
         .iter()
         .map(|record| {
             let history = record.to_history();
+            let session_title = match meta.get(&history.session_id) {
+                Some(meta) => meta
+                    .conversation
+                    .as_deref()
+                    .and_then(|id| state.processes.title_of(&history.provider, id))
+                    .or_else(|| (!meta.title.is_empty()).then(|| meta.title.clone())),
+                None => state
+                    .processes
+                    .title_of(&history.provider, &history.session_id),
+            };
             CleanupEventInfo {
+                session_title,
                 id: history.id,
                 at_ms: history.at_ms,
                 actor: history.actor,

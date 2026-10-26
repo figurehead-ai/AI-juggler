@@ -92,9 +92,9 @@ export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | nu
       {policy?.paused && <p className="text-meta font-medium text-warning">Paused for every account.</p>}
       {policy?.suspended_until_ms && <p className="text-meta font-medium text-warning">Held after a restart until you confirm it in Settings › Advanced.</p>}
       {error && <p className="text-meta text-danger">Couldn't read the rules: {error}</p>}
-      <ul className="flex flex-col divide-y divide-hairline">
+      <ul className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}>
         {(policy?.accounts ?? []).map((account) => (
-          <li key={account.account_id} className="flex flex-col gap-2 py-2.5" data-testid={`rules-account-${account.account_id}`}>
+          <li key={account.account_id} className="flex flex-col gap-2 rounded-lg border border-hairline bg-surface-2/50 p-3" data-testid={`rules-account-${account.account_id}`}>
             <span className="text-body font-medium text-ink">{account.label}</span>
             {([1, 2] as const).map((tier) => {
               const on = tier === 1 ? account.tier1 : account.tier2;

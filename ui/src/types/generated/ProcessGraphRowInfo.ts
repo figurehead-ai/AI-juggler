@@ -13,7 +13,8 @@ export type ProcessGraphRowInfo = {
  */
 key: string, 
 /**
- * `app`, `session` or `process`.
+ * `app`, `session`, `process`, or `program` (one program on the rest
+ * of this Mac: its name and memory only).
  */
 kind: string, 
 /**

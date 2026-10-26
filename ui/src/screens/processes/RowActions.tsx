@@ -48,7 +48,8 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
   const proc = row.process;
   const theirs = row.origin === "theirs";
   const leftovers = row.kind === "session" ? (row.rollup?.to_clean ?? 0) : 0;
-  const name = row.kind === "session" ? (row.session?.title ?? "session") : (proc?.name ?? "process");
+  const program = row.kind === "program";
+  const name = row.kind === "session" ? (row.session?.title ?? "session") : program ? (row.app?.name ?? "program") : (proc?.name ?? "process");
   const open = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setMenu(menuPoint(event));
@@ -65,7 +66,7 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
         </Button>
       )}
       {row.kind === "session" && leftovers > 0 && (
-        <Button size="sm" variant="secondary" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.cleanSession(row); }} data-testid={`session-clean-${row.key}`} aria-label={`Clean up what ${name} left (${leftovers})…`}>
+        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.cleanSession(row); }} data-testid={`session-clean-${row.key}`} aria-label={`Clean up what ${name} left (${leftovers})…`}>
           Clean up ({leftovers})…
         </Button>
       )}
@@ -106,9 +107,15 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
               <Line Icon={IconGoTo}>Go to its app</Line>
             </MenuItem>
           )}
-          <MenuItem onClick={run(() => on.reveal(row))} testId="menu-reveal">
-            <Line Icon={IconFolderOpen}>Reveal folder</Line>
-          </MenuItem>
+          {program ? (
+            <MenuItem onClick={run(on.activityMonitor)} testId="menu-activity-monitor">
+              <Line Icon={IconComputer}>Show in Activity Monitor</Line>
+            </MenuItem>
+          ) : (
+            <MenuItem onClick={run(() => on.reveal(row))} testId="menu-reveal">
+              <Line Icon={IconFolderOpen}>Reveal folder</Line>
+            </MenuItem>
+          )}
           {row.kind === "process" && proc && (
             <>
               <MenuSeparator />

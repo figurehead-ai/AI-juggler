@@ -226,6 +226,19 @@ pub struct LeftoverInput {
     pub live: Live,
 }
 
+/// One program on the rest of this Mac (no AI session's, not AI
+/// Juggler's): its name, how many run, their memory. Nothing else is kept
+/// (no pid, command line or owner), and nothing offers to stop it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OtherProgram {
+    /// The program's name.
+    pub name: String,
+    /// How many of its processes run.
+    pub processes: u32,
+    /// Their memory, bytes.
+    pub rss_bytes: u64,
+}
+
 /// Everything the graph is built from.
 #[derive(Clone, Debug, Default)]
 pub struct Inputs {
@@ -265,6 +278,8 @@ pub struct Inputs {
     pub titles: HashMap<(String, String), String>,
     /// Other apps' sessions' folders, by `(tool, session id)`.
     pub folders: HashMap<(String, String), std::path::PathBuf>,
+    /// The rest of this Mac, by program (names and memory only).
+    pub others: Vec<OtherProgram>,
 }
 
 /// One process in the graph.
@@ -480,6 +495,9 @@ pub struct Counts {
 pub struct Graph {
     /// Apps, AI Juggler first, then by name.
     pub apps: Vec<AppNode>,
+    /// The rest of this Mac, by program, most memory first (shown only
+    /// when asked for).
+    pub others: Vec<OtherProgram>,
     /// Counts.
     pub counts: Counts,
     /// Built at, epoch ms.
@@ -1166,8 +1184,15 @@ pub fn build(inputs: &Inputs) -> Graph {
         counts.to_clean += rollup.to_clean;
         app.rollup = rollup;
     }
+    let mut others = inputs.others.clone();
+    others.sort_by(|a, b| {
+        b.rss_bytes
+            .cmp(&a.rss_bytes)
+            .then_with(|| a.name.cmp(&b.name))
+    });
     Graph {
         apps,
+        others,
         counts,
         built_ms: inputs.now_ms,
     }

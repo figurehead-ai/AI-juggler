@@ -33,6 +33,11 @@ name: string,
  */
 session_id: string, 
 /**
+ * That session's title (its conversation's, else its folder's
+ * name), when known.
+ */
+session_title: string | null, 
+/**
  * Its tool.
  */
 tool: string, 

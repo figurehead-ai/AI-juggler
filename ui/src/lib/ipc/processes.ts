@@ -9,7 +9,7 @@
  * the dev preview and the gallery.
  */
 import { invoke, listen } from "./transport";
-import { hasLiveBackend } from "../bridge";
+import { hasLiveBackend, portInventory, type PortInventoryInfo } from "../bridge";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
 import type { ProcessQueryInput } from "../../types/generated/ProcessQueryInput";
 import type { ProcessStatusInfo } from "../../types/generated/ProcessStatusInfo";
@@ -55,6 +55,7 @@ export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQuer
     has_port: false,
     heavy: false,
     show_internal: false,
+    others: false,
     search: "",
     expanded: [],
     collapsed: [],
@@ -64,6 +65,12 @@ export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQuer
 
 /** The preview's answers (loaded only without a backend). */
 const preview = () => import("../../preview/processes");
+
+/** Every port open on this Mac (the Ports view). */
+export async function processesPorts(): Promise<PortInventoryInfo> {
+  if (!hasLiveBackend()) return (await preview()).previewPorts();
+  return portInventory();
+}
 
 /** One page of the Processes view (`page`: the cursor of the page before
  * and how many rows, at most 200). */

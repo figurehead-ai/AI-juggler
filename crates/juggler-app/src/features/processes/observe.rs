@@ -10,7 +10,7 @@ use juggler_core::model::SessionId;
 use juggler_core::storage::LedgerRow;
 use juggler_supervisor::{ObservedRoot, ObservedTree, ProcessRow};
 
-use super::model::{AppRef, Live, OursInput, TheirsInput};
+use super::model::{AppRef, Live, OtherProgram, OursInput, TheirsInput};
 use crate::state::AppState;
 
 /// A collector row as the graph's live facts.
@@ -43,6 +43,8 @@ pub struct CollectorView {
     pub live: HashMap<u32, Live>,
     /// Program and command line of the asked pids (role words only).
     pub commands: HashMap<u32, (String, String, i64)>,
+    /// The rest of this Mac, by program (names and memory only).
+    pub others: Vec<OtherProgram>,
 }
 
 /// Reads the collector once: the supervised trees, the observed trees, the
@@ -73,6 +75,18 @@ pub(crate) fn collector_view(
     }
     view.observed = collector.observed_snapshot();
     view.extra = collector.observed_extra_snapshot();
+    let mut others: HashMap<String, OtherProgram> = HashMap::new();
+    for process in collector.other_processes() {
+        let program = others
+            .entry(process.name.clone())
+            .or_insert_with(|| OtherProgram {
+                name: process.name,
+                ..OtherProgram::default()
+            });
+        program.processes += 1;
+        program.rss_bytes += process.rss_bytes;
+    }
+    view.others = others.into_values().collect();
     for listener in collector.listeners() {
         view.ports
             .entry(listener.pid)

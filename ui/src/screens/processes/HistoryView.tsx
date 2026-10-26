@@ -26,12 +26,9 @@ async function exportAudit(): Promise<string> {
 export function HistoryView({
   sessionId = null,
   projectId = null,
-  sessionName,
 }: {
   sessionId?: string | null;
   projectId?: string | null;
-  /** A session's words for its id, when the page knows them. */
-  sessionName?: (id: string) => string | null;
 }): JSX.Element {
   const [items, setItems] = useState<CleanupEventInfo[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
@@ -87,7 +84,7 @@ export function HistoryView({
                 <td className="px-3 py-2 text-ink">
                   {event.name} <span className="text-label text-muted">PID {event.pid}</span>
                 </td>
-                <td className="px-3 py-2 text-ink">{sessionName?.(event.session_id) ?? "A session"}</td>
+                <td className="px-3 py-2 text-ink">{event.session_title ?? "A session"}</td>
                 <td className="px-3 py-2 text-muted">{actorWords(event.actor)}</td>
                 <td className="px-3 py-2 text-ink">{outcomeWords(event.outcome)}</td>
                 <td className="px-3 py-2 tabular-nums text-muted">

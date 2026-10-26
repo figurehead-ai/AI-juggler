@@ -87,10 +87,8 @@ export function ProcessesScreen({
         <Tally value={counts?.zombies ?? 0} label="waiting for their parent" tone="neutral" testId="tally-zombies" />
         <Tally value={counts?.processes ?? 0} label={`running in ${counts?.sessions ?? 0} sessions`} tone="neutral" testId="tally-running" />
       </div>
-      <div className="grid items-start gap-grid min-[1600px]:grid-cols-[minmax(0,1fr)_22rem]">
-        <ProcessesView onOpenSession={onOpenSession} onOpenConversation={onOpenConversation} accounts={accounts} projects={projects} />
-        <RulesPanel />
-      </div>
+      <ProcessesView onOpenSession={onOpenSession} onOpenConversation={onOpenConversation} accounts={accounts} projects={projects} />
+      <RulesPanel />
       {/* AJ-E707: what a paired Mac left behind, cleaned there (shows only
           with a paired Mac). */}
       <RemoteCleanup />

@@ -47,10 +47,19 @@ export interface PreviewApp {
   sessions: PreviewSession[];
 }
 
+/** One program on the rest of the Mac: its name and memory only. */
+export interface PreviewProgram {
+  name: string;
+  processes: number;
+  rss_bytes: number;
+}
+
 export interface PreviewMac {
   now: number;
   version: number;
   apps: PreviewApp[];
+  /** The rest of the Mac ("Include other apps"); absent in a seeded Mac. */
+  others?: PreviewProgram[];
   ended: ProcessGraphRowInfo[];
   history: CleanupEventInfo[];
   policy: CleanupPolicyInfo;
@@ -289,7 +298,7 @@ function ended(now: number): ProcessGraphRowInfo[] {
   const row = (pid: number, name: string, role: string, origin: "ours" | "theirs", ago: number, ran: number, owner: string): ProcessGraphRowInfo => ({
     key: `e:${pid}`,
     kind: "process",
-    depth: 2,
+    depth: 0,
     parent_key: null,
     has_children: false,
     state: "ended",
@@ -300,7 +309,7 @@ function ended(now: number): ProcessGraphRowInfo[] {
     ports: [],
     app: null,
     session: null,
-    process: { ...node(now - ago, pid, null, 0, name, role, { stop: "never", why: "It has ended", age: ran }), role_sure: role === "tool", internal: false },
+    process: { ...node(now - ago, pid, null, 0, name, role, { stop: "never", why: "It has ended", age: ran }), spark: [], peak_rss: origin === "ours" ? Math.round((40 + (pid % 7) * 90) * 2 ** 20) : 0, role_sure: role === "tool", internal: false },
     rollup: null,
     session_key: null,
   });
@@ -313,14 +322,14 @@ function ended(now: number): ProcessGraphRowInfo[] {
 }
 
 function history(now: number): CleanupEventInfo[] {
-  const event = (id: number, ago: number, actor: string, pid: number, name: string, session: string, outcome: string, ports: string | null): CleanupEventInfo => ({
-    id, at_ms: now - ago, actor, automatic: actor.startsWith("auto:"), pid, name, session_id: session, tool: "claude-code", account_id: "claude-work", project_id: "proj-payments", outcome, ports_before: ports, ports_after: null,
+  const event = (id: number, ago: number, actor: string, pid: number, name: string, session: string, title: string, outcome: string, ports: string | null): CleanupEventInfo => ({
+    id, at_ms: now - ago, actor, automatic: actor.startsWith("auto:"), pid, name, session_id: session, session_title: title, tool: "claude-code", account_id: "claude-work", project_id: "proj-payments", outcome, ports_before: ports, ports_after: null,
   });
   return [
-    event(44, 12 * MIN, "user:observed", 7290, "node", "landing", "pid 7290: exited on TERM", "4322"),
-    event(41, 25 * MIN, "user:kill_sheet", 7710, "node", "s-old", "pid 7710: exited on TERM", "5174"),
-    event(40, 3 * H, "auto:tier-1", 7702, "nodemon", "s-old", "pid 7702: needed KILL", "4000"),
-    event(39, 26 * H, "user:kill_sheet", 7650, "python3", "s-old2", "pid 7650: already gone", null),
+    event(44, 12 * MIN, "user:observed", 7290, "node", "landing", "Landing page", "pid 7290: exited on TERM", "4322"),
+    event(41, 25 * MIN, "user:kill_sheet", 7710, "node", "s-old", "Checkout redesign", "pid 7710: exited on TERM", "5174"),
+    event(40, 3 * H, "auto:tier-1", 7702, "nodemon", "s-old", "Checkout redesign", "pid 7702: needed KILL", "4000"),
+    event(39, 26 * H, "user:kill_sheet", 7650, "python3", "s-old2", "Search spike", "pid 7650: already gone", null),
   ];
 }
 
@@ -356,6 +365,14 @@ export function previewMac(): PreviewMac {
     now,
     version: 1,
     apps: big ? large(now) : [ours(now), ...theirs(now)],
+    others: [
+      { name: "Safari", processes: 14, rss_bytes: 2.4 * 2 ** 30 },
+      { name: "Figma", processes: 6, rss_bytes: 1.6 * 2 ** 30 },
+      { name: "Slack", processes: 5, rss_bytes: 820 * 2 ** 20 },
+      { name: "Docker Desktop", processes: 4, rss_bytes: 610 * 2 ** 20 },
+      { name: "Spotify", processes: 3, rss_bytes: 380 * 2 ** 20 },
+      { name: "Finder", processes: 1, rss_bytes: 96 * 2 ** 20 },
+    ],
     ended: ended(now),
     history: history(now),
     policy: {

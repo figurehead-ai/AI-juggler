@@ -15,12 +15,13 @@ import {
   processesMark,
   processesObservedStop,
   processesObservedVerify,
+  processesPorts,
   processesReveal,
   processQuery,
   type ProcessGraphRowInfo,
 } from "../../lib/ipc/processes";
 import { ZOMBIE_WORDS } from "../../lib/process-states";
-import { PortInventoryList } from "../../components/PortMap";
+import { PortInventoryList, type PortsBridge } from "../../components/PortMap";
 import { CleanupStatus } from "./CleanupStatus";
 import { GroupCleanupSheet } from "./GroupCleanupSheet";
 import { HistoryView } from "./HistoryView";
@@ -29,6 +30,8 @@ import { RowActions, canStop, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
 
+/** The Ports view reads the port inventory (the made-up one in the preview). */
+const PORTS: PortsBridge = { load: processesPorts };
 const VIEW_KEY = "aij.processes.view";
 
 function savedView(): ViewId {
@@ -99,6 +102,7 @@ export function ProcessesView({
         has_port: filters.hasPort,
         heavy: filters.heavy,
         show_internal: filters.showInternal,
+        others: filters.others,
         search: words,
         expanded,
         collapsed,
@@ -184,7 +188,9 @@ export function ProcessesView({
       {view === "ports" ? (
         <section className="flex flex-col gap-2" aria-label="Ports on this Mac" data-testid="processes-ports">
           <p className="text-meta text-muted">Every port open on this Mac: what each is, and whether a session left it running.</p>
-          <PortInventoryList />
+          <div className="rounded-card border border-hairline bg-surface px-4 py-3">
+            <PortInventoryList bridge={PORTS} />
+          </div>
         </section>
       ) : view === "history" ? (
         <HistoryView sessionId={sessionId} />
@@ -195,6 +201,7 @@ export function ProcessesView({
           rows={rows}
           total={total}
           label={view === "attention" ? "Processes that need you" : view === "ended" ? "Processes that ended" : "Processes running"}
+          ended={view === "ended"}
           isOpen={isOpen}
           onToggle={onToggle}
           actions={(row) => <RowActions row={row} on={handlers} />}

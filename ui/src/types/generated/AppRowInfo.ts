@@ -21,7 +21,9 @@ pid: number | null,
  */
 ours: boolean, 
 /**
- * `own`, `desktop`, `terminal` or `editor`, when known (its icon).
+ * `own`, `desktop`, `terminal` or `editor`, when known (its icon);
+ * `other` for the rest of this Mac's heading, `program` for one of
+ * its programs.
  */
 kind: string | null, 
 /**
