@@ -21,6 +21,8 @@ Design: `crates/juggler-agentbridge/src/task_tools.rs` (the tools and their one 
 | Gate: permission tests through the real binary | `bridge.rs::the_task_commands_go_through_the_real_binary_and_the_level` (add, list, claim, review through the real `juggler-agent` and its socket at Work together; a member's `assign` refused; at Read a change held, exit 2, in Needs you; every action audited) | PASS |
 | D-31: no agent starts a session or picks an account | `tasks.rs::an_agent_asks_for_a_session_and_only_the_user_starts_it`; `tasks_guardrails.rs::no_agent_starts_a_session_or_picks_an_account` | PASS |
 | Performance: < 50 ms per call | `bridge.rs::calls_answer_in_under_50_ms` (with three `task_create`, `tasks_list` and `task_claim` over the socket, 8 sessions) | PASS |
-| Live: real tools call the task tools without a prompt | `docs/qa/tasks-lab.md` steps 2 and 3 | UNPROVEN (the coordinator's lab) |
+| Live: real tools call the task tools without a prompt | `docs/qa/tasks-lab.md` steps 2–5, run 2026-10-26 with Claude Code 2.1.310 (the lead, in its terminal) and Codex 0.163.0 (driven), through AI Juggler's backend ([lab-2026-10-26.md](lab-2026-10-26.md)): `task_create`, `tasks_list`, `task_claim`, `task_update` and `task_assign` with no prompt; one claim of two won; changes above the level held, and Allow once, Always (second time) and Deny all worked; a member's assign refused; `new_session` only asked | PASS (the window's views: BLOCKED, for the maintainer) |
+| Live: `tasks_list ready: true` lists only claimable work | the same lab, step 2: it listed the ready task **and** a story and an epic (`agent.rs`: the ready filter has no kind) | FAIL (the lab's bug 1) |
+| Live: a held assignment names the member | the same lab, step 4: "«Planner» wants to give aj-… to sess-…" (the session id, in Needs you and the task's history) | FAIL (the lab's bug 2) |
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

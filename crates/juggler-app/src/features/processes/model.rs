@@ -578,15 +578,21 @@ impl Ctx<'_> {
         ports
     }
 
-    fn waits_for(&self, live: &Live) -> Option<(u32, String)> {
+    /// A zombie's parent, named from the table or its own tree.
+    fn waits_for(&self, live: &Live, tree: &[Live]) -> Option<(u32, String)> {
         if !live.zombie {
             return None;
         }
         let parent = live.parent_pid?;
-        let name = self.inputs.live.get(&parent).map_or_else(
-            || format!("process {parent}"),
-            |p| short_name(&p.name, None),
-        );
+        let name = self
+            .inputs
+            .live
+            .get(&parent)
+            .or_else(|| tree.iter().find(|p| p.pid == parent))
+            .map_or_else(
+                || format!("process {parent}"),
+                |p| short_name(&p.name, None),
+            );
         Some((parent, name))
     }
 
@@ -667,9 +673,14 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
     let root_pid = root_row.and_then(|row| row.pid);
     let mut nodes: Vec<ProcNode> = Vec::new();
     let mut listed: HashSet<u32> = HashSet::new();
-    for row in &session.rows {
+    // One process, one row. Should the ledger hold two rows for one pid
+    // (a database from before the upsert kept them apart), the one that
+    // says more wins: left behind or unverifiable over running.
+    let mut rows: Vec<&LedgerRow> = session.rows.iter().collect();
+    rows.sort_by_key(|row| u8::from(row.state == juggler_core::storage::STATE_RUNNING));
+    for row in rows {
         let Some(pid) = row.pid else { continue };
-        if pid == inputs.own_pid || pid == 0 {
+        if pid == inputs.own_pid || pid == 0 || listed.contains(&pid) {
             continue;
         }
         let start = row.started_at.unwrap_or_default();
@@ -756,7 +767,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
             age_ms: ctx.age(start),
             cpu_time_ms: live.map_or(0, |live| live.cpu_time_ms),
             origin: Origin::Ours,
-            waits_for: live.and_then(|live| ctx.waits_for(live)),
+            waits_for: live.and_then(|live| ctx.waits_for(live, &session.tree)),
             stop,
             mark: inputs.marks.get(&(pid, start)).copied(),
             heavy: inputs.heavy.contains(&pid),
@@ -803,7 +814,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
                 age_ms: ctx.age(live.start_time),
                 cpu_time_ms: live.cpu_time_ms,
                 origin: Origin::Ours,
-                waits_for: ctx.waits_for(live),
+                waits_for: ctx.waits_for(live, &session.tree),
                 stop: if role.ours_internal() {
                     StopPath::Never(never::OWN)
                 } else if live.zombie {
@@ -906,7 +917,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
             age_ms: ctx.age(live.start_time),
             cpu_time_ms: live.cpu_time_ms,
             origin: Origin::Theirs,
-            waits_for: ctx.waits_for(live),
+            waits_for: ctx.waits_for(live, &session.tree),
             stop,
             mark: inputs.marks.get(&(live.pid, live.start_time)).copied(),
             heavy: inputs.heavy.contains(&live.pid),
@@ -998,7 +1009,7 @@ fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
             age_ms: ctx.age(live.start_time),
             cpu_time_ms: live.cpu_time_ms,
             origin: Origin::Theirs,
-            waits_for: ctx.waits_for(live),
+            waits_for: ctx.waits_for(live, &[]),
             stop,
             mark: inputs.marks.get(&(live.pid, live.start_time)).copied(),
             heavy: inputs.heavy.contains(&live.pid),

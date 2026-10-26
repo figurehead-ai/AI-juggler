@@ -387,7 +387,12 @@ fn hold(
             ),
             _ => format!("change {}", args.task),
         },
-        Held::Assign { task, to } => format!("give {task} to {to}"),
+        Held::Assign { task, to } if to.trim() == "nobody" => {
+            format!("give {task} back to the pool")
+        }
+        // The member by their name, as the user knows them, never the
+        // session's id (D-43 point 1: "…to Reviewer").
+        Held::Assign { task, to } => format!("give {task} to {}", member_name(state, caller, to)?),
     };
     let id = crate::features::messages::new_id("tneed");
     let storage = lock_storage_arc(state)?;
@@ -411,6 +416,21 @@ fn hold(
     drop(storage);
     state.tasks.notify(&caller.pool_id);
     Ok(id)
+}
+
+/// A member's name, from the pool's roster; refused in words when the
+/// session isn't in the pool (it would be refused when allowed anyway).
+fn member_name(state: &Arc<AppState>, caller: &Caller, session: &str) -> Result<String, AppError> {
+    crate::features::messages::roster(state, &caller.pool_id)?
+        .into_iter()
+        .find(|m| m.session_id == session.trim())
+        .map(|m| m.name)
+        .ok_or_else(|| {
+            AppError::Refused(format!(
+                "{} isn't in this pool: use a session_id from pool_roster",
+                session.trim()
+            ))
+        })
 }
 
 /// A task as a list shows it to an agent.
@@ -530,6 +550,12 @@ fn list(
         None => None,
     };
     let statuses = status.map(|s| vec![s]);
+    // "Ready" is the work an agent can take: tasks only. An epic is never
+    // claimed and a story is broken into tasks (D-43 point 2), so neither
+    // is listed as ready work.
+    let kinds = args
+        .ready
+        .then_some([juggler_core::tasks::TaskKind::Task].as_slice());
     let storage = lock_storage_arc(state)
         .map_err(|_| refuse(Refusal::Bad, "AI Juggler is busy: try again."))?;
     let rows = storage
@@ -539,6 +565,7 @@ fn list(
                 pool_id: Some(&caller.pool_id),
                 assignees: args.mine.then_some(actor.refs.as_slice()),
                 statuses: statuses.as_deref(),
+                kinds,
                 parent: args.parent.as_deref(),
                 after,
                 ..TaskQuery::default()

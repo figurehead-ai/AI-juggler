@@ -14,7 +14,10 @@ The E410 `OrphanTracker` and its 10 s clock are gone (`ffdb5a4a`); leftovers are
 | This Mac's groups from the graph: every app's AI sessions, by app and tool, not counted twice | `cargo test -p juggler-app --lib machine_tools`; `pnpm exec vitest run src/screens/this-mac-page.test.tsx` | ChatGPT and "Codex in Terminal" groups, heaviest first; a session inside the Claude app's tree left to its row; the alert names the group | pass | PASS | 93d4c166 | 2026-10-26 | agent |
 | Budget: no new work on the tick | review: the groups read the graph the tick already built and the collector's trees for the view | no new scan | by reading | PASS | 93d4c166 | 2026-10-26 | agent |
 | Visual: a session's Processes tab | `AIJ_PW_PORT=4291 pnpm exec playwright test tests/visual/processes-gallery.spec.ts -g "Processes tab"` → `_gallery/90-processes/session-tab-1680x1000-{dark,light}.png` | looked at; axe 0 serious | looked at; axe 0 | PASS | — | 2026-10-26 | agent |
-| Live: the tab and This Mac on a real Mac with another app's session | `docs/qa/processes-lab.md` steps 7 and 10 | as written | not run yet | UNPROVEN | — | 2026-10-26 | agent |
+| Live: the tab with another app's session | `docs/qa/processes-lab.md` step 7, 2026-10-26 ([lab-1-2026-10-26.md](docs/qa/evidence/AJ-E2406/lab-1-2026-10-26.md)) | as written | the outside Claude Code session's own rows (`claude`, `zsh`, `Python` :8766) came back for its session id, the same as on the page | PASS (backend; the window: BLOCKED) | — | 2026-10-26 | agent |
+| Live: This Mac lists another app's session | the same lab, step 10 (bug 5) | under its app's group, by its title, "not started by AI Juggler" | "Claude app" (count 6) listed only the desktop app's own heaviest processes; the lab's Claude Code session under it was missing | FAIL | — | 2026-10-26 | agent |
+| Live: Include other apps | the same lab, step 10 | names and memory, no Stop | "Other apps on this Mac", "Not in an AI session", programs by name and memory, nothing to stop | PASS (backend) | — | 2026-10-26 | agent |
+| Live: the counts agree | the same lab, step 2 | one number everywhere | `to_clean` 2 = `leftovers()` 2 = This Mac `leftover_processes` 2 (one server and its shell: finding 3) | PASS | — | 2026-10-26 | agent |
 
 ## Redaction checklist (tick before commit)
 

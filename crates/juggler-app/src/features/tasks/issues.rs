@@ -27,19 +27,50 @@ pub const TIMEOUT: Duration = Duration::from_secs(10);
 /// Where `gh` usually is on a Mac.
 const PLACES: [&str; 3] = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"];
 
+/// Said when there's no `gh` at all.
+pub const NO_GH: &str =
+    "Looking it up needs GitHub's own command line, gh, on this Mac; the link still opens";
+
 /// The user's own `gh`, when it's there and safe to run (ours or root's,
-/// no one else can write it). Tests point it elsewhere
-/// ([`super::Tasks::set_gh`]).
+/// and no one but us and the Mac's administrators can change it:
+/// [`juggler_adapter::file_trust::entry_trusted`]). Tests point it
+/// elsewhere ([`super::Tasks::set_gh`]).
 #[must_use]
 pub fn gh(state: &AppState) -> Option<PathBuf> {
+    gh_or_why(state).ok()
+}
+
+/// [`gh`], or why it can't be used, in words: missing ([`NO_GH`]), or
+/// there but not safe to run, naming why. A `gh` that's there is never
+/// called missing.
+///
+/// # Errors
+///
+/// The words.
+pub fn gh_or_why(state: &AppState) -> Result<PathBuf, String> {
+    use juggler_adapter::file_trust::{Untrusted, executable_trust, me};
     let chosen = state.tasks.gh.lock().ok().and_then(|slot| slot.clone());
     let candidates: Vec<PathBuf> = match chosen {
         Some(path) => vec![path],
         None => PLACES.iter().map(PathBuf::from).collect(),
     };
-    candidates.into_iter().find_map(|path| {
-        juggler_adapter::file_trust::trusted_executable(&path, juggler_adapter::file_trust::me())
-    })
+    let mut refused = None;
+    for path in candidates {
+        match executable_trust(&path, me()) {
+            Ok(resolved) => return Ok(resolved),
+            Err(Untrusted::Missing) => {}
+            Err(why) => {
+                refused.get_or_insert_with(|| {
+                    format!(
+                        "gh is at {}, but AI Juggler won't run it: {}. The link still opens",
+                        path.display(),
+                        why.words()
+                    )
+                });
+            }
+        }
+    }
+    Err(refused.unwrap_or_else(|| NO_GH.to_owned()))
 }
 
 /// Whether a word is a safe GitHub owner or repository name.
@@ -127,12 +158,7 @@ pub fn look_up(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
             "Only GitHub issues and pull requests are looked up; the link still opens".to_owned(),
         ));
     };
-    let gh = gh(state).ok_or_else(|| {
-        AppError::Refused(
-            "Looking it up needs GitHub's own command line, gh, on this Mac; the link still opens"
-                .to_owned(),
-        )
-    })?;
+    let gh = gh_or_why(state).map_err(AppError::Refused)?;
     let (title, issue_state) = ask_gh(&gh, &owner, &repo, number).ok_or_else(|| {
         AppError::Refused(
             "Couldn't look it up: offline, or gh isn't signed in to it. The link still opens"

@@ -41,6 +41,23 @@ fn preview(text: &str) -> String {
         .collect()
 }
 
+/// The messages an open ask is about. Each has its own card in Needs you,
+/// which says what a yes does (a hop-limit delivery says so), so no other
+/// card lists it and no other Deliver sends it past the ask.
+///
+/// # Errors
+///
+/// Storage failures.
+pub(crate) fn asked_messages(
+    repo: &juggler_core::storage::MessagesRepo<'_>,
+) -> AppResult<std::collections::HashSet<String>> {
+    Ok(repo
+        .open_asks(0, 200)?
+        .into_iter()
+        .map(|ask| ask.object_ref)
+        .collect())
+}
+
 /// Everything about messages that waits on the user, oldest first within
 /// each kind.
 ///
@@ -164,13 +181,16 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             at_ms: row.message.created_at,
         });
     }
+    let asked = asked_messages(&repo)?;
     let live = storage.sessions().live().unwrap_or_default();
     for record in live.into_iter().filter(|r| super::is_live(r.status)) {
         if !state.runtime.is_driven(&record.id) {
             continue;
         }
         let refs = super::refs_of(&storage, &record.id);
-        let rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, 50)?;
+        let mut rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, 50)?;
+        // A message with its own ask (a paused chain) is that card's, once.
+        rows.retain(|row| !asked.contains(&row.message.id));
         let Some(newest) = rows.first() else {
             continue;
         };

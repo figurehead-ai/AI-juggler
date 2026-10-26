@@ -470,6 +470,42 @@ fn needs_attention_shows_what_needs_the_user_under_its_parents() {
     assert_eq!(theirs.process.as_ref().unwrap().stop, "observed");
 }
 
+/// Processes lab 2026-10-26, bug 1: a ledger from before one process kept
+/// one row could hold a left-behind row and a running one for the same
+/// process. It is listed once, left behind, in every view.
+#[test]
+fn a_process_with_two_ledger_rows_is_listed_once_as_left_behind() {
+    let mut inputs = fixture();
+    let left = inputs
+        .ours
+        .iter_mut()
+        .find(|session| session.session_id == "s-left")
+        .unwrap();
+    let mut again = left.rows[0].clone();
+    again.state = "running".into();
+    left.rows.push(again);
+    let graph = model::build(&inputs);
+    let nodes: Vec<_> = graph
+        .apps
+        .iter()
+        .flat_map(|app| app.sessions.iter())
+        .flat_map(|session| session.processes.iter())
+        .filter(|node| node.pid == 201)
+        .collect();
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(nodes[0].state, ProcState::LeftBehind);
+    for view in ["attention", "running"] {
+        let rows = query::rows(&graph, &input(view));
+        assert_eq!(
+            rows.iter()
+                .filter(|row| row.process.as_ref().is_some_and(|p| p.pid == 201))
+                .count(),
+            1,
+            "once in each view"
+        );
+    }
+}
+
 #[test]
 fn everything_running_folds_healthy_sessions_to_one_line() {
     let graph = model::build(&fixture());

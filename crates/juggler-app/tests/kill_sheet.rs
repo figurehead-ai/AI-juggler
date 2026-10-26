@@ -224,7 +224,11 @@ fn guardrail_stale_identity_refuses_with_zero_signals() {
 
     let verify = commands::kill_verify_inner(&state, session.as_str(), pid).unwrap();
     assert!(!verify.verified);
-    assert_eq!(verify.refusal.as_deref(), Some(KILL_REFUSAL_COPY));
+    // It ended: the words say so, never "a different program" (processes
+    // lab 2026-10-26, bug 2). A live stranger keeps KILL_REFUSAL_COPY
+    // (guardrails.rs).
+    assert_eq!(verify.refusal.as_deref(), Some(commands::KILL_GONE_COPY));
+    assert_ne!(verify.refusal.as_deref(), Some(KILL_REFUSAL_COPY));
 
     let outcome = commands::kill_execute_audited(
         &state,
@@ -236,7 +240,7 @@ fn guardrail_stale_identity_refuses_with_zero_signals() {
         None,
     )
     .unwrap();
-    assert_eq!(outcome.refusal.as_deref(), Some(KILL_REFUSAL_COPY));
+    assert_eq!(outcome.refusal.as_deref(), Some(commands::KILL_GONE_COPY));
     assert_eq!(outcome.members[0].outcome, "refused");
     assert!(!outcome.all_succeeded);
     assert!(

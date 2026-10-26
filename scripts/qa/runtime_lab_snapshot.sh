@@ -7,6 +7,7 @@
 #   scripts/qa/runtime_lab_snapshot.sh take NAME DIR...   writes <out>/NAME.tsv
 #   scripts/qa/runtime_lab_snapshot.sh diff BEFORE AFTER  what changed, grouped
 #   scripts/qa/runtime_lab_snapshot.sh procs [PATTERN]    the lab's processes
+#   scripts/qa/runtime_lab_snapshot.sh selftest           checks the locale rules
 #
 # Processes are printed as pid and program name only (`ps -o pid=,comm=`),
 # never a command line: a full listing once showed another process's
@@ -15,10 +16,15 @@
 #
 # The output folder is $AJ_LAB_OUT (default: /tmp/aj-runtime-lab). Nothing
 # under the folders is written.
+#
+# Everything runs in the C locale, whatever the caller's (lab 2026-10-26):
+# under a UTF-8 locale `pgrep -f` stops at a process whose arguments aren't
+# UTF-8 ("illegal byte sequence"), and `sort` orders by the locale, so a
+# `take` under one locale and a `diff` under another reported thousands of
+# false changes.
 set -euo pipefail
+export LC_ALL=C
 out="${AJ_LAB_OUT:-/tmp/aj-runtime-lab}"
-mkdir -p "$out"
-chmod 700 "$out"
 
 # What the lab starts: AI Juggler's app-servers, headless claude, the
 # bridge, AI Juggler Dev itself.
@@ -26,9 +32,16 @@ LAB_PATTERN='app-server --listen stdio://|claude -p --input-format stream-json|j
 
 # The processes matching $1 (default: the lab's), as "pid program", leaving
 # out the apps' own (the Codex app's server lives inside /Applications).
+# pgrep says 1 when nothing matches; anything above is a failure, and the
+# list is then unknown: said, never printed as an empty list.
 procs() {
-  local pattern="${1:-$LAB_PATTERN}" pid
-  for pid in $(pgrep -f "$pattern" || true); do
+  local pattern="${1:-$LAB_PATTERN}" pid pids status=0
+  pids=$(pgrep -f "$pattern") || status=$?
+  if [ "$status" -gt 1 ]; then
+    echo "pgrep failed (exit $status): the lab's processes are unknown" >&2
+    return 1
+  fi
+  for pid in $pids; do
     ps -o pid=,comm= -p "$pid" 2>/dev/null || true
   done | grep -v ' /Applications/' || true
 }
@@ -36,6 +49,8 @@ procs() {
 take() {
   local name="$1"; shift
   local file="$out/$name.tsv"
+  mkdir -p "$out"
+  chmod 700 "$out"
   : > "$file"
   for dir in "$@"; do
     [ -d "$dir" ] || { echo "not a folder: $dir" >&2; exit 2; }
@@ -62,9 +77,21 @@ diff_snapshots() {
   cat "$out/$2.processes" 2>/dev/null || true
 }
 
+# The locale rules hold, whatever locale this was started in.
+selftest() {
+  [ "$LC_ALL" = C ] || { echo "selftest: not the C locale" >&2; exit 1; }
+  local sorted
+  sorted=$(printf 'b\nB\na\n' | sort | tr '\n' ' ')
+  [ "$sorted" = "B a b " ] || { echo "selftest: sort isn't bytewise: $sorted" >&2; exit 1; }
+  procs 'aj-runtime-lab-selftest-matches-nothing' > /dev/null ||
+    { echo "selftest: pgrep failed" >&2; exit 1; }
+  echo "runtime_lab_snapshot selftest: ok"
+}
+
 case "${1:-}" in
   take) shift; [ $# -ge 2 ] || { echo "usage: take NAME DIR..." >&2; exit 2; }; take "$@" ;;
   diff) shift; [ $# -eq 2 ] || { echo "usage: diff BEFORE AFTER" >&2; exit 2; }; diff_snapshots "$@" ;;
   procs) shift; procs "$@" ;;
-  *) sed -n '2,18p' "$0"; exit 2 ;;
+  selftest) selftest ;;
+  *) sed -n '2,24p' "$0"; exit 2 ;;
 esac

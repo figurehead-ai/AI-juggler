@@ -530,8 +530,30 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
         field(&third, "/to/0/gets_it"),
         "when the user says (the chain reached the hop limit)"
     );
-    let ask = needs::needs(&lab.state)
-        .unwrap()
+    // The answer names the pool's limit that paused it, not only the
+    // thread's cap (lab 2026-10-26, finding 3).
+    assert_eq!(field(&third, "/hop"), "3");
+    assert_eq!(field(&third, "/hop_limit"), "2");
+    assert!(field(&third, "/paused").contains("hop limit, 2"));
+    assert_eq!(field(&first, "/paused"), "null", "only when it paused");
+    let waiting = needs::needs(&lab.state).unwrap();
+    // One message, one card (finding 4): the ask, and no "waiting" card
+    // whose Deliver would send it past the ask.
+    let third_id = field(&third, "/message");
+    assert_eq!(
+        waiting
+            .iter()
+            .filter(|n| n.message_id.as_deref() == Some(third_id.as_str()))
+            .count(),
+        1,
+        "one card for the paused message"
+    );
+    assert_eq!(
+        views::deliver_waiting(&lab.state, builder.as_str()).unwrap(),
+        0,
+        "the waiting Deliver leaves it to its ask"
+    );
+    let ask = waiting
         .into_iter()
         .find(|n| n.kind == "deliver")
         .expect("the chain paused and asks");
@@ -692,7 +714,9 @@ fn shared_docs_are_redacted_content_addressed_and_only_the_pools() {
         "no folders in a name"
     );
     let found: u32 = field(&shared, "/secrets_found").parse().unwrap();
-    assert!(found >= 3, "{found}");
+    // Three secrets, each counted once: the key is seen by two scans
+    // (lab 2026-10-26, finding 6) and still counts once.
+    assert_eq!(found, 3, "one per secret");
     let id = field(&shared, "/doc");
     let read = lab.call(
         &b,

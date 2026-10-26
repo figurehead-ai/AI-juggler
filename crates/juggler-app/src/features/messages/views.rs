@@ -349,6 +349,16 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
             SENDER_USER,
             "queued",
         )?;
+        // Delivering a message a paused chain asked about is that ask's
+        // Deliver once: its card goes and the chain is open again.
+        for ask in repo.open_asks(0, 200)? {
+            if ask.object_ref == message_id
+                && ask.action == juggler_core::agent_access::AgentAction::DeliverToSession.as_str()
+            {
+                repo.close_ask(&ask.id, "once")?;
+                repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
+            }
+        }
         (message, session)
     };
     if let Some(session) = session {
@@ -376,7 +386,11 @@ pub fn deliver_waiting(state: &Arc<AppState>, session_id: &str) -> AppResult<u32
         let storage = lock_storage_arc(state)?;
         let refs = refs_of(&storage, &session);
         let repo = storage.messages();
-        let rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, MESSAGES_PAGE)?;
+        let mut rows = repo.inbox(&refs, &[RecipientState::Unread], None, None, MESSAGES_PAGE)?;
+        // A message with an open ask (a paused chain) goes by that ask's
+        // own Deliver, which says what it does, never by this one.
+        let asked = super::needs::asked_messages(&repo)?;
+        rows.retain(|row| !asked.contains(&row.message.id));
         let mut pools = HashSet::new();
         for row in &rows {
             repo.reset_hop(&row.message.thread_id)?;

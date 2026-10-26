@@ -289,9 +289,18 @@ impl ProcessLedgerRepo {
     /// refresh `last_seen` + peaks; pids no longer present stay
     /// untouched (exit patch owns their fate).
     ///
+    /// One process is one row, whatever its state. A row the reconciler
+    /// marked `orphaned` is refreshed as it is (same start time), and a
+    /// process that already has a row in another state (`exited`,
+    /// `unverifiable`) is never inserted again: a finished session's
+    /// tree keeps its last rows, and re-inserting them listed each
+    /// left-behind process twice, once as running (processes lab
+    /// 2026-10-26, bug 1) and brought an unverifiable one back.
+    ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
+    #[allow(clippy::too_many_lines)] // one transaction: refresh, else check, else insert
     pub fn upsert_helpers(&self, session_id: &str, helpers: &[LedgerRow]) -> Result<(), CoreError> {
         let conn = self.lock()?;
         let tx = conn.unchecked_transaction()?;
@@ -324,8 +333,17 @@ impl ProcessLedgerRepo {
                      cmdline_trunc = CASE
                          WHEN ?2 - first_seen < {EXEC_SETTLE_MS} AND ?13 != '' THEN ?13
                          ELSE cmdline_trunc END
-                 WHERE session_id = ?1 AND pid = ?5 AND boot_id = ?6 AND state = ?7",
+                 WHERE session_id = ?1 AND pid = ?5 AND boot_id = ?6
+                   AND (state = ?7 OR (state = ?14
+                        AND (started_at IS NULL OR ?10 IS NULL OR started_at = ?10)))",
             ))?;
+            // The same process (pid, boot and start time; a row without a
+            // start time can't tell, so it counts) already has a row.
+            let mut known = tx.prepare(
+                "SELECT EXISTS(SELECT 1 FROM process_ledger
+                  WHERE session_id = ?1 AND pid = ?2 AND boot_id = ?3
+                    AND (started_at IS NULL OR ?4 IS NULL OR started_at = ?4))",
+            )?;
             let mut insert = tx.prepare(
                 "INSERT INTO process_ledger
                      (pid, pgid, started_at, exe_path, cmdline_hash, cmdline_trunc, boot_id,
@@ -352,8 +370,14 @@ impl ProcessLedgerRepo {
                     row.exe_path,
                     row.cmdline_hash,
                     row.cmdline_trunc,
+                    STATE_ORPHANED,
                 ])?;
-                if changed == 0 {
+                if changed == 0
+                    && !known.query_row(
+                        params![session_id, row.pid, row.boot_id, row.started_at],
+                        |found| found.get::<_, bool>(0),
+                    )?
+                {
                     insert.execute(params![
                         row.pid,
                         row.pgid,

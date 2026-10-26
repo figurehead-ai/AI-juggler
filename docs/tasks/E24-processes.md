@@ -186,3 +186,48 @@
 **Files to touch**: `ui/src/lib/trust-claims.json`, `docs/guide/trust.md`, `docs/guide/processes.md`, `docs/guide/this-mac.md`, `docs/qa/processes-lab.md`.
 **Research basis**: D-41; D-37.
 **Handover note**: —
+
+## Lab, 2026-10-26
+
+The first live run of `docs/qa/processes-lab.md`, on the lab Claude Code profile, through AI Juggler's backend: there was no desktop control, so the window's checks are BLOCKED. Only processes the lab started were stopped. The full record is `docs/qa/evidence/AJ-E2406/lab-1-2026-10-26.md`.
+
+**What works live:**
+- the session's tree;
+- "Started by Bash: …" on the shell the tool ran;
+- the server's port and role;
+- AI Juggler's own tools hidden;
+- Left behind within 36 s (4 s for another app's session);
+- the counts agreeing with This Mac;
+- Keep and Remind;
+- Stop with "exited on TERM" and "needed KILL";
+- the history;
+- Include other apps;
+- the sightings holding names and hashes only.
+
+**What fails:**
+- Each left-behind and ended process is listed twice.
+- A real zombie never reaches the graph.
+- D-41b refuses Homebrew's `python3`: it runs from inside `Python.app`, so it counts as "part of an app".
+- This Mac doesn't list another app's Claude Code session.
+- "This PID now belongs to a different program" is said for a process that simply exited.
+
+**What the checklist and the rules must allow for:**
+- Claude Code 2.1.310 stops its own background tasks on Stop and on `/exit`, even ones that ignore TERM or start their own process group. A leftover of a Claude session comes only from a crash; the lab used SIGKILL on its own `claude`.
+- Claude Code runs each background task in its own process group, so neither automatic rule ever tidies one ("It left its session's group").
+- A server started with `nohup … &` leaves the session's tree before the tick sees it, and is never shown. This is the real coverage gap.
+
+**Fixed after the lab** (branch `fix/0.2-lab-bugs`, each with a regression test):
+- **Listed twice.** The helper upsert refreshed only `running` rows, so a finished session's tree, which keeps its last rows, inserted a second, running row beside the one the reconciler had marked left behind (and again after it ended). One process is now one row: an orphaned row is refreshed as it is, and an ended or unverifiable process is never inserted again (`ProcessLedgerRepo::upsert_helpers`). The graph, the Ended page and the verify sheet's `tree_pids` also take each process once; `tree_pids` lists only processes still running as recorded.
+- **A real zombie.** `sysinfo` never lists a zombie on a Mac (it needs a program path or arguments to keep a process, and the kernel gives neither for one). The collector now reads the zombies with the system's `/bin/ps` (C locale; pid, parent, state, age and short name only) at each full scan while a tree is watched, and adds each to its parent's tree (`juggler_supervisor::zombies`). A zombie is shown, never written to the ledger or stopped.
+- **D-41b and Homebrew's python.** An `.app` inside a `.framework` that no app holds is a program the framework ships, not an app the user quits (`places::outer_bundle`). Homebrew's `python3` can be stopped as any leftover.
+- **"A different program" for a process that ended.** The verify sheet and the ladder now say "This process has already ended — there's nothing to stop." when the pid is gone, and the zombie words for a zombie; "a different program" is kept for a pid that really names another process now.
+
+**Not fixed: a server started with `nohup … &` from a foreground Bash command.**
+- What happens: Claude Code 2.1.310 starts every Bash tool command with Node's `detached: true` (read in its installed program, 2026-10-26), which makes the shell a new session and process group leader. `nohup server &` puts the server in that shell's session and group. The shell exits as soon as the command returns, usually within milliseconds, and the server is reparented to launchd (parent 1).
+- So nothing that is a pid or a name links the server to its session. Its parent is launchd. Its session id and process group are the shell's pid, and that shell lived too briefly for the 2 s tick (or the 4 s listing) ever to see it. Its controlling terminal is none (a new session has none). The parent `claude` never sees the server's pid either.
+- The signals left would each be guesses, and D-08 / D-41 never act on a guess: the server's folder or command line (D-37: neither is read for attribution), its start time against the Bash call's time (any program a launch agent starts in that window would match), or the hook's events (they carry the command's text, not a pid).
+- What would be sound needs the spawn itself: an Endpoint Security client (an entitlement Apple grants case by case) or a per-command wrapper AI Juggler puts into the session (changing how the user's tool runs commands). Neither is in 0.2.
+- One narrower case is attributable and is left for a later task: when the tick did see the shell (a command that ran over ~2 s), the orphan's process group equals that remembered shell's pid, and the attribution would hold if the group's leader is gone or still that shell. It doesn't cover the lab's case.
+- Until then the guide says it plainly: a server an agent starts with `nohup … &` from a one-line command isn't shown under its session; Claude Code's own background tasks (`run_in_background`) are.
+
+**Seen, for the pools' owner** (not changed here): the cards say "Unavailable" whenever `pools::cards::tick` never published a view for a session. Builder (driven Codex) had no `transcript_ref` at all, so it can never be read. Planner had one; the tick publishes only after `TranscriptTail::read` opens that path, so the stored path not opening (a profile used in place) would give exactly this.

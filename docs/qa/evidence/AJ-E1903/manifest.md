@@ -22,8 +22,9 @@ Design: `ui/src/pages/tasks/` (PoolTasks, TaskView, TaskRow, TaskTree, TaskForm,
 | Req.1 a list per pool, ready work first; the tree behind disclosure | vitest `lists ready work first…`, `filters to done ones, and shows the plan`; `tasks.rs::two_hundred_tasks_list_fast_and_page`; gallery `pool-tasks-*`, `pool-plan-*` | PASS |
 | Req.2 holder, session and history; create, edit, assign, close from the app | vitest `you add a task, change its status and give it to someone`, `a held task's session is one click away…`; `tasks.rs::the_issue_is_looked_up_only_on_a_click_and_offline_says_so` (edit); gallery `task-held-*`, `task-new-*` | PASS |
 | Req.3 "Start a session for this task" with the account the user picks | vitest `starts a session for a task only on your pick…`, Needs you `an agent's request for a session…`; `tasks.rs::an_agent_asks_for_a_session_and_only_the_user_starts_it` (the fake tool launched; the task its, linked, the request closed); gallery `task-start-*`, `needs-you-*` | PASS |
+| Live: "Start a session for it" with a real tool | `docs/qa/tasks-lab.md` step 5, 2026-10-26 ([AJ-E1902/lab-2026-10-26.md](docs/qa/evidence/AJ-E1902/lab-2026-10-26.md)): `tasks_start` on the lab Claude launch settings started Claude Code in the pool's folder with the brief as its first prompt; the task in progress with it, "started for", the agent's request closed; nothing started before the user's pick. The picker as drawn: BLOCKED, for the maintainer | PASS (backend) |
 | Performance: the list renders 200 tasks < 100 ms | vitest `renders 200 tasks in under 100 ms` | PASS |
 | Quality gates: vitest, Playwright, the a11y gate | 14 vitest cases; `tasks-gallery.spec.ts` 31 Playwright cases, axe 0 critical or serious on each | PASS |
 | Visual: the list, the tree and a task, both themes | `docs/qa/evidence/_gallery/95-tasks/` (30 captures, 1280, 1680 and 2000 px, dark and light, each opened and checked) | PASS |
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

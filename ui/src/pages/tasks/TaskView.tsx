@@ -204,6 +204,9 @@ export function TaskView({
                 {detail.issue.checked_at_ms === null ? "Look up its title" : "Look it up again"}
               </Button>
             )}
+            {!detail.issue.can_look_up && detail.issue.look_up_note && (
+              <span className="text-muted" data-testid="task-look-up-note">{detail.issue.look_up_note}</span>
+            )}
           </div>
         </Section>
       )}

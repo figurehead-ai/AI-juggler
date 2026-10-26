@@ -26,6 +26,7 @@ Design: `crates/juggler-app/src/features/messages/delivery.rs`; the driver's bou
 | Req.3 Claude Code's own messages between sessions | — | UNPROVEN (not used in v1: D-42 point 4) |
 | Gate: no delivery without a click, Full or a rule | `messages_guardrails.rs` (source and behaviour: ten messages at Work together start no turn) | PASS |
 | Visual: the Deliver button and the delivered state | `_gallery/93-messages/pool-messages-*.png` ("Started its turn", **Deliver**) | PASS |
-| Live: the same with real Claude Code and Codex | `docs/qa/messaging-lab.md` steps 2–5 | UNPROVEN (the coordinator's lab) |
+| Live: the same with real Claude Code and Codex | `docs/qa/messaging-lab.md` steps 2–5, run 2026-10-26 through AI Juggler's backend ([lab-2026-10-26.md](docs/qa/evidence/AJ-E1803/lab-2026-10-26.md)): Deliver started Codex's turn with "Started by a message from Planner" and the provenance; at Full a message stayed queued through Codex's open approval and while the user typed, and went in 0.3 s after; the hop limit of 2 paused the third note and asked, a rule refused, Deliver reset it to 0; the terminal session was never typed into and heard "AI Juggler: 1 unread message from You in your pool…" (facts only) from its hook | PASS (backend; the window's views and keys: BLOCKED, for the maintainer) |
+| Live: one Needs you card per waiting message | the same lab, step 4: while the chain was paused, the `deliver` ask and "Builder has a message waiting" both showed for one message | FAIL (UX: the lab's finding 4) |
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

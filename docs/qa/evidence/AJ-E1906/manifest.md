@@ -19,6 +19,8 @@ Design: `juggler_core::tasks::external_link` (an `https` link, one line, at most
 | Req.1 no sync in v1 | the same test: nothing is looked up before the click; `issues::look_up` is reached only from its command (`tasks_guardrails.rs::no_agent_starts_a_session_or_picks_an_account`) | PASS |
 | Gate: offline behaviour | the same test (a `gh` that fails: "offline, or gh isn't signed in", the link kept) | PASS |
 | Links named and refused | `tasks::tests::links_name_github_and_linear_and_refuse_the_rest`; `issues::tests::only_plain_names_reach_gh` | PASS |
+| Live: the look-up with the user's own `gh` | `docs/qa/tasks-lab.md` step 7, 2026-10-26 ([AJ-E1902/lab-2026-10-26.md](docs/qa/evidence/AJ-E1902/lab-2026-10-26.md), bug 3): gh 2.101.0 installed by Homebrew; the link showed `figurehead-ai/AI-juggler#1` and nothing was looked up before a click, but `can_look_up: false`, and a look-up said "Looking it up needs GitHub's own command line, gh, on this Mac". `trusted_executable` refuses `/opt/homebrew/bin` (`drwxrwxr-x`, group `admin`), so `issues::gh()` finds none | FAIL |
+| Live: offline says so | the same step: Wi-Fi is a system setting this lab may not change, and the look-up can't run | UNPROVEN (needs the maintainer, after the fix) |
 | Visual: the task with a link | gallery `pool-tasks-*` (`figurehead/shop#142`, open, its title, "looked up 20 min") | PASS |
 
-Last updated: 2026-10-25.
+Last updated: 2026-10-26.

@@ -28,6 +28,7 @@ pub mod stats;
 mod stop_guard;
 pub mod supervisor;
 pub mod tree;
+pub mod zombies;
 
 pub use error::SupervisorError;
 pub use heuristics::{

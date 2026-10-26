@@ -339,3 +339,45 @@ Primary (VP): a2a-protocol.org/latest/specification · modelcontextprotocol.io/s
 Secondary (VS): linuxfoundation.org A2A press release · aaif.io A2A v1.0 builder's guide · apievangelist.com agent-card survey · socket.dev @openai/codex-sdk README mirror · learn.chatgpt.com config-advanced (dotted `-c` example via search) · speakerdeck.com (Claude Squad / Conductor comparison) · superset.sh Conductor comparison
 
 Local (repo, read 2026-10-21): docs/SPEC.md §1–3 · docs/adr/0002, 0003, 0010, 0018 · docs/research/landscape-and-stack.md §3 · docs/research/claude-code.md · docs/research/codex.md · crates/juggler-supervisor/src/{lib,supervisor}.rs · crates/juggler-app/src/terminal.rs · crates/juggler-adapter/src/launch.rs · crates/juggler-adapters/src/{claude_code,codex,quota_ingest}.rs · crates/juggler-handover/src/lib.rs · crates/juggler-core/src/{model.rs,storage/mod.rs} · docs/tasks/README.md (D-01..D-25)
+
+## Lab, 2026-10-26
+
+The live runs of `docs/qa/messaging-lab.md` and `docs/qa/tasks-lab.md`. They used Claude Code 2.1.310 (the lab profile, in its terminal) and codex-cli 0.163.0 (driven, Open restricted), through AI Juggler's backend: there was no desktop control, so the window's views are BLOCKED. At most two real tools ran at once. The full records are `docs/qa/evidence/AJ-E1803/lab-2026-10-26.md` and `docs/qa/evidence/AJ-E1902/lab-2026-10-26.md`. Everything below is **VP (lab)**.
+
+**Open questions from §4, now answered:**
+- **(2)** `--mcp-config` from outside the project needs no approval. Claude called every juggler tool with no prompt.
+- **(3)** Codex calls the juggler tools with no approval, through the per-tool `approve` lab 1 found. It called `task_claim`, `task_create` and `task_assign` unprompted.
+- **(4)** The overlay's hooks run alongside the account's own. The `UserPromptSubmit` note reached Claude as `additionalContext`, and Claude quoted it.
+
+**Messages:**
+- Delivery happens only on a click, at Full or by a rule, and never mid-turn, at an open approval or over typing.
+- The hop limit pauses the chain and asks; no rule can lift it.
+- Duplicates are dropped. A message above the level is held for the user's OK.
+- A terminal session is never typed into, and hears a facts-only note.
+- Shared docs are redacted and stored `0600` in `0700`.
+- **Wording to fix:**
+  - the hop-limit answer shows the thread's `hop_cap: 6` next to "the chain reached the hop limit" (2), and the agent took them for a contradiction;
+  - one key in a doc is counted as two secrets;
+  - a paused chain shows two Needs you cards for one message.
+
+**Tasks:**
+- Of two claims, one won, and it was taken once.
+- Changes above the level were held: Allow once, Always (the second time) and Deny all worked.
+- A member's assign was refused. `new_session` only asked, once, and nothing started until the user picked the launch settings.
+- **To fix:**
+  - `tasks_list ready: true` also lists epics and stories;
+  - a held assignment names the session id, not the member;
+  - Homebrew's `gh` is never trusted (its folder can be written by the `admin` group), so an issue's title is never looked up.
+
+**D-43 point 4** (a brief as the first prompt):
+- In a terminal the brief is in the process's arguments (`ps`) and arrives as the user's own prompt. The session acted on it at once.
+- Recommendation: a pointer prompt ("read it with task_get") for terminal launches with the agent tools; the brief as built otherwise, and for driven sessions.
+
+**D-43 point 6** (the plugin):
+- Outside AI Juggler, the plugin adds 14 tools that can only answer "this session wasn't started by AI Juggler…", and a skill about using them.
+- `--plugin-dir` loads a plugin for one session and writes nothing to the profile.
+- Recommendation: don't publish. AI Juggler's own Claude launches load a skill-only copy with `--plugin-dir`.
+
+**On the way, outside E18 and E19:**
+- `spawn_lifecycle_forwarder` ends at its first quiet half-second, because `recv_timeout` returns `None` on a timeout. So a session's exit is never stored, and after a restart a stopped session reads `failed`.
+- The 2 s tick can die in a debug build, in sysinfo's disk listing.
