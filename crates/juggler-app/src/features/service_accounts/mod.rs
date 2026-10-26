@@ -8,11 +8,11 @@
 //! - is pasted once in Add account and kept in AI Juggler's own Keychain
 //!   item, one per account ([`ServiceKeys`]);
 //! - is handed only to that account's sessions, when they start, in the
-//!   variable the tool reads ([`session_env`], from the one spawn path
+//!   variable the tool reads (`session_env`, from the one spawn path
 //!   for an account's sessions, `features::sessions::spawn`);
 //! - is never written to a file, a log, the search index or a backup,
 //!   never sent back to the window, and goes with the account's last
-//!   profile ([`profile_removed`]).
+//!   profile (`profile_removed`).
 //!
 //! Which profile belongs to which account is a small record in AI
 //! Juggler's settings (`service_profile:<profile id>`): the service, the
