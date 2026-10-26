@@ -128,6 +128,7 @@ export function AddProviderSheet({
                   key={row.provider}
                   className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3"
                   data-testid="provider-card"
+                  data-provider={row.provider}
                   data-status={row.status}
                   data-kind={row.kind ?? "terminal"}
                 >

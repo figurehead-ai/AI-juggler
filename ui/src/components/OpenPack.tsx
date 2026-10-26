@@ -67,7 +67,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   if (!pack.opened) {
     return (
       <div className="mb-4 flex flex-wrap items-center gap-2 text-label">
-        <button type="button" onClick={() => void pack.choose()} className="text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
+        <button type="button" onClick={() => void pack.choose()} className="inline-flex min-h-6 items-center text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
           Start from a context pack…
         </button>
         {pack.error && (

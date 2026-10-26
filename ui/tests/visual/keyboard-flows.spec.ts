@@ -318,6 +318,11 @@ test("onboarding — Add account's fresh account by keyboard", async ({ page }) 
   await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Accounts", exact: true }).click();
   await tabToEl(page, stops, "[data-testid='add-account']", { max: 60 });
   await page.keyboard.press("Enter");
+  // AJ-E1601: with a service the tool runs through, the chooser comes
+  // first; Tab reaches Claude Code's Choose.
+  await expect(page.getByRole("dialog", { name: "Add an account: which tool?" })).toBeVisible();
+  await tabToEl(page, stops, "[data-testid='provider-card'][data-provider='claude-code'] [data-testid='provider-choose']", { max: 40 });
+  await page.keyboard.press("Enter");
   // Nothing new on this Mac: straight to the name, focused and filled in.
   await expect(page.getByTestId("first-run-fresh-name")).toBeFocused();
   await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Claude Code");
@@ -327,6 +332,6 @@ test("onboarding — Add account's fresh account by keyboard", async ({ page }) 
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("first-run")).toHaveCount(0);
   record("add-account", stops, [
-    "Accounts (clicked) → Add account → the name (focused, filled in) → Enter creates it → its Sign in reachable by Tab → Escape closes.",
+    "Accounts (clicked) → Add account → Claude Code's Choose in the chooser → the name (focused, filled in) → Enter creates it → its Sign in reachable by Tab → Escape closes.",
   ]);
 });

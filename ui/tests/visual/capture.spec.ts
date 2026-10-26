@@ -3294,8 +3294,10 @@ for (const theme of THEMES) {
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
+      // E16 (AJ-E1602) brings a tool more, so the fixture's matrix has a
+      // fifth switch.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 4 switches is proven yet",
+        "None of the 5 switches is proven yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not proven yet",
@@ -3901,6 +3903,10 @@ for (const theme of THEMES) {
       await page.goto("/");
       await goTo(page, "Accounts");
       await page.getByTestId("add-account").click();
+      // AJ-E1601: a service the found tool runs through puts the chooser
+      // (its More) first; the tool itself opens the fresh account.
+      const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+      await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
       await expect(page.getByTestId("first-run-fresh")).toBeVisible();
       await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
       await page.screenshot({ path: resolve(GALLERY, `71-add-account/fresh-${vp.name}-${theme}.png`), fullPage: true });
