@@ -36,12 +36,16 @@ export function setupWords(check: SetupCheckInfo | null | undefined): string | n
   if (check === undefined) return null;
   if (check === null) return "Couldn't check its setup";
   if (check.offers.length === 0) return "Ready: same tools set up";
-  const kinds = new Set(check.offers.map((offer) => offer.kind));
+  // What this conversation didn't use doesn't count against the target
+  // (`null`: the tool doesn't say, so it counts).
+  const offers = check.offers.filter((offer) => offer.used !== false);
+  if (offers.length === 0) return "Ready: has what this conversation used";
+  const kinds = new Set(offers.map((offer) => offer.kind));
   const what =
     kinds.size === 1 && kinds.has("mcp-server")
-      ? `${check.offers.length} MCP ${check.offers.length === 1 ? "server" : "servers"}`
-      : `${check.offers.length} ${check.offers.length === 1 ? "thing" : "things"}`;
-  const yours = check.offers.some((offer) => offer.verdict !== "copy");
+      ? `${offers.length} MCP ${offers.length === 1 ? "server" : "servers"}`
+      : `${offers.length} ${offers.length === 1 ? "thing" : "things"}`;
+  const yours = offers.some((offer) => offer.verdict !== "copy");
   return `Needs ${what}, ${yours ? "some set up by you" : "set up as it moves"}`;
 }
 
