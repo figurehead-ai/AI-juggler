@@ -2541,7 +2541,7 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
           w.__AIJ_SWITCH_EXECUTE_FAIL__ =
-            "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).";
+            "The new session on Personal didn't start, so nothing moved.";
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2555,6 +2555,7 @@ for (const theme of THEMES) {
       await reachConfirm(page);
       await page.getByTestId("switch-confirm").click();
       await expect(page.getByTestId("switch-failed")).toContainText("resume it where you left it");
+      await expect(page.getByTestId("switch-failed-words")).toHaveText("The new session on Personal didn't start, so nothing moved.");
       await expect(page.getByTestId("switch-retry")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/failed-${vp.name}-${theme}.png`),

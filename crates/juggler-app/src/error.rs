@@ -75,9 +75,35 @@ pub enum AppError {
     /// as it is (AJ-E1501).
     #[error("{0}")]
     Refused(String),
+    /// A switch stopped (§9): `words` are what the person reads (plain,
+    /// the accounts named); the failure itself — its taxonomy code,
+    /// stage and detail — goes to the error log. Built only with
+    /// [`AppError::switch`].
+    #[error("switch failed ({}, {:?}): {failure}", failure.code().unwrap_or("-"), failure.stage())]
+    Switch {
+        /// The failure, for the log and the usage-stats class.
+        failure: Box<juggler_handover::pipeline::SwitchFailure>,
+        /// Its words, from [`juggler_handover::pipeline::SwitchFailure::words`].
+        words: String,
+    },
 }
 
 impl AppError {
+    /// A switch from `source` to `target` that stopped: the one way a
+    /// switch failure reaches the interface.
+    #[must_use]
+    pub fn switch(
+        failure: juggler_handover::pipeline::SwitchFailure,
+        source: &str,
+        target: &str,
+    ) -> Self {
+        let words = failure.words(source, target);
+        Self::Switch {
+            failure: Box::new(failure),
+            words,
+        }
+    }
+
     /// Convenience constructor for IO errors with context.
     #[must_use]
     pub fn io(context: &'static str, error: &std::io::Error) -> Self {
@@ -120,6 +146,15 @@ impl AppError {
             Self::AlreadyImported { .. } => ("already_imported".to_owned(), false),
             Self::Refused(_) => ("refused".to_owned(), false),
             Self::IdentityMismatch { .. } => ("identity_mismatch".to_owned(), false),
+            // Every switch failure leaves the original resumable; only a
+            // conversation that's gone can't be tried again.
+            Self::Switch { failure, .. } => (
+                "switch_failed".to_owned(),
+                !matches!(
+                    **failure,
+                    juggler_handover::pipeline::SwitchFailure::OriginalSessionGone
+                ),
+            ),
         };
         ErrorWire {
             code,

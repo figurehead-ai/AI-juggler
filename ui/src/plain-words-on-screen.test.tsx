@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AlertEventData, InstanceInfo, PreflightInfoData } from "./lib/bridge";
 import { errorText } from "./lib/bridge";
+import switchFailureWords from "./test/switch-failure-words.json";
 
 /**
  * D-25 (AJ-E1025) guard, from the 2026-10-27 spec gap audit: internal
@@ -25,6 +26,11 @@ const INTERNAL = [
   "waiting_user",
   "quota_blocked",
   "Error:",
+  "spawn",
+  "S-F",
+  "preflight",
+  "harness",
+  "os error",
 ];
 const WORDS = [/\bpacks?\b/i, /redact/i];
 
@@ -105,6 +111,34 @@ describe("nothing internal on screen (D-25)", () => {
     delete (window as never as { __AIJ_SWITCH_PREFLIGHT__?: unknown }).__AIJ_SWITCH_PREFLIGHT__;
   });
 
+  // Every switch failure, with the words the backend sends
+  // (`AppError::switch`, committed by error_words.rs's golden test): the
+  // dialog names the account and never says the program's detail.
+  it.each(switchFailureWords)("a failed switch ($kind) says it in plain words", async ({ words }) => {
+    const { SwitchFlow } = await import("./components/SwitchFlow");
+    const seams = window as never as { __AIJ_SWITCH_PREFLIGHT__?: unknown; __AIJ_SWITCH_EXECUTE_FAIL__?: unknown };
+    seams.__AIJ_SWITCH_PREFLIGHT__ = {
+      mechanism: "transplant",
+      door: "one-click",
+      wizard_steps: [],
+      wizard_reasons: [],
+      redaction_items: [],
+      carry_items: [],
+      secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+      target_tool: "claude-code",
+    };
+    seams.__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: words };
+    const view = render(<SwitchFlow sessionId="s-1" targetProfileId="p-1" targetLabel="Personal" onClose={() => {}} onSwitched={() => {}} />);
+    await waitFor(() => expect(view.getByTestId("switch-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+    expect(view.getByTestId("switch-failed-words").textContent).toBe(words);
+    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+    expect(words).toMatch(/Work|Personal/);
+    delete seams.__AIJ_SWITCH_PREFLIGHT__;
+    delete seams.__AIJ_SWITCH_EXECUTE_FAIL__;
+  });
+
   it("an error a page shows is words, never the program's", () => {
     expect(errorText(new Error("No handover chosen"))).toBe("No handover chosen");
     expect(errorText({ code: "not_found", retryable: false, user_message: "That account isn't here any more." })).toBe("That account isn't here any more.");
@@ -113,5 +147,6 @@ describe("nothing internal on screen (D-25)", () => {
 
   it("the guard itself catches each token", () => {
     expect(leaks("five_hour window (Measured) claude-code sk-key pack")).toHaveLength(5);
+    expect(leaks("didn't start (terminal spawn failed)")).toEqual(["spawn"]);
   });
 });

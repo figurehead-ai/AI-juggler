@@ -48,6 +48,9 @@ pub fn user_words(error: &AppError) -> String {
         AppError::IdentityMismatch { .. }
         | AppError::AlreadyImported { .. }
         | AppError::Refused(_) => error.to_string(),
+        // The failure's own words (`SwitchFailure::words`), the accounts
+        // named; its detail is the `Display` the log keeps.
+        AppError::Switch { words, .. } => words.clone(),
     }
 }
 
@@ -196,6 +199,7 @@ pub fn looks_internal(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use juggler_handover::pipeline::{PreflightStop, SwitchFailure};
 
     /// What a person never reads (D-25): ids, codes and OS strings.
     const INTERNAL: &[&str] = &[
@@ -262,6 +266,11 @@ mod tests {
             AppError::Supervisor(SupervisorError::Io(io)),
             AppError::Adapter(AdapterError::NotFound("made-up-cli".into())),
             AppError::Adapter(AdapterError::InvalidLaunch("model_id is missing".into())),
+            AppError::switch(
+                SwitchFailure::LaunchFailed("terminal spawn failed".into()),
+                "Work",
+                "Personal",
+            ),
         ]
     }
 
@@ -305,5 +314,86 @@ mod tests {
             "/Users/me/my_backup.zip already exists — choose a new file name"
         ));
         assert!(!looks_internal("That machine isn't connected right now."));
+    }
+
+    /// Every switch failure, as the switch dialog gets it (Work → Personal).
+    fn switch_failures() -> Vec<(&'static str, SwitchFailure)> {
+        vec![
+            ("unresolved-source", SwitchFailure::UnresolvedSource),
+            ("torn-tail", SwitchFailure::TornTail),
+            ("collision-forked", SwitchFailure::CollisionForked("sess-9f3a".into())),
+            (
+                "staging-aborted",
+                SwitchFailure::StagingAborted("No space left on device (os error 28)".into()),
+            ),
+            ("launch-failed", SwitchFailure::LaunchFailed("terminal spawn failed".into())),
+            ("prime-quota-death", SwitchFailure::PrimeQuotaDeath(12_400)),
+            ("original-session-gone", SwitchFailure::OriginalSessionGone),
+            ("merge-conflict-open", SwitchFailure::MergeConflictOpen),
+            ("hop-cost", SwitchFailure::HopCost(4, 380_000)),
+            (
+                "preflight-target-exhausted",
+                SwitchFailure::Preflight(PreflightStop::TargetExhausted),
+            ),
+            (
+                "preflight-version-drift",
+                SwitchFailure::Preflight(PreflightStop::VersionDrift),
+            ),
+            (
+                "adapter",
+                SwitchFailure::Adapter(AdapterError::InvalidLaunch("model_id is missing".into())),
+            ),
+        ]
+    }
+
+    #[test]
+    fn a_switch_failure_says_what_happened_and_the_log_keeps_the_detail() {
+        let error = AppError::switch(
+            SwitchFailure::LaunchFailed("terminal spawn failed".into()),
+            "Work",
+            "Personal",
+        );
+        assert_eq!(
+            error.wire().user_message,
+            "The new session on Personal didn't start, so nothing moved."
+        );
+        assert_eq!(error.wire().code, "switch_failed");
+        assert!(error.wire().retryable);
+        let logged = error.to_string();
+        assert!(
+            logged.contains("terminal spawn failed") && logged.contains("S-F5"),
+            "the log keeps the failure's detail and its code"
+        );
+    }
+
+    /// The words every switch failure reaches the screen with, committed
+    /// for the interface's guard (`ui/src/test/switch-failure-words.json`,
+    /// read by `plain-words-on-screen.test.tsx`); regenerate with
+    /// `UPDATE_GOLDENS=1`.
+    #[test]
+    fn switch_failure_words_are_committed_for_the_interface() {
+        let words: Vec<serde_json::Value> = switch_failures()
+            .into_iter()
+            .map(|(kind, failure)| {
+                let error = AppError::switch(failure, "Work", "Personal");
+                serde_json::json!({ "kind": kind, "words": error.wire().user_message })
+            })
+            .collect();
+        let mut snapshot = serde_json::to_string_pretty(&words).unwrap();
+        snapshot.push('\n');
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/test/switch-failure-words.json");
+        if std::env::var("UPDATE_GOLDENS").is_ok() {
+            std::fs::write(&path, &snapshot).unwrap();
+        }
+        let committed = std::fs::read_to_string(&path).expect("run with UPDATE_GOLDENS=1 once");
+        assert_eq!(
+            committed, snapshot,
+            "a switch failure's words changed: regenerate the interface's copy"
+        );
+        for (_, failure) in switch_failures() {
+            let words = AppError::switch(failure, "Work", "Personal").wire().user_message;
+            assert!(!looks_internal(&words), "a switch failure's words look internal");
+        }
     }
 }

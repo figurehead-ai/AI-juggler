@@ -5343,7 +5343,7 @@ pub(crate) fn preflight_with(
     let (source, account_a) = handover_source(state, session_id)?;
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "Couldn't tell which file is this session — pick it".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".into(),
     })?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
@@ -5389,10 +5389,8 @@ pub(crate) fn preflight_with(
         hop_count: 0,
         replay_tokens_spent: 0,
     };
-    let report = pipeline::preflight(&input).map_err(|failure| AppError::Io {
-        context: "hand over",
-        message: failure.to_string(),
-    })?;
+    let report = pipeline::preflight(&input)
+        .map_err(|failure| AppError::switch(failure, &account_a.label, &account_b.label))?;
     let warnings: Vec<String> = report
         .warnings
         .iter()
@@ -6002,12 +6000,10 @@ fn switch_execute_core(
     let (record, pid) = match outcome {
         Ok(value) => value,
         Err(failure) => {
-            record_edge_failed(state, &edge_id, &failure);
             switch.failed(failure.stage());
-            return Err(AppError::Io {
-                context: "hand over",
-                message: failure.copy(&account_a.label),
-            });
+            let error = AppError::switch(failure, &account_a.label, &account_b.label);
+            record_edge_failed(state, &edge_id, &error);
+            return Err(error);
         }
     };
     record_edge_succeeded(
@@ -6134,7 +6130,7 @@ fn handover_support(
             context: "hand over",
             message: format!(
                 "{} can't take over this conversation — only a fresh start or handover notes",
-                account.harness
+                crate::features::tools::display_name(&state.registry, account.harness.as_str())
             ),
         })
 }
@@ -6169,12 +6165,12 @@ fn switch_sides(
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     }
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "Couldn't tell which file is this session — pick it".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".into(),
     })?;
     Ok(SwitchSides {
         source,
@@ -6210,10 +6206,6 @@ fn switch_replay(
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::SwitchFailure;
 
-    let refused = |message: String| AppError::Io {
-        context: "hand over",
-        message,
-    };
     // Review of #132 (M4): what can refuse the switch without the final
     // conversation is checked before anything is stopped.
     let strip = replay_strip(state, sides, redaction_choice)?;
@@ -6240,7 +6232,7 @@ fn switch_replay(
         let storage = lock_storage_arc(state)?;
         let id = sides.source.project.clone().ok_or_else(|| AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         })?;
         let mut project = storage.projects().get(&id)?;
         // The continuation runs where the source ran (its worktree).
@@ -6260,9 +6252,10 @@ fn switch_replay(
     let (session, pid) = match checked {
         Ok(value) => value,
         Err(failure) => {
-            record_edge_failed(state, &edge, &failure);
             switch.failed(failure.stage());
-            return Err(refused(failure.copy(&sides.account_a.label)));
+            let error = AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
+            record_edge_failed(state, &edge, &error);
+            return Err(error);
         }
     };
     record_replay_succeeded(
@@ -6441,16 +6434,11 @@ fn replay_prompt(
     use juggler_handover::pipeline::SwitchFailure;
     use juggler_handover::redaction::strip_segments;
 
-    let refused = |message: String| AppError::Io {
-        context: "hand over",
-        message,
-    };
+    let stopped = |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
     let (sha, len) = juggler_adapters::session_file_sha256(&sides.reference.path)
-        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
+        .map_err(|_| stopped(SwitchFailure::UnresolvedSource))?;
     if !juggler_adapters::last_line_parses(&sides.reference.path) {
-        return Err(refused(
-            SwitchFailure::TornTail.copy(&sides.account_a.label),
-        ));
+        return Err(stopped(SwitchFailure::TornTail));
     }
     // The preview's own segments, so a per-item un-redact lines up.
     let turns = replayable_turns(&sides.reference.path)?;
@@ -6756,11 +6744,11 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let graph = storage.switch_graph();
     let edge = graph.edge(&undo_of).map_err(|_| AppError::Io {
         context: "undo switch",
-        message: "That switch isn't in the graph — nothing to undo".to_owned(),
+        message: "That switch isn't recorded any more, so there's nothing to undo".to_owned(),
     })?;
     let not_landed = || AppError::Io {
         context: "undo switch",
-        message: "Only a completed switch can be undone — this one never landed".to_owned(),
+        message: "Only a switch that finished can be undone, and this one didn't".to_owned(),
     };
     if !matches!(edge.state, EdgeState::Confirmed) {
         return Err(not_landed());
@@ -6773,7 +6761,7 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let from_epoch = find(&edge.from_epoch)
         .ok_or_else(|| AppError::Io {
             context: "undo switch",
-            message: "The switch's source epoch is missing from the graph".to_owned(),
+            message: "AI Juggler can't find where this work was before the switch, so it can't go back".to_owned(),
         })?
         .clone();
     let target_session = find(&to_epoch_id).and_then(|epoch| epoch.session_ref.clone());
@@ -6794,7 +6782,7 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let Some(native_id) = from_epoch.native_id.clone().filter(|id| !id.is_empty()) else {
         return Err(AppError::Io {
             context: "undo switch",
-            message: "The source has no native session to resume".to_owned(),
+            message: "The original has no conversation AI Juggler can resume".to_owned(),
         });
     };
     Ok(UndoContext {
@@ -6823,10 +6811,13 @@ fn stop_continuation(state: &Arc<AppState>, target: Option<SessionId>) -> AppRes
         .stop(&target_session, Duration::from_secs(5));
     match stopped {
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
-        Err(error) => Err(AppError::Io {
-            context: "undo switch",
-            message: format!("Couldn't stop the continuation session: {error}"),
-        }),
+        Err(error) => {
+            crate::error_log::record("undo_switch", &error.to_string());
+            Err(AppError::Io {
+                context: "undo switch",
+                message: "AI Juggler couldn't stop the new session, so nothing was undone. Stop it from its page and try again".to_owned(),
+            })
+        }
     }
 }
 
@@ -7138,7 +7129,7 @@ fn record_edge_staged(
     let Some(project) = source.project.as_ref() else {
         return Err(AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     };
     // AJ-E1541: a session that itself came from a switch already has an
@@ -7164,12 +7155,7 @@ fn record_edge_staged(
     } else {
         let work = match works.into_iter().next_back() {
             Some(existing) => existing,
-            None => graph
-                .create_work(project, "Work")
-                .map_err(|error| AppError::Io {
-                    context: "hand over",
-                    message: error.to_string(),
-                })?,
+            None => graph.create_work(project, "Work")?,
         };
         let from = Epoch {
             id: EpochId::new(format!("ep-{}", unique_suffix())),
@@ -7181,10 +7167,7 @@ fn record_edge_staged(
             resumed_from_epoch: None,
             machine: None,
         };
-        graph.insert_epoch(&from).map_err(|error| AppError::Io {
-            context: "hand over",
-            message: error.to_string(),
-        })?;
+        graph.insert_epoch(&from)?;
         (work, from)
     };
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
@@ -7209,25 +7192,27 @@ fn record_edge_staged(
             created_at: Timestamp::now(),
             to_machine: None,
         })
-        .map_err(|error| AppError::Io {
-            context: "hand over",
-            message: error.to_string(),
-        })?;
+        ?;
     Ok((work.id.clone(), from.id.clone(), edge_id))
 }
 
 /// Transitions the edge to `Failed{stage, reason}` — the same edge,
 /// never a rewrite (S-G1); the source is safe by the pipeline's
 /// contract.
+/// The edge keeps the failure's stage and its words — the Switch Graph
+/// shows the reason as the dialog said it; the detail is in the log.
 fn record_edge_failed(
     state: &Arc<AppState>,
     edge: &juggler_core::model::SwitchEdgeId,
-    failure: &juggler_handover::pipeline::SwitchFailure,
+    error: &AppError,
 ) {
+    let AppError::Switch { failure, words } = error else {
+        return;
+    };
     if let Ok(storage) = lock_storage_arc(state) {
         let _ = storage
             .switch_graph()
-            .mark_failed(edge, failure.stage(), &failure.to_string());
+            .mark_failed(edge, failure.stage(), words);
     }
 }
 
@@ -11473,7 +11458,7 @@ fn back_lineage(
     let Some(_project) = away_session.project.clone() else {
         return Err(AppError::Io {
             context: "switch back",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     };
     let graph = storage.switch_graph();
@@ -11604,7 +11589,7 @@ fn chain_back(
         else {
             return Err(AppError::Io {
                 context: "switch back",
-                message: "The switch's source epoch is missing from the graph".to_owned(),
+                message: "AI Juggler can't find where this work was before the switch, so it can't go back".to_owned(),
             });
         };
         if chain.iter().any(|(_, seen)| seen.id == from.id) {
@@ -12254,13 +12239,11 @@ pub fn switch_back_execute_to_impl(
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);
     if !unresolved(&conflicts, &resolutions).is_empty() {
-        return Err(AppError::Io {
-            context: "switch back",
-            message: format!(
-                "{}",
-                juggler_handover::pipeline::SwitchFailure::MergeConflictOpen
-            ),
-        });
+        return Err(AppError::switch(
+            juggler_handover::pipeline::SwitchFailure::MergeConflictOpen,
+            &original_account.label,
+            &away_account.label,
+        ));
     }
 
     // Apply the file plan (file domain only — the transcript is not
@@ -12369,10 +12352,13 @@ fn apply_conflict_choices(
 fn stop_away_instance(state: &Arc<AppState>, session: &SessionId) -> AppResult<()> {
     match state.supervisor.stop(session, Duration::from_secs(5)) {
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
-        Err(error) => Err(AppError::Io {
-            context: "switch back",
-            message: format!("Couldn't stop the away session: {error}"),
-        }),
+        Err(error) => {
+            crate::error_log::record("switch_back", &error.to_string());
+            Err(AppError::Io {
+                context: "switch back",
+                message: "AI Juggler couldn't stop the session on the other account, so nothing moved. Stop it from its page and try again".to_owned(),
+            })
+        }
     }
 }
 
@@ -12428,7 +12414,7 @@ fn resume_original_with_delta(
         .clone()
         .ok_or_else(|| AppError::Io {
             context: "switch back",
-            message: "The original session row is missing — resume it from the graph".to_owned(),
+            message: "The original session isn't listed any more — resume it from the switch history".to_owned(),
         })?;
     let (profile_a, account_a) = {
         let storage = lock_storage_arc(state)?;
@@ -13536,7 +13522,7 @@ fn find_epoch_with_session(
     }
     let epoch = found.ok_or_else(|| AppError::Io {
         context: "graph action",
-        message: "That epoch isn't in the graph".to_owned(),
+        message: "That point in the work isn't recorded any more".to_owned(),
     })?;
     let account = storage
         .accounts()
@@ -13608,7 +13594,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         .filter(|id| !id.is_empty())
         .ok_or_else(|| AppError::Io {
             context: "resume epoch",
-            message: "The epoch has no native session to resume".to_owned(),
+            message: "That point in the work has no conversation AI Juggler can resume".to_owned(),
         })?;
     let profile = {
         let storage = lock_storage_arc(state)?;

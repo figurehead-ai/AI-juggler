@@ -141,9 +141,33 @@ pub enum CopySituation {
     },
 }
 
+/// Why a preflight gate stopped a switch before any byte moved.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[non_exhaustive]
+pub enum PreflightStop {
+    /// The target account has no usage left and no reset before the
+    /// work would need it (E611's hard filter).
+    TargetExhausted,
+    /// The target runs a tool version this switch hasn't been checked
+    /// against.
+    VersionDrift,
+}
+
+impl std::fmt::Display for PreflightStop {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::TargetExhausted => "target account is exhausted with no reset before you'd need it",
+            Self::VersionDrift => {
+                "target runs a harness version this switch has not been verified against"
+            }
+        })
+    }
+}
+
 /// The §9 failure taxonomy (S-F1..S-F9). Every variant carries its
-/// stage + engine behaviour; the user copy comes from
-/// [`user_copy`] with [`CopySituation::FailureSourceSafe`].
+/// stage + engine behaviour. `Display` is the program's own text, for
+/// the error log; what a person reads is [`SwitchFailure::words`]
+/// (plain, the accounts named, never the detail in brackets).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SwitchFailure {
@@ -195,7 +219,7 @@ pub enum SwitchFailure {
     HopCost(u32, u64),
     /// A preflight gate stopped the switch before any byte moved.
     #[error("preflight stopped: {0}")]
-    Preflight(String),
+    Preflight(PreflightStop),
     /// Adapter-level failure.
     #[error("{0}")]
     Adapter(#[from] AdapterError),
@@ -240,14 +264,67 @@ impl SwitchFailure {
         }
     }
 
-    /// The verbatim §7.1 user copy for this failure.
+    /// What a person reads: one plain sentence (or two), with the
+    /// accounts named — `source` is the account the work comes from,
+    /// `target` the one it was going to. The detail in brackets (an OS
+    /// string, a spawn error, an id) never shows; it stays in
+    /// `Display`, which goes to the error log.
     #[must_use]
-    pub fn copy(&self, account_a: &str) -> String {
-        user_copy(CopySituation::FailureSourceSafe {
-            reason: self.to_string(),
-            account_a: account_a.to_owned(),
-        })
+    pub fn words(&self, source: &str, target: &str) -> String {
+        match self {
+            Self::UnresolvedSource => format!(
+                "AI Juggler couldn't tell which file holds this conversation on {source}, so nothing moved."
+            ),
+            Self::TornTail => format!(
+                "The original on {source} is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
+            ),
+            Self::CollisionForked(_) => format!(
+                "{target} already has this conversation, so it opened as a separate copy."
+            ),
+            Self::StagingAborted(_) => format!(
+                "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up."
+            ),
+            Self::LaunchFailed(_) => {
+                format!("The new session on {target} didn't start, so nothing moved.")
+            }
+            Self::PrimeQuotaDeath(tokens) => format!(
+                "{target} ran out of usage while picking up the work, so it stopped after using about {} tokens.",
+                thousands(*tokens)
+            ),
+            Self::OriginalSessionGone => format!(
+                "The original conversation on {source} is gone, so there's nothing to switch back to."
+            ),
+            Self::MergeConflictOpen => format!(
+                "Files changed on both {source} and {target}, and they need your choice. The work stays split, and both can still be resumed."
+            ),
+            Self::HopCost(hops, tokens) => format!(
+                "Moving to {target} makes {hops} switches for this work, about {} tokens in all. Switching within the same tool costs less.",
+                thousands(*tokens)
+            ),
+            Self::Preflight(PreflightStop::TargetExhausted) => format!(
+                "{target} has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account."
+            ),
+            Self::Preflight(PreflightStop::VersionDrift) => format!(
+                "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved."
+            ),
+            Self::Adapter(_) => {
+                format!("The switch to {target} couldn't finish, so nothing moved.")
+            }
+        }
     }
+}
+
+/// `12345` as `12,345`.
+fn thousands(value: u64) -> String {
+    let digits = value.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
 }
 
 /// The hard-stop gate flags (checked in order; any failure stops
@@ -367,17 +444,13 @@ pub fn preflight(input: &PreflightInput) -> Result<PreflightReport, SwitchFailur
 
     // 3. Target quota gate — the hard filter stops here.
     if input.gates.target_exhausted_no_reset {
-        return Err(SwitchFailure::Preflight(
-            "target account is exhausted with no reset before you'd need it".into(),
-        ));
+        return Err(SwitchFailure::Preflight(PreflightStop::TargetExhausted));
     }
 
     // 4. Version-drift parse check — abort (offer replay is E206's
     // door copy; preflight stops).
     if input.gates.version_drift {
-        return Err(SwitchFailure::Preflight(
-            "target runs a harness version this switch has not been verified against".into(),
-        ));
+        return Err(SwitchFailure::Preflight(PreflightStop::VersionDrift));
     }
 
     let mut warnings = Vec::new();

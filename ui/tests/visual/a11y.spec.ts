@@ -797,7 +797,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).",
+        fail: "The new session on Personal didn't start, so nothing moved.",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });

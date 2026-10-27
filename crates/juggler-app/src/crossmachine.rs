@@ -583,7 +583,7 @@ fn build_bundle(
         .clone()
         .ok_or_else(|| AppError::Validation {
             subject: "switch",
-            message: "Couldn't tell which file is this session — pick it".to_owned(),
+            message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".to_owned(),
         })?;
     let io = |message: String| AppError::Io {
         context: "hand over",
@@ -598,12 +598,12 @@ fn build_bundle(
         let support = state.registry.handover(&account.harness).ok_or_else(|| {
             io(format!(
                 "{} can't take over this conversation",
-                account.harness
+                crate::features::tools::display_name(&state.registry, account.harness.as_str())
             ))
         })?;
         let bundle = support
             .bundle_session(&reference)
-            .map_err(|e| io(e.to_string()))?;
+            .map_err(AppError::Adapter)?;
         Ok(proto::HandoverBundle {
             provider_id: account.harness.to_string(),
             native_id: bundle.manifest.native_id.clone(),
@@ -771,9 +771,12 @@ pub async fn fleet_switch_execute_impl(
             Ok::<_, AppError>((planned, bundle))
         })
         .await
-        .map_err(|e| AppError::Io {
-            context: "hand over",
-            message: e.to_string(),
+        .map_err(|e| {
+            crate::error_log::record("hand_over", &e.to_string());
+            AppError::Io {
+                context: "hand over",
+                message: "AI Juggler couldn't get the handover ready, so nothing was sent".to_owned(),
+            }
         })??
     };
     let bytes = bundle.encode_to_vec();
@@ -932,9 +935,12 @@ pub(crate) async fn push(
     if let Ok(mut map) = state.link.handover_cancel.lock() {
         map.remove(machine_id);
     }
-    let outcome = pushed.map_err(|error| AppError::Io {
-        context: "hand over",
-        message: error.to_string(),
+    let outcome = pushed.map_err(|error| {
+        crate::error_log::record("hand_over", &error.to_string());
+        AppError::Io {
+            context: "hand over",
+            message: "The other Mac couldn't be reached, so nothing was sent. Check it's on and try again".to_owned(),
+        }
     })?;
     Ok((outcome, sequence))
 }
@@ -1140,7 +1146,7 @@ fn take_work(
                     "version_mismatch",
                     format!(
                         "{} {} here, {} there — moving the same conversation needs the same version.",
-                        account.harness,
+                        crate::features::tools::display_name(&state.registry, account.harness.as_str()),
                         here.unwrap_or_else(|| "not installed".to_owned()),
                         bundle.harness_version
                     ),
@@ -1266,7 +1272,10 @@ fn install_transplant(
     };
     support
         .install_bundle(&session, account)
-        .map_err(|e| refuse("install_failed", e.to_string()))
+        .map_err(|e| {
+            crate::error_log::record("install_failed", &e.to_string());
+            refuse("install_failed", AppError::Adapter(e).wire().user_message)
+        })
 }
 
 /// The T3 prime prompt: the destination adapter's own, or a plain one.
