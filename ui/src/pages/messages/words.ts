@@ -52,9 +52,3 @@ export function when(ms: number, now: number): string {
     ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
-
-/** A byte size in words. */
-export function sizeWords(bytes: number): string {
-  if (bytes < 1024) return `${bytes} bytes`;
-  return `${Math.round(bytes / 102.4) / 10} KB`;
-}

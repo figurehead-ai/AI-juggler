@@ -9,7 +9,7 @@ import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
 import { ago } from "../../lib/time-words";
 import { messagesDoc, messagesDocs, onMessagesChanged, type DocContent, type DocInfo } from "../../lib/ipc/messages";
-import { sizeWords } from "./words";
+import { byteSize } from "../../lib/compact";
 
 /** What was found in a doc and how it was treated. */
 export function withheldWords(doc: DocInfo): string {
@@ -59,7 +59,7 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate font-mono text-meta text-ink">{doc.name}</span>
                 <span className="text-label text-muted">
-                  {doc.shared_by} · {ago(doc.at_ms, now)} ago · {sizeWords(doc.size_bytes)}
+                  {doc.shared_by} · {ago(doc.at_ms, now)} ago · {byteSize(doc.size_bytes)}
                 </span>
               </div>
               <span className={"text-label " + (doc.withheld.length > 0 && doc.policy !== "keep" ? "text-ink" : "text-muted")} data-testid="shared-doc-withheld">
