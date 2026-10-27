@@ -6,6 +6,26 @@ its evidence in the family's research notes beside this file. Terms come
 first: where a vendor forbids automation on a plan, the tool is track-only
 on that plan, whatever its protocol allows.
 
+## How AI Juggler uses what a vendor offers
+
+The maintainer, 2026-10-27: AI Juggler uses vendors' SDKs and APIs "to
+enhance their existing tools, we never replace their tools … their
+original tools are always running". The user's own, unmodified app or CLI
+keeps running with the user's own sign-in; AI Juggler observes,
+coordinates and hands work between them, and never proxies, resells or
+stands in for a vendor's client. Every terms reading below starts from
+that, and still quotes the exact clause and says plainly where wording
+restricts even this (those cases wait for the maintainer's ruling).
+
+And a tool keeping its data in its own database is a reason to find the
+sanctioned reader, not to stop: for conversations, subagents, usage and
+state, look in this order — the vendor's documented API, protocol or SDK;
+its CLI readers (export, `--json` listings); its documented files; then a
+read-only database read. The manifest records which one each feature uses.
+For example, OpenCode's conversations: its 2.x local HTTP API
+(`/api/session/…`, durable event log) and `opencode export` /
+`session list --format json` before its SQLite store.
+
 ## Bugs and corrections in what is built
 
 1. **OpenCode 2.x runs one shared background service per user on port
