@@ -2122,7 +2122,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("queue-ready")).toContainText("ready to resume");
       // The Resume action is keyboard-focusable (the click is the only
       // launch path) — capture it focused.
-      await page.getByRole("button", { name: "Resume" }).focus();
+      await page.getByRole("button", { name: "Resume", exact: true }).focus();
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/queue-${vp.name}-${theme}.png`),
       });
