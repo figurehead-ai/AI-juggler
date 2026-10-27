@@ -26,24 +26,24 @@ pub const GIT_PLACES: &[&str] = &[
 ];
 
 /// git, by its resolved path: the first of [`GIT_PLACES`] that
-/// [`crate::file_trust::trusted_executable`] accepts (it and every folder
-/// above it root's or ours, none writable by others), found once and kept.
-/// `None` when there is none: on macOS `/usr/bin/git` counts only when the
-/// developer tools are installed, since without them it opens Apple's
-/// "install the command line developer tools" dialog on every run.
+/// [`juggler_platform::file_trust::trusted_executable`] accepts (it and
+/// every folder above it root's or ours, none writable by others), found
+/// once and kept. `None` when there is none, or when the system can't say
+/// who we are (then nothing is trusted): on macOS `/usr/bin/git` counts
+/// only when the developer tools are installed, since without them it
+/// opens Apple's "install the command line developer tools" dialog on
+/// every run.
 #[must_use]
 pub fn git() -> Option<&'static Path> {
+    use juggler_platform::{file_trust, user};
     static GIT: OnceLock<Option<PathBuf>> = OnceLock::new();
     GIT.get_or_init(|| {
-        #[cfg(unix)]
-        let me = crate::file_trust::me();
-        #[cfg(not(unix))]
-        let me = 0;
+        let me = user::current().ok()?;
         GIT_PLACES
             .iter()
             .map(Path::new)
             .filter(|place| *place != Path::new("/usr/bin/git") || developer_tools_installed())
-            .find_map(|place| crate::file_trust::trusted_executable(place, me))
+            .find_map(|place| file_trust::trusted_executable(place, me))
     })
     .as_deref()
 }

@@ -22,8 +22,6 @@ use crate::state::AppState;
 
 /// The runtime folder in the app's data folder (`0700`).
 pub const DIR: &str = "runtime";
-/// A socket path must fit `sun_path` (104 bytes on macOS).
-const MAX_SOCKET_PATH: usize = 100;
 /// How long a server has to make its socket.
 const SOCKET_WAIT: Duration = Duration::from_secs(5);
 
@@ -45,7 +43,7 @@ pub fn socket_path(data_dir: &Path, session: &SessionId) -> Option<PathBuf> {
     let digest = Sha256::digest(session.as_str().as_bytes());
     let name = hex(&digest[..6]);
     let path = data_dir.join(DIR).join(format!("{name}.sock"));
-    (path.as_os_str().len() < MAX_SOCKET_PATH).then_some(path)
+    juggler_platform::local_ipc::fits(&path).then_some(path)
 }
 
 /// Bytes as lowercase hex.
@@ -78,23 +76,15 @@ fn fresh_uuid() -> String {
 /// Makes a socket the tool created ours alone: a socket (never a link)
 /// owned by this user, then `0600`.
 fn harden(socket: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
-    let meta = std::fs::symlink_metadata(socket)?;
-    if !meta.file_type().is_socket() || meta.uid() != juggler_adapter::file_trust::me() {
-        return Err(std::io::Error::other("it isn't the session's own socket"));
-    }
-    std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600))
+    juggler_platform::local_ipc::claim(socket, juggler_platform::user::current()?)
+        .map_err(|_| std::io::Error::other("it isn't the session's own socket"))
 }
 
 /// Removes a socket left from before (or after a driven session ended),
 /// only when it is a socket of ours.
 pub(super) fn clear_stale(socket: &Path) {
-    use std::os::unix::fs::{FileTypeExt, MetadataExt};
-    if let Ok(meta) = std::fs::symlink_metadata(socket)
-        && meta.file_type().is_socket()
-        && meta.uid() == juggler_adapter::file_trust::me()
-    {
-        let _ = std::fs::remove_file(socket);
+    if let Ok(me) = juggler_platform::user::current() {
+        juggler_platform::local_ipc::remove_if_ours(socket, me);
     }
 }
 
@@ -121,7 +111,7 @@ fn connect_socket(
         std::thread::sleep(Duration::from_millis(20));
     }
     harden(socket).map_err(|e| e.to_string())?;
-    let stream = std::os::unix::net::UnixStream::connect(socket).map_err(|e| e.to_string())?;
+    let stream = juggler_platform::local_ipc::connect(socket).map_err(|e| e.to_string())?;
     let reader = stream.try_clone().map_err(|e| e.to_string())?;
     Ok(Connection {
         reader: Box::new(BufReader::new(reader)),

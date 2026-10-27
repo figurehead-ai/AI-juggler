@@ -479,7 +479,7 @@ fn a_second_launch_hands_over_to_an_app_that_answers() {
         return;
     }
     let (home, data, lock) = held_home();
-    let me = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&data).unwrap());
+    let me = juggler_platform::file_trust::owner_of(&data).unwrap();
     let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
     let handover = juggler_app::handover::Handover::at(socket.clone(), me);
     handover.serve(|| true).unwrap();
@@ -702,7 +702,7 @@ fn a_launch_waits_for_one_still_starting_and_hands_over() {
         return;
     }
     let (home, data, lock) = held_home();
-    let me = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&data).unwrap());
+    let me = juggler_platform::file_trust::owner_of(&data).unwrap();
     let socket = juggler_app::handover::socket_path("ai.figurehead.juggler", &data).unwrap();
     let handover = std::sync::Arc::new(juggler_app::handover::Handover::at(socket.clone(), me));
     let starting = {

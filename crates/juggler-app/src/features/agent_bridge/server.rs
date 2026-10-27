@@ -1,5 +1,6 @@
-//! The bridge's socket (SECURITY-GUIDELINES C7, ADR-0020): a Unix socket,
-//! never a TCP or HTTP listener.
+//! The bridge's socket (SECURITY-GUIDELINES C7, ADR-0020): a local
+//! connection only this user can make, never a TCP or HTTP listener
+//! ([`juggler_platform::local_ipc`]).
 //!
 //! - It sits in AI Juggler's own data folder, per edition, in a `0700`
 //!   folder of ours (`agent/`), and is made `0600`.
@@ -12,13 +13,16 @@
 //!   own; anything else at the path is refused, never followed.
 //!
 //! Served lazily: the first launch that gets the bridge starts it, or
-//! the app's start when sessions still hold keys.
+//! the app's start when sessions still hold keys. Where the system has
+//! no such connection yet (Windows), nothing is served and the bridge
+//! stays off.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use juggler_agentbridge::wire;
+use juggler_platform::local_ipc;
 
 use crate::state::AppState;
 
@@ -32,7 +36,8 @@ pub const MAX_OPEN: usize = 16;
 /// # Errors
 ///
 /// When the path doesn't fit, the folder or a file at the path isn't
-/// ours, or the socket can't be made.
+/// ours, the socket can't be made, or this system has no local
+/// connections yet.
 pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
     let mut serving = state
         .agent_bridge
@@ -44,16 +49,16 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
     }
     let socket = super::socket_path(&state.data_dir)
         .ok_or_else(|| std::io::Error::other("the data folder's path is too long for a socket"))?;
-    let listener = bind(&socket)?;
+    let bound = local_ipc::bind(&socket, juggler_platform::user::current()?)?;
     let weak = Arc::downgrade(state);
     tauri::async_runtime::spawn(async move {
-        let Ok(listener) = tokio::net::UnixListener::from_std(listener) else {
+        let Ok(listener) = bound.into_async() else {
             return;
         };
         let open = Arc::new(tokio::sync::Semaphore::new(MAX_OPEN));
-        let me = juggler_adapter::file_trust::me();
         loop {
-            let Ok((stream, _)) = listener.accept().await else {
+            // Anyone but this user is dropped unanswered (`None`).
+            let Ok(Some(stream)) = listener.accept().await else {
                 continue;
             };
             let Some(state) = weak.upgrade() else {
@@ -63,7 +68,7 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
                 continue; // too many at once: dropped, the caller retries
             };
             tauri::async_runtime::spawn(async move {
-                answer(stream, me, state).await;
+                answer(stream, state).await;
                 drop(permit);
             });
         }
@@ -72,40 +77,10 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
     Ok(socket)
 }
 
-/// Makes the socket: our `0700` folder, a stale socket of ours removed,
-/// bound, then `0600`.
-fn bind(socket: &Path) -> std::io::Result<std::os::unix::net::UnixListener> {
-    use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
-    let dir = socket
-        .parent()
-        .ok_or_else(|| std::io::Error::other("no folder"))?;
-    super::own_dir(dir)?;
-    let me = juggler_adapter::file_trust::me();
-    match std::fs::symlink_metadata(socket) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error),
-        Ok(meta) if meta.file_type().is_socket() && meta.uid() == me => {
-            std::fs::remove_file(socket)?;
-        }
-        Ok(_) => {
-            return Err(std::io::Error::other(format!(
-                "{} isn't AI Juggler's socket",
-                socket.display()
-            )));
-        }
-    }
-    let listener = std::os::unix::net::UnixListener::bind(socket)?;
-    std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600))?;
-    listener.set_nonblocking(true)?;
-    Ok(listener)
-}
-
-/// One connection: only this user, one request, one answer.
-async fn answer(mut stream: tokio::net::UnixStream, me: u32, state: Arc<AppState>) {
+/// One connection (already known to be this user's): one request, one
+/// answer.
+async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    if stream.peer_cred().ok().map(|cred| cred.uid()) != Some(me) {
-        return;
-    }
     let mut request = Vec::new();
     let mut chunk = [0_u8; 4096];
     let read = tokio::time::timeout(READ_WAIT, async {

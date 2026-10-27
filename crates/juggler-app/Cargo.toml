@@ -45,6 +45,8 @@ juggler-adapters = { version = "0.2.0", path = "../juggler-adapters" }
 juggler-core = { version = "0.2.0", path = "../juggler-core" }
 juggler-handover = { version = "0.2.0", path = "../juggler-handover" }
 juggler-link = { version = "0.2.0", path = "../juggler-link" }
+# The OS seams: owner-only folders and files, local sockets, who we are.
+juggler-platform = { version = "0.2.0", path = "../juggler-platform" }
 # AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
 juggler-stats = { version = "0.2.0", path = "../juggler-stats", optional = true }
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.

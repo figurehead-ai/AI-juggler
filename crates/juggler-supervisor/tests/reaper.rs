@@ -2,7 +2,8 @@
 //! with it, a failed assertion's unwind included. Before it, a test that
 //! failed before its cleanup left its servers and shells running (29 found
 //! on the developer Mac, some 4 days old).
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

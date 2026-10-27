@@ -1,34 +1,53 @@
 //! Whose a file is, and whether it is safe to run or trust: the one place
-//! these checks live (the handover socket's folder, the system tools).
+//! these checks live (private folders, local sockets, the system tools).
 //! Every check reads the entry itself (`lstat`), so a link is judged as a
 //! link and never followed by accident.
+//!
+//! The checks take the user they're made for ([`UserId`], normally
+//! [`crate::user::current`]). Where the system can't name a user yet
+//! (Windows) there is no [`UserId`] to pass, so nothing here can be asked
+//! to trust anything there.
 
 use std::path::{Path, PathBuf};
 
-/// This process's effective user id.
-#[cfg(unix)]
-#[must_use]
-pub fn me() -> u32 {
-    nix::unistd::geteuid().as_raw()
-}
+use crate::user::UserId;
 
-/// The owner of `path` (following links), when it can be read.
-#[cfg(unix)]
+/// The owner of `path` (following links), when it can be read; `None`
+/// where the system's owners aren't read yet (Windows).
 #[must_use]
-pub fn owner_of(path: &Path) -> Option<u32> {
-    use std::os::unix::fs::MetadataExt;
-    std::fs::metadata(path).ok().map(|meta| meta.uid())
+pub fn owner_of(path: &Path) -> Option<UserId> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path)
+            .ok()
+            .map(|meta| UserId::from_uid(meta.uid()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        None
+    }
 }
 
 /// The directory is a real directory (not a link), `me`'s, and `0700`:
 /// closed to everyone else.
-#[cfg(unix)]
 #[must_use]
-pub fn dir_is_ours(dir: &Path, me: u32) -> bool {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    std::fs::symlink_metadata(dir).is_ok_and(|meta| {
-        meta.file_type().is_dir() && meta.uid() == me && meta.permissions().mode() & 0o777 == 0o700
-    })
+pub fn dir_is_ours(dir: &Path, me: UserId) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        std::fs::symlink_metadata(dir).is_ok_and(|meta| {
+            meta.file_type().is_dir()
+                && meta.uid() == me.uid()
+                && meta.permissions().mode() & 0o777 == 0o700
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = dir;
+        me.unreachable()
+    }
 }
 
 /// Why an executable isn't run.
@@ -40,8 +59,8 @@ pub enum Untrusted {
     NotRunnable,
     /// This entry on the way belongs to another user.
     Owner(PathBuf),
-    /// Other users (or a group beyond the Mac's administrators) can change
-    /// this entry on the way.
+    /// Other users (or a group beyond the system's administrators) can
+    /// change this entry on the way.
     Writable(PathBuf),
 }
 
@@ -63,9 +82,8 @@ impl Untrusted {
 /// or `me`, and no folder or file among them can be written by other users
 /// (a link's own mode doesn't count; see [`entry_trusted`] for groups).
 /// Returns the resolved path, which is what should be run.
-#[cfg(unix)]
 #[must_use]
-pub fn trusted_executable(path: &Path, me: u32) -> Option<PathBuf> {
+pub fn trusted_executable(path: &Path, me: UserId) -> Option<PathBuf> {
     executable_trust(path, me).ok()
 }
 
@@ -76,8 +94,9 @@ pub fn trusted_executable(path: &Path, me: u32) -> Option<PathBuf> {
 ///
 /// Why it isn't run ([`Untrusted`]).
 #[cfg(unix)]
-pub fn executable_trust(path: &Path, me: u32) -> Result<PathBuf, Untrusted> {
+pub fn executable_trust(path: &Path, me: UserId) -> Result<PathBuf, Untrusted> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let me = me.uid();
     if std::fs::symlink_metadata(path).is_err() {
         return Err(Untrusted::Missing);
     }
@@ -109,6 +128,19 @@ pub fn executable_trust(path: &Path, me: u32) -> Result<PathBuf, Untrusted> {
     Ok(resolved)
 }
 
+/// [`trusted_executable`], with the reason when it isn't run. Where the
+/// system can't name a user (Windows) there is no `me` to pass, so this
+/// can't be reached there: no program is trusted by default.
+///
+/// # Errors
+///
+/// Why it isn't run ([`Untrusted`]).
+#[cfg(not(unix))]
+pub fn executable_trust(path: &Path, me: UserId) -> Result<PathBuf, Untrusted> {
+    let _ = path;
+    me.unreachable()
+}
+
 /// The groups whose write access adds no one: their members can already
 /// act as root. On a Mac that is `wheel` (0) and `admin` (80); `admin` is
 /// the group Homebrew's standard layout is writable by (`/opt/homebrew/bin`
@@ -120,9 +152,9 @@ pub const ADMIN_GROUPS: &[u32] = &[0, 80];
 pub const ADMIN_GROUPS: &[u32] = &[0];
 
 /// One entry on the way: root's or `me`'s, never writable by other users,
-/// and writable by its group only when that group is the Mac's
+/// and writable by its group only when that group is the system's
 /// administrators ([`ADMIN_GROUPS`]). A link's own mode means nothing; its
-/// owner does.
+/// owner does. The Unix rule, on raw ids, so it can be tested anywhere.
 ///
 /// Why the administrators' group may write: whoever is in it can already
 /// become root and change any root-owned program, so its write access lets
@@ -136,23 +168,6 @@ pub fn entry_trusted(owner: u32, group: u32, mode: u32, is_link: bool, me: u32) 
     let others_ok = mode & 0o002 == 0;
     let group_ok = mode & 0o020 == 0 || ADMIN_GROUPS.contains(&group);
     owner_ok && (is_link || (others_ok && group_ok))
-}
-
-/// Windows: no owner checks behind this seam yet (Unix only).
-#[cfg(not(unix))]
-#[must_use]
-pub fn trusted_executable(path: &Path, _me: u32) -> Option<PathBuf> {
-    path.is_file().then(|| path.to_path_buf())
-}
-
-/// Windows: [`trusted_executable`] with its one reason (Unix only).
-///
-/// # Errors
-///
-/// [`Untrusted::Missing`] when there's no file.
-#[cfg(not(unix))]
-pub fn executable_trust(path: &Path, me: u32) -> Result<PathBuf, Untrusted> {
-    trusted_executable(path, me).ok_or(Untrusted::Missing)
 }
 
 #[cfg(test)]
@@ -222,6 +237,10 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
+    fn me() -> UserId {
+        crate::user::current().unwrap()
+    }
+
     #[test]
     fn a_system_tool_is_trusted_and_resolves() {
         assert_eq!(
@@ -229,9 +248,28 @@ mod tests {
             std::fs::canonicalize("/bin/sh").ok()
         );
         assert!(
-            trusted_executable(Path::new("/bin/sh"), me() + 1).is_some(),
+            trusted_executable(Path::new("/bin/sh"), UserId::from_uid(me().uid() + 1)).is_some(),
             "root's is fine for anyone"
         );
+    }
+
+    #[test]
+    fn a_closed_folder_of_ours_is_ours_and_nothing_else_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let closed = dir.path().join("closed");
+        std::fs::create_dir(&closed).unwrap();
+        std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(dir_is_ours(&closed, me()));
+        assert_eq!(owner_of(&closed), Some(me()));
+        assert!(
+            !dir_is_ours(&closed, UserId::from_uid(me().uid() + 1)),
+            "someone else's"
+        );
+        std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o750)).unwrap();
+        assert!(!dir_is_ours(&closed, me()), "open to its group");
+        let link = dir.path().join("link");
+        std::os::unix::fs::symlink(&closed, &link).unwrap();
+        assert!(!dir_is_ours(&link, me()), "a link is never followed");
     }
 
     #[test]

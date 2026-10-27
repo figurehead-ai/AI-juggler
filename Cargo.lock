@@ -2751,7 +2751,7 @@ version = "0.2.0"
 dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
- "nix 0.31.3",
+ "juggler-platform",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2814,6 +2814,7 @@ dependencies = [
  "juggler-handover",
  "juggler-link",
  "juggler-login-item",
+ "juggler-platform",
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",
@@ -2919,6 +2920,15 @@ dependencies = [
  "objc2",
  "objc2-foundation",
  "objc2-service-management",
+]
+
+[[package]]
+name = "juggler-platform"
+version = "0.2.0"
+dependencies = [
+ "nix 0.31.3",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

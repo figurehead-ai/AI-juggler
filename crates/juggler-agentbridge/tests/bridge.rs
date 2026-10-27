@@ -16,7 +16,8 @@
 //!
 //! Nothing real is launched or read: the tool is the fake, the folders
 //! are temporary.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

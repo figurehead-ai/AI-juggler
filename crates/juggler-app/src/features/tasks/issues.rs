@@ -33,7 +33,7 @@ pub const NO_GH: &str =
 
 /// The user's own `gh`, when it's there and safe to run (ours or root's,
 /// and no one but us and the Mac's administrators can change it:
-/// [`juggler_adapter::file_trust::entry_trusted`]). Tests point it
+/// [`juggler_platform::file_trust::entry_trusted`]). Tests point it
 /// elsewhere ([`super::Tasks::set_gh`]).
 #[must_use]
 pub fn gh(state: &AppState) -> Option<PathBuf> {
@@ -48,7 +48,9 @@ pub fn gh(state: &AppState) -> Option<PathBuf> {
 ///
 /// The words.
 pub fn gh_or_why(state: &AppState) -> Result<PathBuf, String> {
-    use juggler_adapter::file_trust::{Untrusted, executable_trust, me};
+    use juggler_platform::file_trust::{Untrusted, executable_trust};
+    // No one to trust it for (the system can't say who we are): no gh.
+    let me = juggler_platform::user::current().map_err(|_| NO_GH.to_owned())?;
     let chosen = state.tasks.gh.lock().ok().and_then(|slot| slot.clone());
     let candidates: Vec<PathBuf> = match chosen {
         Some(path) => vec![path],
@@ -56,7 +58,7 @@ pub fn gh_or_why(state: &AppState) -> Result<PathBuf, String> {
     };
     let mut refused = None;
     for path in candidates {
-        match executable_trust(&path, me()) {
+        match executable_trust(&path, me) {
             Ok(resolved) => return Ok(resolved),
             Err(Untrusted::Missing) => {}
             Err(why) => {
