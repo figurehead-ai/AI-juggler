@@ -180,8 +180,59 @@ A secret is never copied:
 
 - A server with a secret in its environment or headers is set up to read
   it from a named variable instead, and the line names it. It starts
-  unticked, as **Needs you**, until you've set that variable.
+  unticked, as **Needs you**, with the steps to give the other account its
+  own copy of the value (see below).
 - A server with a secret in its address or arguments can't be set up.
+
+#### A server that needs its token
+
+For example, a GitHub MCP server that needs `GITHUB_TOKEN`. The line says
+"Needs you: it needs your GITHUB_TOKEN, and AI Juggler never copies a
+secret." and then "You can switch now; it doesn't stop the switch." Tick it
+to set the server up on the other account without the value. To give that
+account its own copy of the value, follow the steps on the line. They come
+from the other account's tool, and the command already names that
+account's folder.
+
+**Claude Code.** Claude Code keeps a server and its environment in each
+account's own settings
+([Claude Code: MCP](https://code.claude.com/docs/en/mcp), "Add MCP servers
+from JSON configuration" and "MCP installation scopes").
+
+1. Open Terminal.
+2. Paste the command from the line. Put your own value in place of
+   `<your GITHUB_TOKEN>` (keep the quotes around it), then press Return.
+   For example:
+
+   ```sh
+   CLAUDE_CONFIG_DIR="$HOME/.claude-personal" claude mcp remove github --scope user
+   CLAUDE_CONFIG_DIR="$HOME/.claude-personal" claude mcp add-json --scope user github '{"args":["-y","@modelcontextprotocol/server-github"],"command":"npx","env":{"GITHUB_TOKEN":"<your GITHUB_TOKEN>"},"type":"stdio"}'
+   ```
+
+   The first line takes away a server set up without the value. If there
+   isn't one, it says so, and that's fine. **Copy** on the line copies the
+   command for you.
+3. Come back and choose **Check again**. The line goes once the account has
+   the server.
+
+**Codex.** Codex keeps its servers in each account's `config.toml`
+([Codex: MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), and
+[the sample configuration](https://learn.chatgpt.com/docs/config-file/config-sample)).
+
+- If the server is a program on this Mac, the steps give two commands:
+  `codex mcp remove`, then `codex mcp add … --env GITHUB_TOKEN=<your
+  GITHUB_TOKEN> -- …`, both for that account's folder.
+- If the server reads other values from your environment, the steps say
+  which lines to add under `[mcp_servers.github.env]` in that account's
+  `config.toml`, for example `GITHUB_TOKEN = "<your GITHUB_TOKEN>"`.
+- If the server is reached over the web, Codex reads its token from your
+  environment, so it can't be given to one account alone. The steps give
+  the line for your shell's startup file (for zsh, `~/.zshrc`), for example
+  `export GITHUB_TOKEN="<your GITHUB_TOKEN>"`. Every account on this Mac
+  gets it.
+
+AI Juggler never sees, keeps or writes the value. You type it into the
+other tool's own settings yourself.
 
 A sign-in never moves: you sign in on the other profile with that tool's
 own sign-in.

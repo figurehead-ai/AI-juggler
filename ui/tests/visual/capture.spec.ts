@@ -15,6 +15,7 @@ import { resolve } from "node:path";
 
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
+import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
@@ -2967,8 +2968,8 @@ for (const theme of THEMES) {
           to: "Personal",
           already_there: 3,
           offers: [
-            { id: "skill-release-notes", kind: "skill", name: "release-notes", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null },
-            { id: "mcp-github", kind: "mcp-server", name: "github", scope: "user", verdict: "needs-you", note: "it needs GITHUB_TOKEN in your environment: secrets are never copied", suggested: false, about: null, steps: [], steps_page: null, steps_page_label: null },
+            { id: "skill-release-notes", kind: "skill", name: "release-notes", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+            EXAMPLE_GITHUB_OFFER,
           ],
         },
         "set-up",
@@ -2998,7 +2999,7 @@ for (const theme of THEMES) {
                 "Come back here and choose Check again.",
               ],
               steps_page: "claude",
-              steps_page_label: "Open claude.ai settings",
+              steps_page_label: "Open claude.ai settings", steps_command: null,
             },
           ],
         },

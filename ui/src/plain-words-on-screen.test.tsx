@@ -139,6 +139,16 @@ describe("nothing internal on screen (D-25)", () => {
     delete seams.__AIJ_SWITCH_EXECUTE_FAIL__;
   });
 
+  it("a server that needs its token says what to do, never a bare status", async () => {
+    const { SwitchSetupList } = await import("./components/SwitchSetupList");
+    const { EXAMPLE_SETUP } = await import("./lib/ipc/switchSetup");
+    const view = render(<SwitchSetupList check={EXAMPLE_SETUP} picked={new Set()} onToggle={() => {}} onRecheck={() => {}} />);
+    const text = view.container.textContent ?? "";
+    expect(leaks(text)).toEqual([]);
+    expect(text).not.toContain("in your environment: secrets are never copied");
+    expect(view.getByTestId("switch-setup-secret-steps").textContent).toContain("it doesn't stop the switch");
+  });
+
   it("an error a page shows is words, never the program's", () => {
     expect(errorText(new Error("No handover chosen"))).toBe("No handover chosen");
     expect(errorText({ code: "not_found", retryable: false, user_message: "That account isn't here any more." })).toBe("That account isn't here any more.");

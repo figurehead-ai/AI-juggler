@@ -49,9 +49,13 @@ pub struct OfferInfo {
     pub about: Option<String>,
     /// Ticked to start with: set up as it is, or translated.
     pub suggested: bool,
-    /// When it can't be set up but the account can turn it on: the
-    /// steps, from the target tool's adapter (never written here).
+    /// What the user does to finish it themselves (turn it on for the
+    /// account, give it its secret): the steps, from the target tool's
+    /// adapter (never written here).
     pub steps: Vec<String>,
+    /// The one command those steps say to run, exactly as it's run (a
+    /// secret in it is a placeholder, never a value).
+    pub steps_command: Option<String>,
     /// The target tool's id when it has a page for those steps (opened
     /// by `trust_open` kind `account-settings`).
     pub steps_page: Option<String>,
@@ -292,10 +296,12 @@ pub(crate) fn offers(
             already_there += 1;
             continue;
         }
-        let steps = target_adapter.how_to_get(item);
+        let how = target_adapter.how_to_get(item, &target.state_dir);
+        let steps = how.steps;
+        let steps_command = how.command;
         let page = target_adapter
             .account_settings_url()
-            .filter(|_| !steps.is_empty());
+            .filter(|_| how.on_account_page && !steps.is_empty());
         let steps_page = page.as_ref().map(|_| target.harness.to_string());
         let steps_page_label = page.as_deref().map(page_label);
         let (verdict, note) = match target_adapter.can_set_up(item) {
@@ -318,6 +324,7 @@ pub(crate) fn offers(
             // A project's own item that would apply to every project on
             // the target is offered, not pre-ticked (re-review of #132).
             steps,
+            steps_command,
             steps_page,
             steps_page_label,
             suggested: matches!(verdict, "copy" | "translate")

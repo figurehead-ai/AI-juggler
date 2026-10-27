@@ -22,9 +22,9 @@ const OFFERS: SetupCheckInfo = {
   to: "the new account",
   already_there: 0,
   offers: [
-    { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null },
-    { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null },
-    { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null },
+    { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+    { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+    { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
     {
       id: "o-tidy",
       kind: "plugin",
@@ -33,7 +33,7 @@ const OFFERS: SetupCheckInfo = {
       verdict: "needs-you",
       note: "install it in this account with `claude plugin install tidy@market`",
       suggested: false,
-      about: null, steps: [], steps_page: null, steps_page_label: null,
+      about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null,
     },
   ],
 };

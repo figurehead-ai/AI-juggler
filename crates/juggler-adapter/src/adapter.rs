@@ -152,15 +152,21 @@ pub trait HarnessAdapter: Send + Sync {
         crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
     }
 
-    /// When this tool can't set up `item` because the account itself
-    /// provides it (its plan, its features: a claude.ai skill), the steps
-    /// the user takes to turn it on, in order (the switch dialog shows
-    /// them with [`HarnessAdapter::account_settings_url`] and Check
-    /// again). Default: none.
+    /// How the user finishes `item` on the account in `state_dir`
+    /// themselves, in this tool's own words: turning on what the account
+    /// itself provides (its plan, its features: a claude.ai skill), or
+    /// giving a server the secret that is never copied. The switch dialog
+    /// shows the steps, the command, the account's settings page when
+    /// they happen there, and Check again; none of it blocks the switch.
+    /// Default: none.
     #[must_use]
-    fn how_to_get(&self, item: &crate::inventory::Item) -> Vec<String> {
-        let _ = item;
-        Vec::new()
+    fn how_to_get(
+        &self,
+        item: &crate::inventory::Item,
+        state_dir: &Path,
+    ) -> crate::inventory::HowTo {
+        let _ = (item, state_dir);
+        crate::inventory::HowTo::default()
     }
 
     /// The web page where this tool's account turns features on, opened

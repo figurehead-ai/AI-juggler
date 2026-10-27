@@ -7,6 +7,7 @@
  */
 import { useState, type JSX } from "react";
 import { trustOpen } from "../lib/ipc/trust";
+import { SecretSteps } from "./switch/SecretSteps";
 import {
   switchSetupUndo,
   type AppliedInfo,
@@ -33,7 +34,7 @@ function verdictWords(offer: OfferInfo): string {
     case "translate":
       return `Set up ${offer.note ?? "in this tool's form"}`;
     case "needs-you":
-      return `Needs you: ${offer.note ?? ""}`;
+      return `Needs you: ${offer.note ?? ""}${/[.!?]$/.test(offer.note ?? "") ? "" : "."}`;
     default:
       return `Can't be set up: ${offer.note ?? ""}`;
   }
@@ -123,9 +124,15 @@ export function SwitchSetupList({
         <ul className="flex flex-col gap-3">
           {check.offers.map((offer) => {
             const settable = offer.verdict !== "impossible";
-            // A row with its own buttons (the steps) is no label.
-            const Wrap = settable ? "label" : "div";
             const id = `switch-setup-${offer.id}`;
+            // The steps have their own buttons, so they sit beside the
+            // row's label, never inside it.
+            const steps = offer.steps.length === 0 ? null : settable ? (
+              <SecretSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
+            ) : (
+              <AccountSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
+            );
+            const Wrap = settable ? "label" : "div";
             return (
               <li key={offer.id} className="flex items-start gap-2 text-body text-ink" data-testid="switch-setup-row">
                 {settable ? (
@@ -139,27 +146,28 @@ export function SwitchSetupList({
                 ) : (
                   <span aria-hidden="true" className="mt-0.5 inline-block w-[13px]" />
                 )}
-                <Wrap htmlFor={settable ? id : undefined} className="flex min-w-0 flex-col gap-0.5">
-                  {/* One of a kind (an account's permissions, its status
-                      line): its kind is its name, said once. */}
-                  {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
-                    <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
-                  ) : (
-                    <span>
-                      <span className="font-medium">{offer.name}</span>{" "}
-                      <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
-                    </span>
-                  )}
-                  {offer.about && <span className="block text-meta">{offer.about}</span>}
-                  {offer.steps.length > 0 ? (
-                    <AccountSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
-                  ) : (
-                    <span className="block text-meta">
-                      {verdictWords(offer)}
-                      {!settable && ` You can switch now; ${check.to} won't have it.`}
-                    </span>
-                  )}
-                </Wrap>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <Wrap htmlFor={settable ? id : undefined} className="flex min-w-0 flex-col gap-0.5">
+                    {/* One of a kind (an account's permissions, its status
+                        line): its kind is its name, said once. */}
+                    {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
+                      <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
+                    ) : (
+                      <span>
+                        <span className="font-medium">{offer.name}</span>{" "}
+                        <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
+                      </span>
+                    )}
+                    {offer.about && <span className="block text-meta">{offer.about}</span>}
+                    {(settable || !steps) && (
+                      <span className="block text-meta">
+                        {verdictWords(offer)}
+                        {!settable && ` You can switch now; ${check.to} won't have it.`}
+                      </span>
+                    )}
+                  </Wrap>
+                  {steps}
+                </div>
               </li>
             );
           })}

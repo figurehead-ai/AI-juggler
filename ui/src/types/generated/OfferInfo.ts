@@ -38,10 +38,16 @@ about: string | null,
  */
 suggested: boolean, 
 /**
- * When it can't be set up but the account can turn it on: the
- * steps, from the target tool's adapter (never written here).
+ * What the user does to finish it themselves (turn it on for the
+ * account, give it its secret): the steps, from the target tool's
+ * adapter (never written here).
  */
 steps: Array<string>, 
+/**
+ * The one command those steps say to run, exactly as it's run (a
+ * secret in it is a placeholder, never a value).
+ */
+steps_command: string | null, 
 /**
  * The target tool's id when it has a page for those steps (opened
  * by `trust_open` kind `account-settings`).
