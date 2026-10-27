@@ -96,25 +96,25 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
         }
     }));
     let weak = Arc::downgrade(state);
-    let _ = std::thread::Builder::new()
-        .name("messages-emitter".into())
-        .spawn(move || {
-            loop {
-                // poll: coalesces a burst of messages into one event for
-                // the window; ends with the app.
-                std::thread::sleep(std::time::Duration::from_millis(250));
-                if weak.upgrade().is_none() {
-                    return;
-                }
-                let pools: Vec<String> = dirty
-                    .lock()
-                    .map(|mut d| std::mem::take(&mut *d).into_iter().collect())
-                    .unwrap_or_default();
-                if !pools.is_empty() {
-                    let _ = app.emit(EVENT_CHANGED, pools);
-                }
+    // poll: coalesces a burst of messages into one event for the window;
+    // ends with the app.
+    crate::ticks::every_while(
+        "messages-emitter",
+        std::time::Duration::from_millis(250),
+        move || {
+            if weak.upgrade().is_none() {
+                return false;
             }
-        });
+            let pools: Vec<String> = dirty
+                .lock()
+                .map(|mut d| std::mem::take(&mut *d).into_iter().collect())
+                .unwrap_or_default();
+            if !pools.is_empty() {
+                let _ = app.emit(EVENT_CHANGED, pools);
+            }
+            true
+        },
+    );
 }
 
 /// A new id: `prefix` and 16 random hex digits.

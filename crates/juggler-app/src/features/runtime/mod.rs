@@ -246,31 +246,33 @@ pub fn start_emitter(state: &Arc<AppState>, app: tauri::AppHandle) {
         }
     }));
     let weak = Arc::downgrade(state);
-    let _ = std::thread::Builder::new()
-        .name("runtime-emitter".into())
-        .spawn(move || {
-            loop {
-                // poll: coalesces a driven session's events for the window;
-                // ends with the app.
-                std::thread::sleep(std::time::Duration::from_millis(150));
-                let Some(state) = weak.upgrade() else { return };
-                let (ids, stored) = dirty.lock().map_or_else(
-                    |_| (Vec::new(), false),
-                    |mut d| {
-                        (
-                            std::mem::take(&mut d.0).into_iter().collect::<Vec<_>>(),
-                            std::mem::take(&mut d.1),
-                        )
-                    },
-                );
-                if !ids.is_empty() {
-                    let _ = app.emit(EVENT_CHANGED, ids);
-                }
-                if stored {
-                    let _ = crate::commands::emit_sessions(&app, &state);
-                }
+    // poll: coalesces a driven session's events for the window; ends with
+    // the app.
+    crate::ticks::every_while(
+        "runtime-emitter",
+        std::time::Duration::from_millis(150),
+        move || {
+            let Some(state) = weak.upgrade() else {
+                return false;
+            };
+            let (ids, stored) = dirty.lock().map_or_else(
+                |_| (Vec::new(), false),
+                |mut d| {
+                    (
+                        std::mem::take(&mut d.0).into_iter().collect::<Vec<_>>(),
+                        std::mem::take(&mut d.1),
+                    )
+                },
+            );
+            if !ids.is_empty() {
+                let _ = app.emit(EVENT_CHANGED, ids);
             }
-        });
+            if stored {
+                let _ = crate::commands::emit_sessions(&app, &state);
+            }
+            true
+        },
+    );
 }
 
 /// AJ-E2305: lets a driven session go before a switch takes its

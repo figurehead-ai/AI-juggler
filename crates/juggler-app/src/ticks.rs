@@ -13,6 +13,7 @@ pub fn every(name: &str, period: Duration, mut pass: impl FnMut() + Send + 'stat
     spawn(name, move || {
         std::thread::sleep(period);
         once(&mut pass);
+        true
     });
 }
 
@@ -21,6 +22,17 @@ pub fn every_from_now(name: &str, period: Duration, mut pass: impl FnMut() + Sen
     spawn(name, move || {
         once(&mut pass);
         std::thread::sleep(period);
+        true
+    });
+}
+
+/// Runs `pass` every `period`, first after one `period`, until a pass
+/// returns `false` (what it serves is gone: the app state it holds
+/// weakly, as the 0.2 emitters do). A pass that panics goes on.
+pub fn every_while(name: &str, period: Duration, mut pass: impl FnMut() -> bool + Send + 'static) {
+    spawn(name, move || {
+        std::thread::sleep(period);
+        catch_unwind(AssertUnwindSafe(&mut pass)).unwrap_or(true)
     });
 }
 
@@ -32,14 +44,11 @@ pub fn once(pass: &mut impl FnMut()) {
     let _ = catch_unwind(AssertUnwindSafe(pass));
 }
 
-fn spawn(name: &str, mut step: impl FnMut() + Send + 'static) {
+/// The tick's thread: `step` again while it says to go on.
+fn spawn(name: &str, mut step: impl FnMut() -> bool + Send + 'static) {
     let _ = std::thread::Builder::new()
         .name(name.to_owned())
-        .spawn(move || {
-            loop {
-                step();
-            }
-        });
+        .spawn(move || while step() {});
 }
 
 #[cfg(test)]
@@ -47,6 +56,28 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn a_tick_while_ends_when_a_pass_says_so_and_a_panic_doesnt_end_it() {
+        let passes = Arc::new(AtomicUsize::new(0));
+        let seen = Arc::clone(&passes);
+        every_while("test-tick-while", Duration::from_millis(10), move || {
+            let n = seen.fetch_add(1, Ordering::SeqCst);
+            assert!(n != 1, "the second pass panics");
+            n < 3
+        });
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while passes.load(Ordering::SeqCst) < 4 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the tick stopped after a panic"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // The fourth pass said stop: no fifth.
+        std::thread::sleep(Duration::from_millis(100));
+        assert_eq!(passes.load(Ordering::SeqCst), 4);
+    }
 
     #[test]
     fn a_pass_that_panics_doesnt_stop_the_tick() {
