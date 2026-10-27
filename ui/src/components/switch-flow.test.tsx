@@ -306,6 +306,33 @@ describe("leaving the switch", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the step marks and the buttons out of the scrolling part, on every step", async () => {
+    const view = mountWith(WIZARD);
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    const header = view.getByTestId("switch-header");
+    const body = view.getByTestId("switch-body");
+    for (const _ of WIZARD.wizard_steps) {
+      expect(header.contains(view.getByTestId("switch-steps"))).toBe(true);
+      const footer = view.getByTestId("switch-footer");
+      expect(footer.contains(view.getByTestId("switch-cancel"))).toBe(true);
+      expect(body.querySelectorAll("[data-testid=switch-cancel], [data-testid=switch-continue], [data-testid=switch-confirm]").length).toBe(0);
+      const next = view.queryByTestId("switch-continue");
+      if (next) fireEvent.click(next, { detail: 1 });
+    }
+    expect(view.getByTestId("switch-footer").contains(view.getByTestId("switch-confirm"))).toBe(true);
+  });
+
+  it("keeps Tab inside the dialog: from the last button back to the close", async () => {
+    const view = mountWith(ONECLICK);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    const confirm = view.getByTestId("switch-confirm");
+    confirm.focus();
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(document.activeElement).toBe(view.getByTestId("switch-close"));
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(confirm);
+  });
+
   it("waits while the copy runs: Esc says it's finishing, and there's no close", async () => {
     (window as never as Seams).__AIJ_SWITCH_EXECUTE_HANG__ = true;
     const onClose = vi.fn();
@@ -338,6 +365,7 @@ describe("leaving the switch", () => {
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
     expect(view.getByTestId("switch-failed").textContent).toContain("Nothing was changed");
+    await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("switch-retry")));
     delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: string }).__AIJ_SWITCH_EXECUTE_FAIL__;
     fireEvent.click(view.getByTestId("switch-retry"));
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));

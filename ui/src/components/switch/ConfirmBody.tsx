@@ -84,7 +84,9 @@ export function ConfirmBody({
               ? setup && offers === 0
                 ? `${target} has everything this account has set up. Nothing needs you.`
                 : "Nothing needs you."
-              : `${needs} ${needs === 1 ? "thing needs" : "things need"} you below; none of them stops the switch.`}
+              : needs === 1
+                ? "1 thing needs you below; it doesn't stop the switch."
+                : `${needs} things need you below; none of them stops the switch.`}
           </li>
         </ul>
       </div>

@@ -21,8 +21,8 @@ import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import { ConfirmBody } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
+import { Executing, OtherStep, TargetStep } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
-import { badgeWords, stageWords } from "../lib/switch-words";
 import { toolSpec } from "../lib/tools";
 import {
   switchPreflight,
@@ -141,7 +141,9 @@ export function SwitchFlow({
   // only operable surface while open).
   useEffect(() => {
     const node = dialogRef.current;
-    node?.querySelector<HTMLElement>("[data-autofocus], button, input")?.focus();
+    // The phase's own default (Retry, Go to the new session) first; else
+    // the first control, in the header, body, footer order.
+    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? node?.querySelector<HTMLElement>("button, input"))?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -265,83 +267,49 @@ export function SwitchFlow({
     </button>
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Switch to ${targetLabel}`}
-        data-testid="switch-flow"
-        className="relative flex max-h-[min(92vh,760px)] w-full max-w-[680px] flex-col overflow-y-auto rounded-xl border border-hairline bg-surface p-6 shadow-card"
-      >
-        {!running && (
-          <button type="button" onClick={cancel} aria-label="Close" title="Close (Esc)" className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
-            <span aria-hidden="true" className="text-lg leading-none">×</span>
-          </button>
-        )}
+  // The dialog is a header (the step marks and ×), a body that scrolls,
+  // and a footer with the buttons: the way on and the way out are always
+  // on screen, at any window size, on every step and in every phase.
+  const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight : null;
+  const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
-        {phase.kind === "preflight" && (
+  const header = wizard && (
+    // The step indicator lists ONLY the rendered steps — "Step 2 of 3",
+    // never phantom steps (§8).
+    <div className="flex flex-col gap-1.5" data-testid="switch-steps" aria-live="polite">
+      <p className="text-meta text-ink">
+        Step {step + 1} of {steps.length}: {steps[step]}
+      </p>
+      <ol className="flex flex-wrap gap-1">
+        {steps.map((title, index) => (
+          <li key={title} aria-current={index === step ? "step" : undefined} className={"rounded-full border px-2.5 py-0.5 text-label " + (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-ink")}>
+            {index < step ? "✓ " : ""}
+            {title}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+
+  const body = (() => {
+    switch (phase.kind) {
+      case "preflight":
+        return (
           <p className="text-body text-ink" data-testid="switch-preflighting">
             Checking the switch to {targetLabel}…
           </p>
-        )}
-
-        {phase.kind === "confirm" && phase.preflight.door === "one-click" && (
-          <div className="flex flex-col gap-5" data-testid="switch-oneclick">
-            {confirmBody(phase.preflight)}
-            <div className="flex justify-end gap-2">
-              {cancelButton}
-              {switchButton(phase.preflight)}
+        );
+      case "confirm":
+        if (phase.preflight.door === "one-click") {
+          return (
+            <div className="flex flex-col gap-5" data-testid="switch-oneclick">
+              {confirmBody(phase.preflight)}
             </div>
-          </div>
-        )}
-
-        {phase.kind === "confirm" && phase.preflight.door === "wizard" && (
+          );
+        }
+        return (
           <div className="flex flex-col gap-5" data-testid="switch-wizard">
-            {/* The step indicator lists ONLY the rendered steps —
-                "Step 2 of 3", never phantom steps (§8). */}
-            <div className="flex flex-col gap-1.5 pr-8" data-testid="switch-steps" aria-live="polite">
-              <p className="text-meta text-ink">
-                Step {step + 1} of {steps.length}: {steps[step]}
-              </p>
-              <ol className="flex flex-wrap gap-1">
-                {steps.map((title, index) => (
-                  <li key={title} aria-current={index === step ? "step" : undefined} className={"rounded-full border px-2.5 py-0.5 text-label " + (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-ink")}>
-                    {index < step ? "✓ " : ""}
-                    {title}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {steps[step] === "Target" && (
-              <div className="flex flex-col gap-3" data-testid="switch-step-target">
-                <h3 className="text-title text-ink">Switch to {targetLabel}</h3>
-                <p className="text-meta text-ink">
-                  <span className="rounded-md border border-accent/40 px-1.5 py-0.5">{badgeWords(phase.preflight.fidelity_words, phase.preflight.validated)}</span>
-                </p>
-                <p className="text-body text-ink" data-testid="switch-move-line">
-                  {phase.preflight.move_line}
-                </p>
-                {phase.preflight.wizard_reasons.length > 0 && (
-                  <ul className="flex flex-col gap-1.5" data-testid="switch-wizard-reasons">
-                    {phase.preflight.wizard_reasons.map((reason) => (
-                      <li key={reason} className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning">
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {phase.preflight.source_outside && (
-                  <p className="text-body text-ink" data-testid="switch-outside-target">
-                    {outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)}
-                  </p>
-                )}
-                <p className="text-meta text-ink">Nothing moves until you choose Switch now on the last step.</p>
-              </div>
-            )}
-
+            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} />}
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-4" data-testid="switch-step-carried">
                 <h3 className="text-title text-ink">What goes along</h3>
@@ -349,73 +317,14 @@ export function SwitchFlow({
                 {keys(phase.preflight)}
               </div>
             )}
-
-            {steps[step] === "Conflicts" && (
-              <div className="flex flex-col gap-2" data-testid="switch-step-conflicts">
-                <h3 className="text-title text-ink">Both sides changed</h3>
-                <p className="text-body text-ink">
-                  AI Juggler can't merge the two versions yet, so this switch keeps the original's version and records where they split.
-                </p>
-              </div>
-            )}
-
-            {steps[step] === "Rules & diff" && (
-              <div className="flex flex-col gap-2" data-testid="switch-step-rules">
-                <h3 className="text-title text-ink">Rules and changes differ</h3>
-                <p className="text-body text-ink">
-                  The project's rules or its uncommitted changes differ between the two accounts. A copy of the changes goes along, and the difference is recorded.
-                </p>
-              </div>
-            )}
-
+            {(steps[step] === "Conflicts" || steps[step] === "Rules & diff") && <OtherStep step={steps[step] as "Conflicts" | "Rules & diff"} />}
             {steps[step] === "Confirm" && confirmBody(phase.preflight)}
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {cancelButton}
-              {step > 0 && (
-                <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} className={SECONDARY} data-testid="switch-back">
-                  Back
-                </button>
-              )}
-              {step < steps.length - 1 ? (
-                <button key="continue" type="button" disabled={steps[step] === "What's carried" && keysPending} onClick={() => setStep((current) => current + 1)} data-testid="switch-continue" className={steps[step] === "What's carried" && keysPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}>
-                  Continue
-                </button>
-              ) : (
-                switchButton(phase.preflight)
-              )}
-            </div>
-            {steps[step] === "What's carried" && keysPending && (
-              <p className="text-right text-meta text-ink" data-testid="switch-keys-pending">
-                Choose what happens to the keys first.
-              </p>
-            )}
           </div>
-        )}
-
-        {phase.kind === "executing" && (
-          <div className="flex flex-col gap-3" aria-live="polite" data-testid="switch-executing">
-            <h3 className="text-title text-ink">Switching to {targetLabel}…</h3>
-            {/* The stages are NAMED (never a bare spinner), but none
-                claims completion the engine hasn't reported — the one
-                command reports only its end. */}
-            <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-ink">
-              {stageWords(targetLabel).map((stage) => (
-                <li key={stage}>{stage}</li>
-              ))}
-            </ol>
-            <p className="text-body text-ink" data-testid="switch-elapsed">
-              The original stays safe until the new session is running.
-            </p>
-            {holding && (
-              <p className="text-body font-semibold text-ink" role="status" data-testid="switch-holding">
-                Finishing copy… this closes by itself when it's done.
-              </p>
-            )}
-          </div>
-        )}
-
-        {phase.kind === "done" && (
+        );
+      case "executing":
+        return <Executing target={targetLabel} holding={holding} />;
+      case "done":
+        return (
           <div className="flex flex-col gap-4" data-testid="switch-done">
             <h3 className="text-title text-ink">Switched to {targetLabel}</h3>
             <p className="text-body text-ink" data-testid="switch-done-words">
@@ -426,29 +335,104 @@ export function SwitchFlow({
                   : `${targetLabel} is picking up the conversation. The original has stopped, and you can switch back to it any time.`}
             </p>
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
-            <div className="flex justify-end">
-              <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY}>
-                Go to the new session
-              </button>
-            </div>
           </div>
-        )}
-
-        {phase.kind === "failed" && (
+        );
+      case "failed":
+        return (
           <div className="flex flex-col gap-4" data-testid="switch-failed">
             <h3 className="text-title text-warning">The switch didn't complete</h3>
-            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning">{phase.message}</p>
+            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
+              {phase.message}
+            </p>
             <p className="text-body text-ink">
               {setupCheck.results.length > 0 ? "The original stays exactly as it was" : "Nothing was changed: the original stays exactly as it was"} — resume it where you left it, or try again.
             </p>
             {/* What was set up before the switch failed stays undoable. */}
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
-            <div className="flex justify-end gap-2">
+          </div>
+        );
+    }
+  })();
+
+  const footer = (() => {
+    switch (phase.kind) {
+      case "preflight":
+        return cancelButton;
+      case "confirm":
+        if (phase.preflight.door === "one-click") {
+          return (
+            <>
               {cancelButton}
-              <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
-                Retry
+              {switchButton(phase.preflight)}
+            </>
+          );
+        }
+        return (
+          <>
+            {carriedPending && (
+              <p className="mr-auto text-meta text-ink" data-testid="switch-keys-pending">
+                Choose what happens to the keys first.
+              </p>
+            )}
+            {cancelButton}
+            {step > 0 && (
+              <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} className={SECONDARY} data-testid="switch-back">
+                Back
               </button>
-            </div>
+            )}
+            {step < steps.length - 1 ? (
+              <button key="continue" type="button" disabled={carriedPending} onClick={() => setStep((current) => current + 1)} data-testid="switch-continue" className={carriedPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}>
+                Continue
+              </button>
+            ) : (
+              switchButton(phase.preflight)
+            )}
+          </>
+        );
+      case "executing":
+        return null;
+      case "done":
+        return (
+          <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY}>
+            Go to the new session
+          </button>
+        );
+      case "failed":
+        return (
+          <>
+            {cancelButton}
+            <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
+              Retry
+            </button>
+          </>
+        );
+    }
+  })();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Switch to ${targetLabel}`}
+        data-testid="switch-flow"
+        className="flex max-h-[min(92vh,760px)] w-full max-w-[680px] flex-col overflow-hidden rounded-xl border border-hairline bg-surface shadow-card"
+      >
+        <div className="flex shrink-0 items-start gap-3 px-6 pt-5" data-testid="switch-header">
+          <div className="min-w-0 flex-1 pb-3">{header}</div>
+          {!running && (
+            <button type="button" onClick={cancel} aria-label="Close" title="Close (Esc)" className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
+              <span aria-hidden="true" className="text-lg leading-none">×</span>
+            </button>
+          )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5" data-testid="switch-body">
+          {body}
+        </div>
+        {footer && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3" data-testid="switch-footer">
+            {footer}
           </div>
         )}
       </div>

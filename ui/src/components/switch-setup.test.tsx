@@ -91,7 +91,17 @@ describe("what the target lacks", () => {
     expect(steps.querySelectorAll("ol li").length).toBe(3);
     expect(view.getByTestId("switch-setup-open-page").textContent).toContain("Open claude.ai settings");
     expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false);
-    expect(view.getByTestId("switch-summary-needs").textContent).toContain("none of them stops the switch");
+    expect(view.getByTestId("switch-summary-needs").textContent).toBe("2 things need you below; none of them stops the switch.");
+  });
+
+  it("says one thing in the singular", async () => {
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = {
+      ...EXAMPLE_SETUP,
+      offers: EXAMPLE_SETUP.offers.filter((offer) => offer.id !== "skill-team-style"),
+    };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-summary-needs")).toBeTruthy());
+    expect(view.getByTestId("switch-summary-needs").textContent).toBe("1 thing needs you below; it doesn't stop the switch.");
   });
 
   it("sets up what's ticked when the switch runs, and says what it did", async () => {
