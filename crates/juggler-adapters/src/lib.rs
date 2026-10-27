@@ -76,6 +76,7 @@ pub mod subtasks;
 pub mod tool_summary;
 pub mod transcript;
 pub mod transcript_tail;
+mod transcript_watcher;
 
 pub use activity::{ActivityLog, ActivityTail};
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};
