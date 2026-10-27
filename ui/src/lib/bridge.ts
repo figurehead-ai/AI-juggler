@@ -1500,6 +1500,18 @@ export interface AlertEventData {
   account: string;
   text: string;
   at_ms: number;
+  /** A quota alert's numbers (lib/alert-words says them, in local time). */
+  quota?: AlertQuotaData;
+}
+
+/** The numbers behind a quota alert (`features::quota::alert_words`). */
+export interface AlertQuotaData {
+  account_label: string;
+  /** `five_hour` | `weekly`: data, never shown. */
+  window: string;
+  left_pct: number | null;
+  minutes_left: number | null;
+  resets_at_ms: number | null;
 }
 
 /** AJ-E611: one alert evaluation pass (at-most-once by the machines).

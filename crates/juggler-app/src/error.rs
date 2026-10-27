@@ -1,8 +1,8 @@
 //! Typed errors for the application shell.
 
-/// Errors surfaced by app commands. Serialized to the UI as their
-/// human-readable message; the UI shows them verbatim next to the failing
-/// action.
+/// Errors surfaced by app commands. `Display` is the program's own text
+/// (logs and diagnostics); the UI gets plain words from
+/// [`crate::error_words`], next to the failing action.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum AppError {
@@ -124,7 +124,9 @@ impl AppError {
         ErrorWire {
             code,
             retryable,
-            user_message: self.to_string(),
+            // D-25: plain words, from one place; the program's own text
+            // goes to the error log (`serialize`).
+            user_message: crate::error_words::user_words(self),
         }
     }
 }
@@ -138,7 +140,9 @@ impl serde::Serialize for AppError {
         // AJ-E1103: an error crossing to the interface is one the user
         // met; usage stats count its class (never its text).
         crate::usage_stats::error_surfaced(self);
-        self.wire().serialize(serializer)
+        let wire = self.wire();
+        crate::error_log::record(&wire.code, &self.to_string());
+        wire.serialize(serializer)
     }
 }
 

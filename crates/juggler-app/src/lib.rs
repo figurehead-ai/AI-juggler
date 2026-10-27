@@ -29,6 +29,8 @@ pub mod dev_bridge;
 pub mod edition;
 pub mod env_overlay;
 pub mod error;
+pub mod error_log;
+pub mod error_words;
 pub mod features;
 pub mod figurehead;
 pub mod fleet;
@@ -565,6 +567,7 @@ pub fn run() {
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
+    error_log::install(&data_dir);
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user
     // chose to send.

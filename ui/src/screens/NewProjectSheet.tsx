@@ -319,7 +319,7 @@ export function NewProjectSheet({
                     </div>
                     {!signedIn(loginByAccount.get(recommended.account_id)) && (
                       <p className="text-label text-muted">
-                        This account needs sign-in (Ready home) — pick another or sign in first.
+                        This account needs sign-in — pick another or sign in first.
                       </p>
                     )}
                   </>
@@ -348,7 +348,7 @@ export function NewProjectSheet({
                           </Chip>
                           <span className="text-muted">·</span>
                           <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                          {!ready && <Chip tone="neutral">needs sign-in (Ready home)</Chip>}
+                          {!ready && <Chip tone="neutral">needs sign-in</Chip>}
                         </button>
                       );
                     })}

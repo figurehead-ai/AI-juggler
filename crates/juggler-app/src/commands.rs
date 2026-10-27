@@ -397,10 +397,15 @@ pub struct AlertEventInfo {
     pub kind: String,
     /// Account the alert belongs to.
     pub account: String,
-    /// The copy (badge-carrying: Estimated reads differently).
+    /// The copy, in plain words (D-25: no window ids, no tier tags); a
+    /// paired console shows it as it is.
     pub text: String,
     /// Emitted at, epoch ms.
     pub at_ms: i64,
+    /// A quota alert's numbers, so this Mac's banner can say the reset
+    /// in local time and offer its actions (wireframe 27).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quota: Option<crate::features::quota::alert_words::AlertQuotaInfo>,
 }
 
 /// The per-(account, window) persisted FSM states (`alert_fsms` KV).
@@ -474,50 +479,31 @@ fn step_account_alerts(
         } else {
             entry.weekly = next;
         }
-        let event = match emission {
-            AlertEmission::TrayAmber { .. } => Some((
-                "tray-amber",
-                format!(
-                    "{} ≈{} min left ({}), {} window",
-                    short_label(&account.label),
-                    display
-                        .forecast
-                        .tte_min
-                        .map_or_else(|| "—".into(), |tte| format!("{tte:.0}")),
-                    badge_word(confidence),
-                    slot
-                ),
-            )),
-            AlertEmission::Actionable { .. } => Some((
-                "actionable",
-                format!(
-                    "{} at {}{} used ({}), {} window — hand over or queue at reset",
-                    short_label(&account.label),
-                    window
-                        .percentage
-                        .map_or_else(String::new, |pct| format!("{pct:.0}%")),
-                    if window.percentage.is_some() {
-                        ""
-                    } else {
-                        "critical TTE"
-                    },
-                    badge_word(confidence),
-                    slot
-                ),
-            )),
-            AlertEmission::ExhaustedNotification => Some((
-                "exhausted",
-                format!("{} {} window exhausted", short_label(&account.label), slot),
-            )),
+        let kind = match emission {
+            AlertEmission::TrayAmber { .. } => Some("tray-amber"),
+            AlertEmission::Actionable { .. } => Some("actionable"),
+            AlertEmission::ExhaustedNotification => Some("exhausted"),
             AlertEmission::None | AlertEmission::ResetReached => None,
         };
-        if let Some((kind, text)) = event {
+        let event = kind.map(|kind| {
+            let quota = crate::features::quota::alert_words::AlertQuotaInfo {
+                account_label: account.label.clone(),
+                window: slot.to_owned(),
+                left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
+                minutes_left: display.forecast.tte_min,
+                resets_at_ms: window.resets_at_ms,
+            };
+            let text = crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
+            (kind, text, quota)
+        });
+        if let Some((kind, text, quota)) = event {
             crate::usage_stats::quota_alert(account.harness.as_str(), slot, kind);
             out.push(AlertEventInfo {
                 kind: kind.to_owned(),
                 account: id.clone(),
                 text,
                 at_ms: now,
+                quota: Some(quota),
             });
         }
     }
@@ -605,9 +591,12 @@ fn queue_and_digest_events(
         }
         out.push(AlertEventInfo {
             kind: "reset-reached".to_owned(),
+            text: crate::features::quota::alert_words::reset_reached_words(
+                storage, &account, &session,
+            ),
             account,
-            text: format!("reset reached — resume {session}?"),
             at_ms: now,
+            quota: None,
         });
         let _ = usage.set_reset_state(&id, "notified");
     }
@@ -638,24 +627,13 @@ fn queue_and_digest_events(
             account: entry.key.clone(),
             text: entry.text,
             at_ms: now,
+            quota: None,
         });
     }
     if let Ok(blob) = serde_json::to_string(&next_digest) {
         let _ = storage.app_settings().set(ALERT_DIGEST_KEY, &blob);
     }
     out
-}
-
-fn short_label(label: &str) -> String {
-    label.chars().take(18).collect()
-}
-
-fn badge_word(confidence: juggler_core::model::Confidence) -> &'static str {
-    match confidence {
-        juggler_core::model::Confidence::Measured => "Measured",
-        juggler_core::model::Confidence::Computed => "Computed",
-        juggler_core::model::Confidence::Estimated => "estimate",
-    }
 }
 
 /// AJ-E611: the alert evaluation pass (UI polls this on its own

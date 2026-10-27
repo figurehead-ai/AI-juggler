@@ -3,6 +3,7 @@
  * WorkflowRail.tsx. AJ-E2104: other Macs fold after this Mac; "Other
  * Macs" in the View (or a machine's header) unfolds them.
  */
+import { providerDisplayName } from "../lib/providers";
 import { useState, type JSX } from "react";
 import type { RemoteInstanceInfo, RemoteMachineInfo } from "../lib/bridge";
 import { FoldButton, safeId } from "./rail-groups";
@@ -87,7 +88,7 @@ function RemoteBoardSection({
                 <span className="shrink-0 rounded border border-hairline px-1 text-label text-muted">{machine.label}</span>
               </span>
               <span className="flex min-w-0 gap-1 truncate pl-3 text-label text-muted">
-                <span>{row.provider}</span>
+                <span>{providerDisplayName(row.provider)}</span>
                 <span>· {row.model ?? "model unknown"}</span>
                 <span>· {status}</span>
                 <span>· quota unknown</span>

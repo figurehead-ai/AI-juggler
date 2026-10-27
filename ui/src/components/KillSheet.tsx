@@ -454,12 +454,12 @@ export function KillSheet(props: {
 
               {verify.platform === "TerminateProcess only" ? (
                 <p className="mt-3 text-label" data-testid={`kill-platform-${props.pid}`}>
-                  Windows: TerminateProcess only — there is no grace window here.
+                  On this system a stop is immediate: there's no waiting time to cancel in.
                 </p>
               ) : (
                 <p className="mt-3 text-label" data-testid={`kill-platform-${props.pid}`}>
-                  Ladder: {verify.platform} — {verify.grace_secs}s of grace you can cancel, then
-                  KILL only what ignored SIGTERM.
+                  First each process is asked to close, and AI Juggler waits {verify.grace_secs} s (you can
+                  cancel). Only what doesn't close is then stopped by force.
                 </p>
               )}
             </div>
@@ -469,8 +469,8 @@ export function KillSheet(props: {
             <div data-testid={`kill-running-${props.pid}`}>
               <p aria-live="polite" data-testid={`kill-countdown-${props.pid}`}>
                 {countdown > 0
-                  ? `Waiting for clean exit — ${countdown}s of grace left`
-                  : "Escalating to KILL — survivors ignored SIGTERM"}
+                  ? `Waiting for it to close — ${countdown} s left`
+                  : "Stopping by force what didn't close"}
               </p>
               <ul className="mt-2 flex flex-col gap-1 font-mono text-label">
                 {(scope === "pid"

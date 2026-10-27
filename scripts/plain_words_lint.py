@@ -57,6 +57,14 @@ BANNED: dict[str, tuple[re.Pattern[str], str]] = {
     "model-api-prices": (re.compile(r"'s API prices"), "\"at list prices for <model>\""),
     "latest-session": (re.compile(r"From the latest session"), "\"Last read in a session\""),
     "calendar-emoji": (re.compile("\U0001F4C5"), "the words alone (\"Renews 23 Oct\")"),
+    # The 2026-10-27 spec gap audit (D-25, AJ-E1025) and the maintainer's
+    # walk of the switch: internal ids and product words on screen.
+    "pack": (re.compile(r"\b[Pp]acks?\b"), "\"handover\" (what a session hands to the next)"),
+    "redaction": (re.compile(r"\b[Rr]edact"), "\"hide keys and passwords\""),
+    "window-id": (re.compile(r"\b(?:five_hour|seven_day)\b"), "\"5-hour window\", \"weekly window\""),
+    "tier-paren": (re.compile(r"\((?:Measured|Computed|estimate)\)"), "say how sure in words, or not at all"),
+    "screen-name": (re.compile(r"\bReady home\b"), "name the place the user knows (\"Accounts\")"),
+    "detector-id": (re.compile(r"\b(?:sk-key|env-value)\b"), "\"an API key\", \"a secret in an environment value\""),
 }
 # A one-word literal that is a banned tag on its own still counts.
 TAGS = {"COMP", "MEAS", "EST", "Comp", "Meas", "Est", "tok"}

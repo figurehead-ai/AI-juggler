@@ -509,7 +509,8 @@ function InstanceOverview(props: PanelProps) {
           ) : null}
           <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
           <span data-testid="instance-native-id">
-            Claude session:{" "}
+            {/* The tool's own id for the conversation (never "Claude" for every tool). */}
+            Conversation id in {providerDisplayName(session.provider)}:{" "}
             <span className="font-mono text-ink">
               {session.conversation_id ?? "not found yet"}
             </span>
@@ -759,7 +760,7 @@ function InstanceOverview(props: PanelProps) {
                     key={recipe.id}
                     type="button"
                     disabled={!ready}
-                    title={ready ? undefined : "Needs sign-in first (Ready home)"}
+                    title={ready ? undefined : "Needs sign-in first: sign in from its account on Accounts"}
                     onClick={() => props.onLaunch(recipe, project)}
                     className={
                       "flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-left text-xs transition-colors " +
