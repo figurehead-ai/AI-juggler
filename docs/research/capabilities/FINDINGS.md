@@ -13,16 +13,24 @@ on that plan, whatever its protocol allows.
    while the user's own OpenCode (or its Desktop) runs, or blocks it. Give
    each managed account its own `service.json` port and password, or launch
    with `--standalone`, and own the service's lifecycle. (`opencode.md`)
+   **Fixed 2026-10-27:** managed 2.x launches pass `--standalone`, whose
+   server ends with the TUI; live check on AJ-E1612.
 2. **OpenCode 2.x keeps MCP servers under `mcp.servers`.** Our inventory
    reads only the 1.x `mcp.<name>` shape, so a 2.x config shows none.
-   (`opencode.md`)
+   (`opencode.md`) **Fixed 2026-10-27:** both forms read; a set-up writes
+   the file's form, else the installed version's.
 3. **Grok Build takes a first prompt as an argument** (`grok "…"`); the
    adapter's "can't be started with a first message" is wrong for it, which
    blocks switching into Grok. Check `--resume <id> "…"` live.
-   (`kimi-grok.md`)
+   (`kimi-grok.md`) **Fixed 2026-10-27:** Primed and resume-with-message
+   launches (`-- "<message>"`); the source confirms the resume case, the
+   binary is still to be checked live.
 4. **Kimi Code writes a versioned event log** (`agents/main/wire.jsonl`,
    protocol 1.5): working, needs-you and idle, and exact tokens, with no
    model. The adapter reads only the session index today. (`kimi-grok.md`)
+   **Fixed 2026-10-27:** open sessions from its session locks, their state
+   from the main log, exact tokens from every agent's log; another protocol
+   version stays unknown.
 5. **Codex: `approval_policy = "untrusted"` is unsupported** (config
    reference). AI Juggler's sessions set no policy; lab harnesses must not
    use it. (`codex.md`)
