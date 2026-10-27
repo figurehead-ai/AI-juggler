@@ -26,7 +26,9 @@
 //!
 //! Its conversation is `agents/<id>/wire.jsonl` too, an event journal the
 //! session page's reader doesn't read (Kimi's own session conversations
-//! aren't shown either), so it isn't offered yet.
+//! aren't shown either), so it isn't offered yet. The layout's names are
+//! the wire reader's (`kimi_sessions::wire`), which reads the same journals
+//! for a session's state and tokens; this reads only `subagent.*` lines.
 
 use std::collections::{BTreeSet, HashMap};
 use std::io::Read as _;
@@ -36,6 +38,7 @@ use juggler_adapter::subagents::{
     Subagent, SubagentConversations, SubagentReader, SubagentScope, SubagentStatus, SubagentSupport,
 };
 
+use crate::kimi_sessions::wire::{AGENTS_DIR, WIRE_FILE};
 use crate::transcript_tail::{TailLog, TranscriptTail};
 
 /// What the Kimi Code adapter answers.
@@ -47,7 +50,7 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
 };
 
 /// The session's own agent.
-const MAIN: &str = "main";
+const MAIN: &str = crate::kimi_sessions::wire::MAIN_AGENT;
 
 /// The most bytes read from `state.json`.
 const STATE_MAX: u64 = 16 * 1024 * 1024;
@@ -164,7 +167,7 @@ impl KimiSubagents {
     }
 
     fn journal(&self, agent: &str) -> PathBuf {
-        self.folder.join("agents").join(agent).join("wire.jsonl")
+        self.folder.join(AGENTS_DIR).join(agent).join(WIRE_FILE)
     }
 
     fn read_state(&mut self) -> std::io::Result<()> {
@@ -184,7 +187,7 @@ impl KimiSubagents {
                 .map(str::to_owned)
         };
         for (id, meta) in agents.iter().take(AGENTS_MAX) {
-            if id == MAIN || text(meta.get("type")).as_deref() == Some("main") {
+            if id == MAIN || text(meta.get("type")).as_deref() == Some(MAIN) {
                 continue;
             }
             let labels = meta.get("labels");
@@ -204,7 +207,7 @@ impl KimiSubagents {
 impl SubagentReader for KimiSubagents {
     fn refresh(&mut self) -> std::io::Result<bool> {
         self.read_state()?;
-        if let Ok(entries) = std::fs::read_dir(self.folder.join("agents")) {
+        if let Ok(entries) = std::fs::read_dir(self.folder.join(AGENTS_DIR)) {
             for entry in entries.flatten().take(AGENTS_MAX) {
                 let name = entry.file_name().to_string_lossy().into_owned();
                 if name != MAIN && entry.path().is_dir() {

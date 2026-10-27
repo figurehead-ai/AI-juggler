@@ -58,7 +58,7 @@ pub struct Subtask {
     /// The agent's own id, once the tool named it (Claude Code's
     /// `agentId`, Codex's thread id).
     pub agent: Option<String>,
-    /// What it was asked to do, whole (at most [`TASK_CHARS`]).
+    /// What it was asked to do, whole (at most 2,000 characters).
     pub task: String,
     /// Started in the background (its start's answer came at once).
     pub background: bool,

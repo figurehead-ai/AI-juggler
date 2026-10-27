@@ -27,7 +27,10 @@ pub fn find(dir: &Path, tail: &str) -> Option<PathBuf> {
     let mut parts: Vec<&str> = tail.split('/').filter(|part| !part.is_empty()).collect();
     let name = parts.pop()?;
     let matches = |path: &Path| {
-        let file = path.file_name().and_then(|file| file.to_str()).unwrap_or("");
+        let file = path
+            .file_name()
+            .and_then(|file| file.to_str())
+            .unwrap_or("");
         let mut folders = path.parent().into_iter().flat_map(Path::components).rev();
         file.ends_with(name)
             && parts.iter().rev().all(|part| {
