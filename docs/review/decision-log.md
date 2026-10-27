@@ -985,7 +985,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-47 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-48 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1287,3 +1287,42 @@ into 0.2."
   moves, reset, pruning, the record round trip),
   `ui/src/components/rail-order.test.tsx` (the menu, the keyboard twin,
   pins, folds, Needs you mirrored), the gallery's `95-rail-order` captures.
+
+### D-48 One Subagents view: the session's older list retired into the tab, and one source for the count — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27: "Yes, fold the Overview's older
+Subagents list into the new Subagents tab and retire the old one."
+
+**What changed (AJ-E1520, 0.2).**
+
+- Removed: the "Subagents" disclosure in the session's notes
+  (`SubagentsSection`), its `subtasks_list` command (and the dev bridge's
+  route and the IPC audit's allow line), the app's `features::subtasks`
+  (its tick and its wire types `SubtasksInfo`, `SubtaskInfo`,
+  `SubtaskStateInfo`).
+- In its place, one quiet line in the session's notes when it started
+  any, "6 subagents · 2 running › Subagents", which opens the tab
+  (wireframe screen 05, approved 2026-10-13, names the count in the
+  session's inspector). The list itself is only the tab's.
+- The row's count (I-08, `subtask_count`: the rail's "+N agents", the
+  card's badge, the row's words) is now read by the same adapter readers
+  as the tab (`HarnessAdapter::subagent_reader`), so every tool that lists
+  subagents gets one: Claude Code, Codex, Kimi Code, Grok Build and
+  OpenCode, not only the first two. It counts what the tab calls running:
+  nested subagents and ones started in the background included, until
+  their records say they ended. Before, a background Claude subagent and
+  a subagent's own subagents weren't counted. Still `null` until read and
+  once the session ends (D-06). The rail no longer falls back to the
+  session's child processes when the count is `null`.
+- Kept: `juggler_adapters::subtasks`, the start-and-end log the Claude
+  Code and Codex readers are built on (one parser, not two).
+
+**Why.** Two lists of the same subagents, from two parsers, could
+disagree (a background subagent was "in the background" in one and
+"Running" in the other), and the count only knew two tools. One reader
+per session now answers the row and the tab.
+
+- Evidence: `crates/juggler-app/src/features/subagents/count.rs` (unit),
+  `crates/juggler-app/tests/subagents_count.rs`, vitest
+  `ui/src/pages/session/subagents-tab.test.tsx` and
+  `ui/src/lib/rail-model.test.ts`; the gallery's `88-subagents`.

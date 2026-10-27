@@ -1,17 +1,18 @@
 /**
  * AJ-E1520 gallery: a session that started subagents. The status row's
- * count (two still running) and, on the session's page, the Subagents
- * list opened: what each was asked, its kind, and where it stands. 0.2:
- * the session page's Subagents tab (newest first, a nested one under the
- * one that started it, status words, times, the background badge) and a
- * subagent's conversation opened from it. Both themes, axe 0
- * critical/serious on each.
+ * count (two still running) and, on the session's page, its one quiet
+ * line to them, which opens the Subagents tab (the older list in its
+ * notes was retired into the tab, 2026-10-27). 0.2: the session page's
+ * Subagents tab (newest first, a nested one under the one that started
+ * it, status words, times, the background badge) and a subagent's
+ * conversation opened from it. Both themes, axe 0 critical/serious on
+ * each.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail } from "./fixtures";
+import { allStatuses, expectRail, railViewAs } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/88-subagents");
 const T0 = 1_728_800_000_000;
@@ -39,17 +40,6 @@ const text = (speaker: string, words: string, at: number) => ({ speaker, blocks:
 const FIXTURE = {
   ...allStatuses,
   sessions: allStatuses.sessions.map((session) => (session.id === SESSION ? { ...session, subtask_count: 2 } : session)),
-  subtasks: {
-    [SESSION]: {
-      live: true,
-      items: [
-        { id: "t1", label: "Map every transcript parser", kind: "Explore", state: "done" },
-        { id: "t2", label: "Review how parse errors are reported", kind: "code-reviewer", state: "failed" },
-        { id: "t3", label: "Run the full test suite and report failures", kind: "general-purpose", state: "running" },
-        { id: "t4", label: "Write tests for the tail reader", kind: "general-purpose", state: "running" },
-      ],
-    },
-  },
   // 0.2: the Subagents tab, by the session's conversation.
   subagents: {
     [CONVERSATION]: {
@@ -129,17 +119,19 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("session-subagents").getByTestId("subagent-row")).toHaveCount(6);
   });
 
-  test(`the session's row says two subagents run, and its page lists them — ${theme}`, async ({ page }) => {
+  test(`the session's row says two subagents run, and its page's line opens their tab — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await expect(page.getByTestId("rail-subagents")).toHaveText("· 2 subagents");
+    // The View's "Sub-agents": each row says how many it runs.
+    await railViewAs(page, { show: { subagents: true } });
+    await expect(page.getByRole("button", { name: "Open its subagents: +2 agents" })).toBeVisible();
     await shoot(page, "row-count", theme);
     await page.locator(`[data-instance-id="${SESSION}"]`).first().click();
-    const section = page.getByTestId("subagents-section");
-    await expect(section).toBeVisible();
-    await expect(section).toContainText("2 running · 4 in all");
-    await section.locator("summary").click();
-    await expect(page.getByTestId("subagent-row")).toHaveCount(4);
-    await expect(page.getByTestId("subagent-state")).toHaveText(["done", "failed", "running", "running"]);
+    const line = page.getByTestId("session-subagents-line");
+    await line.scrollIntoViewIfNeeded();
+    await expect(line).toContainText("6 subagents · 2 running");
+    await expect(page.getByTestId("subagents-section")).toHaveCount(0);
     await shoot(page, "session-subagents", theme);
+    await line.getByRole("button").click();
+    await expect(page.getByTestId("session-subagents").getByTestId("subagent-row")).toHaveCount(6);
   });
 }

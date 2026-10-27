@@ -11,6 +11,10 @@
 //! and says "running" only while the session is open (D-06: once it has
 //! ended, a subagent its records never saw end is unknown).
 //!
+//! The rail's count of a live session's running subagents (I-08,
+//! `count.rs`) is read by the same readers: one source for the row and
+//! the tab, for every tool whose adapter lists subagents.
+//!
 //! A subagent's conversation is read like the session's own (the same
 //! last-turns reader, paged, followed while it runs), from the transcript
 //! its reader found — never a path the page names. Read only when the
@@ -18,6 +22,7 @@
 //! messages in Settings.
 
 pub mod commands;
+pub mod count;
 pub mod dto;
 
 use std::collections::{BTreeSet, HashMap};
@@ -36,45 +41,93 @@ use crate::state::AppState;
 
 use dto::{SubagentInfo, SubagentsInfo};
 
-/// How many sessions' readers are kept (the pages opened last).
+/// How many sessions' readers the tab keeps (the pages opened last); a
+/// live session's also stays while the count follows it.
 const READERS_KEPT: usize = 8;
 
-/// A reader, and the session it reads.
+/// What a reader is kept by: the account, the tool's id for the
+/// conversation, and the record the conversations index found for it.
+type Key = (String, String, PathBuf);
+
+/// One session's reader. Its tab and the rail's count share it, each
+/// taking its lock to read: another session never waits on it.
 struct Entry {
-    key: (String, String, PathBuf),
-    reader: Box<dyn SubagentReader>,
+    key: Key,
+    reader: Mutex<Box<dyn SubagentReader>>,
 }
 
-/// The readers of the sessions whose Subagents tab was opened last.
+impl Entry {
+    fn new(key: Key, reader: Box<dyn SubagentReader>) -> Arc<Self> {
+        Arc::new(Self {
+            key,
+            reader: Mutex::new(reader),
+        })
+    }
+
+    /// Reads what its records gained (within the reader's budget) and
+    /// lists every subagent; `None` when a read panicked on this reader
+    /// (the next ask makes a new one).
+    fn read(&self) -> Option<(std::io::Result<bool>, Vec<Subagent>)> {
+        let mut reader = self.reader.lock().ok()?;
+        let refreshed = reader.refresh();
+        Some((refreshed, reader.subagents()))
+    }
+}
+
+/// The readers kept.
+#[derive(Default)]
+struct Kept {
+    /// The sessions whose Subagents tab was opened last, the latest last.
+    tab: Vec<Arc<Entry>>,
+    /// Each live session's, by AI Juggler's id for it (`count.rs`).
+    live: HashMap<String, Arc<Entry>>,
+}
+
+/// Each session's subagent reader, for its tab and the rail's count, and
+/// the count each live session last read.
 #[derive(Default)]
 pub struct Readers {
-    kept: Mutex<Vec<Entry>>,
+    kept: Mutex<Kept>,
+    /// What the count last published: each live session's running
+    /// subagents, by AI Juggler's id for it.
+    counts: Mutex<HashMap<String, u64>>,
 }
 
 impl std::fmt::Debug for Readers {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let kept = self.kept.lock().map_or(0, |kept| kept.len());
-        f.debug_struct("Readers").field("kept", &kept).finish()
+        let (tab, live) = self
+            .kept
+            .lock()
+            .map_or((0, 0), |kept| (kept.tab.len(), kept.live.len()));
+        let counted = self.counts.lock().map_or(0, |counts| counts.len());
+        f.debug_struct("Readers")
+            .field("tab", &tab)
+            .field("live", &live)
+            .field("counted", &counted)
+            .finish()
     }
 }
 
 impl Readers {
-    /// Takes a session's reader out while it reads (another session's
-    /// tab never waits on it).
-    fn take(&self, key: &(String, String, PathBuf)) -> Option<Entry> {
-        let mut kept = self.kept.lock().ok()?;
-        let at = kept.iter().position(|entry| &entry.key == key)?;
-        Some(kept.remove(at))
+    /// The reader kept for `key`, the tab's or the count's (one a read
+    /// panicked on is passed over).
+    fn find(&self, key: &Key) -> Option<Arc<Entry>> {
+        let kept = self.kept.lock().ok()?;
+        kept.tab
+            .iter()
+            .chain(kept.live.values())
+            .find(|entry| &entry.key == key && !entry.reader.is_poisoned())
+            .cloned()
     }
 
-    /// Puts it back as the latest used; the oldest beyond
-    /// [`READERS_KEPT`] goes.
-    fn put(&self, entry: Entry) {
+    /// The tab used `entry`: it is the latest, and the oldest beyond
+    /// [`READERS_KEPT`] goes (a live session's stays with the count).
+    fn used(&self, entry: &Arc<Entry>) {
         if let Ok(mut kept) = self.kept.lock() {
-            kept.retain(|other| other.key != entry.key);
-            kept.push(entry);
-            let extra = kept.len().saturating_sub(READERS_KEPT);
-            kept.drain(..extra);
+            kept.tab.retain(|other| other.key != entry.key);
+            kept.tab.push(Arc::clone(entry));
+            let extra = kept.tab.len().saturating_sub(READERS_KEPT);
+            kept.tab.drain(..extra);
         }
     }
 }
@@ -114,21 +167,20 @@ fn found(state: &Arc<AppState>, account: &str, id: &str) -> Result<Found, Missin
         return Err(Missing::Unsupported(reason));
     }
     let key = (account.to_owned(), id.to_owned(), conversation.path.clone());
-    let mut entry = match state.subagents.take(&key) {
+    let entry = match state.subagents.find(&key) {
         Some(entry) => entry,
-        None => Entry {
-            reader: adapter
+        None => Entry::new(
+            key,
+            adapter
                 .subagent_reader(SubagentScope {
                     path: &conversation.path,
                     id,
                 })
                 .ok_or(Missing::None)?,
-            key,
-        },
+        ),
     };
-    let refreshed = entry.reader.refresh();
-    let agents = entry.reader.subagents();
-    state.subagents.put(entry);
+    state.subagents.used(&entry);
+    let (refreshed, agents) = entry.read().ok_or(Missing::Unreadable)?;
     let caught_up = refreshed.map_err(|_| Missing::Unreadable)?;
     Ok(Found {
         support,

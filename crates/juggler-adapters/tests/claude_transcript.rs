@@ -254,7 +254,7 @@ fn subagents_are_read_from_task_and_agent_calls() {
         .map(|item| {
             (
                 item.id.as_str(),
-                item.label.as_str(),
+                item.task.as_str(),
                 item.kind.as_deref(),
                 item.state,
             )
@@ -275,22 +275,20 @@ fn subagents_are_read_from_task_and_agent_calls() {
                 Some("code-reviewer"),
                 SubtaskState::Failed
             ),
-            // Started in the background: this transcript doesn't say when
-            // it ends, so it isn't counted as running.
+            // Started in the background: no notification says it ended.
             (
                 "toolu_bg",
                 "Run the slow suite",
                 Some("general-purpose"),
                 SubtaskState::Background
             ),
-            // No description: the prompt's first line.
+            // No description: the prompt.
             (
                 "toolu_tests",
-                "Write tests for the tail reader.",
+                "Write tests for the tail reader.\nKeep them small.",
                 Some("general-purpose"),
                 SubtaskState::Running
             ),
         ]
     );
-    assert_eq!(log.running(), 1);
 }

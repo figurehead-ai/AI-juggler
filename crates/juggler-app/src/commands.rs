@@ -3668,7 +3668,7 @@ pub async fn sessions_list(state: tauri::State<'_, Arc<AppState>>) -> AppResult<
         let records = working_records(&storage)?;
         let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
         drop(storage);
-        let rows = crate::features::subtasks::counted(state, rows);
+        let rows = crate::features::subagents::count::counted(state, rows);
         let rows = crate::features::runtime::described(state, rows);
         crate::features::conversations::titled(state, rows)
     })
@@ -3713,7 +3713,7 @@ pub(crate) fn instances_of(
     let storage = lock_storage_arc(state)?;
     let rows = session_infos_for(&storage, records, &live, &labels, &adopted)?;
     drop(storage);
-    let rows = crate::features::subtasks::counted(state, rows);
+    let rows = crate::features::subagents::count::counted(state, rows);
     let rows = crate::features::runtime::described(state, rows);
     crate::features::conversations::titled(state, rows)
 }
@@ -4807,7 +4807,7 @@ fn session_infos_for(
                 } else {
                     stats.map(|s| s.child_count)
                 },
-                // AJ-E1520: `features::subtasks::counted` fills it; null until read.
+                // AJ-E1520: `features::subagents::count::counted` fills it; null until read.
                 subtask_count: None,
                 git_branch: crate::worktree::branch_of(&record.cwd),
                 // AJ-E1002: changed + untracked from the cached git

@@ -63,7 +63,8 @@ export interface RailItem {
   background: boolean;
   inactive: boolean;
   archived: boolean;
-  /** Helpers it runs (sub-agents), when known. */
+  /** Sub-agents it runs now, when read (AJ-E1520: its tool's subagent
+   * reader, the one its Subagents tab reads; never its child processes). */
   subagents: number;
   /** AJ-E1502: the user pinned it (an AI Juggler session's own pin, or
    * the rail's pin of one another app runs). Pinned rows lead their group. */
@@ -155,7 +156,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     background: false,
     inactive: false,
     archived: row.lifecycle === "archived",
-    subagents: row.subtask_count ?? row.child_count ?? 0,
+    subagents: row.subtask_count ?? 0,
     pinned: row.pinned === true,
     startMs: row.started_at_ms,
   };

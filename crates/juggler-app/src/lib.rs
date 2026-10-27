@@ -433,7 +433,6 @@ macro_rules! app_commands {
             Write features::terminal::commands::terminal_pop_in,
             Read  features::terminal::commands::terminal_windows,
             Read  commands::instance_quality,
-            Read  features::subtasks::commands::subtasks_list,
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
             Read  commands::launch_port_warning,
@@ -1129,6 +1128,7 @@ fn spawn_read_model_ticks(
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
+    let subagents_app = app.clone();
     let conversations_app = app.clone();
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
@@ -1154,10 +1154,19 @@ fn spawn_read_model_ticks(
         commands::detect_running_models(&processes_app, &processes_state, None);
         // AJ-E1703: what each live session is working on (its card).
         features::pools::cards::tick(&processes_state);
-        if features::subtasks::tick(&processes_state) {
-            let _ = commands::emit_sessions(&processes_app, &processes_state);
-        }
     });
+    // AJ-E1520 (0.2): the rail's subagent count, each live session's
+    // reader refreshed (within its byte budget) on its own 2 s tick, so a
+    // slow store never holds up the process sampling; rows read only
+    // what it published.
+    {
+        let subagents_state = quota_state.clone();
+        ticks::every("subagents", features::subagents::count::EVERY, move || {
+            if features::subagents::count::tick(&subagents_state) {
+                let _ = commands::emit_sessions(&subagents_app, &subagents_state);
+            }
+        });
+    }
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
         let _ = commands::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
