@@ -149,6 +149,30 @@ pub fn stamp(path: &Path) -> std::io::Result<String> {
 ///
 /// The file can't be opened or read.
 pub fn last_turns(path: &Path, max: usize, window: Window) -> std::io::Result<LastTurns> {
+    read_turns(path, max, window, Lines::Session)
+}
+
+/// AJ-E1520 (0.2): the same for a subagent's own transcript, whose every
+/// line the tool marks as a subagent's (Claude Code's `isSidechain`): its
+/// conversation is those lines.
+///
+/// # Errors
+///
+/// The file can't be opened or read.
+pub fn subagent_turns(path: &Path, max: usize, window: Window) -> std::io::Result<LastTurns> {
+    read_turns(path, max, window, Lines::Subagent)
+}
+
+/// Which lines are the conversation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Lines {
+    /// A session's: a subagent's lines are left out.
+    Session,
+    /// A subagent's own transcript: its lines are the conversation.
+    Subagent,
+}
+
+fn read_turns(path: &Path, max: usize, window: Window, lines: Lines) -> std::io::Result<LastTurns> {
     if is_compressed(path) {
         return Ok(LastTurns::Compressed);
     }
@@ -158,7 +182,7 @@ pub fn last_turns(path: &Path, max: usize, window: Window) -> std::io::Result<La
     let end = match window {
         Window::From(from) if from <= len && len - from <= MAX_WINDOW => {
             let bytes = read_range(&mut file, from, len)?;
-            let mut turns = turns_at(&bytes, from);
+            let mut turns = turns_of(&bytes, from, lines);
             let cut = turns.len().saturating_sub(FOLLOW_MAX);
             turns.drain(..cut);
             let earlier = match turns.first() {
@@ -187,7 +211,7 @@ pub fn last_turns(path: &Path, max: usize, window: Window) -> std::io::Result<La
             bytes.drain(..first);
             base += first as u64;
         }
-        let mut turns = turns_at(&bytes, base);
+        let mut turns = turns_of(&bytes, base, lines);
         // The window's first turn may have begun before it.
         if start > 0 && !turns.is_empty() {
             turns.remove(0);
@@ -234,6 +258,10 @@ struct PayloadHead {
 /// The turns in whole JSONL lines that start at `base` in the file.
 #[must_use]
 pub fn turns_at(bytes: &[u8], base: u64) -> Vec<LastTurn> {
+    turns_of(bytes, base, Lines::Session)
+}
+
+fn turns_of(bytes: &[u8], base: u64, lines_kept: Lines) -> Vec<LastTurn> {
     // A line the tool marks as its own (Claude Code's `isMeta`: the
     // caveats around a local command) is not a turn. Each kept line is
     // remembered with where it starts.
@@ -270,7 +298,7 @@ pub fn turns_at(bytes: &[u8], base: u64) -> Vec<LastTurn> {
         };
         // A tool's own lines (`<command-name>`, reminders) open with a tag;
         // a tool result has no text of its own.
-        if message.sidechain
+        if (message.sidechain && lines_kept == Lines::Session)
             || (text.is_empty() && tools.is_empty())
             || (speaker == Speaker::You && text.starts_with('<'))
         {
@@ -583,6 +611,37 @@ mod tests {
         let at = usize::try_from(page.turns[1].offset).unwrap();
         let line = String::from_utf8_lossy(&bytes[at..]);
         assert!(line.lines().next().unwrap().contains("real answer"));
+    }
+
+    #[test]
+    fn a_subagents_own_transcript_is_its_conversation() {
+        let dir = tempfile::tempdir().unwrap();
+        let side = |kind: &str, text: &str| {
+            serde_json::json!({
+                "type": kind,
+                "isSidechain": true,
+                "timestamp": "2026-10-27T10:00:00Z",
+                "message": {"role": kind, "content": [{"type": "text", "text": text}]},
+            })
+            .to_string()
+        };
+        let path = write(
+            dir.path(),
+            "agent-a1.jsonl",
+            &[
+                side("user", "Find the parser"),
+                side("assistant", "Found it"),
+            ],
+        );
+        // As a session's, every line is a subagent's: nothing to show.
+        assert!(texts(&last_turns(&path, 5, Window::Latest).unwrap()).is_empty());
+        assert_eq!(
+            texts(&subagent_turns(&path, 5, Window::Latest).unwrap()),
+            vec![
+                (Speaker::You, "Find the parser".to_owned()),
+                (Speaker::Assistant, "Found it".to_owned()),
+            ]
+        );
     }
 
     fn long_session(dir: &Path, turns: usize, filler: usize) -> std::path::PathBuf {

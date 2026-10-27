@@ -75,6 +75,23 @@ impl<L: TailLog> TranscriptTail<L> {
         Ok(())
     }
 
+    /// Reads what was appended to `path`, at most `calls` reads of
+    /// [`READ_PER_CALL`] each: a very long transcript is read over a few
+    /// asks, each answering at once with what it holds so far. True when
+    /// it has caught up with the file's end.
+    ///
+    /// # Errors
+    ///
+    /// As [`TranscriptTail::read`].
+    pub fn read_some(&mut self, path: &Path, calls: usize) -> std::io::Result<bool> {
+        for _ in 0..calls {
+            if !self.read(path)? {
+                return Ok(true);
+            }
+        }
+        Ok(std::fs::metadata(path)?.len() == self.offset)
+    }
+
     /// What has been read so far.
     #[must_use]
     pub fn log(&self) -> &L {

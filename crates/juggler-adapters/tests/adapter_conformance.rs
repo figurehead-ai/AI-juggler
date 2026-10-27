@@ -13,6 +13,7 @@ mod conformance;
 mod grok_fixture;
 mod kimi_fixture;
 mod opencode_fixture;
+mod subagent_fixture;
 
 use std::path::{Path, PathBuf};
 
@@ -91,6 +92,14 @@ impl Subject for Claude {
 
     fn credential_files(&self) -> &'static [&'static str] {
         &[".credentials.json"]
+    }
+
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        Some(subagent_fixture::claude(state_dir, cwd))
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        subagent_fixture::find(state_dir, &format!("{id}.jsonl"))
     }
 
     fn usage(&self) -> Option<&dyn UsageSubject> {
@@ -216,6 +225,14 @@ impl Subject for Codex {
 
     fn credential_files(&self) -> &'static [&'static str] {
         &["auth.json"]
+    }
+
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        Some(subagent_fixture::codex(state_dir, cwd))
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        subagent_fixture::find(state_dir, &format!("-{id}.jsonl"))
     }
 
     fn usage(&self) -> Option<&dyn UsageSubject> {
@@ -390,6 +407,26 @@ impl Subject for OpenCode {
         &["auth.json", "mcp-auth.json"]
     }
 
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        Some(subagent_fixture::opencode(
+            &opencode_db(state_dir),
+            self.0,
+            cwd,
+        ))
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::opencode_store::session_ref(
+            &opencode_db(state_dir),
+            id,
+        ))
+    }
+
+    /// `write_session` adds a sub-agent's session beside it.
+    fn session_subagents(&self) -> usize {
+        1
+    }
+
     fn usage(&self) -> Option<&dyn UsageSubject> {
         match self.0 {
             Line::V1 => Some(&OpenCodeUsage(Line::V1)),
@@ -487,6 +524,14 @@ impl Subject for Kimi {
         &["credentials/kimi-code.json", "server.token"]
     }
 
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        Some(subagent_fixture::kimi(state_dir, cwd))
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        subagent_fixture::find(state_dir, &format!("/{id}/state.json"))
+    }
+
     fn usage(&self) -> Option<&dyn UsageSubject> {
         Some(&KimiUsage)
     }
@@ -572,6 +617,14 @@ impl Subject for Grok {
 
     fn credential_files(&self) -> &'static [&'static str] {
         &["auth.json", "mcp_credentials.json"]
+    }
+
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        Some(subagent_fixture::grok(state_dir, cwd))
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        subagent_fixture::find(state_dir, &format!("/{id}/summary.json"))
     }
 
     fn usage(&self) -> Option<&dyn UsageSubject> {

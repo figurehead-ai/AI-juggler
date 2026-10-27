@@ -728,6 +728,28 @@ pub trait HarnessAdapter: Send + Sync {
     fn driven(&self) -> Option<&dyn crate::runtime::DrivenRuntime> {
         None
     }
+
+    /// AJ-E1520 (0.2): whether this tool's subagents can be listed, from
+    /// which records, or why not. Every adapter answers: the default,
+    /// [`crate::subagents::SubagentSupport::Unanswered`], is refused by the
+    /// conformance kit (check 11).
+    #[must_use]
+    fn subagent_support(&self) -> crate::subagents::SubagentSupport {
+        crate::subagents::SubagentSupport::Unanswered
+    }
+
+    /// AJ-E1520 (0.2): a reader of the subagents the conversation `scope`
+    /// names started (and theirs), from the tool's own records, read-only.
+    /// `None` when [`Self::subagent_support`] isn't supported, or the
+    /// record isn't one of this tool's conversations.
+    #[must_use]
+    fn subagent_reader(
+        &self,
+        scope: crate::subagents::SubagentScope<'_>,
+    ) -> Option<Box<dyn crate::subagents::SubagentReader>> {
+        let _ = scope;
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

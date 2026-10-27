@@ -54,6 +54,9 @@ pub struct AppState {
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
     /// AJ-E1520: each live session's subagents, read on the same tick.
     pub subtasks: crate::features::subtasks::Subtasks,
+    /// AJ-E1520 (0.2): the Subagents tab's readers, for the sessions
+    /// whose tab was opened last.
+    pub subagents: crate::features::subagents::Readers,
     /// AJ-E1703: what each live session is working on (its context card),
     /// read on the same tick.
     pub pool_activity: crate::features::pools::cards::Activity,
@@ -318,6 +321,7 @@ impl AppState {
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
             subtasks: crate::features::subtasks::Subtasks::default(),
+            subagents: crate::features::subagents::Readers::default(),
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),
             runtime: crate::features::runtime::Runtimes::default(),

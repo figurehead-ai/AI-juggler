@@ -32,6 +32,7 @@ pub mod registry;
 pub mod reports;
 pub mod runtime;
 pub mod spec;
+pub mod subagents;
 pub mod system_tools;
 pub mod user_path;
 pub mod watcher;
@@ -56,4 +57,7 @@ pub use runtime::{
     Runtime, RuntimeEvent, TerminalView, Transport,
 };
 pub use spec::{ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
+pub use subagents::{
+    Subagent, SubagentConversations, SubagentReader, SubagentScope, SubagentStatus, SubagentSupport,
+};
 pub use watcher::{SessionEvent, SessionWatcher};

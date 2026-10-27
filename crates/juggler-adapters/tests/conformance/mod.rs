@@ -52,6 +52,15 @@
 //!     Juggler overlay file it replaces), writes files only by plain name
 //!     into the launch's folder, names the report program in every command
 //!     it adds, copies no value from the environment, and adds no wildcard.
+//! 11. **Subagents, honestly** (AJ-E1520, 0.2) — every adapter answers
+//!     whether its tool's subagents can be listed: supported, naming the
+//!     records it reads, or not supported, saying why (never the trait's
+//!     unanswered default). A supported one lists a session's subagents as
+//!     the tool records them — each once, the done, the failed and the
+//!     still-running one as such, a nested one under the one that started
+//!     it — and a session that started none as none; it changes no byte of
+//!     the account's folder while it reads; and a conversation it offers
+//!     is a file in that folder. One not supported reads nothing.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -114,6 +123,32 @@ pub trait Subject {
     /// Default: nothing to record.
     fn trust(&self, state_dir: &Path, cwd: &Path) {
         let _ = (state_dir, cwd);
+    }
+
+    /// Writes, as the tool records them, a session in `cwd` (in an
+    /// account's folder) that started three subagents — one done, one
+    /// failed, one still running — and the running one started one more,
+    /// done (check 11). Returns the session's record as the conversations
+    /// index has it (a file, or a store's key) and its id. Default: none
+    /// (an adapter that says it doesn't support subagents).
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        let _ = (state_dir, cwd);
+        None
+    }
+
+    /// The record of session `id` written by [`Subject::write_session`],
+    /// as the conversations index has it (check 11: it started none).
+    /// Default: none.
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        let _ = (state_dir, id);
+        None
+    }
+
+    /// How many subagents a session [`Subject::write_session`] writes
+    /// started (OpenCode's has a sub-agent's session beside it). Default:
+    /// none.
+    fn session_subagents(&self) -> usize {
+        0
     }
 }
 
@@ -1231,6 +1266,169 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
     }
 }
 
+/// Check 11: subagents, honestly (AJ-E1520).
+pub fn lists_subagents_honestly(subject: &dyn Subject) {
+    use juggler_adapter::subagents::{
+        SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+    };
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let support = adapter.subagent_support();
+    match support {
+        SubagentSupport::Unanswered => {
+            panic!("{name}: it doesn't answer whether its subagents can be listed")
+        }
+        SubagentSupport::NotSupported(reason) => {
+            assert!(
+                !reason.trim().is_empty(),
+                "{name}: not supported, without saying why"
+            );
+            assert!(
+                subject.write_subagents(&dir, &sandbox.project).is_none(),
+                "{name}: a subagents fixture for a tool it says it can't read"
+            );
+            let id = subject.write_session(&dir, &sandbox.project, 1);
+            let record = subject
+                .session_record(&dir, &id)
+                .unwrap_or_else(|| dir.join("none"));
+            assert!(
+                adapter
+                    .subagent_reader(SubagentScope {
+                        path: &record,
+                        id: &id
+                    })
+                    .is_none(),
+                "{name}: not supported, yet it offers a reader"
+            );
+            return;
+        }
+        SubagentSupport::Supported { route, .. } => {
+            assert!(
+                !route.trim().is_empty(),
+                "{name}: supported, without naming the records it reads"
+            );
+        }
+    }
+    let (path, id) = subject
+        .write_subagents(&dir, &sandbox.project)
+        .unwrap_or_else(|| panic!("{name}: supported, but the kit has no subagents fixture"));
+    let before = tree(&dir);
+    let mut reader = adapter
+        .subagent_reader(SubagentScope {
+            path: &path,
+            id: &id,
+        })
+        .unwrap_or_else(|| panic!("{name}: no reader for its own session's record"));
+    let mut rounds = 0;
+    while !reader
+        .refresh()
+        .unwrap_or_else(|_| panic!("{name}: its session's record didn't read"))
+    {
+        rounds += 1;
+        assert!(
+            rounds < 100,
+            "{name}: a small session never finishes reading"
+        );
+    }
+    let list = reader.subagents();
+    // A second refresh with nothing new changes nothing.
+    reader.refresh().unwrap();
+    let again = reader.subagents();
+    assert_eq!(
+        list.len(),
+        again.len(),
+        "{name}: a refresh with nothing new changed the list"
+    );
+    assert_eq!(
+        list.len(),
+        4,
+        "{name}: the fixture's four subagents, each once"
+    );
+    let ids: BTreeSet<&str> = list.iter().map(|agent| agent.id.as_str()).collect();
+    assert_eq!(ids.len(), 4, "{name}: an id listed twice");
+    let mut top: Vec<SubagentStatus> = list
+        .iter()
+        .filter(|agent| agent.depth == 1)
+        .map(|agent| agent.status)
+        .collect();
+    top.sort_by_key(|status| format!("{status:?}"));
+    assert_eq!(
+        top,
+        [
+            SubagentStatus::Done,
+            SubagentStatus::Failed,
+            SubagentStatus::Running
+        ],
+        "{name}: the session's three don't stand as recorded"
+    );
+    let running = list
+        .iter()
+        .find(|agent| agent.depth == 1 && agent.status == SubagentStatus::Running)
+        .unwrap();
+    let nested: Vec<_> = list.iter().filter(|agent| agent.depth == 2).collect();
+    assert_eq!(nested.len(), 1, "{name}: the nested one isn't at depth 2");
+    assert_eq!(
+        nested[0].parent.as_deref(),
+        Some(running.id.as_str()),
+        "{name}: the nested one isn't under the one that started it"
+    );
+    assert_eq!(
+        nested[0].status,
+        SubagentStatus::Done,
+        "{name}: the nested one's end"
+    );
+    for agent in &list {
+        if !agent.status.is_final() {
+            assert_eq!(agent.ended_ms, None, "{name}: an end for one not ended");
+        }
+        if let (Some(start), Some(end)) = (agent.started_ms, agent.ended_ms) {
+            assert!(end >= start, "{name}: one ended before it started");
+        }
+        if agent.depth == 1 {
+            assert_eq!(agent.parent, None, "{name}: the session's own has a parent");
+        }
+    }
+    if let SubagentSupport::Supported {
+        conversations: SubagentConversations::Read,
+        ..
+    } = support
+    {
+        assert!(
+            list.iter().any(|agent| agent.transcript.is_some()),
+            "{name}: conversations are read, yet none is offered"
+        );
+    }
+    for transcript in list.iter().filter_map(|agent| agent.transcript.as_ref()) {
+        assert!(
+            transcript.starts_with(&dir) && transcript.is_file(),
+            "{name}: a conversation that isn't a file in the account's folder"
+        );
+    }
+    assert!(
+        tree(&dir) == before,
+        "{name}: reading its subagents changed the account's folder"
+    );
+    // A plain session lists only what it started.
+    let id = subject.write_session(&dir, &sandbox.other_project, 7);
+    if let Some(path) = subject.session_record(&dir, &id) {
+        let mut reader = adapter
+            .subagent_reader(SubagentScope {
+                path: &path,
+                id: &id,
+            })
+            .unwrap_or_else(|| panic!("{name}: no reader for a plain session"));
+        while !reader.refresh().unwrap() {}
+        assert_eq!(
+            reader.subagents().len(),
+            subject.session_subagents(),
+            "{name}: subagents a plain session didn't start"
+        );
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -1286,6 +1484,11 @@ macro_rules! conformance {
             #[test]
             fn adds_state_reports_honestly() {
                 conformance::adds_state_reports_honestly(&$subject);
+            }
+
+            #[test]
+            fn lists_subagents_honestly() {
+                conformance::lists_subagents_honestly(&$subject);
             }
         }
     };

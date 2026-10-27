@@ -352,13 +352,24 @@ pub fn rollout_cwd(bytes: &[u8]) -> Option<String> {
 }
 
 /// AJ-E1520: a rollout line's part in the session's subagents
-/// (codex-rs `core/src/tools/handlers/multi_agents/`). `spawn_agent` starts
-/// one, and its output names it (`{"agent_id", "nickname"}`); a
-/// `wait`/`wait_agent` output says how each named agent stands
-/// (`{"status": {id: status}}`), a `close_agent` output that the agent it
-/// targeted is shut down, and a `sub_agent_activity` event that one
-/// completed. The `collab_*` events never reach a rollout (`rollout/src/
-/// policy.rs` keeps them out).
+/// (codex-rs `core/src/tools/handlers/multi_agents/`). Two shapes:
+///
+/// - the first: `spawn_agent`'s output names the new agent
+///   (`{"agent_id", "nickname"}`); a `wait`/`wait_agent` output says how
+///   each named agent stands (`{"status": {id: status}}`), a
+///   `close_agent` output that the agent it targeted is shut down, and a
+///   `sub_agent_activity` event that one completed;
+/// - the second (multi-agent v2, seen in 2026-10 rollouts): `spawn_agent`
+///   takes `{message, agent_type, task_name}` and answers the agent's
+///   path (`{"task_name": "/root/…"}`); an `item_completed` event whose
+///   item is a `SubAgentActivity` links that path to the child's thread
+///   (`agent_path`, `agent_thread_id`) and says when it `completed` or was
+///   `interrupted`; `list_agents` answers each agent's status by path
+///   (`{"agents": [{agent_name, agent_status}]}`, `{"errored": …}` for a
+///   failed one), and `interrupt_agent` stops one.
+///
+/// The `collab_*` events never reach a rollout (`rollout/src/policy.rs`
+/// keeps them out).
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
     let null = serde_json::Value::Null;
@@ -371,7 +382,12 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
             };
             if !matches!(
                 name.as_str(),
-                "spawn_agent" | "close_agent" | "wait" | "wait_agent"
+                "spawn_agent"
+                    | "close_agent"
+                    | "interrupt_agent"
+                    | "wait"
+                    | "wait_agent"
+                    | "list_agents"
             ) {
                 return;
             }
@@ -384,40 +400,20 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                         .unwrap_or_else(|| message_text(arguments.get("items")));
                     log.started(&call, &task, text(&arguments, "agent_type").as_deref());
                 }
-                "close_agent" => {
+                "close_agent" | "interrupt_agent" => {
                     if let Some(target) =
                         text(&arguments, "target").or_else(|| text(&arguments, "id"))
                     {
                         log.awaits(&call, &target);
+                        if name == "interrupt_agent" {
+                            log.stops(&call);
+                        }
                     }
                 }
                 _ => log.polls(&call),
             }
         }
-        (Some("response_item"), Some("function_call_output")) => {
-            // Other calls' outputs (a shell's, often large) aren't read.
-            let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
-                return;
-            };
-            let output: serde_json::Value =
-                serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
-            if let Some(agent) = text(&output, "agent_id") {
-                log.named(&call, &agent);
-            } else if let Some(previous) = output.get("previous_status") {
-                // Closed: as it last stood when it had ended, else done.
-                log.answered(&call, agent_state(previous).unwrap_or(SubtaskState::Done));
-            } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
-                log.heard(&call);
-                for (agent, status) in statuses {
-                    if let Some(state) = agent_state(status) {
-                        log.ended(agent, state);
-                    }
-                }
-            } else {
-                // Nothing usable: a spawn that named no agent never started.
-                log.not_started(&call);
-            }
-        }
+        (Some("response_item"), Some("function_call_output")) => subtask_output(log, payload),
         (Some("event_msg"), Some("sub_agent_activity"))
             if text(payload, "kind").as_deref() == Some("completed") =>
         {
@@ -425,12 +421,103 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 log.ended(&agent, SubtaskState::Done);
             }
         }
+        (Some("event_msg"), Some("item_completed")) => {
+            let activity = payload.get("item").unwrap_or(&null);
+            if text(activity, "type").as_deref() != Some("SubAgentActivity") {
+                return;
+            }
+            let thread = text(activity, "agent_thread_id");
+            if let (Some(path), Some(thread)) = (text(activity, "agent_path"), thread.as_deref()) {
+                log.alias(&path, thread);
+            }
+            let state = match text(activity, "kind").as_deref() {
+                Some("completed") => SubtaskState::Done,
+                Some("interrupted") => SubtaskState::Stopped,
+                _ => return,
+            };
+            if let Some(agent) = thread.or_else(|| text(activity, "agent_path")) {
+                log.ended(&agent, state);
+            }
+        }
         _ => {}
     }
 }
 
+/// A call's output, when it is one the subagent log waits on: it names
+/// the agent a spawn started, or says how agents stand.
+fn subtask_output(log: &mut crate::subtasks::SubtaskLog, payload: &serde_json::Value) {
+    use crate::subtasks::SubtaskState;
+    // Other calls' outputs (a shell's, often large) aren't read.
+    let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
+        return;
+    };
+    let output: serde_json::Value =
+        serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
+    if let Some(agent) = text(&output, "agent_id") {
+        log.named(&call, &agent);
+    } else if let Some(path) = text(&output, "task_name").filter(|_| log.is_start(&call)) {
+        log.named(&call, &path);
+    } else if let Some(previous) = output.get("previous_status") {
+        // Closed: as it last stood when it had ended, else done;
+        // interrupted: else stopped.
+        let otherwise = if log.is_stop(&call) {
+            SubtaskState::Stopped
+        } else {
+            SubtaskState::Done
+        };
+        log.answered(&call, agent_state(previous).unwrap_or(otherwise));
+    } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
+        log.heard(&call);
+        for (agent, status) in statuses {
+            if let Some(state) = agent_state(status) {
+                log.ended(agent, state);
+            }
+        }
+    } else if let Some(serde_json::Value::Array(agents)) = output.get("agents") {
+        log.heard(&call);
+        for agent in agents {
+            let (Some(name), Some(status)) = (text(agent, "agent_name"), agent.get("agent_status"))
+            else {
+                continue;
+            };
+            if let Some(state) = agent_state(status) {
+                log.ended(&name, state);
+            }
+        }
+    } else {
+        // Nothing usable: a spawn that named no agent never started.
+        log.not_started(&call);
+    }
+}
+
+/// Whether a raw rollout line can matter to the subagent log: a call to
+/// one of the agent tools, an answer to a call the log waits on, or an
+/// agent's activity.
+pub(crate) fn subtask_line_matters(log: &crate::subtasks::SubtaskLog, line: &[u8]) -> bool {
+    use crate::subtasks::{holds, values_of};
+    if holds(line, b"SubAgentActivity") || holds(line, b"sub_agent_activity") {
+        return true;
+    }
+    if holds(line, b"function_call_output") {
+        return values_of(line, b"call_id")
+            .into_iter()
+            .any(|call| std::str::from_utf8(call).is_ok_and(|call| log.wants(call)));
+    }
+    holds(line, b"function_call")
+        && [
+            &b"spawn_agent"[..],
+            b"close_agent",
+            b"interrupt_agent",
+            b"wait",
+            b"list_agents",
+        ]
+        .iter()
+        .any(|name| holds(line, name))
+}
+
 /// An agent's status (`"running"`, `{"completed": …}`, `{"errored": …}`,
-/// `"shutdown"`, `"not_found"`) as an ending, or `None` while it runs.
+/// `"interrupted"`, `"shutdown"`, `"not_found"`) as an ending, or `None`
+/// while it runs (`"running"`, `"pending_init"`).
 fn agent_state(status: &serde_json::Value) -> Option<crate::subtasks::SubtaskState> {
     use crate::subtasks::SubtaskState;
     let name = match status {
@@ -441,6 +528,7 @@ fn agent_state(status: &serde_json::Value) -> Option<crate::subtasks::SubtaskSta
     match name {
         "completed" | "shutdown" | "not_found" => Some(SubtaskState::Done),
         "errored" => Some(SubtaskState::Failed),
+        "interrupted" => Some(SubtaskState::Stopped),
         _ => None,
     }
 }

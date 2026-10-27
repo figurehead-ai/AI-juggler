@@ -95,6 +95,40 @@ transcript on this Mac when you open the page, with secrets hidden, and
 kept nowhere. Claude app chats show their title only, because those
 conversations aren't kept on your Mac.
 
+## Subagents
+
+When a session starts subagents (helpers it hands part of the work to),
+its page gets a **Subagents** tab. It shows for any session, whichever app
+runs it, once the session has started one. Each row says:
+
+- the subagent's type and what it was asked to do (point at it for the
+  whole task);
+- where it stands: **Running**, **Done**, **Failed**, **Stopped** or
+  **Unknown**;
+- when it started, how long it took, and whether it ran in the background.
+
+The newest come first, and a subagent that another subagent started sits
+under it. Click one to read its own conversation, in the same view as the
+session's; **‹ Subagents** (or Esc) brings you back. With **View › Show ›
+sub-agents** on, a session's "+2 agents" in the list opens this tab.
+
+AI Juggler reads all this from the tool's own records on your Mac, only
+reads them, and keeps nothing. "Running" means the records don't say it
+ended and the session is still open. Once the session has ended, such a
+subagent shows **Unknown**: AI Juggler never guesses.
+
+| Tool | Subagents | Their conversations |
+| --- | --- | --- |
+| Claude Code, and the Claude app's Code tab | Yes | Yes |
+| Codex, and Codex in ChatGPT | Yes | Yes |
+| Kimi Code, and Kimi Code Desktop | Yes | Not yet |
+| Grok Build | Yes | Not yet |
+| OpenCode, and OpenCode Desktop | Yes | Not yet |
+
+Where the conversation isn't shown yet, the tab says so. Turning last
+messages off in Settings › Desktop apps turns subagents' conversations off
+too.
+
 ## Settings › Desktop apps
 
 - **Show sessions from:** one switch for each app (Claude app, Terminal,

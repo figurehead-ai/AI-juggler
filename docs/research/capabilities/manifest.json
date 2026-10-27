@@ -429,6 +429,20 @@
             "https://code.claude.com/docs/en/mcp.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents and their conversations",
+          "status": "available",
+          "how": "<project>/<session>/subagents/agent-<id>.meta.json (agentType, description, toolUseId, spawnDepth, parentAgentId, requestShape, stoppedByUser) and agent-<id>.jsonl (the subagent's own conversation, every line isSidechain) beside the session transcript; the Agent call's tool_result (toolUseResult.status completed / async_launched, agentId) and, for a background one, the <task-notification> (<task-id> = agent id, <status> completed|failed|killed|stopped) queued (queue-operation, queued_command attachment) and given to the session (user line, origin.kind task-notification). A nested one's status is in its parent subagent's transcript.",
+          "limits": "File formats are internal and undocumented; checked against this Mac's records (field names and counts only): 180 subagents in 10 sessions, every one's end found. 30-day cleanup applies to the folder too.",
+          "evidence": "VP",
+          "sources": [
+            "~/.claude/projects/*/<session>/subagents/ on this Mac, 2026-10-27 (shape only)",
+            "crates/juggler-adapters/src/claude_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): claude_subagents lists them read-only; conversations open in the session page's chat view"
         }
       ]
     },
@@ -717,6 +731,18 @@
             "https://claude.com/docs/cowork/monitoring.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The Code tab's sessions' subagents",
+          "status": "available",
+          "how": "The Code tab runs the same Claude Code on the same projects folder, so its sessions' subagents/ folders read as the CLI's.",
+          "limits": "Chat-tab conversations are kept on Anthropic's servers: no subagent record on this Mac.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/claude_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ]
     },
@@ -1164,6 +1190,21 @@
           "evidence": "I",
           "sources": [],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents (child threads) and their conversations",
+          "status": "available",
+          "how": "Each child thread is a rollout of its own in sessions/YYYY/MM/DD/ whose session_meta.source.subagent.thread_spawn names parent_thread_id, depth, agent_path, agent_role, agent_nickname. The parent's rollout says how each ended: first shape spawn_agent -> {agent_id}, wait {status}, close_agent {previous_status}; v2 (2026-10 rollouts) spawn_agent {message, agent_type, task_name} -> {task_name: path}, event_msg item_completed SubAgentActivity {agent_path, agent_thread_id, kind started|interacted|completed|interrupted}, list_agents {agents: [{agent_name, agent_status}]} ({errored: ..} failed), interrupt_agent. App-server thread/list (sourceKinds subAgent) and thread/read read the same.",
+          "limits": "Rollout format is internal; reading through the app-server starts Codex on the user's CODEX_HOME (writes caches), so a read-only view uses the rollouts. A 6 GB rollout is read over several asks. guardian review threads (source.subagent.other) aren't a session's subagents.",
+          "evidence": "VP",
+          "sources": [
+            "~/.codex/sessions on this Mac, 2026-10-27 (shape only: 359 rollouts, 10 thread_spawn children)",
+            "openai/codex core/src/tools/handlers/multi_agents/ (read 2026-10-23)",
+            "crates/juggler-adapters/src/codex_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): codex_subagents lists them from the rollouts, read-only; conversations open in the session page's chat view"
         }
       ]
     },
@@ -1385,6 +1426,18 @@
             "https://learn.chatgpt.com/docs/import"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "Codex in the ChatGPT app (and the Codex app) runs the same Codex on ~/.codex: its sessions' child threads are rollouts in the same tree.",
+          "limits": "As the CLI's.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/codex_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ],
       "checked_version_notes": "26.1021.31345 (build 21828), bundled codex-cli 0.164.0-alpha.11.1"
@@ -1705,6 +1758,23 @@
             "https://opencode.ai/legal/terms-of-service"
           ],
           "ai_juggler_uses": "n/a"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents (child sessions)",
+          "status": "available",
+          "how": "A subagent is a child session: parent_id in session (1.x) / session_v2 (2.x), its agent column the agent, its title '<description> (@<agent> subagent)'. 1.x: the parent's task tool part (state.metadata.sessionId, state.status pending|running|completed|error, state.time.start/end); a background one completes its part at once, so the child's last message (error; time.completed, finish) says. 2.x: the child's idle_outcome succeeded|failed|interrupted at time_idle. API: GET /session/:id/children (1.x), GET /api/session?parentID= (2.x).",
+          "limits": "session list --format json lists top-level sessions only, export one session without children; both run migrations and write logs. The HTTP routes need an OpenCode server on the user's store. Conversations are message/part rows, not a transcript file.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/core/src/session/sql.ts",
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/tool/task.ts",
+            "https://github.com/anomalyco/opencode/blob/86976449c40d48f2731553a024f74552593d1764/packages/core/src/session/sql.ts",
+            "https://github.com/anomalyco/opencode/blob/86976449c40d48f2731553a024f74552593d1764/packages/schema/src/session.ts",
+            "crates/juggler-adapters/src/opencode_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): opencode_subagents lists them from the store, read-only (immutable when OpenCode is closed); conversations not shown yet"
         }
       ],
       "version_notes": "v1 1.19.4 (2026-10-22); v2 2.2.0 (2026-10-27)"
@@ -1829,6 +1899,18 @@
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/desktop/electron-builder.config.ts"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "OpenCode Desktop runs the same server as a sidecar on the same opencode.db (it overrides only XDG_STATE_HOME), so its sessions' child sessions read as the CLI's.",
+          "limits": "As the CLI's.",
+          "evidence": "I",
+          "sources": [
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/desktop/src/main/server.ts"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ],
       "version_notes": "2.2.0 (stable download, v2 line); v1-line Desktop 1.19.4 still on GitHub releases; Homebrew cask opencode-desktop 2.1.4"
@@ -2075,6 +2157,22 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/docs/wire-manifest.d.ts"
           ],
           "ai_juggler_uses": "plan quota not read; exact per-call tokens from wire.jsonl usage.record via usage_since (Measured, keyed by time, model and counts)"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents",
+          "status": "available",
+          "how": "state.json agents map ({type: sub, parentAgentId (always main), labels.parentAgentId (the real parent), labels.profileName}); agents/<agentId>/wire.jsonl per subagent (agent-0, agent-1, ...); the spawning agent's wire.jsonl holds subagent.spawned {subagentId, subagentName, description, runInBackground, parentToolCallId, parentAgentId}, subagent.started, and subagent.completed / failed / cancelled, each with time (ms). Server API GET /api/v1/sessions/{id}/transcript?agent_id= and .../tasks.",
+          "limits": "Users are told not to edit sessions/; the server's transcript route resumes a cold session (writes). A rate-limit failure can leave no terminal record (then running/unknown). The subagent's conversation is an event journal, not read as a conversation yet.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/packages/agent-core-v2/docs/wire-manifest.d.ts",
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/packages/agent-core-v2/src/session/sessionMetadata/sessionMetadata.ts",
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/docs/en/configuration/data-locations.md",
+            "crates/juggler-adapters/src/kimi_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): kimi_subagents lists them from the session folder, read-only; conversations not shown yet"
         }
       ]
     },
@@ -2176,6 +2274,18 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/apps/kimi-code/src/cli/sub/app.ts"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "Kimi Code Desktop keeps its sessions in the same ~/.kimi-code, so they read as the CLI's.",
+          "limits": "Desktop source isn't public; its sharing the home is from the vendor's page.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/kimi_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ]
     },
@@ -2371,6 +2481,21 @@
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/25-status-line.md"
           ],
           "ai_juggler_uses": "not used (usage not read)"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents",
+          "status": "available",
+          "how": "sessions/<cwd>/<session>/subagents/<subagent_id>/meta.json: subagent_type, description, status running|completed|failed|cancelled (a dead process's running is later rewritten to cancelled), started_at, completed_at, child_session_id (the subagent's own session folder, under its own cwd's group, which holds its own subagents/). updates.jsonl also carries _x.ai/session/update subagent_spawned / subagent_finished.",
+          "limits": "Field names are source-level (xai-org/grok-build, about a month older than the shipping CLI); background isn't in meta.json; the tool call id isn't persisted. The child's conversation is its ACP updates.jsonl, not read as a conversation yet.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/agent/subagent/mod.rs",
+            "https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-pager/docs/user-guide/17-sessions.md",
+            "crates/juggler-adapters/src/grok_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): grok_subagents lists them from the session folders, read-only; conversations not shown yet"
         }
       ]
     },
