@@ -241,6 +241,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **OpenCode 2** accounts AI Juggler manages no longer collide with your
+  own OpenCode or OpenCode Desktop: each of their sessions runs its own
+  private server, which ends with the session, instead of OpenCode 2's
+  shared background service. Your default OpenCode folder used where it
+  is keeps the shared service. MCP servers in OpenCode 2's form
+  (`mcp.servers`) are listed and set up in that form.
+- **Grok Build** sessions can start with a first message, and a resume
+  can carry one, so a switch can go into Grok with its handover.
+- **Kimi Code** sessions show whether they're working, waiting on you or
+  idle, and their exact tokens reach Usage, read from Kimi Code's own
+  event log (read only; nothing is sent to a session).
 - Usage shows each account's sessions left and its burn-down again,
   under its runway card: "About 6 usual sessions left (each about 10%)",
   the chart, and when this pace runs out. The new Usage dashboard had

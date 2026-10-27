@@ -10,10 +10,17 @@
 //! Only those names are documented; the rest of each schema isn't (unknown).
 //! Fields are read by their documented names (`snake_case` accepted too),
 //! and what isn't there is left out, never guessed: a time missing from
-//! `state.json` comes from the file. `wire.jsonl` isn't read, so a Kimi
-//! conversation's tokens are unknown (never zero). A session's
-//! conversation file, for the index and for linking, is its `state.json`:
-//! it is there from the session's start and changes with each prompt.
+//! `state.json` comes from the file. A session's conversation file, for
+//! the index and for linking, is its `state.json`: it is there from the
+//! session's start and changes with each prompt.
+//!
+//! `wire.jsonl`, the versioned event log, is read by [`wire`]: what an open
+//! session is doing, and each model call's exact tokens for usage. The
+//! index's summary keeps no tokens (unknown, never zero): it is read again
+//! only when `state.json` changes, so a total there would miss the turn
+//! still running.
+
+pub mod wire;
 
 use std::path::{Path, PathBuf};
 
@@ -155,7 +162,8 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
         )
         .or_else(|| born_ms(dir)),
         last_ms: first_time(&state, &["updatedAt", "updated_at", "lastActiveAt"]),
-        // `wire.jsonl`'s schema is undocumented: unknown, never zero.
+        // Unknown, never zero: exact tokens come from `wire.jsonl` as
+        // usage (see the module docs).
         tokens: juggler_core::model::TokenCounts::default(),
         id,
     })

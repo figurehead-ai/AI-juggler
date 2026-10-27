@@ -50,6 +50,79 @@ pub fn add_session(home: &Path, id: &str, cwd: &Path, title: &str) -> PathBuf {
     dir.join("state.json")
 }
 
+/// The version line a session's event log opens with (protocol 1.5).
+pub const WIRE_META: &str =
+    r#"{"type":"metadata","protocol_version":"1.5","created_at":1792580400000}"#;
+
+/// Appends `lines` to the event log of `agent` in the session whose record
+/// is `state` (`<session>/agents/<agent>/wire.jsonl`); returns the log.
+pub fn append_wire(state: &Path, agent: &str, lines: &[String]) -> PathBuf {
+    let log = state
+        .parent()
+        .unwrap()
+        .join("agents")
+        .join(agent)
+        .join("wire.jsonl");
+    std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+    let mut text: String = lines.iter().map(|line| format!("{line}\n")).collect();
+    if let Ok(before) = std::fs::read_to_string(&log) {
+        // The fixture's placeholder line goes; a real log opens with its version.
+        if before != "{\"type\":\"turn\"}\n" {
+            text = before + &text;
+        }
+    }
+    std::fs::write(&log, text).unwrap();
+    log
+}
+
+/// One `usage.record` line, as Kimi Code writes it.
+pub fn usage_line(model: &str, time: i64, input: u64, output: u64, cache_read: u64) -> String {
+    serde_json::json!({
+        "type": "usage.record",
+        "agentId": "main",
+        "model": model,
+        "usage": {
+            "inputOther": input,
+            "output": output,
+            "inputCacheRead": cache_read,
+            "inputCacheCreation": 0
+        },
+        "usageScope": "turn",
+        "time": time,
+    })
+    .to_string()
+}
+
+/// One record of `kind` with `fields`, as Kimi Code writes it.
+pub fn record(kind: &str, time: i64, fields: serde_json::Value) -> String {
+    let mut value = serde_json::json!({ "type": kind });
+    if let serde_json::Value::Object(extra) = fields {
+        value.as_object_mut().unwrap().extend(extra);
+    }
+    value["time"] = serde_json::json!(time);
+    value.to_string()
+}
+
+/// Kimi Code's lock on session `id` in `home`, held by `pid` since
+/// `started_at` (epoch ms).
+pub fn lock(home: &Path, id: &str, pid: u32, started_at: i64) -> PathBuf {
+    let path = home.join("locks/sessions").join(format!("{id}.lock"));
+    write(
+        &path,
+        &serde_json::json!({
+            "version": 1,
+            "token": format!("{pid}:made-up"),
+            "pid": pid,
+            "hostname": "made-up-host",
+            "startedAt": started_at,
+            "clientIdentity": "kimi_code_cli",
+            "clientDisplayName": "Kimi Code CLI",
+        })
+        .to_string(),
+    );
+    path
+}
+
 /// A membership (OAuth) sign-in holding `canary`.
 pub fn sign_in_membership(home: &Path, canary: &str) {
     write(

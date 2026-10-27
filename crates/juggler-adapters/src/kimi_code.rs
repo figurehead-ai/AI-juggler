@@ -24,10 +24,18 @@
 //!
 //! Sign-in: Kimi Code's own `kimi login` (a device code in the browser),
 //! in a terminal. Only which sign-in files are there is read
-//! (`sign_in.rs`), never one's contents. Usage isn't read: the only
-//! documented quota source is `kimi web`'s local server, reached with a
-//! token from the home and answering from Moonshot's servers — outside
-//! what AI Juggler reads or sends today (the maintainer's ruling).
+//! (`sign_in.rs`), never one's contents.
+//!
+//! Usage and state (research `docs/research/capabilities/kimi-grok.md`,
+//! the source read 2026-10-27): each session's event log
+//! (`agents/<agent>/wire.jsonl`, protocol 1.5) gives every model call's
+//! exact tokens, and whether an open session works, waits on the user or
+//! idles; its session locks say which are open
+//! ([`crate::kimi_sessions::wire`]). Read-only observation: nothing is
+//! sent to a session. The plan's quota isn't read: its only documented
+//! source is `kimi web`'s local server, reached with a token from the home
+//! and answering from Moonshot's servers — outside what AI Juggler reads
+//! or sends today (the maintainer's ruling).
 
 use std::path::{Path, PathBuf};
 
@@ -257,9 +265,13 @@ impl HarnessAdapter for KimiCodeAdapter {
     }
 
     /// Headless runs only for an account on a Kimi Platform API key (see
-    /// [`HarnessAdapter::interactive_only`]); no usage reader.
+    /// [`HarnessAdapter::interactive_only`]); exact tokens from each
+    /// session's event log ([`crate::kimi_sessions::wire`]).
     fn capabilities(&self) -> Capabilities {
-        Capabilities::HEADLESS | Capabilities::RESUME | Capabilities::TRANSCRIPT_WATCH
+        Capabilities::HEADLESS
+            | Capabilities::RESUME
+            | Capabilities::TRANSCRIPT_WATCH
+            | Capabilities::USAGE_TOKENS
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
@@ -428,6 +440,32 @@ impl HarnessAdapter for KimiCodeAdapter {
             crate::kimi_sessions::session_id_of,
         )
         .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
+    }
+
+    /// The sessions Kimi Code holds open in this home (its own session
+    /// locks), each read again as its event log grows.
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::kimi_sessions::wire::live_files(profile_dir)
+    }
+
+    /// Its process (from the lock) and whether it works, waits on the user
+    /// or idles (from the event log; unknown for a version not read).
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::kimi_sessions::wire::read_live(path)
+    }
+
+    /// Each model call's exact tokens, from the sessions' event logs
+    /// (read-only, only what was appended since the last read).
+    fn usage_since(
+        &self,
+        account: &Account,
+        since_ms: i64,
+    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
+        Some(Ok(crate::kimi_sessions::wire::usage_since(
+            account.id.as_str(),
+            &account.state_dir,
+            since_ms,
+        )))
     }
 
     fn locate_transcript(

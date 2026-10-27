@@ -376,6 +376,20 @@ Built from the 1.19.3 and 2.1.2 source. If you can, run it once on each
       where it is. With OpenCode closed, run
       `ls -la ~/.local/share/opencode` before and after a few minutes of
       AI Juggler running: no new files (no `opencode.db-wal`).
+- [ ] **2.x: beside your own OpenCode.** With your own `opencode` (or
+      OpenCode Desktop) running on the default folder, start a session on
+      managed account A (2.x): it starts (its launch carries
+      `--standalone`), and yours keeps working. Quit A's session: no
+      `opencode serve` process of A's is left (`pgrep -fl "opencode serve"`
+      shows only your own service, if any), and A has no
+      `state/opencode/service.json`. Do the same for a headless run and
+      for `opencode auth login` on a fresh account C (they also carry
+      `--standalone`, after `run` and after `auth login`).
+- [ ] **2.x: MCP servers in its form.** Copy an MCP server from a Claude
+      account to A (2.x): it appears in `config/opencode/opencode.json`
+      under `mcp.servers`, `opencode mcp list` lists it, and Undo takes it
+      out. A file you wrote by hand in the 1.x form (`mcp.<name>`) gets the
+      new one in that form, and 2.x still lists both.
 
 Save the terminal output and a screen recording per check to
 `docs/research/evidence/opencode/<version>/`, then hand them to the
@@ -431,6 +445,14 @@ balance.
 - [ ] **Rules and servers sync.** Copy an MCP server from a Claude account
       to A: it appears in A's `mcp.json` and in Kimi Code's `/mcp`, and
       Undo takes it out again.
+- [ ] **Its state and tokens come from its event log.** With a session
+      open on A: AI Juggler marks it working while it replies, "needs you"
+      while an approval or a question waits, and idle after. Within about
+      10 seconds of a reply, A's Usage shows that reply's tokens, by model.
+      Note the first line of its `agents/main/wire.jsonl` (the
+      `protocol_version`), the field names of one `usage.record` and of
+      `locks/sessions/<id>.lock` (names only, no content), and whether a
+      subagent's approval appears in the main log or in its own.
 
 Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
 and hand them to the agent, as for OpenCode.
@@ -459,6 +481,12 @@ Subscription account (or an xAI API key with a small balance).
 - [ ] **Its sessions are listed.** A session started by hand shows in the
       rail's outside sessions, with its folder and title, marked running.
 - [ ] **A model in Launch settings** reaches the session (`--model`).
+- [ ] **A first message.** Switch a Claude session to A: Grok opens in the
+      project and sends the handover pointer as its first message
+      (`grok -- "<pointer>"`), and asks before it reads the handover file.
+      Resume A's session with a message (`grok --resume <id> -- "go on"`):
+      the same conversation comes back and the message is sent in it. A
+      first message of `logout` or `- fix it` arrives as text.
 - [ ] **Usage.** Its limits say "Grok Build doesn't report its limits to
       AI Juggler yet". Note what `/usage` shows, and the exact message
       when the weekly pool runs out (a 402 is expected).

@@ -435,3 +435,226 @@ fn the_spec_describes_kimi_code_as_data() {
     let terms = spec.terms.expect("its terms are named");
     assert!(terms.accounts.contains("interactive use only"));
 }
+
+#[test]
+fn an_open_session_works_asks_and_idles_from_its_event_log_read_only() {
+    use juggler_adapter::live::LiveStatus;
+    use kimi_fixture::{WIRE_META, append_wire, lock, record};
+    use serde_json::json;
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("accounts/a");
+    let adapter = KimiCodeAdapter::with_bin("/bin/echo");
+    let state = kimi_fixture::add_session(&home, "ses-live", Path::new("/w/app"), "live");
+    kimi_fixture::add_session(&home, "ses-closed", Path::new("/w/app"), "closed");
+    // No lock: nothing is open.
+    assert!(adapter.live_session_files(&home).is_empty());
+    lock(&home, "ses-live", 4242, 1_792_580_400_000);
+    // Kimi Code's own claim files beside a lock are never a session.
+    write(&home.join("locks/sessions/ses-live.lock.reclaim"), "{}");
+    write(&home.join("locks/sessions/ses-live.lock.tmp-1-x"), "{}");
+    let at = 1_792_580_401_000;
+    let log = append_wire(
+        &state,
+        "main",
+        &[
+            WIRE_META.to_owned(),
+            record(
+                "turn.prompt",
+                at,
+                json!({"agentId": "main", "input": [], "origin": "user"}),
+            ),
+        ],
+    );
+    assert_eq!(adapter.live_session_files(&home), vec![log.clone()]);
+    let before = files(&home);
+    let read = || {
+        adapter
+            .read_live_session(&log)
+            .expect("an open session reads")
+    };
+    let session = read();
+    assert_eq!(session.session_id, "ses-live");
+    assert_eq!(session.pid, Some(4242));
+    assert_eq!(session.started_secs, None);
+    assert_eq!(session.entrypoint.as_deref(), Some("kimi_code_cli"));
+    assert_eq!(session.status, LiveStatus::Busy);
+    assert_eq!(files(&home), before, "reading the live state wrote nothing");
+    // Only what was appended is read, each time the log grows.
+    append_wire(
+        &state,
+        "main",
+        &[record(
+            "interaction.request",
+            at + 10,
+            json!({"agentId": "main", "id": "ask-1", "kind": "approval", "request": {}}),
+        )],
+    );
+    assert_eq!(read().status, LiveStatus::Waiting);
+    append_wire(
+        &state,
+        "main",
+        &[
+            record(
+                "interaction.resolved",
+                at + 20,
+                json!({"agentId": "main", "id": "ask-1", "response": {}}),
+            ),
+            record(
+                "turn.ended",
+                at + 30,
+                json!({"agentId": "main", "reason": "cancelled"}),
+            ),
+        ],
+    );
+    assert_eq!(read().status, LiveStatus::Idle);
+    // A turn left open before the lock was taken (a crashed process's)
+    // isn't running now.
+    append_wire(
+        &state,
+        "main",
+        &[record(
+            "turn.prompt",
+            at + 40,
+            json!({"agentId": "main", "input": []}),
+        )],
+    );
+    lock(&home, "ses-live", 4243, at + 50);
+    let now = read();
+    assert_eq!(now.status, LiveStatus::Idle);
+    assert_eq!(now.pid, Some(4243));
+    // The lock gone: the session is closed.
+    std::fs::remove_file(home.join("locks/sessions/ses-live.lock")).unwrap();
+    assert!(adapter.live_session_files(&home).is_empty());
+    assert_eq!(adapter.read_live_session(&log), None);
+}
+
+#[test]
+fn a_session_without_its_log_yet_is_open_with_its_state_unknown() {
+    use juggler_adapter::live::LiveStatus;
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("accounts/a");
+    let adapter = KimiCodeAdapter::with_bin("/bin/echo");
+    let lock = kimi_fixture::lock(&home, "ses-new", 99, 1);
+    assert_eq!(adapter.live_session_files(&home), vec![lock.clone()]);
+    let session = adapter.read_live_session(&lock).unwrap();
+    assert_eq!(session.session_id, "ses-new");
+    assert_eq!(session.status, LiveStatus::Unknown);
+    // A lock that names no process isn't a session.
+    write(&lock, r#"{"version":1,"pid":0}"#);
+    assert_eq!(adapter.read_live_session(&lock), None);
+    assert_eq!(adapter.read_live_session(&home.join("state.json")), None);
+}
+
+#[test]
+fn a_log_of_an_unknown_protocol_gives_no_state_and_no_usage() {
+    use juggler_adapter::live::LiveStatus;
+    use kimi_fixture::{append_wire, lock, record, usage_line};
+    use serde_json::json;
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("accounts/a");
+    let adapter = KimiCodeAdapter::with_bin("/bin/echo");
+    let state = kimi_fixture::add_session(&home, "ses-next", Path::new("/w/app"), "next");
+    lock(&home, "ses-next", 7, 1);
+    let log = append_wire(
+        &state,
+        "main",
+        &[
+            r#"{"type":"metadata","protocol_version":"2.0","created_at":1}"#.to_owned(),
+            record(
+                "turn.prompt",
+                1_792_580_401_000,
+                json!({"agentId": "main", "input": []}),
+            ),
+            usage_line("kimi-k3", 1_792_580_402_000, 100, 20, 0),
+        ],
+    );
+    assert_eq!(
+        adapter.read_live_session(&log).unwrap().status,
+        LiveStatus::Unknown
+    );
+    let usage = adapter.usage_since(&account(&home), 0).unwrap().unwrap();
+    assert!(usage.is_empty(), "an unknown protocol gave usage");
+}
+
+#[test]
+fn usage_comes_exact_from_every_agents_log_keyed_once_and_read_incrementally() {
+    use juggler_core::model::{Confidence, TokenCounts};
+    use juggler_core::quota::UsageSource;
+    use kimi_fixture::{WIRE_META, append_wire, usage_line};
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("accounts/a");
+    let adapter = KimiCodeAdapter::with_bin("/bin/echo");
+    let one = kimi_fixture::add_session(&home, "ses-1", Path::new("/w/app"), "one");
+    let at = 1_792_580_400_000;
+    append_wire(
+        &one,
+        "main",
+        &[
+            WIRE_META.to_owned(),
+            usage_line("kimi-k3", at + 1, 1000, 200, 5000),
+        ],
+    );
+    append_wire(
+        &one,
+        "sub-7",
+        &[
+            WIRE_META.to_owned(),
+            usage_line("kimi-k3-mini", at + 2, 300, 40, 0),
+        ],
+    );
+    // A fork's copy of the same call keys the same: counted once.
+    let fork = kimi_fixture::add_session(&home, "ses-fork", Path::new("/w/app"), "fork");
+    append_wire(
+        &fork,
+        "main",
+        &[
+            WIRE_META.to_owned(),
+            usage_line("kimi-k3", at + 1, 1000, 200, 5000),
+        ],
+    );
+    let before = files(&home);
+    let events = adapter.usage_since(&account(&home), 0).unwrap().unwrap();
+    assert_eq!(files(&home), before, "reading usage wrote nothing");
+    let keys: std::collections::BTreeSet<String> = events
+        .iter()
+        .filter_map(|event| event.msg_uuid.clone())
+        .collect();
+    assert_eq!(keys.len(), 2, "two distinct calls");
+    let main = events
+        .iter()
+        .find(|event| event.session.as_deref() == Some("ses-1") && event.ts == at + 1)
+        .unwrap();
+    assert_eq!(main.account, "kimi-acct");
+    assert_eq!(main.model.as_deref(), Some("kimi-k3"));
+    assert_eq!(
+        main.tokens,
+        TokenCounts {
+            input: 1000,
+            output: 200,
+            cache_read: 5000,
+            ..TokenCounts::default()
+        }
+    );
+    assert_eq!(main.source, UsageSource::Transcript);
+    assert_eq!(main.confidence, Confidence::Measured);
+    // A later call: only it is new after the last one read.
+    append_wire(
+        &one,
+        "main",
+        &[usage_line("kimi-k3", at + 60_000, 10, 5, 0)],
+    );
+    let later = adapter
+        .usage_since(&account(&home), at + 30_000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(later.len(), 1);
+    assert_eq!(later[0].ts, at + 60_000);
+    // Asked again from the start, every call comes back, keyed the same.
+    let again = adapter.usage_since(&account(&home), 0).unwrap().unwrap();
+    let again_keys: std::collections::BTreeSet<String> = again
+        .iter()
+        .filter_map(|event| event.msg_uuid.clone())
+        .collect();
+    assert_eq!(again_keys.len(), 3);
+    assert!(keys.is_subset(&again_keys));
+}
