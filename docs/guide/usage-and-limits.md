@@ -16,7 +16,26 @@ and Codex's session logs. It doesn't ask any provider for anything.
 - A conversation that was resumed counts its earlier messages once, under
   the session where they first happened.
 - Costs use the providers' published prices. A model without a published
-  price says "No price for this model yet" instead of $0.
+  price says "No list price" instead of $0.
+
+### Prices and details
+
+**Usage** › **Prices and details** shows what your use would cost at the
+providers' API list prices.
+
+- At the top: the total at list prices, what you pay (when you've set
+  your plan's fee), and the models with no list price. Those models are
+  named and left out of the total, never counted as $0.
+- Below, one row per session and day: the session's title and project,
+  its model, the estimate in US dollars, and its tokens in and out. A
+  session that used several models that day shows the main one and
+  "+1" (or more); click it to see each model's part. "≥ $0.42" means one
+  of those models has no list price, so the real figure is at least that.
+- The total stays under the table as you scroll. **Export CSV** writes
+  every session, model and day, with the session's id.
+- The dollar figures are estimates at list prices, not your subscription
+  fee. Credits, where a tool counts in credits, get their own column and
+  are never converted to dollars.
 
 ### Monthly caps
 
@@ -68,11 +87,21 @@ with nothing to set up:
 - **Limit hits.** When Claude Code hits a limit, it records which limit it
   was and when it resets: "Hit its limit at 2:02 PM · resets 7:00 PM".
 - **Claude Code's last `/usage`.** When you run `/usage`, Claude Code keeps
-  its answer, with both windows and their resets.
+  its answer, with both windows and their resets, and any weekly limit on
+  one model only.
 
 A 5-hour reading older than five hours says nothing about now, so it shows
 as history: "Last reading 13 h ago: 40% used; that window has reset since".
-A team plan with no weekly limit says so instead of "Not measured yet".
+
+**A week on one model.** Some plans limit one model by the week, on its
+own: a team plan may have only that, with no weekly limit for all models.
+It shows as its own line, "This week · Fable only: 100% left · resets
+Thu", beside the 5-hour window and, when your plan has one, the week for
+all models. It limits only that model, so it doesn't change how much room
+the account has for other work; when it's running low, the account's line
+says so ("Fable: 8% left this week"). The Claude app's meter shows only the
+all-models windows, so until Claude Code's `/usage` has run, the week says
+that the meter shows no all-models week and when the rest will show.
 
 Sessions AI Juggler starts report their limits through Claude Code's status
 line. For sessions you start with `claude` in a terminal, there's an option

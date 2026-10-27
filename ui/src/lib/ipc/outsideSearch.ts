@@ -46,9 +46,3 @@ export async function outsideSearchSet(on: boolean): Promise<OutsideSearchInfo> 
   return invoke<OutsideSearchInfo>("outside_search_set", { on });
 }
 
-/** "640 MB" / "1.2 GB" / "300 KB". */
-export function bytesWords(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
-  return `${Math.round(bytes / 1e3)} KB`;
-}

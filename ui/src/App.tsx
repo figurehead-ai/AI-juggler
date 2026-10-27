@@ -924,7 +924,7 @@ export default function App() {
                   </ScreenBoundary>
                 </div>
               ) : selection.kind === "conversation" ? (
-                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
+                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
               ) : (
               <div className="min-h-0 flex-1">
               <RightInspector

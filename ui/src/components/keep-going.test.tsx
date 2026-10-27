@@ -153,8 +153,8 @@ describe("opening AI Juggler at login", () => {
     const own = (watchdog: boolean, atLogin: boolean) =>
       ({ ...info({ working: 0, kept_awake: false, on_battery: false }), own: { rss_bytes: 214_000_000, watchdog, opens_at_login: atLogin } }) as ThisMacInfo;
     const { rerender } = render(<OwnLine info={own(true, true)} />);
-    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 214 MB · with its crash watchdog · opens at login");
+    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 204 MB · with its crash watchdog · opens at login");
     rerender(<OwnLine info={own(false, false)} />);
-    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 214 MB");
+    expect(screen.getByTestId("this-mac-own").textContent).toBe("AI Juggler itself: 204 MB");
   });
 });

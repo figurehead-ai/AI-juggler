@@ -370,8 +370,14 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     let (first, took) = timed("now: the cost table's first page", || {
         commands::cost_rows_page_impl(state, None, &PageRequest::default()).unwrap()
     });
+    // A row is one session's day, its models together (0.1.8).
+    let session_days: HashSet<(String, Option<String>)> = whole
+        .rows
+        .iter()
+        .map(|row| (row.key.clone(), row.day.clone()))
+        .collect();
     assert_eq!(first.items.len(), 50);
-    assert_eq!(first.total, Some(whole.rows.len() as u64));
+    assert_eq!(first.total, Some(session_days.len() as u64));
     assert!(took < Duration::from_secs(1), "first page took {took:?}");
 
     let mut seen = HashSet::new();
@@ -389,11 +395,11 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
         )
         .unwrap();
         for row in &page.items {
-            assert!(seen.insert((row.key.clone(), row.model.clone(), row.day.clone())));
+            assert!(seen.insert((row.session.clone(), Some(row.day.clone()))));
             if let Some(before) = &last_day {
-                assert!(before >= row.day.as_ref().unwrap(), "newest day first");
+                assert!(before >= &row.day, "newest day first");
             }
-            last_day = row.day.clone();
+            last_day = Some(row.day.clone());
             input += row.tokens.input;
         }
         match page.next_cursor {
@@ -401,11 +407,11 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
             None => break,
         }
     }
-    assert_eq!(seen.len(), whole.rows.len());
+    assert_eq!(seen, session_days);
     assert_eq!(input, 30_000 * 100, "the pages add up to the whole");
 
     let one = commands::cost_rows_page_impl(state, Some("acc-1"), &PageRequest::default()).unwrap();
-    assert!(one.total.unwrap() < whole.rows.len() as u64);
+    assert!(one.total.unwrap() < session_days.len() as u64);
 }
 
 #[test]

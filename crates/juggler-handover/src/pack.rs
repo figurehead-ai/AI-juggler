@@ -360,7 +360,11 @@ pub(crate) fn generate_pack_with_redactions(
         redactions, // AJ-E208: counts under the user's policy
     };
     let state_json = serde_json::to_vec_pretty(&state).unwrap_or_default();
-    let pack_md = render_pack_md(&state);
+    let diff_staged = input
+        .staged_files
+        .iter()
+        .any(|(rel_path, _)| rel_path.starts_with("diffs/"));
+    let pack_md = render_pack_md(&state, diff_staged);
     let conversation_md = render_conversation_md(&state, &input.turns, mode);
 
     // The manifest: every shipped file + every Drop as an explicit
@@ -427,7 +431,7 @@ fn slug(raw: &str) -> String {
 /// steps — the "What travels / What stays" brief (SPEC §7.3; deep/09
 /// §H5 "the pack is the preview"). No tier codes (T1–T4 stay
 /// engine-internal per deep/09 D2).
-fn render_pack_md(state: &PackState) -> Vec<u8> {
+fn render_pack_md(state: &PackState, diff_staged: bool) -> Vec<u8> {
     use std::fmt::Write as _;
     let mut out = String::new();
     let _ = writeln!(
@@ -466,10 +470,12 @@ fn render_pack_md(state: &PackState) -> Vec<u8> {
         out,
         "- Git: branch {}{}",
         state.git.branch,
-        if state.git.dirty {
-            " (dirty — diff snapshotted)"
-        } else {
-            ""
+        // Live lab 13: a dirty pack said "diff snapshotted" over an
+        // empty `diffs/`; it says so only when the patch is there.
+        match (state.git.dirty, diff_staged) {
+            (true, true) => " (dirty — diff snapshotted)",
+            (true, false) => " (dirty — the uncommitted changes aren't in this pack)",
+            (false, _) => "",
         }
     );
     let _ = writeln!(out, "\n## What stays\n");

@@ -51,7 +51,9 @@ pub enum ApiError {
     /// `413`, or larger than the plan's limit before sending.
     #[error("This backup is larger than your plan allows ({limit_mb} MB) — nothing was uploaded.")]
     TooLarge {
-        /// The limit, in whole MB.
+        /// The limit, in whole MB as Finder counts a file (1,000,000 bytes),
+        /// as the app's backup sizes are shown (0.1.8: the panel said
+        /// "26 MB" for the same limit this said was "25 MB").
         limit_mb: u64,
     },
     /// The bytes don't match the checksum the service gave.
@@ -457,7 +459,7 @@ impl AccountClient {
         ciphertext: &[u8],
         limit_bytes: u64,
     ) -> Result<UploadedBackup, ApiError> {
-        let limit_mb = limit_bytes / (1024 * 1024);
+        let limit_mb = limit_bytes.saturating_add(500_000) / 1_000_000;
         if ciphertext.len() as u64 > limit_bytes {
             return Err(ApiError::TooLarge { limit_mb });
         }

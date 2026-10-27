@@ -232,3 +232,40 @@ describe("AJ-E1540 a source AI Juggler can't stop", () => {
     expect(view.getByRole("radio", { name: /Stop now/ })).toBeTruthy();
   });
 });
+
+describe("AJ-E2108 a session another app runs", () => {
+  const OUTSIDE: PreflightInfoData = { ...ONECLICK, source_keeps_running: true, source_outside: true, source_app: "Claude" };
+
+  it("says the original stays open in its app, untouched, and where the new session runs", async () => {
+    const view = mount(OUTSIDE, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    expect(view.getByTestId("switch-outside").textContent).toBe(
+      "The original stays open in Claude, untouched: AI Juggler only reads its conversation. Personal continues it as a new session here in AI Juggler.",
+    );
+    expect(view.queryByRole("radio", { name: /Stop now/ })).toBeNull();
+  });
+
+  it("ends on the done step that says so, with no undo window (nothing of ours to go back to)", async () => {
+    const onSwitched = vi.fn();
+    const view = mount(OUTSIDE, onSwitched);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
+    expect(view.getByTestId("switch-done-words").textContent).toContain("The original stays open in Claude, untouched");
+    expect(onSwitched).not.toHaveBeenCalled();
+    fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
+    expect(onSwitched.mock.calls[0][1]).toBeNull();
+  });
+
+  it("says so from the wizard's first step", async () => {
+    const view = mount({ ...WIZARD, source_keeps_running: true, source_outside: true, source_app: "ChatGPT" }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    expect(view.getByTestId("switch-outside-target").textContent).toContain("The original stays open in ChatGPT, untouched");
+  });
+
+  it("one that isn't open says it stays as it is", async () => {
+    const view = mount({ ...OUTSIDE, source_live: false, source_keeps_running: false, source_app: null }, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-outside")).toBeTruthy());
+    expect(view.getByTestId("switch-outside").textContent).toContain("The original stays as it is, untouched");
+  });
+});

@@ -22,9 +22,10 @@ export function memoryBasisWords(basis: string | null): string {
       : "not measured";
 }
 
-/** A tool AI Juggler didn't start, in words. */
-export function placeWords(place: string | null): string {
-  return place === "desktop" ? "Claude app" : place === "terminal" ? "claude in a terminal" : "Claude";
+/** A tool AI Juggler didn't start, in words: the backend's, from its
+ * adapter ("Claude app", "ChatGPT (Codex)", "codex in a terminal"). */
+export function observedWords(tree: ToolTreeInfo): string {
+  return tree.label ?? "An AI tool";
 }
 
 /** "CPU 12%" (of one core, as Activity Monitor counts it) or "CPU —". */
@@ -42,7 +43,7 @@ export function TreeRow({
   onOpenSession: (id: string) => void;
 }): JSX.Element {
   const ours = tree.session_id !== null;
-  const title = ours ? nameOf(tree.session_id!) : placeWords(tree.place);
+  const title = ours ? nameOf(tree.session_id!) : observedWords(tree);
   const detail = [tree.account_label, ours ? null : "not started by AI Juggler"].filter(Boolean).join(" · ");
   const numbers = (
     <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">

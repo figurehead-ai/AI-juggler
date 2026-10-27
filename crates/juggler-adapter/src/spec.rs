@@ -77,8 +77,11 @@ pub struct ToolSpec {
     /// What "the same sign-in, settings and history" is the same as.
     pub same_as: String,
     /// The desktop app that can hold the same setup open, by name, when
-    /// there is one.
+    /// there is one (as the Dock names it: "Claude", `ChatGPT`).
     pub desktop_app: Option<String>,
+    /// That app keeps a meter of the account's limits AI Juggler reads
+    /// (the Claude app's), so a screen may say limits come from it.
+    pub app_meter: bool,
     /// How it is used.
     pub kinds: Vec<ToolKind>,
     /// The project rules files it reads.
@@ -136,6 +139,7 @@ impl ToolSpec {
             },
             same_as: "as wherever you use it now".to_owned(),
             desktop_app: None,
+            app_meter: false,
             kinds: vec![ToolKind::Cli],
             rules_files: Vec::new(),
             rules_import: None,

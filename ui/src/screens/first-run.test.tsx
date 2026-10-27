@@ -543,7 +543,7 @@ describe("AJ-E1022 another folder", () => {
   it("checks what's in it before copying: size, sign-in, the Keychain note, the breakdown on request", async () => {
     const view = await openFolder();
     const check = await view.findByTestId("first-run-folder-check");
-    await waitFor(() => expect(check.textContent).toContain("128 files · 43.9 MB"));
+    await waitFor(() => expect(check.textContent).toContain("128 files · 46 MB"));
     expect(check.textContent).toContain("~/old-claude");
     expect(check.textContent).toContain("Signed in");
     expect(view.getByTestId("first-run-folder-keychain").textContent).toContain("macOS Keychain");

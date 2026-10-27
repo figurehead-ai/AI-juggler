@@ -5,6 +5,7 @@ import { killDisplayName, probablyWords } from "../lib/process-words";
 // The Centre reuses the shared primitive; re-export keeps one source.
 export { Button } from "./primitives";
 import { Button } from "./primitives";
+import { memorySize } from "../lib/compact";
 
 /**
  * AJ-E506/E507: the shared Cleanup row (the Cleanup Centre AND the
@@ -68,10 +69,7 @@ function ageText(ms: number | null): string {
 }
 
 function rssText(bytes: number | null): string {
-  if (bytes === null) return "—";
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  return bytes === null ? "—" : memorySize(bytes);
 }
 
 /** State badge icon per class — icon+text, never colour alone (1.4.1). */

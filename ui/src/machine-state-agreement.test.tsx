@@ -28,8 +28,9 @@ const appWindow = (rss: number, pid: number): ToolTreeInfo => ({
   root_pid: pid,
   session_id: null,
   place: "desktop",
+  label: "Claude app",
   tool: "claude-code",
-  group: "desktop",
+  group: "claude-app",
   account_label: "Personal",
   cpu_pct: 20,
   rss_bytes: rss,
@@ -45,7 +46,8 @@ const PRESSURE_ALERT: OverloadAlertInfo = {
   title: "Your Mac is under memory pressure",
   detail: "macOS reports memory pressure",
   session_id: null,
-  place: "desktop",
+  place: "claude-app",
+  subject_name: "The Claude app",
   subject_bytes: 16_100_000_000,
   subject_estimate: true,
   subject_cpu: null,
@@ -102,7 +104,7 @@ describe("every surface says the same state", () => {
       // The alert and This Mac: one severity, one figure (the group's).
       expect(words).toBe("Under memory pressure");
       expect(need!.textContent).toContain("Your Mac is under memory pressure");
-      expect(need!.textContent).toContain("The Claude app is using about 16 GB across 3 windows");
+      expect(need!.textContent).toContain("The Claude app is using about 15 GB across 3 windows");
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
     } else {
       expect(need).toBeNull();

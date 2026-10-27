@@ -364,13 +364,13 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
         blocked
             .to_string()
             .contains("Choose how secrets are handled in packs first"),
-        "unset blocks: {blocked}"
+        "an unset policy blocks the export"
     );
 
     commands::redaction_policy_set_global_impl(state, Some("strip")).unwrap();
     let path = commands::pack_export_impl(state, &epoch_a).unwrap();
     let dir = PathBuf::from(&path);
-    assert!(dir.is_dir(), "pack directory written: {path}");
+    assert!(dir.is_dir(), "the pack directory is written");
     assert!(dir.join("manifest.json").is_file(), "manifest present");
 
     // Zero canary bytes across the WHOLE export (E202's always-on

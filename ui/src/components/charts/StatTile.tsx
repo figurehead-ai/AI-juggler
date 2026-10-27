@@ -58,6 +58,7 @@ export function StatTile({
   value,
   unit,
   suffix,
+  full = false,
   before,
   better = "neither",
   period,
@@ -71,6 +72,8 @@ export function StatTile({
   unit: Unit;
   /** Words after the number ("h", "min ago"). */
   suffix?: string;
+  /** The value in full ("$198.63"), where cents matter (prices). */
+  full?: boolean;
   /** The period before's value, for the change. */
   before?: number | null;
   better?: Better;
@@ -89,7 +92,7 @@ export function StatTile({
         {label}
       </span>
       <span className="text-stat text-ink" title={value === null ? undefined : exact(value, unit)} data-testid="stat-value">
-        {value === null ? "—" : short(value, unit)}
+        {value === null ? "—" : full ? exact(value, unit) : short(value, unit)}
         {suffix && value !== null && <span className="ml-1 text-section font-medium text-muted">{suffix}</span>}
       </span>
       {before != null && period && value !== null && <Delta now={value} before={before} better={better} period={period} />}

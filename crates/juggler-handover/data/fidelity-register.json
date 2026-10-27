@@ -178,62 +178,82 @@
           "area": "transcript-resume",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.302",
+          "source_version": "2.1.310",
           "target_version": "0.163.0",
-          "date": "2026-10-22",
-          "fixture": "switch-lab journey A→B→Codex→A",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1 and J3",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "rules-carry",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.302",
+          "source_version": "2.1.310",
           "target_version": "0.163.0",
-          "date": "2026-10-23",
-          "fixture": "switch-lab labs 9 and 10",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "todos",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.302",
+          "source_version": "2.1.310",
           "target_version": "0.163.0",
-          "date": "2026-10-22",
-          "fixture": "switch-lab journey A→B→Codex→A",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1 and J3",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "subagents",
-          "verdict": "UNVALIDATED"
+          "verdict": "FAIL",
+          "run": "live",
+          "source_version": "2.1.310",
+          "target_version": "0.163.0",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md",
+          "drop_note": "Doesn't carry: subagent state. The switch screen lists it; a subagent's own transcript stays on Claude Code."
         },
         {
           "area": "file-history",
-          "verdict": "UNVALIDATED"
+          "verdict": "FAIL",
+          "run": "live",
+          "source_version": "2.1.310",
+          "target_version": "0.163.0",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md",
+          "drop_note": "Claude Code's file checkpoints (rewind) stay on Claude Code: the switch screen says tool state doesn't carry. The edited files stay in the folder, and an exported pack's diffs/ holds the uncommitted changes."
         },
         {
           "area": "mcp-references",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.302",
+          "source_version": "2.1.310",
           "target_version": "0.163.0",
-          "date": "2026-10-22",
-          "fixture": "switch-lab journey A→B→Codex→A",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1 (AIJ_LAB_PROBE)",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "cwd-worktree-edges",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "2.1.310",
+          "target_version": "0.163.0",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1 (folder) and J3 (git worktree)",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "switch-back",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.302",
+          "source_version": "2.1.310",
           "target_version": "0.163.0",
-          "date": "2026-10-22",
-          "fixture": "switch-lab journey A→B→Codex→A",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J1 and J3",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         }
       ]
@@ -247,9 +267,9 @@
           "verdict": "PASS",
           "run": "live",
           "source_version": "0.163.0",
-          "target_version": "2.1.302",
-          "date": "2026-10-23",
-          "fixture": "switch-lab labs 9 and 10",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
@@ -257,9 +277,9 @@
           "verdict": "PASS",
           "run": "live",
           "source_version": "0.163.0",
-          "target_version": "2.1.302",
-          "date": "2026-10-23",
-          "fixture": "switch-lab labs 9 and 10",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
@@ -267,9 +287,9 @@
           "verdict": "PASS",
           "run": "live",
           "source_version": "0.163.0",
-          "target_version": "2.1.302",
-          "date": "2026-10-23",
-          "fixture": "switch-lab labs 9 and 10",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
@@ -282,20 +302,32 @@
         },
         {
           "area": "mcp-references",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2 (AIJ_LAB_PROBE)",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "cwd-worktree-edges",
-          "verdict": "UNVALIDATED"
+          "verdict": "PASS",
+          "run": "live",
+          "source_version": "0.163.0",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2 (git worktree)",
+          "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         },
         {
           "area": "switch-back",
           "verdict": "PASS",
           "run": "live",
           "source_version": "0.163.0",
-          "target_version": "2.1.302",
-          "date": "2026-10-23",
-          "fixture": "switch-lab lab 10",
+          "target_version": "2.1.310",
+          "date": "2026-10-26",
+          "fixture": "switch-lab lab 14, J2",
           "evidence": "docs/qa/evidence/AJ-E1539/manifest.md"
         }
       ]

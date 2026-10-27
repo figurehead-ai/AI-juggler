@@ -63,6 +63,7 @@ import {
   type ProviderInstallData,
   type ScanReportData,
 } from "../lib/bridge";
+import { byteSize } from "../lib/compact";
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -637,13 +638,6 @@ function FoundStep({
 
 export { colourAt, freeLabel };
 
-function humanBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-}
-
 export type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
 
 /** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the
@@ -955,7 +949,7 @@ function FolderStep({
           <>
             <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink" role="status">
               <span>
-                {inspect.file_count.toLocaleString()} files · {humanBytes(inspect.total_bytes)}
+                {inspect.file_count.toLocaleString()} files · {byteSize(inspect.total_bytes)}
                 {inspect.truncated ? "+" : ""}
               </span>
               {inspect.is_config &&
@@ -983,7 +977,7 @@ function FolderStep({
                   {inspect.folders.slice(0, 5).map((entry) => (
                     <li key={entry.name} className="flex max-w-md items-center justify-between gap-4">
                       <span className="truncate font-mono">{entry.name}</span>
-                      <span>{humanBytes(entry.bytes)}</span>
+                      <span>{byteSize(entry.bytes)}</span>
                     </li>
                   ))}
                 </ul>
@@ -1004,7 +998,7 @@ function FolderStep({
       )}
       {usable && large && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" role="status" data-testid="first-run-folder-large">
-          Its session history is large ({humanBytes(inspect.total_bytes)}). Bring in the settings only, or add a fresh
+          Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or add a fresh
           account instead.
         </p>
       )}

@@ -167,10 +167,15 @@
   },
   {
     "pair": "claude-code→codex",
-    "score": 0.72,
+    "score": 0.76,
     "label": "F1",
     "described": "F1",
-    "caps": [],
+    "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      }
+    ],
     "carry_list": [
       {
         "artifact": "Chat",
@@ -199,8 +204,8 @@
       },
       {
         "artifact": "Skills",
-        "word": "stays (no written mapping)",
-        "reason": "no written mapping"
+        "word": "translated",
+        "reason": "translated"
       },
       {
         "artifact": "EnvModel",
@@ -216,10 +221,15 @@
   },
   {
     "pair": "codex→claude-code",
-    "score": 0.72,
+    "score": 0.76,
     "label": "F1",
     "described": "F1",
-    "caps": [],
+    "caps": [
+      {
+        "cap": "unvalidated-pair",
+        "capped_at": "F1"
+      }
+    ],
     "carry_list": [
       {
         "artifact": "Chat",
@@ -248,8 +258,8 @@
       },
       {
         "artifact": "Skills",
-        "word": "stays (no written mapping)",
-        "reason": "no written mapping"
+        "word": "translated",
+        "reason": "translated"
       },
       {
         "artifact": "EnvModel",

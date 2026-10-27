@@ -27,9 +27,15 @@ detail: string,
  */
 session_id: string | null, 
 /**
- * … or a tool AI Juggler didn't start (`desktop` | `terminal`).
+ * … or a tool AI Juggler didn't start: its This Mac group (an app's
+ * id, `terminal:<tool>`).
  */
 place: string | null, 
+/**
+ * That tool, named as the alert says it ("The Claude app",
+ * `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+ */
+subject_name: string | null, 
 /**
  * The contributor's memory, bytes — only when memory is what's high.
  */

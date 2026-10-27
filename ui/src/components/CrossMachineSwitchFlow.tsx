@@ -22,16 +22,13 @@ import {
   type FleetSwitchProgressInfo,
   type RemoteSwitchTargetInfo,
 } from "../lib/bridge";
+import { byteSize } from "../lib/compact";
 
 type Phase =
   | { kind: "wizard" }
   | { kind: "pushing"; progress: FleetSwitchProgressInfo | null }
   | { kind: "done"; outcome: FleetSwitchOutcomeInfo }
   | { kind: "failed"; message: string };
-
-function megabytes(bytes: number): string {
-  return `${(bytes / 1_000_000).toFixed(1)} MB`;
-}
 
 export function CrossMachineSwitchFlow({
   sessionId,
@@ -452,7 +449,7 @@ export function CrossMachineSwitchFlow({
                   />
                 </div>
                 <p className="text-label text-muted">
-                  {megabytes(phase.progress.received_bytes)} of {megabytes(phase.progress.total_bytes)}
+                  {byteSize(phase.progress.received_bytes)} of {byteSize(phase.progress.total_bytes)}
                 </p>
               </>
             )}

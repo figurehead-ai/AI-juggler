@@ -37,7 +37,6 @@ import { QuotaBar } from "./primitives";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
@@ -46,6 +45,7 @@ import { installWords, providerDisplayName } from "../lib/providers";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
+import { memorySize } from "../lib/compact";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -528,7 +528,7 @@ function InstanceOverview(props: PanelProps) {
           </span>
           <span data-testid="instance-resources" className="tabular-nums text-muted">
             cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-            {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
+            {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · more processes{" "}
             {session.child_count ?? "—"}
           </span>
         </div>
@@ -632,7 +632,7 @@ function InstanceOverview(props: PanelProps) {
             >
               <span>
                 cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-                {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · children{" "}
+                {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
                 {session.child_count ?? "—"}
               </span>
               <span>
@@ -1235,12 +1235,6 @@ function QualityTab(props: PanelProps) {
   );
 }
 
-/// Formats bytes as MB/GB for the RAM column.
-function formatRss(bytes: number): string {
-  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
-  return `${Math.round(bytes / 1_000_000)} MB`;
-}
-
 /// Formats an age in ms as `42m` / `12s` / `2h 3m`.
 function formatAge(ms: number): string {
   const seconds = Math.round(ms / 1000);
@@ -1503,7 +1497,7 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
                   <td className="py-1.5 pr-2 tabular-nums text-ink">
                     {row.cpu_pct !== null ? `${Math.round(row.cpu_pct)}%` : <span className="text-muted">measuring…</span>}
                   </td>
-                  <td className="py-1.5 pr-2 tabular-nums text-ink">{formatRss(row.rss_bytes)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums text-ink">{memorySize(row.rss_bytes)}</td>
                   <td className="py-1.5 pr-2 tabular-nums text-muted">{formatAge(row.age_ms)}</td>
                   <td className="py-1.5 tabular-nums text-muted">{row.child_count}</td>
                 </tr>

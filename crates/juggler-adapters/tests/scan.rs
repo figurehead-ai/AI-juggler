@@ -162,10 +162,18 @@ fn project_seeds_return_directory_names_only() {
 
 #[test]
 fn desktop_probe_checks_known_app_presence_only() {
+    // The tools' own apps, as their adapters name them.
+    let known = ["Claude.app", "ChatGPT.app", "../Escape.app", ""];
     let work = tempfile::tempdir().unwrap();
-    assert!(desktop_apps_present(work.path()).is_empty());
+    assert!(desktop_apps_present(work.path(), &known).is_empty());
     std::fs::create_dir_all(work.path().join("Claude.app")).unwrap();
-    assert_eq!(desktop_apps_present(work.path()), ["Claude.app"]);
+    std::fs::create_dir_all(work.path().join("ChatGPT.app")).unwrap();
+    std::fs::create_dir_all(work.path().join("Other.app")).unwrap();
+    assert_eq!(
+        desktop_apps_present(work.path(), &known),
+        ["Claude.app", "ChatGPT.app"]
+    );
+    assert!(desktop_apps_present::<&str>(work.path(), &[]).is_empty());
 }
 
 /// The static guardrail (Req.7): the scan's probe code contains no

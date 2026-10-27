@@ -430,6 +430,7 @@ fn the_models_in_real_use_are_priced() {
         // QA's oracle on #120: the Codex models actually in use.
         "gpt-6.1-sol",
         "gpt-6-astra",
+        "gpt-6.1-terra",
     ] {
         assert!(table.row_for(model, NOW).is_some(), "{model} is priced");
     }
@@ -449,6 +450,26 @@ fn the_models_in_real_use_are_priced() {
         )
         .unwrap();
     assert!((usd - 29.2).abs() < 1e-6, "{usd}");
+    // 0.1.8, the maintainer's Codex sessions: gpt-6.1-terra on
+    // developers.openai.com/api/docs/pricing, 2026-10-26 (Standard, short
+    // context): $1 input, $5 output, $0.05 cached input per MTok.
+    let terra = table
+        .price_tokens(
+            "gpt-6.1-terra",
+            NOW,
+            TokenCounts {
+                input: 1_000_000,
+                output: 1_000_000,
+                cache_read: 1_000_000,
+                cache_write: 0,
+                reasoning: 0,
+            },
+        )
+        .unwrap();
+    assert!((terra - 6.05).abs() < 1e-6, "{terra}");
+    // codex-auto-review has no row on OpenAI's page (checked 2026-10-26):
+    // it stays unpriced, never a guess (D-06).
+    assert!(table.row_for("codex-auto-review", NOW).is_none());
     // A snapshot date is only an exact eight-digit suffix.
     assert!(table.row_for("claude-opus-4-6-2026", NOW).is_none());
     assert!(
@@ -508,4 +529,14 @@ fn corpus_total_matches_the_independent_oracle() {
         (total - ORACLE_TOTAL_USD).abs() < 5e-8,
         "corpus totals match the independent oracle: rust {total} vs oracle {ORACLE_TOTAL_USD}"
     );
+}
+
+/// The pricing warning's clock: the bundled table carries a readable
+/// capture day, so the warning can show once a build's prices are old.
+#[test]
+fn the_bundled_table_says_when_it_was_captured() {
+    let captured = juggler_core::cost_ledger::seed_captured_ms().expect("a capture day");
+    // 2025-01-01 .. 2100-01-01: a real day, not a parse slip.
+    assert!((1_735_689_600_000..4_102_444_800_000).contains(&captured));
+    assert_eq!(captured % 86_400_000, 0, "midnight UTC");
 }

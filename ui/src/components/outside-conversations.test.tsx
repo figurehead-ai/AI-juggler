@@ -200,16 +200,48 @@ describe("AJ-E1529 a conversation's page", () => {
     expect(host.copyConversationResume).toHaveBeenCalledTimes(1);
   });
 
-  it("AJ-E2108: while it's open in its app, Go to it leads and Continue waits, saying why", async () => {
+  it("AJ-E2108: while it's open in its app, Go to it leads and its own profile waits, saying why", async () => {
     const host: ActionHost = { goToConversation: vi.fn(), continueConversation: vi.fn() };
     render(withFixture([conversation("c", { live: true })], <ConversationPage accountId="a1" id="c" now={NOW} />, host));
     await waitFor(() => expect(screen.getByTestId("session-go-to")).toBeTruthy());
     expect(screen.queryByTestId("conversation-continue")).toBeNull();
     fireEvent.click(screen.getByTestId("session-go-to"));
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
-    const carry = (await screen.findByTestId("continue-carry-in")) as HTMLButtonElement;
-    expect(carry.disabled).toBe(true);
-    expect(screen.getByTestId("continue-on").textContent).toContain("It's open in its app now");
+    expect(await screen.findByTestId("continue-same-profile")).toBeTruthy();
+    expect(screen.queryByTestId("continue-carry-in")).toBeNull();
+    expect(screen.getByTestId("continue-on").textContent).toContain("one conversation can't have two writers");
+  });
+
+  it("AJ-E2108: picking another account while it's open in its app opens the switch screen from it", async () => {
+    (window as unknown as { __AIJ_SWITCH_TARGETS__?: unknown }).__AIJ_SWITCH_TARGETS__ = [
+      {
+        recipe_id: "recipe-codex",
+        provider: "codex",
+        account_id: "codex-1",
+        account_label: "Codex Personal",
+        badge: "Full story, fresh start · Beta",
+        validated: false,
+        cross_provider: true,
+        drops: [],
+        score: null,
+        filtered_reason: null,
+        top_factors: [],
+        factors: [],
+        confidence: "Measured",
+        tte_min: null,
+        suggested: false,
+      },
+    ];
+    const onSwitch = vi.fn();
+    try {
+      render(withFixture([conversation("c", { live: true })], <ConversationPage accountId="a1" id="c" now={NOW} onSwitch={onSwitch} />, {}));
+      const pick = (await screen.findByTestId("continue-target")) as HTMLButtonElement;
+      expect(pick.disabled).toBe(false);
+      fireEvent.click(pick);
+      expect(onSwitch).toHaveBeenCalledWith("conversation:a1:c", "recipe-codex", "Codex Personal");
+    } finally {
+      delete (window as unknown as { __AIJ_SWITCH_TARGETS__?: unknown }).__AIJ_SWITCH_TARGETS__;
+    }
   });
 
   it("a conversation that went away says so, once it has stayed away", async () => {

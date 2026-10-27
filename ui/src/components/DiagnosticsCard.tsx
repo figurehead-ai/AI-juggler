@@ -16,8 +16,8 @@ import {
   type DiagnosticsPreviewInfo,
 } from "../lib/ipc/app";
 import { CardTitle } from "./CardTitle";
+import { byteSize } from "../lib/compact";
 
-const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
 const bytesOf = (text: string) => new TextEncoder().encode(text).length;
 
 export function DiagnosticsCard(): JSX.Element {
@@ -47,7 +47,7 @@ export function DiagnosticsCard(): JSX.Element {
       if (!dest) return;
       const saved = await appDiagnosticsExport(shown.id, dest);
       setPreview(null);
-      setStatus(`Saved to ${saved.path} (${size(saved.bytes)}). Attach it to your report.`);
+      setStatus(`Saved to ${saved.path} (${byteSize(saved.bytes)}). Attach it to your report.`);
     });
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-diagnostics">
@@ -85,7 +85,7 @@ export function DiagnosticsCard(): JSX.Element {
                 <details>
                   <summary className="cursor-pointer text-xs">
                     <span className="font-mono text-ink">{file.name}</span>
-                    <span className="text-muted"> · {file.about} · {size(bytesOf(file.text))}</span>
+                    <span className="text-muted"> · {file.about} · {byteSize(bytesOf(file.text))}</span>
                   </summary>
                   <pre
                     className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-label text-ink"

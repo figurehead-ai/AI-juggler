@@ -48,7 +48,9 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
  * never a dead end (the maintainer's third report). */
 export function unmeasuredWords(tool: string): string {
   const spec = toolSpec(tool);
-  const app = spec.desktop_app ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
+  // Only a tool whose app keeps a meter AI Juggler reads says so (the
+  // Codex app's limits come in Codex's own records).
+  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
   const name = providerDisplayName(tool);
   return app
     ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`

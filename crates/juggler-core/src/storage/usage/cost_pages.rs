@@ -1,10 +1,10 @@
 //! The cost table a page at a time (0.1.5 review: Usage read every
 //! usage event and drew every session × model × day row at once).
 //!
-//! A bucket is one UTC day × session × model, as
-//! [`crate::cost_ledger::rollup`] folds them. Pages are keyset ones:
-//! newest day first, then the bucket's key ([`bucket_key`]), so a bucket
-//! added meanwhile never shifts or repeats what was shown.
+//! 0.1.8: a row is one session's UTC day, its models folded together
+//! (the maintainer saw near-duplicate rows, one per model a session used
+//! that day). Pages are keyset ones: newest day first, then the session
+//! id, so a row added meanwhile never shifts or repeats what was shown.
 
 use rusqlite::params;
 
@@ -14,75 +14,50 @@ use crate::quota::{UsageEvent, UsageSource};
 
 const DAY_MS: i64 = 86_400_000;
 
-/// One bucket's place: its UTC day (days since the epoch) and its key.
+/// One row's place: its UTC day (days since the epoch) and its session.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CostBucket {
+pub struct CostDay {
     /// Days since 1970-01-01, UTC.
     pub day: i64,
     /// The session it's in (`""` when the events name none).
     pub session: String,
-    /// The model, when the events name one.
-    pub model: Option<String>,
 }
-
-impl CostBucket {
-    /// The bucket's key within its day, as the query orders it: the
-    /// session, then the model (none before any).
-    #[must_use]
-    pub fn key(&self) -> String {
-        bucket_key(&self.session, self.model.as_deref())
-    }
-}
-
-/// A bucket's key within its day (byte order is the query's order).
-#[must_use]
-pub fn bucket_key(session: &str, model: Option<&str>) -> String {
-    match model {
-        Some(model) => format!("{session}\u{1f}\u{2}{model}"),
-        None => format!("{session}\u{1f}\u{1}"),
-    }
-}
-
-/// The key, as SQL computes it.
-const KEY_SQL: &str = "COALESCE(session, '') || char(31) || COALESCE(char(2) || model, char(1))";
 
 impl UsageRepo<'_> {
-    /// Up to `limit` buckets of `account` (every account when `None`),
-    /// newest day first, after `after` (`(day, key)` of the last one
-    /// shown).
+    /// Up to `limit` session days of `account` (every account when
+    /// `None`), newest day first, after `after` (`(day, session)` of the
+    /// last one shown).
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn cost_buckets_page(
+    pub fn cost_days_page(
         &self,
         account: Option<&str>,
         after: Option<(i64, &str)>,
         limit: usize,
-    ) -> Result<Vec<CostBucket>, CoreError> {
-        let (after_day, after_key) =
-            after.map_or((None, None), |(day, key)| (Some(-day), Some(key)));
+    ) -> Result<Vec<CostDay>, CoreError> {
+        let (after_day, after_session) =
+            after.map_or((None, None), |(day, session)| (Some(-day), Some(session)));
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT DISTINCT -(ts / {DAY_MS}) AS dayn, {KEY_SQL} AS bkey,
-                    COALESCE(session, ''), model
+            "SELECT DISTINCT -(ts / {DAY_MS}) AS dayn, COALESCE(session, '') AS skey
                FROM usage_events
               WHERE (?1 IS NULL OR account = ?1)
-                AND (?2 IS NULL OR dayn > ?2 OR (dayn = ?2 AND bkey > ?3))
-              ORDER BY dayn, bkey
+                AND (?2 IS NULL OR dayn > ?2 OR (dayn = ?2 AND skey > ?3))
+              ORDER BY dayn, skey
               LIMIT ?4"
         ))?;
         let rows = stmt.query_map(
             params![
                 account,
                 after_day,
-                after_key,
+                after_session,
                 i64::try_from(limit).unwrap_or(i64::MAX)
             ],
             |row| {
-                Ok(CostBucket {
+                Ok(CostDay {
                     day: -row.get::<_, i64>(0)?,
-                    session: row.get(2)?,
-                    model: row.get(3)?,
+                    session: row.get(1)?,
                 })
             },
         )?;
@@ -90,15 +65,15 @@ impl UsageRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
-    /// How many buckets `account` (every account when `None`) has.
+    /// How many session days `account` (every account when `None`) has.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn cost_bucket_count(&self, account: Option<&str>) -> Result<u64, CoreError> {
+    pub fn cost_day_count(&self, account: Option<&str>) -> Result<u64, CoreError> {
         let count: i64 = self.conn.query_row(
             &format!(
-                "SELECT COUNT(*) FROM (SELECT DISTINCT ts / {DAY_MS}, COALESCE(session, ''), model
+                "SELECT COUNT(*) FROM (SELECT DISTINCT ts / {DAY_MS}, COALESCE(session, '')
                    FROM usage_events WHERE (?1 IS NULL OR account = ?1))"
             ),
             params![account],

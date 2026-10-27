@@ -7,22 +7,22 @@
 import { useEffect, useState, type JSX } from "react";
 import { errorText } from "../lib/bridge";
 import {
-  bytesWords,
   outsideSearchEstimate,
   outsideSearchSet,
   outsideSearchStatus,
   type OutsideSearchEstimateInfo,
   type OutsideSearchInfo,
 } from "../lib/ipc/outsideSearch";
+import { byteSize } from "../lib/compact";
 
 /** The line under the switch, for where the index stands. */
 export function indexWords(info: OutsideSearchInfo, estimate: OutsideSearchEstimateInfo | null): string {
   if (!info.enabled) {
     if (!estimate) return "Working out how big its index would be…";
     if (estimate.sessions === 0) return "There are no sessions started outside AI Juggler to index yet.";
-    return `Its index would take about ${bytesWords(estimate.size_bytes)} on this Mac, for ${estimate.sessions} sessions.`;
+    return `Its index would take about ${byteSize(estimate.size_bytes)} on this Mac, for ${estimate.sessions} sessions.`;
   }
-  const size = bytesWords(info.size_bytes ?? 0);
+  const size = byteSize(info.size_bytes ?? 0);
   return info.indexed < info.sessions
     ? `Index: ${size} so far · ${info.indexed} of ${info.sessions} sessions. It builds in the background.`
     : `Index: ${size} · all ${info.sessions} sessions.`;
