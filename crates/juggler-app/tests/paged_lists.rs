@@ -370,7 +370,7 @@ fn the_cost_table_comes_a_page_at_a_time_and_adds_up() {
     let (first, took) = timed("now: the cost table's first page", || {
         commands::cost_rows_page_impl(state, None, &PageRequest::default()).unwrap()
     });
-    // A row is one session's day, its models together (0.1.7).
+    // A row is one session's day, its models together (0.1.8).
     let session_days: HashSet<(String, Option<String>)> = whole
         .rows
         .iter()

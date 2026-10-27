@@ -2053,7 +2053,7 @@ for (const theme of THEMES) {
  * deterministic fixtures, exactly as the gallery law requires.
  */
 const costStates: Record<string, Record<string, unknown>> = {
-  // 0.1.7: rows carry the names the backend gives them (title, project);
+  // 0.1.8: rows carry the names the backend gives them (title, project);
   // a session that used two models one day is one row.
   priced: {
     rows: [

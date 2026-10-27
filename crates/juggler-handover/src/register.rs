@@ -608,7 +608,7 @@ mod tests {
         // (2026-10-23): claude→claude rules, subagents, folder and
         // worktree edges and switch-back; claude→codex rules; codex→claude
         // transcript, todos, rules and switch-back. Lab 11 (2026-10-23):
-        // codex→codex transcript and todos. Lab 14 (2026-10-26, 0.1.7):
+        // codex→codex transcript and todos. Lab 14 (2026-10-26, 0.1.8):
         // claude→codex folder and worktree edges, and subagents and file
         // history as FAILs with their drop notes; codex→claude MCP and
         // folder and worktree edges. Every other shipped cell is open.

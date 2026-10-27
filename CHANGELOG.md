@@ -9,21 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Switching from any session (0.1.7): a session another app runs (the
+- Switching from any session (0.1.8): a session another app runs (the
   Claude app, Codex in ChatGPT, a CLI in a terminal) offers every
   signed-in profile of every tool, and one click opens the switch screen
   while it is still open in its app. The switch only reads it; it stays
   open there, untouched, and continues as a new session in AI Juggler.
-- Claude's model weeks (0.1.7): a weekly limit on one model ("This week ·
+- Claude's model weeks (0.1.8): a weekly limit on one model ("This week ·
   Fable only") is shown and never read as "no weekly limit"; it doesn't
   count toward an account's % left.
-- This Mac groups each tool's desktop app from its adapter (0.1.7): Codex
+- This Mac groups each tool's desktop app from its adapter (0.1.8): Codex
   in ChatGPT.app is "ChatGPT (Codex)"; a native-installer `claude` in a
   terminal is listed.
-- Prices and details (0.1.7) leads with the totals, names sessions by
+- Prices and details (0.1.8) leads with the totals, names sessions by
   title and project, folds a session's models on one day into one row and
   fits without sideways scroll; gpt-6.1-terra is priced.
-- Sizes (0.1.7): files and disks in decimal units as Finder counts them,
+- Sizes (0.1.8): files and disks in decimal units as Finder counts them,
   memory in 1,024-based units as macOS does, one rule for the UI and the
   backend.
 
@@ -232,13 +232,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The lifecycle forwarder ended after its first quiet half-second, so
   sessions AI Juggler ran weren't recorded as ended, restarted after a
-  crash or notified (0.1.7). A panicking pass no longer stops a
+  crash or notified (0.1.8). A panicking pass no longer stops a
   background tick.
 - The Prices total was one model on one day, and empty once a model had
-  no list price; the stale-pricing warning could never show (0.1.7).
+  no list price; the stale-pricing warning could never show (0.1.8).
 - Counts that round up read in the next unit ("1.0M", never "1000k").
 
-- Usage › Prices and details shows prices (0.1.7). It leads with the
+- Usage › Prices and details shows prices (0.1.8). It leads with the
   total at API list prices, what you pay and the models with no list
   price; then one row per session and day, named by its title and
   project (never its id), with the estimate right after the model and the

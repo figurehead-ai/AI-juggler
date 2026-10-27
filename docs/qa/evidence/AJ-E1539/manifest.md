@@ -44,9 +44,9 @@ Labs 1–8 on 2026-10-22, labs 9–11 on 2026-10-23; all on Claude Code 2.1.302 
 
 The reports themselves hold real paths and stay out of the repository.
 
-## Labs 12–14 (0.1.7, 2026-10-26): a source another app runs, and the old path again
+## Labs 12–14 (0.1.8, 2026-10-26): a source another app runs, and the old path again
 
-The maintainer's requirement for 0.1.7: prove the switch delivers what §7 promises (context, chat, history, rules, tasks, the screen's list, lineage), not only that it switched. New in 0.1.7: a switch whose source is a session another app runs (its key `conversation:<account>:<id>`, AJ-E2108), and a changed resolver for a session AI Juggler runs.
+The maintainer's requirement for 0.1.8: prove the switch delivers what §7 promises (context, chat, history, rules, tasks, the screen's list, lineage), not only that it switched. New in 0.1.8: a switch whose source is a session another app runs (its key `conversation:<account>:<id>`, AJ-E2108), and a changed resolver for a session AI Juggler runs.
 
 **Harness.** `switch_lab_outside_live` in the same test file, run by `just switch-lab-outside <root> <claude profile> <codex home> <report>` (`AIJ_LAB_SUITE=outside`; the same refusals: an empty data folder, a new root, no `CLAUDE_CONFIG_DIR` or `CODEX_HOME`). One Claude profile only (bookauth-luka, in place) and the Mac's Codex home (in place), `DISABLE_AUTOUPDATER=1`, at most two real tool processes at once (a turn, or the interactive start a switch launches, which is stopped as soon as its command line and whether it asks to trust the folder are read). Every first turn runs in a process the lab owns, outside AI Juggler (`claude -p --session-id`, `codex exec`); AI Juggler finds it in its conversations index and switches it by its key. The redaction policy is set to Strip before any switch, and every first turn plants a fake key, `sk-lab-NOT-A-REAL-KEY-…`. With `AIJ_LAB_PROBE` the source side gets a probe MCP server (its tool answers `KESTREL`, only with its environment) and skill (`PEREGRINE`) through the tool's own `mcp add`; the switch's set-up step must offer and set up only those two on the target, a fresh target session must answer both words, the way back must not offer them, and every set-up is undone. A control turn on the target tool alone, with no handover, must not know the rule the other tool's rules file states.
 

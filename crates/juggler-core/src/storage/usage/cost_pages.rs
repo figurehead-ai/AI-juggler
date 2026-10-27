@@ -1,7 +1,7 @@
 //! The cost table a page at a time (0.1.5 review: Usage read every
 //! usage event and drew every session × model × day row at once).
 //!
-//! 0.1.7: a row is one session's UTC day, its models folded together
+//! 0.1.8: a row is one session's UTC day, its models folded together
 //! (the maintainer saw near-duplicate rows, one per model a session used
 //! that day). Pages are keyset ones: newest day first, then the session
 //! id, so a row added meanwhile never shifts or repeats what was shown.

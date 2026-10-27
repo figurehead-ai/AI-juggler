@@ -1457,7 +1457,7 @@ export interface CostRollupsData {
   pricing_last_synced_ms: number | null;
   /** Every model with a list price, summed; null when none has one. */
   total_usd: number | null;
-  /** 0.1.7: the models with no list price (null: a model not recorded),
+  /** 0.1.8: the models with no list price (null: a model not recorded),
    * left out of the total and named beside it. */
   unpriced_models: (string | null)[];
   scope: string;

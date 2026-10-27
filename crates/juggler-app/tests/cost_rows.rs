@@ -1,4 +1,4 @@
-//! 0.1.7: Usage › Prices and details showed raw session ids, one
+//! 0.1.8: Usage › Prices and details showed raw session ids, one
 //! near-duplicate row per model, and no total once any model had no list
 //! price. A row is now one session's day, named as the rail names it
 //! (the user's label, else the conversation's title, with its project),

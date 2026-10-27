@@ -9,7 +9,7 @@
  * `PagedList` only as they scroll into view); the totals and the
  * subscription view stay with `costRollups`.
  *
- * 0.1.7 (the maintainer: "prices and details is supposed to show I assume
+ * 0.1.8 (the maintainer: "prices and details is supposed to show I assume
  * prices???"): the money leads (the total at list prices, what you pay,
  * the models with no list price), then one row per session and day, named
  * as the rail names a session (never its id), USD right after the session

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { byteSize, memorySize } from "./compact";
 import { bytesWords } from "./machine";
 
-// 0.1.7: eleven byte formatters became two rules on one implementation:
+// 0.1.8: eleven byte formatters became two rules on one implementation:
 // files and disks in decimal units (Finder), memory as macOS counts it.
 describe("byte sizes", () => {
   it("bytes, KB and MB are whole; GB one decimal under 10", () => {

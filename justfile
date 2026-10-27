@@ -140,7 +140,7 @@ switch-lab project claude_a claude_b codex out:
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
 
-# AJ-E1539 labs 12+ (0.1.7): switches from a session another app runs and the
+# AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
     cargo test -p juggler-app --test switch_lab_live --no-run

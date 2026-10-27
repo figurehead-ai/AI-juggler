@@ -19,7 +19,7 @@ describe("token counts in words", () => {
     expect(formatTokens(2_802_000_000)).toBe("2.8B");
   });
 
-  // 0.1.7: 999,999 read "1000k" on the Prices sheet.
+  // 0.1.8: 999,999 read "1000k" on the Prices sheet.
   it("a count that rounds up to the next unit reads in that unit", () => {
     expect(formatTokens(999_999)).toBe("1.0M");
     expect(formatTokens(999_949)).toBe("999.9k");

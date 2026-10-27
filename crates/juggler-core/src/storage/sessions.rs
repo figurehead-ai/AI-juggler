@@ -389,7 +389,7 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
-    /// 0.1.7: the user's label of each session that has one and knows
+    /// 0.1.8: the user's label of each session that has one and knows
     /// its conversation, `(account, conversation, label)` (the cost table
     /// names a session as the rail does). By account too: a switch to
     /// another account of the same tool keeps the conversation's id there

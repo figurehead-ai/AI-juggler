@@ -450,7 +450,7 @@ fn the_models_in_real_use_are_priced() {
         )
         .unwrap();
     assert!((usd - 29.2).abs() < 1e-6, "{usd}");
-    // 0.1.7, the maintainer's Codex sessions: gpt-6.1-terra on
+    // 0.1.8, the maintainer's Codex sessions: gpt-6.1-terra on
     // developers.openai.com/api/docs/pricing, 2026-10-26 (Standard, short
     // context): $1 input, $5 output, $0.05 cached input per MTok.
     let terra = table

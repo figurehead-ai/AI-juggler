@@ -72,7 +72,7 @@ export function Modal({
   children: ReactNode;
   /** A wider sheet (lists). */
   wide?: boolean;
-  /** 0.1.7: a sheet for a table with many columns: as wide as the window
+  /** 0.1.8: a sheet for a table with many columns: as wide as the window
    * allows up to 64rem, never taller than the window. */
   table?: boolean;
   testId?: string;

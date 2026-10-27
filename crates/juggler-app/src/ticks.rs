@@ -1,7 +1,7 @@
 //! The app's background ticks, each on its own named thread. A pass that
 //! panics ends that pass only: the panic is kept as a crash report (the
 //! hook in [`crate::crash`] runs first) and the tick goes on. Before
-//! 0.1.7 one panic stopped its tick until AI Juggler restarted (2026-10-26
+//! 0.1.8 one panic stopped its tick until AI Juggler restarted (2026-10-26
 //! lab: a debug assertion in the disk read stopped the 2 s tick, and the
 //! process graph, the cards and the subtasks stopped updating with it).
 

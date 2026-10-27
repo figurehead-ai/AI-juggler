@@ -1185,7 +1185,7 @@ fn codex_to_codex(
 }
 
 // ---------------------------------------------------------------------------
-// Labs 12+ (0.1.7, AJ-E2108): a switch whose source is a session another
+// Labs 12+ (0.1.8, AJ-E2108): a switch whose source is a session another
 // app runs (its key `conversation:<account>:<id>` stands where a session id
 // goes), and the old path (a session AI Juggler runs) again, on ONE Claude
 // profile and the Mac's Codex home. `AIJ_LAB_SUITE=outside`, run by
@@ -2483,7 +2483,7 @@ fn all_true(areas: &Value) -> bool {
 }
 
 #[test]
-#[ignore = "the live switching lab (0.1.7); needs AIJ_LAB_* and real, agreed accounts"]
+#[ignore = "the live switching lab (0.1.8); needs AIJ_LAB_* and real, agreed accounts"]
 fn switch_lab_outside_live() {
     let var = |name: &str| std::env::var_os(name).map(PathBuf::from);
     let (Some(data), Some(root), Some(claude), Some(codex), Some(out)) = (

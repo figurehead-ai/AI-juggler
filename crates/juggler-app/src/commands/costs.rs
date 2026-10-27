@@ -56,7 +56,7 @@ pub fn priced_total(
     (total, unpriced.into_iter().collect())
 }
 
-/// One row of the cost table (0.1.7): one session's UTC day, its models
+/// One row of the cost table (0.1.8): one session's UTC day, its models
 /// folded together and named as the rest of the app names a session.
 /// Each model's own part rides along for the row's breakdown.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
@@ -148,7 +148,7 @@ pub(crate) fn pricing_catalog(
         last_synced_ms: None,
     };
     // How fresh the prices are: the bundled table's capture day, or a
-    // later sync when one was recorded (0.1.7: the warning read only the
+    // later sync when one was recorded (0.1.8: the warning read only the
     // sync time, which nothing writes, so it could never show).
     let synced = storage
         .app_settings()
@@ -219,7 +219,7 @@ pub fn cost_rollups_impl(state: &Arc<AppState>, account: Option<&str>) -> CostRo
         &catalog,
         juggler_core::cost_ledger::RollupDimension::All,
     );
-    // 0.1.7: the total was the first ALL bucket only (one model's one
+    // 0.1.8: the total was the first ALL bucket only (one model's one
     // day), and none at all once any model had no list price.
     let (total_usd, unpriced_models) = priced_total(&all);
     let view = juggler_core::cost_ledger::subscription_view(total_usd, fee);

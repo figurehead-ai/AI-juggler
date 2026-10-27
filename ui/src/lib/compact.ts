@@ -3,7 +3,7 @@
  * ("940", "12.3k", "1.2M", "10.3B"), file and disk sizes ("512 B", "3 KB",
  * "640 MB", "3.2 GB") and memory ("8.6 GB of 32 GB"). A number that rounds
  * up to the next unit reads in that unit: 999,999 tokens is "1.0M", never
- * "1000.0k" (0.1.7: the Prices sheet's "1000k"), and 999.6 MB is "1.0 GB".
+ * "1000.0k" (0.1.8: the Prices sheet's "1000k"), and 999.6 MB is "1.0 GB".
  */
 
 /** A unit: its size and how it is written after the number. */
@@ -30,7 +30,7 @@ const BYTE_UNITS: Unit[] = [
 /**
  * Memory, largest first, in the units macOS counts it in (1,024-based, as
  * Activity Monitor and "32 GB of memory" do): a 32 GB Mac reads 32 GB, not
- * 34.4 (0.1.7: This Mac said "103 GB" for a 96 GB Mac).
+ * 34.4 (0.1.8: This Mac said "103 GB" for a 96 GB Mac).
  */
 const MEMORY_UNITS: Unit[] = [
   { size: 1024 ** 4, suffix: " TB" },

@@ -244,7 +244,7 @@ impl ConversationIndex {
             .map(|c| c.path.clone())
     }
 
-    /// 0.1.7: the title and folder of each `(account, id)` asked for, as
+    /// 0.1.8: the title and folder of each `(account, id)` asked for, as
     /// the conversation list folds them (the newest file's folder, the
     /// newest title its files have), without copying the index: the cost
     /// table names one page of sessions at a time.

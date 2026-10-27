@@ -4,7 +4,7 @@
  * label-discipline grep gate ("you paid $" must never appear in this
  * feature's strings).
  *
- * 0.1.7 (the maintainer: no price in view, raw session ids, uneven rows):
+ * 0.1.8 (the maintainer: no price in view, raw session ids, uneven rows):
  * the money leads, USD comes right after the session and model, a session
  * reads as its title and project, unpriced reads short, and the total sits
  * under the USD column.
@@ -24,7 +24,7 @@ vi.mock("../lib/bridge", async (importOriginal) => {
 });
 
 // 0.1.5: the rows come a page at a time (`costRowsPage`); the totals stay.
-// 0.1.7: a page's row is a session's day, as the backend folds it.
+// 0.1.8: a page's row is a session's day, as the backend folds it.
 vi.mock("../lib/ipc/costs", async (importOriginal) => {
   const original = await importOriginal<typeof import("../lib/ipc/costs")>();
   const { pageOf } = await import("../lib/paged");
@@ -58,7 +58,7 @@ const fixture: CostRollupsData = {
   scope: "ALL",
 };
 
-describe("CostMatrix (AJ-E609, 0.1.7)", () => {
+describe("CostMatrix (AJ-E609, 0.1.8)", () => {
   afterEach(cleanup);
 
   it("leads with the money: the total, what you pay, and what has no list price", async () => {

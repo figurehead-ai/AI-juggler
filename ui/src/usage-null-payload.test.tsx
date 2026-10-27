@@ -60,7 +60,7 @@ it("CostMatrix renders null fields: no crash, words for the unpriced model, neve
   const view = render(<CostMatrix />);
   const matrix = await view.findByTestId("cost-matrix");
   await within(matrix).findByText("gpt-5-codex");
-  // 0.1.7: short words in the cell, the model in its tooltip.
+  // 0.1.8: short words in the cell, the model in its tooltip.
   const unpriced = within(matrix).getAllByTestId("cost-unpriced")[0]!;
   expect(unpriced.textContent).toBe("No list price");
   expect(unpriced.getAttribute("title")).toBe("No list price for gpt-5-codex");

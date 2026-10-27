@@ -52,7 +52,7 @@ pub enum ApiError {
     #[error("This backup is larger than your plan allows ({limit_mb} MB) — nothing was uploaded.")]
     TooLarge {
         /// The limit, in whole MB as Finder counts a file (1,000,000 bytes),
-        /// as the app's backup sizes are shown (0.1.7: the panel said
+        /// as the app's backup sizes are shown (0.1.8: the panel said
         /// "26 MB" for the same limit this said was "25 MB").
         limit_mb: u64,
     },

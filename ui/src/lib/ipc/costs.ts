@@ -1,6 +1,6 @@
 /**
  * The cost table, a page at a time (0.1.5 review: Usage drew every
- * session × model × day row at once). 0.1.7: a row is one session's day,
+ * session × model × day row at once). 0.1.8: a row is one session's day,
  * named as the rail names it, its models folded together with each one's
  * part alongside (`commands::CostRowInfo`); the totals stay with
  * `costRollups`.

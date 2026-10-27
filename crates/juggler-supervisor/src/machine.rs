@@ -273,7 +273,7 @@ pub fn bytes_words(bytes: u64) -> String {
 
 /// Memory in plain words, in the units macOS counts it in (1,024-based,
 /// as Activity Monitor does): a 96 GB Mac reads "96 GB", not "103 GB"
-/// (0.1.7). The UI's `memorySize` says it the same way.
+/// (0.1.8). The UI's `memorySize` says it the same way.
 #[must_use]
 pub fn memory_words(bytes: u64) -> String {
     size_words(bytes, 1_024.0)

@@ -8,7 +8,7 @@
 //!
 //! One thread reads the events for as long as AI Juggler runs. A quiet
 //! spell never ends it: it ended after its first quiet half-second until
-//! 0.1.7 (2026-10-26 lab), and every exit after that went unrecorded.
+//! 0.1.8 (2026-10-26 lab), and every exit after that went unrecorded.
 
 use std::sync::Arc;
 use std::time::Duration;
