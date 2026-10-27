@@ -492,8 +492,8 @@ impl UsageSubject for OpenCodeUsage {
     }
 }
 
-// Kimi Code (AJ-E1603): no usage reader (its only quota source is the
-// maintainer's ruling), so it must claim none.
+// Kimi Code (AJ-E1603): exact tokens from each session's event log
+// (`wire.jsonl`); its plan's quota stays unread (the maintainer's ruling).
 
 struct Kimi;
 
@@ -533,11 +533,58 @@ impl Subject for Kimi {
     }
 
     fn usage(&self) -> Option<&dyn UsageSubject> {
-        None
+        Some(&KimiUsage)
     }
 
     fn sandboxed_default(&self) -> bool {
         true
+    }
+}
+
+struct KimiUsage;
+
+impl UsageSubject for KimiUsage {
+    fn seed(&self, state_dir: &Path) {
+        let at = 1_792_580_400_000; // 2026-10-21
+        let first = kimi_fixture::add_session(state_dir, "ses-use", Path::new("/w"), "use");
+        kimi_fixture::append_wire(
+            &first,
+            "main",
+            &[
+                kimi_fixture::WIRE_META.to_owned(),
+                kimi_fixture::usage_line("kimi-k3", at + 10, 1000, 120, 30),
+                kimi_fixture::usage_line("kimi-k3", at + 20, 400, 80, 0),
+            ],
+        );
+        // A fork's copy carries the first call again: one message, twice.
+        let fork = kimi_fixture::add_session(state_dir, "ses-fork", Path::new("/w"), "fork");
+        kimi_fixture::append_wire(
+            &fork,
+            "main",
+            &[
+                kimi_fixture::WIRE_META.to_owned(),
+                kimi_fixture::usage_line("kimi-k3", at + 10, 1000, 120, 30),
+            ],
+        );
+    }
+
+    /// What the usage pipeline runs: the adapter's store read.
+    fn read(&self, account: &str, state_dir: &Path) -> Vec<UsageEvent> {
+        let adapter = KimiCodeAdapter::new();
+        let mut record = conformance::account(&adapter, state_dir);
+        record.id = juggler_core::model::AccountId::new(account);
+        adapter
+            .usage_since(&record, 0)
+            .expect("Kimi Code reads its usage from its event logs")
+            .unwrap()
+    }
+
+    fn source(&self) -> UsageSource {
+        UsageSource::Transcript
+    }
+
+    fn distinct_messages(&self) -> usize {
+        2
     }
 }
 

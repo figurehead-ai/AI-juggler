@@ -40,6 +40,11 @@
 //! `opencode serve` (Req.4) is never started: nothing the app shows needs
 //! what only the server has. Rules (`AGENTS.md`) and MCP servers join the
 //! sync through [`crate::opencode_inventory`].
+//!
+//! OpenCode 2's shared background service: a managed account's launches
+//! run with a private server of their own instead ([`service`]).
+
+pub mod service;
 
 use std::path::{Path, PathBuf};
 
@@ -456,6 +461,7 @@ impl HarnessAdapter for OpenCodeAdapter {
                 Vec::new(),
             );
         };
+        service::remember(&bin, &version);
         let note = match line_of(&version) {
             Some(Line::V1) => "OpenCode 1 — built from the 1.19.3 source; not yet checked live",
             Some(Line::V2) => "OpenCode 2 — built from the 2.1.2 source; not yet checked live",
@@ -508,13 +514,20 @@ impl HarnessAdapter for OpenCodeAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(self.isolation_env(&account.state_dir));
         let model = profile.settings_overlay.model.as_deref();
+        // OpenCode 2 in a managed account: a private server, never the
+        // shared background service ([`service`]).
+        let standalone = service::needs_standalone(&bin, !self.is_default(&account.state_dir));
         let mut args: Vec<String> = Vec::new();
         match mode {
             // `opencode run --format json [--model m] -- <message>`: the
             // message after `--`, so text starting with "-" is never an
             // option (v1 joins `args["--"]` into the message).
             LaunchMode::Headless { prompt } => {
-                args.extend(["run".into(), "--format".into(), "json".into()]);
+                args.push("run".into());
+                if standalone {
+                    args.push(service::STANDALONE.into());
+                }
+                args.extend(["--format".into(), "json".into()]);
                 if let Some(model) = model {
                     args.push(format!("--model={model}"));
                 }
@@ -523,6 +536,9 @@ impl HarnessAdapter for OpenCodeAdapter {
             // The TUI: `--session <id>` resumes; `--prompt=<text>` sends
             // the first message (the `=` form keeps a leading "-" text).
             LaunchMode::Interactive | LaunchMode::Primed { .. } | LaunchMode::Resume { .. } => {
+                if standalone {
+                    args.push(service::STANDALONE.into());
+                }
                 if let LaunchMode::Resume { session_id, .. } = mode {
                     args.extend(["--session".into(), session_id.clone()]);
                 }
@@ -557,11 +573,17 @@ impl HarnessAdapter for OpenCodeAdapter {
     }
 
     /// The vendor's own `opencode auth login` (pick a provider, then its
-    /// browser or key flow) in this account's folders.
+    /// browser or key flow) in this account's folders; on OpenCode 2 a
+    /// managed account's with a private server, as its sessions are.
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
+        let bin = self.require_bin()?;
+        let mut args: Vec<String> = vec!["auth".into(), "login".into()];
+        if service::needs_standalone(&bin, !self.is_default(state_dir)) {
+            args.push(service::STANDALONE.into());
+        }
         Ok(LaunchSpec {
-            program: self.require_bin()?,
-            args: vec!["auth".into(), "login".into()],
+            program: bin,
+            args,
             env: self.isolation_env(state_dir),
             cwd: state_dir.to_path_buf(),
             needs_pty: true,
@@ -763,7 +785,11 @@ impl HarnessAdapter for OpenCodeAdapter {
         let config = self
             .config_dir(state_dir)
             .ok_or_else(|| AdapterError::Unsupported("no home folder".to_owned()))?;
-        crate::opencode_inventory::set_up(&config, item)
+        // The form a new server takes follows the installed OpenCode.
+        let line = self
+            .resolve_bin()
+            .and_then(|bin| service::installed_line(&bin));
+        crate::opencode_inventory::set_up(&config, item, line)
     }
 }
 

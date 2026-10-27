@@ -1489,7 +1489,7 @@
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/client/src/effect/service.ts",
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/cli/src/server-process.ts"
           ],
-          "ai_juggler_uses": "not used; the v2 TUI it launches starts or joins this service implicitly"
+          "ai_juggler_uses": "not used as an API. Managed accounts on 2.x launch every TUI, run and auth login with --standalone (a private server on a system-chosen port, leased to the TUI's stdin, nothing written or read); the default folder used in place joins the user's shared service, as their own opencode does (opencode/service.rs)"
         },
         {
           "id": "sdk-ts",
@@ -1518,7 +1518,7 @@
             "https://opencode.ai/docs/cli/",
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/cli/src/commands/commands.ts"
           ],
-          "ai_juggler_uses": "Headless launch mode: `run --format json [--model=] -- <prompt>`"
+          "ai_juggler_uses": "Headless launch mode: `run [--standalone on 2.x managed] --format json [--model=] -- <prompt>`"
         },
         {
           "id": "attach",
@@ -1600,7 +1600,7 @@
             "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/mcp/index.ts",
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/core/src/mcp/client.ts"
           ],
-          "ai_juggler_uses": "Reads/writes `mcp.<name>` (v1 shape) in the account's settings; misses v2 `mcp.servers` entries"
+          "ai_juggler_uses": "Reads `mcp.<name>` (1.x, enabled:false off) and `mcp.servers.<name>` (2.x, disabled:true off); writes the form the settings file already uses, else the installed version's, never both (opencode_inventory)"
         },
         {
           "id": "mcp-elicitation",
@@ -2077,7 +2077,7 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/docs/wire-manifest.d.ts",
             "https://moonshotai.github.io/kimi-code/en/guides/sessions.md"
           ],
-          "ai_juggler_uses": "kimi_sessions.rs reads session_index.jsonl + state.json (title, times, cwd, id) for the list, resume and linking; wire.jsonl is NOT read, so tokens and live state are unknown"
+          "ai_juggler_uses": "kimi_sessions.rs reads session_index.jsonl + state.json (title, times, cwd, id) for the list, resume and linking; kimi_sessions/wire.rs reads agents/*/wire.jsonl incrementally (protocol 1.5 only) for live state and usage.record tokens"
         },
         {
           "id": "output-read",
@@ -2091,7 +2091,7 @@
             "https://moonshotai.github.io/kimi-code/en/customization/hooks.md",
             "https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.md"
           ],
-          "ai_juggler_uses": "TRANSCRIPT_WATCH on state.json only"
+          "ai_juggler_uses": "TRANSCRIPT_WATCH on state.json; open sessions from locks/sessions/<id>.lock (pid), their state (working / needs you / idle) from the main agent's wire.jsonl turn.* and interaction.* records; unknown for another protocol version"
         },
         {
           "id": "pty-wrap",
@@ -2156,7 +2156,7 @@
             "https://moonshotai.github.io/kimi-code/en/reference/server-api.md",
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/docs/wire-manifest.d.ts"
           ],
-          "ai_juggler_uses": "not used (usage not read)"
+          "ai_juggler_uses": "plan quota not read; exact per-call tokens from wire.jsonl usage.record via usage_since (Measured, keyed by time, model and counts)"
         },
         {
           "id": "subagents",
@@ -2467,7 +2467,7 @@
             "https://docs.x.ai/build/features/dashboard.md",
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/src/leader/protocol.rs"
           ],
-          "ai_juggler_uses": "not used: Primed launch and Resume-with-delta are refused ('Grok can't be started with a first message yet')"
+          "ai_juggler_uses": "first message only: Primed -> `grok [--model m] -- <prompt>`, Resume with a delta -> `grok --resume <id> -- <delta>` (source 1.0.45, not yet live); nothing typed into a running session"
         },
         {
           "id": "usage-quota",

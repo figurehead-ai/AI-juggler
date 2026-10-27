@@ -26,6 +26,20 @@ Short names: `KD/` = https://moonshotai.github.io/kimi-code/en/ · `KS/` = https
   - The agent bridge MCP server (`juggler-agent --mcp`) is wired for Claude Code and Codex only: `agent_bridge()` returns `None` for Kimi and Grok.
   - `Supervisor::write_input` already writes bytes into a PTY session (`crates/juggler-supervisor/src/supervisor.rs`).
 
+### Changed since (2026-10-27, branch `adapters-0.2-fixes`)
+
+- **Grok** takes a first message: a Primed launch is `grok [--model m] -- "<prompt>"` in the project's folder, and a resume with a delta is `grok --resume <id> [--model m] -- "<delta>"`. That lets a switch start Grok with its handover pointer (the switch's generic Primed launch; Grok has no handover module of its own). `read_dirs` takes no flag: Grok asks before it reads outside the session's folder.
+  - **VP** (source 1.0.45): the positional prompt (`cli.rs`, its test `positional_prompt_seeds_interactive_session`) and its use on resume: `dispatch_initial_prompt` says "a `--resume`/`-c`/`-w` session started earlier in startup is reused", and `event_loop.rs` sends it after the startup resume. That settles the **I** below.
+  - **VP** (source): a bare word that names a subcommand runs it (`subcommand_takes_precedence_over_positional_prompt`), hence the `--`. **I**: that `--` makes the rest a message in Grok's parser (clap's rule, as Codex's `--` was verified on 0.163.0), and that binary 1.0.70 still behaves as the 1.0.45 source. Both are on the AJ-E1612 checklist.
+- **Kimi** reads `agents/<agent>/wire.jsonl` (`kimi_sessions/wire.rs`), incrementally and read-only, protocol 1.5 only:
+  - **Open sessions** come from Kimi Code's own session locks, `$KIMI_CODE_HOME/locks/sessions/<id>.lock` = `{version, token, pid, hostname, startedAt, clientIdentity, clientDisplayName}`, claimed while a CLI, Desktop or web client holds the session and removed when it lets go. **VP** — `KS/packages/agent-core-v2/src/persistence/backends/node-fs/sessionLockService.ts`.
+  - **State** from the main agent's log: `turn.prompt` open → working, an `interaction.request` without its `interaction.resolved` (matched by `id`) → needs you, else idle. **VP** for the records and their fields (`wire-manifest.d.ts`); **I** that a turn's end settles what it asked, and that a turn or request older than the lock's `startedAt` belonged to an earlier process.
+  - **Tokens** from every agent's `usage.record` (`{agentId, model, usage: TokenUsage, usageScope}`; `TokenUsage` = `inputOther, output, inputCacheRead, inputCacheCreation`; one record per model call, summed per model by Kimi itself). **VP** — `KS/packages/agent-core-v2/src/agent/usage/usageOps.ts`, `src/session/usage/usageAgentModel.ts`, `src/human/llm/usage.ts`. Each record's `time` is `Date.now()` ms (**VP**, `wire/wireService.ts`). Subagents keep their own logs under `agents/<agentId>/` (**VP**, the path check in `wireService.ts`).
+  - A log whose first line isn't `{"type":"metadata","protocol_version":"1.5",…}` gives no state and no usage (D-06). Usage events are keyed by time, model and counts, so a fork's copied records count once (**I** that a fork copies them unchanged).
+  - Still on the live checklist (AJ-E1612): a real 2.3.x log, lock and fork; whether a subagent's approval shows in the main agent's log.
+- **Routes (the sanctioned-reader order):** Grok's first message is the vendor CLI's own argument. Kimi's documented protocols don't reach the user's own sessions (ACP drives only the client's sessions; `kimi web` can't take a session a terminal holds, and needs a token from the home, outside the maintainer's ruling), so Kimi reads the files it writes: their place is documented (`KD/configuration/data-locations.md`), their schema is the vendor's generated manifest, the locks are from source only. This adds to the user's own `kimi`, which runs unmodified with their sign-in; the terms' "for interactive use only" and "Don't use Kimi Code for non-interactive automation" are met because nothing is sent, answered or started.
+- **Platforms:** every path is joined part by part from the home AI Juggler already resolves (`KIMI_CODE_HOME` / `GROK_HOME` or the vendor default); nothing macOS-only was added. The lock's `pid` is matched against the process table, as on every system.
+
 ## Corrections to docs/research/kimi.md and grok.md
 
 1. **Kimi CLI latest is 2.3.3** (2026-10-26), not 2.3.0. Kimi Code Desktop is at 1.1.4 (2026-10-26), not 1.1.1. **VP**
@@ -200,7 +214,7 @@ Short names: `KD/` = https://moonshotai.github.io/kimi-code/en/ · `KS/` = https
   - `GS/xai-grok-active-sessions/src/lib.rs`
 - **Input**
   - **Positional initial prompt.** `grok "…"` conflicts only with the `-p` family. **VP**
-  - **Resume with a prompt.** `--resume <id> "…"` should parse. **I**, from the clap conflicts in `cli.rs`.
+  - **Resume with a prompt.** `--resume <id> "…"` should parse. **I**, from the clap conflicts in `cli.rs`. Since confirmed from the source (**VP**, 1.0.45): `dispatch_initial_prompt` reuses the resumed session; see "Changed since" above.
   - **PTY paste.** The TUI handles crossterm `Event::Paste`. **VP**
   - **ACP prompts.** `session/prompt` works for sessions AI Juggler drives. **VP**
   - **Dashboard replies.** The TUI dashboard replies to its own live sessions in-process. **VP**, `GD/features/dashboard.md`

@@ -97,6 +97,12 @@ impl<L: TailLog> TranscriptTail<L> {
     pub fn log(&self) -> &L {
         &self.log
     }
+
+    /// What has been read so far, to take out what the caller keeps
+    /// elsewhere (Kimi Code's usage records, once handed on).
+    pub fn log_mut(&mut self) -> &mut L {
+        &mut self.log
+    }
 }
 
 /// A file's identity (its inode), to tell it from another at the same
