@@ -3,8 +3,9 @@
  * 2026-10-27; no spec had one). What isn't daily work: who you are (your
  * name as this computer keeps it, or your optional Figurehead account —
  * D-18, D-46: one quiet "Connect", never a reminder), Settings (⌘, as
- * before), the screens that left the header's More (This Mac, Processes,
- * your other computers), Privacy, Appearance inline, keyboard shortcuts,
+ * before), the screens that left the header's More (This Mac, Processes;
+ * My Macs only with a Figurehead account — the maintainer's ruling,
+ * 2026-10-27, D-49), Privacy, Appearance inline, keyboard shortcuts,
  * help, Report a problem…, and About and updates with the version and
  * channel. The menu rule (AJ-E2106): icons on every line, three groups,
  * getting there first, the one destructive line last.
@@ -157,7 +158,7 @@ export function UserMenu(): JSX.Element {
           <MenuItem onClick={run(() => go("cleanup"))}>
             <Line icon={IconBroom} label={screenLabel("cleanup")} />
           </MenuItem>
-          {!linked && myComputers}
+          {/* D-49: My Macs only with a Figurehead account (the account group). */}
           <MenuItem onClick={run(() => settings("privacy"))}>
             <Line icon={IconShield} label="Privacy" />
           </MenuItem>
