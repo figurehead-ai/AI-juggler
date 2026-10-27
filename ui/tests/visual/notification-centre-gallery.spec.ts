@@ -129,10 +129,15 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
   for (const theme of ["dark", "light"] as const) {
     // The header: the bell's one count (Home's Needs you count), your menu.
     await show(page, { theme, notices: POPULATED });
-    // "3 sessions and 2 more things need you": the count is both.
+    // "3 sessions and 2 more things need you": the count is both. D-49:
+    // the list is the backend's (here its stand-in), there once its
+    // sessions are.
+    await expect(page.getByTestId("home-heading")).toContainText(/sessions? (?:and|needs?)/);
     const heading = (await page.getByTestId("home-heading").textContent()) ?? "";
     const home = [...heading.matchAll(/(\d+) (?:sessions?|more|things?)/g)].reduce((sum, match) => sum + Number(match[1]), 0);
     await expect(page.getByTestId("bell-count")).toHaveText(String(home));
+    // The rail's Needs you is the same count.
+    await expect(page.getByTestId("rail-needs-you")).toContainText(String(home));
     await shoot(page, "header-badge", theme, { x: 264, y: 0, width: 1016, height: 80 });
 
     // The centre, populated: Needs action mirrors Needs you; Earlier.
