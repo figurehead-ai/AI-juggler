@@ -19,8 +19,16 @@ use std::path::{Path, PathBuf};
 use juggler_adapters::claude_limits;
 use juggler_core::quota::{QuotaSample, UsageSource, WindowKind};
 
-/// Samples gathered in a pass, with where each came from.
-pub(crate) type SourcedBatch = Vec<(String, WindowKind, QuotaSample, UsageSource)>;
+/// Samples gathered in a pass, with where each came from: the all-models
+/// windows', and the weeks on one model only (by the model's name, as the
+/// tool shows it), each a limit of its own.
+#[derive(Debug, Default)]
+pub(crate) struct SourcedBatch {
+    /// `(account, window, sample, source)`.
+    pub windows: Vec<(String, WindowKind, QuotaSample, UsageSource)>,
+    /// `(account, model, sample, source)`.
+    pub model_weeks: Vec<(String, String, QuotaSample, UsageSource)>,
+}
 
 /// How often (passes, ~1 s each) the records' files are looked at.
 pub(crate) const RECORDS_EVERY: u32 = 15;
@@ -155,11 +163,15 @@ pub(crate) fn read_claude_records(
             .filter(|cache| cache.fetched_at > state.cache.newest_ms)
         {
             state.cache.newest_ms = cache.fetched_at;
-            out.extend(
+            out.windows.extend(
                 cache.samples.into_iter().map(|(kind, sample)| {
                     (account.to_owned(), kind, sample, UsageSource::UsageCache)
                 }),
             );
+            out.model_weeks
+                .extend(cache.model_weeks.into_iter().map(|(model, sample)| {
+                    (account.to_owned(), model, sample, UsageSource::UsageCache)
+                }));
         }
     }
     let Some(sign_in) = limits.sign_in else {
@@ -172,7 +184,7 @@ pub(crate) fn read_claude_records(
         if let Some(newest) = samples.iter().map(|(_, sample)| sample.ts).max() {
             mark.newest_ms = newest;
         }
-        out.extend(
+        out.windows.extend(
             samples
                 .into_iter()
                 .map(|(kind, sample)| (account.to_owned(), kind, sample, UsageSource::DesktopApp)),
@@ -197,7 +209,7 @@ pub(crate) fn look_back_for_hits(
         if modified_ms(path).is_none_or(|at| now_ms.saturating_sub(at) > HITS_LOOKBACK_MS) {
             continue;
         }
-        out.extend(
+        out.windows.extend(
             claude_limits::limit_hits_in(path)
                 .into_iter()
                 .filter(|(_, sample)| now_ms.saturating_sub(sample.ts) <= HITS_LOOKBACK_MS)
@@ -218,7 +230,8 @@ mod tests {
             format!(
                 r#"{{"oauthAccount":{{"accountUuid":"acct-a","organizationUuid":"org-a"}},
                 "cachedUsageUtilization":{{"fetchedAtMs":{cache_at},"accountUuid":"acct-a",
-                "utilization":{{"five_hour":{{"utilization":40,"resets_at":"2026-10-25T19:00:00+00:00"}},"seven_day":null}}}}}}"#
+                "utilization":{{"five_hour":{{"utilization":40,"resets_at":"2026-10-25T19:00:00+00:00"}},"seven_day":null,
+                "limits":[{{"kind":"weekly_scoped","percent":3,"resets_at":"2026-10-29T20:00:00+00:00","scope":{{"model":{{"display_name":"Fable"}}}}}}]}}}}}}"#
             ),
         )
         .unwrap();
@@ -244,16 +257,36 @@ mod tests {
         );
         let instances = vec![app.path().to_path_buf()];
         let mut state = RecordsState::default();
-        let mut out = SourcedBatch::new();
+        let mut out = SourcedBatch::default();
         read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
-        assert_eq!(out.len(), 2, "the /usage reading and the meter's sample");
-        assert!(out.iter().any(|row| row.3 == UsageSource::UsageCache));
-        assert!(out.iter().any(|row| row.3 == UsageSource::DesktopApp));
+        assert_eq!(
+            out.windows.len(),
+            2,
+            "the /usage reading and the meter's sample"
+        );
+        assert!(
+            out.windows
+                .iter()
+                .any(|row| row.3 == UsageSource::UsageCache)
+        );
+        assert!(
+            out.windows
+                .iter()
+                .any(|row| row.3 == UsageSource::DesktopApp)
+        );
+        assert_eq!(
+            out.model_weeks
+                .iter()
+                .map(|row| (row.1.as_str(), row.3))
+                .collect::<Vec<_>>(),
+            [("Fable", UsageSource::UsageCache)],
+            "the model's own week comes with the /usage reading"
+        );
 
         // Nothing changed: nothing is read again.
-        out.clear();
+        out = SourcedBatch::default();
         read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
-        assert!(out.is_empty());
+        assert!(out.windows.is_empty() && out.model_weeks.is_empty());
 
         // The meter grows: only its new sample comes.
         instance(
@@ -265,8 +298,12 @@ mod tests {
         );
         state.app.values_mut().for_each(|mark| mark.modified_ms = 0); // as if it changed
         read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
-        assert_eq!(out.len(), 1);
-        assert_eq!(out[0].2.used_pct, 15.0);
+        assert_eq!(out.windows.len(), 1);
+        assert_eq!(out.windows[0].2.used_pct, 15.0);
+        assert!(
+            out.model_weeks.is_empty(),
+            "the /usage reading didn't change"
+        );
     }
 
     #[test]
@@ -289,7 +326,7 @@ mod tests {
         )
         .unwrap();
         let mut state = RecordsState::default();
-        let mut out = SourcedBatch::new();
+        let mut out = SourcedBatch::default();
         look_back_for_hits(
             "acc",
             std::slice::from_ref(&path),
@@ -298,13 +335,13 @@ mod tests {
             &mut out,
         );
         assert_eq!(
-            out.len(),
+            out.windows.len(),
             1,
             "a hit older than a week describes nothing now"
         );
-        assert_eq!(out[0].3, UsageSource::ApiRetry);
-        out.clear();
+        assert_eq!(out.windows[0].3, UsageSource::ApiRetry);
+        out = SourcedBatch::default();
         look_back_for_hits("acc", &[path], now, &mut state, &mut out);
-        assert!(out.is_empty(), "once");
+        assert!(out.windows.is_empty(), "once");
     }
 }

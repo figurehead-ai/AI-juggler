@@ -94,6 +94,11 @@ def shipped_text(path: Path) -> str:
     text = path.read_text(encoding="utf-8", errors="replace")
     if path.suffix != ".rs":
         return text
+    return without_test_modules(text)
+
+
+def without_test_modules(text: str) -> str:
+    """Rust source without its `#[cfg(test)]` modules."""
     # Every `#[cfg(test)] mod …` goes, wherever it sits: a `mod x;` line,
     # or a `mod x { … }` block to its closing brace (counted by line).
     lines = text.splitlines()

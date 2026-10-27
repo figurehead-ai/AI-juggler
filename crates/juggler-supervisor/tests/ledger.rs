@@ -10,7 +10,8 @@
 //! STAYS in the group (ledger PGID == root PGID), while a helper
 //! that itself `setsid`s is detected at reconcile time and flagged
 //! `escaped_group=true` — containment honestly revoked.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
 

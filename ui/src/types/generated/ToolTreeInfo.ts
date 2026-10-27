@@ -16,10 +16,15 @@ root_pid: number | null,
  */
 session_id: string | null, 
 /**
- * For a tool AI Juggler did not start: `desktop` (the Claude app) or
- * `terminal` (`claude` in a terminal).
+ * For a tool AI Juggler did not start: `desktop` (its desktop app)
+ * or `terminal` (the tool outside it).
  */
 place: string | null, 
+/**
+ * For a tool AI Juggler did not start: it in words ("Claude app",
+ * `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+ */
+label: string | null, 
 /**
  * The tool's id, for its mark (AJ-E1526); `null` when it isn't known.
  */

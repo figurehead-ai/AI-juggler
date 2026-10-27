@@ -19,6 +19,7 @@ import {
   type CloudBackupInfo,
   type CloudBackupStatusInfo,
 } from "../lib/bridge";
+import { byteSize } from "../lib/compact";
 
 function ago(ms: number): string {
   const minutes = Math.max(0, Math.round((Date.now() - ms) / 60_000));
@@ -27,10 +28,6 @@ function ago(ms: number): string {
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `${hours} h ago`;
   return `${Math.round(hours / 24)} days ago`;
-}
-
-function size(bytes: number): string {
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function CloudBackupPanel(): JSX.Element | null {
@@ -97,7 +94,7 @@ export function CloudBackupPanel(): JSX.Element | null {
           ? "Backing up… (encrypting on this Mac, then uploading)"
           : last
             ? last.ok
-              ? `✓ Last backup ${ago(last.at_ms)}${last.size_bytes ? ` · ${size(last.size_bytes)}` : ""}`
+              ? `✓ Last backup ${ago(last.at_ms)}${last.size_bytes ? ` · ${byteSize(last.size_bytes)}` : ""}`
               : `⚠ The last backup didn't finish (${ago(last.at_ms)}): ${last.error ?? "unknown reason"}. Nothing on this Mac was changed.`
             : "No backup yet."}
       </p>
@@ -137,7 +134,7 @@ export function CloudBackupPanel(): JSX.Element | null {
         </button>
       </div>
       <p className="text-muted">
-        Up to {size(status.limit_bytes)} per backup. Figurehead keeps a limited number, so don't rely on an old one being
+        Up to {byteSize(status.limit_bytes)} per backup. Figurehead keeps a limited number, so don't rely on an old one being
         there.
       </p>
       {error && (
@@ -172,7 +169,7 @@ export function CloudBackupPanel(): JSX.Element | null {
                       {new Date(row.created_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                       <span className="text-muted">
                         {" "}
-                        · {size(row.size_bytes)} · {row.this_mac ? "this Mac" : (row.label ?? "another Mac")}
+                        · {byteSize(row.size_bytes)} · {row.this_mac ? "this Mac" : (row.label ?? "another Mac")}
                       </span>
                     </span>
                     <button

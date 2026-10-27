@@ -19,7 +19,13 @@
 //!   `/usage` ran (or an app asked Claude Code for its usage). Only those
 //!   fields and `oauthAccount`'s two ids are read, through a shape that
 //!   skips everything else unkept; a reading for another account is not
-//!   this profile's.
+//!   this profile's. `limits[]` rows are `{kind, percent, resets_at,
+//!   scope}`: `session` (the 5 hours), `weekly_all` (the week, every
+//!   model) and `weekly_scoped` (a week on one model only, `scope.model.
+//!   display_name`). A team seat has no `weekly_all`, only a model's week
+//!   (the maintainer's report, 0.1.6: "Claude Code reports no weekly
+//!   limit" while Claude says "Fable only"), so a model's week is a limit
+//!   of its own, read beside the two.
 //! - **Limit hits.** When a limit is hit, Claude Code writes an assistant
 //!   line with `error: "rate_limit"` and `quotaLimits {status: "rejected",
 //!   rateLimitType, resetsAt}` into the session's transcript. Only the
@@ -64,9 +70,15 @@ pub struct SignIn {
 pub struct UsageCacheReading {
     /// When Claude Code fetched it, epoch ms.
     pub fetched_at: i64,
-    /// Its windows, as Measured samples taken at `fetched_at`.
+    /// Its all-models windows, as Measured samples taken at `fetched_at`.
     pub samples: Vec<(WindowKind, QuotaSample)>,
+    /// Its weekly limits on one model only, by the model's name as Claude
+    /// shows it ("Fable"), as Measured samples taken at `fetched_at`.
+    pub model_weeks: Vec<(String, QuotaSample)>,
 }
+
+/// The longest model name kept (Claude's are a word or two).
+const MODEL_NAME_MAX: usize = 48;
 
 /// What a profile's state file says about limits: its sign-in, and its
 /// last `/usage` reading.
@@ -126,15 +138,53 @@ struct WindowShape {
 }
 
 /// One row of the newer `limits[]` list: its kind (`session`,
-/// `weekly_all`, `weekly_scoped`), percent and reset.
+/// `weekly_all`, `weekly_scoped`), percent, reset and, for a model's own
+/// limit, its scope. Each field is read leniently: a row of another shape
+/// gives nothing, and never spoils the rest of the reading.
 #[derive(serde::Deserialize)]
 struct LimitShape {
     #[serde(default)]
-    kind: Option<String>,
+    kind: Option<serde_json::Value>,
     #[serde(default)]
     percent: Option<serde_json::Value>,
     #[serde(default)]
     resets_at: Option<serde_json::Value>,
+    #[serde(default)]
+    scope: Option<serde_json::Value>,
+}
+
+impl LimitShape {
+    fn is(&self, kind: &str) -> bool {
+        self.kind.as_ref().and_then(serde_json::Value::as_str) == Some(kind)
+    }
+
+    /// The model a `weekly_scoped` row limits, as Claude names it (only
+    /// `scope.model.display_name` is read): a short plain name, never a
+    /// guess (no name, no row).
+    fn model_week(&self) -> Option<String> {
+        if !self.is("weekly_scoped") {
+            return None;
+        }
+        let name = self
+            .scope
+            .as_ref()?
+            .get("model")?
+            .get("display_name")?
+            .as_str()?
+            .trim();
+        let plain = !name.is_empty()
+            && name.chars().count() <= MODEL_NAME_MAX
+            && !name.chars().any(char::is_control);
+        plain.then(|| name.to_owned())
+    }
+}
+
+/// A finite percentage, clamped to 0–100.
+fn percent(value: Option<&serde_json::Value>) -> Option<f64> {
+    value
+        .and_then(serde_json::Value::as_f64)
+        .filter(|v| v.is_finite())
+        .map(|v| v.clamp(0.0, 100.0))
 }
 
 /// The app's meter history: its samples, each read field by field.
@@ -168,13 +218,15 @@ pub fn profile_limits_from(bytes: &[u8]) -> Option<ProfileLimits> {
         #[allow(clippy::cast_possible_truncation)]
         let fetched_at = fetched_at as i64;
         let windows = cache.utilization?;
-        let mut samples = Vec::new();
         let rows = windows.limits.unwrap_or_default();
-        let row = |kind: &str| {
-            rows.iter()
-                .find(|row| row.kind.as_deref() == Some(kind))
-                .map(|row| (row.percent.as_ref(), row.resets_at.as_ref()))
+        let row = |kind: &str| rows.iter().find(|row| row.is(kind));
+        let measured = |used: f64, reset: Option<&serde_json::Value>| QuotaSample {
+            ts: fetched_at,
+            used_pct: used,
+            resets_at: reset.and_then(crate::quota_ingest::reset_ms),
+            confidence: Confidence::Measured,
         };
+        let mut samples = Vec::new();
         for (kind, window, fallback) in [
             (
                 WindowKind::FiveHour,
@@ -187,29 +239,32 @@ pub fn profile_limits_from(bytes: &[u8]) -> Option<ProfileLimits> {
                 row("weekly_all"),
             ),
         ] {
-            let (used, reset) = match window {
-                Some(window) => (window.utilization.as_ref(), window.resets_at.as_ref()),
-                None => fallback.unwrap_or((None, None)),
-            };
-            let Some(used) = used
-                .and_then(serde_json::Value::as_f64)
-                .filter(|v| v.is_finite())
+            // The window's own figure, else its `limits[]` row's: a window
+            // there with no figure (`utilization: null`) is no reading.
+            let reading = window
+                .and_then(|w| Some((percent(w.utilization.as_ref())?, w.resets_at.as_ref())))
+                .or_else(|| {
+                    fallback
+                        .and_then(|r| Some((percent(r.percent.as_ref())?, r.resets_at.as_ref())))
+                });
+            if let Some((used, reset)) = reading {
+                samples.push((kind, measured(used, reset)));
+            }
+        }
+        let mut model_weeks: Vec<(String, QuotaSample)> = Vec::new();
+        for row in &rows {
+            let (Some(model), Some(used)) = (row.model_week(), percent(row.percent.as_ref()))
             else {
                 continue;
             };
-            samples.push((
-                kind,
-                QuotaSample {
-                    ts: fetched_at,
-                    used_pct: used.clamp(0.0, 100.0),
-                    resets_at: reset.and_then(crate::quota_ingest::reset_ms),
-                    confidence: Confidence::Measured,
-                },
-            ));
+            if !model_weeks.iter().any(|(seen, _)| *seen == model) {
+                model_weeks.push((model, measured(used, row.resets_at.as_ref())));
+            }
         }
         Some(UsageCacheReading {
             fetched_at,
             samples,
+            model_weeks,
         })
     });
     Some(ProfileLimits { sign_in, cache })

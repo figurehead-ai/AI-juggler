@@ -161,7 +161,7 @@ fn exchange(socket: &Path, line: &str, wait: Duration) -> Result<String, CallErr
 #[cfg(not(unix))]
 fn exchange(_socket: &Path, _line: &str, _wait: Duration) -> Result<String, CallError> {
     Err(CallError::Unreachable(
-        "the agent tools need macOS".to_owned(),
+        "the agent tools aren't available on this system yet".to_owned(),
     ))
 }
 

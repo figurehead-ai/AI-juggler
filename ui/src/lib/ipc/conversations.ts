@@ -17,6 +17,14 @@ import { placesConversations } from "../../preview/places";
 
 export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo, TurnBlockInfo };
 
+/** AJ-E2108: what a switch starts from, where a session id goes: AI
+ * Juggler's session when it runs this conversation, else the conversation
+ * itself by its account and id. The backend reads the same key
+ * (`conversations::switch_source::parse_source_key`). */
+export function switchSourceOf(conversation: Pick<ConversationInfo, "session_id" | "account_id" | "id">): string {
+  return conversation.session_id ?? `conversation:${conversation.account_id}:${conversation.id}`;
+}
+
 const NOW = Date.now();
 
 function placesPreview(): boolean {

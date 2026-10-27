@@ -39,7 +39,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       checked: "2026-10-23",
     },
     home_env: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
-    supports: { in_place: true, limits: true },
+    supports: { in_place: true, limits: true, app_meter: true, thread_link: false },
     runtime: {
       label: "Claude Code without a terminal",
       beta: true,
@@ -59,7 +59,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     sign_in_own: "Codex's own sign-in (OpenAI)",
     sign_in_short: "Codex's (OpenAI)",
     same_as: "as when you run Codex yourself",
-    desktop_app: null,
+    desktop_app: "ChatGPT",
     host_app: "codex-app",
     kinds: ["cli"],
     rules_files: ["AGENTS.md"],
@@ -74,7 +74,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       checked: "2026-10-23",
     },
     home_env: ["CODEX_HOME", "CODEX_SQLITE_HOME", "AI_JUGGLER_CODEX_BIN"],
-    supports: { in_place: true, limits: false },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: true },
     runtime: {
       label: "Codex's app-server",
       beta: false,
@@ -117,7 +117,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "OPENCODE_TEST_HOME",
       "AI_JUGGLER_OPENCODE_BIN",
     ],
-    supports: { in_place: true, limits: false },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: false },
   },
   {
     id: "kimi-code",
@@ -146,7 +146,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       checked: "2026-10-21",
     },
     home_env: ["KIMI_CODE_HOME", "AI_JUGGLER_KIMI_BIN"],
-    supports: { in_place: true, limits: false },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: false },
   },
   {
     id: "grok-build",
@@ -188,6 +188,6 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "GROK_CURSOR_RULES_ENABLED",
       "GROK_CURSOR_SKILLS_ENABLED",
     ],
-    supports: { in_place: true, limits: false },
+    supports: { in_place: true, limits: false, app_meter: false, thread_link: false },
   },
 ];

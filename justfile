@@ -23,6 +23,7 @@ verify:
     just evidence
     just terminology
     just tool-literals
+    just platform
     just structure
     just task-counts
     just stats-doc
@@ -90,6 +91,13 @@ tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
 
+# Cross-platform readiness (docs/research/cross-platform-readiness.md §5.1):
+# no new macOS- or Unix-only assumption outside the platform seams; the
+# allowlist of today's sites only shrinks.
+platform:
+    python3 scripts/platform_lint.py --selftest
+    python3 scripts/platform_lint.py
+
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget. Each allowlist only shrinks.
 structure:
@@ -142,7 +150,17 @@ switch-lab project claude_a claude_b codex out:
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
       AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
-      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
+
+# AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
+# old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
+switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME DISABLE_AUTOUPDATER=1 AIJ_LAB_SUITE=outside \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{root}}" \
+      AIJ_LAB_CLAUDE_A="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      AIJ_LAB_PROBE="{{probe}}" AIJ_LAB_JOURNEYS="{{journeys}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_outside_live --exact
 
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:

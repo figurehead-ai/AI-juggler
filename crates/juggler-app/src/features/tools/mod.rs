@@ -16,6 +16,10 @@ use juggler_adapter::{AdapterRegistry, Capabilities, HarnessAdapter, ToolKind};
 #[must_use]
 pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
     let spec = adapter.spec();
+    let app_meter = spec.app_meter && spec.desktop_app.is_some();
+    let thread_link = adapter.host_apps().iter().any(|app| {
+        app.kind == juggler_adapter::live::HostKind::Desktop && app.thread_link.is_some()
+    });
     ToolSpecInfo {
         id: spec.id,
         display_name: spec.display_name,
@@ -72,6 +76,8 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
             limits: adapter
                 .capabilities()
                 .contains(Capabilities::USAGE_QUOTA_FEED),
+            app_meter,
+            thread_link,
         },
         runtime: adapter.driven().map(|driven| dto::ToolRuntimeInfo {
             label: driven.label().to_owned(),

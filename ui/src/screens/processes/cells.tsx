@@ -7,7 +7,7 @@
 import type { JSX } from "react";
 import { AppIcon, OWN_APP_ID } from "../../components/AppIcon";
 import { IconComputer } from "../../components/icons-actions";
-import { formatBytes } from "../../components/indicator";
+import { memorySize } from "../../lib/compact";
 import { ageWords, cpuWords, portWords, processState, roleWords, sessionState, ZOMBIE_WORDS, type ProcessTone } from "../../lib/process-states";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 
@@ -60,7 +60,7 @@ export function rollupWords(row: ProcessGraphRowInfo): string {
   const rollup = row.rollup;
   if (!rollup) return "";
   const parts = [`${rollup.processes} ${rollup.processes === 1 ? "process" : "processes"}`];
-  if (rollup.rss_bytes > 0) parts.push(formatBytes(rollup.rss_bytes));
+  if (rollup.rss_bytes > 0) parts.push(memorySize(rollup.rss_bytes));
   parts.push(cpuWords(rollup.cpu_pct));
   return parts.join(" · ");
 }
@@ -109,7 +109,7 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
         <IconComputer width={20} height={20} aria-hidden="true" className="shrink-0 text-muted" />
         <span className="shrink-0 text-body font-semibold text-ink">{row.app.name}</span>
         <span className="min-w-0 truncate text-meta text-muted">
-          {rollup ? `${rollup.processes} processes · ${formatBytes(rollup.rss_bytes)} · names and memory only` : ""}
+          {rollup ? `${rollup.processes} processes · ${memorySize(rollup.rss_bytes)} · names and memory only` : ""}
         </span>
       </div>
     );
@@ -172,11 +172,11 @@ export function NumberCells({ row }: { row: ProcessGraphRowInfo }): JSX.Element 
       </div>
       {ended ? (
         <div role="gridcell" className="text-right text-body tabular-nums text-muted" title={proc && proc.peak_rss > 0 ? "The most it used" : undefined}>
-          {proc && proc.peak_rss > 0 ? formatBytes(proc.peak_rss) : ""}
+          {proc && proc.peak_rss > 0 ? memorySize(proc.peak_rss) : ""}
         </div>
       ) : (
-        <div role="gridcell" className="text-right text-body tabular-nums text-ink" title={proc && proc.peak_rss > row.rss_bytes ? `At most ${formatBytes(proc.peak_rss)}` : undefined}>
-          {row.kind === "app" || (row.rss_bytes === 0 && row.state === "zombie") ? "" : row.rss_bytes > 0 ? formatBytes(row.rss_bytes) : "—"}
+        <div role="gridcell" className="text-right text-body tabular-nums text-ink" title={proc && proc.peak_rss > row.rss_bytes ? `At most ${memorySize(proc.peak_rss)}` : undefined}>
+          {row.kind === "app" || (row.rss_bytes === 0 && row.state === "zombie") ? "" : row.rss_bytes > 0 ? memorySize(row.rss_bytes) : "—"}
         </div>
       )}
       <div role="gridcell" className="truncate text-body tabular-nums text-ink">

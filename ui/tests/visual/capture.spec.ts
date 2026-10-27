@@ -1788,31 +1788,49 @@ for (const theme of THEMES) {
  * deterministic fixtures, exactly as the gallery law requires.
  */
 const costStates: Record<string, Record<string, unknown>> = {
+  // 0.1.8: rows carry the names the backend gives them (title, project);
+  // a session that used two models one day is one row.
   priced: {
     rows: [
       {
-        key: "sess-alpha", model: "claude-opus-4", day: "2026-10-15",
+        key: "01a0f458-0056-7d00-9a1b-000000000001", title: "Refactor the billing module", project: "api", model: "claude-opus-4", day: "2026-10-15",
         tokens: { input: 1_204_318, output: 88_412, cache_read: 902_114, cache_write: 12_004, reasoning: 0 },
         usd: { usd: 24.31, label: "Estimate" }, confidence: "Measured",
       },
       {
-        key: "sess-beta", model: "claude-sonnet-4", day: "2026-10-15",
+        key: "01a0f458-0056-7d00-9a1b-000000000001", title: "Refactor the billing module", project: "api", model: "claude-sonnet-4", day: "2026-10-15",
         tokens: { input: 402_118, output: 30_221, cache_read: 200_331, cache_write: 0, reasoning: 0 },
         usd: { usd: 3.92, label: "Estimate" }, confidence: "Measured",
       },
+      {
+        key: "01a0f458-0056-7d00-9a1b-000000000002", title: "Fix the flaky login test", project: "web", model: "gpt-6.1-sol", day: "2026-10-14",
+        tokens: { input: 301_200, output: 12_400, cache_read: 0, cache_write: 0, reasoning: 0 },
+        usd: { usd: 0.73, label: "Estimate" }, confidence: "Measured",
+      },
     ],
-    subscription: { api_equivalent_usd: 28.23, flat_fee_usd: 200, value_ratio: 0.14 },
-    pricing_stale: false, total_usd: 28.23, scope: "ALL",
+    subscription: { api_equivalent_usd: 28.96, flat_fee_usd: 200, value_ratio: 0.14 },
+    pricing_stale: false, total_usd: 28.96, unpriced_models: [], scope: "ALL",
   },
   "unpriced-model": {
     rows: [
       {
-        key: "sess-z", model: "GLM-6-X", day: "2026-10-15",
+        key: "01a0f458-0056-7d00-9a1b-000000000003", title: "Review the release notes", project: "docs", model: "gpt-6.1-sol", day: "2026-10-15",
+        tokens: { input: 82_004, output: 4_204, cache_read: 0, cache_write: 0, reasoning: 0 },
+        usd: { usd: 0.21, label: "Estimate" }, confidence: "Measured",
+      },
+      {
+        key: "01a0f458-0056-7d00-9a1b-000000000003", title: "Review the release notes", project: "docs", model: "codex-auto-review", day: "2026-10-15",
+        tokens: { input: 12_004, output: 204, cache_read: 0, cache_write: 0, reasoning: 0 },
+        usd: { label: "Estimate" }, confidence: "Measured",
+      },
+      {
+        key: "sess-z", model: "GLM-6-X", day: "2026-10-14",
         tokens: { input: 12_004, output: 1_204, cache_read: 0, cache_write: 0, reasoning: 0 },
         usd: { label: "Estimate" }, credits: 1.25, confidence: "Computed",
       },
     ],
-    subscription: {}, pricing_stale: false, scope: "ALL",
+    subscription: { api_equivalent_usd: 0.21 }, pricing_stale: false, total_usd: 0.21,
+    unpriced_models: ["GLM-6-X", "codex-auto-review"], scope: "ALL",
   },
   "stale-pricing": {
     rows: [

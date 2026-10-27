@@ -126,17 +126,26 @@ pub(crate) struct Sides {
 
 fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> AppResult<Sides> {
     let (_, target) = crate::commands::find_profile_with_account_arc(state, target_profile_id)?;
-    let session = {
+    // AJ-E2108: a session another app runs is read from the index, as the
+    // switch reads it; a session AI Juggler runs from its row.
+    let (session, source) = if let Some((account, conversation)) =
+        crate::features::conversations::switch_source::parse_source_key(session_id)
+    {
+        crate::features::conversations::switch_source::as_switch_source(
+            state,
+            account,
+            conversation,
+            false,
+        )?
+    } else {
         let storage = crate::commands::lock_storage_arc(state)?;
-        storage
+        let session = storage
             .sessions()
             .get(&juggler_core::model::SessionId::new(session_id))
-            .map_err(|_| AppError::Refused("that session isn't there any more".to_owned()))?
-    };
-    let source = {
-        let storage = crate::commands::lock_storage_arc(state)?;
+            .map_err(|_| AppError::Refused("that session isn't there any more".to_owned()))?;
         let profile = storage.profiles().get(&session.profile)?;
-        storage.accounts().get(&profile.account)?
+        let source = storage.accounts().get(&profile.account)?;
+        (session, source)
     };
     Ok(Sides {
         source,

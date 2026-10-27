@@ -33,8 +33,9 @@ export type PagedListProps<T> = {
   empty: ReactNode;
   /** Skeleton rows while the first page is read. */
   skeletonRows?: number;
-  /** Scroll in a box of this height instead of with the page. */
-  maxHeight?: number;
+  /** Scroll in a box of this height instead of with the page (px, or a
+   * CSS length such as "min(30rem, 50vh)"). */
+  maxHeight?: number | string;
   className?: string;
   testId?: string;
 };

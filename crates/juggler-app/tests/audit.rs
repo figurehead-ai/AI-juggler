@@ -2,7 +2,8 @@
 //! signal, completion with honest outcomes, the fault-injection gate
 //! (no audit ⇒ NO SIGNAL), the crash-pending record, and the JSONL
 //! export. Run with `--nocapture` to archive the evidence dumps.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

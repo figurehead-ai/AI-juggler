@@ -25,14 +25,14 @@ tools: ToolTotalsInfo,
  */
 ours: ToolTotalsInfo, 
 /**
- * The AI tools it did not start (the Claude app, `claude` in a
- * terminal).
+ * The AI tools it did not start (each tool's desktop app, each tool
+ * in a terminal).
  */
 theirs: ToolTotalsInfo, 
 /**
  * Each AI tool on its own (the menu bar's per-tool lines): our
- * sessions by Provider, heaviest first, then the Claude app, then
- * `claude` in a terminal. Only tools that are running.
+ * sessions by Provider, heaviest first, then each tool's desktop app,
+ * then each tool in a terminal. Only tools that are running.
  */
 by_tool: Array<ToolGroupInfo>, 
 /**

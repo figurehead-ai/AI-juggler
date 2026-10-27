@@ -411,6 +411,21 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
         });
     }
 
+    // Cap 4b: another tool never continues the same conversation: it
+    // starts fresh from the story (F1's words), however much carries.
+    // The labels above F1 all say "Same conversation" (live lab 12: with
+    // skills translating, a Claude → Codex mean crossed F3's band).
+    if input.from_provider != input.to_provider && described > FidelityLabel::F1 {
+        described = FidelityLabel::F1;
+        if label > FidelityLabel::F1 {
+            label = FidelityLabel::F1;
+            caps.push(AppliedCap {
+                cap: "another-tool-starts-fresh".to_owned(),
+                capped_at: FidelityLabel::F1,
+            });
+        }
+    }
+
     // Cap 5: a `zcode` TARGET caps at F1 source / F0 target until a
     // SQLite clone + verified prime path pass (SPEC:282, E210).
     if input.to_provider == "zcode" && label > FidelityLabel::F0 {
@@ -529,15 +544,15 @@ fn cross_provider(pair: &CrossPair) -> BTreeMap<ArtifactKind, Disposition> {
     map.insert(ArtifactKind::Subagents, Disposition::Drop);
     match pair {
         CrossPair::ClaudeCodex => {
-            // Skills translate where formats map; without a written
-            // mapping they list as Drop (Req.5).
-            map.insert(
-                ArtifactKind::Skills,
-                Disposition::Translate {
-                    keys_dropped: false,
-                    untranslated: true,
-                },
-            );
+            // AJ-E1542 wrote the mapping: the switch's set-up step
+            // translates a skill both ways (Claude's `skills/` ↔ the
+            // shared `~/.agents/skills`), as it does an MCP server, so
+            // the screen lists skills with MCP, not under "Doesn't carry"
+            // (live lab 12: the set-up carried the probe skill to Codex
+            // while the same screen said skills don't carry). A skill
+            // that can't go (one a claude.ai account brings) is named in
+            // the set-up list with why.
+            map.insert(ArtifactKind::Skills, tr());
         }
         CrossPair::ClaudeZcode => {
             map.insert(ArtifactKind::Skills, Disposition::Copy); // where dirs align

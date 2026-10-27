@@ -32,13 +32,13 @@ pub struct OverloadAlertInfo {
     pub detail: String,
     /// The biggest contributor, when there is one: a session id …
     pub session_id: Option<String>,
-    /// … or a tool AI Juggler didn't start: its This Mac group (`desktop`
-    /// and `terminal` for the Claude tools, an app's group for another
-    /// app's sessions, AJ-E2407).
+    /// … or a tool AI Juggler didn't start: its This Mac group (an app's
+    /// id, `terminal:<tool>`, or `app:<app>:<tool>` for another app's
+    /// sessions the Processes view found, AJ-E2407).
     pub place: Option<String>,
-    /// That group in words, for another app's (`ChatGPT`); the Claude
-    /// tools' words are the UI's.
-    #[ts(optional = nullable)]
+    /// That tool, named as the alert says it ("The Claude app",
+    /// `ChatGPT (Codex)`, "claude in a terminal", `ChatGPT`), from its
+    /// adapter or the Processes graph.
     pub subject_name: Option<String>,
     /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
@@ -157,19 +157,6 @@ fn memory_cause(mac: &ThisMacInfo) -> (Option<ToolTreeInfo>, Vec<OtherAppInfo>) 
     }
 }
 
-/// Another app's group in words, when it is the subject (AJ-E2407); the
-/// Claude tools' and our sessions' words are the UI's.
-fn subject_name(subject: Option<&ToolTreeInfo>) -> Option<String> {
-    subject
-        .filter(|s| {
-            s.session_id.is_none()
-                && s.place
-                    .as_deref()
-                    .is_some_and(|place| !crate::machine_tools::CLAUDE_PLACES.contains(&place))
-        })
-        .and_then(|s| s.title.clone())
-}
-
 fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
     candidates(mac)
         .into_iter()
@@ -184,7 +171,7 @@ fn by_cpu(mac: &ThisMacInfo) -> Option<ToolTreeInfo> {
 /// Who an alert may name: each session of ours, and each tool AI Juggler
 /// didn't start as a whole ("The Claude app" is all its windows — the
 /// figure its This Mac line and menu-bar line show, never one window
-/// worded as the app).
+/// worded as the app). A group's tool is its trees' (from the adapters).
 fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
     let mut seen = std::collections::HashSet::new();
     let mut out: Vec<ToolTreeInfo> = mac
@@ -200,11 +187,13 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
             root_pid: None,
             session_id: None,
             place: Some(group.tool.clone()),
-            // The Claude tools AI Juggler didn't start (desktop |
-            // terminal), or another app's sessions (AJ-E2407).
-            tool: crate::machine_tools::CLAUDE_PLACES
-                .contains(&group.tool.as_str())
-                .then(|| crate::machine_health::OBSERVED_TOOL.to_string()),
+            label: Some(group.label.clone()),
+            tool: mac
+                .top
+                .iter()
+                .chain(mac.others.iter())
+                .find(|tree| tree.session_id.is_none() && tree.group == group.tool)
+                .and_then(|tree| tree.tool.clone()),
             group: group.tool.clone(),
             account_label: None,
             cpu_pct: group.cpu_one_core_pct,
@@ -212,7 +201,7 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
             memory_estimate: group.totals.memory_estimate,
             helpers: 0,
             heavy_note: None,
-            title: Some(group.label.clone()),
+            title: None,
         }
     }));
     out
@@ -439,6 +428,17 @@ impl AlertEngine {
             if now_ms - since < condition.hold_ms {
                 continue;
             }
+            // A tool AI Juggler didn't start: its This Mac group.
+            let group = condition
+                .subject
+                .as_ref()
+                .filter(|s| s.session_id.is_none())
+                .and_then(|s| s.place.as_deref())
+                .and_then(|place| {
+                    mac.by_tool
+                        .iter()
+                        .find(|group| !group.ours && group.tool == place)
+                });
             let alert = OverloadAlertInfo {
                 key: condition.key.clone(),
                 kind: condition.kind.to_string(),
@@ -449,7 +449,7 @@ impl AlertEngine {
                     .as_ref()
                     .and_then(|s| s.session_id.clone()),
                 place: condition.subject.as_ref().and_then(|s| s.place.clone()),
-                subject_name: subject_name(condition.subject.as_ref()),
+                subject_name: group.and_then(|group| group.who.clone()),
                 subject_bytes: condition
                     .subject
                     .as_ref()
@@ -464,17 +464,7 @@ impl AlertEngine {
                     .as_ref()
                     .filter(|_| condition.tell_cpu)
                     .and_then(|s| s.cpu_pct),
-                subject_windows: condition
-                    .subject
-                    .as_ref()
-                    .filter(|s| s.session_id.is_none())
-                    .and_then(|s| s.place.as_deref())
-                    .and_then(|place| {
-                        mac.by_tool
-                            .iter()
-                            .find(|group| !group.ours && group.tool == place)
-                    })
-                    .map(|group| group.totals.count),
+                subject_windows: group.map(|group| group.totals.count),
                 other_apps: condition.other_apps,
                 since_ms: since,
             };
@@ -533,6 +523,7 @@ mod tests {
         ToolGroupInfo {
             tool: "desktop".into(),
             label: "Claude app".into(),
+            who: Some("The Claude app".into()),
             ours: false,
             totals: ToolTotalsInfo {
                 count: windows,
@@ -670,6 +661,11 @@ mod tests {
         mac.by_tool = vec![app(6, 40 * G, 9.0)];
         let told = run(&mut AlertEngine::default(), &mac, 0, 60);
         assert_eq!(told[0].place.as_deref(), Some("desktop"));
+        assert_eq!(
+            told[0].subject_name.as_deref(),
+            Some("The Claude app"),
+            "named in its adapter's words"
+        );
         assert_eq!(told[0].subject_bytes, Some(40 * G));
         assert!(told[0].other_apps.is_empty());
     }
@@ -707,6 +703,7 @@ mod tests {
             root_pid: None,
             session_id: session.map(str::to_string),
             place: place.map(str::to_string),
+            label: place.map(|_| "Claude app".to_string()),
             tool: None,
             group: place.unwrap_or("claude-code").to_string(),
             account_label: None,

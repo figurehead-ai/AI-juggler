@@ -17,7 +17,11 @@ juggler-scap-init = []
 juggler-login-item = []
 # D-27: the audited host_statistics64 shim (the compressor's pages); depends on nothing of ours.
 juggler-vm-stats = []
-juggler-adapter = ["juggler-core"]
+# The OS seams (cross-platform audit C5): who we are, owner-only files,
+# local sockets, program trust. Knows no tool and no product, so it sits
+# below everything and depends on nothing of ours.
+juggler-platform = []
+juggler-adapter = ["juggler-core", "juggler-platform"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core"]
@@ -31,6 +35,7 @@ juggler-app = [
   "juggler-handover",
   "juggler-link",
   "juggler-login-item",
+  "juggler-platform",
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",

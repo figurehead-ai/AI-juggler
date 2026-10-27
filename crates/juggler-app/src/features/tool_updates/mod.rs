@@ -228,10 +228,10 @@ pub fn spawn(state: Arc<AppState>) {
     std::thread::spawn(move || {
         std::thread::sleep(FIRST_PASS_AFTER);
         let transport = juggler_account::UreqTransport::new(env!("CARGO_PKG_VERSION"));
-        loop {
+        // A pass that panics is that pass's loss only (`ticks::once`).
+        crate::ticks::every_from_now("tool-updates", PASS_EVERY, move || {
             check_due(&state, &transport, crate::commands::now_millis());
-            std::thread::sleep(PASS_EVERY);
-        }
+        });
     });
 }
 

@@ -138,6 +138,7 @@ unbounded projects_list  # TO PAGE: every project (the rail; hundreds at most to
 unbounded providers_capabilities  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded providers_discover  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded providers_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded quota_display  # bounded: one account's windows, and a week per model its tool limits (a few)
 unbounded quota_display_all  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded ranking_rows  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)

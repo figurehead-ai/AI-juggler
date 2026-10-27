@@ -57,8 +57,8 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 ///   own (P21: one counted another thread's call again; main's 5).
 const REREAD_VERSION: u32 = 6;
 
-/// Quota samples gathered in one pass: (account, window, sample, where
-/// it came from).
+/// Quota samples gathered in one pass, with where each came from (the
+/// all-models windows', and the weeks on one model only).
 type SampleBatch = crate::features::quota::records::SourcedBatch;
 
 /// Per-account persisted tail state (offsets by file path).
@@ -174,7 +174,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
-    let mut sample_batch: SampleBatch = Vec::new();
+    let mut sample_batch = SampleBatch::default();
     let mut credits_batch: Vec<(String, juggler_adapters::CreditsSnapshot)> = Vec::new();
     let mut checks: Vec<CompactionCheck> = Vec::new();
     // Claude's own limit records, on their slower cadence.
@@ -261,7 +261,11 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             // is not new use.
             crate::usage_stats::tokens_ingested(&accounts, &store_batch, &stored);
         }
-        if usage.insert_sourced_samples(&sample_batch).is_err() {
+        if usage.insert_sourced_samples(&sample_batch.windows).is_err()
+            || usage
+                .insert_model_week_samples(&sample_batch.model_weeks)
+                .is_err()
+        {
             return;
         }
         save_credits(&storage, &credits_batch);
@@ -483,7 +487,9 @@ fn ingest_claude(
         outcome.parse_errors += older.parse_errors;
     }
     for (kind, sample) in outcome.samples {
-        samples.push((account.to_owned(), kind, sample, UsageSource::Statusline));
+        samples
+            .windows
+            .push((account.to_owned(), kind, sample, UsageSource::Statusline));
         record_health(ingest, account, "statusline", Some(sample.ts), 0, "");
     }
     if outcome.parse_errors > 0 {
@@ -513,7 +519,9 @@ fn ingest_claude(
             store,
         );
         for (kind, sample) in outcome.samples {
-            samples.push((account.to_owned(), kind, sample, UsageSource::ApiRetry));
+            samples
+                .windows
+                .push((account.to_owned(), kind, sample, UsageSource::ApiRetry));
         }
     }
     if let Some(instances) = instances {
@@ -583,7 +591,7 @@ fn ingest_codex(
             store,
         );
         for (kind, sample) in outcome.samples {
-            samples.push((
+            samples.windows.push((
                 account.to_owned(),
                 kind,
                 sample,

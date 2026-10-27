@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
-use juggler_app::features::sessions::restart::{self, Ending};
+use juggler_app::features::sessions::lifecycle;
 use juggler_app::state::AppState;
 use juggler_core::model::{SessionId, SessionStatus};
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -59,21 +59,20 @@ fn launch_settings(state: &Arc<AppState>, folder: &Path) -> String {
     .id
 }
 
-/// Waits for `session`'s exit and stores it as the forwarder would.
+/// Waits for `session`'s exit, each event through the app's own
+/// forwarder (which stores it and hands the crash to the restarter).
 fn crashed(state: &Arc<AppState>, session: &str) {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         assert!(Instant::now() < deadline, "{session} never exited");
         if let Some(event) = state.supervisor.recv_timeout(Duration::from_millis(200)) {
             let exited = matches!(&event, juggler_supervisor::LifecycleEvent::Exited { session: id, .. } if id.as_str() == session);
-            let storage = state.storage.lock().unwrap();
-            commands::apply_lifecycle_event(&storage, event, false, None);
+            lifecycle::forward(state, event);
             if exited {
                 break;
             }
         }
     }
-    restart::after_exit(state, &SessionId::new(session), Ending::Crashed);
 }
 
 /// Every session, oldest first.

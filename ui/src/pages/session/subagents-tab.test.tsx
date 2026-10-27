@@ -30,6 +30,7 @@ const model: SessionModel = {
   profileId: "work",
   profileLabel: "Work",
   conversationId: "c1",
+  switchSource: "conversation:work:c1",
   sessionId: null,
   live: true,
   state: { words: "Working", tone: "live", asks: false, working: true, since: 0 },

@@ -69,6 +69,8 @@ fn hosts() -> HostRegistry {
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nrest";
 
+// Links: Unix only (a Windows link needs a privilege).
+#[cfg(unix)]
 #[test]
 fn only_an_app_folder_that_is_not_a_link_is_read() {
     let tmp = tempfile::tempdir().unwrap();
@@ -92,6 +94,7 @@ fn only_an_app_folder_that_is_not_a_link_is_read() {
     assert_eq!(bundle::checked(&root.join("Up.app")), None);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_bundle_whose_icon_or_plist_links_out_of_it_is_refused() {
     let tmp = tempfile::tempdir().unwrap();

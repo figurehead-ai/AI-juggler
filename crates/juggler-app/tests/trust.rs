@@ -260,6 +260,11 @@ fn network_allowed() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             "juggler-app",
             BTreeSet::from(["tauri-plugin-updater", "reqwest", "socket2"]),
         ),
+        // The OS seams' local connection (`local_ipc`): a Unix socket in a
+        // folder only this user can open. tokio's `net` (which its Unix
+        // listener needs) brings socket2 along; nothing here opens a
+        // network socket, so there is nothing new to say on the Privacy page.
+        ("juggler-platform", BTreeSet::from(["socket2"])),
     ])
 }
 

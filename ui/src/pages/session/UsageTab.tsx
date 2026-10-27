@@ -12,6 +12,7 @@ import { IconUsage } from "../../components/icons";
 import { conversationsLastMessages } from "../../lib/ipc/conversations";
 import { CardTitle } from "./CardTitle";
 import { Runway } from "./Runway";
+import { compactCount } from "../../lib/compact";
 
 export type TokenKinds = { input: number; output: number; cache_read: number; cache_write: number };
 
@@ -24,11 +25,8 @@ const KINDS: { key: keyof TokenKinds; label: string; swatch: string }[] = [
 
 /** A count in a few characters: "52k", "1.4M", "940". */
 export function shortCount(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 100_000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${n}`;
+  // No decimal from 100k on.
+  return compactCount(n, (value, suffix) => (suffix === "k" && value >= 100 ? 0 : 1));
 }
 
 /** The models an assistant turn named in the end of its transcript, read

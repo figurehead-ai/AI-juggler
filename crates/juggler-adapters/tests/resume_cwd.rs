@@ -4,7 +4,8 @@
 //! folder. The target's launch settings may name a default folder for
 //! fresh sessions; it took precedence for every launch, so a switched
 //! session could resume somewhere else than its conversation and files.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

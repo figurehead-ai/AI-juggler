@@ -264,23 +264,39 @@ impl Default for RoomThresholds {
 const GB: u64 = 1_000_000_000;
 const MB: f64 = 1_000_000.0;
 
-/// Bytes in plain words ("3.2 GB", "640 MB", "under 1 MB").
+/// A disk's bytes in plain words, in decimal units as Finder counts
+/// them ("3.2 GB", "640 MB", "under 1 MB").
 #[must_use]
-#[allow(clippy::cast_precision_loss)] // display rounding only
 pub fn bytes_words(bytes: u64) -> String {
+    size_words(bytes, 1_000.0)
+}
+
+/// Memory in plain words, in the units macOS counts it in (1,024-based,
+/// as Activity Monitor does): a 96 GB Mac reads "96 GB", not "103 GB"
+/// (0.1.8). The UI's `memorySize` says it the same way.
+#[must_use]
+pub fn memory_words(bytes: u64) -> String {
+    size_words(bytes, 1_024.0)
+}
+
+/// MB whole, GB with one decimal under 10, "under 1 MB" below; the unit
+/// and decimals picked on the value as rounded (as the UI's `lib/compact`):
+/// 999.6 MB is "1.0 GB", never "1000 MB", and 9.96 GB is "10 GB".
+#[allow(clippy::cast_precision_loss)] // display rounding only
+fn size_words(bytes: u64, step: f64) -> String {
     let value = bytes as f64;
-    if value < 1e6 {
+    let mb = value / (step * step);
+    if mb < 1.0 {
         return "under 1 MB".to_string();
     }
-    if value >= 1e9 {
-        let gb = value / 1e9;
-        if gb >= 10.0 {
-            format!("{gb:.0} GB")
-        } else {
-            format!("{gb:.1} GB")
-        }
+    if mb.round() < 1_000.0 {
+        return format!("{mb:.0} MB");
+    }
+    let gb = mb / step;
+    if (gb * 10.0).round() / 10.0 >= 10.0 {
+        format!("{gb:.0} GB")
     } else {
-        format!("{:.0} MB", value / 1e6)
+        format!("{gb:.1} GB")
     }
 }
 
@@ -356,7 +372,7 @@ pub fn summarize(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Roo
                 reasons.push(RoomReason {
                     kind: "memory",
                     level,
-                    words: format!("only {} of memory free", bytes_words(free)),
+                    words: format!("only {} of memory free", memory_words(free)),
                 });
             }
         }
@@ -973,7 +989,7 @@ mod tests {
         ring.last_mut().unwrap().memory_available = 2 * G; // 6 %
         let summary = summarize(&snapshot_of(ring.clone()), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Tight);
-        assert_eq!(summary.reasons[0].words, "only 2.0 GB of memory free");
+        assert_eq!(summary.reasons[0].words, "only 1.9 GB of memory free");
         ring.last_mut().unwrap().memory_available = G; // 3 %
         let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Pressure);
@@ -1171,7 +1187,7 @@ mod tests {
         assert_eq!(last.memory_free(), 2 * G, "used + free = total");
         let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Tight);
-        assert_eq!(summary.reasons[0].words, "only 2.0 GB of memory free");
+        assert_eq!(summary.reasons[0].words, "only 1.9 GB of memory free");
     }
 
     #[test]
@@ -1259,6 +1275,15 @@ mod tests {
         assert_eq!(bytes_words(24_000_000_000), "24 GB");
         assert_eq!(bytes_words(640_000_000), "640 MB");
         assert_eq!(bytes_words(123_456), "under 1 MB");
+        assert_eq!(bytes_words(999_600_000), "1.0 GB", "rounds up to a GB");
+        assert_eq!(bytes_words(9_960_000_000), "10 GB");
+        assert_eq!(
+            memory_words(103_079_215_104),
+            "96 GB",
+            "as macOS counts memory"
+        );
+        assert_eq!(memory_words(8 * 1024 * 1024 * 1024), "8.0 GB");
+        assert_eq!(memory_words(640 * 1024 * 1024), "640 MB");
     }
 
     #[cfg(target_os = "macos")]

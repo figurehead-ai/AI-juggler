@@ -10,7 +10,8 @@
 //!   usage-limit failure, release, and the thread found and resumed.
 //! - The pinned range: too old, or a schema without a method, means the
 //!   terminal, with the reason.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

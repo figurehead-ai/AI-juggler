@@ -304,6 +304,8 @@ mod tests {
         assert!(copy_file(&from.join("SKILL.md"), &to.join("SKILL.md"), str::to_owned).is_err());
     }
 
+    // Unix modes and links (a Windows link needs a privilege).
+    #[cfg(unix)]
     #[test]
     fn hidden_files_links_and_deep_folders_stay_behind_named_and_scripts_stay_runnable() {
         // Review of #132 (M6).

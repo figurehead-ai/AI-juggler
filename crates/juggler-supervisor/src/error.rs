@@ -40,6 +40,16 @@ pub enum SupervisorError {
         /// The pid that no longer matches its recorded identity.
         pid: u32,
     },
+    /// Only the session's own process was stopped: this system can't stop
+    /// the whole process group yet (no Windows Job Object), so anything it
+    /// started may still be running. Never reported as a full stop.
+    #[error(
+        "stopped process {pid}, but couldn't stop the whole group: anything it started may still be running"
+    )]
+    GroupNotStopped {
+        /// The session's own process, which was stopped.
+        pid: u32,
+    },
     /// The spawn ledger is degraded (AJ-E501): tracking is read-only
     /// until restart; spawns continue, ledger-backed cleanup does not.
     #[error("process ledger degraded — tracking is read-only until restart")]

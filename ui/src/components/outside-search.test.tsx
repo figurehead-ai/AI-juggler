@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { OutsideSearchSetting, indexWords } from "./OutsideSearchSetting";
 import { hitKey } from "../screens/History";
-import { bytesWords, type OutsideSearchEstimateInfo, type OutsideSearchInfo } from "../lib/ipc/outsideSearch";
+import { type OutsideSearchEstimateInfo, type OutsideSearchInfo } from "../lib/ipc/outsideSearch";
+import { byteSize } from "../lib/compact";
 
 /**
  * AJ-E1538: searching the words of every session is off by default; the
@@ -61,7 +62,7 @@ describe("AJ-E1538 Settings › Privacy", () => {
     expect(indexWords({ enabled: false, size_bytes: null, sessions: 5, indexed: 0 }, null)).toBe(
       "Working out how big its index would be…",
     );
-    expect([bytesWords(1_234_000_000), bytesWords(640_400_000), bytesWords(2_000), bytesWords(0)]).toEqual(["1.2 GB", "640 MB", "2 KB", "0 KB"]);
+    expect([byteSize(1_234_000_000), byteSize(640_400_000), byteSize(2_000), byteSize(0)]).toEqual(["1.2 GB", "640 MB", "2 KB", "0 B"]);
   });
 });
 

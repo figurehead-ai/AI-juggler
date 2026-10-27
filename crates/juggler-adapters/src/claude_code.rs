@@ -1397,6 +1397,8 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         },
         same_as: "as your Claude app".to_owned(),
         desktop_app: Some("Claude".to_owned()),
+        // `plan-usage-history.json`, read by `claude_limits`.
+        app_meter: true,
         kinds: vec![ToolKind::Cli, ToolKind::Desktop],
         rules_files: vec!["CLAUDE.md".to_owned()],
         // CLAUDE.md's import: a line `@path` reads that file in its place.
@@ -1445,12 +1447,20 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
 /// run as `claude`: its first command word, or a path to it (which may
 /// hold spaces). An unreadable command line leaves it to the name and the
 /// executable.
+///
+/// The native installer's `claude` (`~/.local/bin/claude`) is a link to
+/// `~/.local/share/claude/versions/<version>`: the process's executable is
+/// that versioned file, named for its version, and its command word stays
+/// `claude` (the lab, 2026-10-26: such a session started in Terminal was
+/// missing from This Mac and the live view).
 #[must_use]
 pub fn is_cli_process(name: &str, exe: Option<&Path>, command_line: &str) -> bool {
     if command_line.contains("@anthropic-ai/claude-code") {
         return true;
     }
+    let installed = exe.is_some_and(is_installed_version);
     let binary = name == "claude"
+        || installed
         || exe.is_some_and(|exe| exe.file_name().is_some_and(|file| file == "claude"));
     let cmd = command_line.trim_start();
     let runs_as_claude = cmd.split_whitespace().next().is_none_or(|first| {
@@ -1458,8 +1468,29 @@ pub fn is_cli_process(name: &str, exe: Option<&Path>, command_line: &str) -> boo
             .file_name()
             .is_some_and(|file| file == "claude")
             || (cmd.starts_with('/') && (cmd.ends_with("/claude") || cmd.contains("/claude ")))
+            // Run by the versioned file's own path.
+            || (installed && exe.is_some_and(|exe| cmd.starts_with(&*exe.to_string_lossy())))
     });
     binary && runs_as_claude
+}
+
+/// Whether `exe` is one of the native installer's versioned `claude`
+/// files: `<…>/claude/versions/<version>`, the version digits and dots.
+fn is_installed_version(exe: &Path) -> bool {
+    let Some(version) = exe.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let parent = exe.parent();
+    let in_versions = parent
+        .and_then(Path::file_name)
+        .is_some_and(|name| name == "versions")
+        && parent
+            .and_then(Path::parent)
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "claude");
+    in_versions
+        && version.starts_with(|c: char| c.is_ascii_digit())
+        && version.chars().all(|c| c.is_ascii_digit() || c == '.')
 }
 
 #[cfg(test)]

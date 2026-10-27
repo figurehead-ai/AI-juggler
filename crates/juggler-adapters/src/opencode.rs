@@ -857,6 +857,7 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         // OpenCode's desktop app shares the CLI's folder, but can't be
         // started per account (research §2): tracked by AJ-E1610, not here.
         desktop_app: None,
+        app_meter: false,
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,

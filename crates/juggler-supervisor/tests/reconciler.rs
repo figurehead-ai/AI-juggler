@@ -3,7 +3,8 @@
 //! after grace + two agreeing ticks, patches helper exits by
 //! absence, and evicts finished handles past the retention window.
 //! Run with `--nocapture` to capture the tick/CPU evidence log.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

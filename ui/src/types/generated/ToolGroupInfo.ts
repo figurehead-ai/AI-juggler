@@ -6,15 +6,21 @@ import type { ToolTotalsInfo } from "./ToolTotalsInfo";
  */
 export type ToolGroupInfo = { 
 /**
- * The tool's id (its adapter's) for sessions AI Juggler started;
- * `desktop` | `terminal` for the Claude tools it didn't.
+ * The tool's id (its adapter's) for sessions AI Juggler started; for
+ * the tools it didn't, the group's key: an app's id (`claude-app`,
+ * `codex-app`) or `terminal:<tool>`.
  */
 tool: string, 
 /**
- * The tool in words ("Claude Code", "Claude app", "claude in a
- * terminal").
+ * The tool in words ("Claude Code", "Claude app", `ChatGPT (Codex)`,
+ * "claude in a terminal").
  */
 label: string, 
+/**
+ * How an alert names a tool AI Juggler didn't start ("The Claude
+ * app"); `null` for our sessions (each is named by its own name).
+ */
+who: string | null, 
 /**
  * Whether these are sessions AI Juggler started.
  */

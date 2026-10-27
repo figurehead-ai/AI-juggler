@@ -219,7 +219,7 @@ describe("AJ-E1007 replay", () => {
     expect(container.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
     expect(container.textContent).toContain("user: fix the invoice export");
     expect(container.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Personal (codex)");
+    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Personal (Codex)");
     expect(container.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
   });
 });
@@ -237,7 +237,7 @@ describe("AJ-E1007 retention", () => {
     };
     const { container } = render(<StorageRetentionCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='storage-row']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='storage-usage']")!.textContent).toContain("transcripts 5.0 MB");
+    expect(container.querySelector("[data-testid='storage-usage']")!.textContent).toContain("transcripts 5 MB");
     expect((container.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(true);
     await act(async () => {
       fireEvent.change(container.querySelector("[data-testid='storage-retention']")!, { target: { value: "90" } });

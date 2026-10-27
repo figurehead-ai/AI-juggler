@@ -1406,42 +1406,10 @@ export interface CleanupAlertsData {
 /** AJ-E512: reads the passive alerts (hog alerts name the top helper;
  * idle nudges fire once per orphan). Purely passive — no alert
  * carries a signal path; the hog alert routes to the staged sheet. */
-/** AJ-E609: one cost rollup row (session × model × day). */
-/** Rust `Confidence` on the wire. */
-export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
 
-// IPC convention (docs/engineering/ENGINEERING-GUIDE.md › IPC): a Rust
-// `Option<T>` arrives as `null`, never as a missing key, so it is typed
-// `T | null` and checked with `!= null` — never `?:` / `!== undefined`
-// (the 0.0.12 report: Usage went blank on `null.toFixed`).
-
-/** AJ-E609: one rollup row (`cost_ledger::CostRollup`). */
-export interface CostRollupRow {
-  key: string;
-  model: string | null;
-  day: string | null;
-  tokens: { input: number; output: number; cache_read: number; cache_write: number; reasoning: number };
-  usd: { usd: number | null; label: ConfidenceWire };
-  credits: number | null;
-  confidence: ConfidenceWire;
-}
-
-/** AJ-E609: the dual subscription view ("≈$X at API prices · you pay flat"). */
-export interface SubscriptionViewData {
-  api_equivalent_usd: number | null;
-  flat_fee_usd: number | null;
-  value_ratio: number | null;
-}
-
-/** AJ-E609: the cost matrix payload (the UI and the CSV read the same rows). */
-export interface CostRollupsData {
-  rows: CostRollupRow[];
-  subscription: SubscriptionViewData;
-  pricing_stale: boolean;
-  pricing_last_synced_ms: number | null;
-  total_usd: number | null;
-  scope: string;
-}
+// AJ-E609: the cost matrix's types and calls (lib/ipc/costs.ts).
+export { costRollups, costCsvExport } from "./ipc/costs";
+export type { ConfidenceWire, CostRollupRow, SubscriptionViewData, CostRollupsData } from "./ipc/costs";
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
@@ -1541,33 +1509,6 @@ export async function accountSetFee(account: string, feeUsd: number | null): Pro
   await invoke("account_set_fee", { account, feeUsd });
 }
 
-/** AJ-E609: the session cost matrix + dual subscription view. */
-export async function costRollups(account?: string): Promise<CostRollupsData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_COST_ROLLUPS__?: CostRollupsData })
-        .__AIJ_COST_ROLLUPS__ ?? {
-        // Exactly what serde sends with nothing stored: nulls, not
-        // missing keys (a mismatch is now a type error).
-        rows: [],
-        subscription: { api_equivalent_usd: null, flat_fee_usd: null, value_ratio: null },
-        pricing_stale: false,
-        pricing_last_synced_ms: null,
-        total_usd: null,
-        scope: account ?? "ALL",
-      }
-    );
-  }
-  return invoke<CostRollupsData>("cost_rollups", { account });
-}
-
-/** AJ-E609: stream the CSV export; resolves to the written file path. */
-export async function costCsvExport(account?: string): Promise<string> {
-  if (!hasBackend) {
-    return (window as unknown as { __AIJ_COST_CSV__?: string }).__AIJ_COST_CSV__ ?? "";
-  }
-  return invoke<string>("cost_csv_export", { account });
-}
 
 export async function cleanupAlerts(): Promise<CleanupAlertsData> {
   if (!hasBackend) {
@@ -2073,6 +2014,11 @@ export interface PreflightInfoData {
   source_live: boolean;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
+  /** AJ-E2108: a session another app runs: only read, left as it is, and
+   * continued as a new session here. */
+  source_outside?: boolean;
+  /** The app it's open in now ("Claude", "Terminal"), when known. */
+  source_app?: string | null;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -2180,16 +2126,18 @@ export async function switchPreflight(
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Partial<PreflightInfoData> })
       .__AIJ_SWITCH_PREFLIGHT__;
+    // AJ-E2108: a session another app runs (its key) is only read.
+    const base = sessionId.startsWith("conversation:") ? { ...DEFAULT_PREFLIGHT, source_outside: true } : DEFAULT_PREFLIGHT;
     // Merge over the default so fixtures that predate a field keep
     // working (the seam overrides only what it defines).
     if (seam) {
       return {
-        ...DEFAULT_PREFLIGHT,
+        ...base,
         ...seam,
-        redaction: { ...DEFAULT_PREFLIGHT.redaction, ...seam.redaction },
+        redaction: { ...base.redaction, ...seam.redaction },
       } as PreflightInfoData;
     }
-    return DEFAULT_PREFLIGHT;
+    return base;
   }
   return invoke<PreflightInfoData>("switch_preflight", { sessionId, targetProfileId });
 }

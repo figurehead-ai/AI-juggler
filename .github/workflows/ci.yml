@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, whatever its base: main and the release/* branches
+  # (one PR per release), so the Linux and Windows jobs see release/*
+  # code before it merges.
   pull_request:
 
 concurrency:
@@ -109,6 +112,10 @@ jobs:
         run: |
           python3 scripts/tool_literal_lint.py --selftest
           python3 scripts/tool_literal_lint.py
+      - name: No new macOS- or Unix-only assumption outside the platform seams
+        run: |
+          python3 scripts/platform_lint.py --selftest
+          python3 scripts/platform_lint.py
       - name: Layering, IPC audit and size budget (AJ-E2011)
         run: |
           python3 scripts/check_layering.py --selftest
@@ -414,6 +421,10 @@ jobs:
             target
           key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+      # Cross-platform readiness §5.1: the tests compile here too, not only
+      # the app (a Unix-only test must say `#![cfg(unix)]`).
+      - name: Check every target (tests included)
+        run: cargo check --workspace --all-targets
       - name: Build
         run: cargo build --workspace
 
@@ -432,5 +443,10 @@ jobs:
             target
           key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+      # Cross-platform readiness §5.1: the tests compile on Windows too (a
+      # Unix-only test must say `#![cfg(unix)]`); running them comes with
+      # the Windows seams (§5.4).
+      - name: Check every target (tests included)
+        run: cargo check --workspace --all-targets
       - name: Build
         run: cargo build --workspace

@@ -1,6 +1,6 @@
 {
   "version": "v3",
-  "captured": "2026-10-21",
+  "captured": "2026-10-26",
   "rows": [
     {"model": "claude-fable-5-1", "effective_from_ms": 0, "input_per_1k": 0.01, "output_per_1k": 0.05, "cache_read_per_1k": 0.00025, "cache_write_per_1k": 0.0125, "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "captured": "2026-10-21"},
     {"model": "claude-fable-5", "effective_from_ms": 0, "input_per_1k": 0.01, "output_per_1k": 0.05, "cache_read_per_1k": 0.001, "cache_write_per_1k": 0.0125, "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "captured": "2026-10-21"},
@@ -19,6 +19,7 @@
     {"model": "claude-sonnet-4", "effective_from_ms": 0, "input_per_1k": 0.003, "output_per_1k": 0.015, "cache_read_per_1k": 0.0003, "cache_write_per_1k": 0.00375, "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "captured": "2026-10-21"},
     {"model": "claude-haiku-4-5", "effective_from_ms": 0, "input_per_1k": 0.001, "output_per_1k": 0.005, "cache_read_per_1k": 0.0001, "cache_write_per_1k": 0.00125, "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "captured": "2026-10-21"},
     {"model": "gpt-6-astra", "effective_from_ms": 0, "input_per_1k": 0.01, "output_per_1k": 0.05, "cache_read_per_1k": 0.001, "cache_write_per_1k": 0.0, "source_url": "https://developers.openai.com/api/docs/pricing", "captured": "2026-10-21"},
+    {"model": "gpt-6.1-terra", "effective_from_ms": 0, "input_per_1k": 0.001, "output_per_1k": 0.005, "cache_read_per_1k": 5e-05, "cache_write_per_1k": 0.0, "source_url": "https://developers.openai.com/api/docs/pricing", "captured": "2026-10-26"},
     {"model": "gpt-6.1-sol", "effective_from_ms": 0, "input_per_1k": 0.002, "output_per_1k": 0.01, "cache_read_per_1k": 0.0001, "cache_write_per_1k": 0.0, "source_url": "https://developers.openai.com/api/docs/pricing", "captured": "2026-10-21"},
     {"model": "gpt-6-sol", "effective_from_ms": 0, "input_per_1k": 0.002, "output_per_1k": 0.01, "cache_read_per_1k": 0.0002, "cache_write_per_1k": 0.0, "source_url": "https://developers.openai.com/api/docs/pricing", "captured": "2026-10-21"},
     {"model": "gpt-6-luna", "effective_from_ms": 0, "input_per_1k": 0.0001, "output_per_1k": 0.0005, "cache_read_per_1k": 1e-05, "cache_write_per_1k": 0.0, "source_url": "https://developers.openai.com/api/docs/pricing", "captured": "2026-10-21"},

@@ -60,6 +60,7 @@ pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
 pub mod terminal;
+pub mod ticks;
 pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
@@ -672,7 +673,7 @@ pub fn run() {
     }
     #[cfg(crash_sender)]
     crash_send::start(&app_state);
-    spawn_lifecycle_forwarder(Arc::clone(&app_state));
+    features::sessions::lifecycle::spawn_forwarder(Arc::clone(&app_state));
     // AJ-E1509: the watchdog that reopens the app after a crash (when on),
     // and the sessions the last crash ended, resumed where that's on.
     {
@@ -1101,70 +1102,63 @@ fn spawn_read_model_ticks(
     // Req.2: transcript-tail parse, emitted within the same budget).
     {
         let attention_app = app.clone();
-        std::thread::spawn(move || {
-            loop {
-                // poll: AJ-E405 Req.5 — recovery shows within 300 ms; an
-                // idle drain finds nothing and returns.
-                std::thread::sleep(std::time::Duration::from_millis(200));
+        // poll: AJ-E405 Req.5 — recovery shows within 300 ms; an idle
+        // drain finds nothing and returns.
+        ticks::every(
+            "attention",
+            std::time::Duration::from_millis(200),
+            move || {
                 let _ = commands::attention_recovery_drain(&attention_app, &attention_state);
-            }
-        });
+            },
+        );
     }
     // The 15 s heuristic cycle (SPEC §5.1): debounced Stuck/WaitingUser
     // evaluation; quota exits classify immediately at the forwarder.
     {
         let heuristic_app = app.clone();
-        std::thread::spawn(move || {
-            loop {
-                std::thread::sleep(std::time::Duration::from_secs(15));
+        ticks::every(
+            "heuristics",
+            std::time::Duration::from_secs(15),
+            move || {
                 let _ = commands::heuristic_tick(&heuristic_app, &heuristic_state);
-            }
-        });
+            },
+        );
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
     let conversations_app = app.clone();
     let index_state = quota_state.clone();
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(5));
-            let _ = commands::emit_resources(&app, &resource_state);
-            // AJ-E1509: the Mac kept awake (and App Nap off) for the
-            // sessions working here, before This Mac says so.
-            features::app::awake::tick(&resource_state);
-            let _ = machine_health::emit_this_mac(&app, &resource_state);
-        }
+    ticks::every("resources", std::time::Duration::from_secs(5), move || {
+        let _ = commands::emit_resources(&app, &resource_state);
+        // AJ-E1509: the Mac kept awake (and App Nap off) for the sessions
+        // working here, before This Mac says so.
+        features::app::awake::tick(&resource_state);
+        let _ = machine_health::emit_this_mac(&app, &resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.
     // Also the running-model safety net (AJ-E412): offset-tracked tail
     // scans skip unchanged transcripts with one metadata read.
     // UI emissions stay on their own coalesced cadences above.
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(2));
-            commands::processes_tick(&processes_state);
-            // AJ-E2401: the Processes view's graph, from what the tick
-            // just read (no scan of its own); the page hears of changes.
-            if let Some(change) = features::processes::tick(&processes_state) {
-                use tauri::Emitter;
-                let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
-            }
-            commands::detect_running_models(&processes_app, &processes_state, None);
-            // AJ-E1703: what each live session is working on (its card).
-            features::pools::cards::tick(&processes_state);
-            if features::subtasks::tick(&processes_state) {
-                let _ = commands::emit_sessions(&processes_app, &processes_state);
-            }
+    ticks::every("processes", std::time::Duration::from_secs(2), move || {
+        commands::processes_tick(&processes_state);
+        // AJ-E2401: the Processes view's graph, from what the tick just
+        // read (no scan of its own); the page hears of changes.
+        if let Some(change) = features::processes::tick(&processes_state) {
+            use tauri::Emitter;
+            let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
+        }
+        commands::detect_running_models(&processes_app, &processes_state, None);
+        // AJ-E1703: what each live session is working on (its card).
+        features::pools::cards::tick(&processes_state);
+        if features::subtasks::tick(&processes_state) {
+            let _ = commands::emit_sessions(&processes_app, &processes_state);
         }
     });
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(30));
-            let _ = commands::emit_quota(&quota_app, &quota_state);
-            // AJ-E1513: the switch prepared before the limit (never run).
-            features::staging::tick(&quota_state, commands::now_millis());
-        }
+    ticks::every("quota", std::time::Duration::from_secs(30), move || {
+        let _ = commands::emit_quota(&quota_app, &quota_state);
+        // AJ-E1513: the switch prepared before the limit (never run).
+        features::staging::tick(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
     // AJ-E1529: every account's conversations and which are live, read
@@ -1172,8 +1166,10 @@ fn spawn_read_model_ticks(
     // again); the UI hears of it only when something changed.
     {
         let conversations_state = index_state.clone();
-        std::thread::spawn(move || {
-            loop {
+        ticks::every_from_now(
+            "conversations",
+            std::time::Duration::from_secs(15),
+            move || {
                 use tauri::Emitter;
                 // QA batch 8: a long first pass tells the UI as it goes.
                 let tell = || {
@@ -1189,9 +1185,8 @@ fn spawn_read_model_ticks(
                 ) {
                     tell();
                 }
-                std::thread::sleep(std::time::Duration::from_secs(15));
-            }
-        });
+            },
+        );
     }
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
@@ -1199,21 +1194,20 @@ fn spawn_read_model_ticks(
     // hears of it only when something changed.
     {
         let live_state = index_state.clone();
-        let _ = std::thread::Builder::new()
-            .name("live-sessions".to_owned())
-            .spawn(move || {
-                loop {
-                    use tauri::Emitter;
-                    if let Ok(true) = features::conversations::live_tick(&live_state) {
-                        let _ = live_app.emit(
-                            features::conversations::EVENT_CHANGED,
-                            features::conversations::CHANGED_LIVE,
-                        );
-                    }
-                    // poll: the live view's cadence (scan::TICK, 2 s).
-                    std::thread::sleep(features::conversations::scan::TICK);
+        // poll: the live view's cadence (scan::TICK, 2 s).
+        ticks::every_from_now(
+            "live-sessions",
+            features::conversations::scan::TICK,
+            move || {
+                use tauri::Emitter;
+                if let Ok(true) = features::conversations::live_tick(&live_state) {
+                    let _ = live_app.emit(
+                        features::conversations::EVENT_CHANGED,
+                        features::conversations::CHANGED_LIVE,
+                    );
                 }
-            });
+            },
+        );
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());
@@ -1222,109 +1216,11 @@ fn spawn_read_model_ticks(
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(60));
+    ticks::every(
+        "transcript-index",
+        std::time::Duration::from_secs(60),
+        move || {
             let _ = history::index_transcripts(&index_state);
-        }
-    });
-}
-
-/// The lifecycle forwarder: supervisor events → storage status
-/// transitions, with AJ-E405 exit classification (rate-limit signature →
-/// [`SessionStatus::QuotaBlocked`]) applied before the status mapping runs.
-fn spawn_lifecycle_forwarder(state: Arc<state::AppState>) {
-    std::thread::spawn(move || {
-        while let Some(event) = state
-            .supervisor
-            .recv_timeout(std::time::Duration::from_millis(500))
-        {
-            let stopped_by_user = state.supervisor.was_stopped(event.session());
-            // AJ-E2405: a helper left behind shows in the Processes view at
-            // once, and the user hears of it once per session.
-            if let juggler_supervisor::LifecycleEvent::HelperOrphaned { session, pid } = &event {
-                features::processes::helper_orphaned(&state, session, *pid);
-            }
-            // AJ-E405: classify non-zero exits against the captured
-            // output tail BEFORE the status mapping runs — a rate-limit
-            // signature is QuotaBlocked (immediate), not a crash.
-            let quota_session = event.session().clone();
-            let quota_blocked = match &event {
-                juggler_supervisor::LifecycleEvent::Exited { kind, session, .. } => {
-                    if stopped_by_user || kind.is_success() {
-                        None
-                    } else if let juggler_supervisor::ExitKind::Code(code) = kind {
-                        let tail = state
-                            .supervisor
-                            .output_tail(session, 4096)
-                            .unwrap_or_default();
-                        state
-                            .heuristics
-                            .classify_exit(*code, &tail, now_millis(), None)
-                    } else {
-                        None
-                    }
-                }
-                juggler_supervisor::LifecycleEvent::Started { .. }
-                | juggler_supervisor::LifecycleEvent::HelperOrphaned { .. } => None,
-            };
-            // AJ-E1509: how it ended, for the restarter (after the status
-            // is stored, with storage free again).
-            let ending = match &event {
-                juggler_supervisor::LifecycleEvent::Exited { kind, session, pid } => {
-                    // AJ-E410: freeze the pre-exit descendant rows into the
-                    // orphan tracker + journal the durable allow-list BEFORE
-                    // the status mapping consumes the event.
-                    commands::record_exit_snapshot(&state, session, *pid, kind);
-                    let tail = if kind.is_success() {
-                        String::new()
-                    } else {
-                        state
-                            .supervisor
-                            .output_tail(session, 4096)
-                            .unwrap_or_default()
-                    };
-                    Some(features::sessions::restart::Ending::of(
-                        kind,
-                        stopped_by_user,
-                        quota_blocked.is_some(),
-                        &tail,
-                    ))
-                }
-                _ => None,
-            };
-            let mut now = None;
-            if let Ok(storage) = state.storage.lock() {
-                now = commands::apply_lifecycle_event(
-                    &storage,
-                    event,
-                    stopped_by_user,
-                    quota_blocked.as_ref().map(|transition| &transition.reason),
-                );
-                // A quota exit ends the process — forget debounce.
-                if quota_blocked.is_some() {
-                    state.heuristics.forget(&quota_session);
-                }
-            }
-            // AJ-E1510: finished or at its limit, as a notification when
-            // asked for.
-            if let Some(record) = now {
-                features::notifications::session_status(
-                    &state,
-                    record.id.as_str(),
-                    record.status.as_str(),
-                );
-            }
-            if let Some(ending) = ending {
-                features::sessions::restart::after_exit(&state, &quota_session, ending);
-            }
-        }
-    });
-}
-
-fn now_millis() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
-        .unwrap_or_default()
+        },
+    );
 }

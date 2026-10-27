@@ -16,6 +16,7 @@ const tree = (overrides: Partial<ToolTreeInfo>): ToolTreeInfo => ({
   root_pid: null,
   session_id: null,
   place: "desktop",
+  label: overrides.session_id ? null : "Claude app",
   tool: null,
   group: overrides.session_id ? "claude-code" : (overrides.place ?? "desktop"),
   account_label: "Personal",
@@ -43,8 +44,8 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     ours: totals(ours),
     theirs: totals(desktop),
     by_tool: [
-      { tool: "claude-code", label: "Claude Code", ours: true, totals: totals(ours), cpu_one_core_pct: 30 },
-      { tool: "desktop", label: "Claude app", ours: false, totals: totals(desktop), cpu_one_core_pct: 14 },
+      { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals(ours), cpu_one_core_pct: 30 },
+      { tool: "desktop", label: "Claude app", who: "The Claude app", ours: false, totals: totals(desktop), cpu_one_core_pct: 14 },
     ],
     top: trees.slice(0, 3),
     others: trees.slice(3),
@@ -107,14 +108,40 @@ describe("the This Mac page", () => {
     for (const row of theirs) expect(within(row).queryByRole("button")).toBeNull();
   });
 
+  // The maintainer's report (0.1.6): the Codex app was running and This
+  // Mac listed only the Claude app and other apps. Each tool's app is its
+  // own group, in its adapter's words, and so is each tool in a terminal.
+  it("lists every tool's app and terminal sessions in their own groups", () => {
+    const codex = tree({ root_pid: 601, group: "codex-app", label: "ChatGPT (Codex)", tool: "codex", account_label: null });
+    const terminal = tree({ root_pid: 701, place: "terminal", group: "terminal:claude-code", label: "claude in a terminal", tool: "claude-code" });
+    const value = info([ours("a"), tree({ root_pid: 501, group: "claude-app" }), codex, terminal], {
+      by_tool: [
+        { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
+        { tool: "claude-app", label: "Claude app", who: "The Claude app", ours: false, totals: totals([tree({})]), cpu_one_core_pct: 14 },
+        { tool: "codex-app", label: "ChatGPT (Codex)", who: "ChatGPT (Codex)", ours: false, totals: totals([codex]), cpu_one_core_pct: 14 },
+        { tool: "terminal:claude-code", label: "claude in a terminal", who: "claude in a terminal", ours: false, totals: totals([terminal]), cpu_one_core_pct: 14 },
+      ],
+    });
+    renderPage(value);
+    const groups = screen.getAllByTestId("this-mac-group");
+    expect(groups.map((group) => group.querySelector("summary")?.textContent ?? "")).toEqual([
+      expect.stringContaining("Claude Code"),
+      expect.stringContaining("Claude app"),
+      expect.stringContaining("ChatGPT (Codex)"),
+      expect.stringContaining("claude in a terminal"),
+    ]);
+    expect(within(groups[2]!).getByTestId("this-mac-tree").textContent).toContain("ChatGPT (Codex)");
+    expect(within(groups[3]!).getByTestId("this-mac-tree").textContent).toContain("claude in a terminal");
+  });
+
   // AJ-E2407: the groups come from the Processes view's graph, so another
   // app's AI sessions (any tool) are listed by app and session title.
   it("lists another app's AI sessions by app, each by its title, and names it in an alert", () => {
-    const chatgpt = tree({ root_pid: 7300, place: "desktop", tool: "codex", group: "app:ChatGPT:codex", title: "Landing page", rss_bytes: 195_000_000 });
+    const chatgpt = tree({ root_pid: 7300, place: "desktop", tool: "codex", group: "app:ChatGPT:codex", label: "ChatGPT", title: "Landing page", rss_bytes: 195_000_000 });
     const value = info([ours("a"), chatgpt], {
       by_tool: [
-        { tool: "claude-code", label: "Claude Code", ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
-        { tool: "app:ChatGPT:codex", label: "ChatGPT", ours: false, totals: totals([chatgpt]), cpu_one_core_pct: 1 },
+        { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
+        { tool: "app:ChatGPT:codex", label: "ChatGPT", who: "ChatGPT", ours: false, totals: totals([chatgpt]), cpu_one_core_pct: 1 },
       ],
     });
     renderPage(value);
@@ -168,8 +195,8 @@ describe("the This Mac page", () => {
     renderPage(info(windows, { machine: mockMachineHealth("others", NOW), other_apps }));
     const state = screen.getByTestId("this-mac-state");
     const parts = [...within(state).getByTestId("this-mac-memory-parts").querySelectorAll("li")].map((part) => part.textContent);
-    expect(parts).toEqual(["AI tools about 16 GB", "Other apps and macOS 28 GB", "Kept compressed 47 GB", "Available 12 GB"]);
-    expect(within(state).getByTestId("this-mac-memory").textContent).toBe("91 GB in use of 103 GB");
+    expect(parts).toEqual(["AI tools about 15 GB", "Other apps and macOS 22 GB", "Kept compressed 47 GB", "Available 12 GB"]);
+    expect(within(state).getByTestId("this-mac-memory").textContent).toBe("84 GB in use of 96 GB");
     expect(screen.getByTestId("this-mac-swap").textContent).toContain("21 GB of 22 GB moved to disk");
     // A free figure under pressure never stands alone: the line, and the
     // rest behind "What it means".
@@ -182,10 +209,10 @@ describe("the This Mac page", () => {
     const group = screen.getByTestId("this-mac-other-apps");
     expect(group.hasAttribute("open")).toBe(false);
     expect(group.querySelector("summary")!.textContent).toContain("Other apps and macOS");
-    expect(group.querySelector("summary")!.textContent).toContain("28 GB");
+    expect(group.querySelector("summary")!.textContent).toContain("22 GB");
     expect(group.textContent).toContain("macOS keeps 47 GB more compressed for every app, AI tools too");
     const rows = within(group).getAllByTestId("this-mac-other-app");
-    expect(rows.map((row) => row.textContent)).toEqual(["next-server6.4 GB", "Dockerabout 4.0 GB3 processes", "fseventsd1.5 GB"]);
+    expect(rows.map((row) => row.textContent)).toEqual(["next-server6.0 GB", "Dockerabout 3.7 GB3 processes", "fseventsd1.4 GB"]);
     // D-08: another app is never offered anything.
     expect(within(group).queryByRole("button")).toBeNull();
   });
@@ -204,6 +231,7 @@ describe("the This Mac page", () => {
       detail: "Memory is getting tight",
       session_id: "a",
       place: null,
+      subject_name: null,
       subject_bytes: 3_200_000_000,
       subject_estimate: false,
       subject_cpu: null,
@@ -212,7 +240,7 @@ describe("the This Mac page", () => {
       since_ms: NOW - 60_000,
     } as OverloadAlertInfo;
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));
-    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.2 GB");
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
   });
 });

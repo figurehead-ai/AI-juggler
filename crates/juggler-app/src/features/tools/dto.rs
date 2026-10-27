@@ -53,6 +53,7 @@ pub struct ToolRuntimeInfo {
 }
 
 /// What a screen needs to know a tool can do.
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact a screen reads
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ToolSupportsInfo {
@@ -60,6 +61,13 @@ pub struct ToolSupportsInfo {
     pub in_place: bool,
     /// It reports its usage limits.
     pub limits: bool,
+    /// Its desktop app keeps a meter of the account's limits AI Juggler
+    /// reads.
+    pub app_meter: bool,
+    /// Go to it opens one of its sessions in its desktop app by the app's
+    /// own link (the Codex app's `codex://threads/…`), so nothing is left
+    /// to pick in the app's sidebar.
+    pub thread_link: bool,
 }
 
 /// One tool, as every screen reads it (ADR-0019 §1).

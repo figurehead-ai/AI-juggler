@@ -14,7 +14,11 @@ use crate::model::{Confidence, TokenCounts};
 use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
 mod cost_pages;
-pub use cost_pages::{CostBucket, bucket_key};
+pub use cost_pages::CostDay;
+
+/// One window's readings, oldest first, each with its source (`None`:
+/// stored before sources were kept).
+pub type SourcedSamples = Vec<(QuotaSample, Option<UsageSource>)>;
 
 /// Append-only usage store over an open connection (single writer,
 /// like every storage repo).
@@ -303,6 +307,17 @@ impl UsageRepo<'_> {
         kind: WindowKind,
         sample: &QuotaSample,
     ) -> Result<(), CoreError> {
+        self.insert_named_sample(account, kind.as_str(), sample)
+    }
+
+    /// [`Self::insert_sample`] under a stored window name (an all-models
+    /// window's, or a model's own week's).
+    fn insert_named_sample(
+        &self,
+        account: &str,
+        window: &str,
+        sample: &QuotaSample,
+    ) -> Result<(), CoreError> {
         self.conn
             .execute(
                 "INSERT OR REPLACE INTO quota_samples
@@ -310,7 +325,7 @@ impl UsageRepo<'_> {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     account,
-                    kind.as_str(),
+                    window,
                     sample.ts,
                     sample.used_pct,
                     sample.resets_at,
@@ -335,15 +350,98 @@ impl UsageRepo<'_> {
     ) -> Result<(), CoreError> {
         let tx = write_transaction(self.conn)?;
         for (account, kind, sample, source) in samples {
-            UsageRepo { conn: &tx }.insert_sample(account, *kind, sample)?;
-            tx.execute(
-                "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![account, kind.as_str(), sample.ts, source.as_str()],
-            )?;
+            UsageRepo { conn: &tx }.insert_sourced(account, kind.as_str(), sample, *source)?;
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// Appends readings of weekly limits on one model only (`(account,
+    /// model, sample, source)`), each under its model's own window name
+    /// ([`crate::quota::model_week_window`]), in ONE transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the transaction
+    /// rolls back atomically.
+    pub fn insert_model_week_samples(
+        &self,
+        samples: &[(String, String, QuotaSample, UsageSource)],
+    ) -> Result<(), CoreError> {
+        if samples.is_empty() {
+            return Ok(());
+        }
+        let tx = write_transaction(self.conn)?;
+        for (account, model, sample, source) in samples {
+            let window = crate::quota::model_week_window(model);
+            UsageRepo { conn: &tx }.insert_sourced(account, &window, sample, *source)?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    fn insert_sourced(
+        &self,
+        account: &str,
+        window: &str,
+        sample: &QuotaSample,
+        source: UsageSource,
+    ) -> Result<(), CoreError> {
+        self.insert_named_sample(account, window, sample)?;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![account, window, sample.ts, source.as_str()],
+        )?;
+        Ok(())
+    }
+
+    /// Every model's own weekly limit readings for one account, by model
+    /// (sorted), each oldest first with its source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn model_week_samples_for_account(
+        &self,
+        account: &str,
+    ) -> Result<Vec<(String, SourcedSamples)>, CoreError> {
+        let prefix = crate::quota::MODEL_WEEK_PREFIX;
+        let mut stmt = self.conn.prepare(
+            "SELECT q.window, q.ts, q.used_pct, q.resets_at, q.confidence, s.source
+             FROM quota_samples q
+             LEFT JOIN quota_sample_sources s
+               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+             WHERE q.account = ?1 AND substr(q.window, 1, ?2) = ?3
+             ORDER BY q.window, q.ts",
+        )?;
+        let prefix_len = i64::try_from(prefix.len()).unwrap_or(i64::MAX);
+        let rows = stmt.query_map(params![account, prefix_len, prefix], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                QuotaSample {
+                    ts: row.get(1)?,
+                    used_pct: row.get(2)?,
+                    resets_at: row.get(3)?,
+                    confidence: parse_confidence(&row.get::<_, String>(4)?),
+                },
+                row.get::<_, Option<String>>(5)?
+                    .as_deref()
+                    .and_then(UsageSource::parse),
+            ))
+        })?;
+        let mut out: Vec<(String, SourcedSamples)> = Vec::new();
+        for row in rows {
+            let (window, sample, source) = row?;
+            let Some(model) = window.strip_prefix(prefix).map(str::to_owned) else {
+                continue;
+            };
+            match out.last_mut() {
+                Some((last, samples)) if *last == model => samples.push((sample, source)),
+                _ => out.push((model, vec![(sample, source)])),
+            }
+        }
+        Ok(out)
     }
 
     /// [`Self::samples_for_account`] with each sample's source, oldest
@@ -1287,6 +1385,73 @@ mod tests {
                 .unwrap()
                 .len(),
             2
+        );
+    }
+
+    /// A model's own week is a window of its own: its readings never mix
+    /// with the all-models week's, and each model keeps its own.
+    #[test]
+    fn a_models_own_week_is_kept_apart_from_the_all_models_week() {
+        let storage = crate::storage::Storage::open_in_memory().unwrap();
+        let usage = storage.usage();
+        let sample = |ts: i64, used_pct: f64| QuotaSample {
+            ts,
+            used_pct,
+            resets_at: Some(ts + 1_000),
+            confidence: Confidence::Measured,
+        };
+        let rows = vec![
+            (
+                "acc".to_owned(),
+                "Fable".to_owned(),
+                sample(1, 10.0),
+                UsageSource::UsageCache,
+            ),
+            (
+                "acc".to_owned(),
+                "Fable".to_owned(),
+                sample(2, 12.0),
+                UsageSource::UsageCache,
+            ),
+            (
+                "acc".to_owned(),
+                "Opus".to_owned(),
+                sample(2, 3.0),
+                UsageSource::UsageCache,
+            ),
+            (
+                "other".to_owned(),
+                "Fable".to_owned(),
+                sample(2, 90.0),
+                UsageSource::UsageCache,
+            ),
+        ];
+        usage.insert_model_week_samples(&rows).unwrap();
+        usage.insert_model_week_samples(&rows).unwrap();
+        let weeks = usage.model_week_samples_for_account("acc").unwrap();
+        let shape: Vec<(&str, Vec<(i64, f64)>)> = weeks
+            .iter()
+            .map(|(model, samples)| {
+                (
+                    model.as_str(),
+                    samples.iter().map(|(s, _)| (s.ts, s.used_pct)).collect(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            shape,
+            [
+                ("Fable", vec![(1, 10.0), (2, 12.0)]),
+                ("Opus", vec![(2, 3.0)])
+            ]
+        );
+        assert_eq!(weeks[0].1[0].1, Some(UsageSource::UsageCache));
+        assert!(
+            usage
+                .samples_for_account("acc", WindowKind::Weekly { anchor_ms: None })
+                .unwrap()
+                .is_empty(),
+            "never read as the all-models week"
         );
     }
 }

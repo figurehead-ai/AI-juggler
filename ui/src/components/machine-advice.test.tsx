@@ -32,8 +32,8 @@ afterEach(() => {
 
 describe("the advice line", () => {
   it("says what a launch costs, learned or not", () => {
-    expect(basisWords(advice({}))).toBe("about 2.1 GB a session, from your last 6");
-    expect(basisWords(advice({ based_on: 0, projected_bytes: 1e9 }))).toBe("about 1.0 GB a session — not measured yet");
+    expect(basisWords(advice({}))).toBe("about 2.0 GB a session, from your last 6");
+    expect(basisWords(advice({ based_on: 0, projected_bytes: 1e9 }))).toBe("about 954 MB a session — not measured yet");
     render(<MachineAdviceLine advice={advice({})} nameOf={() => null} />);
     const line = screen.getByTestId("machine-advice");
     expect(line.getAttribute("data-verdict")).toBe("ok");
@@ -48,7 +48,7 @@ describe("the advice line", () => {
         nameOf={() => null}
       />,
     );
-    expect(screen.getByTestId("machine-advice").textContent).toContain("Assumes about 1.0 GB a session — not measured yet.");
+    expect(screen.getByTestId("machine-advice").textContent).toContain("Assumes about 954 MB a session — not measured yet.");
     cleanup();
     render(<MachineAdviceLine advice={advice({ verdict: "no", words: "Not now", reasons: ["memory is short"] })} nameOf={() => null} />);
     expect(screen.getByTestId("machine-advice").textContent).not.toContain("not measured yet");
@@ -73,7 +73,7 @@ describe("the advice line", () => {
     const text = screen.getByTestId("machine-advice").textContent!;
     expect(text).toContain("Not now — this Mac is short of room");
     expect(text).toContain("macOS reports critical memory pressure; it would leave about 800 MB of memory free.");
-    expect(text).toContain("Closing feat/read-model frees about 3.2 GB.");
+    expect(text).toContain("Closing feat/read-model frees about 3.0 GB.");
     expect(text).toContain("You can still start it.");
   });
 

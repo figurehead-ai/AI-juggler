@@ -637,6 +637,7 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         },
         same_as: "as when you run Grok yourself".to_owned(),
         desktop_app: None,
+        app_meter: false,
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
