@@ -64,6 +64,8 @@ export function StatTile({
   period,
   trend,
   note,
+  words,
+  atLeast = false,
   testId,
 }: {
   label: string;
@@ -83,6 +85,11 @@ export function StatTile({
   trend?: number[];
   /** A line instead of (or under) the change. */
   note?: ReactNode;
+  /** Said instead of a number that can't be known ("No list price"):
+   * never a made-up 0 (§4.11). */
+  words?: string;
+  /** The number is a floor (some of it couldn't be counted): "≥ $12". */
+  atLeast?: boolean;
   testId?: string;
 }): JSX.Element {
   return (
@@ -91,8 +98,14 @@ export function StatTile({
         {icon && <span aria-hidden="true">{icon}</span>}
         {label}
       </span>
-      <span className="text-stat text-ink" title={value === null ? undefined : exact(value, unit)} data-testid="stat-value">
-        {value === null ? "—" : full ? exact(value, unit) : short(value, unit)}
+      <span className={words !== undefined && value === null ? "text-section font-semibold text-ink" : "text-stat text-ink"} title={value === null ? undefined : exact(value, unit)} data-testid="stat-value">
+        {atLeast && value !== null && (
+          <>
+            <span aria-hidden="true">≥ </span>
+            <span className="sr-only">at least </span>
+          </>
+        )}
+        {value === null ? (words ?? "—") : full ? exact(value, unit) : short(value, unit)}
         {suffix && value !== null && <span className="ml-1 text-section font-medium text-muted">{suffix}</span>}
       </span>
       {before != null && period && value !== null && <Delta now={value} before={before} better={better} period={period} />}

@@ -126,13 +126,16 @@ export function UsageDashboard({
         <StatTile
           label="Estimated cost"
           icon={<IconMoney width={15} height={15} />}
-          value={data ? (data.totals.usd ?? 0) : null}
+          // §4.11: an estimate that can't be made says so — never "$0".
+          value={data?.totals.usd ?? null}
+          words={data && data.totals.usd == null ? (io ? "No list price" : "No usage yet") : undefined}
+          atLeast={!!data?.totals.unpriced && data.totals.usd != null}
           unit="usd"
           before={data?.previous.usd ?? null}
           better="down"
           period={before}
           trend={usdTrend}
-          note={data?.totals.unpriced ? "Some models have no list price" : undefined}
+          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : "Some models have no list price, so they aren't counted") : undefined}
           testId="tile-cost"
         />
         <StatTile
