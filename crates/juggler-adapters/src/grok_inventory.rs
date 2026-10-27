@@ -53,6 +53,7 @@ pub fn inventory(home: &Path) -> Vec<Item> {
                 name: stem.to_owned(),
                 scope: Scope::User,
                 detail: Detail::Files { path },
+                origin: juggler_adapter::inventory::Origin::Own,
             });
         }
     }
@@ -68,8 +69,8 @@ const EVERY_PROJECT: &str =
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_grok = item.tool == GROK_BUILD_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
-            "it comes with the other tool's own account, so Grok can't have it".to_owned(),
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
+            "it comes with {tool}'s own account, so Grok can't have it".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => {
             match (item.scope, mcp_verdict(&item.name, server)) {
@@ -86,9 +87,8 @@ pub fn can_set_up(item: &Item) -> SetUp {
                 .to_owned(),
         ),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no Grok equivalent in AI Juggler yet",
+            "a {} from {{tool}} has no Grok equivalent in AI Juggler yet",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -260,6 +260,7 @@ mod tests {
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         let applied = set_up(home.path(), &item).unwrap();
         let text = std::fs::read_to_string(&file).unwrap();

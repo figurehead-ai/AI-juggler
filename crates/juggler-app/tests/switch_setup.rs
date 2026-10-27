@@ -16,7 +16,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
 use juggler_app::features::switch_setup::{
-    apply_impl, check_impl, forget_impl, list_impl, undo_impl,
+    apply_impl, check_impl, forget_impl, list_impl, turn_ons, undo_impl,
 };
 use juggler_app::state::AppState;
 
@@ -135,7 +135,8 @@ fn the_other_claude_account_is_offered_what_it_lacks_and_gets_only_what_is_picke
         "{:?}",
         check.offers
     );
-    assert_eq!(verdict("team-style"), Some(("impossible", false)));
+    // Synced from claude.ai with nothing saying whose: turned on there.
+    assert_eq!(verdict("team-style"), Some(("turn-on", false)));
     assert_eq!(verdict("CLAUDE.md"), None, "Personal has its own rules");
     assert!(check.already_there >= 1);
     let note = check
@@ -406,4 +407,186 @@ fn a_set_up_that_cant_be_undone_can_be_forgotten_leaving_it_as_it_is() {
     );
     assert!(list_impl(&lab.state).unwrap().is_empty());
     assert!(forget_impl(&lab.state, &record).is_err(), "forgotten once");
+}
+
+/// Sets `session`'s transcript to `text` (synthetic), in `dir`.
+fn with_transcript(state: &Arc<AppState>, session: &str, dir: &Path, text: &str) {
+    let path = dir.join("conversation.jsonl");
+    std::fs::write(&path, text).unwrap();
+    let storage = state.storage.lock().unwrap();
+    let mut record = storage
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(session))
+        .unwrap();
+    record.transcript_ref = Some(juggler_core::model::TranscriptRef {
+        path,
+        native_id: None,
+    });
+    storage.sessions().update(&record).unwrap();
+}
+
+/// switch-setup-items.md: what the conversation used leads; what comes
+/// with the claude.ai account is turned on for the other account, never
+/// copied; what may be the user's own can be copied on their say-so; the
+/// switch keeps a reminder until the other account has it (Check again).
+#[test]
+fn what_was_used_leads_and_what_comes_with_the_account_is_turned_on() {
+    let lab = lab();
+    let (profile_b, b) = &lab.claude_b;
+    let set = lab.source_dir.join("skills/synced/org_acct");
+    std::fs::create_dir_all(&set).unwrap();
+    std::fs::write(
+        set.join("manifest.json"),
+        serde_json::json!({"skills": [
+            {"skillId": "computer-use", "name": "computer-use", "source": "anthropic-example"},
+            {"skillId": "docs", "name": "docs", "source": "anthropic-example"},
+            {"skillId": "team-notes", "name": "team-notes", "source": "custom"}
+        ]})
+        .to_string(),
+    )
+    .unwrap();
+    for skill in ["computer-use", "docs", "team-notes"] {
+        std::fs::create_dir_all(set.join(skill)).unwrap();
+        std::fs::write(
+            set.join(skill).join("SKILL.md"),
+            format!("---\nname: {skill}\n---\n"),
+        )
+        .unwrap();
+    }
+    // Used: release-notes (the Skill tool), computer-use (typed as a
+    // synced skill), team-notes (typed), github (MCP). Not used: review,
+    // docs, team-style.
+    with_transcript(
+        &lab.state,
+        &lab.session,
+        lab._work.path(),
+        concat!(
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Skill","input":{"skill":"release-notes"}}]}}"#,
+            "\n",
+            r#"{"type":"user","message":{"content":"<command-name>/anthropic-skills:computer-use</command-name>"}}"#,
+            "\n",
+            r#"{"type":"user","message":{"content":"<command-name>/team-notes</command-name>"}}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"mcp__github__create_issue","input":{}}]}}"#,
+            "\n",
+        ),
+    );
+
+    let check = check_impl(&lab.state, &lab.session, profile_b).unwrap();
+    let offer = |name: &str| {
+        check
+            .offers
+            .iter()
+            .find(|offer| offer.name == name)
+            .expect("offered")
+    };
+    // Used first, unused after; an unused one is never ticked for you.
+    let first_unused = check
+        .offers
+        .iter()
+        .position(|offer| offer.used != Some(true))
+        .unwrap();
+    assert!(
+        check.offers[first_unused..]
+            .iter()
+            .all(|offer| offer.used != Some(true)),
+        "what was used leads"
+    );
+    assert_eq!(offer("release-notes").used, Some(true));
+    assert!(offer("release-notes").suggested);
+    assert_eq!(offer("review").used, Some(false));
+    assert_eq!(offer("review").verdict, "copy");
+    assert!(
+        !offer("review").suggested,
+        "not used here: offered, not ticked"
+    );
+    assert_eq!(offer("docs").used, Some(false));
+
+    // Anthropic's: steps for Personal, its page, never copied.
+    let computer = offer("computer-use");
+    assert_eq!(computer.verdict, "turn-on");
+    assert_eq!(computer.used, Some(true));
+    assert_eq!(computer.origin, "provided");
+    assert_eq!(computer.provided_by.as_deref(), Some("Anthropic"));
+    assert!(!computer.can_copy);
+    assert!(!computer.suggested);
+    let get_it = computer.get_it.as_ref().expect("steps");
+    assert!(get_it.steps[0].contains("as Personal"));
+    assert!(
+        get_it
+            .steps
+            .last()
+            .unwrap()
+            .contains("Start a session on Personal")
+    );
+    assert_eq!(
+        get_it.open_url.as_deref(),
+        Some("https://claude.ai/customize/skills")
+    );
+    assert!(get_it.needs.iter().any(|need| need.contains("Pro or Max")));
+    assert!(!format!("{:?}", check.offers).contains("{account}"));
+    assert!(!format!("{:?}", check.offers).contains("{tool}"));
+
+    // The account's own content: turned on there, or copied if yours.
+    let notes = offer("team-notes");
+    assert_eq!(
+        (
+            notes.verdict.as_str(),
+            notes.origin.as_str(),
+            notes.can_copy
+        ),
+        ("turn-on", "account", true)
+    );
+
+    // Applying: the provided skill is refused whatever id is sent; the
+    // account's is copied, with an undo.
+    let picked = vec![computer.id.clone(), notes.id.clone()];
+    let applied = apply_impl(&lab.state, &lab.session, profile_b, &picked).unwrap();
+    let refused = applied
+        .iter()
+        .find(|result| result.offer == computer.id)
+        .unwrap();
+    assert!(refused.record.is_none());
+    assert!(refused.message.contains("turn it on for Personal"));
+    assert!(!b.join("skills/computer-use").exists(), "never copied");
+    assert!(b.join("skills/team-notes/SKILL.md").is_file());
+
+    // The switch kept a reminder for the used, provided one only (not
+    // the copied one, not the unused ones).
+    let reminders = turn_ons::list_impl(&lab.state).unwrap();
+    let names: Vec<&str> = reminders.iter().map(|r| r.name.as_str()).collect();
+    assert_eq!(names, vec!["computer-use"]);
+    assert_eq!(reminders[0].account, "Personal");
+    // Applying again keeps one reminder, not two.
+    apply_impl(&lab.state, &lab.session, profile_b, &[]).unwrap();
+    assert_eq!(turn_ons::list_impl(&lab.state).unwrap().len(), 1);
+
+    // Check again: once Personal's own sync brings it, the reminder goes.
+    std::fs::create_dir_all(b.join("skills/synced/org_b/computer-use")).unwrap();
+    assert!(turn_ons::list_impl(&lab.state).unwrap().is_empty());
+    let check = check_impl(&lab.state, &lab.session, profile_b).unwrap();
+    assert!(
+        !check
+            .offers
+            .iter()
+            .any(|offer| offer.name == "computer-use")
+    );
+}
+
+/// Another tool's notes name the tool, never its id.
+#[test]
+fn notes_name_the_tool_not_its_id() {
+    let lab = lab();
+    let (profile_x, _) = &lab.codex;
+    let check = check_impl(&lab.state, &lab.session, profile_x).unwrap();
+    let synced = check
+        .offers
+        .iter()
+        .find(|offer| offer.name == "team-style")
+        .unwrap();
+    assert_eq!(synced.verdict, "impossible");
+    let note = synced.note.as_deref().unwrap();
+    assert!(note.contains("Claude Code"));
+    assert!(!note.contains("claude-code"));
+    assert!(!note.contains("{tool}"));
 }

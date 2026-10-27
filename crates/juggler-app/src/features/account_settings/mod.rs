@@ -56,6 +56,7 @@ fn sides(state: &Arc<AppState>, target: &str, source: &str) -> AppResult<Sides> 
         source,
         target,
         project: None,
+        transcript: None,
     })
 }
 
@@ -93,7 +94,9 @@ pub fn check_impl(
         .filter(|item| usual_settings(item.kind))
         .collect();
     // The new account is of the same tool: its verdicts are this tool's.
-    let (offers, _) = switch_setup::offers(&source, adapter.as_ref(), &items, &[]);
+    let (offers, _) = switch_setup::offers(&source, adapter.as_ref(), &items, &[], None, &|tool| {
+        crate::features::tools::display_name(&state.registry, tool)
+    });
     Ok(SetupCheckInfo {
         from: source.label.clone(),
         to: "the new account".to_owned(),

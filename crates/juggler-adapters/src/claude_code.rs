@@ -442,6 +442,13 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_inventory::can_set_up(item)
     }
 
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::claude_used::used_in(transcript)
+    }
+
     fn set_up(
         &self,
         state_dir: &Path,

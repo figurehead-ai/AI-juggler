@@ -5,7 +5,10 @@
 //! - skills (`~/.agents/skills/<name>/SKILL.md`, shared by every Codex
 //!   home, and the home's own `skills/`, `.system` left out), prompts
 //!   (`prompts/*.md`), subagents (`agents/*.toml`), rules (`AGENTS.md`);
-//! - plugins (`[plugins."name@marketplace"]`);
+//! - plugins (`[plugins."name@marketplace"]`), each with where it came
+//!   from by its marketplace (switch-setup-items.md §4): `OpenAI`'s own
+//!   (`openai-bundled`, `openai-primary-runtime`, `openai-curated`) are
+//!   turned on in Codex, never copied;
 //! - the home's own settings (AJ-E1508): its permissions (`approval_policy`
 //!   and `sandbox_mode`) and its status line (`tui.status_line`).
 //!
@@ -20,8 +23,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
-    SettingCheck, Undo, Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, GetIt, Item, ItemKind, McpServer, McpTransport, Need, Origin,
+    Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
 };
 
 use crate::codex::CODEX_ID;
@@ -48,11 +51,10 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     if let Some(plugins) = config.get("plugins").and_then(toml::Value::as_table) {
         for (id, entry) in plugins {
             if entry.get("enabled").and_then(toml::Value::as_bool) != Some(false) {
-                items.push(item(
-                    ItemKind::Plugin,
-                    id,
-                    Detail::Plugin { id: id.clone() },
-                ));
+                items.push(Item {
+                    origin: plugin_origin(id),
+                    ..item(ItemKind::Plugin, id, Detail::Plugin { id: id.clone() })
+                });
             }
         }
     }
@@ -94,6 +96,61 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     }
     items.extend(own_settings(home));
     items
+}
+
+/// The marketplaces whose plugins come with the Codex app itself (local
+/// `config.toml` headers and the plugin cache; switch-setup-items.md §4).
+const WITH_THE_APP: [&str; 2] = ["openai-bundled", "openai-primary-runtime"];
+
+/// The marketplace of the plugin directory `ChatGPT` and Codex share.
+const CURATED: [&str; 2] = ["openai-curated", "openai-curated-remote"];
+
+/// The plugins a user made in their `ChatGPT` workspace.
+const MADE_IN_THE_WORKSPACE: &str = "created-by-me-remote";
+
+/// Where a plugin came from, by its marketplace (`name@marketplace`).
+fn plugin_origin(id: &str) -> Origin {
+    let marketplace = id.rsplit_once('@').map_or("", |(_, market)| market);
+    if WITH_THE_APP.contains(&marketplace) || CURATED.contains(&marketplace) {
+        Origin::Provided {
+            by: "OpenAI".to_owned(),
+        }
+    } else if marketplace == MADE_IN_THE_WORKSPACE {
+        Origin::Account
+    } else {
+        Origin::Own
+    }
+}
+
+/// How the Codex home of `{account}` gets the plugin `id`, which comes
+/// from `OpenAI` or the `ChatGPT` workspace: in Codex's own `/plugins`
+/// (learn.chatgpt.com/docs/plugins). No page address: no stable `ChatGPT`
+/// settings address is verified (switch-setup-items.md §4, NE).
+fn plugin_get_it(id: &str) -> GetIt {
+    let (name, marketplace) = id.rsplit_once('@').unwrap_or((id, ""));
+    let mut steps = Vec::new();
+    if WITH_THE_APP.contains(&marketplace) {
+        steps.push(format!(
+            "Open the Codex app signed in as {{account}}: {name} comes with the app."
+        ));
+        steps.push(format!(
+            "If it isn't on, type /plugins in Codex, find {name} and turn it on."
+        ));
+    } else {
+        steps.push(format!(
+            "In Codex on {{account}}, type /plugins, find {name} and install it."
+        ));
+        steps.push("If it connects an app, sign in to it when Codex asks.".to_owned());
+    }
+    steps.push("Start a new Codex session on {account}.".to_owned());
+    GetIt {
+        steps,
+        open_url: None,
+        needs: vec![Need::Admin(
+            "On an Enterprise or Edu workspace, your admin may have to allow it first.".to_owned(),
+        )],
+        then: Some("Then choose Check again.".to_owned()),
+    }
 }
 
 /// AJ-E1508: the home's own settings, key by key; never the text of one
@@ -186,8 +243,8 @@ const EVERY_PROJECT: &str =
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_codex = item.tool == CODEX_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
-            "it comes with the claude.ai account, so Codex can't have it".to_owned(),
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
+            "it comes with {tool}'s own account, so Codex can't have it".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => {
             let verdict = mcp_verdict(&item.name, server);
@@ -234,6 +291,13 @@ pub fn can_set_up(item: &Item) -> SetUp {
             "Codex reads one rules file, AGENTS.md: add what this one says to it yourself"
                 .to_owned(),
         ),
+        // OpenAI's own, or the workspace's: Codex installs it itself.
+        (ItemKind::Plugin, Detail::Plugin { id }) if from_codex && item.origin != Origin::Own => {
+            SetUp::TurnOn {
+                get_it: plugin_get_it(id),
+                can_copy: false,
+            }
+        }
         (ItemKind::Plugin, Detail::Plugin { id }) if from_codex => {
             SetUp::NeedsYou(format!("install it here with `codex plugin add {id}`"))
         }
@@ -241,14 +305,12 @@ pub fn can_set_up(item: &Item) -> SetUp {
             SetUp::Impossible("Claude Code plugins don't run in Codex".to_owned())
         }
         (ItemKind::Permissions | ItemKind::StatusLine, _) => SetUp::Impossible(format!(
-            "the {} of {} work differently from Codex's: set them in Codex",
+            "the {} of {{tool}} work differently from Codex's: set them in Codex",
             item.kind.words(),
-            item.tool
         )),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no Codex equivalent yet",
+            "a {} from {{tool}} has no Codex equivalent yet",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -262,6 +324,10 @@ pub fn can_set_up(item: &Item) -> SetUp {
 pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Applied, AdapterError> {
     match (&item.kind, &item.detail, can_set_up(item)) {
         (_, _, SetUp::Impossible(why)) => Err(AdapterError::Unsupported(why)),
+        (_, _, SetUp::TurnOn { .. }) => Err(AdapterError::Unsupported(format!(
+            "{} comes with the account or the app: turn it on in Codex",
+            item.name
+        ))),
         (ItemKind::McpServer, Detail::Mcp(server), _) => add_mcp(home, &item.name, server),
         (ItemKind::Skill, Detail::Files { path }, _) => {
             let skills = user_home
@@ -551,6 +617,7 @@ pub(crate) fn toml_mcp_item(tool: &str, name: &str, entry: &toml::Table) -> Item
         name: name.to_owned(),
         scope: Scope::User,
         detail: Detail::Mcp(McpServer { transport, oauth }),
+        origin: Origin::Own,
     }
 }
 
@@ -561,6 +628,7 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.to_owned(),
         scope: Scope::User,
         detail,
+        origin: Origin::Own,
     }
 }
 
@@ -677,6 +745,7 @@ enabled = false
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(can_set_up(&item), SetUp::Impossible(_)));
     }
@@ -697,6 +766,7 @@ enabled = false
             name: name.into(),
             scope: Scope::User,
             detail: Detail::Files { path: "/x".into() },
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(
             can_set_up(&rules(ItemKind::MainRules, "CLAUDE.md")),

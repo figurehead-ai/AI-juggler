@@ -152,6 +152,17 @@ pub trait HarnessAdapter: Send + Sync {
         crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
     }
 
+    /// What the conversation in `transcript` used: skills, commands, MCP
+    /// servers, subagents and plugins, each by kind and name (a plugin by
+    /// its name without the marketplace). `None` when this tool's
+    /// transcripts don't say, which is never "not used"
+    /// (switch-setup-items.md §3). Reads the file only. Default: `None`.
+    #[must_use]
+    fn used_in(&self, transcript: &Path) -> Option<Vec<(crate::inventory::ItemKind, String)>> {
+        let _ = transcript;
+        None
+    }
+
     /// AJ-E1542: sets up `item` in this account (only on the user's
     /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
     /// says how to undo it. Never replaces anything the account has.

@@ -1,0 +1,9 @@
+{"type":"user","uuid":"u1","sessionId":"s-used","message":{"role":"user","content":"Tidy the release and file an issue"}}
+{"type":"assistant","uuid":"a1","sessionId":"s-used","message":{"role":"assistant","content":[{"type":"text","text":"Reading the skill first."},{"type":"tool_use","id":"toolu_skill","name":"Skill","input":{"skill":"pdf","args":"report.pdf"}}]}}
+{"type":"attachment","uuid":"t1","sessionId":"s-used","attachment":{"type":"invoked_skills","skills":[{"name":"pdf","path":"/fixture/skills/synced/set/pdf/SKILL.md","content":"synthetic"}]}}
+{"type":"user","uuid":"u2","sessionId":"s-used","message":{"role":"user","content":"<command-message>docs</command-message>\n<command-name>/anthropic-skills:docs</command-name>\n<command-args>draft</command-args>"}}
+{"type":"user","uuid":"u3","sessionId":"s-used","message":{"role":"user","content":[{"type":"text","text":"<command-name>/review</command-name>"}]}}
+{"type":"assistant","uuid":"a2","sessionId":"s-used","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_gh","name":"mcp__github__create_issue","input":{"title":"synthetic"}},{"type":"tool_use","id":"toolu_notes","name":"mcp__plugin_notes_store__save","input":{"text":"synthetic"}}]}}
+{"type":"assistant","uuid":"a3","sessionId":"s-used","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_task","name":"Task","input":{"description":"Check the tests","prompt":"synthetic","subagent_type":"tester"}}]}}
+{"type":"assistant","uuid":"a4","sessionId":"s-used","message":{"role":"assistant","content":[{"type":"text","text":"I could also mention <command-name>/not-typed</command-name> and the Skill tool in prose."}]}}
+{"type":"user","uuid":"u4","sessionId":"s-used","message":{"role":"user","content":"thanks"}}

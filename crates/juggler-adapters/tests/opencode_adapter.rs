@@ -1013,6 +1013,7 @@ fn a_server_is_set_up_in_the_form_the_installed_opencode_reads() {
             },
             oauth: false,
         }),
+        origin: juggler_adapter::inventory::Origin::Own,
     };
     for (version, pointer) in [("2.2.0", "/mcp/servers/files"), ("1.19.4", "/mcp/files")] {
         let dir = work.path().join(version);
