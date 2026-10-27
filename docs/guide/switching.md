@@ -106,19 +106,30 @@ You can change this in Settings › Switching › Context packs & secrets.
 
 The confirm step lists what your current profile has set up and the other
 one lacks: MCP servers, skills, commands, subagents, rules and plugins.
-Each line says what will happen:
+What this conversation used comes first, marked **Used here**. The rest
+waits under one closed line, **Also on Work Max, not on Personal (not used
+in this conversation)**: open it to see them. When a tool's history
+doesn't say what was used, its lines stay in the main list, never marked
+as unused.
 
-- **Set up as it is:** copied exactly.
-- **Set up as …:** translated into the other tool's form, for example a
-  Codex prompt set up as a Claude Code command.
-- **Needs you:** something only you can do, such as providing a token or
-  installing a plugin with the tool's own command.
-- **Can't be set up:** with the reason, such as a skill that comes from your
-  claude.ai account.
+Each line says what will happen, and whether the switch waits for it:
 
-Lines that can be set up, as they are or translated, start ticked. **Needs
-you** lines don't. Nothing is set up until you confirm, and only what's
-ticked.
+- **Set up as it is when you switch:** copied exactly. You can undo it
+  after.
+- **Set up as … when you switch:** translated into the other tool's form,
+  for example a Codex prompt set up as a Claude Code command.
+- **You can switch now, then finish it:** something only you can do, such
+  as providing a token or installing a plugin with the tool's own command.
+- **You can switch now. Personal won't have it until you turn it on:**
+  it comes with the account, so the other account turns it on itself. See
+  [Things the other account doesn't have](#things-the-other-account-doesnt-have).
+- **You can switch now. Personal won't have it:** the other tool has no
+  place for it, with the reason.
+
+Lines that can be set up, as they are or translated, and that this
+conversation used, start ticked. Lines that need you, or that weren't used
+here, don't. Nothing is set up until you confirm, and only what's ticked.
+Each line has **What does this mean?**, with an example and a link here.
 
 A secret is never copied:
 
@@ -129,6 +140,71 @@ A secret is never copied:
 
 A sign-in never moves: you sign in on the other profile with that tool's
 own sign-in.
+
+### Things the other account doesn't have
+
+Some things come with an account, not with your computer: claude.ai syncs
+the skills and plugins turned on for an account into Claude Code when one
+of that account's sessions starts, and OpenAI's plugins come with Codex
+and your ChatGPT workspace. AI Juggler doesn't copy them to another
+account. A copy wouldn't update when the original does, the account
+decides who may have them, and Anthropic's own skills come with a license
+that doesn't allow copies. The other account turns them on itself, and the
+switch shows how: **Show me how** lists the steps, the button beside it
+opens the right settings page, and **Check again** looks at the other
+account again once you've done it.
+
+You can switch straight away. The other account just won't have the item
+until you turn it on.
+
+**A skill from Anthropic** (the line says "From Anthropic"):
+
+1. Sign in to claude.ai as the account you're switching to.
+2. In Settings > Capabilities, turn on **Code execution and file
+   creation** (it may be called **Create and edit files**). Skills need it.
+3. In Customize > Skills, find the skill under **From Anthropic &
+   Partners** and turn it on.
+4. Start a session on that account so it syncs. It arrives when the
+   session starts, or within about 10 minutes in one that's already
+   running. Then choose **Check again**.
+
+Some skills also need a plan, an owner or another product. The line says
+which:
+
+- **computer-use:** a Pro or Max plan (computer use isn't offered on Team
+  or Enterprise), and computer use turned on in the Claude desktop app.
+- **chrome-browser:** a paid plan, and the Claude in Chrome extension,
+  installed and connected.
+- **built-in-browser:** Cowork in the Claude desktop app. On Team and
+  Enterprise, an owner may have turned it off.
+- **deep-research:** a paid plan, and web search turned on.
+- On a Team or Enterprise plan, your organization's owner may need to
+  allow Skills first.
+
+**A skill from your claude.ai account** (the line says "From Work Max's
+account: yours, your organization's or shared with you"): AI Juggler can't
+tell from your computer whether you made it, your organization provides
+it or someone shared it. In Customize > Skills, look for it under **From
+your organization** or **Shared with you** and turn it on. If you made it,
+you can upload it there (**+** > **Create skill** > **Upload a skill**, a
+ZIP of its folder), or tick **Copy it to Personal now instead (only if you
+made it)**: AI Juggler copies it as new files, with an **Undo**.
+
+**A plugin from claude.ai:** in Customize > Plugins, choose **Discover**,
+find it and add it. Then start a new session on that account, or type
+`/reload-plugins` in one that's running.
+
+**A Codex plugin from OpenAI:** in Codex on the account you're switching
+to, type `/plugins`, find it and install it (one that comes with the Codex
+app may only need turning on there). If it connects an app, sign in to it
+when Codex asks. On an Enterprise or Edu workspace, your admin may have to
+allow it first.
+
+After the switch, whatever this conversation used and the other account
+still has to turn on stays in Settings › Switching › Context packs &
+secrets › **Set up by AI Juggler**, under **Still to turn on**, with the
+same steps and **Check again**. Each one leaves the list once the account
+has it, or when you choose **Stop reminding me**.
 
 ## After the switch
 

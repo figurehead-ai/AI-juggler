@@ -444,7 +444,7 @@
             "binary 2.1.310 strings (syncClaudeAiSkills description)",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "inventory lists synced skills as from the account (claude_inventory.rs); planned: origin and turn-on steps per row (switch-setup-items.md)"
+          "ai_juggler_uses": "built: inventory reads each synced set's manifest.json (skillId, name, source) and frontmatter compatibility; Anthropic's skills get claude.ai turn-on steps (claude_get_it.rs), never a copy; custom ones may be copied with consent; switch reminders until the account has them (switch-setup-items.md, As built)"
         },
         {
           "id": "skill-origin",
@@ -458,7 +458,7 @@
             "https://claude.com/docs/skills/overview",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "planned: origin own/account/provided in the switch set-up (switch-setup-items.md)"
+          "ai_juggler_uses": "built: origin own/account/provided/unknown per synced skill from manifest.json source (claude_inventory.rs); provided ones turned on, never copied (switch-setup-items.md, As built)"
         },
         {
           "id": "transcript-used",
@@ -472,7 +472,7 @@
             "binary 2.1.310 strings (Skill input schema, <command-name> and mcp__ scanners)",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "not yet: parsers summarise tool calls only; planned used_in() for the switch set-up"
+          "ai_juggler_uses": "built: claude_used.rs used_in() reads Skill calls, invoked_skills, <command-name>, mcp__ and Task/Agent names; the switch set-up lists what was used first"
         }
       ]
     },
@@ -778,7 +778,7 @@
             "https://support.claude.com/en/articles/11088861-use-research-on-claude",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "planned: the steps the switch set-up shows for a skill the target account lacks"
+          "ai_juggler_uses": "built: the same claude.ai steps and page (claude.ai/customize/skills) in the switch set-up's turn-on rows and Settings reminders"
         }
       ]
     },
@@ -1241,7 +1241,7 @@
             "https://learn.chatgpt.com/docs/config-file/config-reference",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "planned: origin and 'turn it on' steps in the switch set-up"
+          "ai_juggler_uses": "built: plugin origin by marketplace (codex_inventory.rs); OpenAI's turned on through /plugins, never copied; .system skills never listed"
         },
         {
           "id": "transcript-used",
@@ -1256,7 +1256,7 @@
             "codex 0.163.0 binary strings",
             "docs/research/capabilities/switch-setup-items.md"
           ],
-          "ai_juggler_uses": "not yet: codex_transcript.rs summarises calls; planned used_in()"
+          "ai_juggler_uses": "built: codex_used.rs used_in() reads mcp__ function calls, mcp_tool_call_end, <skill> picks, SKILL.md reads, spawn_agent and plugin:// mentions"
         }
       ]
     },

@@ -603,3 +603,73 @@ Architecture checks: steps and URLs live only in adapters; `switch_setup`
 compares tool ids from the registry, never literals; paths come from
 `state_dir` and each adapter's `user_home()` seam; the URL opens through
 the app's existing external-link seam, so nothing here is macOS-specific.
+
+---
+
+## As built (0.2, 2026-10-27), and where it differs
+
+The design above is built as proposed (`Origin`, `GetIt`, `Need`,
+`SetUp::TurnOn`, `HarnessAdapter::used_in`, the `OfferInfo` fields and
+`"turn-on"`). Where the build differs, and why:
+
+- **`{account}` and `{tool}` in adapter text.** `can_set_up` doesn't know
+  the target account's name or the other tool's display name, so a
+  step may say `{account}` (filled by `GetIt::for_account` with the
+  account's name) and a note `{tool}` (filled by `switch_setup` with the
+  source tool's display name). Notes that used to print a tool id
+  ("a subagent from codex …") now name the tool. (I)
+- **`used` is `null` for rules and settings.** A conversation doesn't
+  "use" a rules file or a permission set, so only skills, commands,
+  subagents, MCP servers and plugins get `true`/`false`. A plugin matches
+  by its name without the marketplace. A user-typed `/name` counts as
+  both a command and a skill of that name, since both run that way. (I)
+- **A plugin's MCP server counts for its plugin.** `mcp__plugin_<p>_<s>__…`
+  is split at the first `_`, giving the plugin `<p>`; the server isn't
+  matched against the user's own servers (a same-named one would be a
+  false "used"). (I)
+- **No page address for claude.ai plugins or Codex.** Only
+  `claude.ai/customize/skills` (and `settings/capabilities`) are verified
+  addresses (§1); Customize > Plugins and ChatGPT's settings have none
+  verified, so those rows have steps and no Open button. (NE)
+- **Codex plugins that come with the app** (`@openai-bundled`,
+  `@openai-primary-runtime`) get a short turn-on: "Open the Codex app
+  signed in as {account}: it comes with the app", then the `/plugins`
+  step the docs give for curated plugins. That `/plugins` lists bundled
+  ones too is our inference, not verified. (I)
+- **A claude.ai item offered to another tool stays `Impossible`**
+  ("it comes with Claude Code's own account, so Codex can't have it"),
+  as §4's "provided items never move" says; a cross-tool counterpart is
+  the follow-up named under Item classes.
+- **Reminders.** After a switch, `switch_setup/turn_ons.rs` keeps one
+  reminder per account and offer for each turn-on item the conversation
+  used (or whose use is unknown), not for unused ones and not for an
+  account item the user ticked to copy. Settings shows them under **Still
+  to turn on**; listing them re-reads each account's inventory, so it is
+  Check again, and an item found there leaves the list. File:
+  `switch-turn-ons.json` in AI Juggler's data folder.
+- **Opening pages.** `switch_setup_open` opens only an address the backend
+  itself named this run (an offer's or a reminder's `open_url`, https
+  only) or the switching guide's section; the interface can't pass an
+  address of its own.
+- **A copied account skill** (`custom`, ticked "Copy … now instead (only
+  if you made it)") goes through the existing set-up record and Undo,
+  as new files in the target's `skills/<name>/`. A provided item is
+  refused at apply in `switch_setup` and again in the adapter's `set_up`,
+  whatever id is sent.
+- **The Continue on picker's one-liner** ("Needs 2 things …") counts only
+  what this conversation used, so the maintainer's five unused skills read
+  "Ready: has what this conversation used".
+
+Fixtures: `crates/juggler-adapters/tests/fixtures/claude-code/session-used.jsonl`
+and `codex/rollout-used.jsonl` (synthetic). Tests:
+`tests/used_in.rs`, `tests/claude_inventory.rs`
+(`synced_skills_say_where_they_came_from`), `tests/codex_inventory.rs`
+(`openai_plugins_are_turned_on_in_codex`), and
+`juggler-app/tests/switch_setup.rs`
+(`what_was_used_leads_and_what_comes_with_the_account_is_turned_on`).
+User guide: `docs/guide/switching.md`, "Things the other account doesn't
+have", in the same words as the app.
+
+Still open: the live lab check (switch the lab profile to the personal
+one and back in AI Juggler Dev, confirm the five read as provided and the
+button opens the right page), which needs the maintainer's go-ahead.
