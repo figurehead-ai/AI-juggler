@@ -188,8 +188,11 @@ pub fn last_turns(path: &Path, max: usize, window: Window) -> std::io::Result<La
             base += first as u64;
         }
         let mut turns = turns_at(&bytes, base);
-        // The window's first turn may have begun before it.
-        if start > 0 && !turns.is_empty() {
+        // The window's first turn may have begun before it: drop it when
+        // later turns follow, never when it is the only one (a long run of
+        // replies with no turn of yours in between shows its end, not
+        // nothing: 0.1.8, a 412 MB Claude app transcript read as empty).
+        if start > 0 && turns.len() > 1 {
             turns.remove(0);
         }
         let enough = turns.len() >= max || start == 0 || size == MAX_WINDOW;
@@ -256,6 +259,11 @@ pub fn turns_at(bytes: &[u8], base: u64) -> Vec<LastTurn> {
     let messages = parse_any(&kept).messages;
     let lines = message_lines(format, &heads, &messages);
     let mut turns: Vec<LastTurn> = Vec::new();
+    // A line the tool put in the conversation (a task's notification, a
+    // command's output, a reminder) isn't shown, but it ends the turn
+    // before it: the replies to two notifications are two turns, as the
+    // tool's own app shows them. A tool's result doesn't end a turn.
+    let mut ended = false;
     for (message, line) in messages.iter().zip(lines) {
         let speaker = match message.role {
             MessageRole::User => Speaker::You,
@@ -270,10 +278,11 @@ pub fn turns_at(bytes: &[u8], base: u64) -> Vec<LastTurn> {
         };
         // A tool's own lines (`<command-name>`, reminders) open with a tag;
         // a tool result has no text of its own.
-        if message.sidechain
-            || (text.is_empty() && tools.is_empty())
-            || (speaker == Speaker::You && text.starts_with('<'))
-        {
+        if speaker == Speaker::You && text.starts_with('<') {
+            ended = true;
+            continue;
+        }
+        if message.sidechain || (text.is_empty() && tools.is_empty()) {
             continue;
         }
         let head = line.and_then(|index| heads.get(index));
@@ -283,7 +292,7 @@ pub fn turns_at(bytes: &[u8], base: u64) -> Vec<LastTurn> {
         let offset = line
             .and_then(|index| offsets.get(index).copied())
             .unwrap_or(base);
-        if turns.last().is_none_or(|last| last.speaker != speaker) {
+        if std::mem::take(&mut ended) || turns.last().is_none_or(|last| last.speaker != speaker) {
             turns.push(LastTurn {
                 speaker,
                 blocks: Vec::new(),
@@ -810,5 +819,49 @@ mod tests {
             last_turns(&path, 3, Window::Latest).unwrap(),
             LastTurns::Compressed
         );
+    }
+
+    fn notification(text: &str) -> String {
+        serde_json::json!({
+            "type": "user",
+            "timestamp": "2026-10-27T10:00:00Z",
+            "origin": {"kind": "task-notification"},
+            "message": {"role": "user", "content": text},
+        })
+        .to_string()
+    }
+
+    /// 0.1.8: a Claude app session replying to its tasks' notifications
+    /// has no turn of yours in between; each reply is its own turn.
+    #[test]
+    fn a_notification_ends_the_reply_before_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write(
+            dir.path(),
+            "s.jsonl",
+            &[
+                claude("assistant", "first reply"),
+                notification("<task-notification>done</task-notification>"),
+                claude("assistant", "second reply"),
+            ],
+        );
+        let turns = page(last_turns(&path, 6, Window::Latest).unwrap()).turns;
+        assert_eq!(turns.len(), 2, "two replies, two turns");
+        assert!(turns.iter().all(|turn| turn.speaker == Speaker::Assistant));
+    }
+
+    /// 0.1.8: a run of replies longer than the largest window was dropped
+    /// as "begun before the window" and the page said the transcript held
+    /// no messages. Its end shows.
+    #[test]
+    fn a_reply_run_longer_than_the_window_shows_its_end() {
+        let dir = tempfile::tempdir().unwrap();
+        let block = "x".repeat(8 * 1024);
+        let lines: Vec<String> = (0..400).map(|_| claude("assistant", &block)).collect();
+        let path = write(dir.path(), "long.jsonl", &lines);
+        assert!(std::fs::metadata(&path).unwrap().len() > MAX_WINDOW);
+        let turns = page(last_turns(&path, 6, Window::Latest).unwrap()).turns;
+        assert_eq!(turns.len(), 1, "the run's end is one turn");
+        assert_eq!(turns[0].speaker, Speaker::Assistant);
     }
 }
