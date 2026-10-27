@@ -130,5 +130,6 @@ export function outcomeWords(outcome: string): string {
   if (said.includes("exited on TERM")) return "Stopped when asked";
   if (said.includes("already gone")) return "Had already ended";
   if (said.includes("outcome unknown")) return "Asked to stop; not known how it ended";
+  if (said.includes("couldn't signal")) return "Couldn't be stopped from here; it may still be running";
   return said;
 }

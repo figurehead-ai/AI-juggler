@@ -766,7 +766,10 @@ impl Supervisor {
     ///
     /// [`SupervisorError::UnknownSession`] when the id is not supervised;
     /// [`SupervisorError::Unverifiable`] (nothing signalled) when an
-    /// adopted root no longer matches its recorded identity.
+    /// adopted root no longer matches its recorded identity;
+    /// [`SupervisorError::GroupNotStopped`] where the system can't stop a
+    /// process group yet (Windows): only the session's own process was
+    /// ended.
     pub fn stop(&self, session: &SessionId, grace: Duration) -> Result<(), SupervisorError> {
         let handle = self
             .children
@@ -812,7 +815,7 @@ impl Supervisor {
         if root_ours && !handle.finished.load(Ordering::Acquire) {
             (handle.force_kill)();
         }
-        Ok(())
+        whole_group_stopped(&crate::tree::OsProcessControl, handle.pid)
     }
 
     /// Snapshot of the retained output tail for a session.
@@ -1528,6 +1531,19 @@ fn signaled_kind(_status: std::process::ExitStatus) -> ExitKind {
     ExitKind::Signaled(None)
 }
 
+/// A session stop's answer once its own process was handled: where the
+/// system can't stop the rest of its group, say so — never "stopped".
+fn whole_group_stopped(
+    control: &dyn crate::tree::ProcessControl,
+    pid: u32,
+) -> Result<(), SupervisorError> {
+    if control.stops_groups() {
+        Ok(())
+    } else {
+        Err(SupervisorError::GroupNotStopped { pid })
+    }
+}
+
 #[cfg(unix)]
 fn send_terminate(pid: u32) {
     use nix::sys::signal::{Signal, kill};
@@ -1918,5 +1934,39 @@ mod stop_identity_tests {
         assert!(stranger.try_wait().unwrap().is_none(), "never signalled");
         stranger.kill().unwrap();
         stranger.wait().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod group_stop_tests {
+    use super::whole_group_stopped;
+    use crate::error::SupervisorError;
+    use crate::tree::{Delivery, Liveness, ProcessControl, Signal};
+
+    /// A system that can (or can't) stop a whole process group.
+    struct Groups(bool);
+
+    impl ProcessControl for Groups {
+        fn state(&self, _pid: u32) -> Liveness {
+            Liveness::Unknown
+        }
+        fn send(&self, _pid: u32, _signal: Signal) -> Delivery {
+            Delivery::Undelivered
+        }
+        fn stops_groups(&self) -> bool {
+            self.0
+        }
+    }
+
+    /// Audit 3.3: where only the session's own process can be ended
+    /// (Windows until its Job Object lands), the stop says the group
+    /// wasn't stopped, never that it was.
+    #[test]
+    fn a_system_that_cant_stop_a_group_never_says_stopped() {
+        assert!(matches!(
+            whole_group_stopped(&Groups(false), 7),
+            Err(SupervisorError::GroupNotStopped { pid: 7 })
+        ));
+        assert!(whole_group_stopped(&Groups(true), 7).is_ok());
     }
 }

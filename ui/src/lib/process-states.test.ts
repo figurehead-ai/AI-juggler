@@ -38,6 +38,7 @@ describe("the Processes view's words", () => {
     expect(outcomeWords("pid 8123: exited on TERM")).toBe("Stopped when asked");
     expect(outcomeWords("pid 1: needed KILL")).toBe("Needed a force stop");
     expect(outcomeWords("pid 1: refused")).toBe("Didn't stop");
+    expect(outcomeWords("pid 1: couldn't signal")).toBe("Couldn't be stopped from here; it may still be running");
     expect(actorWords("user:observed")).toBe("You (another app's session)");
     expect(actorWords("auto:tier-1")).toMatch(/^Automatic/);
   });
