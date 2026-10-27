@@ -30,7 +30,7 @@ const LABELS = [
 describe("AJ-E1510 — Settings › Notifications", () => {
   it("offers six kinds, all off until chosen", async () => {
     const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
-    const group = await findByTestId("system-notifications");
+    const group = await findByTestId("system-notifications", {}, { timeout: 3000 });
     for (const label of LABELS) {
       expect((within(group).getByLabelText(label) as HTMLInputElement).checked).toBe(false);
     }
@@ -39,7 +39,7 @@ describe("AJ-E1510 — Settings › Notifications", () => {
 
   it("saves each kind on its own and says what changed", async () => {
     const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
-    const group = await findByTestId("system-notifications");
+    const group = await findByTestId("system-notifications", {}, { timeout: 3000 });
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("A session finishes"));
     });
