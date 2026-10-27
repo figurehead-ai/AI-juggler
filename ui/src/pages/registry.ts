@@ -35,6 +35,7 @@ export type PageTabId =
   | "members"
   | "messages"
   | "tasks"
+  | "subagents"
   | "access";
 
 export type PageTab = {
@@ -57,6 +58,7 @@ const TAB: Record<PageTabId, PageTab> = {
   members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
   messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this Mac" },
   tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this Mac" },
+  subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
 };
 
@@ -76,6 +78,9 @@ export type TabFacts = {
   hasTasks?: boolean;
   /** AJ-E2404: another app's session, open now (its processes show). */
   live?: boolean;
+  /** AJ-E1520: a session whose tool records subagents, and it started
+   * some. */
+  hasSubagents?: boolean;
 };
 
 /** Where an Overview's numbers come from, by page (P21: never one
@@ -105,14 +110,14 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "session":
       // E18: its Messages, once it has any.
       return facts.desktop
-        ? [TAB.window, TAB.overview, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
-        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+        ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
+        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     case "project":
       return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":
-      return [TAB.overview, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
+      return [TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
     case "tool":
       return [TAB.overview];
     case "machine":

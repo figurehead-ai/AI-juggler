@@ -32,6 +32,9 @@ import { shortHeavy, useHeavyNote } from "../lib/machine";
 import { STATE_TONE, goToWhere, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
 import { agoWords } from "../lib/time-words";
 import { markSeen } from "../lib/seen";
+import { rememberTab } from "../pages/registry";
+import { showTab } from "../pages/PageShell";
+import { markHasSubagents } from "../pages/session/useSubagents";
 import { profileColor } from "../lib/profile-marks";
 
 export { needWord } from "../lib/rail-items";
@@ -52,6 +55,35 @@ export function usePrimary(item: RailItem, onSelect: (id: string) => void): () =
       host.openConversation?.(c);
     }
   };
+}
+
+/** AJ-E1520: a row's subagent count, its own way in: the session's page
+ * on its Subagents tab. */
+function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string; onSelect: (id: string) => void }): JSX.Element {
+  const primary = usePrimary(item, onSelect);
+  return (
+    <span className="flex shrink-0 items-start whitespace-pre">
+      <span aria-hidden="true"> · </span>
+      <button
+        type="button"
+        data-testid="row-subagents"
+        aria-label={`Open its subagents (${words})`}
+        onClick={(event) => {
+          event.stopPropagation();
+          // Its count says it has some: the tab is there from the start.
+          const account = item.session?.account_id ?? item.conversation?.account_id;
+          const conversation = item.session?.conversation_id ?? item.conversation?.id;
+          if (account && conversation) markHasSubagents(account, conversation);
+          rememberTab(item.session ? "session" : "conversation", "subagents");
+          primary();
+          showTab("subagents");
+        }}
+        className="pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 shrink-0 rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+      >
+        {words}
+      </button>
+    </span>
+  );
 }
 
 /** A row's project, its own way in: the project's page here. Text only
@@ -212,7 +244,7 @@ export function PlaceRow(props: RowProps & { edge: string | null }): JSX.Element
           <span className="flex min-w-0 flex-1 items-center">
             <RowProject item={item} rest={when} />
             {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
-            {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
+            {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
           </span>
           <span aria-hidden="true" className={"shrink-0 text-label font-medium leading-[14px] " + tone.text} data-testid="state-word">
             {word}

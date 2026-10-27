@@ -184,7 +184,7 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [remote, onRemoteBack]);
 
-  const sessionTabs = useSessionTabs(data.instance?.id ?? null);
+  const sessionTabs = useSessionTabs(data.instance ?? null);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
   const kind = selection.kind;
@@ -327,7 +327,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
           return <ProcessesTab {...props} readOnly={false} />;
         case "messages":
         case "tasks":
-          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} /> : null;
+        case "subagents":
+          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} /> : null;
         default:
           return null;
       }
