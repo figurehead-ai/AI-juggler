@@ -747,8 +747,34 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   this branch: no chat content, no token, read-only, named on the Privacy
   page. It is not the chat cache D-37 rejected.
 
+### D-45 Your own launch and switch sheets may suggest an account by its room — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27, asked whether their own launch and
+switch sheets may rank accounts by remaining usage and mark one
+"Suggested", given D-31 forbids quota-based picks: "Yes, keep suggestions."
+
+**What it means.** D-31 governs what agents and tasks do: an agent's or a
+task's assignment never reads quota, and nothing starts a session but the
+user. It does not govern the user's own sheets: there, accounts may be
+ranked by the room they have left and one marked "Suggested", because the
+user always makes the choice. The spec gap audit of 2026-10-27 had raised
+the overlap; this records the boundary.
+
+### D-46 First run offers the optional Figurehead account again — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27, told that the optional "Connect a
+Figurehead account" step left first run with the D-25 redesign (commit
+91b640d6) while SPEC §12.1 and AJ-E1203 still describe it: "Bring the step
+back."
+
+**What it means.** First run ends with the optional, skippable step from
+D-18 and AJ-E1203: **Connect account** and **Continue without an account**
+as equal buttons, nothing pre-selected, and no reminder afterwards (D-18:
+no pop-ups, banners or nagging). Everything works without an account; the
+account's home stays Settings › Figurehead & Cloud.
+
 ## Unresolved (in discussion order)
 
 - None. D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24 and D-38 and D-39 on 2026-10-25 (D-28..D-34 and D-40 on release/0.2); all follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24, D-38 and D-39 on 2026-10-25, and D-45 and D-46 on 2026-10-27 (D-28..D-34 and D-40..D-44 on release/0.2); all follow the same law.
