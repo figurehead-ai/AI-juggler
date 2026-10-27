@@ -118,7 +118,7 @@ async function open(
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  if (!options.firstRun) await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  if (!options.firstRun) await expect(page.getByTestId("user-menu-button")).toBeVisible();
   await settle(page);
 }
 
@@ -134,7 +134,8 @@ for (const theme of THEMES) {
         // AJ-E2104: the rail's search and View.
         if (density !== "minimal") await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
         await settle(page);
-        await expect.soft(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
+        // AJ-E2507: Settings moved into your menu; History is a header nav button.
+        await expect.soft(page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "History", exact: true })).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
         );

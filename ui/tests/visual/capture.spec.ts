@@ -4011,7 +4011,7 @@ const openSettings = async (
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings" }).first().click();
+  await goTo(page, "Settings");
   await settingsPane(page, pane);
   await expect(page.getByTestId(pane === "Advanced" ? "account-cloud" : `settings-pane-${PANE_IDS[pane]}`)).toBeVisible();
 };
@@ -4079,7 +4079,7 @@ for (const theme of THEMES) {
         w.__AIJ_FIGUREHEAD__ = { ...w.__AIJ_FIGUREHEAD__, notice: "This Mac was unlinked from Figurehead." };
       });
       await goTo(page, "Fleet");
-      await page.getByRole("button", { name: "Settings" }).first().click();
+      await goTo(page, "Settings");
       await expect(page.getByTestId("cloud-notice")).toBeVisible();
       await shot44(page, "unlinked", vp, theme);
     });
@@ -4969,7 +4969,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("delete-keeps")).toContainText("transcript file");
       await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await settingsPane(page, "Advanced");
       await page.getByTestId("settings-storage").scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(GALLERY, `56-history/retention-${vp.name}-${theme}.png`) });
@@ -5033,7 +5033,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await settingsPane(page, "Advanced");
       await page.getByTestId("settings-backup").scrollIntoViewIfNeeded();
       if (state === "progress" || state === "done") {
@@ -5153,7 +5153,7 @@ for (const theme of THEMES) {
         await expect(prompt).toBeVisible();
         await expect(prompt.getByText("Beta", { exact: true })).toBeVisible();
       } else {
-        await page.getByRole("button", { name: "Settings" }).click();
+        await goTo(page, "Settings");
         await expect(page.getByTestId("beta-label")).toBeVisible();
         await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
         if (name === "going-back-confirm") {

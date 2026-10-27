@@ -148,7 +148,7 @@ test("every clickable control shows the hand — the update UI", async ({ page }
       await expect(page.getByTestId(prompt)).toBeVisible();
       await expectHands(page, `Home with the update ${prompt}`);
     }
-    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Settings", exact: true }).click();
+    await goTo(page, "Settings");
     await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
     await expect(page.getByTestId("beta-label")).toBeVisible();
     if (name === "available") {

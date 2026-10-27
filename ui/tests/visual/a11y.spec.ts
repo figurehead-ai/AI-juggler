@@ -1497,7 +1497,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     // Wait for the shell (its key listener) before the shortcut.
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await expect(page.getByTestId("settings-screen")).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
@@ -1528,7 +1528,7 @@ for (const theme of ["dark", "light"] as const) {
       };
     });
     await goTo(page, "Fleet");
-    await page.getByRole("button", { name: "Settings" }).first().click();
+    await goTo(page, "Settings");
     await expect(page.getByTestId("cloud-offline")).toBeVisible();
     await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2102,7 +2102,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("backup-restore").click();
@@ -2167,7 +2167,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await expect(page.getByTestId("beta-label")).toBeVisible();
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
@@ -2262,7 +2262,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await expect(page.getByTestId("recovery-code")).toBeFocused();
     await page.keyboard.press("Tab");
@@ -2300,7 +2300,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-backup-restore").click();
     await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
@@ -2389,7 +2389,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await settingsPane(page, "Privacy");
     await expect(page.getByTestId("settings-privacy")).toBeVisible();

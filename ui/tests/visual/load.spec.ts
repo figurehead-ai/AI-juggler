@@ -50,7 +50,7 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  await expect(page.getByTestId("user-menu-button")).toBeVisible();
 }
 
 /** Click, then wait until `done` holds; the browser clock measures it. */
