@@ -2974,6 +2974,12 @@ for (const theme of THEMES) {
         },
         "set-up",
       );
+      // A server that needs its token: what to do, never a bare status.
+      const secret = page.getByTestId("switch-setup-secret-steps");
+      await secret.scrollIntoViewIfNeeded();
+      await expect(secret).toContainText("it doesn't stop the switch");
+      await expect(page.getByTestId("switch-setup-command")).toContainText("<your GITHUB_TOKEN>");
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/confirm-token-steps-${vp.name}-${theme}.png`) });
     });
 
     test(`confirm — the account turns it on (steps) — ${vp.name} — ${theme}`, async ({ page }) => {
