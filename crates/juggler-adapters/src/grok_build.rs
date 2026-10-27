@@ -27,6 +27,11 @@
 //! Usage (Req.4): the weekly pool has no sanctioned source, and the
 //! per-session `signals.json` fields aren't documented, so no usage is
 //! read yet (on the live checklist); its limits say so.
+//!
+//! First messages (research `docs/research/capabilities/kimi-grok.md`,
+//! the 1.0.45 source read 2026-10-27): `grok -- "<message>"` starts a
+//! session with it, and `grok --resume <id> -- "<message>"` sends it in
+//! the resumed one, so a switch can start Grok with its handover pointer.
 
 use std::path::{Path, PathBuf};
 
@@ -276,7 +281,8 @@ const HELPERS: &[&str] = &[
 ];
 
 /// A `grok` program is a session (the terminal, `-p`) unless it runs a
-/// helper. `--resume <id>` (`-r`) names its conversation.
+/// helper. `--resume <id>` (`-r`) names its conversation. Whatever comes
+/// after `--` is the session's first message, never a helper's name.
 #[must_use]
 pub fn session_process(
     exe: Option<&Path>,
@@ -286,6 +292,7 @@ pub fn session_process(
     let helper = args
         .iter()
         .skip(1)
+        .take_while(|arg| *arg != "--")
         .any(|arg| HELPERS.contains(&arg.as_str()));
     (cli && !helper).then(|| juggler_adapter::conversation::SessionProcess {
         resumes: juggler_adapter::conversation::value_after(args, &["--resume", "-r"]),
@@ -375,8 +382,11 @@ impl HarnessAdapter for GrokBuildAdapter {
         mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
+        // A resumed or primed session belongs to `cwd` (its conversation,
+        // or the project a switch hands over): it runs there. The launch
+        // settings' folder is only where a fresh session starts.
         let effective_cwd = match mode {
-            LaunchMode::Resume { .. } => cwd.to_path_buf(),
+            LaunchMode::Resume { .. } | LaunchMode::Primed { .. } => cwd.to_path_buf(),
             _ => profile
                 .default_cwd
                 .clone()
@@ -386,6 +396,8 @@ impl HarnessAdapter for GrokBuildAdapter {
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(self.isolation_env(&account.state_dir));
         let mut args: Vec<String> = Vec::new();
+        // The message an interactive session starts with, if any.
+        let mut first: Option<&String> = None;
         match mode {
             LaunchMode::Interactive => {}
             LaunchMode::Resume {
@@ -393,18 +405,20 @@ impl HarnessAdapter for GrokBuildAdapter {
                 delta_prompt,
             } => {
                 crate::codex::refuse_option_like(session_id)?;
-                if delta_prompt.is_some() {
-                    return Err(AdapterError::Unsupported(
-                        "Grok can't be given a message as it resumes yet".into(),
-                    ));
-                }
                 args.extend(["--resume".into(), session_id.clone()]);
+                // `grok --resume <id> "<message>"` reopens the session, then
+                // sends the message in it. The source says so in its own
+                // words: "a `--resume`/`-c`/`-w` session started earlier in
+                // startup is reused" (`dispatch_initial_prompt`, 1.0.45;
+                // research `kimi-grok.md`). Not yet run live (AJ-E1612).
+                first = delta_prompt.as_ref();
             }
-            LaunchMode::Primed { .. } => {
-                return Err(AdapterError::Unsupported(
-                    "Grok can't be started with a first message yet".into(),
-                ));
-            }
+            // `grok "<message>"` starts a session and sends its first
+            // message (the source's own example, 1.0.45). Grok asks before
+            // it reads outside the session's folder, so `read_dirs` (the
+            // switch's handover file) has no flag: the person at the
+            // keyboard allows it.
+            LaunchMode::Primed { prompt, .. } => first = Some(prompt),
             LaunchMode::Headless { prompt } => {
                 args.extend([
                     "-p".into(),
@@ -416,6 +430,15 @@ impl HarnessAdapter for GrokBuildAdapter {
         }
         if let Some(model) = &profile.settings_overlay.model {
             args.extend(["--model".into(), model.clone()]);
+        }
+        // The message goes last, after `--`, as one argument (never through
+        // a shell): text that starts with "-" is never read as an option,
+        // and text that is a subcommand's name ("logout", "update") never
+        // runs it. Grok's parser lets a subcommand win over a bare message;
+        // after `--` there are only messages [inferred from its parser, as
+        // Codex's `--` was verified on 0.163.0; on the live checklist].
+        if let Some(first) = first {
+            args.extend(["--".into(), first.clone()]);
         }
         Ok(LaunchSpec {
             program: bin,

@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 
 use grok_fixture::write;
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{AdapterError, HarnessAdapter, InstallStatus, LaunchMode};
-use juggler_adapters::grok_build::{is_node_script, parse_version};
+use juggler_adapter::{HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapters::grok_build::{self, is_node_script, parse_version};
 use juggler_adapters::{GROK_BUILD_ID, GrokBuildAdapter, LoginState};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
 
@@ -201,18 +201,78 @@ fn launches_per_mode() {
     .unwrap();
     assert_eq!(headless.args, ["-p", "explain", "--output-format", "json"]);
     assert!(!headless.needs_pty);
-    for mode in [
-        LaunchMode::Primed {
-            prompt: "hi".into(),
+}
+
+#[test]
+fn a_first_message_goes_last_after_the_separator_in_new_and_resumed_sessions() {
+    let work = tempfile::tempdir().unwrap();
+    let adapter = GrokBuildAdapter::with_bin("/bin/echo");
+    let a = work.path().join("a");
+    let mut settings = profile(&[]);
+    settings.settings_overlay.model = Some("grok-build-1".into());
+    settings.default_cwd = Some("/w/elsewhere".into());
+    let launch = |mode: LaunchMode| {
+        adapter
+            .launch_spec(&account(&a), &settings, Path::new("/w/app"), &mode)
+            .unwrap()
+    };
+    // A switch's pointer: a fresh session in the project's folder.
+    let primed = launch(LaunchMode::Primed {
+        prompt: "Read the handover file first".into(),
+        read_dirs: vec!["/handover".into()],
+    });
+    assert_eq!(
+        primed.args,
+        [
+            "--model",
+            "grok-build-1",
+            "--",
+            "Read the handover file first"
+        ]
+    );
+    assert_eq!(primed.cwd, Path::new("/w/app"));
+    assert!(primed.needs_pty);
+    // Text that looks like an option or a subcommand stays a message.
+    for text in ["- fix the build", "logout", "--resume x"] {
+        let spec = launch(LaunchMode::Primed {
+            prompt: text.into(),
             read_dirs: Vec::new(),
-        },
-        LaunchMode::Resume {
-            session_id: "0199aa00".into(),
-            delta_prompt: Some("go on".into()),
-        },
-    ] {
-        assert!(matches!(launch(mode), Err(AdapterError::Unsupported(_))));
+        });
+        assert_eq!(spec.args.last().map(String::as_str), Some(text));
+        assert_eq!(
+            spec.args.iter().filter(|arg| *arg == "--").count(),
+            1,
+            "the message must follow exactly one separator"
+        );
     }
+    // A resume with a message: the session first, the message last.
+    let resumed = launch(LaunchMode::Resume {
+        session_id: "0199aa00".into(),
+        delta_prompt: Some("go on".into()),
+    });
+    assert_eq!(
+        resumed.args,
+        [
+            "--resume",
+            "0199aa00",
+            "--model",
+            "grok-build-1",
+            "--",
+            "go on"
+        ]
+    );
+    // And the running session is still recognised, its message never
+    // taken for a helper.
+    let args: Vec<String> = std::iter::once("grok".to_owned())
+        .chain(resumed.args.iter().cloned())
+        .collect();
+    let process = grok_build::session_process(Some(Path::new("/u/.grok/bin/grok")), &args)
+        .expect("a resumed session with a message is a session");
+    assert_eq!(process.resumes.as_deref(), Some("0199aa00"));
+    let logout: Vec<String> = ["grok", "--", "logout"].map(str::to_owned).to_vec();
+    assert!(grok_build::session_process(Some(Path::new("/u/.grok/bin/grok")), &logout).is_some());
+    let helper: Vec<String> = ["grok", "logout"].map(str::to_owned).to_vec();
+    assert!(grok_build::session_process(Some(Path::new("/u/.grok/bin/grok")), &helper).is_none());
 }
 
 #[test]

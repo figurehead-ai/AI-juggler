@@ -259,6 +259,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **OpenCode 2** accounts AI Juggler manages no longer collide with your
+  own OpenCode or OpenCode Desktop: each of their sessions runs its own
+  private server, which ends with the session, instead of OpenCode 2's
+  shared background service. Your default OpenCode folder used where it
+  is keeps the shared service. MCP servers in OpenCode 2's form
+  (`mcp.servers`) are listed and set up in that form.
+- **Grok Build** sessions can start with a first message, and a resume
+  can carry one, so a switch can go into Grok with its handover.
+- **Kimi Code** sessions show whether they're working, waiting on you or
+  idle, and their exact tokens reach Usage, read from Kimi Code's own
+  event log (read only; nothing is sent to a session).
 - The lifecycle forwarder ended after its first quiet half-second, so
   sessions AI Juggler ran weren't recorded as ended, restarted after a
   crash or notified (0.1.8). A panicking pass no longer stops a
