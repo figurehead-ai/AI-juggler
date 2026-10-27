@@ -27,6 +27,7 @@ import {
   nextDensity,
   readDensity,
   storeDensity,
+  toggledDensity,
   type Density,
 } from "./lib/density";
 import {
@@ -173,7 +174,7 @@ export default function App() {
     : density;
   const toggleRail = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);
-    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+    else setDensityAndStore(toggledDensity(density));
   }, [narrow, density, setDensityAndStore]);
   const cycleDensity = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);

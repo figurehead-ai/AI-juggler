@@ -16,7 +16,7 @@ import { showToast } from "./Toast";
 import { useShownConversations, type HiddenApp } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { itemsOf, OWN_PLACE } from "../lib/rail-items";
-import { buildLines, foldSections, LINE_HEIGHT, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type AlsoCounts, type Line } from "../lib/rail-lines";
+import { buildLines, foldSections, lineHeights, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type AlsoCounts, type Line } from "../lib/rail-lines";
 import type { RailGroup } from "../lib/rail-places";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 import { assignProfiles } from "../lib/profile-marks";
@@ -35,6 +35,8 @@ interface BoardProps {
   query: string;
   /** The scroll box's top and height, and the box (to bring a row into view). */
   scroll: { top: number; height: number; box: HTMLElement | null };
+  /** Settings › Appearance › Density (AJ-E403): Compact rows are one line. */
+  density?: "comfortable" | "compact";
 }
 
 const SECTION: Record<"needs" | "open", { label: string; tone: string; Icon: typeof IconAlert }> = {
@@ -113,7 +115,9 @@ function scrollerOf(element: HTMLElement): HTMLElement | null {
   return null;
 }
 
-export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll }: BoardProps): JSX.Element {
+export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable" }: BoardProps): JSX.Element {
+  const compact = density === "compact";
+  const heights = lineHeights(compact);
   // Settings › Desktop apps: an app turned off leaves its count.
   const { conversations: all, hidden } = useShownConversations();
   const seen = useSeen();
@@ -220,7 +224,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     // Its head to the top of the list (past the drawn lines of a long
     // list, first to where it starts), and focus on it.
     const head = () => root.current?.querySelector<HTMLElement>(`[data-testid="rail-also-view-${reveal}"]`) ?? null;
-    if (!head() && box) box.scrollTop = Math.max(0, (root.current?.offsetTop ?? 0) + offsetOf(lines, at) - 8);
+    if (!head() && box) box.scrollTop = Math.max(0, (root.current?.offsetTop ?? 0) + offsetOf(lines, at, heights) - 8);
     const shown = head();
     if (shown && box) box.scrollTop += shown.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
     shown?.querySelector("button")?.focus({ preventScroll: true });
@@ -238,7 +242,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const next = targets[at + step];
     if (next) next.focus();
     else if (scroll.box) {
-      scroll.box.scrollTop += step * LINE_HEIGHT.row;
+      scroll.box.scrollTop += step * heights.row;
       requestAnimationFrame(() => {
         const again = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-rail-item], [data-rail-nav]") ?? []);
         again[step > 0 ? again.length - 1 : 0]?.focus();
@@ -251,7 +255,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "section":
         return <SectionHead id={line.id} count={line.count} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} />;
       case "need":
-        return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} />;
+        return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
       case "header": {
         const group = line.group;
         const own = group.key === OWN_PLACE;
@@ -273,9 +277,9 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         );
       }
       case "row":
-        return <PlaceRow item={line.item} edge={edgeOf(line.group.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
+        return <PlaceRow item={line.item} edge={edgeOf(line.group.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
       case "plain":
-        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
+        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
       case "more":
         return (
           <button type="button" onClick={() => toggle(`${line.group.key}#all`)} data-testid="rail-more-quiet" className="ml-3 flex h-[24px] items-center rounded-md px-2.5 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
@@ -298,7 +302,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   };
 
   const offset = root.current?.offsetTop ?? 0;
-  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height) : null;
+  const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height, 240, heights) : null;
   const shown = win ? lines.slice(win.start, win.end) : lines;
   const keyOf = (line: Line, index: number): string =>
     line.kind === "need" || line.kind === "plain" ? `${line.kind}:${line.item.key}` : line.kind === "row" ? `row:${line.item.key}` : line.kind === "header" || line.kind === "more" ? `${line.kind}:${line.group.key}` : `${line.kind}:${"id" in line ? line.id : index}`;
@@ -306,6 +310,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     <div
       ref={root}
       data-testid="place-board"
+      data-density={density}
       data-frozen={frozen ? "true" : undefined}
       onPointerEnter={freeze}
       onPointerLeave={() => setTimeout(thaw)}
@@ -316,7 +321,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     >
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
-        <div key={keyOf(line, index)} style={{ minHeight: LINE_HEIGHT[line.kind] }} className="flex flex-col justify-center">
+        <div key={keyOf(line, index)} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
           {draw(line)}
         </div>
       ))}
