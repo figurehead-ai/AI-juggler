@@ -52,7 +52,7 @@ used: boolean | null,
  */
 origin: string, 
 /**
- * Who provides it, for `provided` ("Anthropic", "OpenAI").
+ * Who provides it, for `provided` (`Anthropic`, `OpenAI`).
  */
 provided_by: string | null, 
 /**
