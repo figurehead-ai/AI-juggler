@@ -12,7 +12,7 @@ import { Pane, PaneSection } from "./parts";
 export function GeneralPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
     <Pane id="general" title="General" anchor={anchor}>
-      <PaneSection id="appearance" title="Appearance" footer="The theme, and how much each row in the session list shows." card>
+      <PaneSection id="appearance" title="Appearance" footer="The theme, how much each row in the session list shows, and the order Open now keeps." card>
         <AppearanceCard />
       </PaneSection>
       <PaneSection id="editor" title="Open projects in" footer="The editor a project opens in from its menu; Finder when none is chosen." card>

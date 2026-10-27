@@ -13,6 +13,7 @@ import { ActionHostProvider } from "./ItemMenu";
 import { ConversationsProvider } from "../lib/conversations";
 import { DEFAULT_VIEW, resetRailViewCache, setRailView, type RailView } from "../lib/rail-view";
 import { resetSeen } from "../lib/seen";
+import { resetRailOrderCache } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
 import type { ActionHost } from "../lib/actions";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
@@ -49,6 +50,7 @@ let toasts: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   resetRailViewCache();
+  resetRailOrderCache();
   resetSeen();
   host = { openConversation: vi.fn(), goToConversation: vi.fn(), openProjectById: vi.fn(), openAccountById: vi.fn(), openHome: vi.fn() };
   onSelect = vi.fn<(id: string) => void>();
@@ -124,13 +126,16 @@ describe("every rail element opens a page here (place lens)", () => {
       "home",
     ]);
 
-    // Section heads fold and unfold in place.
+    // Section heads fold and unfold in place. D-45: the one asking stays in
+    // its place in Open now too, so folding Needs you leaves that row.
+    const asking = () => list.querySelectorAll('[data-rail-item="c:claude-work/outside-3"]').length;
+    expect(asking()).toBe(2);
     const needs = within(view.getByTestId("rail-needs-you")).getByRole("button", { expanded: true });
     fireEvent.click(needs);
-    expect(row(list, "c:claude-work/outside-3")).toBeNull();
+    expect(asking()).toBe(1);
     expect(needs.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(needs);
-    expect(row(list, "c:claude-work/outside-3")).toBeTruthy();
+    expect(asking()).toBe(2);
     const open = within(view.getByTestId("rail-open-now")).getByRole("button", { expanded: true });
     fireEvent.click(open);
     expect(header(list, "Claude|Work")).toBeNull();

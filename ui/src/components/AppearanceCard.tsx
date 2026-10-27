@@ -1,10 +1,11 @@
 /**
- * Settings › General: the theme (D-16, kept in sync with ⌘⇧L) and the
- * rail's density. Moved out of Settings.tsx so it stays within its size.
+ * Settings › General: the theme (D-16, kept in sync with ⌘⇧L), the
+ * rail's density and Open now's order (D-45). Moved out of Settings.tsx so it stays within its size.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { DensityChoice } from "./DensityChoice";
+import { RailOrderChoice } from "./RailOrderChoice";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 import { CardTitle } from "./CardTitle";
 
@@ -50,6 +51,7 @@ export function AppearanceCard(): JSX.Element {
       </div>
       <p className="text-label text-muted">⌘⇧L switches between them from anywhere.</p>
       <DensityChoice />
+      <RailOrderChoice />
     </Card>
   );
 }

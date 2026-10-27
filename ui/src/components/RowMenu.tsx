@@ -35,7 +35,7 @@ export function RowMenu({
     const levelOf = (element: Element | null): Element | null =>
       (element && ref.current?.contains(element) ? element.closest('[role="menu"]') : null) ?? ref.current;
     const items = (level: Element | null = ref.current) =>
-      [...(level?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])].filter(
+      [...(level?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS) ?? [])].filter(
         (item) => item.closest('[role="menu"]') === level,
       );
     items()[0]?.focus();
@@ -129,7 +129,11 @@ export function menuEdge(at: number, size: number, room: number): number {
   return Math.max(4, Math.min(start, room - size - 4));
 }
 
-/** One action in a {@link RowMenu}. */
+/** What the arrows move through: actions, and a choice's options. */
+const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
+
+/** One action in a {@link RowMenu}; with `checked`, one option of a
+ * choice (a `menuitemradio`, D-45's order menu). */
 export function MenuItem({
   onClick,
   disabled,
@@ -138,6 +142,7 @@ export function MenuItem({
   testId,
   describedBy,
   submenu,
+  checked,
   children,
 }: {
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -149,12 +154,15 @@ export function MenuItem({
   describedBy?: string;
   /** It opens a submenu: whether that is open now. */
   submenu?: { open: boolean };
+  /** An option of a choice: whether it is the one chosen. */
+  checked?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      role="menuitem"
+      role={checked === undefined ? "menuitem" : "menuitemradio"}
+      aria-checked={checked}
       onClick={onClick}
       disabled={disabled}
       title={title}

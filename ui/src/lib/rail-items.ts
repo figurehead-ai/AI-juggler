@@ -65,6 +65,11 @@ export interface RailItem {
   archived: boolean;
   /** Helpers it runs (sub-agents), when known. */
   subagents: number;
+  /** AJ-E1502: the user pinned it (an AI Juggler session's own pin, or
+   * the rail's pin of one another app runs). Pinned rows lead their group. */
+  pinned: boolean;
+  /** When it started: the order it was first seen in (Your order, D-45). */
+  startMs: number;
 }
 
 const WORDS: Record<RailState, string> = {
@@ -151,6 +156,8 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     inactive: false,
     archived: row.lifecycle === "archived",
     subagents: row.subtask_count ?? row.child_count ?? 0,
+    pinned: row.pinned === true,
+    startMs: row.started_at_ms,
   };
 }
 
@@ -178,8 +185,9 @@ function placeKey(app: string, instance: string | null, profile: string | null):
 
 /** A session another app runs. "Done, review it" clears once the user has
  * looked: AI Juggler's seen mark, or the app's own last view, after its
- * last activity (AJ-E2107). */
-export function conversationItem(c: ConversationInfo, projectName: (id: string | null) => string | null, seenMs: number | null): RailItem {
+ * last activity (AJ-E2107). `pinned`: the rail's pin (AI Juggler's own
+ * record; the app's files are never written). */
+export function conversationItem(c: ConversationInfo, projectName: (id: string | null) => string | null, seenMs: number | null, pinned = false): RailItem {
   const places = c.places ?? [];
   const first = places[0];
   const last = c.last_activity_ms ?? 0;
@@ -219,6 +227,8 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     inactive: !c.live && c.inactive,
     archived: false,
     subagents: 0,
+    pinned,
+    startMs: c.started_ms ?? last,
   };
 }
 
@@ -238,17 +248,22 @@ export interface ItemInputs {
   projects: ProjectInfo[];
   seen: Record<string, number>;
   snoozed?: (row: InstanceInfo) => boolean;
+  /** The rail's pins of sessions other apps run, by key (`lib/rail-order`). */
+  pins?: ReadonlySet<string>;
 }
 
 /** Every item: AI Juggler's sessions, then the sessions it didn't start. */
-export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false }: ItemInputs): RailItem[] {
+export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
   return [
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
-      .map((c) => conversationItem(c, projectName, seen[`c:${c.account_id}/${c.id}`] ?? null)),
+      .map((c) => {
+        const key = `c:${c.account_id}/${c.id}`;
+        return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
+      }),
   ];
 }
 
@@ -262,12 +277,13 @@ export function needsYou(items: RailItem[]): RailItem[] {
     .sort((a, b) => NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key));
 }
 
-/** Open now: open, interactive, not in Needs you. A pinned session stays
- * where the user put it, under its place, once it has ended too (AJ-E1502;
- * Ended today leaves it out, so it is never in neither). */
+/** Open now: open and interactive. A session that needs you stays in its
+ * place here too, its state in amber; Needs you lists it as well, as a
+ * shortcut (D-45, which replaced "not in Needs you"). A pinned session
+ * stays where the user put it, under its place, once it has ended too
+ * (AJ-E1502; Ended today leaves it out, so it is never in neither). */
 export function openNow(item: RailItem): boolean {
-  if (item.need !== null) return false;
-  if (item.session?.pinned) return true;
+  if (item.pinned) return true;
   return item.live && !item.background && item.state !== "ended";
 }
 
@@ -282,6 +298,6 @@ export function startOfDay(now: number): number {
 export function endedToday(item: RailItem, now: number, archived = false): boolean {
   if (item.need !== null || item.inactive) return false;
   if (item.archived && !archived) return false;
-  if (item.session?.pinned) return false;
+  if (item.pinned) return false;
   return item.state === "ended" && item.lastMs >= startOfDay(now);
 }
