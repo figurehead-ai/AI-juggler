@@ -56,12 +56,12 @@
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1902/manifest.md`, ADR-0020's E19 addendum): a change above the pool's level is held for the user's OK in Needs you (D-43 point 1); `task_assign` with `new_session` only asks the user (D-31). Live: `docs/qa/tasks-lab.md`.
 
-### AJ-E1903 The task list and tree in the app | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: AJ-E1901
-**Goal**: The user plans and follows work in one place.
-**User story**: As the user, I write an epic with three stories, see what's ready, who has what, and what's blocked.
+### AJ-E1903 The task list and tree in the app | Status: DONE-EVIDENCED (IN-REVIEW until the release PR; D-44's change evidenced by tests, its gallery captures not committed yet) | Priority P0 | Effort M | Depends: AJ-E1901
+**Goal**: The user sees and tracks the agents' work in one place (D-44).
+**User story**: As the user, I see the epic and stories my agents planned, what's ready, who has what and what's blocked; I approve what's in review or send it back with a note, free a task whose agent's session ended, and cancel what's no longer wanted, and I steer everything else by talking to the agents.
 **Requirements**:
 1. Each pool has a task list, with ready work first. The epic and story tree is behind disclosure. A board view comes later.
-2. Each task shows its holder, its session and its history. Creating, editing, assigning and closing all work from the app.
+2. Each task shows its holder, its session and its history. The app writes no task (no creating, editing, assigning or linking: the agents do, D-44); a task offers only the user's four actions, each when its state allows and each logged as the user's: **Approve** or **Send back** (in review; the note reaches the holder), **Free** (its holder's session ended or crashed), **Cancel** (open), and requirement 3.
 3. "Start a session for this task" prepares a launch with the account the user picks (D-31).
 **UI/UX reasoning**: D-25: the same rows, marks and folds as the rail.
 **Performance budget**: the list renders 200 tasks < 100 ms.
@@ -72,6 +72,7 @@
 **Research basis**: as above.
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1903/manifest.md`): each pool's **Tasks** tab (the list; **Plan** for the epic and story tree) and each session's **Tasks** tab, no new screen (as D-42 point 3 for messages); Needs you for what waits on the user. "Start a session for it" is D-43 point 4.
+*As changed 2026-10-27* (D-44, the maintainer: tasks are for the agents' sync and orchestration, and for humans to see and track): the New task form, the Status and With menus and link editing are gone, with the window's `tasks_create`, `tasks_edit`, `tasks_assign` and `tasks_link`; links stay, read only. Added `tasks_approve`, `tasks_send_back`, `tasks_free` and `tasks_cancel`, each checked by the store (`TasksRepo::user_action`, `juggler_core::tasks::may_user`); a send-back note reaches the holder as the user's message (E18). Evidence: `crates/juggler-app/tests/tasks_oversight.rs`, `tasks_guardrails.rs::the_app_writes_no_task`, vitest `tasks.test.tsx` (21 cases), the gallery's `task-review-*` (produced by `tasks-gallery.spec.ts`, not committed with this change). The committed `task-new-*` captures showed the removed form and are gone.
 
 ### AJ-E1904 Tasks follow sessions and switches | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P1 | Effort S | Depends: AJ-E1901, AJ-E201
 **Goal**: Continuing on another account or tool carries the task.

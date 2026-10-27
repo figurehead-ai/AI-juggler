@@ -985,7 +985,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25 and D-42..D-43 on 2026-10-26. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1095,6 +1095,10 @@ covered by tests, so changing one is a small, local change.
      still can, on the task). Alternative: everyone may assign (then every
      assignment asks the user anyway, by D-28).
    - Recommendation: **keep** (built).
+   - *Changed by D-44 (2026-10-27):* the user no longer gives tasks out in
+     the app; a pool with no lead gives work out through what the user
+     tells its agents, and the user frees a task whose holder's session
+     ended.
 4. **A session for a task.** "Start a session for it…" asks for launch
    settings (and so the account), lists them in name order, and picks
    nothing for the user except the project's own default account when the
@@ -1148,3 +1152,76 @@ covered by tests, so changing one is a small, local change.
    (`e24-processes`): merge that branch first, or replace the empty `V35`
    with its migration when it lands (a database made on `e19-tasks` alone
    is a test's).
+
+### D-44 Tasks are the agents' to write; the user sees, tracks and has four basic actions — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27: "these tasks are not really meant
+for humans to write and control, no humans do it manually any more. They
+are meant for sync and orchestration between AI Agents, and for humans to
+see and track the tasks. Humans will manage tasks indirectly through
+different communication and prompting with AI Agents. So yes we want to
+show the tasks and display them, but our tool is not meant to write or
+edit tasks. We might be able to do some basic management."
+
+Asked which basic actions stay, the maintainer kept all four:
+
+1. **Approve or send back** a task an agent marked **in review**:
+   **Approve** makes it done; **Send back…** puts it in progress again
+   with the same holder and a short note (at most 500 characters, needed),
+   which the holder gets as the user's message (E18: at its next turn when
+   it runs in AI Juggler, in its inbox when it runs in a terminal) and
+   reads in the task's history (`task_get`). A task in review that no one
+   holds goes back to ready.
+2. **Free a stuck task**: a task whose holder's sessions have all ended or
+   crashed (as the sessions' own records say: none starting, running,
+   waiting on the user or stuck) loses its holder, so another agent can
+   claim it; in progress goes back to ready, any other status stays. A
+   holder that still runs isn't freed: the user asks it to give the task
+   back.
+3. **Cancel a task**: any open task, after the user confirms.
+4. **Start a session for this task**: as built (D-31, D-43 point 4); the
+   user picks the launch settings, and so the account.
+
+**What changed (E19, AJ-E1903).**
+
+- Removed from the app: the **New task** form and its entry points;
+  changing any field of a task (title, what it asks, when it's done,
+  priority, parent, issue link); free status changes (the **Status**
+  menu); giving a task to someone (the **With** menu: a member, you or no
+  one); adding or removing links. Links stay visible, read only, and the
+  section shows only when a task has any.
+- Removed from the backend: the window's `tasks_create`, `tasks_edit`,
+  `tasks_assign` and `tasks_link` commands, `views::{create, edit, assign,
+  link}`, and their wire types (`TaskInput`, `TaskEdit`). The agents' own
+  tools are unchanged (`task_create`, `task_update`, `task_claim`,
+  `task_assign` for leads, a held change answered in Needs you, D-43
+  point 1).
+- Added: one command per action (`tasks_approve`, `tasks_send_back`,
+  `tasks_free`, `tasks_cancel`), each checked by the store against the task
+  as it is when it's done (`TasksRepo::user_action`, the rules in
+  `juggler_core::tasks::may_user`) and logged as one event in its history
+  as the user's (`approved`, `sent_back` with the note, `freed` with the
+  holder's name, `cancelled`). A task's page reads which ones it offers
+  (`TaskDetail.actions`) from the same rules. An agent reads the user's
+  actions as "the user", never "You".
+- Kept: every read (the list, ready first; the counts; **Plan**; a
+  session's **Tasks** tab; a task in full with its history), **Look up its
+  title** for an issue link, and answering the agents' held changes and
+  session requests in **Needs you** (oversight).
+
+**Why.** Agents keep the tasks to stay in step with each other; the user's
+part is to see the work and steer it by talking to the agents. Editing
+from the app would make the window a second, competing author of the
+agents' plan. The four actions are the decisions only the user makes (is
+it done; is a stuck holder gone; is the work still wanted; which account
+runs it), and each is narrow enough to be checked server-side, so the app
+has no "edit anything" path.
+
+- Risk: a user who wants a quick fix to a task's words now asks an agent
+  to make it. A task held by **You** from before (the old **With** menu)
+  can still be freed or cancelled.
+- Evidence: `crates/juggler-app/tests/tasks_oversight.rs` (each action's
+  rules, the note reaching a terminal and a driven holder),
+  `tasks_guardrails.rs::the_app_writes_no_task`, the store's
+  `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
+  `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.

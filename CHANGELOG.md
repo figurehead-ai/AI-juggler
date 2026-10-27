@@ -27,7 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with epics and stories in its **Plan**. Agents in the pool add tasks,
   take a ready one (only one session gets it), say where it is and give it
   back with a note; a change above what the pool allows waits for your OK
-  in Needs you. Only you start sessions: **Start a session for it…** on a
+  in Needs you. The agents write the tasks; you see and track them, and
+  steer them by talking to the agents. On a task you can **Approve** or
+  **Send back…** one in review (your note reaches the agent as your
+  message), **Free it** when its agent's session has ended, or **Cancel
+  task**. Only you start sessions: **Start a session for it…** on a
   task, on the launch settings you pick; an agent can only ask. A switch
   keeps the task, and a task can link the GitHub or Linear issue it comes
   from (its title looked up with your own `gh`, when you click).

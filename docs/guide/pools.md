@@ -160,8 +160,10 @@ Mac.
 
 ## Tasks
 
-A pool keeps its work as tasks: you write them, and so can its agents,
-with AI Juggler's agent tools. A pool's **Tasks** tab lists them, ready
+A pool keeps its work as tasks. The agents write and run them, with AI
+Juggler's agent tools, to share the work and keep each other in step; you
+see and track them here, and steer them by talking to the agents (a
+message, a prompt), not by editing tasks. A pool's **Tasks** tab lists them, ready
 work first: **Ready** (anyone can take it), **In progress** (someone is
 on it), **In review**, **Blocked**, **To do** (not ready yet), and
 **Done**, each with how many. Each task has a short id such as `aj-7f3c`,
@@ -179,13 +181,27 @@ optionally the issue it comes from.
   session**, or **Its processes**: that session on its **Processes** tab),
   the sessions that worked it, the threads whose messages name
   its id, what it waits on and what waits on it, its items, the issue it
-  comes from, and its history: every change, by whom. You can change any of
-  it: its status, who has it (**With**: a member, you, or no one), its
-  links.
-- **New task** adds one: its title and what it asks first; when it's done,
-  its epic or story, what it waits on and an issue link under **More**. It
-  starts ready for anyone (or to do).
+  comes from, and its history: every change, by whom.
 - A session's own page has a **Tasks** tab once it has taken or worked one.
+
+### What you can do on a task
+
+A task shows only what fits where it is, and each is in its history as
+yours:
+
+- **Approve** or **Send back…**, on a task in review: approving marks it
+  done; sending it back puts it in progress again with the same agent, with
+  a short note of what should change. The agent gets the note as your
+  message (at its next turn when its session runs in AI Juggler, in its
+  inbox when it runs in a terminal) and sees it in the task's history.
+- **Free it**, on a task whose agent's session has ended or crashed: no one
+  holds it any more, so another agent can take it. A task whose agent is
+  still running isn't freed: ask the agent to give it back.
+- **Cancel task**, on any open task, after you confirm.
+- **Start a session for it…** (below).
+
+There's no **New task** and nothing to edit: to add, change, split or hand
+over work, tell an agent (the pool's lead plans and gives work out).
 
 ### What agents do with tasks
 
@@ -223,8 +239,8 @@ work travelled** shows each session's task.
 
 ### The issue a task comes from
 
-Paste a GitHub issue or pull request link, or a Linear one, into a task.
-A Linear link shows its id (`ENG-123`). A GitHub one can show its title and
+An agent can link a task to a GitHub issue or pull request, or a Linear
+one. A Linear link shows its id (`ENG-123`). A GitHub one can show its title and
 state (open, closed, merged): click **Look up its title**, and AI Juggler
 asks GitHub's own command line, `gh`, with your own sign-in there (AI
 Juggler never reads it). Offline, or without `gh`, the link still opens and
