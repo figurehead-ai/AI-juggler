@@ -42,6 +42,8 @@ pub enum SubtaskStateInfo {
     Done,
     /// Ended with an error, or never started.
     Failed,
+    /// Stopped before it finished.
+    Stopped,
     /// Its session ended before the transcript said it had.
     Unfinished,
 }
@@ -62,6 +64,7 @@ impl SubtasksInfo {
                     (SubtaskState::Background, _) => SubtaskStateInfo::Background,
                     (SubtaskState::Done, _) => SubtaskStateInfo::Done,
                     (SubtaskState::Failed, _) => SubtaskStateInfo::Failed,
+                    (SubtaskState::Stopped, _) => SubtaskStateInfo::Stopped,
                 },
             })
             .collect();

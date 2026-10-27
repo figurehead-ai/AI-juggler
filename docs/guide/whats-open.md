@@ -14,10 +14,11 @@ started itself are a place of their own, **AI Juggler**.
 The list has three parts:
 
 - **Needs you:** sessions that ask you something, and anything else waiting
-  for you.
+  for you. It's a shortcut: each of them also stays in its place under Open
+  now, its state in amber.
 - **Open now:** every session that is running, grouped by place. A place's
-  header has **Open**, which brings that app forward. A place where nothing
-  is happening folds into one line, such as "Work · 4 idle".
+  header has **Open**, which brings that app forward. Click a place's
+  chevron to fold it; it stays folded until you open it again.
 - **One line under them,** such as "Also: 3 ended today · 2 inactive · 1
   background · History ›". Each part shows those sessions, and the list
   scrolls to them. Nothing is removed; they're just not shown until you
@@ -25,6 +26,37 @@ The list has three parts:
 
 Click **Needs you** or **Open now** to fold that part, and again to open
 it.
+
+## Keeping the order
+
+Open now stays put. A session keeps its place in the list while it works,
+waits or asks you something; only its dot and word change. A new session
+joins the end of its place, and one that ends leaves a gap the rows under
+it close. A place with more than 8 sessions shows the first 8, then
+"+n more".
+
+- **Pin** a session to keep it at the top of its place: point at it and
+  click its pin, or use **Pin to top** in its menu. This works for every
+  session, the ones in the Claude app, the Codex app and your terminals
+  too. AI Juggler keeps the pin; it never changes the app.
+- **Drag** a session by its handle (it shows when you point at the row) to
+  move it within its place, or drag a place's handle to move the place.
+  ⌘1 to ⌘9 follow the new order of places.
+- **From the keyboard**, select a session or a place and press ⌥⌘↑ or ⌥⌘↓
+  (Ctrl+Alt+↑ or ↓ on Windows and Linux).
+
+The menu on Open now's header (**Your order ▾**) picks the order:
+
+| Order | What it does |
+| --- | --- |
+| **Your order** | Stays put. New ones join at the end. Drag or pin to arrange. |
+| **Latest activity** | Newest event first; holds still under the pointer. A quiet place folds, and a place shows its working sessions and the last 3. |
+| **Name** | A to Z. |
+
+**Reset my order** puts sessions back in the order they opened and places
+in their usual order; pins stay. Settings › General has the same choice.
+AI Juggler keeps all of this with its settings, so a restart or a backup
+keeps it.
 
 ## What a row says
 
@@ -94,6 +126,40 @@ it's asking before you go to it. They're read from the session's
 transcript on this Mac when you open the page, with secrets hidden, and
 kept nowhere. Claude app chats show their title only, because those
 conversations aren't kept on your Mac.
+
+## Subagents
+
+When a session starts subagents (helpers it hands part of the work to),
+its page gets a **Subagents** tab. It shows for any session, whichever app
+runs it, once the session has started one. Each row says:
+
+- the subagent's type and what it was asked to do (point at it for the
+  whole task);
+- where it stands: **Running**, **Done**, **Failed**, **Stopped** or
+  **Unknown**;
+- when it started, how long it took, and whether it ran in the background.
+
+The newest come first, and a subagent that another subagent started sits
+under it. Click one to read its own conversation, in the same view as the
+session's; **‹ Subagents** (or Esc) brings you back. With **View › Show ›
+sub-agents** on, a session's "+2 agents" in the list opens this tab.
+
+AI Juggler reads all this from the tool's own records on your Mac, only
+reads them, and keeps nothing. "Running" means the records don't say it
+ended and the session is still open. Once the session has ended, such a
+subagent shows **Unknown**: AI Juggler never guesses.
+
+| Tool | Subagents | Their conversations |
+| --- | --- | --- |
+| Claude Code, and the Claude app's Code tab | Yes | Yes |
+| Codex, and Codex in ChatGPT | Yes | Yes |
+| Kimi Code, and Kimi Code Desktop | Yes | Not yet |
+| Grok Build | Yes | Not yet |
+| OpenCode, and OpenCode Desktop | Yes | Not yet |
+
+Where the conversation isn't shown yet, the tab says so. Turning last
+messages off in Settings › Desktop apps turns subagents' conversations off
+too.
 
 ## Settings › Desktop apps
 

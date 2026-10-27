@@ -244,6 +244,20 @@ impl ConversationIndex {
             .map(|c| c.path.clone())
     }
 
+    /// AJ-E1520 (0.2): `account`'s conversation `id` as [`Self::path_of`]
+    /// finds it, with its tool (the Subagents tab asks that tool's
+    /// adapter).
+    #[must_use]
+    pub fn conversation_of(&self, account: &str, id: &str) -> Option<Conversation> {
+        let files = self.files.lock().ok()?;
+        files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+            .filter(|c| c.account_id == account && c.summary.id == id)
+            .max_by(|a, b| (a.summary.last_ms, &a.path).cmp(&(b.summary.last_ms, &b.path)))
+            .cloned()
+    }
+
     /// 0.1.8: the title and folder of each `(account, id)` asked for, as
     /// the conversation list folds them (the newest file's folder, the
     /// newest title its files have), without copying the index: the cost

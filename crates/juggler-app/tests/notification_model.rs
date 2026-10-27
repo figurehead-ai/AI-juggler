@@ -410,8 +410,8 @@ fn needs_you_is_worked_out_in_the_backend_with_no_window() {
     let open = state.notifier.open_now();
     assert_eq!(
         (open.total, open.working),
-        (1, 1),
-        "the running session is open now"
+        (3, 1),
+        "D-47: open now holds the sessions that ask you too; one works"
     );
     assert!(
         !needs::refresh_from(&state, &sources, now),

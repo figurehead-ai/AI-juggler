@@ -54,6 +54,15 @@ For example, OpenCode's conversations: its 2.x local HTTP API
 5. **Codex: `approval_policy = "untrusted"` is unsupported** (config
    reference). AI Juggler's sessions set no policy; lab harnesses must not
    use it. (`codex.md`)
+6. **The switch set-up says "Can't be set up" for skills the target
+   account can simply turn on.** claude.ai's synced skills carry their
+   origin in `skills/synced/<org>_<account>/manifest.json` (`source`:
+   `anthropic`, `anthropic-example`, else `custom`); Codex's in `.system`
+   and the plugin's marketplace. Provided items must never be copied (the
+   Anthropic license forbids it) but can be guided: steps, the page to
+   open, the plan or admin they need. And the list should lead with what
+   the conversation used, readable from Claude and Codex transcripts.
+   Design: `switch-setup-items.md`.
 
 ## Better ways to do what AI Juggler already does
 

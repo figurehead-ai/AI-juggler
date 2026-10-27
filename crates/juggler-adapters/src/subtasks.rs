@@ -16,6 +16,10 @@ use crate::transcript::{TranscriptFormat, line_format};
 /// The most characters of a subagent's task kept as its label.
 const LABEL_CHARS: usize = 80;
 
+/// The most characters of a subagent's task kept whole (the Subagents
+/// tab's tooltip).
+const TASK_CHARS: usize = 2_000;
+
 /// Where a subagent stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubtaskState {
@@ -28,13 +32,15 @@ pub enum SubtaskState {
     Done,
     /// Ended with an error, or never started.
     Failed,
+    /// Stopped before it finished (Claude Code's `killed`/`stopped`).
+    Stopped,
 }
 
 impl SubtaskState {
-    /// Done or failed: nothing later changes it.
+    /// Done, failed or stopped: nothing later changes it.
     #[must_use]
     pub fn is_final(self) -> bool {
-        matches!(self, Self::Done | Self::Failed)
+        matches!(self, Self::Done | Self::Failed | Self::Stopped)
     }
 }
 
@@ -49,6 +55,17 @@ pub struct Subtask {
     pub kind: Option<String>,
     /// Where it stands.
     pub state: SubtaskState,
+    /// The agent's own id, once the tool named it (Claude Code's
+    /// `agentId`, Codex's thread id).
+    pub agent: Option<String>,
+    /// What it was asked to do, whole (at most 2,000 characters).
+    pub task: String,
+    /// Started in the background (its start's answer came at once).
+    pub background: bool,
+    /// When the call that started it was written, epoch ms.
+    pub started_ms: Option<i64>,
+    /// When the line that ended it was written, epoch ms (final only).
+    pub ended_ms: Option<i64>,
 }
 
 /// The subagents read so far from one transcript.
@@ -63,8 +80,12 @@ pub struct SubtaskLog {
     awaited: HashMap<String, String>,
     /// A call whose answer says how named agents stand (Codex's `wait`).
     waits: HashSet<String>,
+    /// A call that stops the agent it awaits (Codex's `interrupt_agent`).
+    stopping: HashSet<String>,
     /// Decided by the first parsable line.
     format: Option<TranscriptFormat>,
+    /// When the line being read was written (its `timestamp`).
+    at: Option<i64>,
 }
 
 impl SubtaskLog {
@@ -74,10 +95,28 @@ impl SubtaskLog {
             if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
+            // Once the format is known, a line that can't matter isn't
+            // parsed (most of a long transcript: tool output, messages).
+            let matters = match self.format {
+                None => true,
+                Some(TranscriptFormat::ClaudeCode) => {
+                    crate::claude_transcript::subtask_line_matters(self, line)
+                }
+                Some(TranscriptFormat::CodexRollout) => {
+                    crate::codex_transcript::subtask_line_matters(self, line)
+                }
+            };
+            if !matters {
+                continue;
+            }
             let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
                 continue;
             };
             let format = *self.format.get_or_insert_with(|| line_format(&value));
+            self.at = value
+                .get("timestamp")
+                .and_then(serde_json::Value::as_str)
+                .and_then(juggler_core::time::timestamp_ms);
             match format {
                 TranscriptFormat::ClaudeCode => {
                     crate::claude_transcript::subtask_line(self, &value);
@@ -115,6 +154,11 @@ impl SubtaskLog {
             label: one_line(task),
             kind: kind.filter(|kind| !kind.is_empty()).map(str::to_owned),
             state: SubtaskState::Running,
+            agent: None,
+            task: whole(task),
+            background: false,
+            started_ms: self.at,
+            ended_ms: None,
         });
     }
 
@@ -122,12 +166,44 @@ impl SubtaskLog {
     pub(crate) fn named(&mut self, call: &str, agent: &str) {
         if let Some(&index) = self.calls.get(call) {
             self.agents.insert(agent.to_owned(), index);
+            if let Some(item) = self.items.get_mut(index) {
+                item.agent = Some(agent.to_owned());
+            }
         }
     }
 
     /// A later call's answer will end this agent.
     pub(crate) fn awaits(&mut self, call: &str, agent: &str) {
         self.awaited.insert(call.to_owned(), agent.to_owned());
+    }
+
+    /// The call awaited stops its agent (an answer that doesn't say how
+    /// it last stood means stopped).
+    pub(crate) fn stops(&mut self, call: &str) {
+        self.stopping.insert(call.to_owned());
+    }
+
+    /// Whether `call` stops the agent it awaits.
+    pub(crate) fn is_stop(&self, call: &str) -> bool {
+        self.stopping.contains(call)
+    }
+
+    /// Whether `call` started a subagent.
+    pub(crate) fn is_start(&self, call: &str) -> bool {
+        self.calls.contains_key(call)
+    }
+
+    /// The tool named an agent it already knows by another name (Codex's
+    /// path and its thread id): both now name it, and the thread id is its
+    /// own id.
+    pub(crate) fn alias(&mut self, known: &str, id: &str) {
+        let Some(&index) = self.agents.get(known) else {
+            return;
+        };
+        self.agents.insert(id.to_owned(), index);
+        if let Some(item) = self.items.get_mut(index) {
+            item.agent = Some(id.to_owned());
+        }
     }
 
     /// A later call's answer says how named agents stand.
@@ -147,6 +223,7 @@ impl SubtaskLog {
     /// waiting on, now stands at `state`.
     pub(crate) fn answered(&mut self, call: &str, state: SubtaskState) {
         self.waits.remove(call);
+        self.stopping.remove(call);
         if let Some(&index) = self.calls.get(call) {
             self.set(index, state);
         } else if let Some(agent) = self.awaited.remove(call) {
@@ -163,6 +240,7 @@ impl SubtaskLog {
     /// failed; a close or a wait changes nothing.
     pub(crate) fn not_started(&mut self, call: &str) {
         self.waits.remove(call);
+        self.stopping.remove(call);
         self.awaited.remove(call);
         if let Some(&index) = self.calls.get(call) {
             self.set(index, SubtaskState::Failed);
@@ -176,12 +254,20 @@ impl SubtaskLog {
         }
     }
 
-    /// Done and failed are final: a later close says nothing new.
+    /// Done, failed and stopped are final: a later close says nothing
+    /// new. A final state takes the line's time as its end.
     fn set(&mut self, index: usize, state: SubtaskState) {
+        let at = self.at;
         if let Some(item) = self.items.get_mut(index)
             && !item.state.is_final()
         {
             item.state = state;
+            if state == SubtaskState::Background {
+                item.background = true;
+            }
+            if state.is_final() {
+                item.ended_ms = at;
+            }
         }
     }
 }
@@ -202,6 +288,84 @@ impl crate::transcript_tail::TailLog for SubtaskLog {
     fn feed(&mut self, bytes: &[u8]) {
         Self::feed(self, bytes);
     }
+}
+
+/// AJ-E1520 (0.2): each subagent's depth that its tool didn't record
+/// (left 0 by its reader): one more than its parent's, 1 when the session
+/// started it.
+pub(crate) fn fill_depths(out: &mut [juggler_adapter::subagents::Subagent]) {
+    /// Deeper than this, a loop in the records is assumed and the walk
+    /// stops.
+    const DEEPEST: u32 = 32;
+    let parents: HashMap<String, Option<String>> = out
+        .iter()
+        .map(|agent| (agent.id.clone(), agent.parent.clone()))
+        .collect();
+    for agent in out.iter_mut().filter(|agent| agent.depth == 0) {
+        let mut depth = 1;
+        let mut at = agent.parent.clone();
+        while let Some(parent) = at {
+            depth += 1;
+            if depth > DEEPEST {
+                break;
+            }
+            at = parents.get(&parent).cloned().flatten();
+        }
+        agent.depth = depth;
+    }
+}
+
+/// Whether `line` holds `needle`.
+pub(crate) fn holds(line: &[u8], needle: &[u8]) -> bool {
+    line.windows(needle.len()).any(|window| window == needle)
+}
+
+/// Each string value of `key` in a raw JSON line (`"key":"value"`, with
+/// or without spaces), for a cheap look before a parse.
+pub(crate) fn values_of<'a>(line: &'a [u8], key: &[u8]) -> Vec<&'a [u8]> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    while let Some(found) = line[at..]
+        .windows(key.len())
+        .position(|window| window == key)
+    {
+        let mut index = at + found + key.len();
+        at = index;
+        // `"key"` then `:` then `"`, spaces allowed between.
+        if line.get(index) != Some(&b'"') {
+            continue;
+        }
+        index += 1;
+        while line.get(index).is_some_and(u8::is_ascii_whitespace) {
+            index += 1;
+        }
+        if line.get(index) != Some(&b':') {
+            continue;
+        }
+        index += 1;
+        while line.get(index).is_some_and(u8::is_ascii_whitespace) {
+            index += 1;
+        }
+        if line.get(index) != Some(&b'"') {
+            continue;
+        }
+        index += 1;
+        if let Some(end) = line[index..].iter().position(|b| *b == b'"') {
+            out.push(&line[index..index + end]);
+            at = index + end;
+        }
+    }
+    out
+}
+
+/// A task trimmed, cut to [`TASK_CHARS`].
+fn whole(text: &str) -> String {
+    let text = text.trim();
+    let mut cut: String = text.chars().take(TASK_CHARS).collect();
+    if text.chars().count() > TASK_CHARS {
+        cut.push('…');
+    }
+    cut
 }
 
 /// The first line of a task, cut to [`LABEL_CHARS`].

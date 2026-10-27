@@ -18,6 +18,7 @@
 import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
 import { allStatuses, goTo, projectLens, railViewAs, settingsPane } from "./fixtures";
+import { placesConversations } from "../../src/preview/places";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
 const T0 = GATE_NOW;
@@ -450,6 +451,49 @@ for (const theme of THEMES) {
   });
 }
 
+// D-47: Open now in Your order, the default: a pinned row (one another
+// app runs, pinned in AI Juggler's own record) leads its place; one that
+// asks stays in its place, amber, and is in Needs you too; a row's handle
+// and pin on hover; the order menu open.
+const ORDER = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.filter((session) => session.id === "sess-2" || session.id === "sess-3"),
+  conversations: placesConversations(T0),
+};
+const ORDER_SEAMS = { __AIJ_APP_SETTINGS__: { rail_order: JSON.stringify({ mode: "yours", pins: ["c:claude-personal/outside-5"] }) } };
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`rail order — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], ORDER, { seams: ORDER_SEAMS });
+    const rail = page.getByTestId("rail");
+    await expect(rail.getByTestId("rail-order-button")).toHaveText("Your order");
+    const personal = rail.locator('[data-order-group="Claude|Personal"][data-order-row]');
+    await expect(personal.first()).toHaveAttribute("data-order-row", "c:claude-personal/outside-5");
+    await expect(personal.first().getByTestId("pin-mark")).toBeVisible();
+    const asks = rail.locator('[data-order-row="c:claude-work/outside-3"]');
+    await expect(asks.getByTestId("state-word")).toHaveText("Asks you");
+    await expect(rail.getByTestId("rail-needs-you")).toContainText("4");
+    await page.mouse.move(0, 0);
+    await settle(page);
+    await expect.soft(rail).toHaveScreenshot(`rail-order-${cell}.png`, SCREEN);
+
+    const row = rail.locator('[data-order-row="c:claude-work/outside-1"]');
+    await row.hover();
+    await expect(row.getByTestId("row-tools")).toHaveCSS("opacity", "1");
+    await expect(row.getByTestId("order-grip")).toBeVisible();
+    await expect(row.getByTestId("row-pin")).toBeVisible();
+    await settle(page);
+    await expect.soft(rail).toHaveScreenshot(`rail-order-hover-${cell}.png`, SCREEN);
+
+    await rail.getByTestId("rail-order-button").click();
+    const menu = page.getByRole("menu", { name: "Order of Open now" });
+    await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
+    await expect(menu.getByRole("menuitemradio", { checked: true })).toContainText("Your order");
+    await settle(page);
+    await expect.soft(page).toHaveScreenshot(`rail-order-menu-${cell}.png`, SCREEN);
+  });
+}
+
 // WCAG 1.4.1: a state shown by colour must also say it in words and in
 // its accessible name — a colour-only change fails even when its pixel
 // diff is small. The fixture holds a session in every status (the ended
@@ -495,9 +539,11 @@ test("status is never colour-only", async ({ page }) => {
   }
   // Not vacuous: every session in the fixture is a row, and every row is
   // one of those checked (a dot or a Needs you mark); the dots include at
-  // least the working and the ended state.
+  // least the working and the ended state. D-47: one that needs you and
+  // is still open is in Needs you and in its place, so it's drawn twice.
+  const twice = new Set(["waiting_user", "stuck", "quota_blocked"]);
   for (const session of TODAY.sessions) {
-    await expect.soft(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(1);
+    await expect.soft(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(twice.has(session.status) ? 2 : 1);
   }
   expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(dots.length + needs.length);
   expect(needs.length, "Needs you rows").toBeGreaterThan(0);

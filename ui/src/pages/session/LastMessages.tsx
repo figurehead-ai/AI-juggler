@@ -16,7 +16,7 @@ import { IconGoTo } from "../../components/icons-actions";
 import type { LastTurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
 import { agoWords } from "../../lib/time-words";
 import { Markdown, plainWords } from "./Markdown";
-import { useLastMessages, type Chat } from "./useLastMessages";
+import { useLastMessages, type Chat, type ChatReader } from "./useLastMessages";
 import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
@@ -38,12 +38,25 @@ export function LastMessages({
   visible,
   remoteMac,
   onGoTo,
+  reader,
+  title = "Conversation",
+  head,
+  asker,
 }: {
   model: SessionModel;
   visible: boolean;
   remoteMac?: string | null;
   /** Go to it, from the question card (a live session). */
   onGoTo?: () => void;
+  /** AJ-E1520: another conversation than the session's own (a
+   * subagent's), read the same way; it asks no one, so no question card. */
+  reader?: ChatReader;
+  /** The card's heading. */
+  title?: string;
+  /** Before the heading (a way back). */
+  head?: ReactNode;
+  /** Who the "you" side is, said over its turns ("The session"). */
+  asker?: string;
 }): JSX.Element {
   const { chat, showEarlier } = useLastMessages({
     profileId: model.profileId,
@@ -51,6 +64,7 @@ export function LastMessages({
     visible: visible && !remoteMac,
     live: model.live,
     working: model.state.working,
+    reader,
   });
   const speaker = speakerName(model.tool);
   const following = chat.state === "shown" && model.live && visible;
@@ -60,7 +74,8 @@ export function LastMessages({
     // under its last message, never a void between them.
     <Card className="flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline px-5 py-3.5">
-        <h3 className="text-section font-semibold text-ink">Conversation</h3>
+        {head}
+        <h3 className="min-w-0 max-w-full truncate text-section font-semibold text-ink">{title}</h3>
         {following && (
           <span className="inline-flex items-center gap-1.5 text-label font-medium text-live" data-testid="last-messages-live" title="Following along while it runs">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-current motion-safe:animate-pulse" />
@@ -79,9 +94,9 @@ export function LastMessages({
       ) : model.conversationId === null ? (
         <Quiet>It hasn't written anything yet.</Quiet>
       ) : (
-        <Body chat={chat} model={model} speaker={speaker} onShowEarlier={showEarlier} />
+        <Body chat={chat} model={model} speaker={speaker} onShowEarlier={showEarlier} asker={asker} />
       )}
-      {!remoteMac && <Bottom chat={chat} model={model} speaker={speaker} onGoTo={onGoTo} />}
+      {!remoteMac && !reader && <Bottom chat={chat} model={model} speaker={speaker} onGoTo={onGoTo} />}
     </Card>
   );
 }
@@ -96,7 +111,7 @@ function Quiet({ children, testId, state }: { children: ReactNode; testId?: stri
   );
 }
 
-function Body({ chat, model, speaker, onShowEarlier }: { chat: Chat; model: SessionModel; speaker: string; onShowEarlier: () => void }): JSX.Element {
+function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: Chat; model: SessionModel; speaker: string; onShowEarlier: () => void; asker?: string }): JSX.Element {
   const scroller = useRef<HTMLDivElement | null>(null);
   const turns = chat.state === "shown" ? chat.turns : null;
   const count = turns?.length ?? 0;
@@ -166,7 +181,7 @@ function Body({ chat, model, speaker, onShowEarlier }: { chat: Chat; model: Sess
         )}
         <ol className="flex flex-col gap-6" data-testid="last-messages-turns">
           {chat.turns.map((turn, index) => (
-            <Turn key={index} turn={turn} tool={model.tool} speaker={speaker} asks={index === asksAt} />
+            <Turn key={index} turn={turn} tool={model.tool} speaker={speaker} asks={index === asksAt} asker={asker} />
           ))}
         </ol>
       </div>
@@ -184,12 +199,12 @@ function When({ ms }: { ms: number | null }): JSX.Element | null {
   );
 }
 
-function Turn({ turn, tool, speaker, asks }: { turn: LastTurnInfo; tool: string; speaker: string; asks: boolean }): JSX.Element {
+function Turn({ turn, tool, speaker, asks, asker }: { turn: LastTurnInfo; tool: string; speaker: string; asks: boolean; asker?: string }): JSX.Element {
   if (turn.speaker === "you") {
     const words = turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
     return (
       <li className="flex flex-col items-end gap-1.5" data-testid="last-turn" data-speaker="you">
-        <span className="sr-only">You</span>
+        {asker ? <span className="text-label font-medium text-muted">{asker}</span> : <span className="sr-only">You</span>}
         <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-accent/20 bg-accent-soft px-4 py-2.5 text-body leading-[1.5] text-ink">{words}</p>
         <When ms={turn.at_ms} />
       </li>

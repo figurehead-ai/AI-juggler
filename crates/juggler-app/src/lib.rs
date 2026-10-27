@@ -313,6 +313,9 @@ macro_rules! app_commands {
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
             Write features::switch_setup::switch_setup_forget,
+            Write features::switch_setup::turn_ons::switch_setup_turn_ons,
+            Write features::switch_setup::turn_ons::switch_setup_turn_on_dismiss,
+            Write features::switch_setup::turn_ons::switch_setup_open,
             Read  features::account_settings::commands::account_settings_check,
             Write features::account_settings::commands::account_settings_apply,
             Write features::trust::commands::trust_open,
@@ -498,6 +501,10 @@ macro_rules! app_commands {
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
+            // AJ-E1520 (0.2): the Subagents tab (a session's words: like its
+            // last messages, never served without the window).
+            Write features::subagents::commands::subagents_list,
+            Write features::subagents::commands::subagents_conversation,
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,

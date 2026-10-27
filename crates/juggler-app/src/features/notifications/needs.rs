@@ -322,7 +322,19 @@ pub fn work_out<S: std::hash::BuildHasher>(
             continue;
         }
         let key = format!("s:{}", row.id);
-        if let Some(kind) = session_kind(row) {
+        let kind = session_kind(row);
+        // D-47: a session that needs you is open now too (in its place);
+        // an ended one only while pinned. A snoozed need waits in its place.
+        let asking = kind.is_some_and(|kind| kind != "failed") && !now_snoozed.contains(&key);
+        if row.pinned == Some(true)
+            || matches!(row.status.as_str(), "running" | "starting")
+            || asking
+        {
+            open.total += 1;
+            open.working += u32::from(row.status == "running");
+            *by_app.entry(OWN_APP.to_owned()).or_default() += 1;
+        }
+        if let Some(kind) = kind {
             listed_sessions.insert(row.id.clone());
             needs.push(NeedInput {
                 kind: kind.to_owned(),
@@ -340,16 +352,8 @@ pub fn work_out<S: std::hash::BuildHasher>(
                     ..NoticeTarget::default()
                 },
                 action: Some(if kind == "limit" { "limit" } else { "open" }.to_owned()),
-                key: key.clone(),
+                key,
             });
-            if !now_snoozed.contains(&key) {
-                continue;
-            }
-        }
-        if row.pinned == Some(true) || matches!(row.status.as_str(), "running" | "starting") {
-            open.total += 1;
-            open.working += u32::from(row.status == "running");
-            *by_app.entry(OWN_APP.to_owned()).or_default() += 1;
         }
     }
     for c in &sources.conversations {
@@ -379,12 +383,10 @@ pub fn work_out<S: std::hash::BuildHasher>(
                     ..NoticeTarget::default()
                 },
                 action: Some("open".to_owned()),
-                key: key.clone(),
+                key,
             });
-            if !now_snoozed.contains(&key) {
-                continue;
-            }
         }
+        // D-47: open now holds what asks you too.
         if c.live && !c.background {
             open.total += 1;
             open.working += u32::from(c.state.as_deref() == Some("working"));

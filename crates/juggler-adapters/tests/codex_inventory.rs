@@ -16,8 +16,8 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::inventory::{
-    ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, SettingCheck,
-    Undo, Value,
+    ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Origin, Scope, SetUp,
+    SettingCheck, Undo, Value,
 };
 use juggler_adapters::codex_inventory::{can_set_up, inventory, set_up};
 
@@ -205,6 +205,7 @@ fn claude_item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.into(),
         scope: Scope::User,
         detail,
+        origin: juggler_adapter::inventory::Origin::Own,
     }
 }
 
@@ -287,7 +288,7 @@ fn each_kind_says_whether_codex_can_set_it_up() {
         SetUp::Impossible(_)
     ));
     assert!(
-        matches!(can_set_up(&claude_item(ItemKind::Skill, "pdf", Detail::FromTheAccount)), SetUp::Impossible(note) if note.contains("claude.ai"))
+        matches!(can_set_up(&claude_item(ItemKind::Skill, "pdf", Detail::FromTheAccount { source: Some("anthropic".into()), files: None, requires: Vec::new() })), SetUp::Impossible(note) if note.contains("own account"))
     );
     let setting = Detail::Setting {
         file: home.join("settings.json"),
@@ -462,4 +463,64 @@ fn files_and_settings_are_set_up_as_new_files_and_keys() {
 
     // What can't be set up says why.
     assert!(set_up(&to, None, find(&items, ItemKind::Plugin, "lint@market")).is_err());
+}
+
+/// switch-setup-items.md §4: a plugin's marketplace says whose it is.
+/// OpenAI's own are turned on in Codex, never copied; a local
+/// marketplace's are installed with Codex's own command, as before.
+#[test]
+fn openai_plugins_are_turned_on_in_codex() {
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().join("codex-a");
+    write(
+        &home.join("config.toml"),
+        r#"[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."mine@created-by-me-remote"]
+enabled = true
+
+[plugins."lint@market"]
+enabled = true
+"#,
+    );
+    write(
+        &home.join("skills/.system/imagegen/SKILL.md"),
+        "---\nname: imagegen\n---\n",
+    );
+    let items = inventory(&home, None);
+    assert!(
+        !items.iter().any(|item| item.name == "imagegen"),
+        "system skills come with every Codex"
+    );
+    let openai = Origin::Provided {
+        by: "OpenAI".into(),
+    };
+    let plugin = |id: &str| find(&items, ItemKind::Plugin, id);
+    assert_eq!(plugin("browser@openai-bundled").origin, openai);
+    assert_eq!(plugin("gmail@openai-curated").origin, openai);
+    assert_eq!(plugin("mine@created-by-me-remote").origin, Origin::Account);
+    assert_eq!(plugin("lint@market").origin, Origin::Own);
+
+    let SetUp::TurnOn { get_it, can_copy } = can_set_up(plugin("gmail@openai-curated")) else {
+        panic!("a curated plugin is turned on")
+    };
+    assert!(!can_copy);
+    assert!(get_it.steps[0].contains("/plugins"));
+    assert!(get_it.steps.last().unwrap().contains("{account}"));
+    let SetUp::TurnOn { get_it, .. } = can_set_up(plugin("browser@openai-bundled")) else {
+        panic!("a bundled plugin is turned on")
+    };
+    assert!(get_it.steps[0].contains("comes with the app"));
+    assert!(matches!(
+        can_set_up(plugin("lint@market")),
+        SetUp::NeedsYou(note) if note.contains("codex plugin add")
+    ));
+    let to = root.path().join("codex-b");
+    std::fs::create_dir_all(&to).unwrap();
+    assert!(set_up(&to, None, plugin("gmail@openai-curated")).is_err());
+    assert!(!to.join("config.toml").exists(), "nothing written");
 }

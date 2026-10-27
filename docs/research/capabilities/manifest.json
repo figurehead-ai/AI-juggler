@@ -429,6 +429,64 @@
             "https://code.claude.com/docs/en/mcp.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents and their conversations",
+          "status": "available",
+          "how": "<project>/<session>/subagents/agent-<id>.meta.json (agentType, description, toolUseId, spawnDepth, parentAgentId, requestShape, stoppedByUser) and agent-<id>.jsonl (the subagent's own conversation, every line isSidechain) beside the session transcript; the Agent call's tool_result (toolUseResult.status completed / async_launched, agentId) and, for a background one, the <task-notification> (<task-id> = agent id, <status> completed|failed|killed|stopped) queued (queue-operation, queued_command attachment) and given to the session (user line, origin.kind task-notification). A nested one's status is in its parent subagent's transcript.",
+          "limits": "File formats are internal and undocumented; checked against this Mac's records (field names and counts only): 180 subagents in 10 sessions, every one's end found. 30-day cleanup applies to the folder too.",
+          "evidence": "VP",
+          "sources": [
+            "~/.claude/projects/*/<session>/subagents/ on this Mac, 2026-10-27 (shape only)",
+            "crates/juggler-adapters/src/claude_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): claude_subagents lists them read-only; conversations open in the session page's chat view"
+        },
+        {
+          "id": "skills-sync",
+          "name": "claude.ai skills and plugins synced in",
+          "status": "available",
+          "how": "One-way sync of the skills (and plugins) on in claude.ai into <config dir>/skills/synced/<org>_<account>/<skill>/ (plugins/synced/, <name>@synced) at session start, then about every 10 min in use, 40 idle; turned-off ones move to skills/.trash/. Each set has manifest.json rows {skillId, name, description, source, updatedAt}.",
+          "limits": "Only with a /login claude.ai sign-in (not API key/OAuth token env), not Bedrock/--bare/--safe-mode; a server flag and the org policy allow_account_skills_sync decide; syncClaudeAiSkills:false turns it off. A profile syncs only while one of its sessions runs. The <org>_<account> folder name and manifest.json are undocumented (binary).",
+          "evidence": "VP",
+          "sources": [
+            "https://code.claude.com/docs/en/skills.md",
+            "https://code.claude.com/docs/en/plugins/loading.md",
+            "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+            "binary 2.1.310 strings (syncClaudeAiSkills description)",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: inventory reads each synced set's manifest.json (skillId, name, source) and frontmatter compatibility; Anthropic's skills get claude.ai turn-on steps (claude_get_it.rs), never a copy; custom ones may be copied with consent; switch reminders until the account has them (switch-setup-items.md, As built)"
+        },
+        {
+          "id": "skill-origin",
+          "name": "Anthropic-provided versus own synced skill",
+          "status": "partial",
+          "how": "manifest.json row source: 'anthropic' (always synced: pdf, docx, pptx, xlsx), 'anthropic-example' (Anthropic-provided, follows the user's toggles), 'custom' when the server gives none. Proprietary ones carry frontmatter license 'Proprietary…' and an Anthropic LICENSE.txt; feature-bound ones a compatibility line.",
+          "limits": "The server's creator_type/is_shared/partition_by (own, org, shared) are not written locally, so a 'custom' row can't be told apart as own, organization's or shared. Undocumented (binary + local).",
+          "evidence": "VP",
+          "sources": [
+            "binary 2.1.310 strings (te={public:'anthropic',examples:'anthropic-example'}, source??'custom')",
+            "https://claude.com/docs/skills/overview",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: origin own/account/provided/unknown per synced skill from manifest.json source (claude_inventory.rs); provided ones turned on, never copied (switch-setup-items.md, As built)"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a conversation used (skills, commands, MCP, subagents)",
+          "status": "available",
+          "how": "JSONL: tool_use name 'Skill' input {skill,args}; attachment type invoked_skills skills[{name,path}]; user content <command-name>/name</command-name> (anthropic-skills:<n>, <plugin>:<n>); tool_use 'mcp__<server>__<tool>' (plugin servers mcp__plugin_<plugin>_<server>__<tool>); 'Task'/'Agent' input.subagent_type.",
+          "limits": "Transcript format is internal and may change; Claude Code's own scanners use these same patterns (binary).",
+          "evidence": "VP",
+          "sources": [
+            "https://code.claude.com/docs/en/skills.md",
+            "binary 2.1.310 strings (Skill input schema, <command-name> and mcp__ scanners)",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: claude_used.rs used_in() reads Skill calls, invoked_skills, <command-name>, mcp__ and Task/Agent names; the switch set-up lists what was used first"
         }
       ]
     },
@@ -717,6 +775,36 @@
             "https://claude.com/docs/cowork/monitoring.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The Code tab's sessions' subagents",
+          "status": "available",
+          "how": "The Code tab runs the same Claude Code on the same projects folder, so its sessions' subagents/ folders read as the CLI's.",
+          "limits": "Chat-tab conversations are kept on Anthropic's servers: no subagent record on this Mac.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/claude_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
+        },
+        {
+          "id": "skills-sync",
+          "name": "Skills on in claude.ai reach the Code tab",
+          "status": "available",
+          "how": "The Code tab is Claude Code: it syncs into the same skills/synced/ folder (.last-complete-round lists the entrypoints sdk-cli, cli, claude-desktop). Skills are turned on at https://claude.ai/customize/skills after 'Code execution and file creation' at https://claude.ai/settings/capabilities; Team/Enterprise owners allow Skills at https://claude.ai/admin-settings/skills.",
+          "limits": "Feature-bound skills follow the plan: computer use Pro/Max only; built-in browser off when a Team/Enterprise owner turns it off; Claude in Chrome paid plans with the extension; Research paid plans.",
+          "evidence": "VP",
+          "sources": [
+            "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
+            "https://support.claude.com/en/articles/13119606-managing-skills-as-an-admin",
+            "https://support.claude.com/en/articles/14128542-let-claude-use-your-computer-in-cowork",
+            "https://support.claude.com/en/articles/16607400-use-the-built-in-browser-in-claude-cowork",
+            "https://support.claude.com/en/articles/12012173-get-started-with-claude-in-chrome",
+            "https://support.claude.com/en/articles/11088861-use-research-on-claude",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: the same claude.ai steps and page (claude.ai/customize/skills) in the switch set-up's turn-on rows and Settings reminders"
         }
       ]
     },
@@ -1164,6 +1252,52 @@
           "evidence": "I",
           "sources": [],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents (child threads) and their conversations",
+          "status": "available",
+          "how": "Each child thread is a rollout of its own in sessions/YYYY/MM/DD/ whose session_meta.source.subagent.thread_spawn names parent_thread_id, depth, agent_path, agent_role, agent_nickname. The parent's rollout says how each ended: first shape spawn_agent -> {agent_id}, wait {status}, close_agent {previous_status}; v2 (2026-10 rollouts) spawn_agent {message, agent_type, task_name} -> {task_name: path}, event_msg item_completed SubAgentActivity {agent_path, agent_thread_id, kind started|interacted|completed|interrupted}, list_agents {agents: [{agent_name, agent_status}]} ({errored: ..} failed), interrupt_agent. App-server thread/list (sourceKinds subAgent) and thread/read read the same.",
+          "limits": "Rollout format is internal; reading through the app-server starts Codex on the user's CODEX_HOME (writes caches), so a read-only view uses the rollouts. A 6 GB rollout is read over several asks. guardian review threads (source.subagent.other) aren't a session's subagents.",
+          "evidence": "VP",
+          "sources": [
+            "~/.codex/sessions on this Mac, 2026-10-27 (shape only: 359 rollouts, 10 thread_spawn children)",
+            "openai/codex core/src/tools/handlers/multi_agents/ (read 2026-10-23)",
+            "crates/juggler-adapters/src/codex_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): codex_subagents lists them from the rollouts, read-only; conversations open in the session page's chat view"
+        },
+        {
+          "id": "skill-origin",
+          "name": "OpenAI-provided versus own skills and plugins",
+          "status": "available",
+          "how": "System skills in $CODEX_HOME/skills/.system/ (.codex-system-skills.marker) ship with Codex; plugin ids carry their marketplace: @openai-bundled and @openai-primary-runtime (with the app), @openai-curated / cache openai-curated-remote (the shared ChatGPT plugin directory), cache created-by-me-remote (the user's workspace plugins); apps are tools of the codex_apps MCP server, listed only with ChatGPT sign-in.",
+          "limits": "Cloud skills and apps follow the ChatGPT account and workspace: Enterprise/Edu off by default, role-based; API-key sign-in has no cloud features. No plan matrix found.",
+          "evidence": "VP",
+          "sources": [
+            "https://learn.chatgpt.com/docs/build-skills",
+            "https://learn.chatgpt.com/docs/plugins",
+            "https://learn.chatgpt.com/docs/extend/mcp",
+            "https://learn.chatgpt.com/docs/config-file/config-reference",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: plugin origin by marketplace (codex_inventory.rs); OpenAI's turned on through /plugins, never copied; .system skills never listed"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a rollout used (MCP, skills, subagents)",
+          "status": "partial",
+          "how": "response_item function_call name mcp__<server>__<tool> (apps: server codex_apps); legacy mode event_msg mcp_tool_call_end {invocation{server,tool}}; explicit skill picks inject a user message wrapped in <skill> with <name>/<path>; spawn_agent arguments.agent_type.",
+          "limits": "No skill-used record: implicit use is only a shell read of SKILL.md; <skills_instructions> lists all skills and is not use; custom prompts leave no record; the codex.skill_invocation event is OpenTelemetry only.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/policy.rs",
+            "https://github.com/openai/codex/blob/main/codex-rs/ext/skills/src/fragments.rs",
+            "codex 0.163.0 binary strings",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "built: codex_used.rs used_in() reads mcp__ function calls, mcp_tool_call_end, <skill> picks, SKILL.md reads, spawn_agent and plugin:// mentions"
         }
       ]
     },
@@ -1385,6 +1519,18 @@
             "https://learn.chatgpt.com/docs/import"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "Codex in the ChatGPT app (and the Codex app) runs the same Codex on ~/.codex: its sessions' child threads are rollouts in the same tree.",
+          "limits": "As the CLI's.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/codex_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ],
       "checked_version_notes": "26.1021.31345 (build 21828), bundled codex-cli 0.164.0-alpha.11.1"
@@ -1705,6 +1851,37 @@
             "https://opencode.ai/legal/terms-of-service"
           ],
           "ai_juggler_uses": "n/a"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents (child sessions)",
+          "status": "available",
+          "how": "A subagent is a child session: parent_id in session (1.x) / session_v2 (2.x), its agent column the agent, its title '<description> (@<agent> subagent)'. 1.x: the parent's task tool part (state.metadata.sessionId, state.status pending|running|completed|error, state.time.start/end); a background one completes its part at once, so the child's last message (error; time.completed, finish) says. 2.x: the child's idle_outcome succeeded|failed|interrupted at time_idle. API: GET /session/:id/children (1.x), GET /api/session?parentID= (2.x).",
+          "limits": "session list --format json lists top-level sessions only, export one session without children; both run migrations and write logs. The HTTP routes need an OpenCode server on the user's store. Conversations are message/part rows, not a transcript file.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/core/src/session/sql.ts",
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/tool/task.ts",
+            "https://github.com/anomalyco/opencode/blob/86976449c40d48f2731553a024f74552593d1764/packages/core/src/session/sql.ts",
+            "https://github.com/anomalyco/opencode/blob/86976449c40d48f2731553a024f74552593d1764/packages/schema/src/session.ts",
+            "crates/juggler-adapters/src/opencode_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): opencode_subagents lists them from the store, read-only (immutable when OpenCode is closed); conversations not shown yet"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "partial",
+          "how": "part rows type 'tool': tool 'skill' with state.input.name; MCP tools named <server>_<tool>; SubtaskPart {agent}; child sessions carry parentID. Skills also read from .claude/skills and ~/.claude/skills.",
+          "limits": "Single-underscore MCP names can't be split for sure; the store's schema is internal and churns.",
+          "evidence": "VP",
+          "sources": [
+            "https://opencode.ai/docs/skills",
+            "https://github.com/anomalyco/opencode",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: opencode_store.rs never reads the part table; used stays unknown"
         }
       ],
       "version_notes": "v1 1.19.4 (2026-10-22); v2 2.2.0 (2026-10-27)"
@@ -1829,6 +2006,18 @@
             "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages/desktop/electron-builder.config.ts"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "OpenCode Desktop runs the same server as a sidecar on the same opencode.db (it overrides only XDG_STATE_HOME), so its sessions' child sessions read as the CLI's.",
+          "limits": "As the CLI's.",
+          "evidence": "I",
+          "sources": [
+            "https://github.com/anomalyco/opencode/blob/v1.19.4/packages/desktop/src/main/server.ts"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ],
       "version_notes": "2.2.0 (stable download, v2 line); v1-line Desktop 1.19.4 still on GitHub releases; Homebrew cask opencode-desktop 2.1.4"
@@ -2075,6 +2264,35 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/docs/wire-manifest.d.ts"
           ],
           "ai_juggler_uses": "plan quota not read; exact per-call tokens from wire.jsonl usage.record via usage_since (Measured, keyed by time, model and counts)"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents",
+          "status": "available",
+          "how": "state.json agents map ({type: sub, parentAgentId (always main), labels.parentAgentId (the real parent), labels.profileName}); agents/<agentId>/wire.jsonl per subagent (agent-0, agent-1, ...); the spawning agent's wire.jsonl holds subagent.spawned {subagentId, subagentName, description, runInBackground, parentToolCallId, parentAgentId}, subagent.started, and subagent.completed / failed / cancelled, each with time (ms). Server API GET /api/v1/sessions/{id}/transcript?agent_id= and .../tasks.",
+          "limits": "Users are told not to edit sessions/; the server's transcript route resumes a cold session (writes). A rate-limit failure can leave no terminal record (then running/unknown). The subagent's conversation is an event journal, not read as a conversation yet.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/packages/agent-core-v2/docs/wire-manifest.d.ts",
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/packages/agent-core-v2/src/session/sessionMetadata/sessionMetadata.ts",
+            "https://github.com/MoonshotAI/kimi-code/blob/68a283894163204e93b072cef20db164015a5cad/docs/en/configuration/data-locations.md",
+            "crates/juggler-adapters/src/kimi_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): kimi_subagents lists them from the session folder, read-only; conversations not shown yet"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "unknown",
+          "how": "Tools: a Skill tool (skill, args), /skill:<name>, MCP tools mcp__<server>__<tool>, Agent (subagent_type) with agents/<id>/wire.jsonl per subagent.",
+          "limits": "Which wire.jsonl record carries a tool call isn't documented for Kimi Code CLI.",
+          "evidence": "VS",
+          "sources": [
+            "https://www.kimi.com/code/docs",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: wire.rs reads turn, interaction and usage records only"
         }
       ]
     },
@@ -2176,6 +2394,18 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/apps/kimi-code/src/cli/sub/app.ts"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "subagents",
+          "name": "The app's sessions' subagents",
+          "status": "available",
+          "how": "Kimi Code Desktop keeps its sessions in the same ~/.kimi-code, so they read as the CLI's.",
+          "limits": "Desktop source isn't public; its sharing the home is from the vendor's page.",
+          "evidence": "I",
+          "sources": [
+            "crates/juggler-adapters/src/kimi_subagents.rs"
+          ],
+          "ai_juggler_uses": "Subagents tab, through the conversations index (same reader as the CLI's)"
         }
       ]
     },
@@ -2371,6 +2601,34 @@
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/25-status-line.md"
           ],
           "ai_juggler_uses": "not used (usage not read)"
+        },
+        {
+          "id": "subagents",
+          "name": "A session's subagents",
+          "status": "available",
+          "how": "sessions/<cwd>/<session>/subagents/<subagent_id>/meta.json: subagent_type, description, status running|completed|failed|cancelled (a dead process's running is later rewritten to cancelled), started_at, completed_at, child_session_id (the subagent's own session folder, under its own cwd's group, which holds its own subagents/). updates.jsonl also carries _x.ai/session/update subagent_spawned / subagent_finished.",
+          "limits": "Field names are source-level (xai-org/grok-build, about a month older than the shipping CLI); background isn't in meta.json; the tool call id isn't persisted. The child's conversation is its ACP updates.jsonl, not read as a conversation yet.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/agent/subagent/mod.rs",
+            "https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-pager/docs/user-guide/17-sessions.md",
+            "crates/juggler-adapters/src/grok_subagents.rs",
+            "crates/juggler-adapters/tests/conformance/mod.rs (check 11, lists_subagents_honestly)"
+          ],
+          "ai_juggler_uses": "Subagents tab (AJ-E1520, 0.2): grok_subagents lists them from the session folders, read-only; conversations not shown yet"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "unknown",
+          "how": "updates.jsonl tool_call / tool_call_update session updates; skill tools prefixed 'skill:'; MCP tools <server>__<tool>; `grok inspect --json` lists the skills, plugins and MCP servers found for a folder.",
+          "limits": "Session format undocumented (third-party write-up only).",
+          "evidence": "VS",
+          "sources": [
+            "https://docs.x.ai/build",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: grok_sessions.rs reads summary.json only"
         }
       ]
     },

@@ -145,7 +145,9 @@ def grows(kind: str, structs: dict[str, str], depth: int = 2) -> bool:
         return True
     if depth == 0:
         return False
-    names = set(re.findall(r"\b([A-Z]\w+)\b", kind)) - {"AppResult", "Option", "String", "Result"}
+    # A `Page` is bounded wherever it sits (a struct holding one and the
+    # page's own facts, like the Subagents tab's answer).
+    names = set(re.findall(r"\b([A-Z]\w+)\b", kind)) - {"AppResult", "Option", "String", "Result", "Page"}
     return any(grows(structs[name], structs, depth - 1) for name in names if name in structs)
 
 

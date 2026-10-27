@@ -177,4 +177,15 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     applies: (_, h) => has(h.copyConversationResume),
     run: (c, h) => h.copyConversationResume!(c),
   },
+  // AJ-E1502, D-47: pinned in AI Juggler's rail, as its own sessions are
+  // (AI Juggler's record; the app's files are never written).
+  {
+    id: "pin",
+    label: (c, h) => (h.isConversationPinned?.(c) ? "Unpin" : "Pin to top"),
+    icon: "pin",
+    group: "work",
+    rank: 60,
+    applies: (_, h) => has(h.pinConversation),
+    run: (c, h) => h.pinConversation!(c),
+  },
 ];

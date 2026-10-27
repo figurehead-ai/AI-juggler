@@ -26,9 +26,11 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 import { GoToButton, SessionChips, SessionMark } from "../pages/session/SessionHead";
 import { fromConversation, type SessionModel } from "../pages/session/model";
+import { useHasSubagents } from "../pages/session/useSubagents";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
+const SubagentsTab = lazyNamed(() => import("../pages/session/SubagentsTab"), "SubagentsTab");
 
 /** How long a row may be missing from the list before the page says it's
  * gone: a refresh that briefly misses it never flashes "gone". */
@@ -134,7 +136,9 @@ function ConversationView({
   // AJ-E2404: a session open in its app has its processes (read-only but
   // for what it leaves behind once it ends).
   const live = conversation.live;
-  const tabs = useMemo(() => pageTabs("conversation", { hasUsage: true, live }), [live]);
+  // AJ-E1520: its Subagents, once its tool says it started some.
+  const hasSubagents = useHasSubagents(conversation.account_id, conversation.id, live);
+  const tabs = useMemo(() => pageTabs("conversation", { hasUsage: true, live, hasSubagents }), [live, hasSubagents]);
   // A refresh that briefly lacks the counts keeps the last ones.
   const tokens = conversation.tokens;
   const lastTokens = useRef(tokens);
@@ -178,6 +182,8 @@ function ConversationView({
             <UsagePanel model={model} visible={visible} tokens={tokens ?? lastTokens.current} account={account} />
           ) : tab === "processes" ? (
             <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
+          ) : tab === "subagents" ? (
+            <SubagentsTab model={model} visible={visible} now={now} />
           ) : (
             <SessionOverview
               model={model}

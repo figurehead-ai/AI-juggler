@@ -53,6 +53,7 @@
 2. Projects: rename (a label only; the folder is never renamed), pin, open in the editor (the user's chosen editor in Settings, else Finder) and reveal in Finder. Forget hides a project until it is used again. Relocate repoints a moved folder.
 3. Each action SHALL be reachable from the row's menu and from the project view, with the hidden actions from AJ-E1025 shown again once they work.
 4. Pins and labels SHALL survive restarts and backups.
+5. (D-47, 2026-10-27.) A session another app runs (the Claude app, the Codex app, a terminal) SHALL be pinnable too, from its row's menu and from the pin shown on the row's hover and focus; its pin is AI Juggler's own record (`app_settings` `rail_order`, by the rail's key `c:<account>/<conversation>`), never written to the app's files. Pinned rows lead their group in every order.
 **UI/UX reasoning**: The same row menu as accounts (AJ-E1501). Pinned rows lead their group, each with a pin mark.
 **Performance budget**: < 100 ms per action; the rail's sort stays under its existing budget.
 **Quality gates**: per-action tests; relocate with a missing folder; forget then use again.
@@ -642,6 +643,13 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Files to touch**: the transcript parsers, `commands.rs` (I-08), `RightInspector.tsx`.
 **Research basis**: SPEC I-08; Codex's multi-agent handlers and rollout policy (read 2026-10-23, in the manifest).
 **Handover note**: Built: `juggler_adapters::subtasks` (the record and the tail reader), each tool's lines in its parser (`claude_transcript::subtask_line`, `codex_transcript::subtask_line`), `features::subtasks` (the tick, the row's count, `subtasks_list`), `SubagentsSection.tsx` and the rail row's note. The count is the subagents still running; the list shows them all. A new tool adds its `subtask_line` and nothing else. Left: when a Claude subagent started in the background ends (check live), and Codex's depth-2 subagents.
+
+**0.2 (2026-10-27, the maintainer: "build the Subagents view into 0.2.0"; then "all of these features need to work for all of the apps we support … it should all follow adapter strategy")**:
+3. Every adapter SHALL answer whether its tool's subagents can be listed (`HarnessAdapter::subagent_support`: supported, naming the records it reads, or not supported with the reason) and list a session's from the tool's own records (`subagent_reader`): id, type, task, status (running/done/failed/stopped/unknown, D-06), started and ended, parent and depth, background, its own transcript. Read-only (D-28/D-37), for every session the app shows, a desktop app's included where it shares the CLI's records. The conformance kit (AJ-E1521 check 11) holds every adapter, and every future one, to it.
+4. Commands: a paged list (`subagents_list`, `paging.rs` keyset) and a subagent's conversation (`subagents_conversation`, the session's own last-turns reader), redacted (D-14).
+5. A **Subagents** tab on the session page, shown only when the tool supports it and the session started some; rows in the task row's shape, nested, newest first, a skeleton at once; a row opens its conversation in the same chat view, with a way back; the rail's "+N agents" opens the tab.
+
+**0.2 handover note**: Built: `juggler_adapter::subagents` (the contract), one `*_subagents.rs` per adapter (Claude Code: `subagents/` meta + transcripts and task notifications; Codex: child rollouts by `parent_thread_id`, both multi-agent shapes; Kimi Code: `state.json` agents + `subagent.*` wire records; Grok Build: `subagents/<id>/meta.json`, nested through child sessions; OpenCode: child sessions in the store, read-only), `features::subagents` (readers kept for the pages open last, keyset tree order, redaction, running vs unknown), `SubagentsTab.tsx`, `useSubagents.ts`, the rail link, kit check 11 with `tests/subagent_fixture/`. Evidence: the manifest's 0.2 section. Left: Kimi, Grok and OpenCode subagents' conversations (when the session page reads those tools' own), a live lab check of those three, and whether the Overview's `SubagentsSection` folds into the tab.
 
 ### AJ-E1521 Robustness: a database busy timeout and an adapter conformance kit | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: —
 **Goal**: No read fails during a long write, and every adapter keeps the same rules.

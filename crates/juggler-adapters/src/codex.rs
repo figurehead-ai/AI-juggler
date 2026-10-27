@@ -474,6 +474,18 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::PROTOCOL_SERVER
     }
 
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::codex_subagents::SUPPORT
+    }
+
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::codex_subagents::reader(scope)
+    }
+
     fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
         Some(self)
     }
@@ -804,6 +816,13 @@ impl HarnessAdapter for CodexAdapter {
         item: &juggler_adapter::inventory::Item,
     ) -> juggler_adapter::inventory::SetUp {
         crate::codex_inventory::can_set_up(item)
+    }
+
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::codex_used::used_in(transcript)
     }
 
     fn set_up(

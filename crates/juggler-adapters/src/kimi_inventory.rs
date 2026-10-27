@@ -79,8 +79,8 @@ const EVERY_PROJECT: &str =
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_kimi = item.tool == KIMI_CODE_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
-            "it comes with the other tool's own account, so Kimi Code can't have it".to_owned(),
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
+            "it comes with {tool}'s own account, so Kimi Code can't have it".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => {
             match (item.scope, mcp_verdict(&item.name, server)) {
@@ -102,9 +102,8 @@ pub fn can_set_up(item: &Item) -> SetUp {
                 .to_owned(),
         ),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no Kimi Code equivalent in AI Juggler yet",
+            "a {} from {{tool}} has no Kimi Code equivalent in AI Juggler yet",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -196,6 +195,7 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.to_owned(),
         scope: Scope::User,
         detail,
+        origin: juggler_adapter::inventory::Origin::Own,
     }
 }
 
@@ -247,6 +247,7 @@ mod tests {
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         let applied = set_up(home.path(), &item).unwrap();
         let names: Vec<String> = inventory(home.path()).into_iter().map(|i| i.name).collect();

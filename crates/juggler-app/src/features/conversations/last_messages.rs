@@ -15,7 +15,9 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_adapters::last_turns::{Block, LastTurns, Speaker, Window, last_turns, stamp};
+use juggler_adapters::last_turns::{
+    Block, LastTurns, Speaker, Window, last_turns, stamp, subagent_turns,
+};
 
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -84,7 +86,7 @@ pub struct LastMessagesInfo {
 }
 
 impl LastMessagesInfo {
-    fn without(state: &str) -> Self {
+    pub(crate) fn without(state: &str) -> Self {
         Self {
             state: state.to_owned(),
             turns: Vec::new(),
@@ -154,6 +156,19 @@ fn answer(
 /// redacted.
 #[must_use]
 pub fn read(path: Option<&Path>, ask: &Ask) -> LastMessagesInfo {
+    read_by(path, ask, last_turns)
+}
+
+/// AJ-E1520 (0.2): the same for a subagent's own transcript (its lines
+/// are all the subagent's).
+#[must_use]
+pub fn read_subagent(path: Option<&Path>, ask: &Ask) -> LastMessagesInfo {
+    read_by(path, ask, subagent_turns)
+}
+
+type TurnsReader = fn(&Path, usize, Window) -> std::io::Result<LastTurns>;
+
+fn read_by(path: Option<&Path>, ask: &Ask, reader: TurnsReader) -> LastMessagesInfo {
     let Some(path) = path else {
         return LastMessagesInfo::without("none");
     };
@@ -171,7 +186,7 @@ pub fn read(path: Option<&Path>, ask: &Ask) -> LastMessagesInfo {
         (None, None) => Window::Latest,
     };
     let max = ask.max.unwrap_or(TURNS).clamp(1, TURNS_MAX);
-    match last_turns(path, max, window) {
+    match reader(path, max, window) {
         Ok(LastTurns::Turns(page)) => {
             // Every text and every call line, redacted together.
             let mut pieces: Vec<String> = Vec::new();

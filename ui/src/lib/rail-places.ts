@@ -7,8 +7,10 @@
  *
  * The order is stable (⌘1–9 go to places, so a place never moves because
  * a row changed): AI Juggler's own place first, then by app and profile.
- * A quiet place (nothing working) folds to one header ("Work · 4 idle");
- * a place shows its working rows and the 3 most recent others, then
+ * That is the default; in Your order the user's arrangement comes first
+ * (`rail-order.ts`, D-47). In Latest activity (`foldGroup`), a quiet
+ * place (nothing working) folds to one header ("Work · 4 idle"), and a
+ * place shows its working rows and the 3 most recent others, then
  * "+n quiet".
  */
 import { OWN_PLACE, type RailItem, type RailPlace } from "./rail-items";
@@ -80,24 +82,28 @@ export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf 
   );
 }
 
-/** A session the user pinned (AJ-E1502): it leads its place and never
- * folds away. */
-function pinned(item: RailItem): boolean {
-  return item.session?.pinned === true;
+/** A session the user pinned (AJ-E1502): it leads its place in every
+ * order and never folds away. */
+export function pinned(item: RailItem): boolean {
+  return item.pinned;
 }
 
-/** Nothing in it is working, and nothing in it is pinned. */
+/** Nothing in it is working, needs you or is pinned. */
 export function isQuiet(group: RailGroup): boolean {
-  return group.items.every((item) => item.state !== "working" && !pinned(item));
+  return group.items.every((item) => item.state !== "working" && item.need === null && !pinned(item));
 }
 
-/** A folded quiet place in words: "Work · 4 idle". */
+/** A folded place in words: "Work · 4 idle", "Work · 1 working · 2 idle".
+ * What needs you is the header's amber chip, so it isn't said twice. */
 export function quietWords(group: RailGroup): string {
   const name = group.place?.profile ?? group.label;
-  const review = group.items.filter((item) => item.state === "done_review").length;
-  const idle = group.items.length - review;
-  const parts = [idle > 0 ? `${idle} idle` : null, review > 0 ? `${review} to review` : null].filter(Boolean);
-  return `${name} · ${parts.join(" · ")}`;
+  const count = (test: (item: RailItem) => boolean) => group.items.filter(test).length;
+  const working = count((item) => item.state === "working" && item.need === null);
+  const review = count((item) => item.state === "done_review");
+  const asks = count((item) => item.state === "asks_you" || (item.need !== null && item.state !== "done_review" && item.state !== "working"));
+  const idle = group.items.length - working - review - asks;
+  const parts = [working > 0 ? `${working} working` : null, idle > 0 ? `${idle} idle` : null, review > 0 ? `${review} to review` : null].filter(Boolean);
+  return parts.length > 0 ? `${name} · ${parts.join(" · ")}` : name;
 }
 
 /** What a group shows: its pinned rows, its working rows, then the most

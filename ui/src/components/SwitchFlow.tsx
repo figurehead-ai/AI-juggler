@@ -406,7 +406,7 @@ export function SwitchFlow({
               unredact={unredact}
               onToggleItem={toggleUnredact}
             />
-            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} onCheckAgain={setupCheck.recheck} />}
             <SwitchFreezeChoice
               sourceLive={phase.preflight.source_live}
               keepsRunning={phase.preflight.source_keeps_running}
@@ -596,7 +596,7 @@ export function SwitchFlow({
                     ))}
                   </ul>
                 )}
-                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
+                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} onCheckAgain={setupCheck.recheck} />}
                 <SwitchFreezeChoice
                   sourceLive={phase.preflight.source_live}
                   keepsRunning={phase.preflight.source_keeps_running}

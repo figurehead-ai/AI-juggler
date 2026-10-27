@@ -152,6 +152,17 @@ pub trait HarnessAdapter: Send + Sync {
         crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
     }
 
+    /// What the conversation in `transcript` used: skills, commands, MCP
+    /// servers, subagents and plugins, each by kind and name (a plugin by
+    /// its name without the marketplace). `None` when this tool's
+    /// transcripts don't say, which is never "not used"
+    /// (switch-setup-items.md §3). Reads the file only. Default: `None`.
+    #[must_use]
+    fn used_in(&self, transcript: &Path) -> Option<Vec<(crate::inventory::ItemKind, String)>> {
+        let _ = transcript;
+        None
+    }
+
     /// AJ-E1542: sets up `item` in this account (only on the user's
     /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
     /// says how to undo it. Never replaces anything the account has.
@@ -726,6 +737,28 @@ pub trait HarnessAdapter: Send + Sync {
     /// (the conformance kit holds both).
     #[must_use]
     fn driven(&self) -> Option<&dyn crate::runtime::DrivenRuntime> {
+        None
+    }
+
+    /// AJ-E1520 (0.2): whether this tool's subagents can be listed, from
+    /// which records, or why not. Every adapter answers: the default,
+    /// [`crate::subagents::SubagentSupport::Unanswered`], is refused by the
+    /// conformance kit (check 11).
+    #[must_use]
+    fn subagent_support(&self) -> crate::subagents::SubagentSupport {
+        crate::subagents::SubagentSupport::Unanswered
+    }
+
+    /// AJ-E1520 (0.2): a reader of the subagents the conversation `scope`
+    /// names started (and theirs), from the tool's own records, read-only.
+    /// `None` when [`Self::subagent_support`] isn't supported, or the
+    /// record isn't one of this tool's conversations.
+    #[must_use]
+    fn subagent_reader(
+        &self,
+        scope: crate::subagents::SubagentScope<'_>,
+    ) -> Option<Box<dyn crate::subagents::SubagentReader>> {
+        let _ = scope;
         None
     }
 }

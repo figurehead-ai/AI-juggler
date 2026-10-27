@@ -61,7 +61,9 @@ describe("Home, desktop first", () => {
     const view = home([], placesConversations(NOW));
     await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you"));
     const counts = view.getByTestId("home-counts");
-    expect(counts.textContent).toMatch(/4 open.*1 inactive.*1 ended today/);
+    // D-47: open counts every open session, the 3 that need you too (they
+    // stay in their places in Open now); Needs you counts them once.
+    expect(counts.textContent).toMatch(/7 open.*1 inactive.*1 ended today/);
     fireEvent.click(within(counts).getByRole("button", { name: "1 inactive" }));
     expect(railView().show.inactive).toBe(true);
     fireEvent.click(within(counts).getByRole("button", { name: "1 ended today" }));
