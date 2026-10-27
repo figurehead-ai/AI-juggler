@@ -70,7 +70,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
         }
         keepTabInside(ref.current, event);
       }}
-      className="absolute right-0 top-full z-40 mt-2 flex max-h-[min(640px,calc(100vh-5rem))] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-hairline bg-surface-2 shadow-card outline-none"
+      className="absolute right-0 top-full z-40 mt-2 flex max-h-[min(640px,calc(100vh-9rem))] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-hairline bg-surface-2 shadow-card outline-none"
     >
       <div className="flex items-center gap-2 border-b border-hairline px-3.5 py-3">
         <h2 id={titleId} className="text-section font-semibold text-ink">
