@@ -71,21 +71,30 @@ fn summary(path: &Path) -> Option<serde_json::Value> {
         .filter(serde_json::Value::is_object)
 }
 
-/// Whether a record names a parent session (a sub-agent's).
+/// Whether a record is a sub-agent's: it names a parent session, or
+/// (newer Grok Build, xai-org/grok-build @2bdd1d6a) says it is one with
+/// `session_kind: "subagent"` and no parent key.
 fn has_parent(summary: &serde_json::Value) -> bool {
-    [
-        "parentSessionId",
-        "parent_session_id",
-        "parentId",
-        "parent_id",
-        "parent",
-    ]
-    .iter()
-    .any(|key| {
+    let kind_says = ["session_kind", "sessionKind"].iter().any(|key| {
         summary
             .get(*key)
-            .is_some_and(|value| !value.is_null() && value.as_str() != Some(""))
-    })
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|kind| kind.eq_ignore_ascii_case("subagent"))
+    });
+    kind_says
+        || [
+            "parentSessionId",
+            "parent_session_id",
+            "parentId",
+            "parent_id",
+            "parent",
+        ]
+        .iter()
+        .any(|key| {
+            summary
+                .get(*key)
+                .is_some_and(|value| !value.is_null() && value.as_str() != Some(""))
+        })
 }
 
 /// Every top-level session's record in the home.
@@ -255,6 +264,12 @@ mod tests {
             cwd,
             "0199aa00-0000-7000-8000-000000000002",
             r#"{"title":"sub","parentSessionId":"0199aa00-0000-7000-8000-000000000001"}"#,
+        );
+        session(
+            home.path(),
+            cwd,
+            "0199aa00-0000-7000-8000-000000000003",
+            r#"{"title":"newer sub","session_kind":"subagent"}"#,
         );
         assert_eq!(conversation_files(home.path()), vec![top.clone()]);
         let read = read_conversation(&top).unwrap();
