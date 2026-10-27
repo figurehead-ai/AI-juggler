@@ -163,6 +163,7 @@ unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_list  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_setup_turn_ons  # bounded: one row per account and thing it still has to turn on; each leaves once there
 unbounded switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded tasks_approve  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
 unbounded tasks_cancel  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)

@@ -146,8 +146,21 @@ pub enum Detail {
         id: String,
     },
     /// Something the tool's account syncs itself (claude.ai skills and
-    /// connectors): it can't be set up by copying.
-    FromTheAccount,
+    /// plugins): the account turns it on, not a copy. What the reader
+    /// knows about it rides along (switch-setup-items.md §1).
+    FromTheAccount {
+        /// The account's own word for where it came from, kept as text
+        /// (claude.ai's `manifest.json` `source`: `anthropic`,
+        /// `anthropic-example`, `custom`); `None` when nothing says.
+        source: Option<String>,
+        /// The synced folder, only for an item that may be the user's own
+        /// ([`Origin::Account`]): a copy, with consent, needs it. Never
+        /// set for a provided item, which is never copied.
+        files: Option<PathBuf>,
+        /// What it says it needs (its `compatibility` line), for the
+        /// plan- and feature-bound wording.
+        requires: Vec<String>,
+    },
     /// Settings in one of the tool's config files (AJ-E1508): each key and
     /// its value, as the file writes it.
     Setting {
@@ -202,6 +215,90 @@ pub struct Item {
     pub scope: Scope,
     /// What it is.
     pub detail: Detail,
+    /// Where it came from, as the tool's files say.
+    pub origin: Origin,
+}
+
+/// Where an item came from, as the source tool's files say
+/// (switch-setup-items.md, "Item classes").
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]
+#[serde(tag = "origin", rename_all = "kebab-case")]
+pub enum Origin {
+    /// The user's own files on this computer: set up with consent.
+    #[default]
+    Own,
+    /// Synced from the tool's account, and whose it is can't be told
+    /// here (claude.ai's `custom`): the user's, their organization's or
+    /// shared with them. Never called "yours".
+    Account,
+    /// Provided by the tool's maker with the account or the app: never
+    /// copied, only turned on for the other account.
+    Provided {
+        /// Who provides it, in words (`Anthropic`, `OpenAI`).
+        by: String,
+    },
+    /// From the account, and nothing says where from.
+    Unknown,
+}
+
+/// What has to be true before an item can be turned on, each said in a
+/// sentence of its own.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize)]
+#[serde(tag = "need", content = "text", rename_all = "kebab-case")]
+pub enum Need {
+    /// A plan that includes it ("Needs a Pro or Max plan.").
+    Plan(String),
+    /// Someone who runs the organization has to allow it.
+    Admin(String),
+    /// Another product or setting has to be on first.
+    Feature(String),
+}
+
+impl Need {
+    /// The sentence.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Plan(text) | Self::Admin(text) | Self::Feature(text) => text,
+        }
+    }
+}
+
+/// How the user gets an item the other account can't be given by a copy:
+/// the steps, in order, in the app's words. Steps may name the account
+/// they're for as `{account}`; the app fills in its name.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]
+pub struct GetIt {
+    /// Short steps, in order.
+    pub steps: Vec<String>,
+    /// The page that does it (https only), opened in the browser.
+    pub open_url: Option<String>,
+    /// What has to be true first.
+    pub needs: Vec<Need>,
+    /// What happens after the last step.
+    pub then: Option<String>,
+}
+
+impl GetIt {
+    /// The same steps for the account named `account`.
+    #[must_use]
+    pub fn for_account(&self, account: &str) -> Self {
+        let fill = |text: &str| text.replace("{account}", account);
+        Self {
+            steps: self.steps.iter().map(|step| fill(step)).collect(),
+            open_url: self.open_url.clone(),
+            needs: self
+                .needs
+                .iter()
+                .map(|need| match need {
+                    Need::Plan(text) => Need::Plan(fill(text)),
+                    Need::Admin(text) => Need::Admin(fill(text)),
+                    Need::Feature(text) => Need::Feature(fill(text)),
+                })
+                .collect(),
+            then: self.then.as_deref().map(fill),
+        }
+    }
 }
 
 /// Whether a tool can set up an item that came from elsewhere.
@@ -217,6 +314,17 @@ pub enum SetUp {
     NeedsYou(String),
     /// It can't be set up here; the note says why.
     Impossible(String),
+    /// The other account gets it by turning it on itself (a skill that
+    /// comes with the account): how, step by step. Never set up by AI
+    /// Juggler, unless `can_copy` says the user may copy it instead.
+    TurnOn {
+        /// How to get it.
+        get_it: GetIt,
+        /// Whether it may be copied instead, on the user's say-so: only
+        /// for what may be the user's own ([`Origin::Account`]), never
+        /// for a provided item.
+        can_copy: bool,
+    },
 }
 
 /// What setting up an item did, so it can be undone from the same place.

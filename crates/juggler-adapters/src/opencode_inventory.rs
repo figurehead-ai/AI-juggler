@@ -169,8 +169,8 @@ const EVERY_PROJECT: &str =
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_opencode = item.tool == OPENCODE_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
-            "it comes with the other tool's own account, so OpenCode can't have it".to_owned(),
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
+            "it comes with {tool}'s own account, so OpenCode can't have it".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => {
             match (item.scope, mcp_verdict(&item.name, server)) {
@@ -190,9 +190,8 @@ pub fn can_set_up(item: &Item) -> SetUp {
                 .to_owned(),
         ),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no OpenCode equivalent in AI Juggler yet",
+            "a {} from {{tool}} has no OpenCode equivalent in AI Juggler yet",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -400,6 +399,7 @@ fn mcp_item(name: &str, entry: &serde_json::Value) -> Option<Item> {
             // Set-up OAuth (`oauth: {…}`); `false` turns it off.
             oauth: entry.get("oauth").is_some_and(serde_json::Value::is_object),
         }),
+        origin: juggler_adapter::inventory::Origin::Own,
     })
 }
 
@@ -410,6 +410,7 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.to_owned(),
         scope: Scope::User,
         detail,
+        origin: juggler_adapter::inventory::Origin::Own,
     }
 }
 
@@ -487,6 +488,7 @@ mod tests {
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(can_set_up(&item), SetUp::NeedsYou(_)));
         let applied = set_up(dir.path(), &item, Some(Line::V1)).unwrap();
@@ -524,6 +526,7 @@ mod tests {
             detail: Detail::Files {
                 path: "/x/CLAUDE.md".into(),
             },
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(can_set_up(&rules), SetUp::Translate(_)));
         let sse = Item {
@@ -562,6 +565,7 @@ mod tests {
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         }
     }
 

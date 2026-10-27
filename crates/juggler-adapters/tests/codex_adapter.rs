@@ -684,6 +684,7 @@ fn the_adapter_describes_codex_and_hands_its_calls_on() {
         detail: Detail::Files {
             path: dir.path().join("prompts/fix.md"),
         },
+        origin: juggler_adapter::inventory::Origin::Own,
     };
     assert_eq!(adapter.can_set_up(&item), SetUp::Copy);
 }

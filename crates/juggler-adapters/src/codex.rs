@@ -818,6 +818,13 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_inventory::can_set_up(item)
     }
 
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::codex_used::used_in(transcript)
+    }
+
     fn set_up(
         &self,
         state_dir: &Path,
