@@ -1,0 +1,29 @@
+[package]
+name = "juggler-platform"
+description = "The operating-system seams: who this process runs as, owner-only files and folders, local connections, and whether a program is safe to run."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# The workspace lint baseline applies (`unsafe_code = "forbid"`): every
+# seam here is built on safe bindings. Where a platform needs `unsafe`
+# (a Windows named pipe's client identity, an owner-only ACL), that
+# platform says "not available on this system yet" until a vetted
+# wrapper crate or an audited carve-out is decided.
+[lints]
+workspace = true
+
+[dependencies]
+# AsyncRead / AsyncWrite for the local connection's stream; the Unix
+# listener itself needs `net`.
+tokio = { version = "1.53.3", default-features = false, features = ["net"] }
+
+[target."cfg(unix)".dependencies]
+# The effective user id (safe bindings; no `unsafe` here).
+nix = { version = "0.31.3", features = ["user"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }

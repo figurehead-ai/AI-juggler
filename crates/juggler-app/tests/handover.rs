@@ -13,15 +13,16 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use juggler_app::handover::{self, Answer, Handover, HandoverError};
+use juggler_platform::user::{UserId, peer_allowed};
 
 /// A fresh, short base folder (a socket path must stay under ~100 bytes)
 /// and this user's uid.
-fn base() -> (tempfile::TempDir, u32) {
+fn base() -> (tempfile::TempDir, UserId) {
     let dir = tempfile::Builder::new()
         .prefix("aij-ho")
         .tempdir_in("/tmp")
         .unwrap();
-    let me = std::fs::metadata(dir.path()).unwrap().uid();
+    let me = UserId::from_uid(std::fs::metadata(dir.path()).unwrap().uid());
     (dir, me)
 }
 
@@ -163,7 +164,7 @@ fn someone_elses_socket_or_directory_is_refused() {
     let socket = our_socket(base.path());
     let listener = UnixListener::bind(&socket).unwrap();
     // Owned by another user (simulated: we ask as a uid that isn't the owner).
-    let stranger = me.wrapping_add(1);
+    let stranger = UserId::from_uid(me.uid().wrapping_add(1));
     let as_stranger = Handover::at(socket.clone(), stranger);
     assert_eq!(
         as_stranger.ask(Duration::from_millis(400)),
@@ -194,10 +195,12 @@ fn someone_elses_socket_or_directory_is_refused() {
 
 #[test]
 fn only_this_user_is_answered() {
-    assert!(handover::peer_allowed(Some(501), 501));
-    assert!(!handover::peer_allowed(Some(502), 501));
+    // The hand-over's listener answers through this rule (local_ipc).
+    let me = UserId::from_uid(501);
+    assert!(peer_allowed(Some(me), me));
+    assert!(!peer_allowed(Some(UserId::from_uid(502)), me));
     assert!(
-        !handover::peer_allowed(None, 501),
+        !peer_allowed(None, me),
         "a peer we can't identify isn't answered"
     );
 }
@@ -236,7 +239,7 @@ fn the_socket_is_per_data_folder_short_and_in_the_users_temp_folder() {
     );
     assert!(a.starts_with(temp));
     assert!(
-        a.as_os_str().len() < handover::MAX_SOCKET_PATH,
+        a.as_os_str().len() < juggler_platform::local_ipc::MAX_ENDPOINT_PATH,
         "{}",
         a.display()
     );

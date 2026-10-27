@@ -45,8 +45,6 @@ pub const SOCKET: &str = "bridge.sock";
 const EPOCHS: &str = "epochs.json";
 /// Each launch's files: `overlays/agent/<session>/` (ADR-0018's folder).
 pub const OVERLAY: &str = "agent";
-/// A socket path must fit `sun_path` (104 bytes on macOS).
-const MAX_SOCKET_PATH: usize = 100;
 /// A key younger than this is kept even before its session is recorded
 /// (the record is written just after the spawn).
 const YOUNG_MS: i64 = 60_000;
@@ -96,7 +94,7 @@ pub struct Bridge {
 #[must_use]
 pub fn socket_path(data_dir: &Path) -> Option<PathBuf> {
     let path = data_dir.join(DIR).join(SOCKET);
-    (path.as_os_str().len() < MAX_SOCKET_PATH).then_some(path)
+    juggler_platform::local_ipc::fits(&path).then_some(path)
 }
 
 /// Bytes as lowercase hex.
@@ -125,9 +123,10 @@ impl Bridge {
         }
     }
 
-    /// The bridge program: beside AI Juggler's own (`Contents/MacOS` in
-    /// the app), when it's there and safe to run (ours or root's, and no
-    /// one else can write it or a folder above it).
+    /// The bridge program: beside AI Juggler's own executable, when it's
+    /// there and safe to run (ours or root's, and no one else can write it
+    /// or a folder above it). `None` where the system can't say who we
+    /// are: nothing is trusted then.
     #[must_use]
     pub fn program(&self) -> Option<PathBuf> {
         let chosen = self.program.lock().ok().and_then(|slot| slot.clone());
@@ -137,7 +136,8 @@ impl Bridge {
                 .parent()
                 .map(|dir| dir.join(wire::PROGRAM))
         })?;
-        juggler_adapter::file_trust::trusted_executable(&path, juggler_adapter::file_trust::me())
+        let me = juggler_platform::user::current().ok()?;
+        juggler_platform::file_trust::trusted_executable(&path, me)
     }
 
     /// The status line a member set, if it did.
@@ -253,51 +253,24 @@ impl Bridge {
     }
 }
 
-/// The bridge's own folder: made `0700`; an existing one must be ours and
-/// closed (never chmod'ed into shape).
+/// The bridge's own folder: closed to everyone else (`0700` on Unix); an
+/// existing one must be ours and closed (never chmod'ed into shape).
 ///
 /// # Errors
 ///
-/// When it can't be made, or is someone else's or open.
+/// When it can't be made, is someone else's or open, or owner-only
+/// folders aren't available on this system.
 pub fn own_dir(dir: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::DirBuilderExt;
-    match std::fs::DirBuilder::new()
-        .mode(0o700)
-        .recursive(true)
-        .create(dir)
-    {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(error),
-    }
-    if juggler_adapter::file_trust::dir_is_ours(dir, juggler_adapter::file_trust::me()) {
-        Ok(())
-    } else {
-        Err(std::io::Error::other(format!(
-            "{} isn't AI Juggler's own",
-            dir.display()
-        )))
-    }
+    juggler_platform::private_fs::ensure_own_private_dir(dir)
 }
 
 /// Writes `contents` to `path`, readable by this user only.
 ///
 /// # Errors
 ///
-/// The write's error.
+/// The write's error, or owner-only files aren't available on this system.
 pub(crate) fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let partial = path.with_extension("partial");
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&partial)?;
-    file.write_all(contents.as_bytes())?;
-    file.sync_all()?;
-    std::fs::rename(&partial, path)
+    juggler_platform::private_fs::write_private(path, contents.as_bytes())
 }
 
 fn load_epochs(data_dir: &Path) -> HashMap<String, Epoch> {
@@ -342,6 +315,9 @@ pub fn prepare(
 ) -> Prepared {
     if let Err(why) = settings::enabled_for(state, project, account) {
         return Prepared::Not(why);
+    }
+    if !juggler_platform::local_ipc::SUPPORTED {
+        return Prepared::Not("the agent tools aren't available on this system yet");
     }
     let Some(program) = state.agent_bridge.program() else {
         return Prepared::Not("the agent tools aren't in this build");
