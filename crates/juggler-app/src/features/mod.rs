@@ -23,6 +23,7 @@ pub mod runtime;
 pub mod service_accounts;
 pub mod sessions;
 pub mod staging;
+pub mod subagents;
 pub mod subscriptions;
 pub mod subtasks;
 pub mod switch_setup;

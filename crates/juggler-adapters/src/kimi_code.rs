@@ -521,6 +521,18 @@ impl HarnessAdapter for KimiCodeAdapter {
         session_process(exe, args)
     }
 
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::kimi_subagents::SUPPORT
+    }
+
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::kimi_subagents::reader(scope)
+    }
+
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::kimi_sessions::conversation_files(state_dir)
     }

@@ -16,6 +16,7 @@ const STATE_WORDS: Record<SubtaskStateInfo, string> = {
   background: "in the background",
   done: "done",
   failed: "failed",
+  stopped: "stopped",
   unfinished: "didn't finish",
 };
 
@@ -24,6 +25,7 @@ const STATE_TONE: Record<SubtaskStateInfo, string> = {
   background: "text-muted",
   done: "text-muted",
   failed: "text-warning",
+  stopped: "text-muted",
   unfinished: "text-muted",
 };
 

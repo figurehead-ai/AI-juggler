@@ -170,9 +170,20 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
 /// ends it, failed when it's an error. A subagent started in the
 /// background is answered at once (`toolUseResult.status`
 /// `async_launched`): this transcript doesn't say when it ends, so it's
-/// marked as in the background, not counted as running.
+/// marked as in the background, not counted as running, until the
+/// session hears how it ended: a `<task-notification>` naming the agent
+/// (`<task-id>`) and its `<status>` (`completed`, `failed`, `killed`,
+/// `stopped`), queued for the session (a `queue-operation` or a
+/// `queued_command` attachment) and then given to it (a `user` line whose
+/// `origin.kind` is `task-notification`). The first one heard counts.
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
+    if let Some(text) = notification_text(value) {
+        for (agent, state) in notifications(text) {
+            log.ended(&agent, state);
+        }
+        return;
+    }
     let content = value.get("message").and_then(|m| m.get("content"));
     let Some(serde_json::Value::Array(parts)) = content else {
         return;
@@ -233,6 +244,80 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
         }
         _ => {}
     }
+}
+
+/// Whether a raw line can matter to the subagent log: an Agent (or Task)
+/// call, an answer to a call the log waits on, or a task notification.
+pub(crate) fn subtask_line_matters(log: &crate::subtasks::SubtaskLog, line: &[u8]) -> bool {
+    use crate::subtasks::{holds, values_of};
+    if holds(line, b"<task-notification>") {
+        return true;
+    }
+    if holds(line, b"tool_use") && (holds(line, b"\"Agent\"") || holds(line, b"\"Task\"")) {
+        return true;
+    }
+    values_of(line, b"tool_use_id")
+        .into_iter()
+        .any(|id| std::str::from_utf8(id).is_ok_and(|id| log.wants(id)))
+}
+
+/// The words of a line that carries a task notification, from where
+/// Claude Code puts one (never a tool's description or a tool's output
+/// that only mentions the tag).
+fn notification_text(value: &serde_json::Value) -> Option<&str> {
+    const TAG: &str = "<task-notification>";
+    let text = match value.get("type").and_then(serde_json::Value::as_str)? {
+        "user" => {
+            let origin = value.get("origin")?.get("kind")?.as_str()?;
+            if origin != "task-notification" {
+                return None;
+            }
+            value.get("message")?.get("content")?.as_str()?
+        }
+        "attachment" => {
+            let attachment = value.get("attachment")?;
+            if attachment.get("type")?.as_str()? != "queued_command" {
+                return None;
+            }
+            attachment.get("prompt")?.as_str()?
+        }
+        "queue-operation" => {
+            if value.get("operation")?.as_str()? != "enqueue" {
+                return None;
+            }
+            value.get("content")?.as_str()?
+        }
+        _ => return None,
+    };
+    text.trim_start().starts_with(TAG).then_some(text)
+}
+
+/// Each notification's agent and how it ended (a status this reader
+/// doesn't know is left out: never a guess).
+fn notifications(text: &str) -> Vec<(String, crate::subtasks::SubtaskState)> {
+    use crate::subtasks::SubtaskState;
+    let tag = |block: &'_ str, name: &str| -> Option<String> {
+        let open = format!("<{name}>");
+        let close = format!("</{name}>");
+        let start = block.find(&open)? + open.len();
+        let end = block[start..].find(&close)? + start;
+        Some(block[start..end].trim().to_owned())
+    };
+    let mut out = Vec::new();
+    for block in text.split("<task-notification>").skip(1) {
+        let block = block.split("</task-notification>").next().unwrap_or(block);
+        let (Some(agent), Some(status)) = (tag(block, "task-id"), tag(block, "status")) else {
+            continue;
+        };
+        let state = match status.as_str() {
+            "completed" => SubtaskState::Done,
+            "failed" => SubtaskState::Failed,
+            "killed" | "stopped" => SubtaskState::Stopped,
+            _ => continue,
+        };
+        out.push((agent, state));
+    }
+    out
 }
 
 /// The `tool_use` parts of a message's content: (tool name, its input).
