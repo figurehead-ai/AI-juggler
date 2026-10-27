@@ -7,7 +7,8 @@
 //! Also: the per-launch file is in AI Juggler's own overlays (`0700`,
 //! `0600`), nothing lands in the account's folder, a report with an
 //! unknown key is refused, and the hook never prints or fails.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

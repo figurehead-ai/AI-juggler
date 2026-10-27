@@ -7,7 +7,8 @@
 //! flip is permanent, and proves 0 signals reached the fixture: the
 //! trap log stays empty and the process stays alive until the
 //! control arm (correct identity) deliberately stops it.
-
+// Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
+#![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,
