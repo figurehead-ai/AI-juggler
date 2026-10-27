@@ -13797,7 +13797,8 @@ pub(crate) fn write_session_pack(
             head_sha: None,
             dirty: crate::worktree::read_status(&session_row.cwd)
                 .is_some_and(|status| status.changed + status.untracked > 0),
-            diff_stat: None,
+            diff_stat: crate::worktree::work_changes(&session_row.cwd)
+                .and_then(|changes| changes.stat),
             worktree_path: crate::worktree::is_linked_worktree(&session_row.cwd)
                 .then(|| session_row.cwd.to_string_lossy().into_owned()),
         },
@@ -13811,7 +13812,11 @@ pub(crate) fn write_session_pack(
         },
         quota_at_creation: None,
         lineage: juggler_handover::pack::PackLineage::default(),
-        staged_files: Vec::new(),
+        // ADR-0009: the uncommitted changes ride `diffs/`, redacted with
+        // the conversation (live lab 13: they never did).
+        staged_files: crate::worktree::uncommitted_patch(&session_row.cwd)
+            .map(|patch| vec![("diffs/uncommitted.patch".to_owned(), patch)])
+            .unwrap_or_default(),
     };
     let apply = RedactionApply {
         strip: policy == RedactionPolicy::Strip,
