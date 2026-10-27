@@ -36,8 +36,24 @@
 //! belongs to an earlier process (a crash leaves a turn open), and that a
 //! turn's end settles what it asked.
 //!
-//! Observation only. Kimi Code's plans are "for interactive use only":
-//! nothing here sends anything to a session or answers for the user.
+//! Which reader, and why: Kimi Code's documented ways in are its ACP
+//! server (only for sessions the client itself drives) and `kimi web`'s
+//! local server (it can't reach a session a terminal holds, and reading it
+//! needs a token from the home: outside what AI Juggler reads, the
+//! maintainer's ruling). Neither sees the sessions the user runs, so this
+//! reads the files Kimi Code writes in its home: their place is documented
+//! (`configuration/data-locations.md`), their records are the vendor's own
+//! generated schema; the locks are known from its source only.
+//!
+//! Observation only, to add to the user's own Kimi Code, never to stand in
+//! for it: their unmodified `kimi` runs with their own sign-in, and AI
+//! Juggler reads what it writes. Kimi Code's terms say "Kimi Code
+//! subscriptions are for interactive use only" and "Don't use Kimi Code
+//! for non-interactive automation": nothing here sends anything to a
+//! session, answers for the user, or starts one.
+//!
+//! Paths are joined part by part from the home AI Juggler already knows
+//! (`KIMI_CODE_HOME`, or the default Kimi Code resolves), on every system.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -55,8 +71,15 @@ pub const AGENTS_DIR: &str = "agents";
 pub const MAIN_AGENT: &str = "main";
 /// Each agent's event log.
 pub const WIRE_FILE: &str = "wire.jsonl";
-/// Kimi Code's session locks, in the home.
-pub const LOCKS_DIR: &str = "locks/sessions";
+/// Kimi Code's session locks, in the home: `locks/sessions/`.
+pub const LOCKS_DIR: [&str; 2] = ["locks", "sessions"];
+
+/// The folder of the session locks in `home`.
+fn locks_dir(home: &Path) -> PathBuf {
+    LOCKS_DIR
+        .iter()
+        .fold(home.to_path_buf(), |dir, part| dir.join(part))
+}
 
 /// The protocol versions whose records this reader was built from.
 pub const KNOWN_PROTOCOLS: &[&str] = &["1.5"];
@@ -320,7 +343,7 @@ pub fn main_log(dir: &Path) -> PathBuf {
 /// grows), else its lock. Lists only; reads nothing.
 #[must_use]
 pub fn live_files(home: &Path) -> Vec<PathBuf> {
-    let Ok(locks) = std::fs::read_dir(home.join(LOCKS_DIR)) else {
+    let Ok(locks) = std::fs::read_dir(locks_dir(home)) else {
         return Vec::new();
     };
     let mut out: Vec<PathBuf> = locks
@@ -381,7 +404,7 @@ pub fn read_live(path: &Path) -> Option<LiveSession> {
         let home = path.parent()?.parent()?.parent()?.to_path_buf();
         (home, id, None)
     };
-    let lock = read_lock(&home.join(LOCKS_DIR).join(format!("{id}.lock")))?;
+    let lock = read_lock(&locks_dir(&home).join(format!("{id}.lock")))?;
     let pid = lock.pid.filter(|pid| *pid > 0)?;
     let status = log.map_or(LiveStatus::Unknown, |log| status_of(&log, lock.started_at));
     Some(LiveSession {

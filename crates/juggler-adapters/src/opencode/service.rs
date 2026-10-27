@@ -42,6 +42,17 @@
 //! The line is told by the installed binary's version (`--version`), never
 //! by its name: 1.x has no service, and its launches don't change. A
 //! version that can't be read leaves the launch as 1.x's.
+//!
+//! Which route: the vendor's own CLI option, on the user's unmodified
+//! `opencode`; no file of OpenCode's is read or written for it, and no
+//! path is built, so it is the same on every system (OpenCode resolves its
+//! folders from the XDG variables the account pins). The trade-off, for
+//! the roadmap: a standalone server's address and password live only in
+//! the terminal's process, so AI Juggler can't use OpenCode 2's local API
+//! for these sessions. When it does (live state, prompts, the research's
+//! "control plane"), this module is the one place to change: AI Juggler
+//! would run and stop the account's own `opencode serve` with a password
+//! of its making, and launch each terminal with `--server <url>` instead.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
