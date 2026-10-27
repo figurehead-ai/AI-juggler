@@ -97,7 +97,7 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
           tab === "tasks" ? (
             visible || tasksShown ? (
               <TasksOnce onShown={() => setTasksShown(true)}>
-                <PoolTasks poolId={poolId} members={named} sessions={sessions} projects={projects} now={now} />
+                <PoolTasks poolId={poolId} sessions={sessions} projects={projects} now={now} />
               </TasksOnce>
             ) : null
           ) : tab === "messages" ? (

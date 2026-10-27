@@ -13,8 +13,13 @@
 //! 4. A task's words are data: whatever a task says, nothing changes, and
 //!    every task an agent reads says who wrote it.
 //! 5. No task reaches a session's input: only the user's start for a task
-//!    gives a session its first prompt (through the user's own message).
+//!    gives a session its first prompt, and the user's send-back note
+//!    reaches its holder (each through the user's own message).
 //! 6. Nothing about tasks leaves the Mac: the Fleet link knows no task.
+//! 7. The app writes no task (D-44): the window's task commands are reads,
+//!    the user's four actions, the answers to agents' asks, a start and an
+//!    issue look-up; none creates, edits, assigns or links a task, and
+//!    none reaches the agents' operations.
 
 #![allow(
     clippy::unwrap_used,
@@ -36,8 +41,8 @@ use juggler_agentbridge::wire::{
     Args, Call, Refusal, TaskAssignArgs, TaskCreateArgs, TasksListArgs,
 };
 use juggler_app::features::pools;
-use juggler_app::features::tasks::{dto::TaskInput, needs, views};
-use lab::Lab;
+use juggler_app::features::tasks::needs;
+use lab::{Lab, seed_task};
 
 fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).unwrap().flatten() {
@@ -89,21 +94,6 @@ fn files_with(code: &[(String, String)], needle: &str) -> Vec<String> {
     found
 }
 
-fn input(lab: &Lab, title: &str) -> TaskInput {
-    TaskInput {
-        pool_id: lab.pool.clone(),
-        title: title.into(),
-        body: String::new(),
-        acceptance: String::new(),
-        kind: "task".into(),
-        parent_id: None,
-        priority: "normal".into(),
-        status: "ready".into(),
-        url: None,
-        blocked_by: Vec::new(),
-    }
-}
-
 #[test]
 fn no_agent_starts_a_session_or_picks_an_account() {
     let code = tasks_code();
@@ -142,10 +132,14 @@ fn no_agent_starts_a_session_or_picks_an_account() {
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
     pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
-    let id = views::create(&lab.state, input(&lab, "Release notes"))
-        .unwrap()
-        .task
-        .id;
+    let id = seed_task(
+        &lab.state,
+        &lab.pool,
+        TaskCreateArgs {
+            title: "Release notes".into(),
+            ..TaskCreateArgs::default()
+        },
+    );
     let live = || {
         lab.state
             .storage
@@ -372,11 +366,29 @@ fn no_task_reaches_a_sessions_input() {
             files_with(&code, needle)
         );
     }
-    // The user's start for a task gives the session its first prompt, as
+    // The user's start for a task gives the session its first prompt, and
+    // the user's send-back note reaches the task's holder (D-44): each as
     // the user's own message (E18's compose, delivered between turns).
-    assert_eq!(files_with(&code, "views::compose("), ["launch.rs"]);
-    let launch = code.iter().find(|(name, _)| name == "launch.rs").unwrap();
-    assert!(launch.1.contains("deliver: true"));
+    assert_eq!(
+        files_with(&code, "views::compose("),
+        ["launch.rs", "oversight.rs"]
+    );
+    for file in ["launch.rs", "oversight.rs"] {
+        let text = &code.iter().find(|(name, _)| name == file).unwrap().1;
+        assert!(text.contains("deliver: true"), "the user's click delivers");
+        assert_eq!(text.matches("views::compose(").count(), 1, "one message");
+    }
+    let oversight = &code
+        .iter()
+        .find(|(name, _)| name == "oversight.rs")
+        .unwrap()
+        .1;
+    let send_back = oversight.find("pub fn send_back").unwrap();
+    let tell = oversight.find("tell_holder(state, &task, &note)").unwrap();
+    assert!(
+        tell > send_back && oversight.matches("tell_holder(").count() == 2,
+        "only send back writes to the holder"
+    );
     // An agent's refusal never lands anywhere but its own answer.
     let lab = Lab::new();
     let (_a, a) = lab.agent("s-a", "Alpha");
@@ -393,6 +405,65 @@ fn no_task_reaches_a_sessions_input() {
         },
     );
     assert_eq!(held.refused, Some(Refusal::Ask));
+}
+
+#[test]
+fn the_app_writes_no_task() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let lib = std::fs::read_to_string(root.join("src/lib.rs")).unwrap();
+    let mut registered: Vec<&str> = lib
+        .lines()
+        .filter_map(|line| line.trim().split_once("features::tasks::commands::"))
+        .map(|(_, name)| name.trim_end_matches(','))
+        .collect();
+    registered.sort_unstable();
+    assert_eq!(
+        registered,
+        [
+            "tasks_answer",
+            "tasks_approve",
+            "tasks_cancel",
+            "tasks_children",
+            "tasks_counts",
+            "tasks_detail",
+            "tasks_dismiss",
+            "tasks_free",
+            "tasks_list",
+            "tasks_look_up",
+            "tasks_needs",
+            "tasks_plan",
+            "tasks_send_back",
+            "tasks_session",
+            "tasks_start",
+        ],
+        "the window's task commands: reads and the user's own few"
+    );
+    let commands = shipped(&root.join("src/features/tasks/commands.rs")).1;
+    for gone in ["tasks_create", "tasks_edit", "tasks_assign", "tasks_link"] {
+        assert!(!lib.contains(gone), "no authoring command is registered");
+        assert!(!commands.contains(gone), "no authoring command is defined");
+    }
+    // The window never reaches the agents' operations (create, update,
+    // assign, link): only an agent's call or its held ask, once allowed.
+    for needle in ["apply::", "agent::run", ".link(", ".unlink(", ".assign("] {
+        assert!(
+            !commands.contains(needle),
+            "commands.rs reaches an agent's operation"
+        );
+    }
+    let views = shipped(&root.join("src/features/tasks/views.rs")).1;
+    for needle in ["apply::", ".create(", ".update(", ".assign(", ".link("] {
+        assert!(!views.contains(needle), "views.rs only reads");
+    }
+    // The user's own writes go through one guarded store call each.
+    let oversight = shipped(&root.join("src/features/tasks/oversight.rs")).1;
+    assert_eq!(oversight.matches(".user_action(").count(), 1);
+    for needle in ["apply::", ".update(", ".assign(", ".link(", ".create("] {
+        assert!(
+            !oversight.contains(needle),
+            "the user's actions write nothing else"
+        );
+    }
 }
 
 #[test]

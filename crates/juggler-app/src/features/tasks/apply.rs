@@ -1,6 +1,6 @@
 //! The task operations, one place for all of them: an agent's call (after
-//! `allowed`), the user's answer to a held ask, and the user's own edits.
-//! Each checks the task rules for its actor and writes through the store,
+//! `allowed`) and the user's answer to an agent's held ask (applied as the
+//! agent's own). The app's window reaches none of them (D-44). Each checks the task rules for its actor and writes through the store,
 //! which logs it. None of them decides whether an agent may: that is
 //! `allowed(pool, action)`'s, in [`super::agent`].
 

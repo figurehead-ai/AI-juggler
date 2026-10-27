@@ -16,6 +16,10 @@
 //!   tasks, works the ones it holds and edits the ones it made that no one
 //!   holds. Above that, the pool's level decides (D-28, the app's
 //!   `allowed(pool, action)`).
+//! - **The user sees and tracks; agents write** (D-44). The user's only
+//!   changes ([`UserAction`], [`may_user`]): approve or send back a task
+//!   in review, free a task whose holder's session ended, cancel an open
+//!   one.
 //! - **A session for a task** is the user's to start ([`brief`] is its
 //!   first prompt); an agent may only ask for one (D-31).
 //!
@@ -507,6 +511,80 @@ pub const fn may_change(
     }
 }
 
+/// What the user does to a task in AI Juggler (D-44). Agents write and
+/// run the tasks; the user sees and tracks them, and has only these four
+/// (and starts a session for one, D-31). Nothing else in the app writes a
+/// task.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UserAction {
+    /// A task in review is done.
+    Approve,
+    /// A task in review goes back to its holder, with the user's note.
+    SendBack,
+    /// A task whose holder's session ended or crashed has no holder, so
+    /// another agent can take it.
+    Free,
+    /// An open task is dropped.
+    Cancel,
+}
+
+impl UserAction {
+    /// Every action, in the order a task shows them.
+    pub const ALL: [Self; 4] = [Self::Approve, Self::SendBack, Self::Free, Self::Cancel];
+
+    /// Its history verb (`task_events.verb`).
+    #[must_use]
+    pub const fn verb(self) -> &'static str {
+        match self {
+            Self::Approve => "approved",
+            Self::SendBack => "sent_back",
+            Self::Free => "freed",
+            Self::Cancel => "cancelled",
+        }
+    }
+}
+
+/// Whether the user may do `action` to a task whose stored status is
+/// `stored`, given whether anyone holds it and whether its holder's
+/// session runs. Approve and Send back only a task in review; Free only a
+/// held task none of whose holder's sessions runs; Cancel any open task.
+///
+/// # Errors
+///
+/// Why not, in words.
+pub const fn may_user(
+    action: UserAction,
+    stored: TaskStatus,
+    held: bool,
+    holder_running: bool,
+) -> Result<(), &'static str> {
+    match action {
+        UserAction::Approve | UserAction::SendBack => {
+            if matches!(stored, TaskStatus::InReview) {
+                Ok(())
+            } else {
+                Err("only a task in review is approved or sent back")
+            }
+        }
+        UserAction::Free => {
+            if !held {
+                Err("no one holds it: there's nothing to free")
+            } else if holder_running {
+                Err("its holder's session still runs: it gives the task back itself")
+            } else {
+                Ok(())
+            }
+        }
+        UserAction::Cancel => {
+            if stored.is_open() {
+                Ok(())
+            } else {
+                Err("it's closed already")
+            }
+        }
+    }
+}
+
 /// The first prompt of a session the user starts for a task: what the
 /// task asks, who wrote it, and how to report back. A task's words are
 /// its writer's: data, not the user's instructions, when an agent wrote
@@ -703,6 +781,37 @@ mod tests {
         );
         assert!(may_change(Role::Member, false, false, true, Change::Release).is_err());
         assert!(may_change(Role::Member, true, false, true, Change::Release).is_ok());
+    }
+
+    #[test]
+    fn the_users_four_actions_are_gated_by_the_tasks_state() {
+        use TaskStatus::{Blocked, Cancelled, Done, InProgress, InReview, Ready, Todo};
+        for action in [UserAction::Approve, UserAction::SendBack] {
+            assert!(may_user(action, InReview, true, true).is_ok());
+            for other in [Ready, InProgress, Blocked, Todo, Done, Cancelled] {
+                assert!(
+                    may_user(action, other, true, false).is_err(),
+                    "only in review"
+                );
+            }
+        }
+        assert!(may_user(UserAction::Free, InProgress, true, false).is_ok());
+        assert!(may_user(UserAction::Free, InReview, true, false).is_ok());
+        assert!(
+            may_user(UserAction::Free, InProgress, true, true).is_err(),
+            "its session still runs"
+        );
+        assert!(
+            may_user(UserAction::Free, Ready, false, false).is_err(),
+            "no one holds it"
+        );
+        for open in [Ready, InProgress, InReview, Blocked, Todo] {
+            assert!(may_user(UserAction::Cancel, open, false, false).is_ok());
+        }
+        assert!(may_user(UserAction::Cancel, Done, true, false).is_err());
+        assert!(may_user(UserAction::Cancel, Cancelled, false, false).is_err());
+        let verbs: Vec<&str> = UserAction::ALL.iter().map(|a| a.verb()).collect();
+        assert_eq!(verbs, ["approved", "sent_back", "freed", "cancelled"]);
     }
 
     #[test]

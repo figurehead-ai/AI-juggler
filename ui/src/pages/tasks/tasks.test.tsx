@@ -5,7 +5,11 @@
  *   filter, a page at a time; the plan (epics and stories) behind its own
  *   view; the open task in full: who has it (their session one click
  *   away), what it asks, when it's done, what it waits on, its history.
- * - You add a task, change its status, give it to someone, link it.
+ * - D-44: the app writes no task (no New task, no field to change, links
+ *   read only); a task offers only your four actions, each when its state
+ *   allows: Approve or Send back (in review, with a note for its holder),
+ *   Free (its holder's session ended), Cancel (open). Each is in its
+ *   history as yours. The IPC module has no create, edit, assign or link.
  * - "Start a session for it": you pick the launch settings (only your own
  *   project default is picked for you), then Start; never by usage.
  * - Needs you: an agent's held change is the same approval card (keys),
@@ -22,7 +26,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import PoolTasksSource from "./PoolTasks.tsx?raw";
 import TaskViewSource from "./TaskView.tsx?raw";
 import TaskRowSource from "./TaskRow.tsx?raw";
-import TaskFormSource from "./TaskForm.tsx?raw";
 import TaskTreeSource from "./TaskTree.tsx?raw";
 import TaskLinksSource from "./TaskLinks.tsx?raw";
 import StartSessionSource from "./StartSession.tsx?raw";
@@ -36,6 +39,8 @@ import { pageTabs } from "../registry";
 import { MOCK_SESSIONS, type ProjectInfo } from "../../lib/bridge";
 import { forgetPaged } from "../../lib/paged";
 import { provideProcessesLink } from "../../lib/task-links";
+import * as tasksIpc from "../../lib/ipc/tasks";
+import TasksIpcSource from "../../lib/ipc/tasks.ts?raw";
 import { resetPreviewTasks, type TaskInfo, type TaskNeedInfo, type TasksSeed } from "../../lib/ipc/tasks";
 
 type Seams = { __AIJ_TASKS__?: TasksSeed; __AIJ_TASKS_CALLS__?: string[]; __AIJ_RECIPES__?: unknown[] };
@@ -114,14 +119,9 @@ beforeEach(() => {
 // Each test reads its own lists: none remembered from the one before.
 afterEach(() => (cleanup(), forgetPaged()));
 
-const members = [
-  { session_id: live.id, name: "Builder" },
-  { session_id: "sess-done-1", name: "Reviewer" },
-];
-
 describe("a pool's tasks", () => {
   it("lists ready work first with how many in each state, and opens a task in full", async () => {
-    const { findAllByTestId, getByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findAllByTestId, getByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     const rows = await findAllByTestId("task-row");
     // The work: tasks only (the epic is in the plan), ready first.
     expect(rows.map((r) => r.dataset.status)).toEqual(["ready", "in_progress", "blocked"]);
@@ -136,7 +136,7 @@ describe("a pool's tasks", () => {
 
   it("reads a page at a time: Show more reads the next, none twice", async () => {
     seams().__AIJ_TASKS__!.tasks = Array.from({ length: 45 }, (_, n) => task({ id: `aj-${(0x2000 + n).toString(16)}`, title: `Task ${n}` }));
-    const { findAllByTestId, findByTestId, queryByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findAllByTestId, findByTestId, queryByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     expect(await findAllByTestId("task-row")).toHaveLength(40);
     fireEvent.click(await findByTestId("tasks-more"));
     await waitFor(() => expect(document.querySelectorAll("[data-testid='task-row']")).toHaveLength(45));
@@ -146,7 +146,7 @@ describe("a pool's tasks", () => {
   });
 
   it("a blocked task says what it waits on, honestly", async () => {
-    const { findAllByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findAllByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     const blocked = (await findAllByTestId("task-row")).find((r) => r.dataset.status === "blocked")!;
     expect(blocked.textContent).toContain("Waits on aj-7f3c");
     fireEvent.click(blocked);
@@ -154,7 +154,7 @@ describe("a pool's tasks", () => {
   });
 
   it("filters to done ones, and shows the plan", async () => {
-    const { findAllByTestId, getByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findAllByTestId, getByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findAllByTestId("task-row");
     fireEvent.click(getByTestId("tasks-filter-closed"));
     await waitFor(() => expect(document.querySelectorAll("[data-testid='task-row']")).toHaveLength(1));
@@ -164,21 +164,82 @@ describe("a pool's tasks", () => {
     expect(tree.textContent).toContain("1 of 3 done");
   });
 
-  it("you add a task, change its status and give it to someone", async () => {
-    const { findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+  it("writes no task: no New task, no field to change, links read only (D-44)", async () => {
+    const { findByTestId, queryByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const view = await findByTestId("task-view");
+    expect(queryByTestId("tasks-new")).toBeNull();
+    expect(queryByTestId("task-set-status")).toBeNull();
+    expect(queryByTestId("task-set-holder")).toBeNull();
+    expect(view.querySelectorAll("input, select")).toHaveLength(0);
+    const links = getByTestId("task-links");
+    expect(within(links).queryByRole("button", { name: /Remove|Add a link/ })).toBeNull();
+    expect(within(links).getByTestId("task-link").textContent).toContain("aj-b10c");
+    // A ready task no one holds offers a session and Cancel, nothing more.
+    expect(queryByTestId("task-approve")).toBeNull();
+    expect(queryByTestId("task-free")).toBeNull();
+    expect(getByTestId("task-start-open")).toBeTruthy();
+    expect(getByTestId("task-cancel-open")).toBeTruthy();
+  });
+
+  it("a task in review: you approve it, and your approval is in its history", async () => {
+    seams().__AIJ_TASKS__!.tasks!.push(task({ id: "aj-9e41", title: "Shipping rates", status: "in_review", holder: "Builder", holder_session_id: live.id }));
+    const { findAllByTestId, findByTestId, getByTestId, queryByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.dataset.status === "in_review")!);
+    fireEvent.click(await findByTestId("task-approve"));
+    await waitFor(() => expect(calls()).toContain("approve:aj-9e41"));
+    await waitFor(() => expect(getByTestId("task-history").textContent).toContain("You approved it: done"));
+    expect(queryByTestId("task-approve")).toBeNull();
+    expect(queryByTestId("task-cancel-open")).toBeNull();
+  });
+
+  it("a task in review: you send it back with a note for its holder", async () => {
+    seams().__AIJ_TASKS__!.tasks!.push(task({ id: "aj-9e41", title: "Shipping rates", status: "in_review", holder: "Builder", holder_session_id: live.id }));
+    const { findAllByTestId, findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.dataset.status === "in_review")!);
+    fireEvent.click(await findByTestId("task-send-back-open"));
+    const form = getByTestId("task-send-back");
+    expect(form.textContent).toContain("Builder gets it as your message");
+    const go = getByTestId("task-send-back-go") as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    fireEvent.change(getByTestId("task-send-back-note"), { target: { value: "Rates must come from the carrier, not a table" } });
+    fireEvent.click(go);
+    await waitFor(() => expect(calls()).toContain("send-back:aj-9e41:Rates must come from the carrier, not a table"));
+    await waitFor(() => expect(getByTestId("task-history").textContent).toContain("You sent it back: Rates must come from the carrier, not a table"));
+    expect(getByTestId("task-view").querySelector("[data-testid='task-status']")!.textContent).toBe("In progress");
+  });
+
+  it("frees only a task whose holder's session ended; a running holder's has no Free", async () => {
+    seams().__AIJ_TASKS__!.tasks!.push(task({ id: "aj-3f88", title: "Flaky test", status: "in_progress", holder: "Reviewer", holder_session_id: null }));
+    const { findAllByTestId, findByTestId, getByTestId, queryByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.textContent?.includes("Cart endpoints"))!);
+    await findByTestId("task-holder");
+    expect(queryByTestId("task-free")).toBeNull();
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.textContent?.includes("Flaky test"))!);
+    expect((await findByTestId("task-holder-ended")).textContent).toContain("Reviewer, whose session has ended");
+    fireEvent.click(getByTestId("task-free"));
+    await waitFor(() => expect(calls()).toContain("free:aj-3f88"));
+    await waitFor(() => expect(queryByTestId("task-holder-ended")).toBeNull());
+    expect(getByTestId("task-history").textContent).toContain("You freed it");
+  });
+
+  it("cancels an open task only after you say so; a closed one offers nothing", async () => {
+    const { findByTestId, getByTestId, queryByTestId, findAllByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
-    fireEvent.change(getByTestId("task-set-status"), { target: { value: "in_review" } });
-    await waitFor(() => expect(calls()).toContain("edit:aj-7f3c:in_review"));
-    fireEvent.change(getByTestId("task-set-holder"), { target: { value: "sess-done-1" } });
-    await waitFor(() => expect(calls()).toContain("assign:aj-7f3c:sess-done-1"));
-    fireEvent.click(getByTestId("tasks-new"));
-    fireEvent.change(await findByTestId("task-form-title"), { target: { value: "Refunds in cents" } });
-    fireEvent.click(getByTestId("task-form-save"));
-    await waitFor(() => expect(calls()).toContain("create:task:Refunds in cents"));
+    fireEvent.click(getByTestId("task-cancel-open"));
+    expect(getByTestId("task-cancel").textContent).toContain("Cancel aj-7f3c?");
+    expect(calls()).not.toContain("cancel:aj-7f3c");
+    fireEvent.click(getByTestId("task-cancel-go"));
+    await waitFor(() => expect(calls()).toContain("cancel:aj-7f3c"));
+    await waitFor(() => expect(getByTestId("task-history").textContent).toContain("You cancelled it"));
+    expect(queryByTestId("task-actions")).toBeNull();
+    fireEvent.click(getByTestId("tasks-filter-closed"));
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.textContent?.includes("Write the docs"))!);
+    await waitFor(() => expect(getByTestId("task-view").textContent).toContain("Write the docs"));
+    expect(queryByTestId("task-actions")).toBeNull();
   });
 
   it("starts a session for a task only on your pick: your project's default, never by usage", async () => {
-    const { findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
     fireEvent.click(getByTestId("task-start-open"));
     const picker = (await findByTestId("task-start-profile")) as HTMLSelectElement;
@@ -193,12 +254,12 @@ describe("a pool's tasks", () => {
   });
 
   it("a held task's session is one click away; Processes shows only once that view is there", async () => {
-    const { findAllByTestId, findByTestId, queryByTestId, rerender } = render(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    const { findAllByTestId, findByTestId, queryByTestId, rerender } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     fireEvent.click((await findAllByTestId("task-row")).find((r) => r.dataset.status === "in_progress")!);
     expect((await findByTestId("task-holder")).textContent).toContain("In progress with Builder, running now");
     expect(queryByTestId("task-processes")).toBeNull();
     provideProcessesLink(() => ({ label: "Its processes", open: () => undefined }));
-    rerender(<PoolTasks poolId="pool-team" members={members} sessions={MOCK_SESSIONS} projects={[project]} now={NOW + 1} />);
+    rerender(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW + 1} />);
     expect((await findByTestId("task-processes")).textContent).toBe("Its processes");
   });
 
@@ -323,9 +384,20 @@ describe("a session's tasks and the pages", () => {
   });
 });
 
+describe("the app reads tasks; agents write them (D-44)", () => {
+  it("the IPC module offers no way to create, edit, assign or link a task", () => {
+    const names = Object.keys(tasksIpc);
+    expect(names.filter((name) => /^tasks(Create|Edit|Assign|Link)$/.test(name))).toEqual([]);
+    for (const command of ["tasks_create", "tasks_edit", "tasks_assign", "tasks_link"]) {
+      expect(TasksIpcSource.includes(`"${command}"`)).toBe(false);
+    }
+    expect(names).toEqual(expect.arrayContaining(["tasksApprove", "tasksSendBack", "tasksFree", "tasksCancel", "tasksStart"]));
+  });
+});
+
 describe("readability", () => {
   it("no text smaller than 12 px in the task views", () => {
-    const files: Record<string, string> = { PoolTasksSource, TaskViewSource, TaskRowSource, TaskFormSource, TaskTreeSource, TaskLinksSource, StartSessionSource, TaskNeedsSource, PillSource };
+    const files: Record<string, string> = { PoolTasksSource, TaskViewSource, TaskRowSource, TaskTreeSource, TaskLinksSource, StartSessionSource, TaskNeedsSource, PillSource };
     for (const [file, text] of Object.entries(files)) {
       const small = (text.match(/text-\[(\d+(?:\.\d+)?)px\]/g) ?? []).filter((cls: string) => Number(cls.slice(6, -3)) < 12);
       expect(small, file).toEqual([]);

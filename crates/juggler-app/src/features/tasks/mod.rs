@@ -1,9 +1,15 @@
 //! E19 (D-28, D-31): the tasks a pool shares — epics, stories and tasks,
 //! with honest states and atomic claims.
 //!
-//! - **One set of operations** ([`apply`]) for an agent's call, the
-//!   user's answer to a held ask and the user's own edits in the app:
-//!   create, claim, change, give back, assign, and ask for a session. Each
+//! - **Agents write the tasks; the user sees and tracks them** (D-44,
+//!   2026-10-27). The app makes no task, and edits, assigns or links
+//!   none: the user manages tasks through the agents. Its only changes
+//!   are the user's four ([`oversight`]): approve or send back a task in
+//!   review, free one whose holder's session ended, cancel one; and it
+//!   starts a session for one ([`launch`]).
+//! - **One set of operations** ([`apply`]) for an agent's call and the
+//!   user's answer to an agent's held ask: create, claim, change, give
+//!   back, assign, and ask for a session. Each
 //!   checks the task rules (`juggler_core::tasks`: the lead plans and
 //!   assigns; a member works what it holds) and writes through the store,
 //!   which logs every change.
@@ -17,9 +23,8 @@
 //! - **Tasks follow the work**: a task's holder is a member ref (its Work
 //!   item once it has one), so a switch keeps it, and every session that
 //!   worked it is linked (the switch history shows it).
-//! - The user's own reads and edits ([`views`]), the issue a task comes
-//!   from ([`issues`]) and the **commands** ([`commands`]) the window
-//!   calls.
+//! - The user's reads ([`views`]), the issue a task comes from
+//!   ([`issues`]) and the **commands** ([`commands`]) the window calls.
 //!
 //! Hard lines (D-28): nothing here changes a pool, a level or a rule for
 //! an agent, starts a session for an agent, picks an account, reads a
@@ -32,6 +37,7 @@ pub mod dto;
 pub mod issues;
 pub mod launch;
 pub mod needs;
+pub mod oversight;
 pub mod views;
 
 use std::sync::{Arc, Mutex};

@@ -3,9 +3,12 @@
  * ENGINEERING-GUIDE U3). Only the app's window calls these: an agent
  * reaches tasks through its own tools, never here.
  *
- * Every write is the user's: a task, a change, an assignment, a link, an
- * answer to an agent's held change, a session started for a task (on the
- * launch settings the user picks, D-31), an issue looked up.
+ * D-44: agents write and run the tasks; you see and track them here.
+ * Nothing here makes, edits, assigns or links a task. Your only writes:
+ * approve or send back a task in review, free one whose holder's session
+ * ended, cancel one, answer an agent's held change or request, start a
+ * session for a task (on the launch settings you pick, D-31), look an
+ * issue up.
  *
  * The preview keeps its own tasks, seeded by `__AIJ_TASKS__`, and records
  * the calls that change them in `__AIJ_TASKS_CALLS__`.
@@ -17,8 +20,7 @@ import type { TaskInfo } from "../../types/generated/TaskInfo";
 import type { TaskCounts } from "../../types/generated/TaskCounts";
 import type { Page, PageRequest } from "../paged";
 import type { TaskDetail } from "../../types/generated/TaskDetail";
-import type { TaskInput } from "../../types/generated/TaskInput";
-import type { TaskEdit } from "../../types/generated/TaskEdit";
+import type { TaskActions } from "../../types/generated/TaskActions";
 import type { TaskNeedInfo } from "../../types/generated/TaskNeedInfo";
 import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
 
@@ -26,13 +28,14 @@ import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
  * task (`aj-7f3c · title`), from the backend's `task` field. */
 export type EpochTask = { task?: string | null };
 
-export type { TaskInfo, TaskCounts, TaskDetail, TaskInput, TaskEdit, TaskNeedInfo, TaskStartedInfo };
+export type { TaskInfo, TaskCounts, TaskDetail, TaskActions, TaskNeedInfo, TaskStartedInfo };
 
 /** The event the backend sends when tasks change (the pools' ids). */
 export const TASKS_CHANGED = "tasks://changed";
 
-/** A task's full view in the preview, beyond its row. */
-export type PreviewDetail = Partial<Omit<TaskDetail, "task">>;
+/** A task's full view in the preview, beyond its row (its actions follow
+ * from the row, as the backend's do). */
+export type PreviewDetail = Partial<Omit<TaskDetail, "task" | "actions">>;
 
 /** What the preview starts with. */
 export interface TasksSeed {
@@ -101,6 +104,7 @@ function previewDetail(taskId: string): TaskDetail {
     history_next: null,
     issue: extra.issue ?? null,
     session_asked: data.needs.find((n) => n.kind === "launch" && n.task_id === taskId)?.id ?? null,
+    actions: previewActions(task),
   };
 }
 
@@ -184,88 +188,72 @@ export async function tasksDetail(taskId: string, cursor: string | null = null):
   return invoke<TaskDetail>("tasks_detail", { taskId, cursor });
 }
 
-/** You add a task. */
-export async function tasksCreate(input: TaskInput): Promise<TaskDetail> {
-  if (!hasLiveBackend()) {
-    const title = input.title.trim();
-    if (!title) throw refused("a task needs a title");
-    record(`create:${input.kind}:${title}`);
-    const data = preview();
-    const id = `aj-${(0x1000 + data.tasks.length).toString(16)}`;
-    data.tasks.push({
-      id,
-      pool_id: input.pool_id,
-      kind: input.kind,
-      parent_id: input.parent_id,
-      title,
-      status: input.status,
-      stored_status: null,
-      priority: input.priority,
-      holder: null,
-      holder_session_id: null,
-      blocked_by: input.blocked_by,
-      items: 0,
-      items_done: 0,
-      written_by: "You",
-      by_agent: false,
-      updated_at_ms: Date.now(),
-      issue_label: null,
-    });
-    data.details[id] = { body: input.body, acceptance: input.acceptance, history: [{ id: 1, at_ms: Date.now(), who: "You", by_agent: false, what: "added it" }] };
-    changed();
-    return previewDetail(id);
-  }
-  return invoke<TaskDetail>("tasks_create", { input });
+/** What you may do to a preview task now (the backend's `may_user`). */
+function previewActions(task: TaskInfo): TaskActions {
+  const open = task.status !== "done" && task.status !== "cancelled";
+  return {
+    review: (task.stored_status ?? task.status) === "in_review",
+    free: task.holder !== null && task.holder_session_id === null,
+    cancel: open,
+  };
 }
 
-/** You change a task (any field, any status); what isn't said stays. */
-export async function tasksEdit(change: Partial<TaskEdit> & { task_id: string }): Promise<TaskDetail> {
-  const edit: TaskEdit = { title: null, body: null, acceptance: null, priority: null, status: null, parent_id: null, url: null, note: null, ...change };
-  if (!hasLiveBackend()) {
-    record(`edit:${edit.task_id}:${edit.status ?? ""}`);
-    const task = preview().tasks.find((t) => t.id === edit.task_id);
-    if (!task) throw refused("That task isn't there any more");
-    if (edit.status) task.status = edit.status;
-    if (edit.title) task.title = edit.title;
-    if (edit.priority) task.priority = edit.priority;
-    const extra = (preview().details[edit.task_id] ??= {});
-    if (edit.body !== null && edit.body !== undefined) extra.body = edit.body;
-    if (edit.acceptance !== null && edit.acceptance !== undefined) extra.acceptance = edit.acceptance;
-    task.updated_at_ms = Date.now();
-    changed();
-    return previewDetail(edit.task_id);
-  }
-  return invoke<TaskDetail>("tasks_edit", { edit });
+/** The preview's take on one of your four actions: the same rules as the
+ * backend, the change, and a line in the task's history. */
+function previewAct(taskId: string, call: string, may: keyof TaskActions, change: (task: TaskInfo) => void, what: string): TaskDetail {
+  record(call);
+  const task = preview().tasks.find((t) => t.id === taskId);
+  if (!task) throw refused("That task isn't there any more");
+  if (!previewActions(task)[may]) throw refused("That task has moved on: look again");
+  change(task);
+  task.stored_status = null;
+  task.updated_at_ms = Date.now();
+  const extra = (preview().details[taskId] ??= {});
+  const history = extra.history ?? [];
+  extra.history = [{ id: (history[0]?.id ?? 0) + 1, at_ms: Date.now(), who: "You", by_agent: false, what }, ...history];
+  changed();
+  return previewDetail(taskId);
 }
 
-/** You give a task to a member (its session), to yourself (`you`) or to
- * no one (`nobody`). */
-export async function tasksAssign(taskId: string, to: string): Promise<TaskDetail> {
-  if (!hasLiveBackend()) {
-    record(`assign:${taskId}:${to}`);
-    const task = preview().tasks.find((t) => t.id === taskId);
-    if (!task) throw refused("That task isn't there any more");
-    task.holder = to === "nobody" ? null : to === "you" ? "You" : to;
-    task.holder_session_id = to === "nobody" || to === "you" ? null : to;
-    changed();
-    return previewDetail(taskId);
-  }
-  return invoke<TaskDetail>("tasks_assign", { taskId, to });
+/** You approve a task its holder marked in review: it's done (D-44). */
+export async function tasksApprove(taskId: string): Promise<TaskDetail> {
+  if (!hasLiveBackend()) return previewAct(taskId, `approve:${taskId}`, "review", (t) => (t.status = "done"), "approved it: done");
+  return invoke<TaskDetail>("tasks_approve", { taskId });
 }
 
-/** You link two tasks (`blocked_by`, `blocks`, `relates_to`,
- * `duplicates`), or take the link back. */
-export async function tasksLink(taskId: string, other: string, kind: string, on: boolean): Promise<TaskDetail> {
+/** You send a task in review back to in progress, with a note its holder
+ * gets as your message (D-44). */
+export async function tasksSendBack(taskId: string, note: string): Promise<TaskDetail> {
   if (!hasLiveBackend()) {
-    record(`link:${taskId}:${kind}:${other}:${on}`);
-    const extra = (preview().details[taskId] ??= {});
-    const target = preview().tasks.find((t) => t.id === other);
-    extra.links = (extra.links ?? []).filter((l) => !(l.task_id === other && l.kind === kind));
-    if (on && target) extra.links.push({ kind, task_id: other, title: target.title, status: target.status });
-    changed();
-    return previewDetail(taskId);
+    if (!note.trim()) throw refused("Say what should change: a short note");
+    return previewAct(taskId, `send-back:${taskId}:${note.trim()}`, "review", (t) => (t.status = t.holder ? "in_progress" : "ready"), `sent it back: ${note.trim()}`);
   }
-  return invoke<TaskDetail>("tasks_link", { taskId, other, kind, on });
+  return invoke<TaskDetail>("tasks_send_back", { taskId, note });
+}
+
+/** You free a task whose holder's session ended or crashed, so another
+ * agent can take it (D-44). */
+export async function tasksFree(taskId: string): Promise<TaskDetail> {
+  if (!hasLiveBackend()) {
+    return previewAct(
+      taskId,
+      `free:${taskId}`,
+      "free",
+      (t) => {
+        if (t.status === "in_progress") t.status = "ready";
+        t.holder = null;
+        t.holder_session_id = null;
+      },
+      "freed it: its session had ended",
+    );
+  }
+  return invoke<TaskDetail>("tasks_free", { taskId });
+}
+
+/** You cancel an open task (D-44). */
+export async function tasksCancel(taskId: string): Promise<TaskDetail> {
+  if (!hasLiveBackend()) return previewAct(taskId, `cancel:${taskId}`, "cancel", (t) => (t.status = "cancelled"), "cancelled it");
+  return invoke<TaskDetail>("tasks_cancel", { taskId });
 }
 
 /** What about tasks waits on you (Needs you). */

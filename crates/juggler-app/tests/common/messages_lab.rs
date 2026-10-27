@@ -260,3 +260,24 @@ pub fn field(response: &Response, pointer: &str) -> String {
         })
         .unwrap_or_default()
 }
+
+/// The pool's planner, a lead agent: who writes the tests' tasks (the app
+/// writes none, D-44). Only the task suites use it.
+#[allow(dead_code)]
+pub fn planner() -> juggler_app::features::tasks::Actor {
+    juggler_app::features::tasks::Actor {
+        session: None,
+        member_ref: "session:s-planner".to_owned(),
+        name: "Planner".to_owned(),
+        role: juggler_core::tasks::Role::Lead,
+        refs: vec!["session:s-planner".to_owned()],
+    }
+}
+
+/// The planner adds a task to `pool`, as its `task_create` would; its id.
+#[allow(dead_code)]
+pub fn seed_task(state: &Arc<AppState>, pool: &str, args: wire::TaskCreateArgs) -> String {
+    juggler_app::features::tasks::apply::create(state, &planner(), pool, &args)
+        .unwrap()
+        .id
+}

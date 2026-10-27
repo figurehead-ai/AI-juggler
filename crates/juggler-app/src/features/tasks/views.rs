@@ -1,22 +1,20 @@
-//! AJ-E1903: the user's tasks in the app — a pool's list (ready work
-//! first, a page at a time), the epic and story tree behind a fold, a
-//! session's tasks, one task in full with its holder, sessions, messages
-//! and history, and the user's own edits (the user owns every pool: no
-//! `allowed` here, and every change is logged as the user's).
+//! AJ-E1903 (D-44): the user sees and tracks the agents' work — a pool's
+//! list (ready work first, a page at a time), the epic and story tree
+//! behind a fold, a session's tasks, and one task in full with its
+//! holder, sessions, messages, history and the actions it offers now.
+//! Reads only: agents write the tasks; the user's four actions are
+//! [`super::oversight`]'s.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use juggler_agentbridge::wire::TaskCreateArgs;
 use juggler_core::model::SessionId;
-use juggler_core::storage::{Storage, TASK_USER, Task, TaskChange, TaskKey, TaskQuery};
-use juggler_core::tasks::{LinkKind, TaskKind, TaskStatus};
+use juggler_core::storage::{Storage, TASK_USER, Task, TaskKey, TaskQuery};
+use juggler_core::tasks::{TaskKind, TaskStatus, UserAction, may_user};
 
-use super::Actor;
-use super::apply::{self, Assignee};
 use super::dto::{
-    TaskCounts, TaskDetail, TaskEdit, TaskEventInfo, TaskInfo, TaskInput, TaskIssueInfo,
-    TaskLinkInfo, TaskSessionInfo, TaskThreadInfo,
+    TaskActions, TaskCounts, TaskDetail, TaskEventInfo, TaskInfo, TaskIssueInfo, TaskLinkInfo,
+    TaskSessionInfo, TaskThreadInfo,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -324,6 +322,12 @@ fn what(verb: &str, detail: Option<&str>) -> String {
         "asked_for_session" if detail.is_empty() => "asked you for a new session for it".to_owned(),
         "asked_for_session" => format!("asked you for a new session for it: {detail}"),
         "session_started" => format!("started a session for it: {detail}"),
+        "approved" => "approved it: done".to_owned(),
+        "sent_back" => format!("sent it back: {detail}"),
+        "freed" if detail.is_empty() => "freed it: its session had ended".to_owned(),
+        "freed" => format!("freed it from {detail}, whose session had ended"),
+        "cancelled" if detail.is_empty() => "cancelled it".to_owned(),
+        "cancelled" => format!("cancelled it: {detail}"),
         "issue_looked_up" => format!("looked up the issue: {detail}"),
         other => other.replace('_', " "),
     }
@@ -408,6 +412,26 @@ fn history_of(events: &[juggler_core::storage::TaskEvent]) -> (Vec<TaskEventInfo
     (page, next)
 }
 
+/// What the user may do to `task` now (D-44): the same rules the actions
+/// check when they're done. `holder_running`: a session of its holder
+/// runs.
+pub(crate) fn actions_of(task: &Task, holder_running: bool) -> TaskActions {
+    let may = |action| {
+        may_user(
+            action,
+            task.stored,
+            task.assignee_ref.is_some(),
+            holder_running,
+        )
+        .is_ok()
+    };
+    TaskActions {
+        review: may(UserAction::Approve),
+        free: may(UserAction::Free),
+        cancel: may(UserAction::Cancel),
+    }
+}
+
 /// One task in full, with a page of its history (`cursor`: older).
 ///
 /// # Errors
@@ -431,6 +455,7 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
     let task = repo
         .get(task_id)?
         .ok_or_else(|| AppError::Refused("That task isn't there any more".to_owned()))?;
+    let row = info(&storage, &task);
     let before = cursor
         .and_then(|c| c.strip_prefix('h'))
         .and_then(|n| n.parse().ok());
@@ -484,156 +509,7 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
         history,
         issue: issue_of(state, &task),
         session_asked,
-        task: info(&storage, &task),
+        actions: actions_of(&task, row.holder_session_id.is_some()),
+        task: row,
     })
-}
-
-/// The user adds a task.
-///
-/// # Errors
-///
-/// [`AppError::Refused`] in words for a field that isn't taken.
-pub fn create(state: &Arc<AppState>, input: TaskInput) -> AppResult<TaskDetail> {
-    crate::features::messages::pool_name(&*lock_storage_arc(state)?, &input.pool_id)?;
-    let task = apply::create(
-        state,
-        &Actor::user(),
-        &input.pool_id,
-        &TaskCreateArgs {
-            title: input.title,
-            body: Some(input.body),
-            acceptance: Some(input.acceptance),
-            kind: Some(input.kind),
-            parent: input.parent_id.filter(|p| !p.is_empty()),
-            priority: Some(input.priority),
-            status: Some(input.status),
-            blocked_by: input.blocked_by,
-            url: input.url.filter(|u| !u.trim().is_empty()),
-        },
-    )?;
-    detail(state, &task.id, None)
-}
-
-/// The user changes a task (any field, any status).
-///
-/// # Errors
-///
-/// [`AppError::Refused`] in words for a field that isn't taken.
-pub fn edit(state: &Arc<AppState>, edit: &TaskEdit) -> AppResult<TaskDetail> {
-    let pool = lock_storage_arc(state)?
-        .tasks()
-        .get(&edit.task_id)?
-        .map(|t| t.pool_id)
-        .ok_or_else(|| AppError::Refused("That task isn't there any more".to_owned()))?;
-    let args = juggler_agentbridge::wire::TaskUpdateArgs {
-        task: edit.task_id.clone(),
-        status: edit.status.clone(),
-        release: false,
-        note: edit.note.clone(),
-        title: edit.title.clone(),
-        body: edit.body.clone(),
-        acceptance: edit.acceptance.clone(),
-        priority: edit.priority.clone(),
-        blocked_by: Vec::new(),
-        url: edit.url.clone(),
-    };
-    let only_parent = edit.title.is_none()
-        && edit.body.is_none()
-        && edit.acceptance.is_none()
-        && edit.priority.is_none()
-        && edit.status.is_none()
-        && edit.url.is_none()
-        && edit.note.is_none();
-    if !only_parent {
-        apply::update(state, &Actor::user(), &pool, &args)?;
-    }
-    if let Some(parent) = edit.parent_id.as_deref() {
-        let parent = parent.trim();
-        lock_storage_arc(state)?
-            .tasks()
-            .update(
-                &edit.task_id,
-                &TaskChange {
-                    parent: Some((!parent.is_empty()).then_some(parent)),
-                    ..TaskChange::default()
-                },
-                Actor::user().who(),
-            )
-            .map_err(|error| match error {
-                juggler_core::CoreError::Validation { message, .. } => AppError::Refused(message),
-                other => other.into(),
-            })?;
-        state.tasks.notify(&pool);
-    }
-    detail(state, &edit.task_id, None)
-}
-
-/// The user gives a task to a member (its session), to themselves
-/// (`you`) or to no one (`nobody`).
-///
-/// # Errors
-///
-/// [`AppError::Refused`] for a session that isn't in the pool.
-pub fn assign(state: &Arc<AppState>, task_id: &str, to: &str) -> AppResult<TaskDetail> {
-    let task = lock_storage_arc(state)?
-        .tasks()
-        .get(task_id)?
-        .ok_or_else(|| AppError::Refused("That task isn't there any more".to_owned()))?;
-    if to == "you" {
-        lock_storage_arc(state)?.tasks().assign(
-            task_id,
-            Some((TASK_USER, super::YOU)),
-            Actor::user().who(),
-        )?;
-        state.tasks.notify(&task.pool_id);
-    } else {
-        let to = if to == "nobody" {
-            Assignee::Nobody
-        } else {
-            Assignee::Member(to.to_owned())
-        };
-        apply::assign(state, &Actor::user(), &task.pool_id, task_id, &to)?;
-    }
-    detail(state, task_id, None)
-}
-
-/// The user links two tasks of a pool, or takes the link back.
-///
-/// # Errors
-///
-/// [`AppError::Refused`] in words (a loop, another pool's task).
-pub fn link(
-    state: &Arc<AppState>,
-    task_id: &str,
-    other: &str,
-    kind: &str,
-    on: bool,
-) -> AppResult<TaskDetail> {
-    let (from, to, kind) = match kind {
-        "blocked_by" => (other, task_id, LinkKind::Blocks),
-        "duplicated_by" => (other, task_id, LinkKind::Duplicates),
-        word => (
-            task_id,
-            other,
-            LinkKind::parse(word).ok_or_else(|| AppError::Validation {
-                subject: "link",
-                message: format!("{word} isn't a link"),
-            })?,
-        ),
-    };
-    let storage = lock_storage_arc(state)?;
-    let repo = storage.tasks();
-    let result = if on {
-        repo.link(from.trim(), to.trim(), kind, Actor::user().who())
-    } else {
-        repo.unlink(from.trim(), to.trim(), kind, Actor::user().who())
-    };
-    result.map_err(|error| match error {
-        juggler_core::CoreError::Validation { message, .. } => AppError::Refused(message),
-        other => other.into(),
-    })?;
-    let pool = repo.get(task_id)?.map(|t| t.pool_id).unwrap_or_default();
-    drop(storage);
-    state.tasks.notify(&pool);
-    detail(state, task_id, None)
 }

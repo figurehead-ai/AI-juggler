@@ -21,7 +21,7 @@ use juggler_agentbridge::wire::{
     self, Args, Call, Request, Response, TaskArgs, TaskUpdateArgs, TasksListArgs,
 };
 use juggler_app::commands;
-use juggler_app::features::tasks::{dto::TaskInput, views};
+use juggler_app::features::tasks::{Actor, apply, views};
 use juggler_app::features::{agent_bridge, pools};
 use juggler_app::state::AppState;
 use juggler_core::model::SessionId;
@@ -145,23 +145,26 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
         .unwrap()
         .id;
     let pool = juggler_core::storage::default_pool_id(Some(&project));
-    let id = views::create(
+    // The pool's lead writes it (the app writes no task, D-44).
+    let lead = Actor {
+        session: None,
+        member_ref: "session:s-lead".into(),
+        name: "Lead".into(),
+        role: juggler_core::tasks::Role::Lead,
+        refs: vec!["session:s-lead".into()],
+    };
+    let id = apply::create(
         &state,
-        TaskInput {
-            pool_id: pool.clone(),
+        &lead,
+        &pool,
+        &wire::TaskCreateArgs {
             title: "Build the API".into(),
-            body: "Orders, then the cart.".into(),
-            acceptance: String::new(),
-            kind: "task".into(),
-            parent_id: None,
-            priority: "high".into(),
-            status: "ready".into(),
-            url: None,
-            blocked_by: Vec::new(),
+            body: Some("Orders, then the cart.".into()),
+            priority: Some("high".into()),
+            ..wire::TaskCreateArgs::default()
         },
     )
     .unwrap()
-    .task
     .id;
     let planner_key = key(&state, &planner, &a.id, project.as_str());
     let claimed = call(

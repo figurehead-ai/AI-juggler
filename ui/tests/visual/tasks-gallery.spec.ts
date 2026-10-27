@@ -9,6 +9,8 @@
  * - A task someone has: its session one click away (and its Processes
  *   tab, D-41), the sessions that worked it; "Start a session for it"
  *   with the launch settings picker.
+ * - D-44: a task in review, its holder's session ended: Approve, Send
+ *   back (its note open) and Free. No New task, no fields to change.
  * - Home's Needs you: an agent's held change (the approval card) and an
  *   agent's request for a session (you pick, then Start).
  * - A session's Tasks tab; the switch history with each session's task;
@@ -89,6 +91,16 @@ const DETAILS = {
       { id: 3, at_ms: T0 - 12 * MIN, who: "Planner", by_agent: true, what: "linked aj-7f3c blocks aj-b10c" },
       { id: 2, at_ms: T0 - 20 * MIN, who: "You", by_agent: false, what: "looked up the issue: open · Orders API for the new checkout" },
       { id: 1, at_ms: T0 - 25 * MIN, who: "Planner", by_agent: true, what: "added it" },
+    ],
+  },
+  "aj-9e41": {
+    pool_name: "Checkout redesign",
+    body: "Shipping options show live rates from the carrier's API for the cart's weight and the address's postcode.",
+    acceptance: "- rates for the three carriers we ship with\n- a carrier that times out shows the others",
+    history: [
+      { id: 3, at_ms: T0 - 18 * MIN, who: "Builder", by_agent: true, what: "moved it: In progress → In review" },
+      { id: 2, at_ms: T0 - 75 * MIN, who: "Builder", by_agent: true, what: "took it" },
+      { id: 1, at_ms: T0 - 140 * MIN, who: "Planner", by_agent: true, what: "added it" },
     ],
   },
   "aj-1a2b": {
@@ -240,15 +252,23 @@ for (const theme of ["dark", "light"] as const) {
     await axe(page, `task start ${theme}`);
   });
 
-  test(`a new task — 1680x1050 ${theme}`, async ({ page }) => {
+  test(`a task in review — 1680x1050 ${theme}`, async ({ page }) => {
     await open(page, theme, 1680, 1050, false);
     await poolTasks(page);
-    await page.getByTestId("tasks-new").click();
-    await page.getByTestId("task-form-title").fill("Refunds move to integer cents");
-    await page.getByTestId("task-form-more").click();
+    await expect(page.getByTestId("tasks-new")).toHaveCount(0);
+    await page.getByTestId("tasks-filter-in_review").click();
+    await page.getByTestId("task-row").filter({ hasText: "Shipping rates" }).click();
+    await expect(page.getByTestId("task-approve")).toBeVisible();
+    await expect(page.getByTestId("task-holder-ended")).toContainText("Builder, whose session has ended");
+    await expect(page.getByTestId("task-free")).toBeVisible();
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `task-new-1680x1050-${theme}.png`) });
-    await axe(page, `new task ${theme}`);
+    await page.screenshot({ path: resolve(OUT, `task-review-1680x1050-${theme}.png`) });
+    await axe(page, `task review ${theme}`);
+    await page.getByTestId("task-send-back-open").click();
+    await page.getByTestId("task-send-back-note").fill("Rates must come from the carrier's API, not the fixed table");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `task-send-back-1680x1050-${theme}.png`) });
+    await axe(page, `task send back ${theme}`);
   });
 
   test(`a session's tasks — 1680x1050 ${theme}`, async ({ page }) => {

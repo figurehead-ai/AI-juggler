@@ -2,8 +2,12 @@
  * E19 (AJ-E1903) — a pool's Tasks tab: its tasks on the left, ready work
  * first, read a page at a time (`usePagedList`, the backend's keyset
  * pages), with how many are in each state; the epic and story plan behind
- * its own fold; the open task (or a new one) on the right. Loaded only
- * when the tab is first shown.
+ * its own fold; the open task on the right. Loaded only when the tab is
+ * first shown.
+ *
+ * D-44: you see and track the agents' work here; the agents write the
+ * tasks (no New task, no editing). A task offers only your four actions
+ * (`TaskView`).
  *
  * Also a session's Tasks tab: what it holds and what it worked.
  */
@@ -15,7 +19,6 @@ import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";
 import { useActionHost } from "../../components/ItemMenu";
 import { focusTask, onTasksChanged, takeFocusedTask, tasksCounts, tasksList, tasksOfSession, tasksPlan, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
-import { TaskForm } from "./TaskForm";
 import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
@@ -52,7 +55,7 @@ function Skeleton({ label, rows }: { label: string; rows: number }): JSX.Element
   );
 }
 
-export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId: string; members: { session_id: string; name: string }[]; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
+export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
   const pool = usePools()?.pools.find((p) => p.id === poolId);
   const defaultAccount = projects.find((p) => p.id === pool?.project_id)?.default_account_id ?? null;
   const [filter, setFilter] = useState<string>("open");
@@ -61,7 +64,6 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
   const [query, setQuery] = useState("");
   const [counts, setCounts] = useState<TaskCounts | null>(null);
   const [open, setOpen] = useState<string | null>(takeFocusedTask);
-  const [writing, setWriting] = useState(false);
   useTasksRefresh();
   // What's typed is looked for once typing pauses.
   useEffect(() => {
@@ -79,7 +81,7 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
     };
   }, [poolId]);
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
-  // The plan's folds, and where a new task may go.
+  // The plan's folds.
   const plan = usePagedList(`tasks-plan:${poolId}`, (page) => tasksPlan(poolId, page), { pageSize: PLAN_PAGE, keyOf: (task) => task.id });
   const first = list.items[0]?.id ?? null;
   useEffect(() => {
@@ -126,9 +128,6 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
             ))}
           </div>
           {view === "list" && <input type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
-          <Button size="md" variant="primary" onClick={() => setWriting(true)} data-testid="tasks-new">
-            New task
-          </Button>
         </div>
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
@@ -137,18 +136,18 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
             plan.loading ? (
               <Skeleton label="Loading the plan" rows={3} />
             ) : (
-              <TaskTree plan={plan.items} poolId={poolId} open={writing ? null : open} now={now} onOpen={(id) => (setOpen(id), setWriting(false))} />
+              <TaskTree plan={plan.items} poolId={poolId} open={open} now={now} onOpen={setOpen} />
             )
           ) : !read ? (
             <Skeleton label="Loading the tasks" rows={4} />
           ) : rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="tasks-empty">
-              {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. Add one, or let the pool's agents add theirs: they take ready work with their own tools."}
+              {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work."}
             </p>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="task-list">
               {rows.map((task) => (
-                <TaskRow key={task.id} task={task} now={now} selected={!writing && task.id === open} onOpen={() => (setOpen(task.id), setWriting(false))} />
+                <TaskRow key={task.id} task={task} now={now} selected={task.id === open} onOpen={() => setOpen(task.id)} />
               ))}
             </ul>
           )}
@@ -164,13 +163,12 @@ export function PoolTasks({ poolId, members, sessions, projects, now }: { poolId
           )}
         </aside>
         <div className="min-w-0 rounded-xl border border-hairline bg-surface p-4">
-          {writing || (open === null && read) ? (
-            <div className="flex flex-col gap-3">
-              <h3 className="text-[16px] font-semibold text-ink">New task</h3>
-              <TaskForm poolId={poolId} plan={plan.items} onMade={(detail) => (setWriting(false), setOpen(detail.task.id))} onCancel={open ? () => setWriting(false) : undefined} />
-            </div>
-          ) : open ? (
-            <TaskView key={open} taskId={open} members={members} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={(id) => (setOpen(id), setWriting(false))} />
+          {open ? (
+            <TaskView key={open} taskId={open} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={setOpen} />
+          ) : read ? (
+            <p className="text-meta text-muted" data-testid="task-none-open">
+              The tasks the pool's agents write and work show here, with who has each and its history. You follow them; you approve or send back what's in review.
+            </p>
           ) : null}
         </div>
       </div>

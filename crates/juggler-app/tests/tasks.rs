@@ -14,6 +14,9 @@
 //!   switch keeps the task (the switch history shows each session's).
 //! - The issue a task comes from is looked up only on the user's click,
 //!   through their own `gh`, and offline says so.
+//!
+//! D-44: the app writes no task, so these tests' tasks are written by the
+//! pool's planner (a lead agent), as its `task_create` would.
 
 #![allow(
     clippy::unwrap_used,
@@ -36,10 +39,10 @@ use juggler_agentbridge::wire::{
     TasksListArgs,
 };
 use juggler_app::features::pools;
-use juggler_app::features::tasks::{dto::TaskInput, issues, launch, needs, views};
+use juggler_app::features::tasks::{apply, issues, launch, needs, views};
 use juggler_app::paging::PageRequest;
 use juggler_core::model::SessionId;
-use lab::{Lab, field};
+use lab::{Lab, field, planner, seed_task};
 
 fn first_page() -> PageRequest {
     PageRequest::first(50)
@@ -113,41 +116,32 @@ fn list(lab: &Lab, key: &str, args: TasksListArgs) -> Vec<serde_json::Value> {
         .clone()
 }
 
-/// The user adds a task to the lab's pool; its id.
+/// The planner adds a task to the lab's pool; its id.
 fn task(lab: &Lab, title: &str, blocked_by: &[&str]) -> String {
-    views::create(
+    seed_task(
         &lab.state,
-        TaskInput {
-            pool_id: lab.pool.clone(),
+        &lab.pool,
+        TaskCreateArgs {
             title: title.into(),
-            body: String::new(),
-            acceptance: "- tests pass".into(),
-            kind: "task".into(),
-            parent_id: None,
-            priority: "normal".into(),
-            status: "ready".into(),
-            url: None,
+            acceptance: Some("- tests pass".into()),
             blocked_by: blocked_by.iter().map(|id| (*id).to_owned()).collect(),
+            ..TaskCreateArgs::default()
         },
     )
-    .unwrap()
-    .task
-    .id
 }
 
-fn input(lab: &Lab, title: &str) -> TaskInput {
-    TaskInput {
-        pool_id: lab.pool.clone(),
-        title: title.into(),
-        body: String::new(),
-        acceptance: String::new(),
-        kind: "task".into(),
-        parent_id: None,
-        priority: "normal".into(),
-        status: "ready".into(),
-        url: None,
-        blocked_by: Vec::new(),
-    }
+/// The planner adds an item of `kind` (under `parent`); its id.
+fn item(lab: &Lab, title: &str, kind: &str, parent: Option<&str>) -> String {
+    seed_task(
+        &lab.state,
+        &lab.pool,
+        TaskCreateArgs {
+            title: title.into(),
+            kind: Some(kind.into()),
+            parent: parent.map(str::to_owned),
+            ..TaskCreateArgs::default()
+        },
+    )
 }
 
 fn status_of(lab: &Lab, id: &str) -> String {
@@ -247,14 +241,7 @@ fn ready_lists_only_tasks_never_epics_or_stories() {
     let lab = Lab::new();
     let (_a, a) = lab.agent("s-a", "Builder");
     for kind in ["epic", "story"] {
-        views::create(
-            &lab.state,
-            TaskInput {
-                kind: kind.into(),
-                ..input(&lab, kind)
-            },
-        )
-        .unwrap();
+        item(&lab, kind, kind, None);
     }
     let only = task(&lab, "Write hello.txt", &[]);
     let ready = list(
@@ -566,40 +553,27 @@ fn a_card_shows_its_members_task() {
 }
 
 #[test]
-fn the_user_plans_an_epic_with_stories_and_sees_the_tree() {
+fn the_lead_plans_an_epic_with_stories_and_the_user_sees_the_tree() {
     let lab = Lab::new();
-    let input = |title: &str, kind: &str, parent: Option<&str>| TaskInput {
-        pool_id: lab.pool.clone(),
-        title: title.into(),
-        body: String::new(),
-        acceptance: String::new(),
-        kind: kind.into(),
-        parent_id: parent.map(str::to_owned),
-        priority: "normal".into(),
-        status: "ready".into(),
-        url: None,
-        blocked_by: Vec::new(),
-    };
-    let epic = views::create(&lab.state, input("Checkout redesign", "epic", None))
-        .unwrap()
-        .task
-        .id;
+    let epic = item(&lab, "Checkout redesign", "epic", None);
     let mut stories = Vec::new();
     for title in ["Address step", "Shipping step", "Payment step"] {
-        stories.push(
-            views::create(&lab.state, input(title, "story", Some(&epic)))
-                .unwrap()
-                .task
-                .id,
-        );
+        stories.push(item(&lab, title, "story", Some(&epic)));
     }
-    views::create(
-        &lab.state,
-        input("Validate postcodes", "task", Some(&stories[0])),
-    )
-    .unwrap();
+    item(&lab, "Validate postcodes", "task", Some(&stories[0]));
     assert!(
-        views::create(&lab.state, input("Wrong", "story", Some(&stories[0]))).is_err(),
+        apply::create(
+            &lab.state,
+            &planner(),
+            &lab.pool,
+            &TaskCreateArgs {
+                title: "Wrong".into(),
+                kind: Some("story".into()),
+                parent: Some(stories[0].clone()),
+                ..TaskCreateArgs::default()
+            },
+        )
+        .is_err(),
         "a story goes under an epic"
     );
     let plan = views::plan(&lab.state, &lab.pool, &first_page()).unwrap();
@@ -658,16 +632,28 @@ fn fake_gh(dir: &std::path::Path, out: &str, code: i32) -> std::path::PathBuf {
 fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
     let lab = Lab::new();
     let dir = tempfile::tempdir().unwrap();
-    let id = task(&lab, "Fix the cart", &[]);
-    views::edit(
+    let id = seed_task(
         &lab.state,
-        &juggler_app::features::tasks::dto::TaskEdit {
-            task_id: id.clone(),
+        &lab.pool,
+        TaskCreateArgs {
+            title: "Fix the cart".into(),
             url: Some("https://github.com/figurehead/shop/issues/42".into()),
-            ..Default::default()
+            ..TaskCreateArgs::default()
         },
-    )
-    .unwrap();
+    );
+    // The planner points it elsewhere, as its `task_update` would.
+    let relink = |url: &str| {
+        apply::update(
+            &lab.state,
+            &planner(),
+            &lab.pool,
+            &TaskUpdateArgs {
+                task: id.clone(),
+                url: Some(url.into()),
+                ..TaskUpdateArgs::default()
+            },
+        )
+    };
     // Nothing is looked up by itself.
     let detail = views::detail(&lab.state, &id, None).unwrap();
     let issue = detail.issue.unwrap();
@@ -719,29 +705,11 @@ fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
     let missing = issues::look_up(&lab.state, &id).unwrap_err().to_string();
     assert!(missing.contains(issues::NO_GH));
     // A Linear link names its issue from the link, and isn't looked up.
-    views::edit(
-        &lab.state,
-        &juggler_app::features::tasks::dto::TaskEdit {
-            task_id: id.clone(),
-            url: Some("https://linear.app/acme/issue/ENG-123/cart".into()),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    relink("https://linear.app/acme/issue/ENG-123/cart").unwrap();
     let issue = views::detail(&lab.state, &id, None).unwrap().issue.unwrap();
     assert_eq!(issue.label.as_deref(), Some("ENG-123"));
     assert!(!issue.can_look_up);
     assert!(issues::look_up(&lab.state, &id).is_err());
     // Only https links are kept.
-    assert!(
-        views::edit(
-            &lab.state,
-            &juggler_app::features::tasks::dto::TaskEdit {
-                task_id: id,
-                url: Some("javascript:alert(1)".into()),
-                ..Default::default()
-            },
-        )
-        .is_err()
-    );
+    assert!(relink("javascript:alert(1)").is_err());
 }

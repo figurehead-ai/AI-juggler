@@ -511,7 +511,16 @@ fn full(state: &Arc<AppState>, task: &Task, actor: &Actor) -> Value {
         .collect();
     value["history"] = events
         .iter()
-        .map(|e| json!({"at_ms": e.at, "who": e.actor_name, "what": e.verb, "detail": e.detail}))
+        .map(|e| {
+            // The user's own actions (D-44) say so: never "You", which an
+            // agent would read as itself.
+            let who = if e.actor_ref == TASK_USER {
+                "the user"
+            } else {
+                e.actor_name.as_str()
+            };
+            json!({"at_ms": e.at, "who": who, "what": e.verb, "detail": e.detail})
+        })
         .collect();
     value["url"] = json!(
         task.external

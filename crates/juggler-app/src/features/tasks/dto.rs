@@ -1,6 +1,6 @@
 //! The tasks' wire types (E19).
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use ts_rs::TS;
 
 /// One task, epic or story, as a row.
@@ -185,69 +185,24 @@ pub struct TaskDetail {
     pub issue: Option<TaskIssueInfo>,
     /// A request for a new session for it waits on you (its id).
     pub session_asked: Option<String>,
+    /// What you may do to it now (D-44).
+    pub actions: TaskActions,
 }
 
-/// What the user writes for a new task.
-#[derive(Debug, Clone, Deserialize, TS)]
+/// The user's actions a task offers now (D-44): agents write and run the
+/// tasks; the user approves or sends back, frees, cancels, and starts a
+/// session for one. Each is checked again when it's done.
+#[derive(Debug, Clone, Copy, Default, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct TaskInput {
-    /// The pool.
-    pub pool_id: String,
-    /// One line.
-    pub title: String,
-    /// What it asks.
-    #[serde(default)]
-    pub body: String,
-    /// When it's done.
-    #[serde(default)]
-    pub acceptance: String,
-    /// `task` | `story` | `epic`.
-    pub kind: String,
-    /// Its epic or story.
-    #[serde(default)]
-    pub parent_id: Option<String>,
-    /// `urgent` | `high` | `normal` | `low`.
-    pub priority: String,
-    /// `ready` | `todo`.
-    pub status: String,
-    /// The issue it comes from.
-    #[serde(default)]
-    pub url: Option<String>,
-    /// The tasks that must be done first.
-    #[serde(default)]
-    pub blocked_by: Vec<String>,
-}
-
-/// The user's change to a task. `None` leaves a field as it is.
-#[derive(Debug, Clone, Default, Deserialize, TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct TaskEdit {
-    /// The task.
-    pub task_id: String,
-    /// A new title.
-    #[serde(default)]
-    pub title: Option<String>,
-    /// A new body.
-    #[serde(default)]
-    pub body: Option<String>,
-    /// New acceptance criteria.
-    #[serde(default)]
-    pub acceptance: Option<String>,
-    /// A new priority.
-    #[serde(default)]
-    pub priority: Option<String>,
-    /// A new status.
-    #[serde(default)]
-    pub status: Option<String>,
-    /// A new parent (`""` takes it out).
-    #[serde(default)]
-    pub parent_id: Option<String>,
-    /// A new link (`""` removes it).
-    #[serde(default)]
-    pub url: Option<String>,
-    /// A note for its history.
-    #[serde(default)]
-    pub note: Option<String>,
+pub struct TaskActions {
+    /// It's in review: Approve (done) or Send back (in progress again,
+    /// with a note its holder gets).
+    pub review: bool,
+    /// Someone holds it and none of their sessions runs (it ended or
+    /// crashed): Free it, so another agent can take it.
+    pub free: bool,
+    /// It's open: Cancel it.
+    pub cancel: bool,
 }
 
 /// Something about tasks that waits on the user, for Needs you.

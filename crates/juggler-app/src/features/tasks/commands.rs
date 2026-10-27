@@ -1,13 +1,14 @@
 //! The tasks' commands (E19). Only the app's own window calls them; an
 //! agent can't (the bridge reaches tasks through its own calls, never
-//! these). Each write is the user's: a task, a change, an assignment, a
-//! link, an answer to a held ask, a session started for a task.
+//! these). The window reads; agents write the tasks (D-44). Its only
+//! writes are the user's: approve or send back a task in review, free a
+//! stuck one, cancel one, answer an agent's held ask or request, start a
+//! session for a task, look an issue up. None creates, edits, assigns or
+//! links a task.
 
 use std::sync::Arc;
 
-use super::dto::{
-    TaskCounts, TaskDetail, TaskEdit, TaskInfo, TaskInput, TaskNeedInfo, TaskStartedInfo,
-};
+use super::dto::{TaskCounts, TaskDetail, TaskInfo, TaskNeedInfo, TaskStartedInfo};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
@@ -116,70 +117,68 @@ pub async fn tasks_detail(
     .await
 }
 
-/// The user adds a task.
+/// The user approves a task in review (D-44): it's done.
 ///
 /// # Errors
 ///
-/// As [`super::views::create`].
+/// As [`super::oversight::approve`].
 #[tauri::command]
-pub async fn tasks_create(
-    state: tauri::State<'_, Arc<AppState>>,
-    input: TaskInput,
-) -> AppResult<TaskDetail> {
-    crate::ipc::blocking(state.inner(), "the task", move |state| {
-        super::views::create(state, input)
-    })
-    .await
-}
-
-/// The user changes a task.
-///
-/// # Errors
-///
-/// As [`super::views::edit`].
-#[tauri::command]
-pub async fn tasks_edit(
-    state: tauri::State<'_, Arc<AppState>>,
-    edit: TaskEdit,
-) -> AppResult<TaskDetail> {
-    crate::ipc::blocking(state.inner(), "the task", move |state| {
-        super::views::edit(state, &edit)
-    })
-    .await
-}
-
-/// The user gives a task to a member, to themselves or to no one.
-///
-/// # Errors
-///
-/// As [`super::views::assign`].
-#[tauri::command]
-pub async fn tasks_assign(
+pub async fn tasks_approve(
     state: tauri::State<'_, Arc<AppState>>,
     task_id: String,
-    to: String,
 ) -> AppResult<TaskDetail> {
     crate::ipc::blocking(state.inner(), "the task", move |state| {
-        super::views::assign(state, &task_id, &to)
+        super::oversight::approve(state, &task_id)
     })
     .await
 }
 
-/// The user links two tasks, or takes the link back.
+/// The user sends a task in review back to in progress with a note its
+/// holder gets (D-44).
 ///
 /// # Errors
 ///
-/// As [`super::views::link`].
+/// As [`super::oversight::send_back`].
 #[tauri::command]
-pub async fn tasks_link(
+pub async fn tasks_send_back(
     state: tauri::State<'_, Arc<AppState>>,
     task_id: String,
-    other: String,
-    kind: String,
-    on: bool,
+    note: String,
 ) -> AppResult<TaskDetail> {
     crate::ipc::blocking(state.inner(), "the task", move |state| {
-        super::views::link(state, &task_id, &other, &kind, on)
+        super::oversight::send_back(state, &task_id, &note)
+    })
+    .await
+}
+
+/// The user frees a task whose holder's session ended or crashed (D-44).
+///
+/// # Errors
+///
+/// As [`super::oversight::free`].
+#[tauri::command]
+pub async fn tasks_free(
+    state: tauri::State<'_, Arc<AppState>>,
+    task_id: String,
+) -> AppResult<TaskDetail> {
+    crate::ipc::blocking(state.inner(), "the task", move |state| {
+        super::oversight::free(state, &task_id)
+    })
+    .await
+}
+
+/// The user cancels an open task (D-44).
+///
+/// # Errors
+///
+/// As [`super::oversight::cancel`].
+#[tauri::command]
+pub async fn tasks_cancel(
+    state: tauri::State<'_, Arc<AppState>>,
+    task_id: String,
+) -> AppResult<TaskDetail> {
+    crate::ipc::blocking(state.inner(), "the task", move |state| {
+        super::oversight::cancel(state, &task_id)
     })
     .await
 }

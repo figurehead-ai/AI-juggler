@@ -895,6 +895,100 @@ impl TasksRepo<'_> {
             .ok_or_else(|| super::accounts::not_found("task", id))
     }
 
+    /// The user's action on a task (D-44), checked against the task as it
+    /// is now ([`crate::tasks::may_user`]) and logged as one event, in one
+    /// transaction:
+    ///
+    /// - **Approve**: in review → done.
+    /// - **Send back** (`note` needed): in review → in progress, its holder
+    ///   kept (ready, when no one holds it).
+    /// - **Free**: its holder cleared, only while it's still `seen_holder`
+    ///   (the holder whose sessions the caller found not running); in
+    ///   progress goes back to ready, any other status stays.
+    /// - **Cancel**: open → cancelled.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::NotFound`] for a task that isn't there;
+    /// [`CoreError::Validation`] with the rule, in words, when the task
+    /// isn't in a state for it (or its holder changed); storage failures.
+    pub fn user_action(
+        &self,
+        id: &str,
+        action: crate::tasks::UserAction,
+        note: Option<&str>,
+        seen_holder: Option<&str>,
+        holder_running: bool,
+        actor: (&str, &str),
+    ) -> Result<Task, CoreError> {
+        use crate::tasks::UserAction;
+        let now = Timestamp::now().millis();
+        let task = self
+            .get(id)?
+            .ok_or_else(|| super::accounts::not_found("task", id))?;
+        crate::tasks::may_user(
+            action,
+            task.stored,
+            task.assignee_ref.is_some(),
+            holder_running,
+        )
+        .map_err(invalid)?;
+        let note = note.map(str::trim).filter(|n| !n.is_empty());
+        let tx = self.conn.unchecked_transaction()?;
+        let (verb, detail) = match action {
+            UserAction::Approve | UserAction::Cancel => {
+                let to = if action == UserAction::Approve {
+                    TaskStatus::Done
+                } else {
+                    TaskStatus::Cancelled
+                };
+                tx.execute(
+                    "UPDATE tasks SET status = ?2, closed_at = ?3, updated_at = ?3 WHERE id = ?1",
+                    params![id, to.as_str(), now],
+                )?;
+                (action.verb(), note.map(str::to_owned))
+            }
+            UserAction::SendBack => {
+                let note = note.ok_or_else(|| invalid("say what should change: a short note"))?;
+                let to = if task.assignee_ref.is_some() {
+                    TaskStatus::InProgress
+                } else {
+                    TaskStatus::Ready
+                };
+                tx.execute(
+                    "UPDATE tasks SET status = ?2, closed_at = NULL, updated_at = ?3 WHERE id = ?1",
+                    params![id, to.as_str(), now],
+                )?;
+                (action.verb(), Some(note.to_owned()))
+            }
+            UserAction::Free => {
+                if task.assignee_ref.as_deref() != seen_holder {
+                    return Err(invalid("someone else holds it now: look again"));
+                }
+                tx.execute(
+                    "UPDATE tasks SET assignee_ref = NULL, assignee_name = NULL, updated_at = ?2,
+                            status = CASE WHEN status = 'in_progress' THEN 'ready' ELSE status END
+                      WHERE id = ?1",
+                    params![id, now],
+                )?;
+                (action.verb(), task.assignee_name.clone())
+            }
+        };
+        log_in(
+            &tx,
+            now,
+            &task.pool_id,
+            id,
+            actor.0,
+            actor.1,
+            verb,
+            detail.as_deref(),
+        )?;
+        tx.commit()?;
+        self.get(id)?
+            .ok_or_else(|| super::accounts::not_found("task", id))
+    }
+
     /// Gives a task to `to` (ref, name), or to no one, and logs it. A task
     /// someone was working goes back to ready for its new holder to start
     /// (or for anyone, with no one): its state stays honest.
@@ -1629,6 +1723,136 @@ mod tests {
             )
             .is_err(),
             "in progress needs someone on it"
+        );
+    }
+
+    #[test]
+    fn the_users_actions_move_only_from_their_state_and_log_one_event() {
+        use crate::tasks::UserAction;
+        let (storage, pool) = storage();
+        let repo = storage.tasks();
+        let you = (TASK_USER, "You");
+        for id in ["aj-0001", "aj-0002", "aj-0003"] {
+            repo.create(&new(&pool, id, TaskKind::Task, &[])).unwrap();
+            repo.claim(
+                &pool,
+                id,
+                &["session:a".to_owned()],
+                ("session:a", "Alpha"),
+                None,
+            )
+            .unwrap();
+        }
+        let review = |id: &str| {
+            repo.update(
+                id,
+                &TaskChange {
+                    status: Some(TaskStatus::InReview),
+                    ..TaskChange::default()
+                },
+                ("session:a", "Alpha"),
+            )
+            .unwrap()
+        };
+        // Not in review: neither approved nor sent back.
+        for action in [UserAction::Approve, UserAction::SendBack] {
+            assert!(
+                repo.user_action("aj-0001", action, Some("x"), None, true, you)
+                    .is_err(),
+                "only from in review"
+            );
+        }
+        review("aj-0001");
+        let done = repo
+            .user_action("aj-0001", UserAction::Approve, None, None, true, you)
+            .unwrap();
+        assert_eq!(done.status, TaskStatus::Done);
+        assert_eq!(repo.events("aj-0001", None, 1).unwrap()[0].verb, "approved");
+        // Send back: a note is needed; the holder keeps it.
+        review("aj-0002");
+        assert!(
+            repo.user_action("aj-0002", UserAction::SendBack, Some(" "), None, true, you)
+                .is_err(),
+            "a note is needed"
+        );
+        let back = repo
+            .user_action(
+                "aj-0002",
+                UserAction::SendBack,
+                Some("the refunds path still uses floats"),
+                None,
+                true,
+                you,
+            )
+            .unwrap();
+        assert_eq!(back.status, TaskStatus::InProgress);
+        assert_eq!(back.assignee_ref.as_deref(), Some("session:a"));
+        let event = repo.events("aj-0002", None, 1).unwrap().remove(0);
+        assert_eq!(event.verb, "sent_back");
+        assert_eq!(
+            event.detail.as_deref(),
+            Some("the refunds path still uses floats")
+        );
+        assert_eq!(event.actor_ref, TASK_USER);
+        // Free: never while its holder runs, never a holder that changed.
+        assert!(
+            repo.user_action(
+                "aj-0003",
+                UserAction::Free,
+                None,
+                Some("session:a"),
+                true,
+                you
+            )
+            .is_err(),
+            "its session runs"
+        );
+        assert!(
+            repo.user_action(
+                "aj-0003",
+                UserAction::Free,
+                None,
+                Some("session:b"),
+                false,
+                you
+            )
+            .is_err(),
+            "someone else holds it now"
+        );
+        let freed = repo
+            .user_action(
+                "aj-0003",
+                UserAction::Free,
+                None,
+                Some("session:a"),
+                false,
+                you,
+            )
+            .unwrap();
+        assert_eq!(
+            (freed.status, freed.assignee_ref),
+            (TaskStatus::Ready, None)
+        );
+        assert_eq!(repo.events("aj-0003", None, 1).unwrap()[0].verb, "freed");
+        assert!(
+            repo.user_action("aj-0003", UserAction::Free, None, None, false, you)
+                .is_err(),
+            "no one holds it"
+        );
+        // Cancel: any open task, once.
+        let cancelled = repo
+            .user_action("aj-0003", UserAction::Cancel, None, None, false, you)
+            .unwrap();
+        assert_eq!(cancelled.status, TaskStatus::Cancelled);
+        assert!(
+            repo.user_action("aj-0003", UserAction::Cancel, None, None, false, you)
+                .is_err(),
+            "closed already"
+        );
+        assert!(
+            repo.user_action("aj-0001", UserAction::Cancel, None, None, false, you)
+                .is_err(),
+            "done is closed"
         );
     }
 
