@@ -230,12 +230,13 @@ function whenWords(item: RailItem, now: number): string {
   return item.lastMs > 0 ? agoWords(item.lastMs, now) : "";
 }
 
-/** An Open now row under its place. One that needs you says why, in
- * amber, where it is (D-45: it stays put; Needs you lists it as well). */
+/** An Open now row under its place. One that needs you keeps its place
+ * and says its state in amber (D-45); Needs you lists it as well, with
+ * why. One vocabulary on every row (AJ-E2104 Req.3). */
 export function PlaceRow(props: RowProps & { edge: string | null; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const { item, now, edge, subagents } = props;
   const needs = item.need !== null;
-  const word = needs ? needWord(item) : stateWord(item.state, item.probably);
+  const word = stateWord(item.state, item.probably);
   const tone = needs ? { text: "text-warning", dot: "bg-warning" } : STATE_TONE[item.state];
   const low = item.session ? lowLeftWords(item.session) : null;
   const heavyNote = useHeavyNote(item.session?.id ?? "");
