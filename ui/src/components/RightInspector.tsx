@@ -21,6 +21,7 @@ const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", t
 const KillSheet = lazyNamed(() => import("./KillSheet"), "KillSheet");
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
+const SessionHistoryTab = lazyNamed(() => import("../pages/session/HistoryTab"), "SessionHistoryTab");
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessRow, ProcessRowsHeader, type CleanupRowInfo } from "./ProcessRow";
 import type { KillBridge } from "./KillSheet";
@@ -43,6 +44,7 @@ import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { installWords, providerDisplayName } from "../lib/providers";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
+import { useSessionHasHistory } from "../pages/session/useSessionHasHistory";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
@@ -178,6 +180,8 @@ export function RightInspector({
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
+  // wf09: a session's History tab, once it has something recorded.
+  const hasHistory = useSessionHasHistory(remote ? null : (data.instance?.id ?? null));
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
@@ -197,6 +201,7 @@ export function RightInspector({
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
+    hasHistory,
     hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
@@ -331,6 +336,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
           );
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
+        case "history":
+          return props.data.instance ? <SessionHistoryTab session={props.data.instance} onOpenProject={props.onOpenProject} /> : <HonestEmpty tab="history" />;
         default:
           return null;
       }

@@ -267,6 +267,7 @@ macro_rules! app_commands {
             Write history::instance_delete,
             Read  history::transcript_search,
             Read  history::instance_replay,
+            Read  features::sessions::commands::sessions_history,
             Read  history::account_storage,
             Write history::retention_set,
             Write history::retention_preview,
