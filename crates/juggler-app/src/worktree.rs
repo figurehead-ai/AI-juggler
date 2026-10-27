@@ -826,7 +826,10 @@ mod tests {
             "-qm",
             "start",
         ]);
-        assert!(uncommitted_patch(repo).is_none(), "a clean tree stages nothing");
+        assert!(
+            uncommitted_patch(repo).is_none(),
+            "a clean tree stages nothing"
+        );
 
         std::fs::write(
             repo.join("calc.py"),

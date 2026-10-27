@@ -1302,14 +1302,14 @@ impl Suite {
             .records
             .iter()
             .rev()
-            .map(
-                |record| match juggler_app::features::switch_setup::undo_impl(&self.state, record) {
+            .map(|record| {
+                match juggler_app::features::switch_setup::undo_impl(&self.state, record) {
                     Ok(message) => json!({"record": record, "ok": true, "message": message}),
                     Err(error) => {
                         json!({"record": record, "ok": false, "error": format!("{error:?}")})
                     }
-                },
-            )
+                }
+            })
             .collect();
         for mut step in lab.steps {
             step["journey"] = json!(journey);
@@ -1992,7 +1992,8 @@ fn j1_outside_claude(s: &mut Suite) {
         && original.is_some()
         && before["listed"] == true
         && before["session_id"].is_null();
-    lab.steps.push(json!({"step": "J1.1 outside Claude task", "ok": step1_ok,
+    lab.steps
+        .push(json!({"step": "J1.1 outside Claude task", "ok": step1_ok,
         "result": first["result"], "session": native, "listed": before,
         "subagents_on_source": has_session_dir(&s.claude, &native, "subagents"),
         "file_history_on_source": s.claude.join("file-history").join(&native).is_dir()}));
@@ -2014,9 +2015,8 @@ fn j1_outside_claude(s: &mut Suite) {
     let forward = match forward {
         Ok(forward) => forward,
         Err(facts) => {
-            lab.steps.push(
-                json!({"step": "J1.2 switch Claude→Codex", "ok": false, "facts": facts}),
-            );
+            lab.steps
+                .push(json!({"step": "J1.2 switch Claude→Codex", "ok": false, "facts": facts}));
             s.finish("J1", lab);
             return;
         }
@@ -2131,8 +2131,10 @@ fn j2_outside_codex(s: &mut Suite) {
         && tests_pass(&lab.project)
         && before["listed"] == true
         && before["session_id"].is_null();
-    lab.steps.push(json!({"step": "J2.1 outside Codex task", "ok": step1_ok, "result": first,
-                          "thread": thread, "listed": before}));
+    lab.steps.push(
+        json!({"step": "J2.1 outside Codex task", "ok": step1_ok, "result": first,
+                          "thread": thread, "listed": before}),
+    );
     let (Some(thread), Some(original)) = (thread, original) else {
         remove_worktree(&project, &wt);
         s.finish("J2", lab);
@@ -2155,9 +2157,8 @@ fn j2_outside_codex(s: &mut Suite) {
     let forward = match switch_forward(s, &mut lab, &key, &profile_c, &original, J2_CODENAME) {
         Ok(forward) => forward,
         Err(facts) => {
-            lab.steps.push(
-                json!({"step": "J2.2 switch Codex→Claude", "ok": false, "facts": facts}),
-            );
+            lab.steps
+                .push(json!({"step": "J2.2 switch Codex→Claude", "ok": false, "facts": facts}));
             remove_worktree(&project, &wt);
             s.finish("J2", lab);
             return;
@@ -2215,12 +2216,14 @@ fn j2_outside_codex(s: &mut Suite) {
         "said-only-not-written": !written_anywhere(&project, J2_RELEASE),
     });
     let ok = all_true(&areas);
-    lab.steps.push(json!({"step": "J2.2 switch Codex→Claude", "ok": ok, "areas": areas,
+    lab.steps.push(
+        json!({"step": "J2.2 switch Codex→Claude", "ok": ok, "areas": areas,
         "control": control, "probe": answer, "continued": cont.map(|c| c["result"].clone()),
         "conversation": conversation, "new_test_methods": new_names, "uses": uses,
         "listed_after": listed(&s.state, &s.account_x, &thread),
         "lineage": replay_lineage(&s.state, &forward.done.session_id),
-        "graph": graph_view(&s.state, &forward.done.session_id), "facts": forward.facts}));
+        "graph": graph_view(&s.state, &forward.done.session_id), "facts": forward.facts}),
+    );
 
     let resume = |lab: &Lab, prompt: &str| codex_turn(lab, Some(&thread), prompt).1;
     let back = switch_back_to_start(
@@ -2293,14 +2296,18 @@ fn j3_old_path(s: &mut Suite) {
                 && original.is_some()
                 && ours["session_id"] == json!(done.session_id)
                 && argv.iter().any(|a| a == &native);
-            lab.steps.push(json!({"step": "J3.1 Claude task, continued in AI Juggler", "ok": ok,
+            lab.steps.push(
+                json!({"step": "J3.1 Claude task, continued in AI Juggler", "ok": ok,
                 "result": first["result"], "session": done.session_id, "native": native,
-                "listed": ours, "launch": argv}));
+                "listed": ours, "launch": argv}),
+            );
             done.session_id
         }
         Err(error) => {
-            lab.steps.push(json!({"step": "J3.1 Claude task, continued in AI Juggler", "ok": false,
-                                  "error": format!("{error:?}"), "result": first["result"]}));
+            lab.steps.push(
+                json!({"step": "J3.1 Claude task, continued in AI Juggler", "ok": false,
+                                  "error": format!("{error:?}"), "result": first["result"]}),
+            );
             remove_worktree(&project, &wt);
             s.finish("J3", lab);
             return;
@@ -2315,8 +2322,10 @@ fn j3_old_path(s: &mut Suite) {
     let forward = match switch_forward(s, &mut lab, &session, &profile_x, &original, J3_CODENAME) {
         Ok(forward) => forward,
         Err(facts) => {
-            lab.steps.push(json!({"step": "J3.2 switch Claude→Codex (old path)", "ok": false,
-                                  "facts": facts}));
+            lab.steps.push(
+                json!({"step": "J3.2 switch Claude→Codex (old path)", "ok": false,
+                                  "facts": facts}),
+            );
             remove_worktree(&project, &wt);
             s.finish("J3", lab);
             return;
@@ -2368,12 +2377,14 @@ fn j3_old_path(s: &mut Suite) {
         "tests": cont_ok && tests_pass(&lab.project),
     });
     let ok = ok && all_true(&areas);
-    lab.steps.push(json!({"step": "J3.2 switch Claude→Codex (old path)", "ok": ok, "areas": areas,
+    lab.steps.push(
+        json!({"step": "J3.2 switch Claude→Codex (old path)", "ok": ok, "areas": areas,
         "probe": answer, "continued": cont, "thread": thread, "pack": pack,
         "source_status": source_row.map(|r| r.status.as_str().to_owned()),
         "lineage_target": replay_lineage(&s.state, &forward.done.session_id),
         "lineage_source": replay_lineage(&s.state, &session),
-        "graph": graph_view(&s.state, &forward.done.session_id), "facts": forward.facts}));
+        "graph": graph_view(&s.state, &forward.done.session_id), "facts": forward.facts}),
+    );
 
     let claude = s.claude.clone();
     let resume = |lab: &Lab, prompt: &str| {
@@ -2541,8 +2552,10 @@ fn switch_lab_outside_live() {
         j1_outside_claude(&mut suite);
         if let (Some(name), Some(planted)) = (&probe, planted) {
             let removed = unplant_probe_claude(&root, &claude, name);
-            suite.steps.push(json!({"journey": "J1", "step": "J1 probe on Claude, then removed",
-                                    "ok": planted && removed}));
+            suite.steps.push(
+                json!({"journey": "J1", "step": "J1 probe on Claude, then removed",
+                                    "ok": planted && removed}),
+            );
         }
     }
     if journeys.contains("j2") {
@@ -2552,8 +2565,10 @@ fn switch_lab_outside_live() {
         j2_outside_codex(&mut suite);
         if let (Some(name), Some(planted)) = (&probe, planted) {
             let removed = unplant_probe_codex(&root, &codex, name);
-            suite.steps.push(json!({"journey": "J2", "step": "J2 probe on Codex, then removed",
-                                    "ok": planted && removed}));
+            suite.steps.push(
+                json!({"journey": "J2", "step": "J2 probe on Codex, then removed",
+                                    "ok": planted && removed}),
+            );
         }
     }
     if journeys.contains("j3") {

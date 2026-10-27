@@ -374,8 +374,7 @@ fn the_graph_resumes_and_exports_an_original_another_app_runs() {
     assert!(node.session_id.is_none(), "it stays the other app's");
 
     let pack = commands::pack_export_impl(&w.state, edge.from_epoch.as_str()).unwrap();
-    let conversation =
-        std::fs::read_to_string(Path::new(&pack).join("conversation.md")).unwrap();
+    let conversation = std::fs::read_to_string(Path::new(&pack).join("conversation.md")).unwrap();
     assert!(
         conversation.contains("Add a health check endpoint"),
         "its pack holds its conversation"
@@ -431,5 +430,8 @@ fn back_from_a_replay_counts_the_original_as_the_switch_read_it() {
     std::fs::write(&w.transcript, text).unwrap();
     let plan = commands::switch_back_plan_impl(&w.state, &to_codex.session_id).unwrap();
     assert_eq!(plan.base_turns, 2);
-    assert_eq!(plan.original_only_turns, 1, "one turn there since the switch");
+    assert_eq!(
+        plan.original_only_turns, 1,
+        "one turn there since the switch"
+    );
 }
