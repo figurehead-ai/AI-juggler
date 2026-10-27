@@ -5,6 +5,7 @@
  * Each is the user's choice, remembered, and shown before it takes
  * effect; nothing here is inferred or switched on by AI Juggler.
  */
+import { revertedWords, saveOptimistic } from "../lib/optimistic";
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { TierToggles } from "../pages/AccountPage";
@@ -171,9 +172,14 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
   const id = `settings-renewal-${account.id}`;
   const commit = (next: string | null) => {
     setError(null);
+    const previous = account.renewal_date ?? "";
     void accountSetRenewal(account.id, next).then(
       (saved) => setDate(saved.renewal_date ?? ""),
-      (cause) => setError(errorText(cause)),
+      (cause) => {
+        // §4.15: the date goes back to the saved one, and says why.
+        setDate(previous);
+        setError(revertedWords(cause));
+      },
     );
   };
   return (
@@ -234,10 +240,15 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           disabled={warnDays === null}
           onChange={(event) => {
             const days = Number.parseInt(event.target.value, 10);
-            setWarnDays(days);
-            void appSettingSet("renewal_warn_days", String(days)).then(() =>
-              setStatus(`Renewal reminders start ${days} ${days === 1 ? "day" : "days"} before.`),
-            );
+            // §4.15: a failed save puts the old choice back and says why.
+            void saveOptimistic({
+              previous: warnDays,
+              next: days,
+              show: setWarnDays,
+              save: () => appSettingSet("renewal_warn_days", String(days)),
+              onSaved: () => setStatus(`Renewal reminders start ${days} ${days === 1 ? "day" : "days"} before.`),
+              onFailed: setStatus,
+            });
           }}
           className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
           data-testid="renewal-warn-days"

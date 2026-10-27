@@ -2762,6 +2762,8 @@ export function errorText(cause: unknown): string {
       ? wire.user_message
       : "Something went wrong — try again.";
   }
+  // A thrown Error says its message, never "Error: …" (D-25).
+  if (cause instanceof Error) return cause.message.length > 0 ? cause.message : "Something went wrong — try again.";
   const text = String(cause);
   return text === "[object Object]" ? "Something went wrong — try again." : text;
 }

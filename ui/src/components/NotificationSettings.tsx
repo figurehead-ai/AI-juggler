@@ -11,6 +11,7 @@ import { NoAccounts, Status, accountName } from "./SettingsSections";
 import { errorText, notificationPrefsGet, notificationPrefsSet, type AccountInfo, type NotificationPrefsInfo } from "../lib/bridge";
 import { notificationsGet, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
 import { CardTitle } from "./CardTitle";
+import { saveOptimistic } from "../lib/optimistic";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
@@ -32,17 +33,17 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
   }, [onStatus]);
   if (!kinds) return null;
   const save = (id: keyof SystemNotificationsInfo, on: boolean) => {
-    const next = { ...kinds, [id]: on };
-    setKinds(next);
     const kind = KINDS.find((entry) => entry.id === id);
     const what = id === "this_mac" ? "This Mac gets tight" : `a session ${kind?.on ?? ""}`;
-    void notificationsSet(next).then(
-      (saved) => {
-        setKinds(saved);
-        onStatus(on ? `You'll get a notification when ${what}.` : `No notification when ${what}.`, null);
-      },
-      (cause) => onStatus(null, errorText(cause)),
-    );
+    // §4.15: a failed save puts the switch back and says why.
+    void saveOptimistic({
+      previous: kinds,
+      next: { ...kinds, [id]: on },
+      show: setKinds,
+      save: notificationsSet,
+      onSaved: () => onStatus(on ? `You'll get a notification when ${what}.` : `No notification when ${what}.`, null),
+      onFailed: (words) => onStatus(null, words),
+    });
   };
   return (
     <fieldset className="flex flex-col gap-2 text-xs" data-testid="system-notifications">
@@ -73,15 +74,9 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
     void notificationPrefsGet().then(setPrefs, (cause) => setError(errorText(cause)));
   }, []);
   const save = (next: NotificationPrefsInfo, done: string) => {
+    if (prefs === null) return;
     setError(null);
-    setPrefs(next);
-    void notificationPrefsSet(next).then(
-      (saved) => {
-        setPrefs(saved);
-        setStatus(done);
-      },
-      (cause) => setError(errorText(cause)),
-    );
+    void saveOptimistic({ previous: prefs, next, show: setPrefs, save: notificationPrefsSet, onSaved: () => setStatus(done), onFailed: setError });
   };
   const [onStatus] = useState(() => (done: string | null, failed: string | null) => {
     setError(failed);
