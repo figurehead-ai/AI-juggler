@@ -113,7 +113,7 @@ fn git_bytes(dir: &Path, args: &[&str], codes: &[i32]) -> Option<Vec<u8>> {
 pub const PATCH_MAX_BYTES: usize = 4 * 1024 * 1024;
 
 /// The most untracked files a patch adds one by one.
-const PATCH_MAX_UNTRACKED: usize = 200;
+pub const PATCH_MAX_UNTRACKED: usize = 200;
 
 /// ADR-0009: `dir`'s uncommitted changes as one patch for a pack's
 /// `diffs/`: the tracked changes against HEAD, then each untracked file as
