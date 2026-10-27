@@ -608,12 +608,14 @@ mod tests {
         // (2026-10-23): claude→claude rules, subagents, folder and
         // worktree edges and switch-back; claude→codex rules; codex→claude
         // transcript, todos, rules and switch-back. Lab 11 (2026-10-23):
-        // codex→codex transcript and todos. Every other shipped cell is
-        // open.
+        // codex→codex transcript and todos. Lab 14 (2026-10-26, 0.1.7):
+        // claude→codex folder and worktree edges, and subagents and file
+        // history as FAILs with their drop notes; codex→claude MCP and
+        // folder and worktree edges. Every other shipped cell is open.
         assert_eq!(
             open.len(),
-            9 * AREAS.len() - 18,
-            "only the labs' eighteen PASS cells are closed"
+            9 * AREAS.len() - 23,
+            "only the labs' twenty-three decided cells are closed"
         );
     }
 }
