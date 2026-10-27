@@ -989,7 +989,7 @@ mod tests {
         ring.last_mut().unwrap().memory_available = 2 * G; // 6 %
         let summary = summarize(&snapshot_of(ring.clone()), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Tight);
-        assert_eq!(summary.reasons[0].words, "only 2.0 GB of memory free");
+        assert_eq!(summary.reasons[0].words, "only 1.9 GB of memory free");
         ring.last_mut().unwrap().memory_available = G; // 3 %
         let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Pressure);
@@ -1187,7 +1187,7 @@ mod tests {
         assert_eq!(last.memory_free(), 2 * G, "used + free = total");
         let summary = summarize(&snapshot_of(ring), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Tight);
-        assert_eq!(summary.reasons[0].words, "only 2.0 GB of memory free");
+        assert_eq!(summary.reasons[0].words, "only 1.9 GB of memory free");
     }
 
     #[test]
