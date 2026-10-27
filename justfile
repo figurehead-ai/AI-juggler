@@ -23,6 +23,7 @@ verify:
     just evidence
     just terminology
     just tool-literals
+    just platform
     just structure
     just task-counts
     just stats-doc
@@ -89,6 +90,13 @@ terminology:
 tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
+
+# Cross-platform readiness (docs/research/cross-platform-readiness.md §5.1):
+# no new macOS- or Unix-only assumption outside the platform seams; the
+# allowlist of today's sites only shrinks.
+platform:
+    python3 scripts/platform_lint.py --selftest
+    python3 scripts/platform_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget. Each allowlist only shrinks.
