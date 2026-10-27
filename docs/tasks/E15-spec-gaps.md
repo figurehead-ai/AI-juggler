@@ -53,6 +53,7 @@
 2. Projects: rename (a label only; the folder is never renamed), pin, open in the editor (the user's chosen editor in Settings, else Finder) and reveal in Finder. Forget hides a project until it is used again. Relocate repoints a moved folder.
 3. Each action SHALL be reachable from the row's menu and from the project view, with the hidden actions from AJ-E1025 shown again once they work.
 4. Pins and labels SHALL survive restarts and backups.
+5. (D-45, 2026-10-27.) A session another app runs (the Claude app, the Codex app, a terminal) SHALL be pinnable too, from its row's menu and from the pin shown on the row's hover and focus; its pin is AI Juggler's own record (`app_settings` `rail_order`, by the rail's key `c:<account>/<conversation>`), never written to the app's files. Pinned rows lead their group in every order.
 **UI/UX reasoning**: The same row menu as accounts (AJ-E1501). Pinned rows lead their group, each with a pin mark.
 **Performance budget**: < 100 ms per action; the rail's sort stays under its existing budget.
 **Quality gates**: per-action tests; relocate with a missing folder; forget then use again.

@@ -985,7 +985,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-45 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1225,3 +1225,61 @@ has no "edit anything" path.
   `tasks_guardrails.rs::the_app_writes_no_task`, the store's
   `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
   `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.
+
+### D-45 Open now stays put: Your order, pins, drag to reorder and an order menu — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, testing 0.1.8: "the order the sessions and chat
+windows are shown … seem to be bouncing just too much … by default users
+want more stability … maybe we have PIN and re-order … some users might
+want it sorted by some latest event, but I think those will be in
+minority, and we can have a button / setting for them." Then, 2026-10-27:
+"Approved: build the stable order, pin, drag-to-reorder and the order menu
+into 0.2."
+
+**Decision.**
+
+1. **Your order is the default.** A row keeps its position. A new session
+   joins the end of its group, in the order it was first seen. A state
+   change (Working, Idle, Asks you, Done) changes only the dot and the word.
+   An ended or closed session frees its slot; the rows under it close up,
+   nothing else moves.
+2. **A session that needs you stays in its place** in Open now, its state in
+   amber; **Needs you lists it too**, as a shortcut at the top. This replaces
+   the rule "Open now: not in Needs you" (AJ-E2103 Req.4). Each list and the
+   badge count a session once; "Open now n" and Home's "n open" count every
+   open session, the ones that need you among them.
+3. **No automatic cut in Your order.** A place shows all its open rows; past
+   8, the first 8 by the user's order then "+n more", never re-picked by
+   activity. A place folds only when the user folds it (remembered).
+   Inactive sessions still wait behind "Also: n inactive". AJ-E2104 Req.4's
+   "last 3, then +n quiet" and the quiet fold stay in Latest activity only
+   (a recorded deviation there).
+4. **Pins** (AJ-E1502) lead their group in every order and work for every
+   session: an AI Juggler session's pin is the session's own (as before); a
+   session another app runs is pinned in AI Juggler's own record, never in
+   the app's files. Pin is on the row's menu and on the row's hover and
+   focus.
+5. **Drag to reorder**, rows within their place and places among places,
+   by a handle shown on hover and focus. ⌥⌘↑ / ⌥⌘↓ (Ctrl+Alt off a Mac, as
+   ⌘ is Ctrl there) is the keyboard twin, said in a polite live region
+   ("Moved to position 2 of 5"). ⌘1–9 follow the new place order.
+6. **The order menu** on Open now's header ("Your order ▾") offers Your
+   order, Latest activity (today's behaviour, held still under the pointer)
+   and Name (A to Z), then Reset my order (with Undo). Settings › General ›
+   Appearance offers the same choice.
+7. **Kept** in AI Juggler's settings (`app_settings` key `rail_order`, one
+   JSON value; no schema change), so restarts and backups keep the order,
+   pins, place order, folds and the chosen order. Rows are kept by the
+   rail's own keys (`s:<session>`, `c:<account>/<conversation>`); a key
+   unseen for 30 days is a session gone for good and is pruned.
+
+- Rejected: re-sorting by activity by default (the bounce); a new table
+  (the settings store already backs up and restores); a drag library (a
+  few pointer handlers do it, and the rail is first paint).
+- Risk: a user who liked the activity order must pick Latest activity once.
+  Ctrl+Alt+↑/↓ is a workspace switch on some Linux desktops; the platform
+  key seam can rebind it when Linux ships.
+- Evidence: vitest `ui/src/lib/rail-order.test.ts` (the order in each mode,
+  moves, reset, pruning, the record round trip),
+  `ui/src/components/rail-order.test.tsx` (the menu, the keyboard twin,
+  pins, folds, Needs you mirrored), the gallery's `95-rail-order` captures.

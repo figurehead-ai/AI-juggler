@@ -125,7 +125,8 @@ describe("D-25 Home — the screen", () => {
     const home = getByTestId("home");
     // AJ-E2105: one sentence; the other counts are links under it.
     expect(getByTestId("home-heading").textContent).toBe("2 sessions need you");
-    expect(getByTestId("home-counts").textContent).toContain("1 open");
+    // D-45: the one asking is open too (the failed one has ended).
+    expect(getByTestId("home-counts").textContent).toContain("2 open");
     // Its page here (the maintainer's review of 0.1.4: a click never leaves).
     fireEvent.click(within(home).getByRole("button", { name: /^Open its page/ }));
     expect(onOpenSession).toHaveBeenCalledWith("w");
