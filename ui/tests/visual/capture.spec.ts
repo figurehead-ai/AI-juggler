@@ -1470,7 +1470,7 @@ for (const state of [
           await expect(page.getByTestId("kill-ready-8123")).toBeVisible();
           await page.getByTestId("kill-confirm-8123").click();
           // The spec's "grace countdown at 3 s" moment.
-          await expect(page.getByTestId("kill-countdown-8123")).toContainText("3s", {
+          await expect(page.getByTestId("kill-countdown-8123")).toContainText("3 s", {
             timeout: 8_000,
           });
           await expect(page.getByTestId("kill-tick-8123")).toContainText("running");
@@ -1485,7 +1485,7 @@ for (const state of [
           }
         } else if (state === "windows-wording") {
           await expect(page.getByTestId("kill-platform-8123")).toContainText(
-            "Windows: TerminateProcess only",
+            "a stop is immediate",
           );
         } else {
           await expect(page.getByTestId("kill-ready-8123")).toBeVisible();
@@ -2264,7 +2264,7 @@ const rankedRows: Record<string, unknown>[] = [
 ];
 
 const notificationEvents: Record<string, unknown>[] = [
-  { kind: "actionable", account: "claude-work", text: "claude-work at 92% used (Measured), five-hour window — hand over or queue at reset", at_ms: T0 - 60_000 },
+  { kind: "actionable", account: "claude-work", text: "Work Max has 8% left in its 5-hour window, until it resets in 1 h 10 min", at_ms: T0 - 60_000, quota: { account_label: "Work Max", window: "five_hour", left_pct: 8, minutes_left: 40, resets_at_ms: T0 + 70 * 60_000 } },
   { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
 ];
 
@@ -2347,7 +2347,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("alert-actionable")).toContainText("92%");
+      // D-25 / wireframe 27: plain words, local time, its actions.
+      await expect(page.getByTestId("alert-actionable")).toContainText("Work Max has 8% left in its 5-hour window, until");
       // The digest's renewal item is visually distinct (dashed, quiet)
       // and never reads as a window alert.
       await expect(page.getByTestId("alert-digest")).toContainText("Digest · Renews in 6 days");
@@ -2372,8 +2373,10 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("queue-queued")).toContainText("claude-work");
-      await expect(page.getByTestId("queue-ready")).toContainText("ready to resume");
+      // D-25: the account by name and the time, never an id.
+      await expect(page.getByTestId("queue-queued")).toContainText("picks up again at");
+      await expect(page.getByTestId("queue-queued")).not.toContainText("claude-work");
+      await expect(page.getByTestId("queue-ready")).toContainText("has reset");
       // The Resume action is keyboard-focusable (the click is the only
       // launch path) — capture it focused.
       await page.getByRole("button", { name: "Resume" }).focus();
@@ -4663,7 +4666,7 @@ for (const theme of THEMES) {
     }, awayMachine());
     await expect(page.getByTestId("fleet-sync")).toHaveText("⇡ 12 changes queued");
     await expect(page.getByTestId("fleet-last-known")).toBeVisible();
-    await expect(page.getByTestId("fleet-remote-instance").first()).toContainText("was running");
+    await expect(page.getByTestId("fleet-remote-instance").first()).toContainText("was working");
     await page.getByTestId("fleet-remote-instances").scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(GALLERY, `49-fleet-sync/offline-queued-1280x800-${theme}.png`) });
 

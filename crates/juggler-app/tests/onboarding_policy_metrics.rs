@@ -69,7 +69,7 @@ fn a_fresh_install_has_no_policy_and_onboarding_backfills_none() {
     assert_eq!(info.source, "unset");
     // Unset blocks pack staging at the backend — pinned with a real
     // epoch in switch_graph_targets.rs (`pack_export_impl` refuses
-    // with "Choose how secrets are handled in packs first").
+    // with "Choose what happens to keys and passwords first").
 
     // An explicit choice (the accept click) writes the global once;
     // the restart keeps it.

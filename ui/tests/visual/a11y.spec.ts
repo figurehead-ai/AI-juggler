@@ -701,7 +701,7 @@ for (const theme of ["dark", "light"] as const) {
           },
         ],
         events: [
-          { kind: "actionable", account: "claude-work", text: "claude-work at 92% used (Measured), five-hour window — hand over or queue at reset", at_ms: T0 - 60_000 },
+          { kind: "actionable", account: "claude-work", text: "Work Max has 8% left in its 5-hour window, until it resets in 1 h 10 min", at_ms: T0 - 60_000, quota: { account_label: "Work Max", window: "five_hour", left_pct: 8, minutes_left: 40, resets_at_ms: T0 + 70 * 60_000 } },
           { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
         ],
         rows: [

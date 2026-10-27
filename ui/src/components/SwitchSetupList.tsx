@@ -46,7 +46,9 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
     return `${check.to} already has everything ${check.from} has set up.`;
   }
   const thing = missing === 1 ? "thing" : "things";
-  return `${check.to} doesn't have ${missing} ${thing} ${check.from} has. ${picked.size} will be set up.`;
+  // "0 will be set up" says nothing when none of them can be.
+  const settable = check.offers.some((offer) => offer.verdict !== "impossible");
+  return `${check.to} doesn't have ${missing} ${thing} ${check.from} has.${settable ? ` ${picked.size} will be set up.` : ""}`;
 }
 
 /** Something the account turns on itself (its plan, its features): the
@@ -143,10 +145,10 @@ export function SwitchSetupList({
                   {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
                     <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
                   ) : (
-                    <>
+                    <span>
                       <span className="font-medium">{offer.name}</span>{" "}
                       <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
-                    </>
+                    </span>
                   )}
                   {offer.about && <span className="block text-meta">{offer.about}</span>}
                   {offer.steps.length > 0 ? (
