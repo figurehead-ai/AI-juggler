@@ -84,6 +84,8 @@ export const SHORTCUTS = [
   { id: "help", owner: "app", area: "Anywhere", keys: ["?"], label: "Show these shortcuts", match: plain("?") },
   { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search and go to a session", match: cmd("k") },
   { id: "new-project", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New project", match: cmd("n") },
+  // AJ-E2503 (§4.14): the notification centre, as the bell opens it.
+  { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌘⇧N"], label: "Notifications", match: cmd("n", { shift: true }) },
   { id: "toggle-rail", owner: "app", area: "Anywhere", keys: ["⌘B"], label: "Show or hide the list", match: cmd("b") },
   { id: "inspector", owner: "app", area: "Anywhere", keys: ["⌘⇧I"], label: "Fold or unfold the inspector", match: cmd("i", { shift: true }) },
   {

@@ -312,8 +312,19 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
     await direct.first().click();
     return;
   }
-  await main.getByRole("button", { name: "More", exact: true }).click();
-  await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
+  // AJ-E2507: Settings and the old More (This Mac, Processes, Fleet as
+  // "My …", Privacy) are in your menu, behind the avatar.
+  await openUserMenu(page);
+  const label = name === "Fleet" ? /^My / : new RegExp(`^${name}\\b`);
+  await page.getByRole("menu", { name: "Your menu" }).getByRole("menuitem", { name: label }).click();
+}
+
+/** AJ-E2507: opens your menu (the avatar), once. */
+export async function openUserMenu(page: import("@playwright/test").Page): Promise<void> {
+  const menu = page.getByRole("menu", { name: "Your menu" });
+  if (await menu.isVisible()) return;
+  await page.getByTestId("user-menu-button").click();
+  await menu.waitFor();
 }
 
 /** AJ-E2110: opens one of Settings' panes from its sidebar. */

@@ -19,6 +19,8 @@ export function shortcutUsed(shortcut: string): void {
 export interface AppKeyActions {
   openShortcuts: () => void;
   togglePalette: () => void;
+  /** AJ-E2503: the notification centre (⌘⇧N). */
+  toggleNotifications: () => void;
   newProject: () => void;
   toggleRail: () => void;
   toggleInspector: () => void;
@@ -51,6 +53,10 @@ export function useAppKeys(actions: AppKeyActions): void {
       shortcutUsed("command_palette");
       window.dispatchEvent(new Event("aij:focus-search"));
       d.togglePalette();
+    },
+    notifications: () => {
+      shortcutUsed("other");
+      d.toggleNotifications();
     },
     // AJ-E305 flow (b).
     "new-project": () => {

@@ -1,5 +1,9 @@
-import { ToolChip } from "./components/ToolMark";
 import { AppActions } from "./components/AppActions";
+import { AppHeader } from "./components/AppHeader";
+import { NeedsSync } from "./components/NeedsSync";
+import { OfflineBanner } from "./components/OfflineBanner";
+import { backendAnswered, backendFailed } from "./lib/backend-health";
+import { setCentreOpen, toggleCentre } from "./lib/notices-store";
 import { useAppKeys } from "./lib/app-keys";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
@@ -7,7 +11,6 @@ import { servicesList } from "./lib/ipc/services";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
-import { MainNav } from "./components/MainNav";
 import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
@@ -20,8 +23,8 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
-import { IconJuggler, IconTerminal } from "./components/icons";
+import { GLOBAL_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
+import { IconJuggler } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import {
@@ -338,14 +341,12 @@ export default function App() {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
     const openScreen = (event: Event) => setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current);
-    window.addEventListener("aij:open-accounts", openAccounts);
-    window.addEventListener("aij:new-session", newSession);
-    window.addEventListener("aij:open-screen", openScreen);
-    return () => {
-      window.removeEventListener("aij:open-accounts", openAccounts);
-      window.removeEventListener("aij:new-session", newSession);
-      window.removeEventListener("aij:open-screen", openScreen);
-    };
+    // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
+    const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
+    const shortcuts = () => setShortcutsOpen(true);
+    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:new-session", newSession], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:open-shortcuts", shortcuts]];
+    on.forEach(([name, run]) => window.addEventListener(name, run));
+    return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);
 
   const refresh = useMemo(() => singleFlight(async () => {
@@ -376,8 +377,12 @@ export default function App() {
         }
         return next;
       });
+      backendAnswered();
     } catch {
-      // preview mode may lack backend mocks for some calls — keep last data
+      // AJ-E2504 (§3, §8): never swallowed — the last data stays and the
+      // window says the service stopped answering (a preview lacking a
+      // mock is not that).
+      backendFailed();
     } finally {
       setLoaded(true);
     }
@@ -538,6 +543,7 @@ export default function App() {
   useAppKeys({
     openShortcuts: () => setShortcutsOpen(true),
     togglePalette: () => setGoToOpen((openNow) => !openNow),
+    toggleNotifications: toggleCentre,
     newProject: () => setNewProjectDir((current) => current ?? ""),
     toggleRail,
     toggleInspector,
@@ -551,7 +557,7 @@ export default function App() {
   });
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
-  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : open.page === "notifications" ? setCentreOpen(true) : setGlobal("thismac")) });
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =
@@ -609,6 +615,8 @@ export default function App() {
     >
     <div className="relative flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
+      {/* AJ-E2502: the notification model kept in step with Needs you. */}
+      <NeedsSync ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} now={now} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         density={railDensity}
@@ -691,65 +699,30 @@ export default function App() {
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Glass status bar: work context left, global oversight right */}
-        <header
-          data-tauri-drag-region
-          // AJ-E804 (WCAG 1.4.10): at narrow widths and 200 % zoom the
-          // menus wrap onto a second row instead of being clipped. The
-          // title has a zero basis, so it truncates first and a wide
-          // window keeps the single row.
-          className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
-        >
-          {/* Room for the title and its tool chip, so the nav beside it
-              wraps rather than covering the chip at 1024 px (0.1.5). */}
-          <div className="flex min-w-[12rem] flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-body font-semibold">{contextTitle}</h1>
-            {/* The tool's own view (what's installed, its accounts and
-                their quota): one click from a session that runs on it. */}
-            {contextProvider && contextProviderId && selection.kind !== "provider" && (
-              <button
-                type="button"
-                onClick={() => openToolInSettings()}
-                aria-label={`About ${contextProvider}`}
-                title={`About ${contextProvider}`}
-                className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                data-testid="context-tool"
-              >
-                <ToolChip tool={contextProviderId} tone="accent" />
-              </button>
-            )}
-          </div>
-
-          <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
-            <span className="mr-2 flex min-w-0 text-muted">{/* AJ-E2105: This Mac's line, in the top bar */}<MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} /></span>
-            <MainNav
-              primary={PRIMARY_NAV}
-              more={MORE_NAV}
-              global={global}
-              page={selection.kind}
-              pairedCount={pairedCount}
-              cleanupCount={cleanupCount}
-              onPick={(id) => {
-                if (PRIMARY_NAV.some((item) => item.id === id)) {
-                  setSettingsFocusCloud(false);
-                  setSettingsSection(undefined);
-                }
-                if (id === "home") {
-                  setGlobal(null);
-                  setSelection({ kind: "none" });
-                } else setGlobal(id);
-              }}
-            />
-            <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
-              <IconTerminal width={14} height={14} />
-              New session
-            </Button>
-          </div>
-        </header>
+        <AppHeader
+          title={contextTitle}
+          tool={contextProvider && contextProviderId && selection.kind !== "provider" ? { id: contextProviderId, name: contextProvider } : null}
+          global={global}
+          page={selection.kind}
+          pairedCount={pairedCount}
+          cleanupCount={cleanupCount}
+          sessions={sessions}
+          onOpenTool={() => openToolInSettings()}
+          onOpenThisMac={() => setGlobal("thismac")}
+          onNewSession={() => setNewSession(true)}
+          onPick={(id) => {
+            if (PRIMARY_NAV.some((item) => item.id === id)) (setSettingsFocusCloud(false), setSettingsSection(undefined));
+            if (id === "home") (setGlobal(null), setSelection({ kind: "none" }));
+            else setGlobal(id);
+          }}
+        />
 
         {/* Content: detail panel (work mode) or global screen. tabIndex
          * -1: programmatic focus target when overlays (AJ-E510
          * recovery summary) dismiss and return focus to the board. */}
-        <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
+        <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 outline-none">
+          <OfflineBanner onRetry={() => void refresh()} />
+          <div className="min-h-0 flex-1">
           {global === "cleanup" ? (
             <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
               <ProcessesScreen
@@ -889,11 +862,7 @@ export default function App() {
                   with an explicit Resume click (the click opens the
                   picker; nothing ever launches by itself). */}
               <div className="shrink-0" data-testid="notification-band">
-                <NotificationRegion
-                  onQueueResume={() => setNewSession(true)}
-                  onOpenRemote={(machineId) => inspectRemote(machineId, null)}
-                  hideMachineAlerts={selection.kind === "none"}
-                />
+                <NotificationRegion onQueueResume={() => setNewSession(true)} onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>
               {selection.kind === "none" ? (
                 <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
@@ -998,6 +967,7 @@ export default function App() {
               )}
             </div>
           )}
+          </div>
         </main>
       </div>
 

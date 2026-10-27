@@ -268,7 +268,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     render(<NotificationRegion />);
     const notice = await screen.findByTestId("machine-alert");
     expect(notice.textContent).toContain("The processor has been flat out for minutes — 97% busy for over two minutes. The Claude app is using CPU 140%.");
-    fireEvent.click(within(notice).getByRole("button", { name: "dismiss" }));
+    fireEvent.click(within(notice).getByRole("button", { name: /^Close/ }));
     expect(screen.queryByTestId("machine-alert")).toBeNull();
     delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
   });
@@ -283,7 +283,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     // The same notice shows once Home is left.
     view.rerender(<NotificationRegion />);
     expect((await screen.findByTestId("machine-alert")).textContent).toContain("Your Mac is under memory pressure");
-    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: "dismiss" }));
+    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: /^Close/ }));
   });
 
   it("tells a CPU-heavy session by its CPU, not its memory", async () => {

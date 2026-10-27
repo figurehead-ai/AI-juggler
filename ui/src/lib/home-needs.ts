@@ -8,7 +8,7 @@
 import type { AccountInfo } from "./bridge";
 import type { RailItem } from "./rail-items";
 
-export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers";
+export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers" | "quota";
 
 export interface HomeNeed {
   key: string;
@@ -25,7 +25,7 @@ export interface HomeNeed {
 }
 
 /** The order kinds come in: what blocks work first. */
-const ORDER: HomeNeedKind[] = ["session", "limit", "failed", "signin", "mac", "heavy", "leftovers"];
+const ORDER: HomeNeedKind[] = ["session", "limit", "failed", "quota", "signin", "mac", "heavy", "leftovers"];
 
 export interface NeedInputs {
   /** The rail's Needs you (sessions that ask, are stuck, failed, hit a
@@ -103,5 +103,8 @@ export function primaryWords(need: HomeNeed): string {
       return "Take a look";
     case "leftovers":
       return "Clean up";
+    // AJ-E2501: an account almost out of room (the notification model's own).
+    case "quota":
+      return "Hand over…";
   }
 }

@@ -7,7 +7,7 @@
  * the pointing hand.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses } from "./fixtures";
+import { allStatuses, goTo, openUserMenu } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 
@@ -70,14 +70,14 @@ test("every clickable control shows the hand — the main screens", async ({ pag
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav).toBeVisible();
   await expectHands(page, "Home");
-  for (const name of ["Accounts", "Usage", "History", "Settings"]) {
+  for (const name of ["Accounts", "Usage", "History"]) {
     await nav.getByRole("button", { name, exact: true }).click();
     await page.waitForTimeout(150);
     await expectHands(page, name);
   }
-  for (const name of ["Fleet", "Processes"]) {
-    await nav.getByRole("button", { name: "More", exact: true }).click();
-    await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
+  // AJ-E2507: Settings and the old More are in your menu.
+  for (const name of ["Settings", "Fleet", "Processes"]) {
+    await goTo(page, name);
     await page.waitForTimeout(150);
     await expectHands(page, name);
   }
@@ -85,8 +85,11 @@ test("every clickable control shows the hand — the main screens", async ({ pag
 
 test("every clickable control shows the hand — menus and the legend", async ({ page }) => {
   await seed(page);
-  await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "More", exact: true }).click();
-  await expectHands(page, "More menu");
+  await openUserMenu(page);
+  await expectHands(page, "your menu");
+  await page.keyboard.press("Escape");
+  await page.getByTestId("notification-bell").click();
+  await expectHands(page, "notification centre");
   await page.keyboard.press("Escape");
   await page.getByTestId("rail").getByRole("button", { name: "Indicator legend" }).click();
   await expectHands(page, "legend open");

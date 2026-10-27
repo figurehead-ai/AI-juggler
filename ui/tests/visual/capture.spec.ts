@@ -1998,10 +1998,19 @@ const rankedRows: Record<string, unknown>[] = [
   },
 ];
 
-const notificationEvents: Record<string, unknown>[] = [
-  { kind: "actionable", account: "claude-work", text: "claude-work at 92% used (Measured), five-hour window — hand over or queue at reset", at_ms: T0 - 60_000 },
-  { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
-];
+/** AJ-E2501: what the alert pass told the notification model — an
+ * account almost out of room (a need), and the digest's renewal line
+ * (what happened) — in the model's own words. */
+const noticeFacts = { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null };
+const noticeTarget = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
+const notificationEvents = {
+  app: [
+    { id: 41, kind: "quota", needs: true, title: "Work Max is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Work Max" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+  ],
+  earlier: [
+    { id: 40, kind: "renewal", needs: false, title: "Personal: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+  ],
+};
 
 const queueRows: Record<string, unknown>[] = [
   { id: "rq-1", session: "sess-1", account: "claude-work", resume_at_ms: T0 + 45 * 60_000, state: "queued" },
@@ -2071,7 +2080,7 @@ for (const theme of THEMES) {
         ({ fixture, t0, theme: themeName, events }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_ALERTS__ = events;
+          w.__AIJ_NOTICES__ = events;
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2082,10 +2091,12 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("alert-actionable")).toContainText("92%");
-      // The digest's renewal item is visually distinct (dashed, quiet)
-      // and never reads as a window alert.
-      await expect(page.getByTestId("alert-digest")).toContainText("Digest · Renews in 6 days");
+      // AJ-E2501: on Home the account almost out of room is a Needs you
+      // item (its banner is for the other screens); the renewal line is
+      // under Earlier in the notification centre, never a window alert.
+      await expect(page.getByTestId("home-need-quota")).toContainText("Work Max is almost out of room");
+      await page.getByTestId("notification-bell").click();
+      await expect(page.getByTestId("notices-earlier")).toContainText("Personal: Renews in 6 days — check your plan");
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/notification-${vp.name}-${theme}.png`),
       });
@@ -2107,7 +2118,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("queue-queued")).toContainText("claude-work");
+      await expect(page.getByTestId("queue-queued")).toContainText("Work Max");
       await expect(page.getByTestId("queue-ready")).toContainText("ready to resume");
       // The Resume action is keyboard-focusable (the click is the only
       // launch path) — capture it focused.

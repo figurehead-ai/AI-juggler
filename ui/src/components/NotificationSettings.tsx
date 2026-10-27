@@ -15,14 +15,19 @@ import { CardTitle } from "./CardTitle";
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
-/** Each kind, as the switch says it and what it means. */
-const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; on: string }[] = [
-  { id: "waiting", label: "A session waits for you", hint: "It asked a question or wants your approval.", on: "waits for you" },
-  { id: "stuck", label: "A session looks stuck", hint: "No output for a while, with its work unfinished.", on: "looks stuck" },
-  { id: "limit", label: "A session hits its usage limit", hint: "Its account ran out until the limit resets.", on: "hits its usage limit" },
-  { id: "finished", label: "A session finishes", hint: "It ended on its own, not stopped by you.", on: "finishes" },
-  { id: "left_behind", label: "A session leaves something running", hint: "It ended and left processes running, such as a dev server. Once per session.", on: "leaves something running" },
-  { id: "this_mac", label: "This Mac is getting tight", hint: "Memory, disk or heat near its limit, as This Mac shows it.", on: "" },
+/** Each kind, as the switch says it, what it means, and the end of
+ * "You'll get a notification when …". */
+const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; when: string }[] = [
+  { id: "waiting", label: "A session waits for you", hint: "It asked a question or wants your approval.", when: "a session waits for you" },
+  { id: "stuck", label: "A session looks stuck", hint: "No output for a while, with its work unfinished.", when: "a session looks stuck" },
+  { id: "limit", label: "A session hits its usage limit", hint: "Its account ran out until the limit resets.", when: "a session hits its usage limit" },
+  { id: "finished", label: "A session finishes", hint: "It ended on its own, not stopped by you.", when: "a session finishes" },
+  { id: "left_behind", label: "A session leaves something running", hint: "It ended and left processes running, such as a dev server. Once per session.", when: "a session leaves something running" },
+  // AJ-E2501: what AI Juggler notices itself.
+  { id: "quota", label: "An account is almost out of room", hint: "Its 5-hour or weekly window is nearly used up. Once until it resets.", when: "an account is almost out of room" },
+  { id: "crash", label: "A session crashes and is restarted", hint: "It crashed and AI Juggler started it again, if you let it.", when: "a session crashes and is restarted" },
+  { id: "reset", label: "An account has room again", hint: "Its window reset after it was almost out.", when: "an account has room again" },
+  { id: "this_mac", label: "This Mac is getting tight", hint: "Memory, disk or heat near its limit, as This Mac shows it.", when: "This Mac gets tight" },
 ];
 
 /** AJ-E1510: which kinds may become a macOS notification. */
@@ -35,8 +40,7 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
   const save = (id: keyof SystemNotificationsInfo, on: boolean) => {
     const next = { ...kinds, [id]: on };
     setKinds(next);
-    const kind = KINDS.find((entry) => entry.id === id);
-    const what = id === "this_mac" ? "This Mac gets tight" : `a session ${kind?.on ?? ""}`;
+    const what = KINDS.find((entry) => entry.id === id)?.when ?? "";
     void notificationsSet(next).then(
       (saved) => {
         setKinds(saved);

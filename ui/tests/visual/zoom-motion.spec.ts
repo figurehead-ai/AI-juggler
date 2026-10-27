@@ -56,9 +56,12 @@ async function runningAnimations(page: Page): Promise<string[]> {
 
 /** Every top-bar menu and New are on screen — not clipped away. */
 async function menusOnScreen(page: Page) {
-  for (const name of ["Home", "Accounts", "History", "Settings", "More"]) {
+  for (const name of ["Home", "Accounts", "History"]) {
     await expect(page.getByRole("button", { name, exact: true }).first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
   }
+  // AJ-E2502/E2507: the bell and your menu (Settings is in it).
+  await expect(page.getByTestId("notification-bell"), "the bell is off screen").toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId("user-menu-button"), "your menu is off screen").toBeInViewport({ ratio: 1 });
   await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeInViewport({ ratio: 1 });
 }
 

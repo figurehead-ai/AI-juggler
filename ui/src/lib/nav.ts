@@ -53,21 +53,14 @@ export function useSettingsLinks(global: GlobalId | null, setGlobal: (id: Global
   };
 }
 
-/** D-25: the header's destinations; the rest are one click away
- * under More (Fleet joins the header once a Mac is paired; Cleanup shows
- * as a pill while something is left behind). */
+/** D-25: the header's destinations (Fleet joins them once a Mac is
+ * paired; Cleanup shows as a pill while something is left behind).
+ * AJ-E2507: Settings, This Mac, Processes, your other computers and
+ * Privacy are one click away in your menu, behind the avatar. */
 export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "home", label: "Home" },
   { id: "accounts", label: "Accounts" },
   // The review of 0.1.4: the page with the most to show, out of More.
   { id: "usage", label: "Usage" },
   { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
-];
-export const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "thismac", label: "This Mac", hint: "What your AI tools use on this Mac" },
-  { id: "fleet", label: "Fleet", hint: "Your other Macs" },
-  { id: "cleanup", label: "Processes", hint: "What your sessions run and left behind, and the cleanup history" },
-  // One place for Privacy: this opens Settings › Privacy.
-  { id: "privacy", label: "Privacy", hint: "In Settings: what AI Juggler reads, changes and sends" },
 ];

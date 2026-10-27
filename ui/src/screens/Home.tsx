@@ -26,7 +26,7 @@
  * action. The ledger-degraded banner moved here from Overview.
  */
 import { ProjectMark } from "../components/ProjectMark";
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
 import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
@@ -39,17 +39,16 @@ import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
 import { SmootherCard } from "../components/SmootherCard";
-import { ownSignIn } from "../lib/providers";
+
 import { HomeApps } from "../components/HomeApps";
 import { HomeRecent } from "../components/HomeRecent";
 import { HomeNeeds } from "../components/HomeNeeds";
 import { HomeRunway } from "../components/HomeRunway";
-import { homeNeeds, isSessionNeed, needsHeading } from "../lib/home-needs";
-import { endedToday, itemsOf, needsYou, openNow } from "../lib/rail-items";
+import { needsHeading } from "../lib/home-needs";
+import { endedToday, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
-import { isSnoozed, readSnooze } from "../lib/railview";
-import { useSeen } from "../lib/seen";
 import { useShownConversations } from "../lib/shown-apps";
+import { useNeedsYou } from "../lib/needs-you";
 import { showToast } from "../components/Toast";
 import {
   accountLoginState,
@@ -63,9 +62,7 @@ import {
   terminalSpawnLogin,
   type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData,
 } from "../lib/bridge";
-import { CapNeedItems, useCapNeeds } from "../components/BudgetNeeds";
-import { useMessageNeeds } from "../lib/ipc/messages"; // E18: messages that wait on you
-import { useTaskNeeds } from "../lib/ipc/tasks"; // E19: and tasks
+import { CapNeedItems } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -109,6 +106,18 @@ export function needWords(need: Need, session: InstanceInfo): { what: string; ac
 
 import { placeOf } from "../lib/project-words";
 export { placeOf };
+
+/** This computer's own need (AJ-E1408): its overload alerts (sustained
+ * pressure, swap thrash, a busy or hot computer, a disk filling) — or,
+ * before any has held long enough, one already under pressure. A session
+ * hogging it is its own item (E14, AJ-E1404 Req.3). */
+export function macNeed(thisMac: ThisMacInfo | null, nameOf: (id: string) => string | null): { title: string; detail: string; severe: boolean } | null {
+  if (!thisMac?.machine.sampled) return null;
+  const alerts = thisMac.alerts.filter((alert) => alert.kind !== "heavy");
+  if (alerts.length > 0) return { ...alertWords(alerts, nameOf)!, severe: thisMac.machine.summary.level === "pressure" };
+  if (thisMac.machine.summary.level !== "pressure") return null;
+  return { title: "Your Mac is under pressure", detail: reasonSentence(thisMac.machine.summary.reasons.slice(0, 2).map((reason) => reason.words)), severe: true };
+}
 
 export function HomeScreen({
   sessions,
@@ -156,9 +165,11 @@ export function HomeScreen({
   onOpenThisMac?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
-  const capNeeds = useCapNeeds(); // AJ-E1514: a monthly cap at 80 % or 100 %.
-  const messageNeeds = useMessageNeeds();
-  const taskNeeds = useTaskNeeds();
+  // AJ-E2502: Needs you, worked out once (the bell shows the same count).
+  const needsNow = useNeedsYou({ sessions, accounts, projects, thisMac, now, macNeed });
+  const capNeeds = { caps: needsNow.caps, reload: needsNow.reloadCaps }; // AJ-E1514
+  const messageNeeds = needsNow.messages;
+  const taskNeeds = needsNow.tasks;
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   useEffect(() => {
     let alive = true;
@@ -276,49 +287,13 @@ export function HomeScreen({
   // AJ-E2105: the rail's own list (its Needs you, its places), with the
   // apps turned off in Settings left out.
   const { conversations, hidden: hiddenApps } = useShownConversations();
-  const seen = useSeen();
-  const items = useMemo(() => {
-    const snooze = readSnooze();
-    return itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now) });
-  }, [sessions, conversations, projects, seen, now]);
-  const needs = needsYou(items);
+  const items = needsNow.items;
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
   const review = sessions
     .filter((s) => toReview(s, now))
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
-  // E14 (AJ-E1404 Req.3): a session hogging the Mac needs you too — unless
-  // it is already listed for another reason — and so does a Mac under
-  // pressure. Tools AI Juggler didn't start are shown in This Mac only.
-  const listed = new Set(needs.flatMap((item) => (item.session ? [item.session.id] : [])));
-  const heavy = (thisMac?.heavy ?? []).filter(
-    (tree): tree is typeof tree & { session_id: string } =>
-      tree.session_id !== null && !listed.has(tree.session_id) && sessions.some((s) => s.id === tree.session_id),
-  );
-  // AJ-E1408: the Mac's own overload alerts (sustained pressure, swap
-  // thrash, a busy or hot Mac, a disk filling) — or, before any has held
-  // long enough, a Mac already under pressure.
-  const machineAlerts = (thisMac?.alerts ?? []).filter((alert) => alert.kind !== "heavy");
-  const nameOfSession = (id: string) => {
-    const session = sessions.find((s) => s.id === id);
-    return session ? placeOf(session, projects).title : null;
-  };
-  const macNeed: { title: string; detail: string; severe: boolean } | null = !thisMac?.machine.sampled
-    ? null
-    : machineAlerts.length > 0
-      ? {
-          ...alertWords(machineAlerts, nameOfSession)!,
-          severe: thisMac.machine.summary.level === "pressure",
-        }
-      : thisMac.machine.summary.level === "pressure"
-        ? {
-            title: "Your Mac is under pressure",
-            detail: reasonSentence(thisMac.machine.summary.reasons.slice(0, 2).map((reason) => reason.words)),
-            severe: true,
-          }
-        : null;
-  const signIns = accounts.filter((account) => !signedIn(account.login_state));
   // D-25: Sign in opens the Provider's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
   const [signingIn, setSigningIn] = useState<string | null>(null);
@@ -377,21 +352,10 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = homeNeeds({
-    items: needs,
-    signIns,
-    signInDetail: (account) => `${ownSignIn(account.provider)}, in a terminal here — about thirty seconds. AI Juggler never sees your password.`,
-    mac: macNeed,
-    heavy: heavy.map((tree) => {
-      const place = placeOf(sessions.find((s) => s.id === tree.session_id)!, projects);
-      const helpers = tree.helpers > 0 ? (tree.helpers === 1 ? "1 more process" : `${tree.helpers} more processes`) : null;
-      return { sessionId: tree.session_id, title: tree.heavy_note ?? "a lot of memory or CPU", detail: [place.title, place.detail, helpers].filter(Boolean).join(" · ") };
-    }),
-    leftovers: thisMac?.leftover_processes ?? 0,
-  });
-  const sessionNeeds = allNeeds.filter(isSessionNeed).length;
-  // E18, E19: agents' messages and tasks that wait on the user count with the others.
-  const headline = needsHeading({ sessions: sessionNeeds, others: allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length }, {
+  const allNeeds = needsNow.needs;
+  // E18, E19: agents' messages and tasks that wait on the user count with
+  // the others; AJ-E2502: the total is the bell's count.
+  const headline = needsHeading({ sessions: needsNow.sessions, others: needsNow.total - needsNow.sessions }, {
     runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,

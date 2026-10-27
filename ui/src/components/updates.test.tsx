@@ -251,9 +251,9 @@ describe("AJ-E1010 update prompts on Home", () => {
     w().__AIJ_UPDATE_STATUS__ = { ...base, state: "available", available };
     const { container } = render(<NotificationRegion />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-notice']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='update-notice']")!.textContent).toContain(
-      "AI Juggler 0.2.0 is available. Nothing is installed until you choose.",
-    );
+    // AJ-E2504: the shared Banner — who and what, then the rest.
+    expect(container.querySelector("[data-testid='update-notice'] p")!.textContent).toBe("AI Juggler 0.2.0 is availableBeta");
+    expect(container.querySelector("[data-testid='update-notice']")!.textContent).toContain("Nothing is installed until you choose.");
     expect(container.querySelector("[data-testid='update-notice-channel']")!.textContent).toBe("Beta");
     expect(calls()).toEqual([]);
     // Review opens Settings on the update itself, focused.

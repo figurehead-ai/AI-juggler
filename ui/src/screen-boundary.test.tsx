@@ -40,7 +40,6 @@ it("a throwing screen shows its panel; the header and the rail stay", async () =
   const { default: App } = await import("./App");
   const user = userEvent.setup();
   const view = render(<App />);
-  await user.click(await view.findByRole("button", { name: "More" }));
   await user.click(await view.findByRole("button", { name: /^Usage/ }));
   const panel = await view.findByTestId("screen-problem");
   expect(panel.getAttribute("data-screen")).toBe("usage");
