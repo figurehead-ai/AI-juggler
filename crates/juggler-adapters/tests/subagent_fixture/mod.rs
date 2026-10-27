@@ -20,15 +20,29 @@ fn lines(values: &[serde_json::Value]) -> String {
     values.iter().map(|value| format!("{value}\n")).collect()
 }
 
-/// The first file under `dir` whose path ends with `tail`.
+/// The first file under `dir` that `tail` names: its folders (`/`
+/// between them, compared by component, so any platform's separator
+/// works) and the end of its file name.
 pub fn find(dir: &Path, tail: &str) -> Option<PathBuf> {
+    let mut parts: Vec<&str> = tail.split('/').filter(|part| !part.is_empty()).collect();
+    let name = parts.pop()?;
+    let matches = |path: &Path| {
+        let file = path.file_name().and_then(|file| file.to_str()).unwrap_or("");
+        let mut folders = path.parent().into_iter().flat_map(Path::components).rev();
+        file.ends_with(name)
+            && parts.iter().rev().all(|part| {
+                folders
+                    .next()
+                    .is_some_and(|folder| folder.as_os_str() == std::ffi::OsStr::new(part))
+            })
+    };
     let mut stack = vec![dir.to_path_buf()];
     while let Some(at) = stack.pop() {
         for entry in std::fs::read_dir(&at).ok()?.flatten() {
             let path = entry.path();
             if path.is_dir() {
                 stack.push(path);
-            } else if path.to_string_lossy().ends_with(tail) {
+            } else if matches(&path) {
                 return Some(path);
             }
         }
