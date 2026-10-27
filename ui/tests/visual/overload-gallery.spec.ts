@@ -116,7 +116,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, "tight", [MEMORY], theme);
     const item = page.getByTestId("home-need-mac");
     await expect(item).toContainText("Your Mac is under memory pressure");
-    await expect(item).toContainText("ai-juggler is using 3.2 GB");
+    await expect(item).toContainText("ai-juggler is using 3.0 GB");
     // Home says it once, in Needs you: no banner; the headline counts it
     // (AJ-E2105).
     await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");

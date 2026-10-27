@@ -60,7 +60,7 @@ for (const theme of ["dark", "light"] as const) {
     });
     await card.getByRole("button", { name: "Save…" }).click();
     await expect(card.getByRole("status")).toHaveText(
-      "Saved to ~/Desktop/AI Juggler diagnostics 2026-10-23.zip (4.7 KB). Attach it to your report.",
+      "Saved to ~/Desktop/AI Juggler diagnostics 2026-10-23.zip (5 KB). Attach it to your report.",
     );
     await expect(preview).toHaveCount(0);
     await page.mouse.move(0, 0);
