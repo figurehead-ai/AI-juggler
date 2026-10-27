@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The switch dialog (0.1.9): Cancel and a close button on every step, a
+  fixed header and footer so the buttons always show, a readable confirm
+  step ("Ready to switch to…", up to three lines, Details), and plain
+  words for every failure with Retry. Compaction and "not the usual
+  account" are no longer warnings or door conditions (D-03 amended); the
+  keys question is asked only when another tool, another Mac or a saved
+  handover will read the conversation. Missing items say whether they
+  block, with steps to turn them on or to give a server its own token.
+- Plain words everywhere (0.1.9, D-25): one central mapping turns errors
+  into sentences; the technical text goes to errors.log (keys stripped,
+  owner-only), which Export diagnostics includes. Quota alerts, tool
+  names, statuses and detector names read in words.
+- The session History tab, the go-to hotkey bringing AI Juggler forward,
+  Compact density on the rail, a folder dropped on New session, and an
+  optional Figurehead step at the end of first run (0.1.9, D-46).
+
 - Switching from any session (0.1.8): a session another app runs (the
   Claude app, Codex in ChatGPT, a CLI in a terminal) offers every
   signed-in profile of every tool, and one click opens the switch screen
@@ -230,6 +246,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A long-running app session's conversation no longer reads "holds no
+  messages" (0.1.9).
+- Search results never show part of a key from a transcript (0.1.9).
+- The cost tile never reads "$0" for usage it couldn't price, and a
+  setting that fails to save puts the old value back and says why (0.1.9).
 - The lifecycle forwarder ended after its first quiet half-second, so
   sessions AI Juggler ran weren't recorded as ended, restarted after a
   crash or notified (0.1.8). A panicking pass no longer stops a
