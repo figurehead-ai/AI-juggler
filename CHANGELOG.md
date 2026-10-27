@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Needs action** (your Needs you list) and **Earlier** (an account with
   room again, a finished session, a crash restarted, an update; 30 days).
   Each item offers its action, and ⋯ snoozes it or mutes its project or
-  kind — snoozed and muted things stop interrupting but are still counted.
+  kind — muted things stop interrupting but are still counted; a snoozed
+  one leaves the Needs you count until its snooze ends, then comes back by
+  itself. Needs you is worked out by AI Juggler's service, so the badge
+  and the menu-bar item stay right with the window closed.
   Nothing acts by itself. The menu-bar item lists what needs you and
   what's open, with Open AI Juggler and New session….
 - **Banners in plain words**: an account almost out of room says how much

@@ -25,10 +25,14 @@ Click the bell, or press ⌘⇧N.
   that finished, a crash AI Juggler restarted, an update. History is kept
   for 30 days; **Show earlier** reads more.
 - **⋯** on an item: **Snooze 1 h**, **Snooze until tomorrow**, **Mute this
-  project** or **Mute this kind**. Snoozed and muted items stop
-  interrupting you — no dot, no banner, no notification — but Needs you
-  still counts them. Settings › Notifications › **Muted** lists what you
-  muted, with Unmute.
+  project** or **Mute this kind**. Both stop interrupting you — no dot, no
+  banner, no notification. A **snoozed** item also leaves the Needs you
+  count until its snooze ends (it says when: "Snoozed · back at 9:00
+  tomorrow"), then comes back into every count by itself, even with the
+  window closed; **Back into Needs you now** wakes it sooner. A snooze from
+  the rail (Snooze for an hour, Mute this session) is the same snooze. A
+  **muted** item is still counted. Settings › Notifications › **Muted**
+  lists what you muted, with Unmute.
 - **Mark all read** clears every dot (the count stays: it's what still
   needs you).
 - At the foot: today in one line ("Today: 4 finished · 1 restarted · Work

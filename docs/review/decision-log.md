@@ -985,7 +985,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44, D-49 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1225,3 +1225,54 @@ has no "edit anything" path.
   `tasks_guardrails.rs::the_app_writes_no_task`, the store's
   `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
   `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.
+
+### D-49 Your menu and snoozes: My Macs with an account; a snoozed need leaves the count — SETTLED (2026-10-27)
+
+**Rulings.** The maintainer, 2026-10-27, on the notification system and
+your menu (AJ-E2501..E2507):
+
+1. "Yes: keep This Mac and Processes in the avatar menu, and show My Macs
+   only when a Figurehead account is connected." Without an account your
+   menu's second group is Settings, This Mac and Processes; with one, My
+   Macs stays in the account group, next to Cloud backup.
+2. "Yes: snoozed items leave the Needs you count until their snooze ends;
+   muted ones stay counted." This changes the approved design's note
+   ("snoozed and muted things are still counted in Needs you").
+
+**What changed (E25).**
+
+- Needs you is worked out in the backend (`features/notifications/needs.rs`)
+  on the 5 s resources tick, window or not: one list and one count for the
+  rail, Home, the bell, the app badge, the menu-bar item and the system
+  notifications. The window works nothing out any more
+  (`notifications_sync`, `NeedsSync` and the UI's computation are gone;
+  `lib/needs-you.ts` reads the backend's list; the preview runs the same
+  rules in a lazy stand-in, `preview/needs.tsx`).
+- A snooze belongs to its subject (`need_snoozes`, schema v37:
+  `s:<session>`, `c:<account>/<conversation>`, `signin:<account>`, …),
+  until a time or until woken. The tick ends a snooze whose time has come
+  and every view follows, so a snoozed need comes back into every count by
+  itself. The rail's snoozes (Snooze for an hour, Mute this session) are
+  these, no longer the window's own; the old ones move over once.
+- The snooze toast says the need is out of Needs you until it is back
+  ("Back at 9:00 tomorrow; out of Needs you until then."); a snoozed row
+  says when it is back and offers **Back into Needs you now**.
+- The rail's Needs you lists every need the bell counts (a sign-in, This
+  Mac, a cap, an agent's message or task as compact rows under the
+  sessions), so its number is the bell's.
+
+**Why.** One count only holds if one place works it out, and only the
+backend runs with no window (the badge and the menu-bar item); a snooze is
+the user saying "not now", so counting it kept the badge lit for something
+they had set aside, while a mute is about interruptions, not about whether
+the thing still needs them.
+
+- Risk: a snoozed item is out of sight in the count; the centre still
+  lists it under **Snoozed: n**, and it comes back by itself.
+- Evidence: `crates/juggler-app/tests/notification_model.rs`
+  (`needs_you_is_worked_out_in_the_backend_with_no_window`: the rail's
+  list, the bell, the badge and the menu-bar item from one tick; a snooze
+  ending brings its need back), `centre/tests.rs`
+  (`snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay`),
+  `juggler-core/tests/notices_storage.rs`, vitest
+  `src/count-agreement.test.tsx` and `components/notifications.test.tsx`.

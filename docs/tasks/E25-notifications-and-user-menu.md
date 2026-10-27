@@ -21,14 +21,15 @@
 >
 > **Law for every task here:**
 > - **One notification model, in the backend.** Every source writes
->   through it: Needs you (kept in step by the window, the same list Home
->   shows), an account almost out of room and its reset (the alert pass),
+>   through it: Needs you (worked out in the backend on its own tick, D-49:
+>   the list the rail and Home show), an account almost out of room and its reset (the alert pass),
 >   a session that finished, a crash and its restart, an update, a plan
 >   renewing soon. The centre, the banners, the bell, the app badge, the
 >   menu-bar item and the system notifications are views of it.
-> - **One count.** The bell, the badge and the menu-bar item show the
->   Needs you count; snoozed and muted needs are still counted (they only
->   stop interrupting).
+> - **One count.** The bell, the badge, the menu-bar item, the rail and
+>   Home show the Needs you count. A snoozed need leaves the count until
+>   its snooze ends; a muted one is still counted and only stops
+>   interrupting (D-49, a change from the approved note).
 > - **Nothing acts by itself.** A notice says what happened and offers its
 >   one action (and the design's second); only the user's click runs it.
 > - **The system-notification rules stay (AJ-E1510):** off until chosen,
@@ -52,9 +53,9 @@
 **Requirements**:
 1. Schema v37 SHALL add `notices` (key, kind, origin, needs, title, detail, project, data JSON — what a click opens and the facts a line is drawn from —, action, meter, created/updated/read/resolved/snoozed/dismissed times) and `notice_mutes` (project or kind); the upgrade keeps a `before-v36` copy.
 2. A need SHALL be open once per key (a partial unique index); a happening SHALL be told once per key while kept.
-3. The window's Needs you list SHALL be kept in step (`notifications_sync`): new items written (unread), changed ones updated (their marks kept), gone ones ended. Only the window's own kinds; bounded sizes and counts.
+3. Needs you SHALL be worked out in the backend (`features/notifications/needs.rs`, D-49) on the 5 s resources tick, with no window: AI Juggler's sessions that wait, may be stuck, hit their limit or failed (not parked, archived or in a forgotten project); other apps' sessions that ask or finished something not looked at since (the seen marks, the app's own last view; apps turned off in Settings left out); sign-ins; This Mac (its alerts, a session working it hard, processes left running); monthly caps; agents' messages and tasks. It is written into the model only when it changed: new items written (unread), changed ones updated (their marks kept), gone ones ended. Bounded sizes and counts.
 4. Sources: an account almost out of room (the alert pass's emissions; ended, and "has room again" told, once the window resets), a session that finished, a crash restarted (try n of 3), an update found or ready, the digest's renewal lines.
-5. Marks: read (one or all), snooze (a time ahead), dismiss (a banner; the notice stays), mute a project or a kind (Settings lists and unmutes them). None changes the count.
+5. Marks: read (one or all), snooze a subject (`s:<session>`, `c:<account>/<conversation>`, `signin:<account>`…: until a time ahead, or until woken), dismiss (a banner; the notice stays), mute a project or a kind (Settings lists and unmutes them). D-49: a snoozed subject leaves the count until its snooze ends — the backend's tick ends it, and every view follows with no window; the rail's own snoozes are these. Mutes and dismissals don't change the count.
 6. Kept 30 days (an open need always); lists paged by keyset cursor.
 7. System notifications SHALL be a view: their kinds on in Settings (now also an account almost out of room, a crash restarted, an account with room again), a snoozed need or muted kind/project never interrupting, the model's own words.
 **UI/UX reasoning**: Nielsen #1 (visibility), #3 (user control: snooze, mute, every action a click); calm supervision (§1.1).
@@ -71,12 +72,12 @@
 ### AJ-E2502 One count: the bell, the app badge, Needs you | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
 **Goal**: The bell in the header, the app badge and the menu-bar item show the same number as Needs you on Home.
 **Requirements**:
-1. Needs you SHALL be worked out once (`lib/needs-you.ts`), used by Home and kept in step with the model (`NeedsSync`, only once the first loads answered).
+1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
 2. Home SHALL list the model's own needs (an account almost out of room) with "Hand over…".
 3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌘⇧N, opens the centre.
 4. The app badge SHALL be set through the platform seam on every change.
-**Quality gates**: `src/count-agreement.test.tsx`; `tests/notification_model.rs` (the same count on the bell, the badge and the menu-bar item); the gallery's header capture.
-**Files to touch**: `ui/src/lib/needs-you.ts`, `components/NeedsSync.tsx`, `components/NotificationBell.tsx`, `components/AppHeader.tsx`, `screens/Home.tsx`, `crates/juggler-platform/src/system.rs`, `features/notifications/views.rs`.
+**Quality gates**: `src/count-agreement.test.tsx` (the bell, Home and the rail); `tests/notification_model.rs` (the same count on the rail's list, the bell, the badge and the menu-bar item, worked out by the backend's tick with no window, a snooze ending bringing its need back); the gallery's header capture.
+**Files to touch**: `crates/juggler-app/src/features/notifications/needs.rs`, `ui/src/lib/needs-you.ts`, `components/NoticeOpeners.tsx`, `preview/needs.tsx`, `components/NotificationBell.tsx`, `components/AppHeader.tsx`, `components/PlaceBoard.tsx`, `components/RailNoticeRow.tsx`, `screens/Home.tsx`, `crates/juggler-platform/src/system.rs`, `features/notifications/views.rs`.
 
 ## Step 3 — the views
 
