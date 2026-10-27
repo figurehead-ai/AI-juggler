@@ -897,3 +897,144 @@ fn rules_and_servers_are_read_from_the_accounts_own_settings_folder() {
         .collect();
     assert_eq!(names, ["docs"]);
 }
+
+/// Every launch of `adapter` against `state`, by mode: the TUI, a primed
+/// and a resumed one, a headless run, and the sign-in.
+fn every_launch(adapter: &OpenCodeAdapter, state: &Path) -> Vec<Vec<String>> {
+    let mut out: Vec<Vec<String>> = [
+        LaunchMode::Interactive,
+        LaunchMode::Primed {
+            prompt: "hi".into(),
+            read_dirs: Vec::new(),
+        },
+        LaunchMode::Resume {
+            session_id: "ses_01J9".into(),
+            delta_prompt: None,
+        },
+        LaunchMode::Headless {
+            prompt: "explain".into(),
+        },
+    ]
+    .iter()
+    .map(|mode| {
+        adapter
+            .launch_spec(
+                &account(state),
+                &profile(None, BTreeMap::new()),
+                Path::new("/work/app"),
+                mode,
+            )
+            .unwrap()
+            .args
+    })
+    .collect();
+    out.push(adapter.login_spec(state).unwrap().args);
+    out
+}
+
+#[test]
+fn a_managed_account_on_opencode_2_runs_a_private_server_never_the_shared_service() {
+    let work = tempfile::tempdir().unwrap();
+    let home = work.path().join("home");
+    let bin = version_stub(work.path(), "2.2.0");
+    let adapter = OpenCodeAdapter::with_bin(&bin).with_home(&home);
+    assert!(discover_with_retry(&adapter).is_installed());
+    let managed = work.path().join("accounts/opencode/a");
+    adapter.prepare_account(&managed).unwrap();
+    let before = files(&managed);
+    let launches = every_launch(&adapter, &managed);
+    assert_eq!(launches[0], ["--standalone"]);
+    assert_eq!(launches[1], ["--standalone", "--prompt=hi"]);
+    assert_eq!(launches[2], ["--standalone", "--session", "ses_01J9"]);
+    assert_eq!(
+        launches[3],
+        ["run", "--standalone", "--format", "json", "--", "explain"]
+    );
+    assert_eq!(launches[4], ["auth", "login", "--standalone"]);
+    // Nothing is written for it: no service settings, no password.
+    assert_eq!(files(&managed), before, "a launch wrote to the account");
+    assert!(!managed.join("config/opencode/service.json").exists());
+
+    // The default folder used in place keeps the user's shared service, as
+    // their own `opencode` does.
+    let default = home.join(".local/share/opencode");
+    std::fs::create_dir_all(&default).unwrap();
+    for args in every_launch(&adapter, &default) {
+        assert!(
+            !args.iter().any(|arg| arg == "--standalone"),
+            "the default folder was given a private server"
+        );
+    }
+}
+
+#[test]
+fn opencode_1_and_an_unknown_version_launch_as_before() {
+    let work = tempfile::tempdir().unwrap();
+    let managed = work.path().join("accounts/opencode/a");
+    // OpenCode 1: no service, nothing changes.
+    let bin = version_stub(work.path(), "1.19.4");
+    let adapter = OpenCodeAdapter::with_bin(&bin).with_home(work.path().join("home"));
+    assert!(discover_with_retry(&adapter).is_installed());
+    adapter.prepare_account(&managed).unwrap();
+    let launches = every_launch(&adapter, &managed);
+    assert!(launches[0].is_empty());
+    assert_eq!(launches[4], ["auth", "login"]);
+    for args in &launches {
+        assert!(
+            !args.iter().any(|arg| arg == "--standalone"),
+            "OpenCode 1 was given a 2.x option"
+        );
+    }
+    // An update to 2.x replaces the binary: its version is asked again.
+    let bin = version_stub(work.path(), "opencode 2.2.0");
+    assert!(discover_with_retry(&OpenCodeAdapter::with_bin(&bin)).is_installed());
+    assert_eq!(every_launch(&adapter, &managed)[0], ["--standalone"]);
+    // A version that can't be read: launched as 1.x's, never guessed.
+    let echo = OpenCodeAdapter::with_bin("/bin/echo").with_home(work.path().join("home"));
+    for args in every_launch(&echo, &managed) {
+        assert!(!args.iter().any(|arg| arg == "--standalone"));
+    }
+}
+
+#[test]
+fn a_server_is_set_up_in_the_form_the_installed_opencode_reads() {
+    use juggler_adapter::inventory::{Detail, Item, ItemKind, McpServer, McpTransport, Scope};
+    let work = tempfile::tempdir().unwrap();
+    let item = Item {
+        tool: "claude-code".into(),
+        kind: ItemKind::McpServer,
+        name: "files".into(),
+        scope: Scope::User,
+        detail: Detail::Mcp(McpServer {
+            transport: McpTransport::Stdio {
+                command: "npx".into(),
+                args: vec!["files-mcp".into()],
+                env: Vec::new(),
+            },
+            oauth: false,
+        }),
+    };
+    for (version, pointer) in [("2.2.0", "/mcp/servers/files"), ("1.19.4", "/mcp/files")] {
+        let dir = work.path().join(version);
+        std::fs::create_dir_all(&dir).unwrap();
+        let bin = version_stub(&dir, version);
+        let adapter = OpenCodeAdapter::with_bin(&bin).with_home(work.path().join("home"));
+        assert!(discover_with_retry(&adapter).is_installed());
+        let managed = dir.join("account");
+        adapter.prepare_account(&managed).unwrap();
+        adapter.set_up(&managed, None, &item).unwrap();
+        let text = std::fs::read_to_string(managed.join("config/opencode/opencode.json")).unwrap();
+        let value = juggler_adapter::jsonc::parse(&text).unwrap();
+        assert!(
+            value
+                .pointer(pointer)
+                .is_some_and(serde_json::Value::is_object)
+        );
+        let names: Vec<String> = adapter
+            .inventory(&managed, None)
+            .into_iter()
+            .map(|item| item.name)
+            .collect();
+        assert_eq!(names, ["files"]);
+    }
+}
