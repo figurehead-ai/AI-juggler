@@ -417,6 +417,14 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_inventory::can_set_up(item)
     }
 
+    fn how_to_get(&self, item: &juggler_adapter::inventory::Item) -> Vec<String> {
+        crate::claude_inventory::how_to_get(item)
+    }
+
+    fn account_settings_url(&self) -> Option<String> {
+        Some(crate::claude_inventory::ACCOUNT_SETTINGS_URL.to_owned())
+    }
+
     fn set_up(
         &self,
         state_dir: &Path,

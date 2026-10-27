@@ -36,4 +36,19 @@ about: string | null,
 /**
  * Ticked to start with: set up as it is, or translated.
  */
-suggested: boolean, };
+suggested: boolean, 
+/**
+ * When it can't be set up but the account can turn it on: the
+ * steps, from the target tool's adapter (never written here).
+ */
+steps: Array<string>, 
+/**
+ * The target tool's id when it has a page for those steps (opened
+ * by `trust_open` kind `account-settings`).
+ */
+steps_page: string | null, 
+/**
+ * That page's button ("Open claude.ai settings"), named from its
+ * address.
+ */
+steps_page_label: string | null, };

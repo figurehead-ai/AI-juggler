@@ -39,22 +39,24 @@ pub struct OpenedPack {
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum PackReadError {
     /// Not a pack folder at all.
-    #[error("this isn't a context pack: {0}")]
+    #[error("this isn't a saved handover: {0}")]
     NotAPack(String),
     /// A file is missing, a link, or outside the pack.
-    #[error("this pack is incomplete or unsafe: {0}")]
+    #[error("this handover is incomplete or unsafe: {0}")]
     Unsafe(String),
     /// A file's bytes don't match the manifest.
-    #[error("this pack was changed after it was made: {0} doesn't match")]
+    #[error("this handover was changed after it was made: {0} doesn't match")]
     Changed(String),
     /// Made by a newer AI Juggler.
-    #[error("this pack was made by a newer AI Juggler (format {0}); update to open it")]
+    #[error("this handover was made by a newer AI Juggler (format {0}); update to open it")]
     Newer(u32),
     /// Too big to be one of ours.
-    #[error("this pack is too big to open ({0})")]
+    #[error("this handover is too big to open ({0})")]
     TooBig(String),
     /// Holds what looks like a credential.
-    #[error("this pack holds what looks like a key or password ({0} found), so it isn't opened")]
+    #[error(
+        "this handover holds what looks like a key or password ({0} found), so it isn't opened"
+    )]
     Credentials(usize),
 }
 
@@ -70,7 +72,9 @@ fn inside(rel: &str) -> bool {
 /// within the size limit.
 fn read(dir: &Path, rel: &str) -> Result<Vec<u8>, PackReadError> {
     if !inside(rel) {
-        return Err(PackReadError::Unsafe(format!("{rel} is outside the pack")));
+        return Err(PackReadError::Unsafe(format!(
+            "{rel} is outside the handover"
+        )));
     }
     let path = dir.join(rel);
     let meta = std::fs::symlink_metadata(&path)
@@ -96,7 +100,7 @@ pub fn read_pack(dir: &Path) -> Result<OpenedPack, PackReadError> {
     let folder = std::fs::symlink_metadata(dir)
         .map_err(|_| PackReadError::NotAPack("the folder can't be read".into()))?;
     if !folder.is_dir() {
-        return Err(PackReadError::NotAPack("pick the pack's folder".into()));
+        return Err(PackReadError::NotAPack("pick the handover's folder".into()));
     }
     let manifest = read(dir, "manifest.json")
         .map_err(|_| PackReadError::NotAPack("it has no manifest.json".into()))?;
@@ -118,7 +122,7 @@ pub fn read_pack(dir: &Path) -> Result<OpenedPack, PackReadError> {
     for row in &rows {
         if !inside(&row.rel_path) {
             return Err(PackReadError::Unsafe(format!(
-                "{} is outside the pack",
+                "{} is outside the handover",
                 row.rel_path
             )));
         }

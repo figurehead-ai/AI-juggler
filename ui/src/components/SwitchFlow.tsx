@@ -1,188 +1,51 @@
 /**
  * AJ-E205/E206 — the switch execution surface. The door (pass2/02
- * §8) picks the shape at preflight: a proven pair renders the
- * compact 1-click popover (carry one-liner + cost + the §5.2 freeze
- * choice — exactly Finish-turn or Stop-now, never "copy live and
- * hope"), everything else opens the wizard, which renders ONLY the
+ * §8) picks the shape at preflight: a proven move renders one confirm
+ * screen, everything else opens the wizard, which renders ONLY the
  * steps whose data is non-trivial ("Step 2 of 3", never phantom
  * steps). No handover executes from a preview the user has not seen:
- * the confirm click lives on the wizard's last step. Executing shows
- * determinate labelled stages (never a bare spinner); failure shows
- * the §7.1 source-safe banner; a completed 1-click switch offers a
- * 10-second undo toast (stop target + resume source + compensating
- * edge). Copy never says "we switched you" (SPEC:26) — the user
- * clicked, the user switched.
+ * the Switch click lives on the last screen. Executing names its stages
+ * in plain words (never a bare spinner); failure keeps the original safe
+ * and offers Retry; a completed one-click switch offers a 10-second
+ * undo toast. Copy never says "we switched you" (SPEC:26).
+ *
+ * The maintainer's walk of 0.1.8 (2026-10-27): Cancel on every step and
+ * a close × (but while the copy runs, §4.9: Esc and × wait, "Finishing
+ * copy…"); the keys question only when the words go somewhere new; the
+ * carry list in plain words; and a confirm screen to read.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { outsideWords, SwitchFreezeChoice } from "./SwitchFreezeChoice";
-import { SwitchSetupList, SwitchSetupResults } from "./SwitchSetupList";
+import { outsideWords, type FreezeChoice } from "./SwitchFreezeChoice";
+import { SwitchSetupResults } from "./SwitchSetupList";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
+import { ConfirmBody } from "./switch/ConfirmBody";
+import { CarryList } from "./switch/CarryList";
+import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
+import { badgeWords, stageWords } from "../lib/switch-words";
+import { toolSpec } from "../lib/tools";
 import {
   switchPreflight,
   switchDoorCount,
   switchExecute,
   switchUndo,
   redactionPolicySetGlobal,
-  type PreflightInfoData, errorText,} from "../lib/bridge";
-
-/** The plain-words picker options (same words as Settings). */
-const REDACTION_OPTIONS = [
-  { value: "strip", label: "Strip — replace keys with •••" },
-  { value: "keep", label: "Keep — pack stays on this Mac" },
-  { value: "ask", label: "Ask each time" },
-] as const;
+  type PreflightInfoData,
+  errorText,
+} from "../lib/bridge";
 
 type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number }
   | { kind: "done"; sessionId: string; preflight: PreflightInfoData }
-  | { kind: "failed"; message: string };
+  // A failure keeps what it failed on: Retry runs the switch again from
+  // there (or checks it again when the check itself failed).
+  | { kind: "failed"; message: string; preflight: PreflightInfoData | null };
 
-const STAGES = [
-  "Freeze",
-  "Snapshot",
-  "Stage & verify",
-  "Launch",
-  "Record",
-] as const;
-
-/** The carry-list one-liner for the 1-click popover (AJ-E206 §8.2). */
-function carryOneLiner(carry: PreflightInfoData["carry"]): string {
-  const parts = [
-    `${carry.carried.length} carried`,
-    `${carry.regenerated.length} rebuilt`,
-  ];
-  // §8: 1-click requires zero drops — say so in words, never "some
-  // context".
-  parts.push(carry.dropped.length === 0 ? "nothing dropped" : `${carry.dropped.length} dropped`);
-  return parts.join(" · ");
-}
-
-/** AJ-E208: the redaction surface both confirm doors render — the
- * verbatim policy line, the first-run chooser (required, no
- * default — it blocks the first pack until the user chooses), the
- * per-switch Ask answer, and the per-item un-redact list (this
- * switch only — never a remembered-policy change). */
-function RedactionBlock({
-  preflight,
-  askChoice,
-  onAskChoice,
-  chooserPick,
-  onChooserPick,
-  onGlobalChosen,
-  showItems,
-  unredact,
-  onToggleItem,
-}: {
-  preflight: PreflightInfoData;
-  askChoice: "strip" | "keep" | null;
-  onAskChoice: (choice: "strip" | "keep") => void;
-  chooserPick: string | null;
-  onChooserPick: (pick: string) => void;
-  onGlobalChosen: (pick: string) => void;
-  showItems: boolean;
-  unredact: Set<number>;
-  onToggleItem: (index: number) => void;
-}): JSX.Element {
-  const { redaction, redaction_items: items } = preflight;
-  if (redaction.effective === null) {
-    return (
-      <fieldset className="flex flex-col gap-1.5 rounded border border-warning/40 px-2 py-1.5" data-testid="switch-redaction-chooser">
-        <legend className="text-section font-semibold text-warning">
-          Choose how secrets are handled in packs (required, once)
-        </legend>
-        {REDACTION_OPTIONS.map((option) => (
-          <label key={option.value} className="flex items-center gap-2 text-xs">
-            <input
-              type="radio"
-              name="redaction-global"
-              checked={chooserPick === option.value}
-              onChange={() => onChooserPick(option.value)}
-            />
-            {option.label}
-          </label>
-        ))}
-        <button
-          type="button"
-          disabled={chooserPick === null}
-          onClick={() => chooserPick !== null && onGlobalChosen(chooserPick)}
-          data-testid="switch-redaction-save"
-          className={
-            "self-start rounded-lg border px-3 py-1.5 text-xs " +
-            (chooserPick === null
-              ? "border-hairline text-muted"
-              : "border-accent/40 bg-accent-soft text-accent-hi")
-          }
-        >
-          Save my choice
-        </button>
-      </fieldset>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1" data-testid="switch-redaction">
-      <p className="text-label text-muted" data-testid="switch-redaction-line">
-        {redaction.line}
-      </p>
-      {redaction.effective === "ask" && (
-        <fieldset className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5">
-          <legend className="text-section font-semibold text-ink">
-            This switch
-          </legend>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="radio"
-              name="redaction-ask"
-              checked={askChoice === "strip"}
-              onChange={() => onAskChoice("strip")}
-            />
-            Strip secrets this time
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="radio"
-              name="redaction-ask"
-              checked={askChoice === "keep"}
-              onChange={() => onAskChoice("keep")}
-            />
-            Keep secrets this time (pack stays on this Mac)
-          </label>
-        </fieldset>
-      )}
-      {showItems && items.length > 0 && (
-        <div className="flex flex-col gap-1 rounded border border-hairline px-2 py-1.5" data-testid="switch-redaction-items">
-          <p className="text-section font-semibold text-ink">
-            Secrets detected — un-redact per item for this switch only
-          </p>
-          {items.map((item, index) => (
-            <label key={`${item.kind}-${index}`} className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={unredact.has(index)}
-                onChange={() => onToggleItem(index)}
-              />
-              <span className="font-mono text-label">{item.preview}</span>
-              <span className="text-muted">{item.kind}</span>
-            </label>
-          ))}
-        </div>
-      )}
-      {items.length === 0 && (
-        <p className="text-label text-muted" data-testid="switch-redaction-none">
-          No secrets detected in this conversation.
-        </p>
-      )}
-    </div>
-  );
-}
-
-
-/** AJ-E808: the same words the switch rows use for the pair's state. */
-function validationWords(validated: boolean | undefined): string {
-  return validated ? "Proven" : "Beta · Not proven yet";
-}
+const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
+const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
+const PRIMARY = `${BUTTON} border-accent/50 bg-accent-soft font-semibold text-accent-hi hover:border-accent/70`;
 
 export function SwitchFlow({
   sessionId,
@@ -198,13 +61,17 @@ export function SwitchFlow({
   onSwitched: (sessionId: string, undo: { edgeId: string } | null) => void;
 }): JSX.Element {
   const [phase, setPhase] = useState<Phase>({ kind: "preflight" });
-  const [freeze, setFreeze] = useState<"finish-turn" | "stop-now">("finish-turn");
+  const [attempt, setAttempt] = useState(0);
+  const [freeze, setFreeze] = useState<FreezeChoice>("finish-turn");
   const [step, setStep] = useState(0);
-  // AJ-E208: the redaction will for this switch (Ask answer, the
-  // first-run chooser pick, and the per-item un-redact set).
-  const [askChoice, setAskChoice] = useState<"strip" | "keep" | null>(null);
-  const [chooserPick, setChooserPick] = useState<string | null>(null);
-  const [unredact, setUnredact] = useState<Set<number>>(new Set());
+  // The keys question: this switch's answer, whether to remember it, a
+  // remembered choice being changed, and the ones shown anyway.
+  const [answer, setAnswer] = useState<KeysAnswer | null>(null);
+  const [remember, setRemember] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [unhide, setUnhide] = useState<Set<number>>(new Set());
+  // §4.9: Esc (or ×) pressed while the copy runs: said, not obeyed.
+  const [holding, setHolding] = useState(false);
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
   const { setup, picked, toggle: togglePicked } = setupCheck;
@@ -217,7 +84,16 @@ export function SwitchFlow({
   // read the stale "confirm" and start another (review of #132).
   const started = useRef(false);
   if (invokerRef.current === null) invokerRef.current = document.activeElement;
+  const running = phase.kind === "executing";
+  // Set the moment the switch starts, so an Esc that comes before the
+  // next render is held too.
+  const runningRef = useRef(false);
+  runningRef.current = running || (runningRef.current && phase.kind !== "failed" && phase.kind !== "done");
   const cancel = () => {
+    if (runningRef.current) {
+      setHolding(true);
+      return;
+    }
     const invoker = invokerRef.current;
     onClose();
     requestAnimationFrame(() => {
@@ -225,76 +101,68 @@ export function SwitchFlow({
     });
   };
 
-  // Reset the redaction state when the flow opens for a new target.
+  // A new target starts with no answers.
   useEffect(() => {
-    setAskChoice(null);
-    setChooserPick(null);
-    setUnredact(new Set());
+    setAnswer(null);
+    setRemember(false);
+    setChanging(false);
+    setUnhide(new Set());
   }, [sessionId, targetProfileId]);
 
   useEffect(() => {
     let alive = true;
+    setPhase({ kind: "preflight" });
     switchPreflight(sessionId, targetProfileId)
       .then((preflight) => {
         if (alive) {
           setStep(0);
           setPhase({ kind: "confirm", preflight });
           // The door shown, counted once per opening (local only).
-          void switchDoorCount(preflight.door, preflight.wizard_steps).catch(() => undefined);
+          if (attempt === 0) void switchDoorCount(preflight.door, preflight.wizard_steps).catch(() => undefined);
         }
       })
       .catch((cause) => {
-        if (alive) setPhase({ kind: "failed", message: errorText(cause) });
+        if (alive) setPhase({ kind: "failed", message: errorText(cause), preflight: null });
       });
     return () => {
       alive = false;
     };
-  }, [sessionId, targetProfileId]);
+    // The door is counted for the first check only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, targetProfileId, attempt]);
 
-  const steps =
-    phase.kind === "confirm" && phase.preflight.door === "wizard"
-      ? phase.preflight.wizard_steps
-      : [];
-  // The execute click lives on the 1-click popover or the wizard's
-  // LAST step only — never mid-wizard (deep/09 H-5).
-  const redactionRequired =
-    phase.kind === "confirm" &&
-    (phase.preflight.redaction.effective === null
-      ? chooserPick === null
-      : phase.preflight.redaction.effective === "ask" && askChoice === null);
-  const executeArmed =
-    phase.kind === "confirm" &&
-    (phase.preflight.door === "one-click" || step === steps.length - 1) &&
-    !redactionRequired;
+  const steps = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight.wizard_steps : [];
+  const keysPending = phase.kind === "confirm" && keysRequired(phase.preflight, answer, changing);
+  // The Switch click lives on the one-click screen or the wizard's LAST
+  // step only — never mid-wizard (deep/09 H-5).
+  const executeArmed = phase.kind === "confirm" && (phase.preflight.door === "one-click" || step === steps.length - 1) && !keysPending;
 
   // Focus trap + Esc/⏎ handling (2.1.2/2.1.1 — the dialog is the
   // only operable surface while open).
   useEffect(() => {
     const node = dialogRef.current;
-    node?.querySelector<HTMLElement>("button, input")?.focus();
+    node?.querySelector<HTMLElement>("[data-autofocus], button, input")?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         cancel();
         return;
       }
-      if (event.key === "Enter" && executeArmed) {
+      if (event.key === "Enter" && executeArmed && !(event.target instanceof HTMLButtonElement)) {
         event.preventDefault();
-        void execute();
+        void execute(phase.kind === "confirm" ? phase.preflight : null);
       }
       if (event.key === "Tab" && node) {
-        const focusables = Array.from(
-          node.querySelectorAll<HTMLElement>("button, input"),
-        );
+        const focusables = Array.from(node.querySelectorAll<HTMLElement>("button:not(:disabled), input, summary"));
         if (focusables.length === 0) return;
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
-          last.focus();
+          last?.focus();
         } else if (!event.shiftKey && document.activeElement === last) {
           event.preventDefault();
-          first.focus();
+          first?.focus();
         }
       }
     };
@@ -303,49 +171,31 @@ export function SwitchFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase.kind, step, executeArmed, onClose]);
 
-  const toggleUnredact = (index: number) => {
-    setUnredact((current) => {
+  const toggleUnhide = (index: number) =>
+    setUnhide((current) => {
       const next = new Set(current);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
-  };
 
-  const chooseGlobal = async (pick: string) => {
-    try {
-      await redactionPolicySetGlobal(pick);
-      // Refresh the plan — the backend rebuilds the verbatim line
-      // (wizard state survives: step + freeze are untouched).
-      const refreshed = await switchPreflight(sessionId, targetProfileId);
-      setPhase({ kind: "confirm", preflight: refreshed });
-    } catch {
-      // The chooser stays up; nothing is guessed on failure.
-    }
-  };
-
-  const execute = async () => {
-    if (phase.kind !== "confirm" || started.current) return;
+  const execute = async (preflight: PreflightInfoData | null) => {
+    if (preflight === null || started.current) return;
     started.current = true;
-    const preflight = phase.preflight;
+    setHolding(false);
     // AJ-E2108: a session another app runs has nothing here to undo to
     // (it stayed as it was): the done step says so instead of the toast.
     const oneClick = preflight.door === "one-click" && !preflight.source_outside;
+    const choice = keysChoice(preflight, answer);
+    runningRef.current = true;
     setPhase({ kind: "executing", startedAt: Date.now() });
     try {
+      // "Remember my choice": saved as the policy before the switch reads it.
+      if (remember && answer !== null) await redactionPolicySetGlobal(answer);
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(
-        sessionId,
-        targetProfileId,
-        freeze,
-        askChoice,
-        [...unredact],
-      );
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : []);
       if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
@@ -354,117 +204,110 @@ export function SwitchFlow({
       }
       setPhase({ kind: "done", sessionId: result.session_id, preflight });
     } catch (cause) {
-      setPhase({ kind: "failed", message: errorText(cause) });
+      started.current = false;
+      runningRef.current = false;
+      setPhase({ kind: "failed", message: errorText(cause), preflight });
     }
   };
 
+  const retry = (failed: PreflightInfoData | null) => {
+    if (failed) void execute(failed);
+    else setAttempt((n) => n + 1);
+  };
+
+  const keys = (preflight: PreflightInfoData) => (
+    <KeysQuestion
+      preflight={preflight}
+      answer={answer}
+      onAnswer={setAnswer}
+      remember={remember}
+      onRemember={setRemember}
+      changing={changing}
+      onChange={() => setChanging(true)}
+      unhide={unhide}
+      onToggle={toggleUnhide}
+    />
+  );
+  const confirmBody = (preflight: PreflightInfoData) => (
+    <ConfirmBody
+      preflight={preflight}
+      target={targetLabel}
+      freeze={freeze}
+      onFreeze={setFreeze}
+      setup={setup}
+      picked={picked}
+      onToggle={togglePicked}
+      onRecheck={setupCheck.recheck}
+      checking={setupCheck.checking}
+      // One screen: the keys question (when it applies) is asked here.
+      extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
+    />
+  );
+  const switchButton = (preflight: PreflightInfoData) => (
+    <button
+      key="switch-now"
+      type="button"
+      disabled={keysPending}
+      // Continue and Switch now sit in one place: the second click of a
+      // double-click on Continue never starts the switch from a screen
+      // the user hasn't seen (deep/09 H-5).
+      onClick={(event) => event.detail < 2 && void execute(preflight)}
+      data-testid="switch-confirm"
+      className={keysPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}
+      aria-keyshortcuts="Enter"
+    >
+      Switch now
+    </button>
+  );
+  const cancelButton = (
+    <button type="button" onClick={cancel} className={SECONDARY} data-testid="switch-cancel" aria-keyshortcuts="Escape">
+      Cancel <span className="text-muted">(Esc)</span>
+    </button>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Switch to ${targetLabel}`}
         data-testid="switch-flow"
-        className="w-full max-w-md rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="relative flex max-h-[min(92vh,760px)] w-full max-w-[680px] flex-col overflow-y-auto rounded-xl border border-hairline bg-surface p-6 shadow-card"
       >
+        {!running && (
+          <button type="button" onClick={cancel} aria-label="Close" title="Close (Esc)" className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
+            <span aria-hidden="true" className="text-lg leading-none">×</span>
+          </button>
+        )}
+
         {phase.kind === "preflight" && (
-          <p className="text-xs text-muted" data-testid="switch-preflighting">
-            Checking the switch (preflight)…
+          <p className="text-body text-ink" data-testid="switch-preflighting">
+            Checking the switch to {targetLabel}…
           </p>
         )}
 
         {phase.kind === "confirm" && phase.preflight.door === "one-click" && (
-          <div className="flex flex-col gap-3" data-testid="switch-oneclick">
-            <h3 className="text-sm font-semibold">
-              Switch to {targetLabel}
-              <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
-                {phase.preflight.fidelity_words} · usual account · {validationWords(phase.preflight.validated)}
-              </span>
-            </h3>
-            <p className="text-label text-muted" data-testid="switch-oneclick-carry">
-              {carryOneLiner(phase.preflight.carry)}.
-            </p>
-            <p className="text-label text-muted">{phase.preflight.experimental_copy}</p>
-            {phase.preflight.warnings.length > 0 && (
-              <ul className="flex flex-col gap-1" data-testid="switch-warnings">
-                {phase.preflight.warnings.map((warning) => (
-                  <li key={warning} className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
-                    {warning}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <RedactionBlock
-              preflight={phase.preflight}
-              askChoice={askChoice}
-              onAskChoice={setAskChoice}
-              chooserPick={chooserPick}
-              onChooserPick={setChooserPick}
-              onGlobalChosen={(pick) => void chooseGlobal(pick)}
-              showItems={false}
-              unredact={unredact}
-              onToggleItem={toggleUnredact}
-            />
-            {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
-            <SwitchFreezeChoice
-              sourceLive={phase.preflight.source_live}
-              keepsRunning={phase.preflight.source_keeps_running}
-              outside={phase.preflight.source_outside ? { app: phase.preflight.source_app ?? null, target: targetLabel } : null}
-              value={freeze}
-              onChange={setFreeze}
-            />
+          <div className="flex flex-col gap-5" data-testid="switch-oneclick">
+            {confirmBody(phase.preflight)}
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
-                Cancel <span className="text-muted">(Esc)</span>
-              </button>
-              <button
-                type="button"
-                disabled={redactionRequired}
-                onClick={() => void execute()}
-                data-testid="switch-confirm"
-                className={
-                  "rounded-lg border px-3 py-1.5 text-xs " +
-                  (redactionRequired
-                    ? "border-hairline text-muted"
-                    : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-                }
-              >
-                Switch ▸ <span className="text-muted">(⏎)</span>
-              </button>
+              {cancelButton}
+              {switchButton(phase.preflight)}
             </div>
           </div>
         )}
 
         {phase.kind === "confirm" && phase.preflight.door === "wizard" && (
-          <div className="flex flex-col gap-3" data-testid="switch-wizard">
+          <div className="flex flex-col gap-5" data-testid="switch-wizard">
             {/* The step indicator lists ONLY the rendered steps —
                 "Step 2 of 3", never phantom steps (§8). */}
-            <div
-              className="flex flex-col gap-1"
-              data-testid="switch-steps"
-              aria-live="polite"
-            >
-              <p className="text-section font-semibold text-ink">
+            <div className="flex flex-col gap-1.5 pr-8" data-testid="switch-steps" aria-live="polite">
+              <p className="text-meta text-ink">
                 Step {step + 1} of {steps.length}: {steps[step]}
               </p>
               <ol className="flex flex-wrap gap-1">
                 {steps.map((title, index) => (
-                  <li
-                    key={title}
-                    className={
-                      "rounded-full border px-2 py-0.5 text-label " +
-                      (index === step
-                        ? "border-accent/60 bg-accent-soft text-accent-hi"
-                        : index < step
-                          ? "border-hairline text-muted"
-                          : "border-hairline text-muted")
-                    }
-                  >
+                  <li key={title} aria-current={index === step ? "step" : undefined} className={"rounded-full border px-2.5 py-0.5 text-label " + (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-ink")}>
                     {index < step ? "✓ " : ""}
                     {title}
                   </li>
@@ -473,204 +316,109 @@ export function SwitchFlow({
             </div>
 
             {steps[step] === "Target" && (
-              <div className="flex flex-col gap-2" data-testid="switch-step-target">
-                <h3 className="text-sm font-semibold">
-                  Switch to {targetLabel}
-                  <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
-                    {phase.preflight.fidelity_words} · {validationWords(phase.preflight.validated)}
-                  </span>
-                </h3>
-                <ul className="flex flex-col gap-1" data-testid="switch-wizard-reasons">
-                  {phase.preflight.wizard_reasons.map((reason) => (
-                    <li
-                      key={reason}
-                      className="rounded border border-warning/40 px-2 py-1 text-label text-warning"
-                    >
-                      {reason}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-label text-muted">
-                  {phase.preflight.usual_account
-                    ? "The usual account for this project — suggested first."
-                    : "A suggestion only — you pick the target; nothing moves until you confirm."}
+              <div className="flex flex-col gap-3" data-testid="switch-step-target">
+                <h3 className="text-title text-ink">Switch to {targetLabel}</h3>
+                <p className="text-meta text-ink">
+                  <span className="rounded-md border border-accent/40 px-1.5 py-0.5">{badgeWords(phase.preflight.fidelity_words, phase.preflight.validated)}</span>
                 </p>
+                <p className="text-body text-ink" data-testid="switch-move-line">
+                  {phase.preflight.move_line}
+                </p>
+                {phase.preflight.wizard_reasons.length > 0 && (
+                  <ul className="flex flex-col gap-1.5" data-testid="switch-wizard-reasons">
+                    {phase.preflight.wizard_reasons.map((reason) => (
+                      <li key={reason} className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning">
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {phase.preflight.source_outside && (
-                  <p className="text-label text-muted" data-testid="switch-outside-target">
+                  <p className="text-body text-ink" data-testid="switch-outside-target">
                     {outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)}
                   </p>
                 )}
+                <p className="text-meta text-ink">Nothing moves until you choose Switch now on the last step.</p>
               </div>
             )}
 
             {steps[step] === "What's carried" && (
-              <div className="flex flex-col gap-2" data-testid="switch-step-carried">
-                <h3 className="text-sm font-semibold">What's carried</h3>
-                <p className="text-label text-muted">
-                  Only what's listed here moves.
-                </p>
-                <div className="flex flex-col gap-1 text-label">
-                  {phase.preflight.carry.carried.length > 0 && (
-                    <p data-testid="switch-carry-carried">
-                      <span className="text-muted">Carried: </span>
-                      {phase.preflight.carry.carried.join(", ")}
-                    </p>
-                  )}
-                  {phase.preflight.carry.regenerated.length > 0 && (
-                    <p data-testid="switch-carry-rebuilt">
-                      <span className="text-muted">Rebuilt by the target: </span>
-                      {phase.preflight.carry.regenerated.join(", ")}
-                    </p>
-                  )}
-                  {phase.preflight.carry.dropped.length > 0 && (
-                    <p
-                      className="rounded border border-warning/40 px-2 py-1 text-warning"
-                      data-testid="switch-carry-dropped"
-                    >
-                      Doesn't carry: {phase.preflight.carry.dropped.join(", ")}
-                    </p>
-                  )}
-                </div>
-                <RedactionBlock
-                  preflight={phase.preflight}
-                  askChoice={askChoice}
-                  onAskChoice={setAskChoice}
-                  chooserPick={chooserPick}
-                  onChooserPick={setChooserPick}
-                  onGlobalChosen={(pick) => void chooseGlobal(pick)}
-                  showItems
-                  unredact={unredact}
-                  onToggleItem={toggleUnredact}
-                />
+              <div className="flex flex-col gap-4" data-testid="switch-step-carried">
+                <h3 className="text-title text-ink">What goes along</h3>
+                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} />
+                {keys(phase.preflight)}
               </div>
             )}
 
             {steps[step] === "Conflicts" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-conflicts">
-                <h3 className="text-sm font-semibold">Conflicts</h3>
-                <p className="text-label text-muted">
-                  Both sides changed. AI Juggler can't merge the two versions yet, so this
-                  switch keeps the source's version and records the fork.
+                <h3 className="text-title text-ink">Both sides changed</h3>
+                <p className="text-body text-ink">
+                  AI Juggler can't merge the two versions yet, so this switch keeps the original's version and records where they split.
                 </p>
               </div>
             )}
 
             {steps[step] === "Rules & diff" && (
               <div className="flex flex-col gap-2" data-testid="switch-step-rules">
-                <h3 className="text-sm font-semibold">Rules &amp; diff</h3>
-                <p className="text-label text-muted">
-                  Rules or the worktree diverged between accounts — the uncommitted diff
-                  rides the pack as a snapshot and the divergence is recorded.
+                <h3 className="text-title text-ink">Rules and changes differ</h3>
+                <p className="text-body text-ink">
+                  The project's rules or its uncommitted changes differ between the two accounts. A copy of the changes goes along, and the difference is recorded.
                 </p>
               </div>
             )}
 
-            {steps[step] === "Confirm" && (
-              <div className="flex flex-col gap-2" data-testid="switch-step-confirm">
-                <h3 className="text-sm font-semibold">Confirm the switch</h3>
-                <p className="text-label text-muted" data-testid="switch-cost">
-                  {phase.preflight.fidelity_words}
-                  {phase.preflight.usual_account ? " · usual account" : ""}
-                </p>
-                <RedactionBlock
-                  preflight={phase.preflight}
-                  askChoice={askChoice}
-                  onAskChoice={setAskChoice}
-                  chooserPick={chooserPick}
-                  onChooserPick={setChooserPick}
-                  onGlobalChosen={(pick) => void chooseGlobal(pick)}
-                  showItems={false}
-                  unredact={unredact}
-                  onToggleItem={toggleUnredact}
-                />
-                <p className="text-label text-muted">{phase.preflight.experimental_copy}</p>
-                {phase.preflight.warnings.length > 0 && (
-                  <ul className="flex flex-col gap-1" data-testid="switch-warnings">
-                    {phase.preflight.warnings.map((warning) => (
-                      <li
-                        key={warning}
-                        className="rounded border border-warning/40 px-2 py-1 text-label text-warning"
-                      >
-                        {warning}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {setup && <SwitchSetupList check={setup} picked={picked} onToggle={togglePicked} />}
-                <SwitchFreezeChoice
-                  sourceLive={phase.preflight.source_live}
-                  keepsRunning={phase.preflight.source_keeps_running}
-                  outside={phase.preflight.source_outside ? { app: phase.preflight.source_app ?? null, target: targetLabel } : null}
-                  value={freeze}
-                  onChange={setFreeze}
-                />
-              </div>
-            )}
+            {steps[step] === "Confirm" && confirmBody(phase.preflight)}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {cancelButton}
               {step > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStep((current) => Math.max(0, current - 1))}
-                  className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-                >
+                <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} className={SECONDARY} data-testid="switch-back">
                   Back
                 </button>
               )}
               {step < steps.length - 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setStep((current) => current + 1)}
-                  data-testid="switch-continue"
-                  className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi hover:border-accent/60"
-                >
-                  Continue ▸
+                <button key="continue" type="button" disabled={steps[step] === "What's carried" && keysPending} onClick={() => setStep((current) => current + 1)} data-testid="switch-continue" className={steps[step] === "What's carried" && keysPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}>
+                  Continue
                 </button>
               ) : (
-                <button
-                  type="button"
-                  disabled={redactionRequired}
-                  onClick={() => void execute()}
-                  data-testid="switch-confirm"
-                  className={
-                    "rounded-lg border px-3 py-1.5 text-xs " +
-                    (redactionRequired
-                      ? "border-hairline text-muted"
-                      : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-                  }
-                >
-                  Switch ▸ <span className="text-muted">(⏎)</span>
-                </button>
+                switchButton(phase.preflight)
               )}
             </div>
+            {steps[step] === "What's carried" && keysPending && (
+              <p className="text-right text-meta text-ink" data-testid="switch-keys-pending">
+                Choose what happens to the keys first.
+              </p>
+            )}
           </div>
         )}
 
         {phase.kind === "executing" && (
-          <div className="flex flex-col gap-2" aria-live="polite" data-testid="switch-executing">
-            <h3 className="text-sm font-semibold">Switching to {targetLabel}…</h3>
-            {/* Honest determinism: the stages are NAMED as they run
-                (never a bare spinner), but no stage claims completion
-                the engine has not reported — the single command
-                reports only its terminal state. */}
-            <ol className="flex flex-col gap-1">
-              {STAGES.map((stage) => (
-                <li key={stage} className="text-label text-muted">
-                  · {stage}
-                </li>
+          <div className="flex flex-col gap-3" aria-live="polite" data-testid="switch-executing">
+            <h3 className="text-title text-ink">Switching to {targetLabel}…</h3>
+            {/* The stages are NAMED (never a bare spinner), but none
+                claims completion the engine hasn't reported — the one
+                command reports only its end. */}
+            <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-ink">
+              {stageWords(targetLabel).map((stage) => (
+                <li key={stage}>{stage}</li>
               ))}
             </ol>
-            <p className="text-label text-muted" data-testid="switch-elapsed">
-              Running — freeze → stage → verify → launch in progress. The source stays resumable
-              throughout.
+            <p className="text-body text-ink" data-testid="switch-elapsed">
+              The original stays safe until the new session is running.
             </p>
+            {holding && (
+              <p className="text-body font-semibold text-ink" role="status" data-testid="switch-holding">
+                Finishing copy… this closes by itself when it's done.
+              </p>
+            )}
           </div>
         )}
 
         {phase.kind === "done" && (
-          <div className="flex flex-col gap-3" data-testid="switch-done">
-            <h3 className="text-sm font-semibold">Switched to {targetLabel}</h3>
-            <p className="text-label text-muted" data-testid="switch-done-words">
+          <div className="flex flex-col gap-4" data-testid="switch-done">
+            <h3 className="text-title text-ink">Switched to {targetLabel}</h3>
+            <p className="text-body text-ink" data-testid="switch-done-words">
               {phase.preflight.source_outside
                 ? outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)
                 : phase.preflight.source_keeps_running
@@ -679,11 +427,7 @@ export function SwitchFlow({
             </p>
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
             <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => onSwitched(phase.sessionId, null)}
-                className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi"
-              >
+              <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY}>
                 Go to the new session
               </button>
             </div>
@@ -691,23 +435,18 @@ export function SwitchFlow({
         )}
 
         {phase.kind === "failed" && (
-          <div className="flex flex-col gap-3" data-testid="switch-failed">
-            <h3 className="text-sm font-semibold text-warning">Switch didn’t complete</h3>
-            <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
-              {phase.message}
-            </p>
-            <p className="text-label text-muted">
-              The source is safe — resume it exactly where you left it.
+          <div className="flex flex-col gap-4" data-testid="switch-failed">
+            <h3 className="text-title text-warning">The switch didn't complete</h3>
+            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning">{phase.message}</p>
+            <p className="text-body text-ink">
+              {setupCheck.results.length > 0 ? "The original stays exactly as it was" : "Nothing was changed: the original stays exactly as it was"} — resume it where you left it, or try again.
             </p>
             {/* What was set up before the switch failed stays undoable. */}
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
-                Close
+            <div className="flex justify-end gap-2">
+              {cancelButton}
+              <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
+                Retry
               </button>
             </div>
           </div>
@@ -741,7 +480,7 @@ export function showSwitchUndoToast({
     id: "switch-undo",
     testId: "switch-undo",
     message: `Switched to ${targetLabel}.`,
-    detail: "The source stays resumable.",
+    detail: "The original stays resumable.",
     focusWhenFree: true,
     onClose,
     undo: {
@@ -750,9 +489,9 @@ export function showSwitchUndoToast({
         const result = await switchUndo(edgeId);
         onUndone(result.session_id);
       },
-      undoing: "Undoing — stopping the continuation and resuming the source…",
-      done: "Undone — back on the source session.",
-      failed: (cause) => `${cause} — the continuation keeps running; retry or stop it from Sessions.`,
+      undoing: "Undoing — stopping the new session and resuming the original…",
+      done: "Undone — back on the original session.",
+      failed: (cause) => `${cause} — the new session keeps running; try again or stop it from its page.`,
     },
   });
 }

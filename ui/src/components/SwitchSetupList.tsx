@@ -6,6 +6,7 @@
  * or tick one that needs them. Nothing is written until the switch runs.
  */
 import { useState, type JSX } from "react";
+import { trustOpen } from "../lib/ipc/trust";
 import {
   switchSetupUndo,
   type AppliedInfo,
@@ -48,11 +49,44 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
   return `${check.to} doesn't have ${missing} ${thing} ${check.from} has. ${picked.size} will be set up.`;
 }
 
+/** Something the account turns on itself (its plan, its features): the
+ * adapter's steps, numbered, its settings page and Check again. It never
+ * blocks the switch, and says so. */
+function AccountSteps({ offer, to, onRecheck, checking }: { offer: OfferInfo; to: string; onRecheck?: () => void; checking?: boolean }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="switch-setup-steps">
+      <p className="text-body text-ink">
+        You can switch now. {to} won't have {offer.name} until you turn it on for that account.
+      </p>
+      <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-meta text-ink">
+        {offer.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      <p className="text-meta text-ink">It's there only if {to}'s plan includes it.</p>
+      <div className="flex flex-wrap gap-2">
+        {offer.steps_page && (
+          <button type="button" onClick={() => void trustOpen({ kind: "account-settings", id: offer.steps_page! })} className="min-h-7 rounded-lg border border-hairline px-3 text-meta text-ink hover:bg-surface-2" data-testid="switch-setup-open-page">
+            {offer.steps_page_label ?? "Open the account's settings"} ↗
+          </button>
+        )}
+        {onRecheck && (
+          <button type="button" onClick={onRecheck} disabled={checking} className="min-h-7 rounded-lg border border-hairline px-3 text-meta text-ink hover:bg-surface-2" data-testid="switch-setup-recheck">
+            {checking ? "Checking…" : "Check again"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SwitchSetupList({
   check,
   picked,
   onToggle,
   bare = false,
+  onRecheck,
+  checking = false,
 }: {
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
@@ -60,6 +94,9 @@ export function SwitchSetupList({
   /** The rows only, under a line that already says what they are
    * (AJ-E1508's "Start with the same settings as …"). */
   bare?: boolean;
+  /** Reads the target again (after the user turned something on). */
+  onRecheck?: () => void;
+  checking?: boolean;
 }): JSX.Element | null {
   // Nothing missing, nothing to show: the switch screen stays short.
   if (check.offers.length === 0) return null;
@@ -72,21 +109,23 @@ export function SwitchSetupList({
     >
       {!bare && (
         <>
-          <h4 id="switch-setup-title" className="text-xs font-semibold">
+          <h4 id="switch-setup-title" className="text-body font-semibold text-ink">
             Set up on {check.to}
           </h4>
-          <p className="text-xs text-muted" data-testid="switch-setup-summary">
+          <p className="text-body text-ink" data-testid="switch-setup-summary">
             {setupSummary(check, picked)}
           </p>
         </>
       )}
       {check.offers.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-3">
           {check.offers.map((offer) => {
             const settable = offer.verdict !== "impossible";
+            // A row with its own buttons (the steps) is no label.
+            const Wrap = settable ? "label" : "div";
             const id = `switch-setup-${offer.id}`;
             return (
-              <li key={offer.id} className="flex items-start gap-2 text-xs" data-testid="switch-setup-row">
+              <li key={offer.id} className="flex items-start gap-2 text-body text-ink" data-testid="switch-setup-row">
                 {settable ? (
                   <input
                     id={id}
@@ -98,7 +137,7 @@ export function SwitchSetupList({
                 ) : (
                   <span aria-hidden="true" className="mt-0.5 inline-block w-[13px]" />
                 )}
-                <label htmlFor={settable ? id : undefined} className={settable ? "" : "text-muted"}>
+                <Wrap htmlFor={settable ? id : undefined} className="flex min-w-0 flex-col gap-0.5">
                   {/* One of a kind (an account's permissions, its status
                       line): its kind is its name, said once. */}
                   {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
@@ -109,9 +148,16 @@ export function SwitchSetupList({
                       <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
                     </>
                   )}
-                  {offer.about && <span className="block text-muted">{offer.about}</span>}
-                  <span className="block text-muted">{verdictWords(offer)}</span>
-                </label>
+                  {offer.about && <span className="block text-meta">{offer.about}</span>}
+                  {offer.steps.length > 0 ? (
+                    <AccountSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
+                  ) : (
+                    <span className="block text-meta">
+                      {verdictWords(offer)}
+                      {!settable && ` You can switch now; ${check.to} won't have it.`}
+                    </span>
+                  )}
+                </Wrap>
               </li>
             );
           })}

@@ -14,8 +14,8 @@ export function SwitchingPane({ anchor }: { anchor?: string }): JSX.Element {
     <Pane id="switching" title="Switching" anchor={anchor}>
       <PaneSection
         id="packs"
-        title="Context packs & secrets"
-        footer="A context pack carries your work to another account. Keys and tokens in it are handled as chosen here."
+        title="Handovers and keys"
+        footer="A handover carries your work to another tool or account. Keys and passwords in it are handled as chosen here."
         card
       >
         <PackSecretsCard providers={providers} />

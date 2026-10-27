@@ -8,7 +8,7 @@
 2. **Optional: undo what you set up through AI Juggler.** MCP servers,
    skills and settings it copied into a profile, and rules files it
    changed, were your choice and stay where they are. To take any out, use
-   its **Undo** in Settings › Switching › Context packs & secrets first. If
+   its **Undo** in Settings › Switching › Handovers and keys first. If
    you turned on **Open AI Juggler at login**, turn it off in Settings ›
    Sessions › Keep work going.
 3. **Quit AI Juggler** and move it to the Trash (and **AI Juggler Nightly**,

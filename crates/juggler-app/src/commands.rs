@@ -5297,6 +5297,14 @@ pub struct PreflightInfo {
     /// AJ-E808: the pair is validated (the same verdict the switch rows
     /// and Settings › Beta show; strict on the installed versions).
     pub validated: bool,
+    /// The carry list in plain words, a line on each.
+    pub carry_items: Vec<crate::features::handover::switch_words::CarryItemInfo>,
+    /// The Target step's first line: what moves, said positively.
+    pub move_line: String,
+    /// Whether the keys-and-passwords question applies, and who reads.
+    pub secrets: crate::features::handover::switch_words::SecretsInfo,
+    /// The target's tool (its id: the UI names it from the catalog).
+    pub target_tool: String,
 }
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
@@ -5342,16 +5350,14 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
-    preflight_with(state, session_id, target_profile_id, None)
+    preflight_with(state, session_id, target_profile_id)
 }
 
-/// [`switch_preflight_impl`], given the compaction scan when the caller
-/// already parsed the transcript (AJ-E1513: staging reads it once).
+/// [`switch_preflight_impl`] (AJ-E1513: staging checks the switch too).
 pub(crate) fn preflight_with(
     state: &Arc<AppState>,
     session_id: &str,
     target_profile_id: &str,
-    compacted: Option<bool>,
 ) -> AppResult<PreflightInfo> {
     use juggler_handover::pipeline;
 
@@ -5361,10 +5367,8 @@ pub(crate) fn preflight_with(
         context: "hand over",
         message: "Couldn't tell which file is this session — pick it".into(),
     })?;
-
-    // Compaction scan from the source transcript (the F2 signal).
-    let compacted =
-        compacted.unwrap_or_else(|| juggler_adapters::records_compaction(&reference.path));
+    // (No compaction scan: a compacted source loses nothing in a switch —
+    // D-03 amendment, 2026-10-27.)
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -5396,8 +5400,8 @@ pub(crate) fn preflight_with(
     dispositions.flags.validated = validated;
 
     let input = pipeline::PreflightInput {
-        fidelity: dispositions,
-        compacted,
+        fidelity: dispositions.clone(),
+        target_account: account_b.label.clone(),
         gates: pipeline::PreflightGates {
             target_exhausted_no_reset: exhausted,
             version_drift: false, // per-version pinning rides E210's matrix
@@ -5424,26 +5428,23 @@ pub(crate) fn preflight_with(
     // already stopped above at the hard gate); conflicts arrive with
     // E207's reconciliation and rules divergence has no source yet.
     let door_inputs = juggler_handover::door::DoorInputs {
-        usual_account,
         mechanism: Some(report.mechanism),
         fidelity: Some(report.pair.label),
-        compacted,
         conflicts: false,
         drops_listed: !carry.dropped.is_empty(),
         target_headroom_ok: tight.is_none(),
         rules_diverged: false,
     };
     let (door, wizard_steps, wizard_reasons) = door_verdict(&door_inputs, &carry, validated);
-    let (redaction, redaction_items) = {
-        let storage = lock_storage_arc(state)?;
-        let policy = RedactionPolicyInfo::from_parts(
-            &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
-            redaction_global_of(&storage),
-            redaction_override_of(&storage, account_b.harness.as_str()),
-        );
-        (policy, redaction_items_of(&source))
-    };
+    let (redaction, (redaction_items, messages)) = redaction_for(state, &account_b, &source)?;
     let tool_b = crate::features::tools::display_name(&state.registry, account_b.harness.as_str());
+    let words = crate::features::handover::switch_words::preflight_words(
+        state,
+        &account_b,
+        report.mechanism,
+        &input.fidelity,
+        messages,
+    );
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -5472,7 +5473,28 @@ pub(crate) fn preflight_with(
         redaction,
         redaction_items,
         validated,
+        carry_items: words.carry_items,
+        move_line: words.move_line,
+        secrets: words.secrets,
+        target_tool: account_b.harness.to_string(),
     })
+}
+
+/// The target's keys policy, and the source conversation's detected
+/// secrets (masked) with its message count.
+fn redaction_for(
+    state: &Arc<AppState>,
+    account_b: &Account,
+    source: &juggler_core::model::InstanceRecord,
+) -> AppResult<(RedactionPolicyInfo, (Vec<RedactionItemInfo>, usize))> {
+    let storage = lock_storage_arc(state)?;
+    let policy = RedactionPolicyInfo::from_parts(
+        &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
+        redaction_global_of(&storage),
+        redaction_override_of(&storage, account_b.harness.as_str()),
+    );
+    drop(storage);
+    Ok((policy, redaction_items_of(source)))
 }
 
 /// What the switch leaves of the source, for the switch screen.
@@ -5617,7 +5639,7 @@ fn move_copy(
             "a fresh start on {tool_b}, which reads the conversation, what each tool did, the task list and the project's changes. Tool state and subagents don't carry. {account_a} stays resumable."
         )),
         Mechanism::PackOnly => unproven(format!(
-            "{tool_b} gets the conversation as a pack to read, and starts from it. {account_a} stays resumable."
+            "{tool_b} starts fresh from notes about the work: what it is, what was decided and what's left. {account_a} stays resumable."
         )),
     }
 }
@@ -5700,27 +5722,24 @@ fn wizard_reasons_of(
     validated: bool,
 ) -> Vec<String> {
     use juggler_handover::pipeline::Mechanism;
+    // D-03 amendment (2026-10-27): only real, actionable risks — another
+    // account is the point of a switch, and a compacted source loses
+    // nothing, so neither is a reason.
     let mut reasons = Vec::new();
-    if !inputs.usual_account {
-        reasons.push("This isn't the usual account for this project.".to_owned());
-    }
     match inputs.mechanism {
         Some(Mechanism::Replay) => {
             reasons.push("This switch replays — the target can't resume natively.".to_owned());
         }
         Some(Mechanism::PackOnly) => {
-            reasons.push("Only a pack can move — the target can't resume or replay.".to_owned());
+            reasons.push("The other tool can't continue this conversation: it starts from notes about the work.".to_owned());
         }
         _ => {}
     }
     // QA P23: no F-number. A lower label always has its own, plainer
-    // reason here (it replays, was compacted, or leaves something behind);
+    // reason here (it replays, or leaves something behind);
     // "not proven" is said as itself.
     if !validated {
         reasons.push("This move hasn't been proven on a real setup yet.".to_owned());
-    }
-    if inputs.compacted {
-        reasons.push("The source was compacted — the tail may not carry.".to_owned());
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));
@@ -6136,7 +6155,7 @@ fn handover_support(
         .ok_or_else(|| AppError::Io {
             context: "hand over",
             message: format!(
-                "{} can't take over this conversation — only a fresh start or a briefing pack",
+                "{} can't take over this conversation — only a fresh start or handover notes",
                 account.harness
             ),
         })
@@ -12747,7 +12766,7 @@ pub struct RedactionPolicyInfo {
     pub effective: Option<String>,
     /// `global` | `override` | `unset`.
     pub source: String,
-    /// The verbatim confirm line ("Redaction for {Provider}: …").
+    /// The verbatim confirm line ("Keys and passwords for {Provider}: …").
     pub line: String,
 }
 
@@ -12822,7 +12841,7 @@ fn redaction_line(
         "your global choice"
     };
     format!(
-        "Redaction for {provider}: {} ({source})",
+        "Keys and passwords for {provider}: {} ({source})",
         strip_label(policy)
     )
 }
@@ -12831,13 +12850,11 @@ fn redaction_line(
 /// Keep/Ask use their own plain words.
 fn strip_label(policy: juggler_handover::redaction::RedactionPolicy) -> String {
     match policy {
-        juggler_handover::redaction::RedactionPolicy::Strip => {
-            "Strip — replace keys with •••".to_owned()
+        juggler_handover::redaction::RedactionPolicy::Strip => "hidden".to_owned(),
+        juggler_handover::redaction::RedactionPolicy::Keep => "left in".to_owned(),
+        juggler_handover::redaction::RedactionPolicy::AskEachTime => {
+            "asked on every switch".to_owned()
         }
-        juggler_handover::redaction::RedactionPolicy::Keep => {
-            "Keep — pack stays on this Mac".to_owned()
-        }
-        juggler_handover::redaction::RedactionPolicy::AskEachTime => "Ask each time".to_owned(),
     }
 }
 
@@ -13013,23 +13030,26 @@ pub struct RedactionItemInfo {
 
 /// Lists the source conversation's secrets (masked) for the
 /// preview; the un-redact indices the user picks address these.
-fn redaction_items_of(source: &juggler_core::model::InstanceRecord) -> Vec<RedactionItemInfo> {
+fn redaction_items_of(
+    source: &juggler_core::model::InstanceRecord,
+) -> (Vec<RedactionItemInfo>, usize) {
     let Some(reference) = source.transcript_ref.as_ref() else {
-        return Vec::new();
+        return (Vec::new(), 0);
     };
     let Some((_uuids, turns)) = transcript_side(&reference.path) else {
-        return Vec::new();
+        return (Vec::new(), 0);
     };
     let segments: Vec<String> = turns.iter().map(|turn| turn.text.clone()).collect();
     let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
-    juggler_handover::redaction::list_segments(&refs)
+    let items = juggler_handover::redaction::list_segments(&refs)
         .into_iter()
         .map(|listed| RedactionItemInfo {
             kind: listed.kind.to_owned(),
             preview: listed.preview,
             segment: u32::try_from(listed.segment).unwrap_or(u32::MAX),
         })
-        .collect()
+        .collect();
+    (items, turns.len())
 }
 
 // ---------------------------------------------------------------------------
@@ -13241,7 +13261,7 @@ pub fn switch_targets_impl(
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
                 badge: matrix_row.as_ref().map_or_else(
-                    || "Briefing pack · Beta".to_owned(),
+                    || "Handover notes · Beta".to_owned(),
                     |row| row.badge_for(&installed, true),
                 ),
                 validated: matrix_row
@@ -13468,7 +13488,7 @@ fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
         SwitchMechanism::NativeResume => "Continues exactly",
         SwitchMechanism::Transplant => "Same conversation, new account",
         SwitchMechanism::Replay => "Full story, fresh start",
-        SwitchMechanism::Pack => "Briefing pack",
+        SwitchMechanism::Pack => "Handover notes",
     }
 }
 
@@ -13751,7 +13771,7 @@ pub(crate) fn write_session_pack(
         juggler_handover::redaction::resolve_policy(redaction_global_of(&storage), None)
             .ok_or_else(|| AppError::Io {
                 context: "export pack",
-                message: "Choose how secrets are handled in packs first (Accounts → Pack secrets)"
+                message: "Choose what happens to keys and passwords first, in Settings › Switching › Handovers and keys"
                     .to_owned(),
             })?
     };
@@ -13760,7 +13780,7 @@ pub(crate) fn write_session_pack(
         .clone()
         .ok_or_else(|| AppError::Io {
             context: "export pack",
-            message: "The epoch has no transcript to pack".to_owned(),
+            message: "This step has no conversation to save.".to_owned(),
         })?;
     let turns = turns.unwrap_or_else(|| {
         transcript_side(&reference.path)

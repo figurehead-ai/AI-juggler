@@ -32,7 +32,7 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "copy",
       note: null,
       suggested: true,
-      about: null,
+      about: null, steps: [], steps_page: null, steps_page_label: null,
     },
     {
       id: "mcp-github",
@@ -42,7 +42,7 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "needs-you",
       note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
       suggested: false,
-      about: null,
+      about: null, steps: [], steps_page: null, steps_page_label: null,
     },
     {
       id: "skill-team-style",
@@ -53,6 +53,14 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       note: "it comes with the claude.ai account, so it can't be copied to another one",
       suggested: false,
       about: null,
+      // The adapter's steps (claude_inventory::how_to_get), as it words them.
+      steps: [
+        "Open claude.ai settings in your browser, signed in as the account you're switching to.",
+        "Find team-style there and turn it on.",
+        "Come back here and choose Check again.",
+      ],
+      steps_page: "the target's tool",
+      steps_page_label: "Open claude.ai settings",
     },
   ],
 };

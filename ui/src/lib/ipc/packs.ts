@@ -33,7 +33,7 @@ const SAMPLE: PackOpenInfo = {
   turns: 24,
   fidelity: "Full story, fresh start · Beta",
   carries: ["the conversation (24 turns)", "1 rules file", "the uncommitted changes"],
-  not_carried: ["subagent state: the other tool can't run Claude's subagents"],
+  not_carried: ["Subagents' work: the other tool can't run Claude's subagents"],
   withheld: [{ what: "API keys", count: 2 }],
   brief: "# Handover\n\nRefunds: the API is done, the webhook is next.\n",
 };
@@ -41,7 +41,7 @@ const SAMPLE: PackOpenInfo = {
 /** Which pack to open (the folder picker); null when cancelled. */
 export async function pickPackFolder(): Promise<string | null> {
   if (!hasLiveBackend()) return seams().__AIJ_PACK_DIR__ ?? null;
-  const chosen = await openDialog({ directory: true, multiple: false, title: "Open a context pack" });
+  const chosen = await openDialog({ directory: true, multiple: false, title: "Open a handover" });
   return typeof chosen === "string" ? chosen : null;
 }
 

@@ -329,6 +329,25 @@ fn permissions_words(value: &str) -> (Option<String>, SettingCheck) {
     ((!parts.is_empty()).then(|| parts.join(", ")), check)
 }
 
+/// Where a claude.ai account turns its features and skills on.
+pub const ACCOUNT_SETTINGS_URL: &str = "https://claude.ai/settings";
+
+/// How to get `item` on another claude.ai account when it comes with the
+/// account (it can't be copied): the generic steps (the switch dialog
+/// names the account). Empty for anything that can be set up.
+#[must_use]
+pub fn how_to_get(item: &Item) -> Vec<String> {
+    if !matches!(item.detail, Detail::FromTheAccount) {
+        return Vec::new();
+    }
+    vec![
+        "Open claude.ai settings in your browser, signed in as the account you're switching to."
+            .to_owned(),
+        format!("Find {} there and turn it on.", item.name),
+        "Come back here and choose Check again.".to_owned(),
+    ]
+}
+
 /// Whether Claude Code can set up `item`.
 #[must_use]
 pub fn can_set_up(item: &Item) -> SetUp {

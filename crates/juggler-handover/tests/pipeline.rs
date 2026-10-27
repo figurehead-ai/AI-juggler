@@ -239,11 +239,10 @@ fn preflight_input() -> PreflightInput {
             from_provider: "claude-code".into(),
             to_provider: "claude-code".into(),
             dispositions: Default::default(),
-            compact_boundary: false,
             flags: PairFlags::default(),
             unmapped_keys: vec![],
         },
-        compacted: false,
+        target_account: "Personal".into(),
         gates: PreflightGates::default(),
         target_quota_tight: None,
         git: juggler_handover::pipeline::GitState::default(),
@@ -298,7 +297,6 @@ fn preflight_stops_hard_gates_and_only_hard_gates() {
 
     // Soft warnings all pass through without stopping.
     input.gates = PreflightGates::default();
-    input.compacted = true;
     input.target_quota_tight = Some((8, 45));
     input.git.same_branch_both_live = true;
     input.git.zombie_children = vec!["pid 1234 (node vite)".into()];
@@ -306,9 +304,16 @@ fn preflight_stops_hard_gates_and_only_hard_gates() {
     let report = pipeline::preflight(&input).unwrap();
     assert_eq!(
         report.warnings.len(),
-        4,
-        "compacted + tight + same-branch + hop-cost"
+        3,
+        "tight + same-branch + hop-cost (a compacted source is no risk: D-03 amendment)"
     );
+    // The tight warning names the account, never the tool's id.
+    let tight = user_copy(report.warnings[0].clone());
+    assert!(
+        tight.starts_with("Personal has about 8% left"),
+        "the warning names the account"
+    );
+    assert!(!tight.contains("claude-code"), "no tool id in the warning");
     assert_eq!(
         report.zombie_children,
         vec!["pid 1234 (node vite)".to_owned()]
@@ -332,9 +337,6 @@ fn copy_table_is_verbatim() {
             provider_b: "Codex".into(),
             turns: 41,
             tokens: 41_000,
-        }),
-        user_copy(CopySituation::CompactedSource {
-            provider_b: "Codex".into(),
         }),
         user_copy(CopySituation::TargetQuotaTight {
             account_b: "Personal".into(),
@@ -361,7 +363,7 @@ fn copy_table_is_verbatim() {
         }),
     ];
     let joined = all.join(" | ");
-    assert!(joined.contains("Switching never happens automatically — your call."));
+    assert!(joined.contains("Switching never happens on its own — your call."));
     assert!(joined.contains("nothing is merged silently"));
     assert!(joined.contains("you can resume it exactly where you left it."));
     assert!(

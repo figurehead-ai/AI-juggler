@@ -6,17 +6,17 @@
  * source-safe recovery. Epochs older than the last fork/merge
  * collapse to "+n switches" — the list is never unbounded. Clicking a
  * node offers Resume (only when the native session + transcript
- * survive), "Switch from here…", and "Export pack…" (through the
+ * survive), "Switch from here…", and "Save handover…" (through the
  * E208 redaction policy; the path lands in a toast line). Suggest
  * and act only on explicit clicks. A11y: nodes and failed edges are
  * buttons with ↑/↓ roving focus; every arrow is labelled;
  * ⌘R resumes the open node. Density: the collapse cut bounds each
  * timeline; long chains scroll horizontally.
  */
+import { kindWords } from "../lib/status-words";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { providerDisplayName } from "../lib/providers";
-import type { EpochNodeData, GraphEdgeData, WorkGraphData } from "../lib/bridge";
-import { epochResume, packExport, switchGraphOverview, errorText,} from "../lib/bridge";
+import { epochResume, packExport, switchGraphOverview, errorText, type EpochNodeData, type GraphEdgeData, type WorkGraphData } from "../lib/bridge";
 import { providerMark } from "./indicator";
 
 /** One epoch node — a button (keyboard-first; the menu opens on
@@ -59,7 +59,7 @@ function GraphNode({
       <span className="flex items-center gap-1 text-label text-muted">
         <span className="font-mono">{mark.abbrev}</span>
         <span aria-hidden="true">·</span>
-        <span>{epoch.kind}</span>
+        <span>{kindWords(epoch.kind)}</span>
         {shape.fork && (
           <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">
             fork
@@ -75,7 +75,7 @@ function GraphNode({
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
       <span className="sr-only">
-        {`, ${providerDisplayName(epoch.provider)}, ${epoch.kind} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
+        {`, ${providerDisplayName(epoch.provider)}, ${kindWords(epoch.kind).toLowerCase()} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
       </span>
     </button>
   );
@@ -193,7 +193,7 @@ export function SwitchGraph({
     setActionLine(null);
     try {
       const path = await packExport(epochId);
-      setActionLine(`Pack exported to ${path}`);
+      setActionLine(`Handover saved to ${path}`);
     } catch (cause) {
       setActionError(errorText(cause));
     }
@@ -407,10 +407,10 @@ export function SwitchGraph({
                     type="button"
                     data-testid="epoch-export-button"
                     onClick={() => void doExport(openEpoch.id)}
-                    title="Exports this epoch's pack through your redaction policy"
+                    title="Saves this step's handover, with keys and passwords handled as you chose"
                     className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40"
                   >
-                    Export pack…
+                    Save handover…
                   </button>
                 </div>
               </div>

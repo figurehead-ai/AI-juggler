@@ -60,10 +60,12 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
     <>
       <Card className="flex flex-col gap-3 p-5" data-testid="pack-secrets">
         <div>
-          <CardTitle>Pack secrets</CardTitle>
+          <CardTitle>Keys and passwords</CardTitle>
           <p className="mt-0.5 text-xs leading-relaxed text-muted">
-            Context packs carry your work to another account when you switch. Choose how keys and
-            tokens found in them are handled — remembered for every tool unless one has its own.
+            When you switch to another tool, or save a handover, the other tool reads the
+            conversation. Choose what happens to keys and passwords in it — remembered for every
+            tool unless one has its own. A switch between accounts of the same tool copies the
+            conversation as it is, on this Mac.
           </p>
         </div>
         <fieldset className="flex flex-col gap-1.5" data-testid="pack-secrets-global">
@@ -72,7 +74,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
           </legend>
           {global === null && (
             <p className="text-label text-muted" data-testid="pack-secrets-unset">
-              Not chosen yet — your first switch asks before any pack is built.
+              Not chosen yet — your first switch to another tool asks.
             </p>
           )}
           {storedOptions.map((option) => (
@@ -122,7 +124,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
                         event.target.value ? `${name} now overrides the global choice.` : `${name} follows your global choice.`,
                       )
                     }
-                    aria-label={`Pack secrets for ${name}`}
+                    aria-label={`Keys and passwords for ${name}`}
                     className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
                   >
                     <option value="">Use my choice{global ? "" : " (not chosen yet)"}</option>

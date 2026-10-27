@@ -2235,7 +2235,7 @@ const rankedRows: Record<string, unknown>[] = [
     account: "claude-work",
     account_label: "Work Max",
     score: 0.87,
-    top_factors: ["82% headroom (Measured)", "usual account for this repo"],
+    top_factors: ["82% headroom (Measured)", "used most here"],
     factors: [["headroom 82%", 0.37], ["affinity", 0.2], ["fidelity", 0.075], ["cost fit", 0.1], ["calm", 0.1]],
     headroom_unknown: false,
     confidence: "Measured",
@@ -2401,16 +2401,17 @@ const preflightSeams: Record<string, unknown> = {
 };
 void preflightSeams;
 
-/** AJ-E206: the door's wizard fixture — an unproven pair (F2,
- * compacted) opens the wizard; the freeze choice + §7.1 warnings
- * render on the Confirm step. */
+/** AJ-E206: the door's wizard fixture — an unproven pair opens the
+ * wizard; the stop choice and a real risk (little room on the target)
+ * render on the Confirm step (D-03 amendment: no compaction, no "usual
+ * account" warnings). */
 const SWITCH_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account (compacted)",
+  fidelity_words: "Same conversation, new account",
   score: 0.78,
   warnings: [
-    "This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions.",
+    "Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call.",
   ],
   zombies: ["pid 1234 (node vite)"],
   diff_snapshotted: true,
@@ -2419,16 +2420,20 @@ const SWITCH_WIZARD_FIXTURE = {
     "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: [
-    "This isn't the usual account for this project.",
-    "This switch leaves behind: subagent state.",
-  ],
+  wizard_reasons: ["This move hasn't been proven on a real setup yet.", "Doesn't carry: Subagents' work."],
   usual_account: false,
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
+    carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
     regenerated: [],
-    dropped: ["subagent state"],
+    dropped: ["Subagents' work"],
   },
+  carry_items: [
+    { label: "The whole conversation", hint: "Every message from the start, copied as the tool keeps it; the new account picks it up where it stopped.", how: "moves" },
+    { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves" },
+    { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
+    { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
+  ],
+  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
 };
 
 for (const theme of THEMES) {
@@ -2471,7 +2476,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await reachConfirm(page);
-      await expect(page.getByText("Finish this turn, then switch")).toBeVisible();
+      await expect(page.getByText("Let it finish its reply, then switch")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/dialog-finish-${vp.name}-${theme}.png`),
       });
@@ -2494,8 +2499,8 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await reachConfirm(page);
-      await page.getByText("Stop now and switch").click();
-      await expect(page.getByTestId("switch-warnings")).toContainText("compacted");
+      await page.getByText("Stop it now and switch").click();
+      await expect(page.getByTestId("switch-warnings")).toContainText("8% left");
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/dialog-stop-${vp.name}-${theme}.png`),
       });
@@ -2520,7 +2525,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await reachConfirm(page);
       await page.getByTestId("switch-confirm").click();
-      await expect(page.getByTestId("switch-executing")).toContainText("Launch");
+      await expect(page.getByTestId("switch-executing")).toContainText("Copying the conversation");
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/executing-${vp.name}-${theme}.png`),
       });
@@ -2546,7 +2551,8 @@ for (const theme of THEMES) {
       await page.goto("/");
       await reachConfirm(page);
       await page.getByTestId("switch-confirm").click();
-      await expect(page.getByTestId("switch-failed")).toContainText("resume it exactly where you left it");
+      await expect(page.getByTestId("switch-failed")).toContainText("resume it where you left it");
+      await expect(page.getByTestId("switch-retry")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/failed-${vp.name}-${theme}.png`),
       });
@@ -2580,12 +2586,12 @@ const SWITCH_ONECLICK_FIXTURE = {
   usual_account: true,
   carry: {
     carried: [
-      "chat transcript",
-      "rules & guidelines",
-      "uncommitted git diff",
-      "MCP config",
-      "skills & commands",
-      "model settings",
+      "The whole conversation",
+      "Project rules",
+      "Your uncommitted changes",
+      "Connected tools (MCP servers)",
+      "Skills and commands",
+      "Model choice",
     ],
     regenerated: [],
     dropped: [],
@@ -2595,10 +2601,7 @@ const SWITCH_ONECLICK_FIXTURE = {
 const SWITCH_WIZARD_5STEP_FIXTURE = {
   ...SWITCH_WIZARD_FIXTURE,
   wizard_steps: ["Target", "What's carried", "Conflicts", "Rules & diff", "Confirm"],
-  wizard_reasons: [
-    "This isn't the usual account for this project.",
-    "This switch leaves behind: subagent state.",
-  ],
+  wizard_reasons: ["This move hasn't been proven on a real setup yet.", "Doesn't carry: Subagents' work."],
 };
 
 for (const theme of THEMES) {
@@ -2636,8 +2639,8 @@ for (const theme of THEMES) {
     test(`door — 1-click popover (proven pair) — ${vp.name} — ${theme}`, gate("29-door"), async ({ page }) => {
       await openDoor(page, SWITCH_ONECLICK_FIXTURE);
       await expect(page.getByTestId("switch-oneclick")).toBeVisible();
-      await expect(page.getByTestId("switch-oneclick-carry")).toContainText("nothing dropped");
-      await expect(page.getByTestId("switch-oneclick")).toContainText("usual account");
+      await expect(page.getByTestId("switch-oneclick")).toContainText("Ready to switch to");
+      await expect(page.getByTestId("switch-summary")).toContainText("The whole conversation moves");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/oneclick-popover-${vp.name}-${theme}.png`),
       });
@@ -2657,7 +2660,8 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      await expect(page.getByTestId("switch-wizard-reasons")).toContainText("isn't the usual account");
+      await expect(page.getByTestId("switch-move-line")).toContainText("The whole conversation moves");
+      await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-target-${vp.name}-${theme}.png`),
       });
@@ -2667,7 +2671,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 3: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("Subagents' work");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-3step-carried-${vp.name}-${theme}.png`),
       });
@@ -2677,7 +2681,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_5STEP_FIXTURE);
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 2 of 5: What's carried");
-      await expect(page.getByTestId("switch-carry-dropped")).toContainText("subagent state");
+      await expect(page.getByTestId("switch-carry-dropped")).toContainText("Subagents' work");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-5step-carried-${vp.name}-${theme}.png`),
       });
@@ -2831,17 +2835,13 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E207 gallery 31 — the redaction policy surfaces (D-14): the
- * first-run chooser (required, NO pre-selected default — no dark
- * pattern), the verbatim policy line (global choice vs override),
- * the per-item un-redact list on the wizard's preview step, and the
- * per-switch Ask answer on Confirm — across 1280×800 + 800×600 ×
- * light+dark. The destination policy is readable without opening
- * Settings; no secret VALUE ever appears (masked previews only).
+ * AJ-E208 gallery 31 — keys and passwords in the switch (D-14; the
+ * maintainer's walk of 0.1.8): a same-tool switch asks nothing; a replay
+ * to another tool says what it found (masked) and who reads it, with
+ * nothing preselected; none found never blocks. Then the Confirm step to
+ * read (gallery 28): nothing missing, what can be set up, and what the
+ * account turns on itself — across 1280×800 + 800×600 × light+dark.
  */
-const REDACTION_LINE_GLOBAL =
-  "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)";
-
 for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     const openRedactionDoor = async (
@@ -2874,91 +2874,132 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-flow")).toBeVisible();
     };
 
-    test(`redaction — first-run chooser (no default) — ${vp.name} — ${theme}`, gate("31-redaction"), async ({ page }) => {
-      await openRedactionDoor(page, {
-        ...SWITCH_ONECLICK_FIXTURE,
-        redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
-        redaction_items: [],
-      });
-      await expect(page.getByTestId("switch-redaction-chooser")).toBeVisible();
-      await expect(page.getByTestId("switch-redaction-save")).toBeDisabled();
-      // Every option UNCHECKED — the choice is the user's, not ours.
-      for (const radio of await page.getByRole("radio", { name: /Strip|Keep|Ask/ }).all()) {
-        await expect(radio).not.toBeChecked();
-      }
-      await expect(page.getByTestId("switch-confirm")).toBeDisabled();
+    // The maintainer's walk of 0.1.8 (2026-10-27): step 2's keys question
+    // only when the words go to another tool; plain words, nothing
+    // preselected; nothing found never blocks.
+    const REPLAY_DOOR = {
+      ...SWITCH_WIZARD_FIXTURE,
+      mechanism: "replay",
+      fidelity: "F1",
+      fidelity_words: "Full story, fresh start",
+      warnings: [],
+      wizard_reasons: [],
+      redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
+      carry_items: [
+        { label: "The whole conversation", hint: "The other tool reads the conversation, newest first as much as fits, to pick up the work.", how: "moves" },
+        { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves" },
+        { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; a summary of them goes along for the other tool to read.", how: "moves" },
+        { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
+        { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
+      ],
+      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work. The original stays as it was.",
+      secrets: { asks: true, reader: "Codex (OpenAI)" },
+      target_tool: "codex",
+    };
+
+    test(`keys — same tool: copied as it is, nothing asked — ${vp.name} — ${theme}`, gate("31-redaction"), async ({ page }) => {
+      await openRedactionDoor(page, SWITCH_WIZARD_FIXTURE);
+      await page.getByTestId("switch-continue").click();
+      await expect(page.getByTestId("switch-keys-same-tool")).toContainText("copied as it is, on this Mac");
+      await expect(page.getByTestId("switch-keys")).toHaveCount(0);
+      await expect(page.getByTestId("switch-continue")).toBeEnabled();
       await page.screenshot({
-        path: resolve(GALLERY, `31-redaction/chooser-${vp.name}-${theme}.png`),
+        path: resolve(GALLERY, `31-redaction/same-tool-${vp.name}-${theme}.png`),
       });
     });
 
-    test(`redaction — policy line (global choice) — ${vp.name} — ${theme}`, async ({ page }) => {
+    test(`keys — another tool, keys found — ${vp.name} — ${theme}`, async ({ page }) => {
       await openRedactionDoor(page, {
-        ...SWITCH_ONECLICK_FIXTURE,
-        redaction: {
-          global: "strip",
-          override: null,
-          effective: "strip",
-          source: "global",
-          line: REDACTION_LINE_GLOBAL,
-        },
-        redaction_items: [],
-      });
-      await expect(page.getByTestId("switch-redaction-line")).toContainText(
-        "Strip — replace keys with ••• (your global choice)",
-      );
-      await expect(page.getByTestId("switch-redaction-none")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `31-redaction/line-global-${vp.name}-${theme}.png`),
-      });
-    });
-
-    test(`redaction — override + per-item un-redact list — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openRedactionDoor(page, {
-        ...SWITCH_WIZARD_FIXTURE,
-        redaction: {
-          global: "keep",
-          override: "strip",
-          effective: "strip",
-          source: "override",
-          line: "Redaction for Claude Code: Strip — replace keys with ••• (override)",
-        },
+        ...REPLAY_DOOR,
         redaction_items: [
           { kind: "sk-key", preview: "s•••5678", segment: 0 },
           { kind: "bearer", preview: "c•••aaaa", segment: 1 },
         ],
       });
       await page.getByTestId("switch-continue").click();
-      await expect(page.getByTestId("switch-redaction-items")).toBeVisible();
-      await expect(page.getByTestId("switch-redaction-line")).toContainText("(override)");
-      // Masked previews only — never a value.
-      await expect(page.getByText("sk-key")).toBeVisible();
+      await expect(page.getByTestId("switch-keys-found")).toContainText("an API key (s•••5678) and a sign-in token (c•••aaaa)");
+      // Nothing is chosen for the user, and nothing moves on until they do.
+      await expect(page.getByTestId("switch-keys-hide")).not.toBeChecked();
+      await expect(page.getByTestId("switch-keys-leave")).not.toBeChecked();
+      await expect(page.getByTestId("switch-continue")).toBeDisabled();
       await page.screenshot({
-        path: resolve(GALLERY, `31-redaction/items-override-${vp.name}-${theme}.png`),
+        path: resolve(GALLERY, `31-redaction/another-tool-found-${vp.name}-${theme}.png`),
       });
     });
 
-    test(`redaction — Ask per switch on Confirm — ${vp.name} — ${theme}`, async ({ page }) => {
-      await openRedactionDoor(page, {
-        ...SWITCH_WIZARD_FIXTURE,
-        redaction: {
-          global: "ask",
-          override: null,
-          effective: "ask",
-          source: "global",
-          line: "Redaction for Claude Code: Ask each time (your global choice)",
-        },
-        redaction_items: [],
-      });
+    test(`keys — another tool, none found — ${vp.name} — ${theme}`, async ({ page }) => {
+      await openRedactionDoor(page, { ...REPLAY_DOOR, redaction_items: [] });
       await page.getByTestId("switch-continue").click();
-      await page.getByTestId("switch-continue").click();
-      await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
-      await expect(page.getByTestId("switch-confirm")).toBeDisabled();
-      await page.getByText("Strip secrets this time").click();
-      await expect(page.getByTestId("switch-confirm")).toBeEnabled();
+      await expect(page.getByTestId("switch-keys-none")).toContainText("We found no keys or passwords");
+      await expect(page.getByTestId("switch-continue")).toBeEnabled();
       await page.screenshot({
-        path: resolve(GALLERY, `31-redaction/ask-${vp.name}-${theme}.png`),
+        path: resolve(GALLERY, `31-redaction/another-tool-none-${vp.name}-${theme}.png`),
       });
+    });
+
+    // Step 3 (Confirm), to read: nothing missing; what can be set up;
+    // what the account turns on itself, with its steps.
+    const confirmWith = async (page: import("@playwright/test").Page, setup: unknown, name: string) => {
+      await page.addInitScript((value) => {
+        (window as unknown as Record<string, unknown>).__AIJ_SWITCH_SETUP__ = value;
+      }, setup);
+      await openRedactionDoor(page, SWITCH_WIZARD_FIXTURE);
+      await page.getByTestId("switch-continue").click();
+      await page.getByTestId("switch-continue").click();
+      await expect(page.getByTestId("switch-step-confirm")).toContainText("Ready to switch to");
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/confirm-${name}-${vp.name}-${theme}.png`) });
+    };
+
+    test(`confirm — nothing missing — ${vp.name} — ${theme}`, async ({ page }) => {
+      await confirmWith(page, { from: "Work Max", to: "Personal", offers: [], already_there: 6 }, "nothing-missing");
+      await expect(page.getByTestId("switch-summary-needs")).toContainText("Nothing needs you");
+    });
+
+    test(`confirm — can be set up — ${vp.name} — ${theme}`, async ({ page }) => {
+      await confirmWith(
+        page,
+        {
+          from: "Work Max",
+          to: "Personal",
+          already_there: 3,
+          offers: [
+            { id: "skill-release-notes", kind: "skill", name: "release-notes", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null },
+            { id: "mcp-github", kind: "mcp-server", name: "github", scope: "user", verdict: "needs-you", note: "it needs GITHUB_TOKEN in your environment: secrets are never copied", suggested: false, about: null, steps: [], steps_page: null, steps_page_label: null },
+          ],
+        },
+        "set-up",
+      );
+    });
+
+    test(`confirm — the account turns it on (steps) — ${vp.name} — ${theme}`, async ({ page }) => {
+      await confirmWith(
+        page,
+        {
+          from: "Work Max",
+          to: "Personal",
+          already_there: 3,
+          offers: [
+            {
+              id: "skill-deep-research",
+              kind: "skill",
+              name: "deep-research",
+              scope: "user",
+              verdict: "impossible",
+              note: "it comes with the claude.ai account, so it can't be copied to another one",
+              suggested: false,
+              about: null,
+              steps: [
+                "Open claude.ai settings in your browser, signed in as the account you're switching to.",
+                "Find deep-research there and turn it on.",
+                "Come back here and choose Check again.",
+              ],
+              steps_page: "claude",
+              steps_page_label: "Open claude.ai settings",
+            },
+          ],
+        },
+        "account-steps",
+      );
     });
   }
 }
@@ -3003,7 +3044,7 @@ const GRAPH_FORK_MERGE = [
       { from: "ep-s", to: "ep-l", label: "Full story, fresh start", switch_back: false },
       { from: "ep-s", to: "ep-r", label: "Same conversation, new account", switch_back: false },
       { from: "ep-l", to: "ep-m", label: "Switched back · Full story, fresh start", switch_back: true },
-      { from: "ep-r", to: "ep-m", label: "Briefing pack", switch_back: false },
+      { from: "ep-r", to: "ep-m", label: "Handover notes", switch_back: false },
     ],
     collapsed: 0,
     hop_note: null,
@@ -3042,8 +3083,8 @@ const BADGE_SET_TARGETS = [
     cross_provider: false,
     drops: [],
     score: 0.71,
-    top_factors: ["80% headroom", "usual account for this repo"],
-    factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2]],
+    top_factors: ["80% headroom", "used most here"],
+    factors: [["80% headroom", 0.36], ["used most here", 0.2]],
     confidence: "Measured",
     tte_min: 262,
     suggested: true,
@@ -3055,7 +3096,7 @@ const BADGE_SET_TARGETS = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["subagent state"],
+    drops: ["Subagents' work"],
     score: 0.44,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1]],
@@ -3067,7 +3108,7 @@ const BADGE_SET_TARGETS = [
     recipe_id: "r-filtered",
     account_id: "a-3",
     account_label: "Lab",
-    badge: "Briefing pack · Beta",
+    badge: "Handover notes · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history"],
@@ -3243,7 +3284,7 @@ for (const theme of THEMES) {
 const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
-    researched_ceiling: "F1", advertised: "F0", badge: "Briefing pack · Beta",
+    researched_ceiling: "F1", advertised: "F0", badge: "Handover notes · Beta",
     validated: false, mechanism_green: true, ci_green: true,
     dogfood: {
       at: "2026-10-16", project_shape: "monorepo", verdict: "fail",
@@ -4670,9 +4711,9 @@ const crossTarget = (over: Record<string, unknown> = {}) => ({
   fidelity: "F3",
   badge: "Same conversation, new account · Not proven yet",
   validated: false,
-  carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
+  carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
   regenerated: [],
-  dropped: ["todo list"],
+  dropped: ["The task list"],
   same_path_project: "proj-1",
   projects: [{ project_id: "proj-1", name: "ai-juggler", same_path: true, same_name: true }],
   replay_available: true,
@@ -4761,7 +4802,7 @@ for (const theme of THEMES) {
     await page.getByTestId("cross-switch-confirm-mapping").check();
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/path-mapping-1280x800-${theme}.png`) });
     await page.getByTestId("cross-switch-next").click();
-    await expect(page.getByTestId("cross-switch-drops")).toContainText("todo list");
+    await expect(page.getByTestId("cross-switch-drops")).toContainText("The task list");
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/carried-1280x800-${theme}.png`) });
     await page.getByTestId("cross-switch-next").click();
     await expect(page.getByTestId("cross-switch-go")).toHaveText("Switch to Mac mini…");
@@ -5792,7 +5833,7 @@ for (const theme of THEMES) {
 
 // ---------------------------------------------------------------------
 // Wireframe 26 — 65-settings-sections: the section list beside the
-// policies, each new section jumped to (Context packs & secrets,
+// policies, each new section jumped to (Handovers and keys,
 // Cleanup, Accounts & renewal dates, Notifications, Fleet permissions)
 // — 1280×800, plus the list at the 1024×680 minimum — light/dark.
 // ---------------------------------------------------------------------

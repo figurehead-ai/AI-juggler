@@ -37,7 +37,7 @@ const CELLS: ValidationCellData[] = [
     mechanism: "transplant",
     researched_ceiling: "F1",
     advertised: "F0",
-    badge: "Briefing pack · Beta",
+    badge: "Handover notes · Beta",
     validated: false,
     mechanism_green: true,
     ci_green: false,
@@ -58,13 +58,13 @@ const CELLS: ValidationCellData[] = [
     mechanism: "pack-only",
     researched_ceiling: "F0",
     advertised: "F0",
-    badge: "Briefing pack · Beta",
+    badge: "Handover notes · Beta",
     validated: false,
     mechanism_green: true,
     ci_green: false,
     dogfood: null,
     status: "Automatic tests with the real tools aren't in place; not tried by hand yet",
-    notes: ["Briefing pack only: starting this tool from a story isn't planned for the beta"],
+    notes: ["Handover notes only: starting this tool from a story isn't planned for the beta"],
   },
 ];
 
@@ -101,7 +101,7 @@ describe("AJ-E210 BetaMatrix — the disclosure table", () => {
     const failedRow = Array.from(
       container.querySelectorAll<HTMLTableRowElement>('[data-testid="beta-matrix-row"]'),
     ).find((row) => row.textContent!.includes("Codex → Codex"))!;
-    expect(failedRow.textContent).toContain("Briefing pack · Beta");
+    expect(failedRow.textContent).toContain("Handover notes · Beta");
     expect(failedRow.textContent).toContain("one level less — a hand check failed");
     expect(failedRow.textContent).toContain("Failed 2026-10-16");
     // The notes ride along verbatim.

@@ -44,16 +44,13 @@ pub fn user_copy(situation: CopySituation) -> String {
         } => format!(
             "Fresh start on {provider_b}: it reads the conversation, what each tool did, the task list and the project's changes ({turns} turns, ≈{tokens} tokens). Tool state and subagents don't carry."
         ),
-        CopySituation::CompactedSource { provider_b } => format!(
-            "This conversation was compacted. Early detail carries as text, not as live memory — {provider_b} may ask about early decisions."
-        ),
         CopySituation::TargetQuotaTight {
             account_b,
             left_pct,
             tte,
             account_c,
         } => format!(
-            "{account_b} has ≈{left_pct}% left (≈{tte} at its recent pace). {account_c} has more room. Switching never happens automatically — your call."
+            "{account_b} has about {left_pct}% left, about {tte} min at its recent pace; {account_c} may have more room. Switching never happens on its own — your call."
         ),
         CopySituation::BothProgressed { turns, conflicts } => format!(
             "Both sides moved since the switch. {turns} new turns and {conflicts} file conflicts need your choice — nothing is merged silently."
@@ -100,11 +97,6 @@ pub enum CopySituation {
         turns: u32,
         /// Replay token estimate.
         tokens: u64,
-    },
-    /// The source had a compaction boundary.
-    CompactedSource {
-        /// Target provider label.
-        provider_b: String,
     },
     /// Target quota is tight (warn, never block).
     TargetQuotaTight {
@@ -291,8 +283,8 @@ pub struct PreflightInput {
     /// E203 scoring input for the ordered pair (mechanism follows
     /// from the pair + same-account flag).
     pub fidelity: FidelityInput,
-    /// The source transcript had a compaction boundary.
-    pub compacted: bool,
+    /// The target account's name (the words a warning names it by).
+    pub target_account: String,
     /// Gate flags (quota + version drift — the hard stops).
     pub gates: PreflightGates,
     /// Soft: target headroom is Tight (the §7.1 warn copy fires).
@@ -389,16 +381,10 @@ pub fn preflight(input: &PreflightInput) -> Result<PreflightReport, SwitchFailur
     }
 
     let mut warnings = Vec::new();
-    // 2. Compaction scan → the honest F2 copy.
-    if input.compacted {
-        warnings.push(CopySituation::CompactedSource {
-            provider_b: input.fidelity.to_provider.clone(),
-        });
-    }
     // 3b. Tight quota → warn, never block.
     if let Some((left_pct, tte)) = input.target_quota_tight {
         warnings.push(CopySituation::TargetQuotaTight {
-            account_b: input.fidelity.to_provider.clone(),
+            account_b: input.target_account.clone(),
             left_pct,
             tte,
             account_c: "another account".to_owned(),

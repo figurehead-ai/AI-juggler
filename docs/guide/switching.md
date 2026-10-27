@@ -48,9 +48,12 @@ which kind it is before you confirm.
   A very long last turn is shortened to fit. Claude Code is allowed to read
   the handover's folder, so it doesn't stop to ask.
 
-A conversation that was compacted carries its early part as a summary, so
-the new session may ask about early decisions. The screen tells you when
-this applies.
+A conversation that was compacted loses nothing in a switch. Between two
+accounts of the same tool, the whole session file moves, every message from
+the start, and the new account picks it up exactly as the tool itself would
+(its summary and recent turns in mind, the full history kept). Between two
+tools, the other tool reads the newest turns that fit, word for word, and
+the earlier ones by what was asked, compacted or not.
 
 ### Beta
 
@@ -72,49 +75,102 @@ another hasn't been run live yet.
 
 ## The switch screen
 
-When the project's usual account is on the same tool, has room, and nothing
-would be left behind, switching to it takes one click: the screen shows
-what's carried, and **Switch ▸** (or Enter). Otherwise it has three short
-steps: **Target**, **What's carried** and **Confirm**. Only the last one
-has the button.
+When the move is proven on your tools, keeps the conversation, leaves
+nothing behind and the other account has room, it takes one screen: what
+moves, what happens to the original, and **Switch now** (or Enter).
+Otherwise it has three short steps: **Target**, **What's carried** and
+**Confirm**. Switching to an account that isn't the one you usually use here
+is never a warning: that's the point of a switch.
 
-### Freeze the source first
+Every step has **Cancel** (or Esc) and a close button. While the copy runs,
+the screen stays until it's done ("Finishing copy…"): the original is safe
+the whole time. If the switch doesn't complete, nothing was changed, and
+**Retry** runs it again.
 
-A conversation can't be copied while it's still writing, so you choose:
+### What goes along
 
-- **Finish this turn, then switch** (the default). AI Juggler waits for the
-  current reply to end.
-- **Stop now and switch.** An unfinished reply is marked as cut off.
+The **What's carried** step lists what goes along, in plain words. Hover
+over, or tab to, an item for a line on what it means; **What does this
+mean?** lists them all.
+
+- **The whole conversation:** every message from the start. Another tool
+  reads it, newest first as much as fits.
+- **Project rules:** the rule files in the project folder (such as
+  `CLAUDE.md` or `AGENTS.md`). They stay where they are and are read again.
+- **Your uncommitted changes:** they stay in the folder, and the new session
+  works in the same folder. A switch to another tool also hands it a summary
+  of them.
+- **Connected tools (MCP servers)**, **Skills and commands**, **Model
+  choice** and **Subagents' work**.
+- **Recreated on the account you switch to:** the task list, from its latest
+  version.
+- **Stays behind:** the new session starts without it. This is the only part
+  shown as a warning.
+
+### Keep or stop the original
+
+A conversation can't be copied while it's still being written, so the
+original stops first. Either way it stays, and you can switch back to it any
+time.
+
+- **Let it finish its reply, then switch** (recommended). For example, if
+  it's writing a test, the test is finished first.
+- **Stop it now and switch.** An unfinished reply is marked as cut off, so
+  the new session knows to pick it up again.
 
 AI Juggler can stop only sessions it started. A session you started in a
 terminal or in the Claude app keeps going there if it's still open, and the
 switch starts a separate continuation. The screen says so.
 
-### Secrets in the conversation
+### Keys and passwords in this conversation
 
-The first time you switch, you choose how secrets that appear in a
-conversation (such as an API key you pasted) are handled:
+A switch between two accounts of the same tool copies the conversation as it
+is, on this Mac, so it never asks about keys. When the conversation's words go
+somewhere new (another tool, and the company behind it, reads them to pick up
+the work), the switch says what it found (an API key, a sign-in token, a
+private key; only a masked preview such as `s•••a91f`, never the value) and
+who will read it, and asks:
 
-- **Strip:** they're replaced with •••.
-- **Keep:** they stay as they are, and the account you switch to can read
-  them.
-- **Ask each time.**
+- **Hide them** (recommended): the other tool sees `OPENAI_API_KEY=•••`
+  instead of the key. If it needs a key, it will ask you. You can still show
+  one of them anyway, for this switch only.
+- **Leave them in:** the other tool and the company behind it see the keys
+  exactly as written. Use this only if the work needs them.
 
-You can change this in Settings › Switching › Context packs & secrets.
+Nothing is chosen for you. Tick **Remember my choice** to use it next time;
+unticked, AI Juggler asks on every switch like this one. Change it any time
+in Settings › Switching › Handovers and keys. When nothing was found, the
+switch says so and doesn't ask.
 
-### What the other profile doesn't have yet
+### Things the other account doesn't have
 
-The confirm step lists what your current profile has set up and the other
-one lacks: MCP servers, skills, commands, subagents, rules and plugins.
-Each line says what will happen:
+The **Confirm** step opens with **Ready to switch to …** and three lines:
+what moves, what happens to the original, and whether anything needs you.
+**Before you switch** appears only when something does; everything that's
+fine is under **Details**.
+
+It lists what your current profile has set up and the other one lacks: MCP
+servers, skills, commands, subagents, rules and plugins. None of them stops
+the switch. Each line says what will happen:
 
 - **Set up as it is:** copied exactly.
 - **Set up as …:** translated into the other tool's form, for example a
   Codex prompt set up as a Claude Code command.
 - **Needs you:** something only you can do, such as providing a token or
   installing a plugin with the tool's own command.
-- **Can't be set up:** with the reason, such as a skill that comes from your
-  claude.ai account.
+- **Turned on by the account:** some skills and features come with the
+  account itself, for example a claude.ai account's skills and its plan's
+  features (such as research or the browser). They can't be copied to
+  another account. The line says "You can switch now. *Account* won't have
+  *it* until you turn it on", with the steps:
+  1. Choose **Open claude.ai settings**: your browser opens claude.ai's
+     settings. Sign in there as the account you're switching to (AI Juggler
+     never signs in for you).
+  2. Find the skill or feature there and turn it on.
+  3. Come back and choose **Check again**: AI Juggler reads that account
+     again, and the line goes once it's there.
+
+  It's there only if that account's plan includes it.
 
 Lines that can be set up, as they are or translated, start ticked. **Needs
 you** lines don't. Nothing is set up until you confirm, and only what's
@@ -139,7 +195,7 @@ stops, and you can switch back to it at any time.
   **Undo** for 10 seconds. It stops the new session and resumes the
   original.
 - **Undo a set-up:** each set-up is listed with its own **Undo**. Later, find
-  them in Settings › Switching › Context packs & secrets › **Set up by AI
+  them in Settings › Switching › Handovers and keys › **Set up by AI
   Juggler**. An
   undo removes only what AI Juggler added, and only while it's unchanged.
 - **Usage:** the new account counts only what was done there, not the
@@ -154,21 +210,21 @@ previous account or the one where the work started.
 The original is told what happened while it was away, on every account
 the work passed through: their new turns, the changes and the task list.
 
-## Start from a context pack
+## Start from a saved handover
 
-A context pack is a conversation's story saved as a folder, the same thing
+A saved handover is a conversation's story saved as a folder, the same thing
 a switch hands over. Save one from a project's **Overview**, under **How
-this work travelled**: choose a step, then **Export pack…**. Secrets are
-handled by your choice in Settings › Switching › Context packs & secrets.
+this work travelled**: choose a step, then **Save handover…**. Keys and
+passwords in it are handled by your choice in Settings › Switching ›
+Handovers and keys.
 
 To pick the work up later, in any tool, choose **New session** › **Start
-from a context pack…** and pick the pack's folder. AI Juggler checks the
-pack, then shows what it is: where it came from, what it continues as,
-what it carries, what it doesn't carry, and what was withheld. Choose the
-profile and folder (the pack's own project is picked for you when it's on
-this Mac), then **Launch**.
+from a saved handover…** and pick its folder. AI Juggler checks it, then
+shows what it is: where it came from, what it continues as, what it carries,
+what it doesn't carry, and what was withheld. Choose the profile and folder
+(its own project is picked for you when it's on this Mac), then **Launch**.
 
-A pack that was edited by hand, holds something that looks like a key,
+A handover that was edited by hand, holds something that looks like a key,
 points outside itself, or comes from a newer AI Juggler is refused, with a
 one-line reason, and nothing starts.
 

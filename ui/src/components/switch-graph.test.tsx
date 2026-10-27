@@ -40,12 +40,12 @@ const TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["todo list", "subagent state"],
+    drops: ["The task list", "Subagents' work"],
     score: 0.62,
-    top_factors: ["80% headroom", "usual account for this repo"],
+    top_factors: ["80% headroom", "used most here"],
     factors: [
       ["80% headroom", 0.36],
-      ["usual account for this repo", 0.2],
+      ["used most here", 0.2],
       ["starts fresh from the story", 0.04],
       ["≈$0.12 replay", 0.07],
       ["quiet", 0.1],
@@ -59,7 +59,7 @@ const TARGETS: SwitchTargetData[] = [
     recipe_id: "r-lab",
     account_id: "a-lab",
     account_label: "Lab",
-    badge: "Same conversation, new account (compacted) · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
     cross_provider: true,
     drops: ["rewind history"],
@@ -85,8 +85,8 @@ describe("AJ-E209 SwitchTargetRows — the badged ranked entry", () => {
     expect(badge.getAttribute("data-validated")).toBe("false");
     expect(
       container.querySelector('[data-testid="target-drop-list"]')!.textContent,
-    ).toContain("Doesn't carry: todo list, subagent state");
-    expect(container.textContent).toContain("80% headroom · usual account for this repo");
+    ).toContain("Doesn't carry: The task list, Subagents' work");
+    expect(container.textContent).toContain("80% headroom · used most here");
     expect(container.textContent).toContain("exhausts ≈262 min");
     expect(container.textContent).toContain("Computed");
     expect(container.textContent).toContain("Suggested");
@@ -248,7 +248,7 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     await waitFor(() => expect(w().__AIJ_PACK_EXPORT_CALLS__).toEqual(["ep-a"]));
     await waitFor(() =>
       expect(container.querySelector('[data-testid="pack-export-toast"]')!.textContent).toContain(
-        "Pack exported to ",
+        "Handover saved to ",
       ),
     );
   });

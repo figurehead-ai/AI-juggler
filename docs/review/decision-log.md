@@ -36,6 +36,19 @@
   what will copy, translate, regenerate, or drop.
 - Consequences: the daily quota-wall switch stays fast; lossy
   switches can never happen silently.
+- *Amended 2026-10-27 (the maintainer, on the switch dialog: "Isn't
+  the whole point of transferring to another account so that it is
+  not the usual account? isn't this message pointless?"):* the target
+  not being the project's usual account is no risk. It no longer
+  opens the wizard and is never a warning; "usual account" stays only
+  as a positive hint in the target list ("Used most here"). A
+  compacted source is no risk either: a same-tool switch copies the
+  whole session file and the target resumes it as the source tool
+  would, and a replay reads every turn, newest first while they fit.
+  The compaction reason, the compaction cap on fidelity and the
+  "(compacted)" label are gone. The wizard's warnings are real,
+  actionable risks only: little room left on the target, something
+  that stays behind, a conflict, or a fresh start instead of a resume.
 
 ### D-04 Fidelity gate under beta — SETTLED
 - Decision: **Ship all switching in beta immediately**, with an

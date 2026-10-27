@@ -27,7 +27,7 @@ const PREFLIGHT: PreflightInfoData = {
   wizard_steps: [],
   wizard_reasons: [],
   usual_account: true,
-  carry: { carried: ["chat transcript"], regenerated: [], dropped: [] },
+  carry: { carried: ["The whole conversation"], regenerated: [], dropped: [] },
   redaction: {
     global: "strip",
     override: null,
@@ -36,6 +36,10 @@ const PREFLIGHT: PreflightInfoData = {
     line: "Redaction: Strip",
   },
   redaction_items: [],
+  carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
+  move_line: "The whole conversation moves — all 12 messages, its subagents and file history. The original stays as it was.",
+  secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  target_tool: "claude-code",
 };
 
 type Seams = {
@@ -79,9 +83,15 @@ describe("what the target lacks", () => {
     const server = view.getByLabelText(/github/) as HTMLInputElement;
     expect(server.checked).toBe(false);
     expect(view.getByText(/Needs you: it needs GITHUB_TOKEN/)).toBeTruthy();
-    // Can't be set up: shown, with why, and no box to tick.
-    expect(view.getByText(/Can't be set up: it comes with the claude.ai account/)).toBeTruthy();
+    // Something the account turns on itself: no box to tick, but the
+    // adapter's steps, its page and Check again — and it never blocks.
     expect(view.queryByLabelText(/team-style/)).toBeNull();
+    const steps = view.getByTestId("switch-setup-steps");
+    expect(steps.textContent).toContain("You can switch now. Personal won't have team-style until you turn it on");
+    expect(steps.querySelectorAll("ol li").length).toBe(3);
+    expect(view.getByTestId("switch-setup-open-page").textContent).toContain("Open claude.ai settings");
+    expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false);
+    expect(view.getByTestId("switch-summary-needs").textContent).toContain("none of them stops the switch");
   });
 
   it("sets up what's ticked when the switch runs, and says what it did", async () => {
@@ -134,5 +144,27 @@ describe("what the target lacks", () => {
     expect(setupSummary({ ...EXAMPLE_SETUP, offers: [] }, new Set())).toBe(
       "Personal already has everything Work Max has set up.",
     );
+  });
+});
+
+describe("Check again", () => {
+  it("reads the target again, and what was turned on leaves the list", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup-steps")).toBeTruthy());
+    // The user turned it on in the account: the next read hasn't it.
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = { ...EXAMPLE_SETUP, offers: EXAMPLE_SETUP.offers.filter((offer) => offer.steps.length === 0) };
+    fireEvent.click(view.getByTestId("switch-setup-recheck"));
+    await waitFor(() => expect(view.queryByTestId("switch-setup-steps")).toBeNull());
+    // What was ticked stays ticked.
+    expect((view.getByLabelText(/release-notes/) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("opens the account's page through the app, never as a link the screen holds", async () => {
+    const opened: Array<{ kind: string; id: string }> = [];
+    (window as never as { __AIJ_OPENED__?: typeof opened }).__AIJ_OPENED__ = opened;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup-open-page")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-setup-open-page"));
+    expect(opened[0]?.kind).toBe("account-settings");
   });
 });

@@ -276,12 +276,12 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
     let lowered = with_dogfood(claude, fail.clone());
     assert_eq!(
         lowered.badge(),
-        "Same conversation, new account (compacted) · Beta",
+        "Same conversation, new account (a check failed) · Beta",
         "F3 lowered one level (AJ-E1543)"
     );
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&fail)),
-        "Same conversation, new account (compacted) · Beta"
+        "Same conversation, new account (a check failed) · Beta"
     );
 
     // A later PASS replaces the fail (fixed and re-run) — the ceiling

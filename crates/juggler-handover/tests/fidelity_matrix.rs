@@ -43,7 +43,6 @@ fn input(dispositions: BTreeMap<ArtifactKind, Disposition>) -> FidelityInput {
         from_provider: "claude-code".to_owned(),
         to_provider: "claude-code".to_owned(),
         dispositions,
-        compact_boundary: false,
         flags: juggler_handover::fidelity::PairFlags {
             validated: true,
             same_account: false,
@@ -95,10 +94,9 @@ fn f4_requires_same_account_native_resume() {
 /// alone drops the ceiling).
 #[test]
 fn caps_lower_independently() {
-    // Compact boundary alone: F3 → F2 (all-copy validated).
-    let mut compact = input(all_copy());
-    compact.compact_boundary = true;
-    assert_eq!(score_pair(&compact).label, FidelityLabel::F2);
+    // No compaction cap (D-03 amendment, 2026-10-27): a validated
+    // all-copy transplant stays "Same conversation, new account".
+    assert_eq!(score_pair(&input(all_copy())).label, FidelityLabel::F3);
 
     // Drop in chat alone (todos already Drop-able without capping):
     // the critical-artifact cap hits F1.

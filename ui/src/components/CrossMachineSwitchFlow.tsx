@@ -323,12 +323,12 @@ export function CrossMachineSwitchFlow({
                     The conversation's files are copied to {machine}; this Mac keeps its own copy unchanged.
                   </p>
                 ) : (
-                  <div role="radiogroup" aria-label="Secrets in the conversation" className="flex flex-col gap-1">
-                    <p className="text-ink">Secrets found in the turns:</p>
+                  <div role="radiogroup" aria-label="Keys and passwords in this conversation" className="flex flex-col gap-1">
+                    <p className="text-ink">Keys and passwords in this conversation:</p>
                     {(
                       [
-                        ["strip", "Strip — replace keys with •••", "Recommended: values never leave this Mac."],
-                        ["keep", "Keep — values travel to " + machine, "Only if the other session needs them."],
+                        ["strip", "Hide them (recommended)", "They're replaced with ••• and never leave this Mac. If the other session needs a key, it asks you."],
+                        ["keep", "Leave them in", `They travel to ${machine} exactly as written. Use this only if the work needs them.`],
                       ] as const
                     ).map(([value, title, body]) => (
                       <label

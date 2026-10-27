@@ -11,6 +11,8 @@ use crate::state::AppState;
 
 /// Where the repository's files and its private report live.
 const REPOSITORY: &str = "https://github.com/figurehead-ai/AI-juggler";
+/// The user guide's pages the app links to (docs/guide).
+const GUIDE_PAGES: &[&str] = &["switching", "accounts", "first-run"];
 
 /// The claims the page shows, as the app was built with them.
 const CLAIMS: &str = include_str!("../../../../../ui/src/lib/trust-claims.json");
@@ -54,6 +56,29 @@ pub fn link_url(state: &Arc<AppState>, kind: &str, id: &str) -> Option<String> {
             .any(|file| file == id)
             .then(|| format!("{REPOSITORY}/blob/main/{id}")),
         "report" => Some(format!("{REPOSITORY}/security/advisories/new")),
+        // A section of the user guide ("switching#keep-or-stop-the-
+        // original"): a page the guide has, and a plain anchor.
+        "guide" => {
+            let (page, anchor) = id.split_once('#').unwrap_or((id, ""));
+            let known = GUIDE_PAGES.contains(&page);
+            let plain = anchor
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+            (known && plain).then(|| {
+                let section = if anchor.is_empty() {
+                    String::new()
+                } else {
+                    format!("#{anchor}")
+                };
+                format!("{REPOSITORY}/blob/main/docs/guide/{page}.md{section}")
+            })
+        }
+        // A tool's account settings, for the switch's "how to get it"
+        // steps: the adapter's page, never one the screen names.
+        "account-settings" => state
+            .registry
+            .get(&juggler_core::model::HarnessId::new(id))?
+            .account_settings_url(),
         _ => None,
     }
 }
@@ -72,6 +97,38 @@ mod tests {
             .unwrap(),
         );
         (dir, state)
+    }
+
+    #[test]
+    fn a_guide_section_opens_only_for_a_known_page_and_a_plain_anchor() {
+        let (_dir, state) = state();
+        assert_eq!(
+            link_url(&state, "guide", "switching#keep-or-stop-the-original").as_deref(),
+            Some(
+                "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/guide/switching.md#keep-or-stop-the-original"
+            )
+        );
+        assert_eq!(
+            link_url(&state, "guide", "../SECURITY#x"),
+            None,
+            "only the guide's own pages"
+        );
+        assert_eq!(
+            link_url(&state, "guide", "switching#a?b=c"),
+            None,
+            "a plain anchor only"
+        );
+        // A tool with an account page opens the adapter's page.
+        let opened: Vec<_> = state
+            .registry
+            .ids()
+            .iter()
+            .filter_map(|id| link_url(&state, "account-settings", id.as_str()))
+            .collect();
+        assert!(
+            opened.iter().all(|url| url.starts_with("https://")),
+            "an adapter's page"
+        );
     }
 
     #[test]

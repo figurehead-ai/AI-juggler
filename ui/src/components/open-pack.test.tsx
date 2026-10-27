@@ -1,5 +1,5 @@
 /**
- * AJ-E1511 vitest — "Start from a context pack…": a pack is checked and
+ * AJ-E1511 vitest — "Start from a saved handover…": a pack is checked and
  * shown (where it came from, its fidelity, what carries and doesn't, what
  * was withheld) before anything starts; a refused pack says why; the
  * pack's own folder becomes where to work; starting needs a folder and
@@ -35,9 +35,9 @@ describe("AJ-E1511 — Start from a context pack", () => {
     expect(summary.textContent).toContain("Claude Code on Work Max");
     expect(summary.textContent).toContain("Full story, fresh start · Beta");
     expect(summary.textContent).toContain("the conversation (24 turns), 1 rules file, the uncommitted changes");
-    expect(summary.textContent).toContain("subagent state");
+    expect(summary.textContent).toContain("Subagents' work");
     expect(getByTestId("pack-withheld").textContent).toBe("2 API keys, when it was made. They stay out.");
-    expect(within(summary).getByLabelText("The pack's brief (read-only)").textContent).toContain("Refunds");
+    expect(within(summary).getByLabelText("The handover's brief (read-only)").textContent).toContain("Refunds");
     expect(onFolder).toHaveBeenCalledWith("/Users/you/Dev/payments-api");
     expect(w().__AIJ_PACK_STARTED__).toBeUndefined();
     fireEvent.click(getByTestId("pack-clear"));
@@ -46,7 +46,7 @@ describe("AJ-E1511 — Start from a context pack", () => {
 
   it("says why a pack is refused, and starts nothing", async () => {
     w().__AIJ_PACK_DIR__ = "/Users/dev/exports/pack-2";
-    w().__AIJ_PACK_ERROR__ = "this pack was changed after it was made: conversation.md doesn't match";
+    w().__AIJ_PACK_ERROR__ = "this handover was changed after it was made: conversation.md doesn't match";
     const { getByTestId, queryByTestId } = render(<Harness onFolder={() => {}} />);
     await act(async () => {
       fireEvent.click(getByTestId("pack-choose"));

@@ -8,6 +8,8 @@
 //! did; where the work stands), the rules files in play, and, when older
 //! turns don't fit, what they were about.
 
+pub mod switch_words;
+
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 

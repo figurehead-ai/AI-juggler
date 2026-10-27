@@ -352,7 +352,7 @@ export function cleanupFixture(state: string) {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account (compacted)",
+  fidelity_words: "Same conversation, new account",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
@@ -363,7 +363,7 @@ export const DOOR_WIZARD = {
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
   usual_account: false,
-  carry: { carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"], regenerated: [], dropped: ["todo list"] },
+  carry: { carried: ["The whole conversation", "Project rules", "Your uncommitted changes"], regenerated: [], dropped: ["The task list"] },
 };
 export const DOOR_ONECLICK = {
   ...DOOR_WIZARD,
@@ -374,7 +374,7 @@ export const DOOR_ONECLICK = {
   wizard_steps: [],
   wizard_reasons: [],
   usual_account: true,
-  carry: { carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "MCP config", "skills & commands", "model settings"], regenerated: [], dropped: [] },
+  carry: { carried: ["The whole conversation", "Project rules", "Your uncommitted changes", "Connected tools (MCP servers)", "Skills and commands", "Model choice"], regenerated: [], dropped: [] },
 };
 
 /**
