@@ -360,7 +360,7 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         .map(|item| {
             (
                 item.id.as_str(),
-                item.label.as_str(),
+                item.task.as_str(),
                 item.kind.as_deref(),
                 item.state,
             )
@@ -371,7 +371,7 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         vec![
             (
                 "call_a",
-                "Map the parsers",
+                "Map the parsers\nand list them",
                 Some("explorer"),
                 SubtaskState::Done
             ),
@@ -399,7 +399,10 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         ]
     );
     assert_eq!(
-        log.running(),
+        log.subtasks()
+            .iter()
+            .filter(|item| item.state == SubtaskState::Running)
+            .count(),
         1,
         "a shell call's output is never a subagent"
     );

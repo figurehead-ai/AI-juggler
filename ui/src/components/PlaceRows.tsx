@@ -67,7 +67,7 @@ function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string
       <button
         type="button"
         data-testid="row-subagents"
-        aria-label={`Open its subagents (${words})`}
+        aria-label={`Open its subagents: ${words}`}
         onClick={(event) => {
           event.stopPropagation();
           // Its count says it has some: the tab is there from the start.

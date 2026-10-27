@@ -13,8 +13,10 @@ import type { SubagentInfo, SubagentsInfo } from "../../lib/ipc/subagents";
 import { forgetPaged } from "../../lib/paged";
 import { pageTabs } from "../registry";
 import { SubagentsTab, durationWords } from "./SubagentsTab";
-import { useHasSubagents } from "./useSubagents";
+import { useHasSubagents, useHeardSubagentCounts } from "./useSubagents";
 import type { SessionModel } from "./model";
+import { SessionNotes, subagentsLineWords } from "../../components/SessionNotes";
+import { MOCK_SESSIONS } from "../../lib/bridge";
 
 afterEach(() => {
   cleanup();
@@ -166,5 +168,51 @@ describe("AJ-E1520 the Subagents tab", () => {
     expect(durationWords(agent("a", { status: "running", ended_ms: null, started_ms: NOW - 30_000 }), NOW)).toBe("running 30s");
     expect(durationWords(agent("a", { status: "unknown", ended_ms: null }), NOW)).toBeNull();
     expect(durationWords(agent("a", { started_ms: null }), NOW)).toBeNull();
+  });
+});
+
+// 2026-10-27, the maintainer: "fold the Overview's older Subagents list
+// into the new Subagents tab and retire the old one". The session's notes
+// keep one quiet line (wireframe screen 05 names the count) that opens
+// the tab; the list itself is only the tab's.
+describe("AJ-E1520 the session's line to its Subagents tab", () => {
+  /** The session's page: its tabs' one read, and its notes. */
+  const Page = ({ conversation }: { conversation: string }) => {
+    const session = { ...MOCK_SESSIONS[0]!, conversation_id: conversation };
+    useHasSubagents(session.account_id, conversation, false);
+    return <SessionNotes session={session} live now={NOW} />;
+  };
+
+  it("hears the tab's one read: how many, how many run, and opens the tab", async () => {
+    const list = vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed([agent("a2", { status: "running", ended_ms: null })], {}, "next", 3));
+    const shown: string[] = [];
+    const hear = (event: Event) => shown.push(String((event as CustomEvent<string>).detail));
+    window.addEventListener("aij:page-tab", hear);
+    render(<Page conversation="c-line-1" />);
+    const line = await screen.findByTestId("session-subagents-line");
+    expect(line.textContent).toBe("3 subagents · 1 running› Subagents");
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(list).toHaveBeenCalledWith(MOCK_SESSIONS[0]!.account_id, "c-line-1", { cursor: null, limit: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Open its subagents: 3 subagents · 1 running" }));
+    window.removeEventListener("aij:page-tab", hear);
+    expect(shown).toEqual(["subagents"]);
+    expect(screen.queryByTestId("subagents-section")).toBeNull();
+  });
+
+  it("is quiet when there are none, or before they are read", async () => {
+    const list = vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed([]));
+    const Counts = () => <span data-testid="heard">{JSON.stringify(useHeardSubagentCounts(MOCK_SESSIONS[0]!.account_id, "c-line-2"))}</span>;
+    render(
+      <>
+        <Counts />
+        <Page conversation="c-line-2" />
+      </>,
+    );
+    expect(screen.getByTestId("heard").textContent).toBe("null");
+    await waitFor(() => expect(screen.getByTestId("heard").textContent).toBe('{"total":0,"running":0}'));
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("session-subagents-line")).toBeNull();
+    expect(subagentsLineWords({ total: 1, running: 0 })).toBe("1 subagent");
+    expect(subagentsLineWords({ total: 2, running: 2 })).toBe("2 subagents · 2 running");
   });
 });

@@ -155,7 +155,6 @@ unbounded sessions_get  # bounded: the ids asked for, at most 200
 unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subscriptions_list  # bounded: one row per account, tool, launch setting or paired Mac
-unbounded subtasks_list  # TO PAGE: a session's subtasks
 unbounded switch_back_plan  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_graph_overview  # TO PAGE: a project's switch history

@@ -52,10 +52,9 @@ pub struct AppState {
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
-    /// AJ-E1520: each live session's subagents, read on the same tick.
-    pub subtasks: crate::features::subtasks::Subtasks,
-    /// AJ-E1520 (0.2): the Subagents tab's readers, for the sessions
-    /// whose tab was opened last.
+    /// AJ-E1520 (0.2): each session's subagent reader, shared by its
+    /// Subagents tab (the pages opened last) and the rail's count (the
+    /// live sessions), and the count each live session last read.
     pub subagents: crate::features::subagents::Readers,
     /// AJ-E1703: what each live session is working on (its context card),
     /// read on the same tick.
@@ -320,7 +319,6 @@ impl AppState {
             resources: Mutex::new(LiveStatsCollector::new()),
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
-            subtasks: crate::features::subtasks::Subtasks::default(),
             subagents: crate::features::subagents::Readers::default(),
             pool_activity: crate::features::pools::cards::Activity::default(),
             agent_bridge: crate::features::agent_bridge::Bridge::default(),

@@ -265,3 +265,10 @@ describe("the maintainer's review of 0.1.4: the way out, and folding in place", 
     expect(kinds(["open"])).toEqual(["section", "need", "section", "also"]);
   });
 });
+
+describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
+  it("is the subagent count its tab reads, never its child processes", () => {
+    expect(sessionItem(own("s1", { subtask_count: 3, child_count: 5 }), none, false).subagents).toBe(3);
+    expect(sessionItem(own("s2", { subtask_count: null, child_count: 2 }), none, false).subagents).toBe(0);
+  });
+});

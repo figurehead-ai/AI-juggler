@@ -110,7 +110,9 @@ runs it, once the session has started one. Each row says:
 The newest come first, and a subagent that another subagent started sits
 under it. Click one to read its own conversation, in the same view as the
 session's; **‹ Subagents** (or Esc) brings you back. With **View › Show ›
-sub-agents** on, a session's "+2 agents" in the list opens this tab.
+sub-agents** on, a session's "+2 agents" in the list opens this tab, and
+on the page of a session AI Juggler runs, the line "6 subagents · 2
+running › Subagents" does too.
 
 AI Juggler reads all this from the tool's own records on your Mac, only
 reads them, and keeps nothing. "Running" means the records don't say it

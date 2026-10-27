@@ -5,6 +5,7 @@ import { compactCount } from "../lib/compact";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
+import { subagentsRunning } from "../lib/subagents";
 import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
 import {
   IconFork,
@@ -232,7 +233,7 @@ export function rememberResourceSample(
 // --- small shared renderers ---------------------------------------------------
 
 /** I-02 initials disc with the per-Account hue. */
-/** I-08 children/subtask badges — hidden at 0/`null` (no `⑂ 0` noise). */
+/** I-08 children/running-subagent badges — hidden at 0/`null` (no `⑂ 0` noise). */
 export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const children = session.child_count ?? 0;
   const subtasks = session.subtask_count ?? 0;
@@ -245,7 +246,7 @@ export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
         </span>
       )}
       {subtasks > 0 && (
-        <span className="inline-flex items-center gap-0.5" title={`${subtasks} subtasks`}>
+        <span className="inline-flex items-center gap-0.5" title={subagentsRunning(subtasks)}>
           <IconSubtasks width={10} height={10} /> {subtasks}
         </span>
       )}
