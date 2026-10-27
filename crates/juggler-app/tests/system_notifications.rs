@@ -93,6 +93,9 @@ const ALL: SystemNotificationsInfo = SystemNotificationsInfo {
     finished: true,
     this_mac: true,
     left_behind: true,
+    quota: true,
+    crash: true,
+    reset: true,
 };
 
 /// A local hour outside the default quiet hours (22–7), so nothing is

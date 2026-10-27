@@ -15,6 +15,9 @@ const LIMIT_KEY: &str = "notify.limit";
 const FINISHED_KEY: &str = "notify.finished";
 const THIS_MAC_KEY: &str = "notify.this_mac";
 const LEFT_BEHIND_KEY: &str = "notify.left_behind";
+const QUOTA_KEY: &str = "notify.quota";
+const CRASH_KEY: &str = "notify.crash";
+const RESET_KEY: &str = "notify.reset";
 
 /// Settings › Notifications › Tell me outside AI Juggler.
 #[derive(
@@ -36,6 +39,15 @@ pub struct SystemNotificationsInfo {
     /// AJ-E2405: a session ended and left something running.
     #[serde(default)]
     pub left_behind: bool,
+    /// AJ-E2501: an account is almost out of room.
+    #[serde(default)]
+    pub quota: bool,
+    /// AJ-E2501: a session crashed and was started again.
+    #[serde(default)]
+    pub crash: bool,
+    /// AJ-E2501: an account has room again.
+    #[serde(default)]
+    pub reset: bool,
 }
 
 impl SystemNotificationsInfo {
@@ -49,17 +61,23 @@ impl SystemNotificationsInfo {
             Kind::Finished => self.finished,
             Kind::MacTight => self.this_mac,
             Kind::LeftBehind => self.left_behind,
+            Kind::Quota => self.quota,
+            Kind::Crashed => self.crash,
+            Kind::Reset => self.reset,
         }
     }
 }
 
-const KEYS: [&str; 6] = [
+const KEYS: [&str; 9] = [
     WAITING_KEY,
     STUCK_KEY,
     LIMIT_KEY,
     FINISHED_KEY,
     THIS_MAC_KEY,
     LEFT_BEHIND_KEY,
+    QUOTA_KEY,
+    CRASH_KEY,
+    RESET_KEY,
 ];
 
 fn on(storage: &Storage, key: &str) -> bool {
@@ -69,7 +87,17 @@ fn on(storage: &Storage, key: &str) -> bool {
 /// The kinds as stored (all off when unset).
 #[must_use]
 pub fn read(storage: &Storage) -> SystemNotificationsInfo {
-    let [waiting, stuck, limit, finished, this_mac, left_behind] = KEYS.map(|key| on(storage, key));
+    let [
+        waiting,
+        stuck,
+        limit,
+        finished,
+        this_mac,
+        left_behind,
+        quota,
+        crash,
+        reset,
+    ] = KEYS.map(|key| on(storage, key));
     SystemNotificationsInfo {
         waiting,
         stuck,
@@ -77,6 +105,9 @@ pub fn read(storage: &Storage) -> SystemNotificationsInfo {
         finished,
         this_mac,
         left_behind,
+        quota,
+        crash,
+        reset,
     }
 }
 
@@ -100,6 +131,9 @@ pub fn notifications_set_impl(
         kinds.finished,
         kinds.this_mac,
         kinds.left_behind,
+        kinds.quota,
+        kinds.crash,
+        kinds.reset,
     ];
     for (key, value) in KEYS.into_iter().zip(values) {
         storage.app_settings().set(key, &value.to_string())?;

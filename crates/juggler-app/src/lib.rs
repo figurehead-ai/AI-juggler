@@ -530,6 +530,21 @@ macro_rules! app_commands {
             Read  features::staging::staging_ready,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
+            // AJ-E2501: the one notification model (the centre, banners,
+            // bell); the window keeps Needs you in step with it.
+            Read  features::notifications::commands::notifications_summary,
+            Read  features::notifications::commands::notifications_page,
+            Read  features::notifications::commands::notifications_mutes,
+            Write features::notifications::commands::notifications_sync,
+            Write features::notifications::commands::notifications_read,
+            Write features::notifications::commands::notifications_snooze,
+            Write features::notifications::commands::notifications_dismiss,
+            Write features::notifications::commands::notifications_mute,
+            Write features::notifications::commands::notifications_unmute,
+            // AJ-E2507: the user menu's name (the system's, never stored).
+            Read  features::app::user::app_user_get,
+            // Opens the browser: never from the read-only bridge.
+            Write features::app::user::app_help_open,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
@@ -807,6 +822,12 @@ pub fn run() {
                 app.handle().clone(),
             );
             features::notifications::connect(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
+            // AJ-E2501: the badge, the menu-bar item and the bell follow
+            // the notification model from here on.
+            features::notifications::views::connect(
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );

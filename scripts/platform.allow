@@ -17,7 +17,6 @@ crates/juggler-adapters/src/claude_live.rs app-bundle 1
 crates/juggler-adapters/src/codex_inventory.rs mac-words 1
 crates/juggler-adapters/src/codex_live.rs app-bundle 1
 crates/juggler-adapters/src/quota_ingest.rs unix-api 2
-crates/juggler-adapters/src/scan_signals.rs app-bundle 2
 crates/juggler-adapters/src/tool_summary.rs slash-split 1
 crates/juggler-adapters/src/transcript_tail.rs unix-api 1
 crates/juggler-agentbridge/src/client.rs unix-api 2
@@ -72,7 +71,6 @@ crates/juggler-app/src/manage.rs applications 1
 crates/juggler-app/src/manage.rs mac-words 1
 crates/juggler-app/src/os_access.rs mac-words 3
 crates/juggler-app/src/os_access.rs usr-bin 1
-crates/juggler-app/src/running_setups.rs app-bundle 2
 crates/juggler-app/src/usage_stats.rs mac-words 4
 crates/juggler-app/src/vault.rs mac-words 1
 crates/juggler-core/src/funnel_events.rs mac-words 1
@@ -131,7 +129,7 @@ ui/src/lib/bridge.ts mac-words 6
 ui/src/lib/home-needs.ts mac-words 1
 ui/src/lib/machine-memory.ts mac-words 2
 ui/src/lib/machine.ts mac-words 9
-ui/src/lib/nav.ts mac-words 3
+ui/src/lib/nav.ts mac-words 1
 ui/src/lib/providers.ts mac-words 1
 ui/src/lib/shortcuts.ts mac-words 2
 ui/src/pages/AccountProbe.tsx mac-words 1

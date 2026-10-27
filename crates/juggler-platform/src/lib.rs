@@ -6,6 +6,8 @@
 //! - [`file_trust`]: whose a file is, and whether a program is safe to run.
 //! - [`private_fs`]: folders and files only this user can open.
 //! - [`local_ipc`]: a local connection only this user can make.
+//! - [`system`]: what this system calls this computer and its user, and
+//!   whether the app's icon can carry a count.
 //!
 //! Each seam has one implementation per platform. Where a platform has no
 //! honest implementation yet, the seam says so (an `Unsupported` error, or
@@ -26,6 +28,7 @@
 pub mod file_trust;
 pub mod local_ipc;
 pub mod private_fs;
+pub mod system;
 pub mod user;
 
 /// The error a seam returns where this system has no implementation yet:

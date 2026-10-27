@@ -1052,8 +1052,12 @@ fn feed(app: &tauri::AppHandle) -> &'static PluginFeed {
 }
 
 fn emit(app: &tauri::AppHandle, status: &UpdateStatusInfo) {
-    use tauri::Emitter as _;
+    use tauri::{Emitter as _, Manager as _};
     let _ = app.emit("update://status", status);
+    // AJ-E2501: a version found or ready is told once in the centre.
+    if let Some(state) = app.try_state::<Arc<AppState>>() {
+        crate::features::notifications::sources::update(state.inner(), status);
+    }
 }
 
 /// Starts the launch-time check in the background (no wait on launch).
