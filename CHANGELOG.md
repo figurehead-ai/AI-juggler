@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Switching from any session (0.1.7): a session another app runs (the
+  Claude app, Codex in ChatGPT, a CLI in a terminal) offers every
+  signed-in profile of every tool, and one click opens the switch screen
+  while it is still open in its app. The switch only reads it; it stays
+  open there, untouched, and continues as a new session in AI Juggler.
+- Claude's model weeks (0.1.7): a weekly limit on one model ("This week ·
+  Fable only") is shown and never read as "no weekly limit"; it doesn't
+  count toward an account's % left.
+- This Mac groups each tool's desktop app from its adapter (0.1.7): Codex
+  in ChatGPT.app is "ChatGPT (Codex)"; a native-installer `claude` in a
+  terminal is listed.
+- Prices and details (0.1.7) leads with the totals, names sessions by
+  title and project, folds a session's models on one day into one row and
+  fits without sideways scroll; gpt-6.1-terra is priced.
+- Sizes (0.1.7): files and disks in decimal units as Finder counts them,
+  memory in 1,024-based units as macOS does, one rule for the UI and the
+  backend.
+
 - Apps show their own icons (0.1.6, D-38): the rail's rows and place
   headers, Home's apps and Needs you, History, a project's sessions and
   the palette show each app's icon as it is installed on your Mac (the
@@ -211,6 +229,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pass unchanged).
 
 ### Fixed
+
+- The lifecycle forwarder ended after its first quiet half-second, so
+  sessions AI Juggler ran weren't recorded as ended, restarted after a
+  crash or notified (0.1.7). A panicking pass no longer stops a
+  background tick.
+- The Prices total was one model on one day, and empty once a model had
+  no list price; the stale-pricing warning could never show (0.1.7).
+- Counts that round up read in the next unit ("1.0M", never "1000k").
 
 - Usage › Prices and details shows prices (0.1.7). It leads with the
   total at API list prices, what you pay and the models with no list
