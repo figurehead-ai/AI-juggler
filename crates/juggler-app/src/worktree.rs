@@ -123,7 +123,14 @@ const PATCH_MAX_UNTRACKED: usize = 200;
 /// lab 13: a dirty pack's `diffs/` was always empty).
 #[must_use]
 pub fn uncommitted_patch(dir: &Path) -> Option<Vec<u8>> {
-    let mut patch = git_bytes(dir, &["diff", "HEAD", "--binary"], &[0])?;
+    // Never a repository's own diff programs or text converters: a
+    // repository's config could name any command, and a switch must run
+    // none of it.
+    let mut patch = git_bytes(
+        dir,
+        &["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--binary"],
+        &[0],
+    )?;
     let untracked = git(dir, &["ls-files", "--others", "--exclude-standard", "-z"])?;
     let files: Vec<&str> = untracked.split('\0').filter(|f| !f.is_empty()).collect();
     if files.len() > PATCH_MAX_UNTRACKED {
@@ -133,7 +140,16 @@ pub fn uncommitted_patch(dir: &Path) -> Option<Vec<u8>> {
         // `--no-index` exits 1 when the two differ: that is the patch.
         let added = git_bytes(
             dir,
-            &["diff", "--no-index", "--binary", "--", "/dev/null", file],
+            &[
+                "diff",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-index",
+                "--binary",
+                "--",
+                "/dev/null",
+                file,
+            ],
             &[0, 1],
         )?;
         patch.extend(added);
