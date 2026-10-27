@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Notifications in one place** (0.2): a bell at the top right with one
+  count — the same number as Needs you on Home, the Dock icon and a new
+  menu-bar item. Click it (or press ⌘⇧N) for the notification centre:
+  **Needs action** (your Needs you list) and **Earlier** (an account with
+  room again, a finished session, a crash restarted, an update; 30 days).
+  Each item offers its action, and ⋯ snoozes it or mutes its project or
+  kind — snoozed and muted things stop interrupting but are still counted.
+  Nothing acts by itself. The menu-bar item lists what needs you and
+  what's open, with Open AI Juggler and New session….
+- **Banners in plain words**: an account almost out of room says how much
+  is left, when it resets and how many sessions use it, with a meter,
+  Hand over…, Queue for the reset and Snooze 1 h (no more "five_hour" or
+  "(Measured)"). When AI Juggler's own service stops answering, the window
+  keeps the last state it knew, says since when, and offers Retry.
+- **Toasts** sit at the bottom right for six seconds with a bar for the
+  time left; hovering pauses them; errors stay until you close them, with
+  Retry where there is one.
+- **Your menu** behind the avatar: Settings (⌘, as before), This Mac,
+  Processes, your other Macs, Privacy, Appearance, keyboard shortcuts,
+  help, Report a problem… and About and updates. The header keeps Home ·
+  Accounts · Usage · History. Without a Figurehead account it shows your
+  name from this Mac and one quiet "Connect a Figurehead account
+  (optional)".
+- macOS notifications can now also tell you when an account is almost
+  out of room, has room again, or a crashed session was restarted (each
+  off until you turn it on).
+
 - **Pools** (0.2): group sessions that work together, name the group and
   say who leads. A session's menu has **Move to pool…**; once you've made
   a pool the list can group by pool and Filters and Home can show one
