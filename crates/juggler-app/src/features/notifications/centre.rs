@@ -350,7 +350,12 @@ impl Marks {
         Self {
             projects: of("project"),
             kinds: of("kind"),
-            snoozes: storage.notices().snoozes(now).unwrap_or_default().into_iter().collect(),
+            snoozes: storage
+                .notices()
+                .snoozes(now)
+                .unwrap_or_default()
+                .into_iter()
+                .collect(),
         }
     }
 
@@ -363,7 +368,9 @@ impl Marks {
 /// What a snooze holds a notice by: a need's key without its origin.
 #[must_use]
 pub fn subject_of(key: &str) -> &str {
-    key.strip_prefix(ORIGIN_NEEDS).and_then(|rest| rest.strip_prefix(':')).unwrap_or(key)
+    key.strip_prefix(ORIGIN_NEEDS)
+        .and_then(|rest| rest.strip_prefix(':'))
+        .unwrap_or(key)
 }
 
 fn info(row: Notice, marks: &Marks) -> NoticeInfo {
@@ -612,12 +619,12 @@ fn version_of(storage: &Storage, now: i64) -> i64 {
         .map(|row| row.updated_at.max(row.read_at.unwrap_or(0)))
         .max()
         .unwrap_or(0);
-    let snoozes = repo.snoozes(now).unwrap_or_default();
-    let snoozed = snoozes
-        .iter()
-        .fold(i64::try_from(snoozes.len()).unwrap_or(0), |sum, (_, until)| {
-            sum.wrapping_mul(31).wrapping_add(until.unwrap_or(1))
-        });
+    let held = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        repo.snoozes(now).unwrap_or_default().hash(&mut hasher);
+        i64::from_ne_bytes(hasher.finish().to_ne_bytes())
+    };
     let earlier = repo
         .earlier(None, 1)
         .ok()
@@ -631,7 +638,7 @@ fn version_of(storage: &Storage, now: i64) -> i64 {
         .wrapping_add(i64::try_from(mutes).unwrap_or(0))
         .wrapping_add(i64::try_from(repo.open_count().unwrap_or(0)).unwrap_or(0))
         .wrapping_mul(31)
-        .wrapping_add(snoozed)
+        .wrapping_add(held)
 }
 
 /// A section of the centre: `needs` (Needs action, oldest first),
@@ -732,7 +739,9 @@ pub fn snooze(storage: &Storage, subject: &str, how: Snooze, now: i64) -> AppRes
     }
     let repo = storage.notices();
     match how {
-        Snooze::Until(until) if until <= now => return Err(invalid("Snooze until a time still ahead.")),
+        Snooze::Until(until) if until <= now => {
+            return Err(invalid("Snooze until a time still ahead."));
+        }
         Snooze::Until(until) => repo.snooze(subject, Some(until), now)?,
         Snooze::UntilWoken => repo.snooze(subject, None, now)?,
         Snooze::Wake => {
@@ -753,12 +762,19 @@ pub fn snooze(storage: &Storage, subject: &str, how: Snooze, now: i64) -> AppRes
 /// # Errors
 ///
 /// [`AppError::Validation`] for a bad cursor; the typed storage error.
-pub fn snoozes(storage: &Storage, request: &PageRequest, now: i64) -> AppResult<Page<NeedSnoozeInfo>> {
+pub fn snoozes(
+    storage: &Storage,
+    request: &PageRequest,
+    now: i64,
+) -> AppResult<Page<NeedSnoozeInfo>> {
     let rows: Vec<NeedSnoozeInfo> = storage
         .notices()
         .snoozes(now)?
         .into_iter()
-        .map(|(subject, until)| NeedSnoozeInfo { subject, until_ms: until })
+        .map(|(subject, until)| NeedSnoozeInfo {
+            subject,
+            until_ms: until,
+        })
         .collect();
     crate::paging::page(rows, |row| SortKey::new([0], row.subject.clone()), request)
 }

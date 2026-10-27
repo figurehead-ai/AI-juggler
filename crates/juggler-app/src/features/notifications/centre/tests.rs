@@ -165,7 +165,11 @@ fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
     let snoozed = rows.iter().find(|row| row.subject == "a").unwrap();
     assert!(snoozed.snoozed && !snoozed.unread);
     assert_eq!(snoozed.snoozed_until_ms, Some(NOW + 60 * MIN));
-    assert_eq!(open_needs(&storage, NOW, 10).len(), 2, "the menu-bar item lists what counts");
+    assert_eq!(
+        open_needs(&storage, NOW, 10).len(),
+        2,
+        "the menu-bar item lists what counts"
+    );
     assert!(!may_interrupt(&storage, "stuck", None));
     assert!(may_interrupt(&storage, "asks", None));
     assert!(session_snoozed(&storage, "sess-a", NOW));
@@ -388,7 +392,10 @@ fn the_version_moves_with_every_change() {
     let two = summary(&storage, clock(NOW)).unwrap().version;
     assert_ne!(one, two);
     // The snooze ending moves it too (the views follow with no window).
-    assert_ne!(two, summary(&storage, clock(NOW + 2 * MIN)).unwrap().version);
+    assert_ne!(
+        two,
+        summary(&storage, clock(NOW + 2 * MIN)).unwrap().version
+    );
     assert_ne!(one, two);
     mute(&storage, "kind", "asks", "", NOW).unwrap();
     assert_ne!(two, summary(&storage, clock(NOW)).unwrap().version);

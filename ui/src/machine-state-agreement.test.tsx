@@ -11,6 +11,7 @@
  * with its headline, This Mac's line (the top bar's, AJ-E2105: Home no
  * longer repeats This Mac), the collapsed rail's dot and its "All clear".
  */
+import { needsFor } from "./test/needs-kit";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MachineStatusLine } from "./components/MachineStatusLine";
@@ -61,6 +62,7 @@ function state(level: "plenty" | "tight" | "pressure"): ThisMacInfo {
 }
 
 function renderAll(info: ThisMacInfo) {
+  needsFor({ sessions: [], accounts: ACCOUNTS, thisMac: info }); // D-49: the backend's list
   return render(
     <ThisMacContext.Provider value={info}>
       <HomeScreen

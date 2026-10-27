@@ -29,6 +29,8 @@ export interface NoticeActions {
   /** Its second action beside the primary. */
   second: (notice: NoticeInfo, which: Second) => void;
   snooze: (notice: NoticeInfo, until: "hour" | "tomorrow") => void;
+  /** Ends its snooze now: back into Needs you. */
+  wake: (notice: NoticeInfo) => void;
   mute: (notice: NoticeInfo, scope: "project" | "kind") => void;
 }
 
@@ -80,8 +82,11 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
   };
   const snooze = (notice: NoticeInfo, until: "hour" | "tomorrow") => {
     const at = until === "hour" ? Date.now() + HOUR_MS : tomorrowMorning(Date.now());
-    void acted(() => notificationsSnooze(notice.id, at), "Couldn't snooze it").then((done) => done && showToast({ id: `snoozed:${notice.id}`, message: until === "hour" ? "Snoozed for an hour" : `Snoozed until ${clock(at)} tomorrow`, detail: "Needs you still counts it.", undo: { onUndo: () => acted(() => notificationsSnooze(notice.id, null)) } }));
+    // D-49: snoozed, it is out of the Needs you count until it wakes.
+    const back = `Back at ${clock(at)}${until === "tomorrow" ? " tomorrow" : ""}; out of Needs you until then.`;
+    void acted(() => notificationsSnooze(notice.subject, at), "Couldn't snooze it").then((done) => done && showToast({ id: `snoozed:${notice.subject}`, message: until === "hour" ? "Snoozed for an hour" : "Snoozed until tomorrow", detail: back, undo: { onUndo: () => acted(() => notificationsSnooze(notice.subject, null)) } }));
   };
+  const wake = (notice: NoticeInfo) => void acted(() => notificationsSnooze(notice.subject, null), "Couldn't wake it");
   const mute = (notice: NoticeInfo, scope: "project" | "kind") => {
     const value = scope === "project" ? notice.project_id : notice.kind;
     if (!value) return;
@@ -113,5 +118,5 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       );
     }
   };
-  return { primary, second, snooze, mute };
+  return { primary, second, snooze, wake, mute };
 }

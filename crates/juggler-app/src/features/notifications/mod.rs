@@ -169,7 +169,10 @@ impl Notifier {
     /// D-49: This Mac as last sampled.
     #[must_use]
     pub fn this_mac(&self) -> Option<crate::machine_health::ThisMacInfo> {
-        self.this_mac.lock().ok().and_then(|this_mac| this_mac.clone())
+        self.this_mac
+            .lock()
+            .ok()
+            .and_then(|this_mac| this_mac.clone())
     }
 
     /// D-49: the accounts with their sign-ins, checked again (`check`)
@@ -191,13 +194,6 @@ impl Notifier {
             *cached = Some((now, accounts.clone()));
         }
         accounts
-    }
-
-    /// D-49: an account's sign-in changed: the next tick checks again.
-    pub fn sign_ins_changed(&self) {
-        if let Ok(mut cached) = self.sign_ins.lock() {
-            *cached = None;
-        }
     }
 
     /// D-49: records what Needs you is now; `true` when it is what it was.

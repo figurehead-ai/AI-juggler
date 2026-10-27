@@ -5,11 +5,12 @@
  * AJ-E1021 (D-25 amendment): Home is also the morning triage — parked
  * sessions, what ended and isn't reviewed, J/K/Enter/A (from AJ-E1005).
  */
-import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
+import { renderWithNeeds } from "../test/needs-kit";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo, InstanceInfo, ProjectInfo, QuotaDisplayData } from "../lib/bridge";
@@ -103,7 +104,8 @@ describe("D-25 Home — the rules", () => {
 
 describe("D-25 Home — the screen", () => {
   const renderHome = (sessions: InstanceInfo[], accounts = ACCOUNTS, props: { onOpenSession?: (id: string) => void; onAddAccounts?: () => void } = {}) =>
-    render(
+    renderWithNeeds(
+      { sessions, accounts, projects: PROJECTS },
       <HomeScreen
         sessions={sessions}
         accounts={accounts}
@@ -178,7 +180,8 @@ describe("D-25 Home — the screen", () => {
   it("an account that needs its sign-in is a Needs you item; Sign in opens the login terminal", async () => {
     const opened: string[] = [];
     const accounts = [{ ...ACCOUNTS[0]!, login_state: "logged_out" }, ACCOUNTS[1]!] as AccountInfo[];
-    const { getByTestId } = render(
+    const { getByTestId } = renderWithNeeds(
+      { sessions: [], accounts, projects: PROJECTS },
       <HomeScreen
         sessions={[]}
         accounts={accounts}
@@ -199,7 +202,8 @@ describe("D-25 Home — the screen", () => {
 
   it("a Codex account's sign-in names Codex's own sign-in (OpenAI)", () => {
     const accounts = [{ ...ACCOUNTS[0]!, provider: "codex", login_state: "logged_out" }] as AccountInfo[];
-    const { getByTestId } = render(
+    const { getByTestId } = renderWithNeeds(
+      { sessions: [], accounts, projects: PROJECTS },
       <HomeScreen
         sessions={[]}
         accounts={accounts}
@@ -235,7 +239,8 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     ...((w().__AIJ_PARK_CALLS__ as string[] | undefined) ?? []),
   ];
   const renderHome = (sessions: InstanceInfo[], props: { onOpenSession?: (id: string) => void; onChanged?: () => void } = {}) =>
-    render(
+    renderWithNeeds(
+      { sessions, accounts: ACCOUNTS, projects: PROJECTS },
       <HomeScreen
         sessions={sessions}
         accounts={ACCOUNTS}
@@ -321,7 +326,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
         />
       );
     }
-    const { container } = render(<Stateful />);
+    const { container } = renderWithNeeds({ sessions: [mk("w", { status: "waiting_user" })], accounts: ACCOUNTS, projects: PROJECTS }, <Stateful />);
     const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
     // AJ-E2105: Needs you's Open its page, then the two to pick up (what runs
     // is in the list and under Your apps).

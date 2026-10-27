@@ -170,15 +170,24 @@ fn a_snooze_belongs_to_its_subject_and_ends_by_itself() {
     repo.snooze("signin:a", None, 10).unwrap();
     assert_eq!(
         repo.snoozes(500).unwrap(),
-        [("s:1".to_owned(), Some(1_000)), ("signin:a".to_owned(), None)]
+        [
+            ("s:1".to_owned(), Some(1_000)),
+            ("signin:a".to_owned(), None)
+        ]
     );
     // Past its time it is no longer on; the tick forgets it.
-    assert_eq!(repo.snoozes(1_000).unwrap(), [("signin:a".to_owned(), None)]);
+    assert_eq!(
+        repo.snoozes(1_000).unwrap(),
+        [("signin:a".to_owned(), None)]
+    );
     assert_eq!(repo.end_snoozes(1_000).unwrap(), 1);
     assert_eq!(repo.end_snoozes(1_000).unwrap(), 0);
     // Snoozed again: the new time wins. Woken: gone.
     repo.snooze("signin:a", Some(9_000), 20).unwrap();
-    assert_eq!(repo.snoozes(500).unwrap(), [("signin:a".to_owned(), Some(9_000))]);
+    assert_eq!(
+        repo.snoozes(500).unwrap(),
+        [("signin:a".to_owned(), Some(9_000))]
+    );
     assert!(repo.wake("signin:a").unwrap());
     assert!(!repo.wake("signin:a").unwrap());
     assert!(repo.snoozes(0).unwrap().is_empty());

@@ -238,18 +238,26 @@ export interface ItemInputs {
   projects: ProjectInfo[];
   seen: Record<string, number>;
   snoozed?: (row: InstanceInfo) => boolean;
+  /** D-49: the backend's Needs you, by item key (its word decides). */
+  needOf?: ReadonlyMap<string, Need>;
 }
 
 /** Every item: AI Juggler's sessions, then the sessions it didn't start. */
-export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false }: ItemInputs): RailItem[] {
+export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  return [
+  const items = [
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
       .map((c) => conversationItem(c, projectName, seen[`c:${c.account_id}/${c.id}`] ?? null)),
   ];
+  // D-49: what is in Needs you is the backend's (one list, one count).
+  if (!needOf) return items;
+  return items.map((item) => {
+    const need = needOf.get(item.key) ?? null;
+    return need === item.need ? item : { ...item, need, probably: item.session ? need === "stuck" : item.probably, live: item.live || (item.session !== null && need !== null) };
+  });
 }
 
 const NEED_ORDER: Need[] = ["asks", "limit", "failed", "stuck", "review"];

@@ -49,8 +49,8 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
     window.addEventListener("mousedown", outside);
     return () => window.removeEventListener("mousedown", outside);
   }, [onClose]);
-  const awake = needs.items.filter((row) => row.snoozed_until_ms === null);
-  const snoozed = needs.items.filter((row) => row.snoozed_until_ms !== null);
+  const awake = needs.items.filter((row) => !row.snoozed);
+  const snoozed = needs.items.filter((row) => row.snoozed);
   const count = summary?.count ?? needs.items.length;
   const digest = summary ? digestLine(summary.digest, now) : null;
   const empty = !needs.loading && !earlier.loading && needs.items.length === 0 && earlier.items.length === 0;

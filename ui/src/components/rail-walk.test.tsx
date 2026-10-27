@@ -6,6 +6,7 @@
  * folded in place. None ends with only a toast: nothing but a row's ↗
  * (and a place's Open) goes to another app.
  */
+import { needsFor } from "../test/needs-kit";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -67,6 +68,7 @@ afterEach(() => {
 function board(view: RailView) {
   setRailView(view);
   seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
+  needsFor({ sessions: SESSIONS, conversations: placesConversations(NOW), projects: PROJECTS }); // D-49
   return render(
     <ConversationsProvider>
       <ActionHostProvider host={host}>

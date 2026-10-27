@@ -512,7 +512,10 @@ impl NoticesRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn wake(&self, subject: &str) -> Result<bool, CoreError> {
-        Ok(self.conn.execute("DELETE FROM need_snoozes WHERE subject = ?1", params![subject])? > 0)
+        Ok(self.conn.execute(
+            "DELETE FROM need_snoozes WHERE subject = ?1",
+            params![subject],
+        )? > 0)
     }
 
     /// The snoozes still on at `now`: `(subject, until)`, `None` = until woken.
@@ -524,8 +527,11 @@ impl NoticesRepo<'_> {
         let mut stmt = self.conn.prepare(
             "SELECT subject, until FROM need_snoozes WHERE until IS NULL OR until > ?1 ORDER BY subject",
         )?;
-        let rows = stmt.query_map(params![now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?)))?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(CoreError::Storage)
+        let rows = stmt.query_map(params![now], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?))
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
     }
 
     /// Forgets the snoozes that ended by `now`; how many.
@@ -534,9 +540,10 @@ impl NoticesRepo<'_> {
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn end_snoozes(&self, now: i64) -> Result<usize, CoreError> {
-        Ok(self
-            .conn
-            .execute("DELETE FROM need_snoozes WHERE until IS NOT NULL AND until <= ?1", params![now])?)
+        Ok(self.conn.execute(
+            "DELETE FROM need_snoozes WHERE until IS NOT NULL AND until <= ?1",
+            params![now],
+        )?)
     }
 
     /// Closes its banner (the notice stays in the centre).

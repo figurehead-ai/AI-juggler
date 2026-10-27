@@ -30,6 +30,8 @@ export function quotaDetail(notice: NoticeInfo, now: number): string {
 
 /** The line under a need's title. */
 export function needLine(notice: NoticeInfo, now: number): string {
+  // D-49: snoozed, it says when it comes back into Needs you.
+  if (notice.snoozed) return notice.snoozed_until_ms === null ? "Snoozed until you wake it" : `Snoozed · back at ${clock(notice.snoozed_until_ms)}${notice.snoozed_until_ms - now > 12 * HOUR_MS ? " tomorrow" : ""}`;
   if (notice.kind === "quota") return quotaDetail(notice, now);
   if (notice.kind === "asks" || notice.kind === "stuck") {
     const waited = minutes(notice.created_ms, now);
@@ -72,7 +74,7 @@ export function secondOf(notice: NoticeInfo): { id: Second; label: string } | nu
   if (!notice.needs) return null;
   if (notice.kind === "quota") return { id: "queue-reset", label: "Queue for the reset" };
   if (notice.kind === "review" && notice.target.session_id) return { id: "mark-reviewed", label: "Mark reviewed" };
-  if (notice.snoozed_until_ms === null && ["asks", "stuck", "message", "task"].includes(notice.kind)) return { id: "snooze-hour", label: "Snooze 1 h" };
+  if (!notice.snoozed && ["asks", "stuck", "message", "task"].includes(notice.kind)) return { id: "snooze-hour", label: "Snooze 1 h" };
   return null;
 }
 

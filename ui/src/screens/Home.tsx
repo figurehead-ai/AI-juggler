@@ -26,11 +26,11 @@
  * action. The ledger-degraded banner moved here from Overview.
  */
 import { ProjectMark } from "../components/ProjectMark";
-import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
 import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
-import { alertWords, reasonSentence, type ThisMacInfo } from "../lib/machine";
+import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
@@ -44,11 +44,16 @@ import { HomeApps } from "../components/HomeApps";
 import { HomeRecent } from "../components/HomeRecent";
 import { HomeNeeds } from "../components/HomeNeeds";
 import { HomeRunway } from "../components/HomeRunway";
-import { needsHeading } from "../lib/home-needs";
-import { endedToday, openNow } from "../lib/rail-items";
+import { isSessionNeed, needsHeading } from "../lib/home-needs";
+import { endedToday, itemsOf, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
+import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
-import { useNeedsYou } from "../lib/needs-you";
+import { useSeen } from "../lib/seen";
+import { homeNeedsOf, useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
+import { useCapNeeds } from "../components/BudgetNeeds";
+import { useMessageNeeds } from "../lib/ipc/messages";
+import { useTaskNeeds } from "../lib/ipc/tasks";
 import { showToast } from "../components/Toast";
 import {
   accountLoginState,
@@ -107,17 +112,6 @@ export function needWords(need: Need, session: InstanceInfo): { what: string; ac
 import { placeOf } from "../lib/project-words";
 export { placeOf };
 
-/** This computer's own need (AJ-E1408): its overload alerts (sustained
- * pressure, swap thrash, a busy or hot computer, a disk filling) — or,
- * before any has held long enough, one already under pressure. A session
- * hogging it is its own item (E14, AJ-E1404 Req.3). */
-export function macNeed(thisMac: ThisMacInfo | null, nameOf: (id: string) => string | null): { title: string; detail: string; severe: boolean } | null {
-  if (!thisMac?.machine.sampled) return null;
-  const alerts = thisMac.alerts.filter((alert) => alert.kind !== "heavy");
-  if (alerts.length > 0) return { ...alertWords(alerts, nameOf)!, severe: thisMac.machine.summary.level === "pressure" };
-  if (thisMac.machine.summary.level !== "pressure") return null;
-  return { title: "Your Mac is under pressure", detail: reasonSentence(thisMac.machine.summary.reasons.slice(0, 2).map((reason) => reason.words)), severe: true };
-}
 
 export function HomeScreen({
   sessions,
@@ -165,11 +159,14 @@ export function HomeScreen({
   onOpenThisMac?: () => void;
 }): JSX.Element {
   const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
-  // AJ-E2502: Needs you, worked out once (the bell shows the same count).
-  const needsNow = useNeedsYou({ sessions, accounts, projects, thisMac, now, macNeed });
-  const capNeeds = { caps: needsNow.caps, reload: needsNow.reloadCaps }; // AJ-E1514
-  const messageNeeds = needsNow.messages;
-  const taskNeeds = needsNow.tasks;
+  // AJ-E2502, D-49: Needs you is the backend's (the bell shows the same
+  // count); caps, messages and tasks keep their own rows and controls.
+  const needsNow = useBackendNeeds();
+  const [snooze] = useRailSnoozes();
+  const capNeeds = useCapNeeds(); // AJ-E1514
+  const messageNeeds = useMessageNeeds();
+  const taskNeeds = useTaskNeeds();
+  const seen = useSeen();
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   useEffect(() => {
     let alive = true;
@@ -287,7 +284,10 @@ export function HomeScreen({
   // AJ-E2105: the rail's own list (its Needs you, its places), with the
   // apps turned off in Settings left out.
   const { conversations, hidden: hiddenApps } = useShownConversations();
-  const items = needsNow.items;
+  const items = useMemo(
+    () => itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), needOf: needsNow.needOf }),
+    [sessions, conversations, projects, seen, snooze, now, needsNow.needOf],
+  );
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
@@ -352,10 +352,11 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = needsNow.needs;
+  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now);
   // E18, E19: agents' messages and tasks that wait on the user count with
   // the others; AJ-E2502: the total is the bell's count.
-  const headline = needsHeading({ sessions: needsNow.sessions, others: needsNow.total - needsNow.sessions }, {
+  const sessionNeeds = allNeeds.filter(isSessionNeed).length;
+  const headline = needsHeading({ sessions: sessionNeeds, others: Math.max(0, needsNow.count - sessionNeeds) }, {
     runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,

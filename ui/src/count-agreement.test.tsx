@@ -1,9 +1,9 @@
 /**
- * AJ-E2502 (§1.1, the approved design of 2026-10-27): one count. The
- * bell's number is Home's Needs you count — the window keeps the
- * notification model in step with the same list, and the model adds what
- * AI Juggler itself noticed (an account almost out of room), which Home
- * lists too. The app badge and the menu-bar item read the same model
+ * AJ-E2502 (§1.1, the approved design of 2026-10-27), D-49: one count.
+ * The backend works Needs you out (here the preview's stand-in for it);
+ * the bell, Home and the rail all read that one list and its one count,
+ * the model's own needs (an account almost out of room) included. The app
+ * badge and the menu-bar item read the same model
  * (`crates/juggler-app/tests/notification_model.rs`).
  */
 import { cleanup, render, waitFor } from "@testing-library/react";
@@ -37,7 +37,7 @@ afterEach(() => {
  * more things need you" (both parts). */
 const count = (heading: string) => [...heading.matchAll(/(\d+) (?:sessions?|more|things?)/g)].reduce((sum, match) => sum + Number(match[1]), 0);
 
-it("the bell shows Home's Needs you count, the model's own needs included", async () => {
+it("the bell, Home and the rail show one Needs you count, the model's own needs included", async () => {
   w().__AIJ_NOTICES__ = {
     app: [
       {
@@ -54,6 +54,8 @@ it("the bell shows Home's Needs you count, the model's own needs included", asyn
         meter: 7,
         created_ms: T0,
         unread: true,
+        subject: "quota:claude-max",
+        snoozed: false,
         snoozed_until_ms: null,
         muted: false,
         dismissed: false,
@@ -68,4 +70,6 @@ it("the bell shows Home's Needs you count, the model's own needs included", asyn
   expect(home).toBeGreaterThanOrEqual(2);
   await waitFor(() => expect(view.getByTestId("bell-count").textContent).toBe(String(home)), { timeout: 4000 });
   expect(view.getByTestId("notification-bell").getAttribute("aria-label")).toContain(`${home} things need you`);
+  await waitFor(() => expect(view.getByTestId("rail-needs-you").textContent).toContain(String(home)), { timeout: 4000 });
+  expect(view.getAllByTestId("rail-notice").some((row) => row.textContent?.includes("Work Max is almost out of room"))).toBe(true);
 });

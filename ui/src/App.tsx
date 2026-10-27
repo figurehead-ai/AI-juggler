@@ -1,6 +1,6 @@
 import { AppActions } from "./components/AppActions";
 import { AppHeader } from "./components/AppHeader";
-import { NeedsSync } from "./components/NeedsSync";
+import { NoticeOpeners } from "./components/NoticeOpeners";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { backendAnswered, backendFailed } from "./lib/backend-health";
 import { setCentreOpen, toggleCentre } from "./lib/notices-store";
@@ -615,8 +615,8 @@ export default function App() {
     >
     <div className="relative flex h-screen w-screen overflow-hidden">
       <AttentionAnnouncer sessions={sessions} />
-      {/* AJ-E2502: the notification model kept in step with Needs you. */}
-      <NeedsSync ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} now={now} />
+      {/* AJ-E2502: the menu-bar item's asks (Needs you is the backend's, D-49). */}
+      <NoticeOpeners ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         density={railDensity}

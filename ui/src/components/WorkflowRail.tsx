@@ -30,10 +30,8 @@ import { REFRESH_INTERVALS, staleCaption } from "../lib/density";
 import {
   NO_CHIP_FILTERS,
   isSnoozed,
-  readSnooze,
   snoozeCaption,
   sortSessions,
-  storeSnooze,
   filterSessions,
   groupSessions,
   type ChipFilters,
@@ -47,6 +45,7 @@ import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./Outsi
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { RailToolbar } from "./RailToolbar";
 import { PlaceBoard } from "./PlaceBoard";
+import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { parseQuery, useRailView } from "../lib/rail-view";
@@ -142,18 +141,10 @@ export function WorkflowRail({
   onSelectRemote?: (machineId: string, instanceId: string) => void;
 }) {
   const minimal = density === "minimal";
-  // Snooze/mute state (AJ-E404 Req.6): rail-owned, persisted; the tab
-  // badge counts UNSNOOZED attention only.
-  const [snooze, setSnooze] = useState<SnoozeState>(() => readSnooze());
-  // AJ-E1503: an updater form too, so Undo applies to the state as it
-  // is then, not as it was when the toast opened.
-  const updateSnooze = useCallback((next: SnoozeState | ((current: SnoozeState) => SnoozeState)) => {
-    setSnooze((current) => {
-      const value = typeof next === "function" ? next(current) : next;
-      storeSnooze(value);
-      return value;
-    });
-  }, []);
+  // Snooze/mute state (AJ-E404 Req.6; D-49: the backend's, so a snoozed
+  // session is out of every count until it wakes, window or not). AJ-E1503:
+  // an updater form too, so Undo applies to the state as it is then.
+  const [snooze, updateSnooze] = useRailSnoozes();
   const [width, setWidth] = useState<number>(readWidth);
   const [dragging, setDragging] = useState(false);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -414,6 +405,9 @@ export function InstanceBoard({
   };
   const filtered = filterSessions(sessions, filters, parsed.text, projects);
   const sorted = sortSessions(filtered, "needs", snooze, now, projects, accounts);
+  // D-49: what is in Needs you is the backend's.
+  const { needOf } = useBackendNeeds();
+  const isNeed = (row: InstanceInfo) => needOf.has(`s:${row.id}`);
   const effectiveGroup: GroupBy = "project";
   const sessionGroups = groupSessions(sorted, effectiveGroup, projects);
   // AJ-E1529: sessions started outside AI Juggler show under their project.
@@ -421,7 +415,7 @@ export function InstanceBoard({
   // AJ-E2103: the default view reads Needs you, Open now, then "Also:".
   // AJ-E2104: the Project lens with Show › Ended on is the whole board,
   // every session under its project (its Also line's parts stay its own).
-  const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, snooze, now) : null;
+  const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, isNeed, now) : null;
   const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // D-25: a project with no sessions still has a place in the rail (one
@@ -605,7 +599,7 @@ export function InstanceBoard({
                       selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
                     >
-                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
                     </RailProjectHeader>
                   ) : (
                     <p
@@ -615,7 +609,7 @@ export function InstanceBoard({
                       <span className="min-w-0 truncate">{entry.label}</span>
                       {entry.rollup && <span className="sr-only">· {entry.rollup}</span>}
                       <span className="flex shrink-0 items-center gap-1.5">
-                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} snooze={snooze} now={now} />}
+                        {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
                         <span className="text-label font-normal text-muted">{entry.rows.length}</span>
                       </span>
                     </p>
@@ -950,7 +944,8 @@ export function MinimalInstanceColumn({
   // Active rows only — waiting/stuck/quota-blocked instances are the
   // ones that must scream `!` in the collapsed rail (user story).
   const active = sessions.filter((s) => isActiveStatus(s.status));
-  const needsYou = active.filter((s) => s.needs_attention !== null).length;
+  const { needOf } = useBackendNeeds(); // D-49: the backend's Needs you
+  const needsYou = active.filter((s) => needOf.has(`s:${s.id}`)).length;
   const railId = useId();
   return (
     <div className="flex flex-col items-center gap-1 pt-1">

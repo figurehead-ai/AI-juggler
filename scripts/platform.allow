@@ -140,7 +140,6 @@ ui/src/pages/session/LastMessages.tsx mac-words 1
 ui/src/pages/session/UsageTab.tsx mac-words 1
 ui/src/screens/FirstRun.tsx mac-words 2
 ui/src/screens/FleetScreen.tsx mac-words 9
-ui/src/screens/Home.tsx mac-words 1
 ui/src/screens/PairingWizard.tsx mac-words 4
 ui/src/screens/ThisMacScreen.tsx mac-words 5
 ui/src/screens/Usage.tsx mac-words 2

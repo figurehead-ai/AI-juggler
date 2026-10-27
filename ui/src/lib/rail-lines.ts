@@ -12,10 +12,12 @@
 import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
 import { foldGroup, frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
+import type { NoticeInfo } from "./ipc/notices";
 
 export type Line =
   | { kind: "section"; id: "needs" | "open"; count: number }
   | { kind: "need"; item: RailItem }
+  | { kind: "notice"; notice: NoticeInfo }
   | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null }
   | { kind: "row"; item: RailItem; group: RailGroup }
   | { kind: "more"; group: RailGroup; quiet: number }
@@ -26,6 +28,7 @@ export type Line =
 export const LINE_HEIGHT: Record<Line["kind"], number> = {
   section: 30,
   need: 64,
+  notice: 64,
   header: 32,
   row: 46,
   more: 24,
@@ -67,9 +70,12 @@ export interface LineInputs {
   accountOf?: AccountOf;
   /** The Pool lens's pools (AJ-E1702), once you've made one. */
   poolOf?: PoolOf;
+  /** D-49: the rest of the backend's Needs you (not a session's), so the
+   * section holds what the bell counts; left out while searching. */
+  others?: NoticeInfo[];
 }
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, others = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const shown = items.filter((item) => matches(item, view.only, query));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
@@ -93,10 +99,12 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   };
   const lines: Line[] = [];
   let rows = 0;
-  if (needs.length > 0) {
-    lines.push({ kind: "section", id: "needs", count: needs.length });
+  const rest = searching ? [] : others;
+  if (needs.length + rest.length > 0) {
+    lines.push({ kind: "section", id: "needs", count: needs.length + rest.length });
     for (const item of needs) lines.push({ kind: "need", item });
-    rows += needs.length;
+    for (const notice of rest) lines.push({ kind: "notice", notice });
+    rows += needs.length + rest.length;
   }
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: open.length });
   groups.forEach((group, index) => {

@@ -70,13 +70,21 @@ pub struct NeedSources {
 }
 
 fn folder(cwd: Option<&str>) -> Option<String> {
-    let name = std::path::Path::new(cwd?).file_name()?.to_string_lossy().into_owned();
+    let name = std::path::Path::new(cwd?)
+        .file_name()?
+        .to_string_lossy()
+        .into_owned();
     (!name.is_empty()).then_some(name)
 }
 
 /// A branch worth naming (never a bare "main").
 fn telling(branch: Option<&str>) -> Option<&str> {
-    branch.filter(|branch| !matches!(branch.to_lowercase().as_str(), "main" | "master" | "trunk" | "develop" | "dev"))
+    branch.filter(|branch| {
+        !matches!(
+            branch.to_lowercase().as_str(),
+            "main" | "master" | "trunk" | "develop" | "dev"
+        )
+    })
 }
 
 /// A session's place as This Mac names it: its project (else its folder),
@@ -109,7 +117,10 @@ fn conversation_name(c: &ConversationInfo) -> String {
     if let Some(branch) = telling(c.git_branch.as_deref()) {
         return branch.to_owned();
     }
-    folder(c.cwd.as_deref()).map_or_else(|| "Untitled session".to_owned(), |folder| format!("Untitled session · {folder}"))
+    folder(c.cwd.as_deref()).map_or_else(
+        || "Untitled session".to_owned(),
+        |folder| format!("Untitled session · {folder}"),
+    )
 }
 
 fn quoted(kind: &str, name: &str) -> String {
@@ -123,7 +134,12 @@ fn quoted(kind: &str, name: &str) -> String {
 }
 
 fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
-    parts.into_iter().flatten().filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" · ")
+    parts
+        .into_iter()
+        .flatten()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 /// An own session's need: its attention, else a status that is one.
@@ -160,7 +176,10 @@ fn conversation_kind(c: &ConversationInfo, seen: Option<i64>) -> Option<&'static
 }
 
 fn hidden(c: &ConversationInfo, apps: &HashSet<String>) -> bool {
-    c.places.first().and_then(|place| place.app_id.as_ref()).is_some_and(|id| apps.contains(id))
+    c.places
+        .first()
+        .and_then(|place| place.app_id.as_ref())
+        .is_some_and(|id| apps.contains(id))
 }
 
 fn reason_sentence(words: &[String]) -> String {
@@ -169,19 +188,34 @@ fn reason_sentence(words: &[String]) -> String {
         return joined;
     }
     let mut chars = joined.chars();
-    chars.next().map_or_else(String::new, |first| first.to_uppercase().collect::<String>() + chars.as_str())
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + chars.as_str()
+    })
 }
 
 /// Who a machine alert is about, and what of theirs is high.
-fn alert_subject(alert: &crate::machine_alerts::OverloadAlertInfo, name_of: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+fn alert_subject(
+    alert: &crate::machine_alerts::OverloadAlertInfo,
+    name_of: &dyn Fn(&str) -> Option<String>,
+) -> Option<String> {
     use juggler_supervisor::machine::memory_words;
     if !alert.other_apps.is_empty() {
         let apps: Vec<String> = alert
             .other_apps
             .iter()
-            .map(|app| format!("{} {}{}", app.name, if app.processes > 1 { "about " } else { "" }, memory_words(app.rss_bytes)))
+            .map(|app| {
+                format!(
+                    "{} {}{}",
+                    app.name,
+                    if app.processes > 1 { "about " } else { "" },
+                    memory_words(app.rss_bytes)
+                )
+            })
             .collect();
-        return Some(format!("Other apps are using most of the memory: {}", apps.join(", ")));
+        return Some(format!(
+            "Other apps are using most of the memory: {}",
+            apps.join(", ")
+        ));
     }
     let who = match (&alert.session_id, &alert.place) {
         (Some(id), _) => Some(name_of(id).unwrap_or_else(|| "a session".to_owned())),
@@ -190,7 +224,13 @@ fn alert_subject(alert: &crate::machine_alerts::OverloadAlertInfo, name_of: &dyn
     }?;
     let figures: Vec<String> = [
         alert.subject_cpu.map(|cpu| format!("CPU {cpu:.0}%")),
-        alert.subject_bytes.map(|bytes| format!("{}{}", if alert.subject_estimate { "about " } else { "" }, memory_words(bytes))),
+        alert.subject_bytes.map(|bytes| {
+            format!(
+                "{}{}",
+                if alert.subject_estimate { "about " } else { "" },
+                memory_words(bytes)
+            )
+        }),
     ]
     .into_iter()
     .flatten()
@@ -198,31 +238,63 @@ fn alert_subject(alert: &crate::machine_alerts::OverloadAlertInfo, name_of: &dyn
     if figures.is_empty() {
         return None;
     }
-    let unit = if alert.place.as_deref().is_some_and(|place| place.starts_with("app:")) { "sessions" } else { "windows" };
-    let across = alert.subject_windows.filter(|count| *count > 1).map_or_else(String::new, |count| format!(" across {count} {unit}"));
+    let unit = if alert
+        .place
+        .as_deref()
+        .is_some_and(|place| place.starts_with("app:"))
+    {
+        "sessions"
+    } else {
+        "windows"
+    };
+    let across = alert
+        .subject_windows
+        .filter(|count| *count > 1)
+        .map_or_else(String::new, |count| format!(" across {count} {unit}"));
     Some(format!("{who} is using {}{across}", figures.join(" and ")))
 }
 
 /// This computer's own need: its overload alerts, or one already under
 /// pressure.
-fn room_need(mac: &ThisMacInfo, computer: &str, name_of: &dyn Fn(&str) -> Option<String>) -> Option<(String, String)> {
+fn room_need(
+    mac: &ThisMacInfo,
+    computer: &str,
+    name_of: &dyn Fn(&str) -> Option<String>,
+) -> Option<(String, String)> {
     if !mac.machine.sampled {
         return None;
     }
-    let alerts: Vec<_> = mac.alerts.iter().filter(|alert| alert.kind != "heavy").collect();
+    let alerts: Vec<_> = mac
+        .alerts
+        .iter()
+        .filter(|alert| alert.kind != "heavy")
+        .collect();
     if let Some(first) = alerts.first() {
         let details: Vec<String> = alerts.iter().map(|alert| alert.detail.clone()).collect();
-        let detail = [Some(reason_sentence(&details)), alert_subject(first, name_of)]
-            .into_iter()
-            .flatten()
-            .filter(|part| !part.is_empty())
-            .collect::<Vec<_>>()
-            .join(". ");
+        let detail = [
+            Some(reason_sentence(&details)),
+            alert_subject(first, name_of),
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(". ");
         return Some((first.title.clone(), detail));
     }
     (mac.machine.summary.level == "pressure").then(|| {
-        let reasons: Vec<String> = mac.machine.summary.reasons.iter().take(2).map(|reason| reason.words.clone()).collect();
-        (format!("Your {computer} is under pressure"), reason_sentence(&reasons))
+        let reasons: Vec<String> = mac
+            .machine
+            .summary
+            .reasons
+            .iter()
+            .take(2)
+            .map(|reason| reason.words.clone())
+            .collect();
+        (
+            format!("Your {computer} is under pressure"),
+            reason_sentence(&reasons),
+        )
     })
 }
 
@@ -230,7 +302,10 @@ fn room_need(mac: &ThisMacInfo, computer: &str, name_of: &dyn Fn(&str) -> Option
 /// it with no window and no tick).
 #[must_use]
 #[allow(clippy::too_many_lines)] // one list, kind by kind
-pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<NeedInput>, OpenNowInput) {
+pub fn work_out<S: std::hash::BuildHasher>(
+    sources: &NeedSources,
+    now_snoozed: &HashSet<String, S>,
+) -> (Vec<NeedInput>, OpenNowInput) {
     let project = |id: Option<&String>| id.and_then(|id| sources.projects.get(id)).cloned();
     let mut needs = Vec::new();
     let mut listed_sessions = HashSet::new();
@@ -239,7 +314,10 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
     for row in &sources.sessions {
         let gone = row.parked.is_some()
             || row.lifecycle.as_deref() == Some("archived")
-            || row.project_id.as_ref().is_some_and(|id| sources.forgotten.contains(id));
+            || row
+                .project_id
+                .as_ref()
+                .is_some_and(|id| sources.forgotten.contains(id));
         if gone {
             continue;
         }
@@ -249,7 +327,11 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             needs.push(NeedInput {
                 kind: kind.to_owned(),
                 title: quoted(kind, &session_name(row)),
-                detail: join([project(row.project_id.as_ref()), Some(OWN_APP.to_owned()), Some(row.account_label.clone())]),
+                detail: join([
+                    project(row.project_id.as_ref()),
+                    Some(OWN_APP.to_owned()),
+                    Some(row.account_label.clone()),
+                ]),
                 project_id: row.project_id.clone(),
                 project: project(row.project_id.as_ref()),
                 target: NoticeTarget {
@@ -277,7 +359,8 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
         let key = format!("c:{}/{}", c.account_id, c.id);
         let place = c.places.first();
         if let Some(kind) = conversation_kind(c, sources.seen.get(&key).copied()) {
-            let profile = place.and_then(|place| place.profile.clone().or_else(|| place.instance.clone()));
+            let profile =
+                place.and_then(|place| place.profile.clone().or_else(|| place.instance.clone()));
             needs.push(NeedInput {
                 kind: kind.to_owned(),
                 title: quoted(kind, &conversation_name(c)),
@@ -305,11 +388,21 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
         if c.live && !c.background {
             open.total += 1;
             open.working += u32::from(c.state.as_deref() == Some("working"));
-            *by_app.entry(place.map_or_else(|| "An app".to_owned(), |place| place.app.clone())).or_default() += 1;
+            *by_app
+                .entry(place.map_or_else(|| "An app".to_owned(), |place| place.app.clone()))
+                .or_default() += 1;
         }
     }
-    for account in sources.accounts.iter().filter(|account| !matches!(account.login_state.as_str(), "signed_in" | "logged_in")) {
-        let own = sources.sign_in_words.get(&account.provider).cloned().unwrap_or_else(|| "Its own sign-in".to_owned());
+    for account in sources
+        .accounts
+        .iter()
+        .filter(|account| !matches!(account.login_state.as_str(), "signed_in" | "logged_in"))
+    {
+        let own = sources
+            .sign_in_words
+            .get(&account.provider)
+            .cloned()
+            .unwrap_or_else(|| "Its own sign-in".to_owned());
         needs.push(NeedInput {
             key: format!("signin:{}", account.id),
             kind: "signin".to_owned(),
@@ -324,7 +417,11 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
         });
     }
     if let Some(mac) = &sources.this_mac {
-        let names: HashMap<&str, String> = sources.sessions.iter().map(|row| (row.id.as_str(), place_of(row, &sources.projects).0)).collect();
+        let names: HashMap<&str, String> = sources
+            .sessions
+            .iter()
+            .map(|row| (row.id.as_str(), place_of(row, &sources.projects).0))
+            .collect();
         let name_of = |id: &str| names.get(id).cloned();
         if let Some((title, detail)) = room_need(mac, sources.computer, &name_of) {
             needs.push(NeedInput {
@@ -341,7 +438,11 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             });
         }
         for tree in &mac.heavy {
-            let Some(id) = tree.session_id.as_ref().filter(|id| !listed_sessions.contains(*id)) else {
+            let Some(id) = tree
+                .session_id
+                .as_ref()
+                .filter(|id| !listed_sessions.contains(*id))
+            else {
                 continue;
             };
             let Some(row) = sources.sessions.iter().find(|row| row.id == *id) else {
@@ -358,7 +459,9 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
                 title: format!(
                     "Working your {} hard — {}",
                     sources.computer,
-                    tree.heavy_note.clone().unwrap_or_else(|| "a lot of memory or CPU".to_owned())
+                    tree.heavy_note
+                        .clone()
+                        .unwrap_or_else(|| "a lot of memory or CPU".to_owned())
                 ),
                 detail: {
                     let (title, detail) = place_of(row, &sources.projects);
@@ -378,7 +481,11 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             needs.push(NeedInput {
                 key: "leftovers".to_owned(),
                 kind: "leftovers".to_owned(),
-                title: if n == 1 { "1 process left running".to_owned() } else { format!("{n} processes left running") },
+                title: if n == 1 {
+                    "1 process left running".to_owned()
+                } else {
+                    format!("{n} processes left running")
+                },
                 detail: "after their sessions closed".to_owned(),
                 target: NoticeTarget {
                     page: Some("processes".to_owned()),
@@ -389,13 +496,25 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             });
         }
     }
-    for cap in sources.caps.iter().filter(|cap| cap.level != "under" && !cap.seen) {
+    for cap in sources
+        .caps
+        .iter()
+        .filter(|cap| cap.level != "under" && !cap.seen)
+    {
         #[allow(clippy::cast_possible_truncation)] // a percentage, whole
-        let percent = if cap.monthly_usd > 0.0 { (cap.spent_usd.unwrap_or(0.0) / cap.monthly_usd * 100.0).floor() as i64 } else { 0 };
+        let percent = if cap.monthly_usd > 0.0 {
+            (cap.spent_usd.unwrap_or(0.0) / cap.monthly_usd * 100.0).floor() as i64
+        } else {
+            0
+        };
         needs.push(NeedInput {
             key: format!("cap:{}", cap.id),
             kind: "cap".to_owned(),
-            title: if cap.level == "over" { format!("{} is over its monthly cap", cap.name) } else { format!("{} is at {percent}% of its monthly cap", cap.name) },
+            title: if cap.level == "over" {
+                format!("{} is over its monthly cap", cap.name)
+            } else {
+                format!("{} is at {percent}% of its monthly cap", cap.name)
+            },
             target: NoticeTarget {
                 page: Some("usage".to_owned()),
                 ..NoticeTarget::default()
@@ -409,7 +528,10 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             key: format!("message:{}", message.key),
             kind: "message".to_owned(),
             title: message.title.clone(),
-            detail: join([Some(message.pool_name.clone()), Some(message.detail.clone())]),
+            detail: join([
+                Some(message.pool_name.clone()),
+                Some(message.detail.clone()),
+            ]),
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),
                 session_id: message.session_id.clone(),
@@ -436,7 +558,10 @@ pub fn work_out(sources: &NeedSources, now_snoozed: &HashSet<String>) -> (Vec<Ne
             ..NeedInput::default()
         });
     }
-    let mut apps: Vec<OpenApp> = by_app.into_iter().map(|(app, count)| OpenApp { app, count }).collect();
+    let mut apps: Vec<OpenApp> = by_app
+        .into_iter()
+        .map(|(app, count)| OpenApp { app, count })
+        .collect();
     apps.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.app.cmp(&b.app)));
     open.apps = apps;
     (needs, open)
@@ -466,9 +591,15 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         conversations: crate::features::conversations::commands::list_impl(state)
             .map(|all| crate::features::conversations::commands::working(all, now))
             .unwrap_or_default(),
-        accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || crate::commands::accounts_info(state).unwrap_or_default()),
+        accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || {
+            crate::commands::accounts_info(state).unwrap_or_default()
+        }),
         this_mac: state.notifier.this_mac(),
-        caps: crate::features::budgets::list_impl(state, month_start(now, clock.utc_offset_hours.unwrap_or(0))).unwrap_or_default(),
+        caps: crate::features::budgets::list_impl(
+            state,
+            month_start(now, clock.utc_offset_hours.unwrap_or(0)),
+        )
+        .unwrap_or_default(),
         messages: crate::features::messages::needs::needs(state).unwrap_or_default(),
         tasks: crate::features::tasks::needs::needs(state).unwrap_or_default(),
         computer: juggler_platform::system::computer_noun().0,
@@ -496,7 +627,10 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
             .and_then(|raw| serde_json::from_str::<HashMap<String, f64>>(&raw).ok())
             .map(|marks| {
                 #[allow(clippy::cast_possible_truncation)] // epoch ms
-                marks.into_iter().map(|(key, at)| (key, at as i64)).collect()
+                marks
+                    .into_iter()
+                    .map(|(key, at)| (key, at as i64))
+                    .collect()
             })
             .unwrap_or_default();
         for (key, value) in settings.list().unwrap_or_default() {
@@ -527,7 +661,13 @@ pub fn refresh_from(state: &Arc<AppState>, sources: &NeedSources, now: i64) -> b
             return false;
         };
         let ended = storage.notices().end_snoozes(now).unwrap_or(0);
-        let snoozed: HashSet<String> = storage.notices().snoozes(now).unwrap_or_default().into_iter().map(|(subject, _)| subject).collect();
+        let snoozed: HashSet<String> = storage
+            .notices()
+            .snoozes(now)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(subject, _)| subject)
+            .collect();
         let (needs, open) = work_out(sources, &snoozed);
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         for need in &needs {

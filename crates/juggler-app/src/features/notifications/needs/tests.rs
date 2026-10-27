@@ -12,7 +12,10 @@ fn a_plain_branch_names_no_work() {
 
 #[test]
 fn a_need_quotes_its_session_as_the_rail_does() {
-    assert_eq!(quoted("asks", "payments-api"), "“payments-api” needs your reply");
+    assert_eq!(
+        quoted("asks", "payments-api"),
+        "“payments-api” needs your reply"
+    );
     assert_eq!(quoted("stuck", "web"), "“web” may be stuck");
     assert_eq!(quoted("limit", "web"), "“web” hit its usage limit");
     assert_eq!(quoted("failed", "web"), "“web” stopped with an error");
@@ -25,7 +28,10 @@ fn reasons_read_as_one_sentence() {
         reason_sentence(&["memory is low".to_owned(), "swap is busy".to_owned()]),
         "Memory is low; swap is busy"
     );
-    assert_eq!(reason_sentence(&["macOS is compressing memory".to_owned()]), "macOS is compressing memory");
+    assert_eq!(
+        reason_sentence(&["macOS is compressing memory".to_owned()]),
+        "macOS is compressing memory"
+    );
     assert_eq!(reason_sentence(&[]), "");
 }
 
@@ -37,7 +43,10 @@ fn the_month_starts_on_the_local_first() {
     let first = month_start(mid_march, 0);
     assert_eq!(first, (20_892 - 14) * day);
     // Two hours ahead of UTC: local midnight is 22:00 UTC the day before.
-    assert_eq!(month_start(mid_march, 2), (20_892 - 14) * day - 2 * 3_600_000);
+    assert_eq!(
+        month_start(mid_march, 2),
+        (20_892 - 14) * day - 2 * 3_600_000
+    );
 }
 
 #[test]

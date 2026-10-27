@@ -9,10 +9,10 @@ import {
   filterSessions,
   severityRank,
   sortSessions,
-  unsnoozedNeedsCount,
   type SnoozeState,
 } from "../lib/railview";
 import { useProjectLens } from "./project-lens.test-kit";
+import { needsOfRows } from "../test/needs-kit";
 import { DEFAULT_VIEW, setRailView } from "../lib/rail-view";
 
 // AJ-E2104: these read the project board, the rail's Project lens.
@@ -84,6 +84,8 @@ const PROJECTS: ProjectInfo[] = [
 ];
 
 function renderBoard(rows: InstanceInfo[] = FIXTURE, snooze: SnoozeState = {}, projects: ProjectInfo[] = PROJECTS) {
+  // D-49: Needs you is the backend's (a snoozed row is out of it).
+  needsOfRows(rows.filter((row) => !snooze[row.id]));
   return render(
     <InstanceBoard
       sessions={rows}
@@ -243,13 +245,12 @@ describe("AJ-E404 snooze/mute", () => {
       s3: { until: null, muted: true },
       s6: { until: NOW + 60 * 60_000, muted: false },
     };
-    expect(unsnoozedNeedsCount(FIXTURE, snooze, NOW)).toBe(4); // 5 need you, s3 muted out of the badge
     const sorted = sortSessions(FIXTURE, "needs", snooze, NOW);
     expect(sorted.map((row) => row.id).slice(0, 5)).toEqual(["s1", "s2", "s4", "s3", "s5"]); // muted s3 sinks below waiting peer s4, stays above Stuck s5
   });
 
-  it("persistence round-trips through aij.snooze", async () => {
-    const { readSnooze, storeSnooze } = await import("../lib/railview");
+  it("snoozes kept in aij.snooze before 0.2 are read once, then forgotten (D-49: the backend keeps them)", async () => {
+    const { readSnooze, forgetSnooze } = await import("../lib/railview");
     const map = new Map<string, string>();
     const storageLike = {
       get length() { return map.size; },
@@ -259,8 +260,10 @@ describe("AJ-E404 snooze/mute", () => {
       removeItem: (key: string) => void map.delete(key),
       setItem: (key: string, value: string) => void map.set(key, value),
     } as Storage;
-    storeSnooze({ s6: { until: 123, muted: false } }, storageLike);
+    storageLike.setItem("aij.snooze", JSON.stringify({ s6: { until: 123, muted: false } }));
     expect(readSnooze(storageLike)).toEqual({ s6: { until: 123, muted: false } });
+    forgetSnooze(storageLike);
+    expect(readSnooze(storageLike)).toEqual({});
   });
 });
 

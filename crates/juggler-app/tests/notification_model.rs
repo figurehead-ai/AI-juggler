@@ -339,7 +339,13 @@ fn reading_snoozing_and_muting_change_no_session_and_start_nothing() {
             .items[0]
             .id;
         centre::read(&storage, Some(notice), now).unwrap();
-        centre::snooze(&storage, &format!("s:{id}"), centre::Snooze::Until(now + 60_000), now).unwrap();
+        centre::snooze(
+            &storage,
+            &format!("s:{id}"),
+            centre::Snooze::Until(now + 60_000),
+            now,
+        )
+        .unwrap();
         centre::dismiss(&storage, notice, now).unwrap();
         centre::mute(&storage, "kind", "asks", "", now).unwrap();
         centre::read(&storage, None, now).unwrap();

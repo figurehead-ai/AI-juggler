@@ -1,21 +1,24 @@
 /**
  * AJ-E2501 — the one notification model over IPC (ENGINEERING-GUIDE U3:
  * one thin file per feature): where it stands, its lists a page at a
- * time, the Needs you list kept in step, and the user's marks. In the
- * preview a small stand-in keeps the same rules (the seam
- * `__AIJ_NOTICES__` seeds it: what AI Juggler itself said, what happened,
- * the mutes, the quiet hours).
+ * time (Needs you among them: the backend works it out, D-49), and the
+ * user's marks. In the preview a small stand-in keeps the same rules (the
+ * seam `__AIJ_NOTICES__` seeds it: what AI Juggler itself said, what
+ * happened, the mutes, the quiet hours; preview/needs.tsx stands in for
+ * the backend's Needs you).
  */
 import { invoke, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
-import type { NeedInput } from "../../types/generated/NeedInput";
+import type { NeedSnoozeInfo } from "../../types/generated/NeedSnoozeInfo";
 import type { NoticeInfo } from "../../types/generated/NoticeInfo";
 import type { NoticeMuteInfo } from "../../types/generated/NoticeMuteInfo";
 import type { NoticeSummaryInfo } from "../../types/generated/NoticeSummaryInfo";
-import type { OpenNowInput } from "../../types/generated/OpenNowInput";
 
-export type { NeedInput, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo, OpenNowInput };
+export type { NeedSnoozeInfo, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo };
+
+/** A need as the preview's stand-in for the backend hands it over. */
+export type StandInNeed = Pick<NoticeInfo, "kind" | "title" | "detail" | "project_id" | "project" | "target" | "action"> & { key: string };
 
 export type NoticeSection = "needs" | "earlier" | "banners";
 
@@ -39,13 +42,13 @@ const BANNER_KINDS = new Set(["quota"]);
 
 // --- the preview's stand-in -------------------------------------------------
 
-type Stand = { synced: NoticeInfo[]; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
+type Stand = { synced: NoticeInfo[]; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
 let stand: Stand | null = null;
 
 function standIn(): Stand {
   if (stand) return stand;
   const seed = (window as unknown as { __AIJ_NOTICES__?: NoticeSeed }).__AIJ_NOTICES__ ?? {};
-  stand = { synced: [], keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
+  stand = { synced: [], keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), snoozes: new Map(), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
   return stand;
 }
 
@@ -58,10 +61,18 @@ function mutedIn(s: Stand, row: NoticeInfo): boolean {
   return s.mutes.some((mute) => (mute.scope === "kind" && mute.value === row.kind) || (mute.scope === "project" && mute.value === row.project_id));
 }
 
+/** The snoozes on now (one whose time has come ends, as the tick does). */
+function snoozesOn(s: Stand): Map<string, number | null> {
+  for (const [subject, until] of s.snoozes) if (until !== null && until <= Date.now()) s.snoozes.delete(subject);
+  return s.snoozes;
+}
+
 function shaped(s: Stand, row: NoticeInfo): NoticeInfo {
   const muted = mutedIn(s, row);
-  const snoozed = row.snoozed_until_ms !== null && row.snoozed_until_ms > Date.now() ? row.snoozed_until_ms : null;
-  return { ...row, muted, snoozed_until_ms: snoozed, unread: row.unread && !muted && snoozed === null };
+  const subject = row.subject ?? `notice:${row.id}`;
+  const on = snoozesOn(s);
+  const snoozed = row.needs && on.has(subject);
+  return { ...row, subject, muted, snoozed, snoozed_until_ms: snoozed ? (on.get(subject) ?? null) : null, unread: row.unread && !muted && !snoozed };
 }
 
 function openRows(s: Stand): NoticeInfo[] {
@@ -70,7 +81,7 @@ function openRows(s: Stand): NoticeInfo[] {
 
 function bannersOf(s: Stand): NoticeInfo[] {
   return openRows(s)
-    .filter((row) => BANNER_KINDS.has(row.kind) && !row.dismissed && !row.muted && row.snoozed_until_ms === null)
+    .filter((row) => BANNER_KINDS.has(row.kind) && !row.dismissed && !row.muted && !row.snoozed)
     .sort((a, b) => b.created_ms - a.created_ms)
     .slice(0, 3);
 }
@@ -81,9 +92,10 @@ function summaryOf(s: Stand): NoticeSummaryInfo {
   const quota = open.filter((row) => row.kind === "quota" && row.facts.resets_at_ms !== null).sort((a, b) => (a.facts.resets_at_ms ?? 0) - (b.facts.resets_at_ms ?? 0))[0];
   const count = (kind: string) => earlier.filter((row) => row.kind === kind).length;
   return {
-    count: open.length,
+    // D-49: a snoozed need is out of the count until it wakes.
+    count: open.filter((row) => !row.snoozed).length,
     unread: open.filter((row) => row.unread).length + earlier.filter((row) => row.unread).length,
-    snoozed: open.filter((row) => row.snoozed_until_ms !== null).length,
+    snoozed: open.filter((row) => row.snoozed).length,
     muted: open.filter((row) => row.muted).length,
     quiet: s.quiet !== null,
     quiet_until: s.quiet,
@@ -129,23 +141,27 @@ export async function notificationsPage(section: NoticeSection, request: PageReq
   return invoke<Page<NoticeInfo>>("notifications_page", { section, request });
 }
 
-/** The Needs you list now, and what is open. */
-export async function notificationsSync(needs: NeedInput[], open: OpenNowInput): Promise<NoticeSummaryInfo> {
-  if (!hasLiveBackend()) {
-    const s = standIn();
-    const keys = new Map<string, NoticeInfo>();
-    s.synced = needs.map((need, index) => {
-      const kept = s.keys.get(need.key);
-      const row: NoticeInfo = kept
-        ? { ...kept, kind: need.kind, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, action: need.action }
-        : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: Date.now() - (needs.length - index) * 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false };
-      keys.set(need.key, row);
-      return row;
-    });
-    s.keys = keys;
-    return changedIn(s);
-  }
-  return invoke<NoticeSummaryInfo>("notifications_sync", { needs, open });
+/** The preview's Needs you at once (the first render, no read to wait
+ * for); `null` with a backend. */
+export function standInNeedsPage(limit: number): Page<NoticeInfo> | null {
+  return hasLiveBackend() ? null : pageOf(openRows(standIn()), { cursor: null, limit });
+}
+
+/** The preview's stand-in for the backend's tick: Needs you now (the
+ * live app works it out in the backend, D-49; nothing sends it there). */
+export function standInNeeds(needs: StandInNeed[]): NoticeSummaryInfo {
+  const s = standIn();
+  const keys = new Map<string, NoticeInfo>();
+  s.synced = needs.map((need, index) => {
+    const kept = s.keys.get(need.key);
+    const row: NoticeInfo = kept
+      ? { ...kept, kind: need.kind, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, action: need.action }
+      : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: Date.now() - (needs.length - index) * 60_000, unread: true, subject: need.key, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false };
+    keys.set(need.key, row);
+    return row;
+  });
+  s.keys = keys;
+  return changedIn(s);
 }
 
 /** The preview's seam `__AIJ_NOTICES_FAIL__`: a write that fails, with
@@ -168,10 +184,24 @@ export async function notificationsRead(id: number | null): Promise<NoticeSummar
   return invoke<NoticeSummaryInfo>("notifications_read", { id });
 }
 
-/** Snoozes a notice until a time ahead (or wakes it). */
-export async function notificationsSnooze(id: number, untilMs: number | null): Promise<NoticeSummaryInfo> {
-  if (!hasLiveBackend()) return mark(id, (row) => ((row.snoozed_until_ms = untilMs), untilMs !== null && (row.unread = false)));
-  return invoke<NoticeSummaryInfo>("notifications_snooze", { id, untilMs });
+/** Snoozes a subject (`s:<session>`, …): out of the Needs you count until
+ * a time ahead, or until woken (`forever`); neither wakes it (D-49). */
+export async function notificationsSnooze(subject: string, untilMs: number | null, forever = false): Promise<NoticeSummaryInfo> {
+  if (!hasLiveBackend()) {
+    refuseIfAsked();
+    const s = standIn();
+    if (untilMs === null && !forever) s.snoozes.delete(subject);
+    else s.snoozes.set(subject, untilMs);
+    if (untilMs !== null || forever) for (const row of everyRow(s)) if (row.needs && (row.subject ?? "") === subject) row.unread = false;
+    return changedIn(s);
+  }
+  return invoke<NoticeSummaryInfo>("notifications_snooze", { subject, untilMs, forever });
+}
+
+/** The snoozes on now, a page at a time (the rail marks its rows). */
+export async function notificationsSnoozes(request: PageRequest): Promise<Page<NeedSnoozeInfo>> {
+  if (!hasLiveBackend()) return pageOf([...snoozesOn(standIn())].map(([subject, until_ms]) => ({ subject, until_ms })), request);
+  return invoke<Page<NeedSnoozeInfo>>("notifications_snoozes", { request });
 }
 
 /** Closes a banner (the notice stays in the centre). */

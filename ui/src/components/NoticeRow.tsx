@@ -24,11 +24,12 @@ const TONES = {
   info: { className: "bg-live-soft text-live", Icon: IconClock },
 };
 
-function Mark({ kind }: { kind: string }): JSX.Element {
+/** A notice's mark (its tone and icon); `small` in the rail. */
+export function NoticeMark({ kind, small = false }: { kind: string; small?: boolean }): JSX.Element {
   const tone = TONES[toneOf(kind)];
   return (
-    <span aria-hidden="true" className={"flex size-8 shrink-0 items-center justify-center rounded-lg " + tone.className}>
-      <tone.Icon width={16} height={16} />
+    <span aria-hidden="true" className={"flex shrink-0 items-center justify-center rounded-lg " + (small ? "size-6 " : "size-8 ") + tone.className}>
+      <tone.Icon width={small ? 14 : 16} height={small ? 14 : 16} />
     </span>
   );
 }
@@ -54,7 +55,7 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
   if (!notice.needs) {
     return (
       <li className="flex gap-2.5 border-t border-hairline/50 px-3.5 py-2.5" data-testid="notice-earlier" data-kind={notice.kind}>
-        <Mark kind={notice.kind} />
+        <NoticeMark kind={notice.kind} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-body text-ink">
             {notice.unread && <span className="sr-only">Unread: </span>}
@@ -80,9 +81,9 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
     );
   }
   return (
-    <li className={"flex gap-2.5 border-t border-hairline/50 px-3.5 py-2.5 " + (notice.snoozed_until_ms !== null ? "opacity-70" : "")} data-testid="notice-need" data-kind={notice.kind}>
+    <li className={"flex gap-2.5 border-t border-hairline/50 px-3.5 py-2.5 " + (notice.snoozed ? "opacity-70" : "")} data-testid="notice-need" data-kind={notice.kind}>
       <span aria-hidden="true" className={"mt-3 size-2 shrink-0 rounded-full " + (notice.unread ? "bg-accent" : "bg-transparent")} />
-      <Mark kind={notice.kind} />
+      <NoticeMark kind={notice.kind} />
       <div className="min-w-0 flex-1">
         <p className="text-body font-semibold text-ink">
           {notice.unread && <span className="sr-only">Unread: </span>}
@@ -110,6 +111,11 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
       </div>
       {menuAt && (
         <RowMenu heading={notice.title} ariaLabel={`More for ${notice.title}`} at={menuAt} onClose={() => setMenuAt(null)}>
+          {notice.snoozed && (
+            <MenuItem onClick={pick(() => actions.wake(notice))} testId="notice-wake">
+              <Line icon={IconSnooze} label="Back into Needs you now" />
+            </MenuItem>
+          )}
           <MenuItem onClick={pick(() => actions.snooze(notice, "hour"))} testId="notice-snooze-hour">
             <Line icon={IconSnooze} label="Snooze 1 h" />
           </MenuItem>

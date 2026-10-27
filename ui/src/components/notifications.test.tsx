@@ -6,7 +6,7 @@ import { NotificationCentre } from "./NotificationCentre";
 import { NotificationBell } from "./NotificationBell";
 import { OfflineBanner } from "./OfflineBanner";
 import { UserMenu, shortEmail } from "./UserMenu";
-import { resetNoticeStandIn, notificationsSummary, notificationsSync, type NoticeInfo, type NeedInput, type NoticeSeed } from "../lib/ipc/notices";
+import { resetNoticeStandIn, notificationsSummary, standInNeeds, type NoticeInfo, type StandInNeed, type NoticeSeed } from "../lib/ipc/notices";
 import { resetNotices, applySummary } from "../lib/notices-store";
 import { backendFailed, resetBackendHealth } from "../lib/backend-health";
 import { digestLine, mutedLine, quotaDetail, secondOf } from "../lib/notice-words";
@@ -26,10 +26,10 @@ const T0 = Date.now();
 const facts = { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null };
 const target = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
 function notice(over: Partial<NoticeInfo>): NoticeInfo {
-  return { id: 1, kind: "finished", needs: false, title: "", detail: "", project_id: null, project: null, target, facts, action: null, meter: null, created_ms: T0, unread: false, snoozed_until_ms: null, muted: false, dismissed: false, ...over };
+  return { id: 1, kind: "finished", needs: false, title: "", detail: "", project_id: null, project: null, target, facts, action: null, meter: null, created_ms: T0, unread: false, subject: `n:${over.id ?? 1}`, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false, ...over };
 }
 const quota = notice({ id: 7, kind: "quota", needs: true, unread: true, title: "Work Max is almost out of room", detail: "7% of its 5-hour window left", meter: 7, action: "hand-over", target: { ...target, account_id: "acct-work" }, facts: { ...facts, window: "5-hour", resets_at_ms: T0 + 3_600_000, sessions: 2, account: "Work Max" } });
-const asks: NeedInput = { key: "s:1", kind: "asks", title: "“Docs bot” needs your reply", detail: "docs-site · Claude app", project_id: "proj-docs", project: "docs-site", target: { ...target, session_id: "sess-1" }, action: "open" };
+const asks: StandInNeed = { key: "s:1", kind: "asks", title: "“Docs bot” needs your reply", detail: "docs-site · Claude app", project_id: "proj-docs", project: "docs-site", target: { ...target, session_id: "sess-1" }, action: "open" };
 
 beforeEach(() => {
   delete w().__AIJ_NOTICES__;
@@ -149,7 +149,7 @@ describe("the notification centre", () => {
 
   it("lists Needs action and Earlier; opening it changes nothing by itself", async () => {
     w().__AIJ_NOTICES__ = { app: [quota], earlier: [notice({ id: 3, kind: "restarted", title: "“Nightly fix” crashed and was restarted (try 1 of 3)", action: "see-why", unread: true })] };
-    await notificationsSync([asks], { total: 1, working: 1, apps: [] });
+    standInNeeds([asks]);
     const before = await notificationsSummary();
     expect(before.count).toBe(2);
     expect(before.unread).toBe(3);
@@ -164,8 +164,8 @@ describe("the notification centre", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("each need's ⋯ offers snooze and mute, icons on every line; a snooze is still counted", async () => {
-    await notificationsSync([asks], { total: 0, working: 0, apps: [] });
+  it("each need's ⋯ offers snooze and mute, icons on every line; a snoozed need leaves the count until it wakes (D-49)", async () => {
+    standInNeeds([asks]);
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
     fireEvent.click(await screen.findByTestId("notice-more"));
     const menu = screen.getByRole("menu");
@@ -174,12 +174,47 @@ describe("the notification centre", () => {
     expect(menu.querySelectorAll("svg")).toHaveLength(items.length);
     await act(async () => fireEvent.click(screen.getByTestId("notice-snooze-hour")));
     await waitFor(async () => expect((await notificationsSummary()).snoozed).toBe(1));
-    expect((await notificationsSummary()).count).toBe(1);
+    expect((await notificationsSummary()).count).toBe(0);
+  });
+
+  it("a snoozed need says when it is back, and can be brought back now", async () => {
+    render(
+      <>
+        <NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />
+        <ToastHost />
+      </>,
+    );
+    standInNeeds([asks]);
+    const { notificationsSnooze } = await import("../lib/ipc/notices");
+    const back = Date.now() + 3_600_000;
+    applySummary(await notificationsSnooze("s:1", back));
+    expect((await notificationsSummary()).count).toBe(0);
+    fireEvent.click(await screen.findByTestId("notices-snoozed"));
+    const row = await screen.findByTestId("notice-need");
+    expect(row.textContent).toContain("Snoozed · back at");
+    fireEvent.click(within(row).getByTestId("notice-more"));
+    await act(async () => fireEvent.click(screen.getByTestId("notice-wake")));
+    await waitFor(async () => expect((await notificationsSummary()).count).toBe(1));
+  });
+
+  it("the snooze toast says it is out of Needs you until it is back", async () => {
+    render(
+      <>
+        <NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />
+        <ToastHost />
+      </>,
+    );
+    applySummary(standInNeeds([asks]));
+    fireEvent.click(await screen.findByTestId("notice-more"));
+    await act(async () => fireEvent.click(screen.getByTestId("notice-snooze-tomorrow")));
+    const toast = await screen.findByTestId("toast");
+    expect(toast.textContent).toContain("Snoozed until tomorrow");
+    expect(toast.textContent).toMatch(/Back at .+ tomorrow; out of Needs you until then\./);
   });
 
   it("Mark all read clears every dot and no count", async () => {
     w().__AIJ_NOTICES__ = { app: [quota] };
-    await notificationsSync([asks], { total: 0, working: 0, apps: [] });
+    standInNeeds([asks]);
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
     await act(async () => fireEvent.click(await screen.findByTestId("notices-read-all")));
     const after = await notificationsSummary();
@@ -207,7 +242,7 @@ describe("the notification centre", () => {
 describe("the bell", () => {
   it("shows the model's one count, and opens the centre", async () => {
     w().__AIJ_NOTICES__ = { app: [quota] };
-    applySummary(await notificationsSync([asks], { total: 0, working: 0, apps: [] }));
+    applySummary(standInNeeds([asks]));
     render(<NotificationBell sessions={[]} />);
     expect((await screen.findByTestId("bell-count")).textContent).toBe("2");
     const bell = screen.getByRole("button", { name: /^Notifications: 2 things need you/ });

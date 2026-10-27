@@ -67,7 +67,6 @@ pub async fn notifications_page(
     .await
 }
 
-
 /// Marks one notice read, or (no id) all of them.
 ///
 /// # Errors
@@ -103,7 +102,9 @@ pub async fn notifications_snooze(
         (None, false) => centre::Snooze::Wake,
     };
     crate::ipc::blocking(state.inner(), "notifications", move |state| {
-        write(state, |storage, now| centre::snooze(storage, &subject, how, now))
+        write(state, |storage, now| {
+            centre::snooze(storage, &subject, how, now)
+        })
     })
     .await
 }
