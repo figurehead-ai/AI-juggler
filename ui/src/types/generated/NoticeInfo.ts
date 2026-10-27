@@ -59,7 +59,16 @@ created_ms: number,
  */
 unread: boolean, 
 /**
- * Snoozed until then (epoch ms), while that is still ahead.
+ * What a snooze holds it by (`s:<session>`, `c:<account>/<conversation>`,
+ * `signin:<account>`, `quota:<account>`…).
+ */
+subject: string, 
+/**
+ * Snoozed now: out of the count until the snooze ends.
+ */
+snoozed: boolean, 
+/**
+ * When the snooze ends (epoch ms); none while snoozed until woken.
  */
 snoozed_until_ms: number | null, 
 /**

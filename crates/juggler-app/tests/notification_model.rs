@@ -24,7 +24,7 @@ use juggler_app::features::notifications::centre::{self, NeedInput, NoticeTarget
 use juggler_app::features::notifications::engine::{Kind, Target};
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
 use juggler_app::features::notifications::views::OpenNowInput;
-use juggler_app::features::notifications::{self, Outgoing, sources, tray, views};
+use juggler_app::features::notifications::{self, Outgoing, needs, sources, tray, views};
 use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
 use juggler_core::model::{
@@ -105,7 +105,7 @@ fn earlier_titles(state: &Arc<AppState>) -> Vec<String> {
 
 fn asks(session_id: &str) -> NeedInput {
     NeedInput {
-        key: format!("session:{session_id}"),
+        key: format!("s:{session_id}"),
         kind: "asks".to_owned(),
         title: "“payments-api” needs your reply".to_owned(),
         detail: "payments-api · Work Max".to_owned(),
@@ -196,11 +196,13 @@ fn a_snoozed_need_or_a_muted_kind_doesnt_interrupt() {
     {
         let storage = state.storage.lock().unwrap();
         centre::sync_needs(&storage, &[asks(&snoozed)], now).unwrap();
-        let id = centre::page(&storage, "needs", &PageRequest::first(5), now)
-            .unwrap()
-            .items[0]
-            .id;
-        centre::snooze(&storage, id, Some(now + 3_600_000), now).unwrap();
+        centre::snooze(
+            &storage,
+            &format!("s:{snoozed}"),
+            centre::Snooze::Until(now + 3_600_000),
+            now,
+        )
+        .unwrap();
     }
     notifications::session_status(&state, &snoozed, "waiting_user");
     assert!(list.lock().unwrap().is_empty(), "snoozed: no notification");
@@ -299,12 +301,8 @@ fn the_count_is_the_same_on_the_bell_the_badge_and_the_menu_bar_item() {
             false,
         );
         centre::open_need(&storage, &quota, now).unwrap();
-        // Snoozed and muted needs are still counted.
-        let id = centre::page(&storage, "needs", &PageRequest::first(5), now)
-            .unwrap()
-            .items[0]
-            .id;
-        centre::snooze(&storage, id, Some(now + 60_000), now).unwrap();
+        // D-49: a snoozed need leaves the count; a muted one stays.
+        centre::snooze(&storage, "s:a", centre::Snooze::Until(now + 60_000), now).unwrap();
         centre::mute(&storage, "kind", "quota", "", now).unwrap();
     }
     notifications::changed(&state);
@@ -316,14 +314,14 @@ fn the_count_is_the_same_on_the_bell_the_badge_and_the_menu_bar_item() {
     let summary = views::summary_now(&state);
     let needs = centre::open_needs(&state.storage.lock().unwrap(), now, tray::NEEDS_LISTED);
     let menu = tray::build(summary.count, &needs, &OpenNowInput::default(), now);
-    assert_eq!(summary.count, 3, "the bell");
-    assert_eq!(menu.title.as_deref(), Some("3"), "the menu-bar item");
+    assert_eq!(summary.count, 2, "the bell");
+    assert_eq!(menu.title.as_deref(), Some("2"), "the menu-bar item");
     assert_eq!(
         juggler_platform::system::badge_value(summary.count),
-        Some(3),
+        Some(2),
         "the badge"
     );
-    assert_eq!(menu.lines.iter().filter(|line| matches!(line, tray::TrayLine::Item { id, .. } if id.starts_with(tray::NOTICE_PREFIX))).count(), 3);
+    assert_eq!(menu.lines.iter().filter(|line| matches!(line, tray::TrayLine::Item { id, .. } if id.starts_with(tray::NOTICE_PREFIX))).count(), 2);
 }
 
 #[test]
@@ -341,11 +339,112 @@ fn reading_snoozing_and_muting_change_no_session_and_start_nothing() {
             .items[0]
             .id;
         centre::read(&storage, Some(notice), now).unwrap();
-        centre::snooze(&storage, notice, Some(now + 60_000), now).unwrap();
+        centre::snooze(&storage, &format!("s:{id}"), centre::Snooze::Until(now + 60_000), now).unwrap();
         centre::dismiss(&storage, notice, now).unwrap();
         centre::mute(&storage, "kind", "asks", "", now).unwrap();
         centre::read(&storage, None, now).unwrap();
     }
     let after = state.storage.lock().unwrap().sessions().list(None).unwrap();
     assert_eq!(before, after, "the user's marks touch no session");
+}
+
+/// D-49: Needs you is worked out in the backend, on its own tick, with no
+/// window: one list and one count for the rail, the bell, the badge and
+/// the menu-bar item. A snoozed need leaves the count and comes back by
+/// itself when its snooze ends.
+#[test]
+fn needs_you_is_worked_out_in_the_backend_with_no_window() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let changes = Arc::new(AtomicUsize::new(0));
+    let seen = Arc::clone(&changes);
+    state.notifier.set_on_change(Box::new(move || {
+        seen.fetch_add(1, Ordering::SeqCst);
+    }));
+    session(&state, &dir.path().join("payments-api"), "s-a", "Work Max");
+    session(&state, &dir.path().join("web-app"), "s-b", "Personal");
+    session(&state, &dir.path().join("docs-site"), "s-c", "Team");
+    let mut sessions = commands::instances_shared_snapshot(&state).unwrap();
+    for row in &mut sessions {
+        if row.id != "s-c" {
+            row.status = "waiting_user".to_owned();
+        }
+    }
+    let sources = needs::NeedSources {
+        sessions,
+        computer: "Mac",
+        ..needs::NeedSources::default()
+    };
+    let now = Timestamp::now().millis();
+    let counts = |at: i64| {
+        let storage = state.storage.lock().unwrap();
+        let clock = centre::Clock {
+            now: at,
+            utc_offset_hours: None,
+        };
+        let bell = centre::summary(&storage, clock).unwrap().count;
+        let rail = centre::page(&storage, "needs", &PageRequest::first(50), at)
+            .unwrap()
+            .items
+            .iter()
+            .filter(|row| !row.snoozed)
+            .count();
+        let listed = centre::open_needs(&storage, at, tray::NEEDS_LISTED);
+        let menu = tray::build(bell, &listed, &state.notifier.open_now(), at);
+        let badge = juggler_platform::system::badge_value(bell);
+        (bell, u32::try_from(rail).unwrap(), menu.title, badge)
+    };
+
+    assert!(
+        needs::refresh_from(&state, &sources, now),
+        "the first tick writes the list"
+    );
+    assert_eq!(changes.load(Ordering::SeqCst), 1, "the views follow");
+    assert_eq!(counts(now), (2, 2, Some("2".to_owned()), Some(2)));
+    let open = state.notifier.open_now();
+    assert_eq!(
+        (open.total, open.working),
+        (1, 1),
+        "the running session is open now"
+    );
+    assert!(
+        !needs::refresh_from(&state, &sources, now),
+        "nothing changed: nothing written"
+    );
+    assert_eq!(changes.load(Ordering::SeqCst), 1);
+
+    // Snoozed: out of every count until it wakes.
+    centre::snooze(
+        &state.storage.lock().unwrap(),
+        "s:s-a",
+        centre::Snooze::Until(now + 60_000),
+        now,
+    )
+    .unwrap();
+    assert_eq!(counts(now), (1, 1, Some("1".to_owned()), Some(1)));
+    // Its time come, the tick ends it: back in every count, the views told.
+    assert!(needs::refresh_from(&state, &sources, now + 61_000));
+    assert_eq!(changes.load(Ordering::SeqCst), 2);
+    assert_eq!(counts(now + 61_000), (2, 2, Some("2".to_owned()), Some(2)));
+    assert!(
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .notices()
+            .snoozes(now)
+            .unwrap()
+            .is_empty(),
+        "the ended snooze is gone"
+    );
+
+    // A need that ends leaves the list on the next tick.
+    let mut fewer = needs::NeedSources {
+        sessions: sources.sessions.clone(),
+        computer: "Mac",
+        ..needs::NeedSources::default()
+    };
+    fewer.sessions.retain(|row| row.id != "s-b");
+    assert!(needs::refresh_from(&state, &fewer, now + 62_000));
+    assert_eq!(counts(now + 62_000).0, 1);
 }

@@ -138,8 +138,10 @@ fn app_needs_are_not_ended_by_the_windows_list() {
     assert_eq!(summary(&storage, clock(NOW + MIN)).unwrap().count, 0);
 }
 
+/// D-49 (the maintainer's ruling): a snoozed need leaves the count until
+/// its snooze ends; a muted one stays counted and only stops interrupting.
 #[test]
-fn snoozed_and_muted_needs_stop_interrupting_but_are_still_counted() {
+fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
     let (_dir, storage) = storage();
     sync_needs(
         &storage,
@@ -151,14 +153,19 @@ fn snoozed_and_muted_needs_stop_interrupting_but_are_still_counted() {
         NOW,
     )
     .unwrap();
-    let rows = page(&storage, "needs", &first(), NOW).unwrap().items;
-    snooze(&storage, rows[0].id, Some(NOW + 60 * MIN), NOW).unwrap();
+    snooze(&storage, "a", Snooze::Until(NOW + 60 * MIN), NOW).unwrap();
+    snooze(&storage, "s:sess-a", Snooze::Until(NOW + 60 * MIN), NOW).unwrap();
     mute(&storage, "kind", "stuck", "", NOW).unwrap();
     let now = summary(&storage, clock(NOW)).unwrap();
-    assert_eq!(now.count, 3, "Needs you still counts them");
+    assert_eq!(now.count, 2, "the snoozed need is out of the count");
     assert_eq!(now.snoozed, 1);
-    assert_eq!(now.muted, 1);
+    assert_eq!(now.muted, 1, "the muted need is still counted");
     assert_eq!(now.unread, 1, "only the review has a dot");
+    let rows = page(&storage, "needs", &first(), NOW).unwrap().items;
+    let snoozed = rows.iter().find(|row| row.subject == "a").unwrap();
+    assert!(snoozed.snoozed && !snoozed.unread);
+    assert_eq!(snoozed.snoozed_until_ms, Some(NOW + 60 * MIN));
+    assert_eq!(open_needs(&storage, NOW, 10).len(), 2, "the menu-bar item lists what counts");
     assert!(!may_interrupt(&storage, "stuck", None));
     assert!(may_interrupt(&storage, "asks", None));
     assert!(session_snoozed(&storage, "sess-a", NOW));
@@ -166,6 +173,13 @@ fn snoozed_and_muted_needs_stop_interrupting_but_are_still_counted() {
         !session_snoozed(&storage, "sess-a", NOW + 61 * MIN),
         "a snooze ends"
     );
+    // Its time come, it is back in the count by itself.
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 3);
+    // Snoozed until woken: out until the user wakes it.
+    snooze(&storage, "b", Snooze::UntilWoken, NOW).unwrap();
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 2);
+    snooze(&storage, "b", Snooze::Wake, NOW).unwrap();
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 3);
     // Mute this project: the project's needs stop interrupting.
     mute(&storage, "project", "proj-docs", "docs-site", NOW).unwrap();
     assert!(!may_interrupt(&storage, "review", Some("proj-docs")));
@@ -173,9 +187,9 @@ fn snoozed_and_muted_needs_stop_interrupting_but_are_still_counted() {
     unmute(&storage, "project", "proj-docs").unwrap();
     unmute(&storage, "kind", "stuck").unwrap();
     assert_eq!(summary(&storage, clock(NOW)).unwrap().muted, 0);
-    // A snooze must end in the future; a gone notice is said plainly.
-    assert!(snooze(&storage, rows[1].id, Some(NOW - 1), NOW).is_err());
-    assert!(snooze(&storage, 9_999, Some(NOW + MIN), NOW).is_err());
+    // A snooze must end in the future, and be of something.
+    assert!(snooze(&storage, "b", Snooze::Until(NOW - 1), NOW).is_err());
+    assert!(snooze(&storage, "", Snooze::Until(NOW + MIN), NOW).is_err());
     // An unknown kind or scope can't be muted.
     assert!(mute(&storage, "kind", "everything", "", NOW).is_err());
     assert!(mute(&storage, "account", "x", "", NOW).is_err());
@@ -370,9 +384,11 @@ fn the_version_moves_with_every_change() {
     sync_needs(&storage, &[need("a", "asks", "A")], NOW).unwrap();
     let one = summary(&storage, clock(NOW)).unwrap().version;
     assert_ne!(start, one);
-    let id = page(&storage, "needs", &first(), NOW).unwrap().items[0].id;
-    snooze(&storage, id, Some(NOW + MIN), NOW).unwrap();
+    snooze(&storage, "a", Snooze::Until(NOW + MIN), NOW).unwrap();
     let two = summary(&storage, clock(NOW)).unwrap().version;
+    assert_ne!(one, two);
+    // The snooze ending moves it too (the views follow with no window).
+    assert_ne!(two, summary(&storage, clock(NOW + 2 * MIN)).unwrap().version);
     assert_ne!(one, two);
     mute(&storage, "kind", "asks", "", NOW).unwrap();
     assert_ne!(two, summary(&storage, clock(NOW)).unwrap().version);

@@ -19,25 +19,23 @@ pub const EVENT_OPEN: &str = "notifications://open";
 pub const EVENT_NEW_SESSION: &str = "app://new-session";
 
 /// One app with sessions open in it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OpenApp {
-    /// The app's name, as the window shows it ("Claude app", "Terminal").
+    /// The app's name, as the rail shows it ("Claude app", "Terminal").
     pub app: String,
     /// Sessions open in it.
     pub count: u32,
 }
 
-/// What is open now, as Home counts it (the menu-bar item lists it).
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
+/// What is open now, as the backend works it out ([`super::needs`]; the
+/// menu-bar item lists it).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OpenNowInput {
     /// Sessions open now.
     pub total: u32,
     /// …of them working.
     pub working: u32,
     /// By app, most first.
-    #[serde(default)]
     pub apps: Vec<OpenApp>,
 }
 

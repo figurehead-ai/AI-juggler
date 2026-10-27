@@ -1,13 +1,12 @@
 //! AJ-E2501 — the notification model over IPC: where it stands, its lists
-//! a page at a time, the Needs you list kept in step, and the user's marks
-//! (read, snooze, dismiss, mute). Every write answers with the summary
+//! a page at a time (Needs you among them: the backend works it out, D-49),
+//! and the user's marks (read, snooze, dismiss, mute). Every write answers with the summary
 //! and brings the views along ([`super::changed`]). None of these acts on
 //! a session: a notice's own action is the window's, on the user's click.
 
 use std::sync::Arc;
 
-use super::centre::{self, NeedInput, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo};
-use super::views::OpenNowInput;
+use super::centre::{self, NeedSnoozeInfo, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo};
 use crate::error::{AppError, AppResult};
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
@@ -68,26 +67,6 @@ pub async fn notifications_page(
     .await
 }
 
-/// The Needs you list now, and what is open (the window keeps them in
-/// step: new items are written, gone ones end).
-///
-/// # Errors
-///
-/// A list this app's window didn't make; the typed storage error.
-#[tauri::command]
-pub async fn notifications_sync(
-    state: tauri::State<'_, Arc<AppState>>,
-    needs: Vec<NeedInput>,
-    open: OpenNowInput,
-) -> AppResult<NoticeSummaryInfo> {
-    crate::ipc::blocking(state.inner(), "notifications", move |state| {
-        state.notifier.set_open_now(open);
-        write(state, |storage, now| {
-            centre::sync_needs(storage, &needs, now).map(|_| ())
-        })
-    })
-    .await
-}
 
 /// Marks one notice read, or (no id) all of them.
 ///
@@ -105,21 +84,43 @@ pub async fn notifications_read(
     .await
 }
 
-/// Snoozes a notice until a time ahead, or wakes it (no time).
+/// Snoozes a subject (D-49: out of the Needs you count until it wakes):
+/// until a time ahead, until woken (`forever`), or wakes it (neither).
 ///
 /// # Errors
 ///
-/// A time already past, a notice that is gone; the typed storage error.
+/// A time already past, an empty subject; the typed storage error.
 #[tauri::command]
 pub async fn notifications_snooze(
     state: tauri::State<'_, Arc<AppState>>,
-    id: i64,
+    subject: String,
     until_ms: Option<i64>,
+    forever: bool,
 ) -> AppResult<NoticeSummaryInfo> {
+    let how = match (until_ms, forever) {
+        (Some(until), _) => centre::Snooze::Until(until),
+        (None, true) => centre::Snooze::UntilWoken,
+        (None, false) => centre::Snooze::Wake,
+    };
     crate::ipc::blocking(state.inner(), "notifications", move |state| {
-        write(state, |storage, now| {
-            centre::snooze(storage, id, until_ms, now)
-        })
+        write(state, |storage, now| centre::snooze(storage, &subject, how, now))
+    })
+    .await
+}
+
+/// The snoozes on now, a page at a time (the rail marks its rows).
+///
+/// # Errors
+///
+/// A bad cursor; the typed storage error.
+#[tauri::command]
+pub async fn notifications_snoozes(
+    state: tauri::State<'_, Arc<AppState>>,
+    request: PageRequest,
+) -> AppResult<Page<NeedSnoozeInfo>> {
+    crate::ipc::blocking(state.inner(), "notifications", move |state| {
+        let now = crate::commands::now_millis();
+        locked(state, |storage| centre::snoozes(storage, &request, now))
     })
     .await
 }

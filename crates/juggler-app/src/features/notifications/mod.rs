@@ -11,6 +11,7 @@
 pub mod centre;
 pub mod commands;
 pub mod engine;
+pub mod needs;
 pub mod prefs;
 pub mod sources;
 pub mod tray;
@@ -80,9 +81,16 @@ pub struct Notifier {
     told: Mutex<HashMap<(Target, Kind), (String, String)>>,
     /// AJ-E2501: the views of the model, once the app has them.
     on_change: OnceLock<OnChange>,
-    /// AJ-E2501: what is open now, as the window last said (the menu-bar
-    /// item lists it).
+    /// AJ-E2501: what is open now, as the backend last worked it out (the
+    /// menu-bar item lists it).
     open_now: Mutex<views::OpenNowInput>,
+    /// D-49: This Mac as last sampled (the tick's Needs you reads it).
+    this_mac: Mutex<Option<crate::machine_health::ThisMacInfo>>,
+    /// D-49: the accounts' sign-ins as last checked, and when.
+    sign_ins: Mutex<Option<(i64, Vec<crate::commands::AccountInfo>)>>,
+    /// D-49: what Needs you was last time (a hash: the model is written
+    /// only when it changes).
+    needs_signature: Mutex<Option<u64>>,
 }
 
 impl Default for Notifier {
@@ -99,6 +107,9 @@ impl Default for Notifier {
             told: Mutex::new(HashMap::new()),
             on_change: OnceLock::new(),
             open_now: Mutex::new(views::OpenNowInput::default()),
+            this_mac: Mutex::new(None),
+            sign_ins: Mutex::new(None),
+            needs_signature: Mutex::new(None),
         }
     }
 }
@@ -141,11 +152,59 @@ impl Notifier {
             .unwrap_or_default()
     }
 
-    /// AJ-E2501: the window says what is open now.
+    /// AJ-E2501: what is open now, as the backend worked it out.
     pub fn set_open_now(&self, open: views::OpenNowInput) {
         if let Ok(mut now) = self.open_now.lock() {
             *now = open;
         }
+    }
+
+    /// D-49: This Mac as just sampled.
+    pub fn set_this_mac(&self, info: crate::machine_health::ThisMacInfo) {
+        if let Ok(mut this_mac) = self.this_mac.lock() {
+            *this_mac = Some(info);
+        }
+    }
+
+    /// D-49: This Mac as last sampled.
+    #[must_use]
+    pub fn this_mac(&self) -> Option<crate::machine_health::ThisMacInfo> {
+        self.this_mac.lock().ok().and_then(|this_mac| this_mac.clone())
+    }
+
+    /// D-49: the accounts with their sign-ins, checked again (`check`)
+    /// only when the last check is older than `fresh_ms`.
+    pub fn sign_ins(
+        &self,
+        now: i64,
+        fresh_ms: i64,
+        check: impl FnOnce() -> Vec<crate::commands::AccountInfo>,
+    ) -> Vec<crate::commands::AccountInfo> {
+        if let Ok(cached) = self.sign_ins.lock()
+            && let Some((at, accounts)) = cached.as_ref()
+            && now - at < fresh_ms
+        {
+            return accounts.clone();
+        }
+        let accounts = check();
+        if let Ok(mut cached) = self.sign_ins.lock() {
+            *cached = Some((now, accounts.clone()));
+        }
+        accounts
+    }
+
+    /// D-49: an account's sign-in changed: the next tick checks again.
+    pub fn sign_ins_changed(&self) {
+        if let Ok(mut cached) = self.sign_ins.lock() {
+            *cached = None;
+        }
+    }
+
+    /// D-49: records what Needs you is now; `true` when it is what it was.
+    pub fn needs_signature(&self, signature: u64) -> bool {
+        self.needs_signature
+            .lock()
+            .is_ok_and(|mut last| last.replace(signature) == Some(signature))
     }
 
     /// AI Juggler's main window gained or lost focus.

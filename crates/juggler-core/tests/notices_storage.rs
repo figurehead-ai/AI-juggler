@@ -90,6 +90,7 @@ fn upgrading_from_tasks_keeps_a_copy_and_everything_as_it_was() {
     let after = tables(&db);
     assert!(after.contains(&"notices".to_owned()));
     assert!(after.contains(&"notice_mutes".to_owned()));
+    assert!(after.contains(&"need_snoozes".to_owned()));
     // What v36 held is still there.
     assert_eq!(
         storage
@@ -116,14 +117,12 @@ fn a_need_is_open_once_per_key_and_keeps_the_users_marks() {
         Written::Same(first.id())
     );
     repo.mark_read(first.id(), 21).unwrap();
-    repo.snooze(first.id(), Some(5_000)).unwrap();
     let changed = repo
         .open(&need("asks:s1", "“Docs bot” still needs your reply"), 30)
         .unwrap();
     assert_eq!(changed, Written::Changed(first.id()));
     let row = repo.get(first.id()).unwrap().unwrap();
     assert_eq!(row.read_at, Some(21));
-    assert_eq!(row.snoozed_until, Some(5_000));
     assert_eq!(row.created_at, 10);
     assert_eq!(row.updated_at, 30);
     assert_eq!(repo.open_count().unwrap(), 1);
@@ -159,6 +158,30 @@ fn needs_no_longer_listed_end_and_only_their_origins() {
         .map(|row| row.key)
         .collect();
     assert_eq!(open, ["asks:b", "quota:acct"]);
+}
+
+/// D-49: a snooze is the subject's, not a row's: it outlasts a need that
+/// ends and comes back, and it ends by itself (or when woken).
+#[test]
+fn a_snooze_belongs_to_its_subject_and_ends_by_itself() {
+    let (_dir, storage) = storage();
+    let repo = storage.notices();
+    repo.snooze("s:1", Some(1_000), 10).unwrap();
+    repo.snooze("signin:a", None, 10).unwrap();
+    assert_eq!(
+        repo.snoozes(500).unwrap(),
+        [("s:1".to_owned(), Some(1_000)), ("signin:a".to_owned(), None)]
+    );
+    // Past its time it is no longer on; the tick forgets it.
+    assert_eq!(repo.snoozes(1_000).unwrap(), [("signin:a".to_owned(), None)]);
+    assert_eq!(repo.end_snoozes(1_000).unwrap(), 1);
+    assert_eq!(repo.end_snoozes(1_000).unwrap(), 0);
+    // Snoozed again: the new time wins. Woken: gone.
+    repo.snooze("signin:a", Some(9_000), 20).unwrap();
+    assert_eq!(repo.snoozes(500).unwrap(), [("signin:a".to_owned(), Some(9_000))]);
+    assert!(repo.wake("signin:a").unwrap());
+    assert!(!repo.wake("signin:a").unwrap());
+    assert!(repo.snoozes(0).unwrap().is_empty());
 }
 
 #[test]

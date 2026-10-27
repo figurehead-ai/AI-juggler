@@ -5,10 +5,12 @@
 //! centre, the banners, the bell, the app badge, the menu-bar item and the
 //! system notifications are views of it.
 //!
-//! Rules (the approved design, 2026-10-27):
-//! - **One count.** The number on the bell, the badge and the menu-bar
-//!   item is the open needs: the Needs you count. Snoozed and muted needs
-//!   are still counted; they only stop interrupting.
+//! Rules (the approved design, 2026-10-27, and D-49):
+//! - **One count.** The number on the bell, the badge, the menu-bar item,
+//!   the rail and Home is the open needs that aren't snoozed: the Needs
+//!   you count. A snoozed need leaves the count until its snooze ends (it
+//!   comes back by itself, on the backend's tick); a muted one is still
+//!   counted and only stops interrupting.
 //! - **Told once.** What happened is written once per key; a need is open
 //!   once per key ([`juggler_core::storage::NoticesRepo`]).
 //! - **Nothing acts by itself.** A notice says what happened and offers
@@ -183,7 +185,12 @@ pub struct NoticeInfo {
     pub created_ms: i64,
     /// Not read yet, and allowed to ask for attention (not muted or snoozed).
     pub unread: bool,
-    /// Snoozed until then (epoch ms), while that is still ahead.
+    /// What a snooze holds it by (`s:<session>`, `c:<account>/<conversation>`,
+    /// `signin:<account>`, `quota:<account>`…).
+    pub subject: String,
+    /// Snoozed now: out of the count until the snooze ends.
+    pub snoozed: bool,
+    /// When the snooze ends (epoch ms); none while snoozed until woken.
     #[ts(type = "number | null")]
     pub snoozed_until_ms: Option<i64>,
     /// Its project or kind is muted.
@@ -219,7 +226,7 @@ pub struct NoticeSummaryInfo {
     pub count: u32,
     /// Notices with an unread dot.
     pub unread: u32,
-    /// Needs snoozed now (still counted).
+    /// Needs snoozed now (out of the count until they wake).
     pub snoozed: u32,
     /// Needs whose project or kind is muted (still counted).
     pub muted: u32,
@@ -236,9 +243,9 @@ pub struct NoticeSummaryInfo {
     pub version: i64,
 }
 
-/// One item of the Needs you list, as the window sends it.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
+/// One item of the Needs you list, as the backend works it out
+/// ([`super::needs`]).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NeedInput {
     /// The item's own key (stable while it needs the user).
     pub key: String,
@@ -247,20 +254,26 @@ pub struct NeedInput {
     /// The line, in plain words.
     pub title: String,
     /// The second line.
-    #[serde(default)]
     pub detail: String,
     /// Its project.
-    #[serde(default)]
     pub project_id: Option<String>,
     /// That project's name.
-    #[serde(default)]
     pub project: Option<String>,
     /// What a click opens.
-    #[serde(default)]
     pub target: NoticeTarget,
     /// The primary action's id.
-    #[serde(default)]
     pub action: Option<String>,
+}
+
+/// A snooze on now, as the rail reads it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct NeedSnoozeInfo {
+    /// What is snoozed (`s:<session>`, …).
+    pub subject: String,
+    /// Until then (epoch ms); none: until woken.
+    #[ts(type = "number | null")]
+    pub until_ms: Option<i64>,
 }
 
 /// A mute, as Settings lists it.
@@ -318,13 +331,15 @@ impl Clock {
     }
 }
 
-struct Mutes {
+/// The user's marks that shape a row: the mutes, and the snoozes on now.
+struct Marks {
     projects: Vec<String>,
     kinds: Vec<String>,
+    snoozes: std::collections::HashMap<String, Option<i64>>,
 }
 
-impl Mutes {
-    fn read(storage: &Storage) -> Self {
+impl Marks {
+    fn read(storage: &Storage, now: i64) -> Self {
         let all = storage.notices().mutes().unwrap_or_default();
         let of = |scope: &str| {
             all.iter()
@@ -335,6 +350,7 @@ impl Mutes {
         Self {
             projects: of("project"),
             kinds: of("kind"),
+            snoozes: storage.notices().snoozes(now).unwrap_or_default().into_iter().collect(),
         }
     }
 
@@ -344,13 +360,24 @@ impl Mutes {
     }
 }
 
-fn info(row: Notice, quiet: &Mutes, now: i64) -> NoticeInfo {
+/// What a snooze holds a notice by: a need's key without its origin.
+#[must_use]
+pub fn subject_of(key: &str) -> &str {
+    key.strip_prefix(ORIGIN_NEEDS).and_then(|rest| rest.strip_prefix(':')).unwrap_or(key)
+}
+
+fn info(row: Notice, marks: &Marks) -> NoticeInfo {
     let data: NoticeData = serde_json::from_str(&row.data).unwrap_or_default();
-    let muted = quiet.covers(&row.kind, row.project_id.as_deref());
-    let snoozed_until_ms = row.snoozed_until.filter(|until| *until > now);
+    let muted = marks.covers(&row.kind, row.project_id.as_deref());
+    let subject = subject_of(&row.key).to_owned();
+    let snooze = marks.snoozes.get(&subject).copied();
+    let snoozed = row.needs && snooze.is_some();
     NoticeInfo {
         id: row.id,
-        unread: row.read_at.is_none() && !muted && snoozed_until_ms.is_none(),
+        unread: row.read_at.is_none() && !muted && !snoozed,
+        subject,
+        snoozed,
+        snoozed_until_ms: snooze.flatten(),
         kind: row.kind,
         needs: row.needs && row.resolved_at.is_none(),
         title: row.title,
@@ -362,7 +389,6 @@ fn info(row: Notice, quiet: &Mutes, now: i64) -> NoticeInfo {
         action: row.action,
         meter: row.meter,
         created_ms: row.created_at,
-        snoozed_until_ms,
         muted,
         dismissed: row.dismissed_at.is_some(),
     }
@@ -414,11 +440,11 @@ pub fn sync_needs(storage: &Storage, needs: &[NeedInput], now: i64) -> AppResult
     }
     repo.resolve_missing(ORIGIN_NEEDS, &keep, now)?;
     repo.purge(now - NOTICE_KEEP_MS)?;
-    let mutes = Mutes::read(storage);
+    let marks = Marks::read(storage, now);
     Ok(fresh
         .into_iter()
         .filter_map(|id| repo.get(id).ok().flatten())
-        .map(|row| info(row, &mutes, now))
+        .map(|row| info(row, &marks))
         .collect())
 }
 
@@ -439,7 +465,7 @@ pub fn open_need(storage: &Storage, notice: &NewNotice, now: i64) -> AppResult<O
         Written::New(id) => storage
             .notices()
             .get(id)?
-            .map(|row| info(row, &Mutes::read(storage), now)),
+            .map(|row| info(row, &Marks::read(storage, now))),
         Written::Changed(_) | Written::Same(_) => None,
     })
 }
@@ -470,26 +496,24 @@ pub fn record(storage: &Storage, notice: &NewNotice, now: i64) -> AppResult<Opti
     repo.purge(now - NOTICE_KEEP_MS)?;
     Ok(repo
         .get(id)?
-        .map(|row| info(row, &Mutes::read(storage), now)))
+        .map(|row| info(row, &Marks::read(storage, now))))
 }
 
 /// Whether a notice of `kind` about `project_id` may interrupt now: its
 /// kind and project aren't muted. (Snoozes are per notice.)
 #[must_use]
 pub fn may_interrupt(storage: &Storage, kind: &str, project_id: Option<&str>) -> bool {
-    !Mutes::read(storage).covers(kind, project_id)
+    !Marks::read(storage, 0).covers(kind, project_id)
 }
 
 /// Whether the open need about this session is snoozed now.
 #[must_use]
 pub fn session_snoozed(storage: &Storage, session_id: &str, now: i64) -> bool {
-    storage.notices().open_needs().is_ok_and(|rows| {
-        rows.iter().any(|row| {
-            row.snoozed_until.is_some_and(|until| until > now)
-                && serde_json::from_str::<NoticeData>(&row.data)
-                    .is_ok_and(|data| data.target.session_id.as_deref() == Some(session_id))
-        })
-    })
+    let subject = format!("s:{session_id}");
+    storage
+        .notices()
+        .snoozes(now)
+        .is_ok_and(|on| on.iter().any(|(snoozed, _)| *snoozed == subject))
 }
 
 fn banner_due(row: &NoticeInfo) -> bool {
@@ -497,16 +521,16 @@ fn banner_due(row: &NoticeInfo) -> bool {
         && BANNER_KINDS.contains(&row.kind.as_str())
         && !row.dismissed
         && !row.muted
-        && row.snoozed_until_ms.is_none()
+        && !row.snoozed
 }
 
 fn open_infos(storage: &Storage, now: i64) -> AppResult<Vec<NoticeInfo>> {
-    let mutes = Mutes::read(storage);
+    let marks = Marks::read(storage, now);
     Ok(storage
         .notices()
         .open_needs()?
         .into_iter()
-        .map(|row| info(row, &mutes, now))
+        .map(|row| info(row, &marks))
         .collect())
 }
 
@@ -522,11 +546,11 @@ pub fn summary(storage: &Storage, clock: Clock) -> AppResult<NoticeSummaryInfo> 
         u32::try_from(open.iter().filter(|row| test(row)).count()).unwrap_or(u32::MAX)
     };
     let repo = storage.notices();
-    let mutes = Mutes::read(storage);
+    let marks = Marks::read(storage, now);
     let earlier_unread = repo
         .earlier(None, 50)?
         .into_iter()
-        .map(|row| info(row, &mutes, now))
+        .map(|row| info(row, &marks))
         .filter(|row| row.unread)
         .count();
     let quiet_hours = crate::settings_policy::quiet_hours(storage);
@@ -564,33 +588,36 @@ pub fn summary(storage: &Storage, clock: Clock) -> AppResult<NoticeSummaryInfo> 
         .count()
         .min(BANNERS_SHOWN);
     Ok(NoticeSummaryInfo {
-        count: count_of(&|_| true),
+        count: count_of(&|row| !row.snoozed),
         unread: count_of(&|row| row.unread)
             .saturating_add(u32::try_from(earlier_unread).unwrap_or(u32::MAX)),
-        snoozed: count_of(&|row| row.snoozed_until_ms.is_some()),
+        snoozed: count_of(&|row| row.snoozed),
         muted: count_of(&|row| row.muted),
         quiet,
         quiet_until: quiet.then(|| format!("{:02}:00", quiet_hours.end)),
         banners: u32::try_from(banners).unwrap_or(0),
         digest,
-        version: version_of(storage),
+        version: version_of(storage, now),
     })
 }
 
-/// A number that changes whenever a notice or a mute does.
-fn version_of(storage: &Storage) -> i64 {
+/// A number that changes whenever a notice, a mute or a snooze does (a
+/// snooze ending included).
+fn version_of(storage: &Storage, now: i64) -> i64 {
     let repo = storage.notices();
     let latest = repo
         .open_needs()
         .unwrap_or_default()
         .iter()
-        .map(|row| {
-            row.updated_at
-                .max(row.read_at.unwrap_or(0))
-                .max(row.snoozed_until.unwrap_or(0))
-        })
+        .map(|row| row.updated_at.max(row.read_at.unwrap_or(0)))
         .max()
         .unwrap_or(0);
+    let snoozes = repo.snoozes(now).unwrap_or_default();
+    let snoozed = snoozes
+        .iter()
+        .fold(i64::try_from(snoozes.len()).unwrap_or(0), |sum, (_, until)| {
+            sum.wrapping_mul(31).wrapping_add(until.unwrap_or(1))
+        });
     let earlier = repo
         .earlier(None, 1)
         .ok()
@@ -603,6 +630,8 @@ fn version_of(storage: &Storage) -> i64 {
         .wrapping_mul(31)
         .wrapping_add(i64::try_from(mutes).unwrap_or(0))
         .wrapping_add(i64::try_from(repo.open_count().unwrap_or(0)).unwrap_or(0))
+        .wrapping_mul(31)
+        .wrapping_add(snoozed)
 }
 
 /// A section of the centre: `needs` (Needs action, oldest first),
@@ -650,13 +679,13 @@ pub fn page(
             });
             let limit = request.limit();
             let repo = storage.notices();
-            let mutes = Mutes::read(storage);
+            let marks = Marks::read(storage, now);
             let fetched = repo
                 .earlier(after, limit)?
                 .into_iter()
                 .map(|row| {
                     let key = SortKey::new([-row.created_at, -row.id], row.id.to_string());
-                    (key, info(row, &mutes, now))
+                    (key, info(row, &marks))
                 })
                 .collect();
             Ok(page_of_fetched(fetched, limit, Some(repo.earlier_count()?)))
@@ -678,26 +707,60 @@ pub fn read(storage: &Storage, id: Option<i64>, now: i64) -> AppResult<()> {
     Ok(())
 }
 
-/// Snoozes one notice until `until` (epoch ms, in the future), or wakes
-/// it (`None`). Snoozed, it is read: no dot, no banner, no system
-/// notification — still counted.
+/// How a subject is snoozed: until a time, until woken, or woken now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Snooze {
+    /// Until then (epoch ms, ahead).
+    Until(i64),
+    /// Until the user wakes it (the rail's Mute this session).
+    UntilWoken,
+    /// Back now.
+    Wake,
+}
+
+/// Snoozes a subject (D-49): its needs leave the Needs you count and stop
+/// interrupting until the snooze ends — by itself at its time, or when
+/// woken. Its open needs are marked read.
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for a time already past, or a notice that is
-/// gone; the typed storage error.
-pub fn snooze(storage: &Storage, id: i64, until: Option<i64>, now: i64) -> AppResult<()> {
-    if until.is_some_and(|until| until <= now) {
-        return Err(invalid("Snooze until a time still ahead."));
+/// [`AppError::Refused`] for a time already past or a subject this app
+/// didn't make; the typed storage error.
+pub fn snooze(storage: &Storage, subject: &str, how: Snooze, now: i64) -> AppResult<()> {
+    if subject.is_empty() || subject.len() > MAX_KEY {
+        return Err(invalid("Nothing to snooze."));
     }
     let repo = storage.notices();
-    if !repo.snooze(id, until)? {
-        return Err(invalid("That notification is no longer here."));
+    match how {
+        Snooze::Until(until) if until <= now => return Err(invalid("Snooze until a time still ahead.")),
+        Snooze::Until(until) => repo.snooze(subject, Some(until), now)?,
+        Snooze::UntilWoken => repo.snooze(subject, None, now)?,
+        Snooze::Wake => {
+            repo.wake(subject)?;
+            return Ok(());
+        }
     }
-    if until.is_some() {
-        repo.mark_read(id, now)?;
+    for row in repo.open_needs()? {
+        if subject_of(&row.key) == subject {
+            repo.mark_read(row.id, now)?;
+        }
     }
     Ok(())
+}
+
+/// The snoozes on now, a page at a time (the rail reads them).
+///
+/// # Errors
+///
+/// [`AppError::Validation`] for a bad cursor; the typed storage error.
+pub fn snoozes(storage: &Storage, request: &PageRequest, now: i64) -> AppResult<Page<NeedSnoozeInfo>> {
+    let rows: Vec<NeedSnoozeInfo> = storage
+        .notices()
+        .snoozes(now)?
+        .into_iter()
+        .map(|(subject, until)| NeedSnoozeInfo { subject, until_ms: until })
+        .collect();
+    crate::paging::page(rows, |row| SortKey::new([0], row.subject.clone()), request)
 }
 
 /// Closes a banner; the notice stays in the centre.
@@ -776,11 +839,13 @@ pub fn mutes(storage: &Storage, request: &PageRequest) -> AppResult<Page<NoticeM
     Ok(page.map(|(_, mute)| mute))
 }
 
-/// The open needs, for the views outside the window (the menu-bar item):
-/// oldest first, at most `limit`.
+/// The open needs that count, for the views outside the window (the
+/// menu-bar item): oldest first, at most `limit`; a snoozed one waits
+/// until it wakes (D-49).
 #[must_use]
 pub fn open_needs(storage: &Storage, now: i64, limit: usize) -> Vec<NoticeInfo> {
     let mut rows = open_infos(storage, now).unwrap_or_default();
+    rows.retain(|row| !row.snoozed);
     rows.truncate(limit);
     rows
 }

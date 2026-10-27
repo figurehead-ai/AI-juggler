@@ -8,10 +8,13 @@
 //!   partial unique index), so the same need is never listed twice. An
 //!   *earlier* notice is something that happened: it is told once — a
 //!   key already written is never written again while it is kept.
-//! - **Read, snoozed, dismissed** are the user's marks on a row; a
-//!   **mute** (a project, a kind) is the user's word on what may
-//!   interrupt. None of them changes what needs the user: the count
-//!   stays the Needs you count.
+//! - **Read and dismissed** are the user's marks on a row; a **mute** (a
+//!   project, a kind) is the user's word on what may interrupt — a muted
+//!   need is still counted.
+//! - **A snooze** is the user's word on a subject (a session, an account,
+//!   a sign-in…), kept apart from its rows so it outlasts a need that ends
+//!   and comes back: snoozed, a need leaves the Needs you count until the
+//!   snooze ends (the maintainer's ruling, 2026-10-27, D-49).
 //! - **Kept [`NOTICE_KEEP_DAYS`] days**, then purged ([`NoticesRepo::purge`]).
 //! - Words only: titles and details are plain sentences the app wrote;
 //!   `data` holds what a click opens and the facts a line is drawn from
@@ -45,12 +48,16 @@ CREATE TABLE notices (
     updated_at    INTEGER NOT NULL,
     read_at       INTEGER,
     resolved_at   INTEGER,
-    snoozed_until INTEGER,
     dismissed_at  INTEGER
 );
 CREATE UNIQUE INDEX idx_notices_open ON notices(key) WHERE resolved_at IS NULL;
 CREATE INDEX idx_notices_key ON notices(key);
 CREATE INDEX idx_notices_created ON notices(created_at, id);
+CREATE TABLE need_snoozes (
+    subject    TEXT PRIMARY KEY,
+    until      INTEGER,
+    created_at INTEGER NOT NULL
+);
 CREATE TABLE notice_mutes (
     scope      TEXT NOT NULL,
     value      TEXT NOT NULL,
@@ -123,8 +130,6 @@ pub struct Notice {
     pub read_at: Option<i64>,
     /// When its condition ended (a need), or when it was written (earlier).
     pub resolved_at: Option<i64>,
-    /// Quiet until then.
-    pub snoozed_until: Option<i64>,
     /// Its banner was closed then (it stays here).
     pub dismissed_at: Option<i64>,
 }
@@ -143,7 +148,7 @@ pub struct NoticeMute {
 }
 
 const COLUMNS: &str = "id, key, kind, origin, needs, title, detail, project_id, project, data, \
-    action, meter, created_at, updated_at, read_at, resolved_at, snoozed_until, dismissed_at";
+    action, meter, created_at, updated_at, read_at, resolved_at, dismissed_at";
 
 fn notice(row: &Row<'_>) -> rusqlite::Result<Notice> {
     Ok(Notice {
@@ -163,7 +168,6 @@ fn notice(row: &Row<'_>) -> rusqlite::Result<Notice> {
         updated_at: row.get("updated_at")?,
         read_at: row.get("read_at")?,
         resolved_at: row.get("resolved_at")?,
-        snoozed_until: row.get("snoozed_until")?,
         dismissed_at: row.get("dismissed_at")?,
     })
 }
@@ -488,17 +492,51 @@ impl NoticesRepo<'_> {
         )?)
     }
 
-    /// Quiet until `until` (epoch ms); `None` wakes it.
+    /// Snoozes a subject until `until` (epoch ms), or until woken (`None`).
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn snooze(&self, id: i64, until: Option<i64>) -> Result<bool, CoreError> {
-        let changed = self.conn.execute(
-            "UPDATE notices SET snoozed_until = ?2 WHERE id = ?1",
-            params![id, until],
+    pub fn snooze(&self, subject: &str, until: Option<i64>, now: i64) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT INTO need_snoozes (subject, until, created_at) VALUES (?1, ?2, ?3) \
+             ON CONFLICT(subject) DO UPDATE SET until = excluded.until, created_at = excluded.created_at",
+            params![subject, until, now],
         )?;
-        Ok(changed > 0)
+        Ok(())
+    }
+
+    /// Wakes a subject; `false` when it wasn't snoozed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn wake(&self, subject: &str) -> Result<bool, CoreError> {
+        Ok(self.conn.execute("DELETE FROM need_snoozes WHERE subject = ?1", params![subject])? > 0)
+    }
+
+    /// The snoozes still on at `now`: `(subject, until)`, `None` = until woken.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn snoozes(&self, now: i64) -> Result<Vec<(String, Option<i64>)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT subject, until FROM need_snoozes WHERE until IS NULL OR until > ?1 ORDER BY subject",
+        )?;
+        let rows = stmt.query_map(params![now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?)))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(CoreError::Storage)
+    }
+
+    /// Forgets the snoozes that ended by `now`; how many.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn end_snoozes(&self, now: i64) -> Result<usize, CoreError> {
+        Ok(self
+            .conn
+            .execute("DELETE FROM need_snoozes WHERE until IS NOT NULL AND until <= ?1", params![now])?)
     }
 
     /// Closes its banner (the notice stays in the centre).

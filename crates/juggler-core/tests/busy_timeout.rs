@@ -328,7 +328,7 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE notice_mutes; DROP TABLE notices;")
+        conn.execute_batch("DROP TABLE notice_mutes; DROP TABLE need_snoozes; DROP TABLE notices;")
             .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();

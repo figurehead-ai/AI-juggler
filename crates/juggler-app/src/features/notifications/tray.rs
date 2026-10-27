@@ -257,6 +257,8 @@ mod tests {
             meter,
             created_ms: NOW - minutes_ago * 60_000,
             unread: true,
+            subject: String::new(),
+            snoozed: false,
             snoozed_until_ms: None,
             muted: false,
             dismissed: false,

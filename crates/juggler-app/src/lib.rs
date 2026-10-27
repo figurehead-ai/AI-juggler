@@ -535,9 +535,9 @@ macro_rules! app_commands {
             Read  features::notifications::commands::notifications_summary,
             Read  features::notifications::commands::notifications_page,
             Read  features::notifications::commands::notifications_mutes,
-            Write features::notifications::commands::notifications_sync,
             Write features::notifications::commands::notifications_read,
             Write features::notifications::commands::notifications_snooze,
+            Read  features::notifications::commands::notifications_snoozes,
             Write features::notifications::commands::notifications_dismiss,
             Write features::notifications::commands::notifications_mute,
             Write features::notifications::commands::notifications_unmute,
@@ -1151,6 +1151,9 @@ fn spawn_read_model_ticks(
         // working here, before This Mac says so.
         features::app::awake::tick(&resource_state);
         let _ = machine_health::emit_this_mac(&app, &resource_state);
+        // D-49: Needs you, worked out here (no window needed); a snooze
+        // whose time came brings its need back into every count.
+        features::notifications::needs::refresh(&resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.

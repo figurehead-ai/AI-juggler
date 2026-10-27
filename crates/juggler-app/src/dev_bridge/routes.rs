@@ -261,6 +261,7 @@ read_routes! {
     "notifications_summary" => async_result features::notifications::commands::notifications_summary(state);
     "notifications_page" => async_result features::notifications::commands::notifications_page(state; section: String, request: crate::paging::PageRequest);
     "notifications_mutes" => async_result features::notifications::commands::notifications_mutes(state; request: crate::paging::PageRequest);
+    "notifications_snoozes" => async_result features::notifications::commands::notifications_snoozes(state; request: crate::paging::PageRequest);
     // AJ-E1507: the project's rules and servers, compared (reads only).
     "project_sync_rules" => async_result features::project_sync::commands::project_sync_rules(state; project_id: String, master: Option<String>);
     "project_sync_diff" => async_result features::project_sync::commands::project_sync_diff(state; project_id: String, master: String, file: String, how: String);

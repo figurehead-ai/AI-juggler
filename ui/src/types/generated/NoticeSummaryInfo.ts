@@ -14,7 +14,7 @@ count: number,
  */
 unread: number, 
 /**
- * Needs snoozed now (still counted).
+ * Needs snoozed now (out of the count until they wake).
  */
 snoozed: number, 
 /**
