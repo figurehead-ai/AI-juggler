@@ -30,6 +30,7 @@ verify:
     just polling-audit
     just release-selftest
     just dev-bridge-check
+    python3 scripts/capabilities.py check
 
 # D-20 / D-24: the release scripts' self-tests (versions, nightly notes,
 # channel requirements). A release only runs them for real once a night.
