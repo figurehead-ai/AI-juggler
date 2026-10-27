@@ -321,12 +321,18 @@ mod tests {
         vec![
             ("unresolved-source", SwitchFailure::UnresolvedSource),
             ("torn-tail", SwitchFailure::TornTail),
-            ("collision-forked", SwitchFailure::CollisionForked("sess-9f3a".into())),
+            (
+                "collision-forked",
+                SwitchFailure::CollisionForked("sess-9f3a".into()),
+            ),
             (
                 "staging-aborted",
                 SwitchFailure::StagingAborted("No space left on device (os error 28)".into()),
             ),
-            ("launch-failed", SwitchFailure::LaunchFailed("terminal spawn failed".into())),
+            (
+                "launch-failed",
+                SwitchFailure::LaunchFailed("terminal spawn failed".into()),
+            ),
             ("prime-quota-death", SwitchFailure::PrimeQuotaDeath(12_400)),
             ("original-session-gone", SwitchFailure::OriginalSessionGone),
             ("merge-conflict-open", SwitchFailure::MergeConflictOpen),
@@ -392,8 +398,13 @@ mod tests {
             "a switch failure's words changed: regenerate the interface's copy"
         );
         for (_, failure) in switch_failures() {
-            let words = AppError::switch(failure, "Work", "Personal").wire().user_message;
-            assert!(!looks_internal(&words), "a switch failure's words look internal");
+            let words = AppError::switch(failure, "Work", "Personal")
+                .wire()
+                .user_message;
+            assert!(
+                !looks_internal(&words),
+                "a switch failure's words look internal"
+            );
         }
     }
 }

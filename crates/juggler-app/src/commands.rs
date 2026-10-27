@@ -5343,7 +5343,8 @@ pub(crate) fn preflight_with(
     let (source, account_a) = handover_source(state, session_id)?;
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+            .into(),
     })?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
@@ -6170,7 +6171,8 @@ fn switch_sides(
     }
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+            .into(),
     })?;
     Ok(SwitchSides {
         source,
@@ -6434,7 +6436,8 @@ fn replay_prompt(
     use juggler_handover::pipeline::SwitchFailure;
     use juggler_handover::redaction::strip_segments;
 
-    let stopped = |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
+    let stopped =
+        |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
     let (sha, len) = juggler_adapters::session_file_sha256(&sides.reference.path)
         .map_err(|_| stopped(SwitchFailure::UnresolvedSource))?;
     if !juggler_adapters::last_line_parses(&sides.reference.path) {
@@ -6761,7 +6764,9 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let from_epoch = find(&edge.from_epoch)
         .ok_or_else(|| AppError::Io {
             context: "undo switch",
-            message: "AI Juggler can't find where this work was before the switch, so it can't go back".to_owned(),
+            message:
+                "AI Juggler can't find where this work was before the switch, so it can't go back"
+                    .to_owned(),
         })?
         .clone();
     let target_session = find(&to_epoch_id).and_then(|epoch| epoch.session_ref.clone());
@@ -7171,28 +7176,26 @@ fn record_edge_staged(
         (work, from)
     };
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
-    graph
-        .append_edge(&SwitchEdge {
-            id: edge_id.clone(),
-            work: work.id.clone(),
-            from_epoch: from.id.clone(),
-            to_epoch: None,
-            from_account: account_a.id.clone(),
-            to_account: account_b.id.clone(),
-            from_provider: account_a.harness.clone(),
-            to_provider: account_b.harness.clone(),
-            mechanism,
-            pack_id: None,
-            fidelity_shown: Some("F1".to_owned()),
-            manifest_sha256: None,
-            state: juggler_core::model::EdgeState::Staged,
-            actor: juggler_core::model::EdgeActor::User,
-            parent_edge_a: None,
-            parent_edge_b: None,
-            created_at: Timestamp::now(),
-            to_machine: None,
-        })
-        ?;
+    graph.append_edge(&SwitchEdge {
+        id: edge_id.clone(),
+        work: work.id.clone(),
+        from_epoch: from.id.clone(),
+        to_epoch: None,
+        from_account: account_a.id.clone(),
+        to_account: account_b.id.clone(),
+        from_provider: account_a.harness.clone(),
+        to_provider: account_b.harness.clone(),
+        mechanism,
+        pack_id: None,
+        fidelity_shown: Some("F1".to_owned()),
+        manifest_sha256: None,
+        state: juggler_core::model::EdgeState::Staged,
+        actor: juggler_core::model::EdgeActor::User,
+        parent_edge_a: None,
+        parent_edge_b: None,
+        created_at: Timestamp::now(),
+        to_machine: None,
+    })?;
     Ok((work.id.clone(), from.id.clone(), edge_id))
 }
 
@@ -12414,7 +12417,9 @@ fn resume_original_with_delta(
         .clone()
         .ok_or_else(|| AppError::Io {
             context: "switch back",
-            message: "The original session isn't listed any more — resume it from the switch history".to_owned(),
+            message:
+                "The original session isn't listed any more — resume it from the switch history"
+                    .to_owned(),
         })?;
     let (profile_a, account_a) = {
         let storage = lock_storage_arc(state)?;

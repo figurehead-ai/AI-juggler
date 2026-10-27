@@ -356,8 +356,8 @@ fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
 /// How the user gives an MCP server that needs a secret its value on the
 /// Codex account whose home is `codex_home` (as the shell reads it, `$HOME/…`;
 /// empty for Codex's default `~/.codex`). Codex's own ways
-/// (<https://learn.chatgpt.com/docs/extend/mcp?surface=cli>, "codex mcp
-/// add … --env VAR=VALUE -- <command>", and the `[mcp_servers.<name>.env]`
+/// (<https://learn.chatgpt.com/docs/extend/mcp?surface=cli>, `codex mcp
+/// add … --env VAR=VALUE -- <command>`, and the `[mcp_servers.<name>.env]`
 /// table; `config.toml` lives in `CODEX_HOME`, see
 /// <https://learn.chatgpt.com/docs/config-file/config-sample>):
 ///

@@ -583,7 +583,9 @@ fn build_bundle(
         .clone()
         .ok_or_else(|| AppError::Validation {
             subject: "switch",
-            message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved".to_owned(),
+            message:
+                "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+                    .to_owned(),
         })?;
     let io = |message: String| AppError::Io {
         context: "hand over",
@@ -601,9 +603,7 @@ fn build_bundle(
                 crate::features::tools::display_name(&state.registry, account.harness.as_str())
             ))
         })?;
-        let bundle = support
-            .bundle_session(&reference)
-            .map_err(AppError::Adapter)?;
+        let bundle = support.bundle_session(&reference)?;
         Ok(proto::HandoverBundle {
             provider_id: account.harness.to_string(),
             native_id: bundle.manifest.native_id.clone(),
@@ -775,7 +775,8 @@ pub async fn fleet_switch_execute_impl(
             crate::error_log::record("hand_over", &e.to_string());
             AppError::Io {
                 context: "hand over",
-                message: "AI Juggler couldn't get the handover ready, so nothing was sent".to_owned(),
+                message: "AI Juggler couldn't get the handover ready, so nothing was sent"
+                    .to_owned(),
             }
         })??
     };
@@ -1146,7 +1147,10 @@ fn take_work(
                     "version_mismatch",
                     format!(
                         "{} {} here, {} there — moving the same conversation needs the same version.",
-                        crate::features::tools::display_name(&state.registry, account.harness.as_str()),
+                        crate::features::tools::display_name(
+                            &state.registry,
+                            account.harness.as_str()
+                        ),
                         here.unwrap_or_else(|| "not installed".to_owned()),
                         bundle.harness_version
                     ),
@@ -1270,12 +1274,10 @@ fn install_transplant(
         },
         files,
     };
-    support
-        .install_bundle(&session, account)
-        .map_err(|e| {
-            crate::error_log::record("install_failed", &e.to_string());
-            refuse("install_failed", AppError::Adapter(e).wire().user_message)
-        })
+    support.install_bundle(&session, account).map_err(|e| {
+        crate::error_log::record("install_failed", &e.to_string());
+        refuse("install_failed", AppError::Adapter(e).wire().user_message)
+    })
 }
 
 /// The T3 prime prompt: the destination adapter's own, or a plain one.

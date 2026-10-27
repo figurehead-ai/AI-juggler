@@ -156,7 +156,9 @@ pub enum PreflightStop {
 impl std::fmt::Display for PreflightStop {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::TargetExhausted => "target account is exhausted with no reset before you'd need it",
+            Self::TargetExhausted => {
+                "target account is exhausted with no reset before you'd need it"
+            }
             Self::VersionDrift => {
                 "target runs a harness version this switch has not been verified against"
             }
@@ -278,9 +280,9 @@ impl SwitchFailure {
             Self::TornTail => format!(
                 "The original on {source} is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
             ),
-            Self::CollisionForked(_) => format!(
-                "{target} already has this conversation, so it opened as a separate copy."
-            ),
+            Self::CollisionForked(_) => {
+                format!("{target} already has this conversation, so it opened as a separate copy.")
+            }
             Self::StagingAborted(_) => format!(
                 "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up."
             ),
