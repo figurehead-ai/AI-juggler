@@ -403,9 +403,12 @@ export default function App() {
     return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
-  // Drop a folder anywhere → New session pre-filled with it.
+  // A dropped folder → New session with it (an open New project sheet takes it).
+  const projectSheetOpen = useRef(false);
+  projectSheetOpen.current = newProjectDir !== null;
   useEffect(() => {
     return onFolderDropped((path) => {
+      if (projectSheetOpen.current) return;
       setNewSessionDir(path);
       setNewSession(true);
     });
