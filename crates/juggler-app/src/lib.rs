@@ -47,6 +47,7 @@ pub mod machine_health;
 pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
+pub mod main_window;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
@@ -620,12 +621,7 @@ pub fn run() {
         // Registered first: a second launch defers to the running app
         // (focus its window) instead of stacking ghost instances.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            use tauri::Manager;
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            main_window::bring_forward(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -643,7 +639,17 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        let _ = app.emit(EVENT_GO_TO, ());
+                        // §4.17: AI Juggler comes forward, then the
+                        // palette opens in it (on the main thread, where
+                        // window calls belong).
+                        let handle = app.clone();
+                        let _ = app.run_on_main_thread(move || {
+                            use tauri::Manager;
+                            let window = handle.get_webview_window(main_window::MAIN);
+                            main_window::go_to_pressed(window.as_ref(), || {
+                                let _ = handle.emit(EVENT_GO_TO, ());
+                            });
+                        });
                     }
                 })
                 .build(),
@@ -687,12 +693,7 @@ pub fn run() {
                     let (done, came) = std::sync::mpsc::channel();
                     let window_handle = raise_handle.clone();
                     let queued = raise_handle.run_on_main_thread(move || {
-                        use tauri::Manager;
-                        if let Some(window) = window_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
-                        }
+                        main_window::bring_forward(&window_handle);
                         let _ = done.send(());
                     });
                     queued.is_ok() && came.recv_timeout(handover::RAISE_WAIT).is_ok()
