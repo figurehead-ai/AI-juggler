@@ -149,7 +149,7 @@ function SubagentsList({
         </div>
       ) : meta && meta.state !== "listed" ? (
         <p className="text-body text-muted" data-testid="subagents-unlisted" data-state={meta.state}>
-          {meta.reason ?? "There's no record of this session's subagents on this Mac."}
+          {meta.reason ?? "There's no record of this session's subagents on this computer."}
         </p>
       ) : list.items.length === 0 ? (
         <p className="text-body text-muted" data-testid="subagents-empty">
