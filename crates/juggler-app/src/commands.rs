@@ -11896,15 +11896,50 @@ fn back_conversation(
             .filter_map(|turn| turn.uuid.clone())
             .collect();
     }
+    let mut conversation =
+        juggler_handover::reconcile::reconcile_conversation(&away_uuids, &previous_uuids);
+    // A replay shares no message ids with what it replayed, so "shared
+    // before the switch" and "new here since" come from the original as it
+    // was when the switch read it (live lab 12: back from Codex, the delta
+    // said "0 shared before the switch, 14 new here" for a conversation
+    // that hadn't moved).
+    if lineage.away_primed
+        && let Some(at_fork) = original_at_fork(state, lineage, original_reference)
+    {
+        conversation.base_uuids = original_uuids.intersection(&at_fork).count();
+        conversation.original_only_uuids = original_uuids.difference(&at_fork).count();
+    }
     Ok(BackConversation {
-        conversation: juggler_handover::reconcile::reconcile_conversation(
-            &away_uuids,
-            &previous_uuids,
-        ),
         away_turns,
+        conversation,
         earlier_hops,
         unread,
     })
+}
+
+/// The original conversation's message ids as the fork read them: its file
+/// cut at the size the fork edge's manifest recorded for it (a
+/// conversation file only grows). `None` when the manifest has no row for
+/// that file or the file is shorter now.
+fn original_at_fork(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    original: Option<&juggler_core::model::TranscriptRef>,
+) -> Option<std::collections::HashSet<String>> {
+    let path = &original?.path;
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    let rows = lock_storage_arc(state)
+        .ok()?
+        .switch_graph()
+        .manifest_for(&lineage.fork_edge.id)
+        .ok()?;
+    let row = rows
+        .iter()
+        .find(|row| row.kind == "transcript" && row.rel_path == name)?;
+    let bytes = juggler_adapters::read_session_file(path).ok()?;
+    let cut = usize::try_from(row.bytes).ok()?;
+    let prefix = bytes.get(..cut)?;
+    Some(turns_of(juggler_adapters::parse_any(prefix)).0)
 }
 
 /// Assembles the plan facts shared by plan/execute (one walk, one
@@ -13321,7 +13356,13 @@ fn graph_works_for(state: &Arc<AppState>, project_id: &str) -> AppResult<Vec<Wor
         graph.works_for_project(&juggler_core::model::ProjectId::new(project_id.to_owned()))?;
     let mut out = Vec::new();
     for work in works {
-        out.push(work_graph_info(&storage, &graph, &accounts, &work)?);
+        out.push(work_graph_info(
+            &storage,
+            &graph,
+            &accounts,
+            &state.conversations,
+            &work,
+        )?);
     }
     Ok(out)
 }
@@ -13332,6 +13373,7 @@ fn work_graph_info(
     storage: &juggler_core::storage::Storage,
     graph: &juggler_core::storage::SwitchGraphRepo<'_>,
     accounts: &std::collections::BTreeMap<juggler_core::model::AccountId, String>,
+    conversations: &crate::features::conversations::ConversationIndex,
     work: &juggler_core::model::WorkItem,
 ) -> AppResult<WorkGraphInfo> {
     let epochs = graph.epochs_for_work(&work.id)?;
@@ -13367,18 +13409,27 @@ fn work_graph_info(
     let collapsed = u32::try_from(visible_start).unwrap_or_default();
     let mut nodes = Vec::new();
     for epoch in &epochs[visible_start.min(epochs.len())..] {
-        let resumable = epoch.native_id.as_deref().is_some_and(|id| !id.is_empty())
-            && epoch
-                .session_ref
-                .as_ref()
-                .and_then(|session| storage.sessions().get(session).ok())
+        let native = epoch.native_id.as_deref().filter(|id| !id.is_empty());
+        let resumable = native.is_some_and(|native| match &epoch.session_ref {
+            Some(session) => storage
+                .sessions()
+                .get(session)
+                .ok()
                 .and_then(|record| {
                     record
                         .transcript_ref
                         .as_ref()
                         .map(|reference| reference.path.is_file())
                 })
-                .unwrap_or(false);
+                .unwrap_or(false),
+            // AJ-E2108: a conversation another app runs has no row; its
+            // file is in the index, and Resume continues it here (live
+            // lab 12: it read "no transcript" while switching back
+            // resumed it).
+            None => conversations
+                .path_of(epoch.account.as_str(), native)
+                .is_some_and(|path| path.is_file()),
+        });
         nodes.push(EpochNodeInfo {
             id: epoch.id.to_string(),
             provider: epoch.provider.to_string(),
@@ -13489,18 +13540,35 @@ fn find_epoch_with_session(
         context: "graph action",
         message: "That epoch isn't in the graph".to_owned(),
     })?;
-    let session = epoch
-        .session_ref
-        .as_ref()
-        .and_then(|id| storage.sessions().get(id).ok())
-        .ok_or_else(|| AppError::Io {
-            context: "graph action",
-            message: "The epoch has no session row".to_owned(),
-        })?;
     let account = storage
         .accounts()
         .get(&epoch.account)
         .map_err(|error| not_found_or_core(error, "account", &epoch.account.to_string()))?;
+    let session = epoch
+        .session_ref
+        .as_ref()
+        .and_then(|id| storage.sessions().get(id).ok());
+    drop(storage);
+    let session = match (session, &epoch.native_id) {
+        (Some(session), _) => session,
+        // AJ-E2108: work that began as a session another app runs: that
+        // conversation as a switch reads it (from the index; no row).
+        (None, Some(native)) if epoch.session_ref.is_none() => {
+            crate::features::conversations::switch_source::as_switch_source(
+                state,
+                account.id.as_str(),
+                native,
+                false,
+            )?
+            .0
+        }
+        (None, _) => {
+            return Err(AppError::Io {
+                context: "graph action",
+                message: "The epoch has no session row".to_owned(),
+            });
+        }
+    };
     Ok((epoch, session, account))
 }
 
@@ -13529,6 +13597,13 @@ pub async fn epoch_resume(
 /// Returns the typed [`AppError`] per the command docs.
 pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<LaunchResult> {
     let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
+    // AJ-E2108: a conversation another app runs is continued here as
+    // "Continue in AI Juggler" does (refused while it's open there).
+    if crate::features::conversations::switch_source::is_source_key(session_row.id.as_str())
+        && let Some(native) = epoch.native_id.as_deref()
+    {
+        return crate::features::conversations::continue_impl(state, account.id.as_str(), native);
+    }
     let native_id = epoch
         .native_id
         .clone()
@@ -13722,7 +13797,8 @@ pub(crate) fn write_session_pack(
             head_sha: None,
             dirty: crate::worktree::read_status(&session_row.cwd)
                 .is_some_and(|status| status.changed + status.untracked > 0),
-            diff_stat: None,
+            diff_stat: crate::worktree::work_changes(&session_row.cwd)
+                .and_then(|changes| changes.stat),
             worktree_path: crate::worktree::is_linked_worktree(&session_row.cwd)
                 .then(|| session_row.cwd.to_string_lossy().into_owned()),
         },
@@ -13736,7 +13812,11 @@ pub(crate) fn write_session_pack(
         },
         quota_at_creation: None,
         lineage: juggler_handover::pack::PackLineage::default(),
-        staged_files: Vec::new(),
+        // ADR-0009: the uncommitted changes ride `diffs/`, redacted with
+        // the conversation (live lab 13: they never did).
+        staged_files: crate::worktree::uncommitted_patch(&session_row.cwd)
+            .map(|patch| vec![("diffs/uncommitted.patch".to_owned(), patch)])
+            .unwrap_or_default(),
     };
     let apply = RedactionApply {
         strip: policy == RedactionPolicy::Strip,

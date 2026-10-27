@@ -454,3 +454,22 @@ fn a_large_pack_is_checked_in_under_two_seconds() {
         began.elapsed()
     );
 }
+
+/// Live lab 13: a dirty project's pack said "diff snapshotted" over an
+/// empty `diffs/`. It says so only when the patch travels.
+#[test]
+fn a_dirty_pack_says_whether_its_diff_travels() {
+    let with = fixture_input();
+    let pack_md = String::from_utf8(generate_pack(&with, ConversationMode::Full).pack_md).unwrap();
+    assert!(pack_md.contains("(dirty — diff snapshotted)"));
+
+    let mut without = fixture_input();
+    without.staged_files.clear();
+    let pack_md =
+        String::from_utf8(generate_pack(&without, ConversationMode::Full).pack_md).unwrap();
+    assert!(
+        !pack_md.contains("diff snapshotted"),
+        "no patch, no claim that one travels"
+    );
+    assert!(pack_md.contains("the uncommitted changes aren't in this pack"));
+}

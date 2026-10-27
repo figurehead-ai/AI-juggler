@@ -496,7 +496,7 @@ pub struct HistoryEventInfo {
 pub struct LineageStepInfo {
     /// `in` (work arrived here) or `out` (work left from here).
     pub direction: String,
-    /// The other Account.
+    /// The other Account's name (its id only when it is gone).
     pub other_account: String,
     /// The other Provider.
     pub other_provider: String,
@@ -552,6 +552,43 @@ pub struct ReplayInfo {
     pub lineage: Vec<LineageStepInfo>,
     /// Its processes, from the spawn ledger.
     pub processes: Vec<ProcessRecordInfo>,
+}
+
+/// The switches `session_id` took part in, the other side named as every
+/// other surface names it: the account's name, not its id (live lab 12:
+/// "Arrived from claude-code-…").
+fn lineage_of(
+    storage: &juggler_core::storage::Storage,
+    session_id: &str,
+) -> AppResult<Vec<LineageStepInfo>> {
+    let labels: BTreeMap<juggler_core::model::AccountId, String> = storage
+        .accounts()
+        .list()?
+        .into_iter()
+        .map(|account| (account.id, account.label))
+        .collect();
+    let label = |id: &juggler_core::model::AccountId| {
+        labels.get(id).cloned().unwrap_or_else(|| id.to_string())
+    };
+    Ok(storage
+        .switch_graph()
+        .edges_for_session(session_id)?
+        .into_iter()
+        .map(|(edge, outgoing)| {
+            let (account, provider) = if outgoing {
+                (&edge.to_account, &edge.to_provider)
+            } else {
+                (&edge.from_account, &edge.from_provider)
+            };
+            LineageStepInfo {
+                direction: if outgoing { "out" } else { "in" }.to_owned(),
+                other_account: label(account),
+                other_provider: provider.to_string(),
+                state: format!("{:?}", edge.state).to_lowercase(),
+                fidelity: edge.fidelity_shown.clone(),
+            }
+        })
+        .collect())
 }
 
 fn process_records(
@@ -666,26 +703,7 @@ pub fn instance_replay_impl(state: &Arc<AppState>, session_id: &str) -> AppResul
             }),
     );
     history.sort_by_key(|event| event.at_ms);
-    let lineage = storage
-        .switch_graph()
-        .edges_for_session(session_id)?
-        .into_iter()
-        .map(|(edge, outgoing)| LineageStepInfo {
-            direction: if outgoing { "out" } else { "in" }.to_owned(),
-            other_account: if outgoing {
-                edge.to_account.to_string()
-            } else {
-                edge.from_account.to_string()
-            },
-            other_provider: if outgoing {
-                edge.to_provider.to_string()
-            } else {
-                edge.from_provider.to_string()
-            },
-            state: format!("{:?}", edge.state).to_lowercase(),
-            fidelity: edge.fidelity_shown,
-        })
-        .collect();
+    let lineage = lineage_of(&storage, session_id)?;
     let processes = process_records(&storage, session_id)?;
     drop(storage);
     let (transcript, truncated, bytes, sha256, path) = match &record.transcript_ref {

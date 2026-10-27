@@ -92,6 +92,58 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+/// `git` in `dir`, its raw stdout when it exits with one of `codes`.
+fn git_bytes(dir: &Path, args: &[&str], codes: &[i32]) -> Option<Vec<u8>> {
+    let output = git_command()
+        .ok()?
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .code()
+        .is_some_and(|code| codes.contains(&code))
+        .then_some(output.stdout)
+}
+
+/// The most a pack's uncommitted-changes patch may weigh; a larger one
+/// stays out and the pack says so.
+pub const PATCH_MAX_BYTES: usize = 4 * 1024 * 1024;
+
+/// The most untracked files a patch adds one by one.
+const PATCH_MAX_UNTRACKED: usize = 200;
+
+/// ADR-0009: `dir`'s uncommitted changes as one patch for a pack's
+/// `diffs/`: the tracked changes against HEAD, then each untracked file as
+/// an addition. Read-only (the index is never written). `None` when there
+/// is nothing to stage, outside a repository (or before its first
+/// commit), or over [`PATCH_MAX_BYTES`] / [`PATCH_MAX_UNTRACKED`] (live
+/// lab 13: a dirty pack's `diffs/` was always empty).
+#[must_use]
+pub fn uncommitted_patch(dir: &Path) -> Option<Vec<u8>> {
+    let mut patch = git_bytes(dir, &["diff", "HEAD", "--binary"], &[0])?;
+    let untracked = git(dir, &["ls-files", "--others", "--exclude-standard", "-z"])?;
+    let files: Vec<&str> = untracked.split('\0').filter(|f| !f.is_empty()).collect();
+    if files.len() > PATCH_MAX_UNTRACKED {
+        return None;
+    }
+    for file in files {
+        // `--no-index` exits 1 when the two differ: that is the patch.
+        let added = git_bytes(
+            dir,
+            &["diff", "--no-index", "--binary", "--", "/dev/null", file],
+            &[0, 1],
+        )?;
+        patch.extend(added);
+        if patch.len() > PATCH_MAX_BYTES {
+            return None;
+        }
+    }
+    (!patch.is_empty()).then_some(patch)
+}
+
 /// The repository's top level for `dir`, when it is inside one.
 #[must_use]
 pub fn repo_root(dir: &Path) -> Option<PathBuf> {
@@ -740,6 +792,64 @@ pub async fn git_status_refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Live lab 13: a dirty pack's `diffs/` was always empty. The patch
+    /// holds the tracked change and the untracked file, and reading it
+    /// writes nothing to the repository.
+    #[test]
+    fn the_uncommitted_patch_holds_changed_and_new_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path();
+        let run = |args: &[&str]| {
+            let ok = git_command()
+                .unwrap()
+                .arg("-C")
+                .arg(repo)
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "the fixture's git step runs");
+        };
+        run(&["init", "-q"]);
+        std::fs::write(repo.join("calc.py"), "def add(a, b):\n    return a + b\n").unwrap();
+        run(&["add", "-A"]);
+        run(&[
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-qm",
+            "start",
+        ]);
+        assert!(
+            uncommitted_patch(repo).is_none(),
+            "a clean tree stages nothing"
+        );
+
+        std::fs::write(
+            repo.join("calc.py"),
+            "def add(a, b):\n    return a + b\n\ndef sub(a, b):\n    return a - b\n",
+        )
+        .unwrap();
+        std::fs::write(repo.join("test_calc.py"), "import calc\n").unwrap();
+        let status_before = git(repo, &["status", "--porcelain"]).unwrap();
+        let patch = String::from_utf8(uncommitted_patch(repo).unwrap()).unwrap();
+        assert!(patch.contains("+def sub(a, b):"), "the tracked change");
+        assert!(
+            patch.contains("+++ b/test_calc.py") && patch.contains("+import calc"),
+            "the untracked file, as an addition"
+        );
+        assert_eq!(
+            git(repo, &["status", "--porcelain"]).unwrap(),
+            status_before,
+            "reading the patch changes nothing"
+        );
+    }
 
     #[test]
     fn porcelain_v2_reads_branch_dirty_untracked_and_ahead_behind() {
