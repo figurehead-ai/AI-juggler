@@ -1406,46 +1406,10 @@ export interface CleanupAlertsData {
 /** AJ-E512: reads the passive alerts (hog alerts name the top helper;
  * idle nudges fire once per orphan). Purely passive — no alert
  * carries a signal path; the hog alert routes to the staged sheet. */
-/** AJ-E609: one cost rollup row (session × model × day). */
-/** Rust `Confidence` on the wire. */
-export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
 
-// IPC convention (docs/engineering/ENGINEERING-GUIDE.md › IPC): a Rust
-// `Option<T>` arrives as `null`, never as a missing key, so it is typed
-// `T | null` and checked with `!= null` — never `?:` / `!== undefined`
-// (the 0.0.12 report: Usage went blank on `null.toFixed`).
-
-/** AJ-E609: one rollup row (`cost_ledger::CostRollup`). */
-export interface CostRollupRow {
-  key: string;
-  model: string | null;
-  day: string | null;
-  tokens: { input: number; output: number; cache_read: number; cache_write: number; reasoning: number };
-  usd: { usd: number | null; label: ConfidenceWire };
-  credits: number | null;
-  confidence: ConfidenceWire;
-}
-
-/** AJ-E609: the dual subscription view ("≈$X at API prices · you pay flat"). */
-export interface SubscriptionViewData {
-  api_equivalent_usd: number | null;
-  flat_fee_usd: number | null;
-  value_ratio: number | null;
-}
-
-/** AJ-E609: the cost matrix payload (the UI and the CSV read the same rows). */
-export interface CostRollupsData {
-  rows: CostRollupRow[];
-  subscription: SubscriptionViewData;
-  pricing_stale: boolean;
-  pricing_last_synced_ms: number | null;
-  /** Every model with a list price, summed; null when none has one. */
-  total_usd: number | null;
-  /** 0.1.8: the models with no list price (null: a model not recorded),
-   * left out of the total and named beside it. */
-  unpriced_models: (string | null)[];
-  scope: string;
-}
+// AJ-E609: the cost matrix's types and calls (lib/ipc/costs.ts).
+export { costRollups, costCsvExport } from "./ipc/costs";
+export type { ConfidenceWire, CostRollupRow, SubscriptionViewData, CostRollupsData } from "./ipc/costs";
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
@@ -1545,34 +1509,6 @@ export async function accountSetFee(account: string, feeUsd: number | null): Pro
   await invoke("account_set_fee", { account, feeUsd });
 }
 
-/** AJ-E609: the session cost matrix + dual subscription view. */
-export async function costRollups(account?: string): Promise<CostRollupsData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_COST_ROLLUPS__?: CostRollupsData })
-        .__AIJ_COST_ROLLUPS__ ?? {
-        // Exactly what serde sends with nothing stored: nulls, not
-        // missing keys (a mismatch is now a type error).
-        rows: [],
-        subscription: { api_equivalent_usd: null, flat_fee_usd: null, value_ratio: null },
-        pricing_stale: false,
-        pricing_last_synced_ms: null,
-        total_usd: null,
-        unpriced_models: [],
-        scope: account ?? "ALL",
-      }
-    );
-  }
-  return invoke<CostRollupsData>("cost_rollups", { account });
-}
-
-/** AJ-E609: stream the CSV export; resolves to the written file path. */
-export async function costCsvExport(account?: string): Promise<string> {
-  if (!hasBackend) {
-    return (window as unknown as { __AIJ_COST_CSV__?: string }).__AIJ_COST_CSV__ ?? "";
-  }
-  return invoke<string>("cost_csv_export", { account });
-}
 
 export async function cleanupAlerts(): Promise<CleanupAlertsData> {
   if (!hasBackend) {
