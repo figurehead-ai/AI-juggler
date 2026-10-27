@@ -429,6 +429,50 @@
             "https://code.claude.com/docs/en/mcp.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "skills-sync",
+          "name": "claude.ai skills and plugins synced in",
+          "status": "available",
+          "how": "One-way sync of the skills (and plugins) on in claude.ai into <config dir>/skills/synced/<org>_<account>/<skill>/ (plugins/synced/, <name>@synced) at session start, then about every 10 min in use, 40 idle; turned-off ones move to skills/.trash/. Each set has manifest.json rows {skillId, name, description, source, updatedAt}.",
+          "limits": "Only with a /login claude.ai sign-in (not API key/OAuth token env), not Bedrock/--bare/--safe-mode; a server flag and the org policy allow_account_skills_sync decide; syncClaudeAiSkills:false turns it off. A profile syncs only while one of its sessions runs. The <org>_<account> folder name and manifest.json are undocumented (binary).",
+          "evidence": "VP",
+          "sources": [
+            "https://code.claude.com/docs/en/skills.md",
+            "https://code.claude.com/docs/en/plugins/loading.md",
+            "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+            "binary 2.1.310 strings (syncClaudeAiSkills description)",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "inventory lists synced skills as from the account (claude_inventory.rs); planned: origin and turn-on steps per row (switch-setup-items.md)"
+        },
+        {
+          "id": "skill-origin",
+          "name": "Anthropic-provided versus own synced skill",
+          "status": "partial",
+          "how": "manifest.json row source: 'anthropic' (always synced: pdf, docx, pptx, xlsx), 'anthropic-example' (Anthropic-provided, follows the user's toggles), 'custom' when the server gives none. Proprietary ones carry frontmatter license 'Proprietary…' and an Anthropic LICENSE.txt; feature-bound ones a compatibility line.",
+          "limits": "The server's creator_type/is_shared/partition_by (own, org, shared) are not written locally, so a 'custom' row can't be told apart as own, organization's or shared. Undocumented (binary + local).",
+          "evidence": "VP",
+          "sources": [
+            "binary 2.1.310 strings (te={public:'anthropic',examples:'anthropic-example'}, source??'custom')",
+            "https://claude.com/docs/skills/overview",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "planned: origin own/account/provided in the switch set-up (switch-setup-items.md)"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a conversation used (skills, commands, MCP, subagents)",
+          "status": "available",
+          "how": "JSONL: tool_use name 'Skill' input {skill,args}; attachment type invoked_skills skills[{name,path}]; user content <command-name>/name</command-name> (anthropic-skills:<n>, <plugin>:<n>); tool_use 'mcp__<server>__<tool>' (plugin servers mcp__plugin_<plugin>_<server>__<tool>); 'Task'/'Agent' input.subagent_type.",
+          "limits": "Transcript format is internal and may change; Claude Code's own scanners use these same patterns (binary).",
+          "evidence": "VP",
+          "sources": [
+            "https://code.claude.com/docs/en/skills.md",
+            "binary 2.1.310 strings (Skill input schema, <command-name> and mcp__ scanners)",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: parsers summarise tool calls only; planned used_in() for the switch set-up"
         }
       ]
     },
@@ -717,6 +761,24 @@
             "https://claude.com/docs/cowork/monitoring.md"
           ],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "skills-sync",
+          "name": "Skills on in claude.ai reach the Code tab",
+          "status": "available",
+          "how": "The Code tab is Claude Code: it syncs into the same skills/synced/ folder (.last-complete-round lists the entrypoints sdk-cli, cli, claude-desktop). Skills are turned on at https://claude.ai/customize/skills after 'Code execution and file creation' at https://claude.ai/settings/capabilities; Team/Enterprise owners allow Skills at https://claude.ai/admin-settings/skills.",
+          "limits": "Feature-bound skills follow the plan: computer use Pro/Max only; built-in browser off when a Team/Enterprise owner turns it off; Claude in Chrome paid plans with the extension; Research paid plans.",
+          "evidence": "VP",
+          "sources": [
+            "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
+            "https://support.claude.com/en/articles/13119606-managing-skills-as-an-admin",
+            "https://support.claude.com/en/articles/14128542-let-claude-use-your-computer-in-cowork",
+            "https://support.claude.com/en/articles/16607400-use-the-built-in-browser-in-claude-cowork",
+            "https://support.claude.com/en/articles/12012173-get-started-with-claude-in-chrome",
+            "https://support.claude.com/en/articles/11088861-use-research-on-claude",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "planned: the steps the switch set-up shows for a skill the target account lacks"
         }
       ]
     },
@@ -1164,6 +1226,37 @@
           "evidence": "I",
           "sources": [],
           "ai_juggler_uses": "not used"
+        },
+        {
+          "id": "skill-origin",
+          "name": "OpenAI-provided versus own skills and plugins",
+          "status": "available",
+          "how": "System skills in $CODEX_HOME/skills/.system/ (.codex-system-skills.marker) ship with Codex; plugin ids carry their marketplace: @openai-bundled and @openai-primary-runtime (with the app), @openai-curated / cache openai-curated-remote (the shared ChatGPT plugin directory), cache created-by-me-remote (the user's workspace plugins); apps are tools of the codex_apps MCP server, listed only with ChatGPT sign-in.",
+          "limits": "Cloud skills and apps follow the ChatGPT account and workspace: Enterprise/Edu off by default, role-based; API-key sign-in has no cloud features. No plan matrix found.",
+          "evidence": "VP",
+          "sources": [
+            "https://learn.chatgpt.com/docs/build-skills",
+            "https://learn.chatgpt.com/docs/plugins",
+            "https://learn.chatgpt.com/docs/extend/mcp",
+            "https://learn.chatgpt.com/docs/config-file/config-reference",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "planned: origin and 'turn it on' steps in the switch set-up"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a rollout used (MCP, skills, subagents)",
+          "status": "partial",
+          "how": "response_item function_call name mcp__<server>__<tool> (apps: server codex_apps); legacy mode event_msg mcp_tool_call_end {invocation{server,tool}}; explicit skill picks inject a user message wrapped in <skill> with <name>/<path>; spawn_agent arguments.agent_type.",
+          "limits": "No skill-used record: implicit use is only a shell read of SKILL.md; <skills_instructions> lists all skills and is not use; custom prompts leave no record; the codex.skill_invocation event is OpenTelemetry only.",
+          "evidence": "VP",
+          "sources": [
+            "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/policy.rs",
+            "https://github.com/openai/codex/blob/main/codex-rs/ext/skills/src/fragments.rs",
+            "codex 0.163.0 binary strings",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: codex_transcript.rs summarises calls; planned used_in()"
         }
       ]
     },
@@ -1705,6 +1798,20 @@
             "https://opencode.ai/legal/terms-of-service"
           ],
           "ai_juggler_uses": "n/a"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "partial",
+          "how": "part rows type 'tool': tool 'skill' with state.input.name; MCP tools named <server>_<tool>; SubtaskPart {agent}; child sessions carry parentID. Skills also read from .claude/skills and ~/.claude/skills.",
+          "limits": "Single-underscore MCP names can't be split for sure; the store's schema is internal and churns.",
+          "evidence": "VP",
+          "sources": [
+            "https://opencode.ai/docs/skills",
+            "https://github.com/anomalyco/opencode",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: opencode_store.rs never reads the part table; used stays unknown"
         }
       ],
       "version_notes": "v1 1.19.4 (2026-10-22); v2 2.2.0 (2026-10-27)"
@@ -2075,6 +2182,19 @@
             "https://github.com/MoonshotAI/kimi-code/blob/main/packages/agent-core-v2/docs/wire-manifest.d.ts"
           ],
           "ai_juggler_uses": "plan quota not read; exact per-call tokens from wire.jsonl usage.record via usage_since (Measured, keyed by time, model and counts)"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "unknown",
+          "how": "Tools: a Skill tool (skill, args), /skill:<name>, MCP tools mcp__<server>__<tool>, Agent (subagent_type) with agents/<id>/wire.jsonl per subagent.",
+          "limits": "Which wire.jsonl record carries a tool call isn't documented for Kimi Code CLI.",
+          "evidence": "VS",
+          "sources": [
+            "https://www.kimi.com/code/docs",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: wire.rs reads turn, interaction and usage records only"
         }
       ]
     },
@@ -2371,6 +2491,19 @@
             "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/25-status-line.md"
           ],
           "ai_juggler_uses": "not used (usage not read)"
+        },
+        {
+          "id": "transcript-used",
+          "name": "What a session used",
+          "status": "unknown",
+          "how": "updates.jsonl tool_call / tool_call_update session updates; skill tools prefixed 'skill:'; MCP tools <server>__<tool>; `grok inspect --json` lists the skills, plugins and MCP servers found for a folder.",
+          "limits": "Session format undocumented (third-party write-up only).",
+          "evidence": "VS",
+          "sources": [
+            "https://docs.x.ai/build",
+            "docs/research/capabilities/switch-setup-items.md"
+          ],
+          "ai_juggler_uses": "not yet: grok_sessions.rs reads summary.json only"
         }
       ]
     },
