@@ -118,7 +118,7 @@ describe("RemoteTabBody", () => {
     const view = body("overview", machine(), false);
     expect(view.getByTestId("remote-machine-overview").textContent).toContain("View + control");
     expect(view.getAllByTestId("remote-machine-instance")).toHaveLength(1);
-    expect(view.container.textContent).toContain("8.0 GB of 32.0 GB");
+    expect(view.container.textContent).toContain("8.0 GB of 32 GB");
   });
 
   it("freshness is words and a shape for every state", () => {

@@ -28,7 +28,9 @@ interface MachineSeams {
 }
 const machineSeams = () => window as unknown as MachineSeams;
 
-const GB = 1_000_000_000;
+// Memory, as macOS counts it (`lib/compact`'s memorySize): a 32 GB Mac
+// has 32 × 1024³ bytes.
+const GB = 1024 ** 3;
 
 /** A deterministic 5-minute series (150 points, 2 s apart). */
 function series(now: number, cpu: (i: number) => number, used: (i: number) => number): MachinePointInfo[] {
@@ -137,11 +139,11 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   const kind = previewParam("aij_alert");
   if (kind === "memory")
     return [
-      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
+      { key: "memory_pressure", kind: "memory_pressure", title: "Your Mac is under memory pressure", detail: "macOS reports memory pressure", session_id: sessionId, place: null, subject_name: null, subject_bytes: 3_200_000_000, subject_estimate: false, subject_cpu: null, subject_windows: null, other_apps: [], since_ms: Date.now() - 45_000 },
     ];
   if (kind === "cpu")
     return [
-      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "desktop", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
+      { key: "cpu", kind: "cpu", title: "The processor has been flat out for minutes", detail: "97% busy for over two minutes", session_id: null, place: "claude-app", subject_name: "The Claude app", subject_bytes: null, subject_estimate: false, subject_cpu: 140, subject_windows: null, other_apps: [], since_ms: Date.now() - 150_000 },
     ];
   return [];
 }
@@ -162,14 +164,11 @@ export async function machineHealth(): Promise<MachineHealthInfo> {
   return invoke<MachineHealthInfo>("machine_health");
 }
 
-/** Bytes in plain words ("3.2 GB", "640 MB", "under 1 MB") — the same rounding as the backend. */
+/** Memory in plain words ("3.2 GB", "640 MB", "under 1 MB"): the app's
+ * memory rule (`lib/compact`), with This Mac's floor — as the backend's
+ * `memory_words` says it. */
 export function bytesWords(bytes: number): string {
-  if (bytes < 1e6) return "under 1 MB";
-  if (bytes >= 1e9) {
-    const gb = bytes / 1e9;
-    return gb >= 10 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`;
-  }
-  return `${(bytes / 1e6).toFixed(0)} MB`;
+  return bytes < 1024 ** 2 ? "under 1 MB" : memorySize(bytes);
 }
 
 // --- AJ-E1403: This Mac ------------------------------------------------------
@@ -200,6 +199,7 @@ const thisMacSeams = () => window as unknown as ThisMacSeams;
 import { mockThisMac, previewWindows, withHeavyLoad } from "../preview/this-mac";
 import { othersFillIt, othersPreview } from "../preview/machine";
 import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
+import { memorySize } from "./compact";
 export { mockHeavyNote, mockThisMac } from "../preview/this-mac";
 
 /** This Mac now. */

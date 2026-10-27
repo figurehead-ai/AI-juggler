@@ -32,7 +32,6 @@ import { QuotaBar } from "./primitives";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
-import { formatBytes } from "./indicator";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
@@ -41,6 +40,7 @@ import { installWords, providerDisplayName } from "../lib/providers";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
+import { memorySize } from "../lib/compact";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -505,7 +505,7 @@ function InstanceOverview(props: PanelProps) {
           </span>
           <span data-testid="instance-resources" className="tabular-nums text-muted">
             cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-            {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · more processes{" "}
+            {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · more processes{" "}
             {session.child_count ?? "—"}
           </span>
         </div>
@@ -616,7 +616,7 @@ function InstanceOverview(props: PanelProps) {
             >
               <span>
                 cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-                {session.rss_bytes !== null ? formatBytes(session.rss_bytes) : "—"} · children{" "}
+                {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
                 {session.child_count ?? "—"}
               </span>
               <span>

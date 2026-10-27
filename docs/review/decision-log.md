@@ -773,7 +773,7 @@
 - Rejected: bundling the apps' icons (the owners' artwork in a public
   repo); fetching them from the network.
 - Consequences: the `app_icons` feature module, `AppIcon` and
-  `ProfileBadge` in the UI, a Privacy line; ships in 0.1.5.
+  `ProfileBadge` in the UI, a Privacy line; ships in 0.1.6 (planned as 0.1.5; that number went to the 2026-10-26 nightly).
 
 ### D-39 Fresh Claude limits when the Claude app's meter is old — SETTLED (2026-10-25)
 

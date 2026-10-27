@@ -39,6 +39,7 @@ const PAYLOAD: CostRollupsData = {
   pricing_stale: false,
   pricing_last_synced_ms: null,
   total_usd: null,
+  unpriced_models: ["gpt-5-codex", null],
   scope: "ALL",
 };
 
@@ -59,11 +60,16 @@ it("CostMatrix renders null fields: no crash, words for the unpriced model, neve
   const view = render(<CostMatrix />);
   const matrix = await view.findByTestId("cost-matrix");
   await within(matrix).findByText("gpt-5-codex");
-  expect(within(matrix).getByTestId("cost-unpriced").textContent).toBe("No price for gpt-5-codex yet");
+  // 0.1.8: short words in the cell, the model in its tooltip.
+  const unpriced = within(matrix).getAllByTestId("cost-unpriced")[0]!;
+  expect(unpriced.textContent).toBe("No list price");
+  expect(unpriced.getAttribute("title")).toBe("No list price for gpt-5-codex");
   expect(matrix.textContent).not.toContain("$0.00");
-  // No fee, no ratio: the dual view stays out; no total row without a total.
-  expect(matrix.textContent).not.toContain("at API prices");
-  expect(matrix.textContent).not.toContain("Total (all sessions)");
+  // No fee: said in words; a model not recorded is named as such.
+  expect(within(matrix).getByTestId("cost-fee-tile").textContent).toContain("Your plan's fee isn't set");
+  expect(within(matrix).getByTestId("cost-unpriced-tile").textContent).toContain("gpt-5-codex, Model not recorded: not counted");
+  // No total at list prices: words under the USD column, never $0.00.
+  expect(within(matrix).getByTestId("cost-total").textContent).toContain("No list price");
 });
 
 it("Usage renders with the same payload (the screen the maintainer clicked), never from its rows", async () => {

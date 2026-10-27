@@ -11,7 +11,7 @@
  */
 import type { JSX } from "react";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
-import { asOfWords, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
   label: string;
@@ -27,12 +27,10 @@ export function windowLine(label: string, window: WindowDisplay | null | undefin
   return { label, left: view.left, words: view.words, tone: view.tone };
 }
 
-/** Both windows, plus the session fallback when neither is measured. */
+/** Every limit (the 5 hours, the week, each model's own week), plus the
+ * session fallback when none is measured. */
 export function runwayLines(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): RunwayLine[] {
-  const lines = [
-    windowLine("5-hour window", display?.five_hour, display?.five_hour_omitted_reason),
-    windowLine("This week", display?.weekly, display?.weekly_omitted_reason),
-  ];
+  const lines = limitWindows(display).map((entry) => windowLine(entry.label, entry.window, entry.omitted));
   if (lines.some((line) => line.left !== null)) return lines;
   const reading = sessionFallback(display, sessions);
   if (!reading) return lines;
@@ -85,7 +83,7 @@ export function runwayOf(
     const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
     const left = Math.max(0, Math.round(100 - tightest.window.percentage));
     const words = resetWords(tightest.window);
-    return { left, words: `${left}% left ${tightest.phrase}`, resets: words ? `${tightest.label} ${words}` : null };
+    return { left, words: `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`, resets: words ? `${tightest.label} ${words}` : null };
   }
   const reading = sessionFallback(display, sessions);
   if (reading) {
@@ -110,6 +108,20 @@ export function runwayOf(
 
 /** At or under this much left, an account is low: never recommended. */
 const LOW_LEFT = 25;
+
+/** A week on one model only limits that model alone, so it never sets an
+ * account's room (a session on another model doesn't touch it, and which
+ * model new work will use isn't known). Only when it's tighter than the
+ * account's own figure and low does the line say so ("· Fable: 10% left
+ * this week"), so a pick for new work is never blind to it. */
+function modelWeekNote(display: QuotaDisplayData | undefined, accountLeft: number): string {
+  const low = (display?.model_weeks ?? [])
+    .filter((entry): entry is typeof entry & { window: WindowDisplay & { percentage: number } } => measured(entry.window))
+    .map((entry) => ({ model: entry.model, left: Math.max(0, Math.round(100 - entry.window.percentage)) }))
+    .filter((entry) => entry.left <= LOW_LEFT && entry.left < accountLeft)
+    .sort((a, b) => a.left - b.left)[0];
+  return low ? ` · ${low.model}: ${low.left}% left this week` : "";
+}
 
 /** Where to start new work, in words, from the one runway (QA batch 8:
  * Home recommended an account with 6% left because the others weren't

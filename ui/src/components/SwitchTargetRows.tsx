@@ -18,7 +18,7 @@ import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge
 /** The badge chip: solid when validated, hatched while beta. The text
  * label (the badge string itself + the validated line) carries the
  * state — the hatching is decoration only, legible in greyscale. */
-function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
+export function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
   return (
     <span
       data-testid="fidelity-badge"

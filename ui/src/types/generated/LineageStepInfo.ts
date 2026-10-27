@@ -9,7 +9,7 @@ export type LineageStepInfo = {
  */
 direction: string, 
 /**
- * The other Account.
+ * The other Account's name (its id only when it is gone).
  */
 other_account: string, 
 /**

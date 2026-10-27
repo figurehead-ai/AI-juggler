@@ -38,7 +38,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Apps show their own icons (0.1.5, D-38): the rail's rows and place
+- Switching from any session (0.1.8): a session another app runs (the
+  Claude app, Codex in ChatGPT, a CLI in a terminal) offers every
+  signed-in profile of every tool, and one click opens the switch screen
+  while it is still open in its app. The switch only reads it; it stays
+  open there, untouched, and continues as a new session in AI Juggler.
+- Claude's model weeks (0.1.8): a weekly limit on one model ("This week ·
+  Fable only") is shown and never read as "no weekly limit"; it doesn't
+  count toward an account's % left.
+- This Mac groups each tool's desktop app from its adapter (0.1.8): Codex
+  in ChatGPT.app is "ChatGPT (Codex)"; a native-installer `claude` in a
+  terminal is listed.
+- Prices and details (0.1.8) leads with the totals, names sessions by
+  title and project, folds a session's models on one day into one row and
+  fits without sideways scroll; gpt-6.1-terra is priced.
+- Sizes (0.1.8): files and disks in decimal units as Finder counts them,
+  memory in 1,024-based units as macOS does, one rule for the UI and the
+  backend.
+
+- Apps show their own icons (0.1.6, D-38): the rail's rows and place
   headers, Home's apps and Needs you, History, a project's sessions and
   the palette show each app's icon as it is installed on your Mac (the
   Claude app, ChatGPT, Terminal, an editor, AI Juggler), read from the
@@ -241,6 +259,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The lifecycle forwarder ended after its first quiet half-second, so
+  sessions AI Juggler ran weren't recorded as ended, restarted after a
+  crash or notified (0.1.8). A panicking pass no longer stops a
+  background tick.
+- The Prices total was one model on one day, and empty once a model had
+  no list price; the stale-pricing warning could never show (0.1.8).
+- Counts that round up read in the next unit ("1.0M", never "1000k").
+
+- Usage › Prices and details shows prices (0.1.8). It leads with the
+  total at API list prices, what you pay and the models with no list
+  price; then one row per session and day, named by its title and
+  project (never its id), with the estimate right after the model and the
+  session's models folded into one row you can open. Nothing scrolls
+  sideways, rows keep one height, a model with no list price reads "No
+  list price", and the total stays under the dollar column. The total
+  was one model's one day before, and vanished once any model had no
+  list price; it now sums every priced model and names the others.
+  gpt-6.1-terra has its OpenAI list price; codex-auto-review has none
+  published and stays unpriced.
 - Usage shows each account's sessions left and its burn-down again,
   under its runway card: "About 6 usual sessions left (each about 10%)",
   the chart, and when this pace runs out. The new Usage dashboard had

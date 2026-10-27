@@ -580,6 +580,7 @@ pub fn kimi_code_spec() -> juggler_adapter::ToolSpec {
         // Kimi Code Desktop shares the default home but can't be started
         // per account (research §10): tracked by AJ-E1610, not here.
         desktop_app: None,
+        app_meter: false,
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,

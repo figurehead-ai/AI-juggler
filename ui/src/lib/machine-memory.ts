@@ -72,15 +72,8 @@ export function otherAppWords(app: OtherAppInfo): string {
  * AI tool (the 0.1.4 review). */
 export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: string) => string | null): string | null {
   if (alert.other_apps.length > 0) return `Other apps are using most of the memory: ${alert.other_apps.map(otherAppWords).join(", ")}`;
-  const who = alert.session_id
-    ? (nameOf(alert.session_id) ?? "a session")
-    : alert.place
-      ? alert.place === "desktop"
-        ? "The Claude app"
-        : alert.place === "terminal"
-          ? "claude in a terminal"
-          : (alert.subject_name ?? "Another app")
-      : null;
+  // A tool AI Juggler didn't start: named in its adapter's words.
+  const who = alert.session_id ? (nameOf(alert.session_id) ?? "a session") : alert.place ? (alert.subject_name ?? null) : null;
   if (!who) return null;
   const figures = [
     alert.subject_cpu !== null ? `CPU ${Math.round(alert.subject_cpu)}%` : null,
@@ -95,7 +88,8 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
   // A tool AI Juggler didn't start is named as a whole: its windows'
   // figure, and how many it sums (the 0.0.12 report).
   // Another app's group sums its sessions (AJ-E2407).
-  const unit = alert.subject_name ? "sessions" : "windows";
+  // (its key is `app:<app>:<tool>`, the backend's group for them).
+  const unit = alert.place?.startsWith("app:") ? "sessions" : "windows";
   const windows = (alert.subject_windows ?? 0) > 1 ? ` across ${alert.subject_windows} ${unit}` : "";
   // A session's name keeps its own case ("feat/read-model").
   return `${who} is using ${what}${windows}`;

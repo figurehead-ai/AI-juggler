@@ -44,10 +44,13 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .into_iter()
             .map(|project| (project.root, project.id.to_string()))
             .collect();
-        let sessions: HashMap<String, String> = storage
+        // The newest session on each account's conversation (a later one
+        // replaces an earlier in the map).
+        let sessions: HashMap<(String, String), String> = storage
             .sessions()
             .conversation_links()?
             .into_iter()
+            .map(|(account, conversation, session)| ((account, conversation), session))
             .collect();
         (labels, folders, projects, sessions, homes)
     };
@@ -74,7 +77,9 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                     &conversation.tool,
                     &summary.id,
                 ),
-                session_id: sessions.get(&summary.id).cloned(),
+                session_id: sessions
+                    .get(&(conversation.account_id.clone(), summary.id.clone()))
+                    .cloned(),
                 project_id: root.and_then(|root| projects.get(&root).cloned()),
                 account_label: labels
                     .get(&conversation.account_id)

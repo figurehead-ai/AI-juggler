@@ -142,7 +142,17 @@ switch-lab project claude_a claude_b codex out:
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
       AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
-      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
+
+# AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
+# old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
+switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME DISABLE_AUTOUPDATER=1 AIJ_LAB_SUITE=outside \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{root}}" \
+      AIJ_LAB_CLAUDE_A="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      AIJ_LAB_PROBE="{{probe}}" AIJ_LAB_JOURNEYS="{{journeys}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_outside_live --exact
 
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:

@@ -312,6 +312,47 @@ fn a_claude_run_as_its_search_helper_is_not_a_session() {
     );
 }
 
+/// The lab (2026-10-26): `claude` from the native installer, started in
+/// Terminal, runs as its versioned file (`~/.local/share/claude/versions/
+/// 2.1.310`, named for its version) and was in neither This Mac nor the
+/// live view. Its helpers by other names still aren't sessions.
+#[test]
+fn the_native_installers_versioned_claude_is_a_session() {
+    use juggler_adapters::claude_code::is_cli_process;
+    let versioned = Path::new("/Users/you/.local/share/claude/versions/2.1.310");
+    assert!(is_cli_process("2.1.310", Some(versioned), "claude"));
+    assert!(is_cli_process(
+        "2.1.310",
+        Some(versioned),
+        "claude --resume 7f0c1a55-0001"
+    ));
+    assert!(is_cli_process(
+        "2.1.310",
+        Some(versioned),
+        "/Users/you/.local/share/claude/versions/2.1.310 -c"
+    ));
+    assert!(
+        is_cli_process("2.1.310", Some(versioned), ""),
+        "an unreadable command line"
+    );
+    assert!(!is_cli_process(
+        "2.1.310",
+        Some(versioned),
+        "ugrep -r --json needle ."
+    ));
+    // A version-named file anywhere else is not Claude Code.
+    assert!(!is_cli_process(
+        "2.1.310",
+        Some(Path::new("/Users/you/tools/versions/2.1.310")),
+        "claude"
+    ));
+    assert!(!is_cli_process(
+        "beta",
+        Some(Path::new("/Users/you/.local/share/claude/versions/beta")),
+        "claude"
+    ));
+}
+
 /// The docs fact-check (fix batch 4): AI Juggler never opens Claude's
 /// `.credentials.json`. A file whose contents claim it expired long ago
 /// still reads as signed in: only its presence and size count. An API key

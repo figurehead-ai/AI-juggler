@@ -21,6 +21,7 @@ const MEMORY = {
   detail: "macOS reports memory pressure",
   session_id: "sess-2",
   place: null,
+  subject_name: null,
   subject_bytes: 3_200_000_000,
   subject_estimate: false,
   // The backend sends only what's high: a memory alert carries no CPU.
@@ -47,7 +48,9 @@ const CPU = {
   title: "The processor has been flat out for minutes",
   detail: "97% busy for over two minutes",
   session_id: null,
-  place: "desktop",
+  // A tool AI Juggler didn't start: its This Mac group, in its words.
+  place: "claude-app",
+  subject_name: "The Claude app",
   // … and a CPU alert no memory.
   subject_bytes: null,
   subject_estimate: false,
@@ -113,7 +116,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, "tight", [MEMORY], theme);
     const item = page.getByTestId("home-need-mac");
     await expect(item).toContainText("Your Mac is under memory pressure");
-    await expect(item).toContainText("ai-juggler is using 3.2 GB");
+    await expect(item).toContainText("ai-juggler is using 3.0 GB");
     // Home says it once, in Needs you: no banner; the headline counts it
     // (AJ-E2105).
     await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");

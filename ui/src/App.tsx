@@ -921,7 +921,7 @@ export default function App() {
                   </ScreenBoundary>
                 </div>
               ) : selection.kind === "conversation" ? (
-                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} />
+                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
               ) : selection.kind === "pool" ? (
                 <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
               ) : (

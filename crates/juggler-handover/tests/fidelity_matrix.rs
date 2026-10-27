@@ -330,6 +330,38 @@ fn full_matrix_snapshot_is_committed_and_stable() {
     }
 }
 
+/// Live lab 12: the switch screen said skills don't carry from Claude to
+/// Codex while its set-up step carried the lab's skill there (AJ-E1542's
+/// mapping, both ways). Skills now translate as MCP servers do, and the
+/// words stay a fresh start: another tool never continues the same
+/// conversation, proven or not.
+#[test]
+fn claude_and_codex_carry_skills_and_still_start_fresh() {
+    use juggler_handover::fidelity::{
+        ArtifactKind, Disposition, FidelityLabel, base_dispositions, score_pair,
+    };
+    for (from, to) in [("claude-code", "codex"), ("codex", "claude-code")] {
+        let mut input = base_dispositions(from, to);
+        assert!(
+            matches!(
+                input.dispositions.get(&ArtifactKind::Skills),
+                Some(Disposition::Translate {
+                    untranslated: false,
+                    keys_dropped: false
+                })
+            ),
+            "skills translate between Claude Code and Codex"
+        );
+        for validated in [false, true] {
+            input.flags.validated = validated;
+            let scored = score_pair(&input);
+            assert_eq!(scored.described, FidelityLabel::F1);
+            assert_eq!(scored.label, FidelityLabel::F1);
+            assert_eq!(scored.described.user_label(), "Full story, fresh start");
+        }
+    }
+}
+
 /// Missing dispositions score Drop — the honest default, never an
 /// invented Copy.
 #[test]

@@ -16,11 +16,11 @@ import {
   stateChip,
   tokenSummary,
   ageSummary,
-  formatBytes,
 } from "./indicator";
 import { QuotaBar, Sparkline } from "./primitives";
 import { RowDetails } from "./row-details";
 import { chipToneClasses } from "./SessionCards";
+import { memorySize } from "../lib/compact";
 
 /**
  * The two-line card variant (AJ-E402 Req.4): identical I-01..I-11 fields
@@ -38,7 +38,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
   const samples = rememberResourceSample(session.id, session.cpu_pct, session.rss_bytes);
   const resources =
     session.cpu_pct !== null && session.rss_bytes !== null
-      ? `${Math.round(session.cpu_pct)}% · ${formatBytes(session.rss_bytes)}`
+      ? `${Math.round(session.cpu_pct)}% · ${memorySize(session.rss_bytes)}`
       : null;
   return (
     <button

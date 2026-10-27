@@ -29,14 +29,7 @@ pub struct TaskItem {
 #[must_use]
 pub fn summarize(name: &str, input: &serde_json::Value) -> String {
     let field = |key: &str| input.get(key).and_then(serde_json::Value::as_str);
-    let short = |text: &str| -> String {
-        let one_line = text.replace(['\n', '\r'], " ");
-        let mut cut: String = one_line.chars().take(SHOWN).collect();
-        if one_line.chars().count() > SHOWN {
-            cut.push('…');
-        }
-        cut
-    };
+    let short = shorten;
     match name {
         "Read" | "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => {
             let path = field("file_path")
@@ -90,6 +83,8 @@ pub fn summarize(name: &str, input: &serde_json::Value) -> String {
                 format!("edited {}", files.join(", "))
             }
         }
+        // Codex's code mode: one script whose own tool calls are the work.
+        "exec" => code_mode(field("input").unwrap_or("")),
         other => format!("used {other}"),
     }
 }
@@ -108,6 +103,69 @@ pub fn edited_files(name: &str, input: &serde_json::Value) -> Vec<String> {
         "apply_patch" => patched_files(field("input").or_else(|| field("patch")).unwrap_or("")),
         _ => Vec::new(),
     }
+}
+
+/// What a Codex code-mode script (`exec`, codex-cli 0.163) did: the
+/// commands it ran (`tools.exec_command({cmd: …})`) and the files its
+/// patches touched (`tools.apply_patch(…)`), in a few words. Live lab 13:
+/// every call of a Codex task read "used exec", so the handover said
+/// nothing of the work.
+fn code_mode(script: &str) -> String {
+    let mut done: Vec<String> = Vec::new();
+    let mut at = 0;
+    while let Some(found) = script[at..].find("cmd") {
+        let after = at + found + 3;
+        at = after;
+        let rest = script[after..].trim_start_matches(['"', '\'']).trim_start();
+        let Some(value) = rest.strip_prefix(':') else {
+            continue;
+        };
+        if let Some(command) = js_string(value.trim_start()) {
+            done.push(format!(
+                "ran \"{}\"",
+                shorten(strip_shell_wrapper(&command))
+            ));
+        }
+    }
+    // The patch is a string literal in the script: its line breaks are
+    // escapes there.
+    let files = patched_files(&script.replace("\\n", "\n"));
+    if !files.is_empty() {
+        done.push(format!("edited {}", files.join(", ")));
+    }
+    if done.is_empty() {
+        "ran a script".to_owned()
+    } else {
+        done.join("; ")
+    }
+}
+
+/// The JavaScript string literal `text` starts with, unescaped.
+fn js_string(text: &str) -> Option<String> {
+    let mut chars = text.chars();
+    let quote = chars.next().filter(|c| matches!(c, '"' | '\'' | '`'))?;
+    let mut out = String::new();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => match chars.next()? {
+                'n' | 'r' | 't' => out.push(' '),
+                other => out.push(other),
+            },
+            c if c == quote => return Some(out),
+            c => out.push(c),
+        }
+    }
+    None
+}
+
+/// `text` on one line, cut to [`SHOWN`] characters.
+fn shorten(text: &str) -> String {
+    let one_line = text.replace(['\n', '\r'], " ");
+    let mut cut: String = one_line.chars().take(SHOWN).collect();
+    if one_line.chars().count() > SHOWN {
+        cut.push('…');
+    }
+    cut
 }
 
 /// The task list a tool call set, when it set one: Claude Code's
@@ -213,6 +271,25 @@ fn patched_files(patch: &str) -> Vec<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// Live lab 13: Codex 0.163's code mode runs one `exec` script per
+    /// step, and every one read "used exec". The script's commands and
+    /// patched files say what it did.
+    #[test]
+    fn a_codex_code_mode_script_says_what_it_ran_and_edited() {
+        let script = "text(await tools.exec_command({cmd:\"cat AGENTS.md\",\"max_output_tokens\":1000}));\n\
+             text(await tools.apply_patch(\"*** Begin Patch\\n*** Add File: /Users/you/lab/j2/calc.py\\n+def add(a, b):\\n*** Update File: /Users/you/lab/j2/test_calc.py\\n*** End Patch\"));\n\
+             text(await tools.exec_command({\"cmd\": 'python3 -m unittest', max_output_tokens: 500}));\n";
+        assert_eq!(
+            summarize("exec", &json!({ "input": script })),
+            "ran \"cat AGENTS.md\"; ran \"python3 -m unittest\"; edited j2/calc.py, j2/test_calc.py"
+        );
+        assert_eq!(
+            summarize("exec", &json!({"input": "text(ALL_TOOLS.length);"})),
+            "ran a script",
+            "a script that runs nothing says only that"
+        );
+    }
 
     #[test]
     fn each_tool_says_what_it_did() {

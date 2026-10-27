@@ -890,7 +890,11 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
             short: "Codex's (OpenAI)".to_owned(),
         },
         same_as: "as when you run Codex yourself".to_owned(),
-        desktop_app: None,
+        // The Codex app ships inside ChatGPT.app (the Dock calls it
+        // ChatGPT) and uses the same Codex home: its threads are this
+        // setup's. Its limits come in Codex's own rollouts, not a meter.
+        desktop_app: Some("ChatGPT".to_owned()),
+        app_meter: false,
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,

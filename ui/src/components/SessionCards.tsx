@@ -24,11 +24,11 @@ import {
   stateChip,
   tokenSummary,
   ageSummary,
-  formatBytes,
   type StateChipTone,
 } from "./indicator";
 import { QuotaBar, Sparkline } from "./primitives";
 import { RowDetails } from "./row-details";
+import { memorySize } from "../lib/compact";
 
 /** Tone classes for the compact state/attention chip (token-driven). */
 export const chipToneClasses: Record<StateChipTone, string> = {
@@ -93,7 +93,7 @@ export function SessionRow({
   const samples = rememberResourceSample(session.id, session.cpu_pct, session.rss_bytes);
   const resources =
     session.cpu_pct !== null && session.rss_bytes !== null
-      ? `${Math.round(session.cpu_pct)}% · ${formatBytes(session.rss_bytes)}`
+      ? `${Math.round(session.cpu_pct)}% · ${memorySize(session.rss_bytes)}`
       : null;
   const sampled = freshness[session.id];
   const quotaStale =

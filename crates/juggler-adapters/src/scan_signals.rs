@@ -204,17 +204,16 @@ pub fn project_seed_names(config_dirs: &[std::path::PathBuf]) -> Vec<String> {
 }
 
 /// S10: desktop harness presence — `/Applications/*.app` existence
-/// only (names, never bundle contents).
+/// only (names, never bundle contents). `bundles` are the tools' own apps,
+/// from their adapters (`Claude.app`, `ChatGPT.app`): never a list here.
 #[must_use]
-pub fn desktop_apps_present(applications: &Path) -> Vec<String> {
-    const KNOWN: [&str; 2] = ["Claude.app", "ZCode.app"];
-    let mut out = Vec::new();
-    for app in KNOWN {
-        if applications.join(app).exists() {
-            out.push(app.to_owned());
-        }
-    }
-    out
+pub fn desktop_apps_present<S: AsRef<str>>(applications: &Path, bundles: &[S]) -> Vec<String> {
+    bundles
+        .iter()
+        .map(AsRef::as_ref)
+        .filter(|app| !app.is_empty() && !app.contains('/') && applications.join(app).exists())
+        .map(str::to_owned)
+        .collect()
 }
 
 #[cfg(test)]

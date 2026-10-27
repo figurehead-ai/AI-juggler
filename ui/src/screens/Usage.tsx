@@ -86,7 +86,7 @@ export function UsageScreen({
       </div>
 
       {prices && (
-        <Modal title="Prices and details" subtitle="What each model cost at list prices, by day" wide onClose={() => setPrices(false)} testId="usage-prices">
+        <Modal title="Prices and details" subtitle="What your usage would cost at API list prices, by session and day" table onClose={() => setPrices(false)} testId="usage-prices">
           <CostMatrix />
         </Modal>
       )}

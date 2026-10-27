@@ -210,6 +210,9 @@ fn a_team_plans_missing_week_gives_no_weekly_sample_and_limits_rows_fill_in() {
     let cache = profile_limits_from(text.as_bytes()).unwrap().cache.unwrap();
     assert_eq!(cache.samples.len(), 1);
     assert_eq!(cache.samples[0].0, WindowKind::FiveHour);
+    // The model's week is a limit of its own, never the whole week.
+    assert_eq!(cache.model_weeks.len(), 1);
+    assert_eq!(cache.model_weeks[0].0, "Opus");
 
     // Only the rows: they fill in, by kind.
     let rows_only = state_file(
@@ -226,6 +229,142 @@ fn a_team_plans_missing_week_gives_no_weekly_sample_and_limits_rows_fill_in() {
     assert_eq!(cache.samples.len(), 2);
     assert_eq!(cache.samples[1].0, WindowKind::Weekly { anchor_ms: None });
     assert_eq!(cache.samples[1].1.used_pct, 33.0);
+}
+
+/// The maintainer's report (0.1.6): a team seat read "Claude Code reports
+/// no weekly limit", while Claude shows a week on one model. The shapes of
+/// the real state files (2026-10-26, Claude Code 2.1.299, key paths and
+/// types only; every value here is invented).
+fn team_limits() -> &'static str {
+    r#"[{"kind":"session","group":"session","percent":7,"severity":"normal","resets_at":"2026-10-25T19:00:00+00:00","scope":null,"is_active":true},
+        {"kind":"weekly_scoped","group":"weekly","percent":0,"severity":"normal","resets_at":"2026-10-29T20:00:00+00:00","scope":{"model":{"id":null,"display_name":"Fable"},"surface":null},"is_active":false}]"#
+}
+
+#[test]
+fn a_team_seats_only_week_is_its_models_own_week() {
+    let text = state_file(
+        "acct-a",
+        r#"{"utilization":7,"resets_at":"2026-10-25T19:00:00+00:00","limit_dollars":null,"used_dollars":null,"remaining_dollars":null,"locked_reason":null}"#,
+        "null",
+        team_limits(),
+    );
+    let cache = profile_limits_from(text.as_bytes()).unwrap().cache.unwrap();
+    assert_eq!(
+        cache
+            .samples
+            .iter()
+            .map(|(kind, _)| *kind)
+            .collect::<Vec<_>>(),
+        [WindowKind::FiveHour],
+        "no all-models week is made up"
+    );
+    assert_eq!(cache.model_weeks.len(), 1);
+    let (model, week) = &cache.model_weeks[0];
+    assert_eq!(model, "Fable");
+    assert_eq!(
+        week.used_pct, 0.0,
+        "0% used is a reading, not a missing one"
+    );
+    assert_eq!(week.ts, T0);
+    assert_eq!(week.confidence, Confidence::Measured);
+    assert_eq!(
+        week.resets_at,
+        juggler_core::time::timestamp_ms("2026-10-29T20:00:00Z")
+    );
+}
+
+#[test]
+fn a_personal_plan_has_the_whole_week_and_a_models_week_beside_it() {
+    let text = format!(
+        r#"{{"oauthAccount":{{"accountUuid":"acct-a","organizationUuid":"org-personal"}},
+        "cachedUsageUtilization":{{"fetchedAtMs":{T0},"accountUuid":"acct-a","utilization":{{
+            "five_hour":{{"utilization":12,"resets_at":"2026-10-25T19:00:00+00:00"}},
+            "seven_day":{{"utilization":40,"resets_at":"2026-10-30T04:00:00+00:00"}},
+            "limits":[{{"kind":"session","group":"session","percent":12,"resets_at":"2026-10-25T19:00:00+00:00","scope":null,"is_active":true}},
+                {{"kind":"weekly_all","group":"weekly","percent":40,"resets_at":"2026-10-30T04:00:00+00:00","scope":null,"is_active":false}},
+                {{"kind":"weekly_scoped","group":"weekly","percent":55,"resets_at":"2026-10-30T04:00:00+00:00","scope":{{"model":{{"id":null,"display_name":"Fable"}},"surface":null}},"is_active":false}}],
+            "seven_day_breakdown":{{"as_of":"2026-10-25T12:00:00+00:00","window_started_at":"2026-10-23T04:00:00+00:00","rows":[{{"key":"k","display_name":"Fable","percent":30}}]}},
+            "weekly_scoped_shares":[{{"limit_index":2,"used_percent_of_weekly":20,"allowance_percent_of_weekly":50}}]}}}}}}"#
+    );
+    let cache = profile_limits_from(text.as_bytes()).unwrap().cache.unwrap();
+    assert_eq!(cache.samples.len(), 2);
+    assert_eq!(cache.samples[1].0, WindowKind::Weekly { anchor_ms: None });
+    assert_eq!(cache.samples[1].1.used_pct, 40.0);
+    assert_eq!(cache.model_weeks.len(), 1);
+    assert_eq!(cache.model_weeks[0].0, "Fable");
+    assert_eq!(cache.model_weeks[0].1.used_pct, 55.0);
+}
+
+#[test]
+fn a_window_with_no_figure_falls_back_to_its_limits_row() {
+    // `seven_day` is there, but its `utilization` is null: the row says.
+    let text = state_file(
+        "acct-a",
+        r#"{"utilization":null,"resets_at":null}"#,
+        r#"{"utilization":null,"resets_at":null}"#,
+        r#"[{"kind":"session","group":"session","percent":9,"resets_at":"2026-10-25T19:00:00+00:00"},
+            {"kind":"weekly_all","group":"weekly","percent":21,"resets_at":"2026-10-30T04:00:00+00:00"}]"#,
+    );
+    let cache = profile_limits_from(text.as_bytes()).unwrap().cache.unwrap();
+    let got: Vec<(WindowKind, f64, Option<i64>)> = cache
+        .samples
+        .iter()
+        .map(|(kind, s)| (*kind, s.used_pct, s.resets_at))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (
+                WindowKind::FiveHour,
+                9.0,
+                juggler_core::time::timestamp_ms("2026-10-25T19:00:00Z")
+            ),
+            (
+                WindowKind::Weekly { anchor_ms: None },
+                21.0,
+                juggler_core::time::timestamp_ms("2026-10-30T04:00:00Z")
+            ),
+        ]
+    );
+    // No figure anywhere: no reading, never 0%.
+    let none = state_file(
+        "acct-a",
+        r#"{"utilization":null}"#,
+        r#"{"utilization":null}"#,
+        "[]",
+    );
+    let cache = profile_limits_from(none.as_bytes()).unwrap().cache.unwrap();
+    assert!(cache.samples.is_empty());
+}
+
+#[test]
+fn an_odd_limits_row_gives_nothing_and_spoils_nothing() {
+    let long = "x".repeat(MODEL_NAME_MAX + 1);
+    let rows = format!(
+        r#"[{{"kind":7,"percent":3}},
+            {{"kind":"weekly_scoped","percent":5,"scope":"Fable"}},
+            {{"kind":"weekly_scoped","percent":5,"scope":{{"model":"Fable"}}}},
+            {{"kind":"weekly_scoped","percent":5,"scope":{{"model":{{"display_name":"  "}}}}}},
+            {{"kind":"weekly_scoped","percent":5,"scope":{{"model":{{"display_name":"{long}"}}}}}},
+            {{"kind":"weekly_scoped","percent":5,"scope":{{"model":{{"display_name":"Bad\u0007"}}}}}},
+            {{"kind":"weekly_scoped","percent":"high","scope":{{"model":{{"display_name":"Sonnet"}}}}}},
+            {{"kind":"weekly_scoped","percent":250,"scope":{{"model":{{"display_name":" Opus "}}}}}},
+            {{"kind":"weekly_scoped","percent":1,"scope":{{"model":{{"display_name":"Opus"}}}}}}]"#
+    );
+    let text = state_file(
+        "acct-a",
+        r#"{"utilization":42,"resets_at":null}"#,
+        "null",
+        &rows,
+    );
+    let cache = profile_limits_from(text.as_bytes()).unwrap().cache.unwrap();
+    assert_eq!(cache.samples.len(), 1, "the 5-hour reading still comes");
+    let weeks: Vec<(&str, f64)> = cache
+        .model_weeks
+        .iter()
+        .map(|(model, s)| (model.as_str(), s.used_pct))
+        .collect();
+    assert_eq!(weeks, [("Opus", 100.0)], "named plainly, clamped, once");
 }
 
 #[test]

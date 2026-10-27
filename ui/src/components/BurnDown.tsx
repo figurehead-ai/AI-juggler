@@ -8,7 +8,7 @@
  */
 import type { JSX } from "react";
 import { quotaTierTag } from "./primitives";
-import { resetClock } from "../lib/quotaWindow";
+import { limitWindows, resetClock } from "../lib/quotaWindow";
 import type { QuotaDisplayData, RunwayDisplay } from "../lib/ipc/quota";
 
 const W = 300;
@@ -105,12 +105,12 @@ function WindowRunway({ name, runway }: { name: string; runway: RunwayDisplay })
   );
 }
 
-/** Each window that has a runway, 5-hour first. Nothing when neither does. */
+/** Each window that has a runway, 5-hour first, then the week and each
+ * model's own week. Nothing when none does. */
 export function BurnDowns({ display }: { display: QuotaDisplayData | undefined }): JSX.Element | null {
-  const windows = [
-    ["5-hour window", display?.five_hour?.runway],
-    ["This week", display?.weekly?.runway],
-  ].filter((entry): entry is [string, RunwayDisplay] => entry[1] != null);
+  const windows = limitWindows(display)
+    .map((entry): [string, RunwayDisplay | null | undefined] => [entry.label, entry.window?.runway])
+    .filter((entry): entry is [string, RunwayDisplay] => entry[1] != null);
   if (windows.length === 0) return null;
   return (
     <div className="flex flex-col gap-3 border-t border-hairline/60 pt-3" data-testid="burn-downs">
