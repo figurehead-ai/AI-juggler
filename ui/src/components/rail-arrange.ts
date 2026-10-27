@@ -1,5 +1,5 @@
 /**
- * D-45 — arranging Open now in Your order: drag a row (within its place)
+ * D-47 — arranging Open now in Your order: drag a row (within its place)
  * or a place by its handle, or move the focused one with ⌥⌘↑ and ⌥⌘↓ (the
  * drag's keyboard twin; Ctrl+Alt elsewhere). Each move is said in a polite
  * live region ("Moved to position 2 of 5"). Pointer events only: no

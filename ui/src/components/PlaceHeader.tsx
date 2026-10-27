@@ -2,7 +2,7 @@
  * AJ-E2104 — a place's header in the rail: the fold chevron, the app's
  * icon and name, the profile's badge and name, a count (a click opens the
  * profile's page here), and its ↗ (Open), which brings the running app
- * forward (never launches it). D-45: in Your order its handle shows on
+ * forward (never launches it). D-47: in Your order its handle shows on
  * hover and focus; ⌥⌘↑ and ⌥⌘↓ move it.
  */
 import type { JSX, ReactNode } from "react";
@@ -43,7 +43,7 @@ export function PlaceHeader({
   onPage?: () => void;
   /** Its ⌘ digit, when it has one. */
   shortcut?: number;
-  /** D-45: Your order is on: it can be dragged (its handle on hover and focus). */
+  /** D-47: Your order is on: it can be dragged (its handle on hover and focus). */
   arrange?: Arrangeable | null;
   /** A header of another lens (an account's avatar). */
   children?: ReactNode;

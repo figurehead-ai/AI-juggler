@@ -68,7 +68,7 @@ export interface RailItem {
   /** AJ-E1502: the user pinned it (an AI Juggler session's own pin, or
    * the rail's pin of one another app runs). Pinned rows lead their group. */
   pinned: boolean;
-  /** When it started: the order it was first seen in (Your order, D-45). */
+  /** When it started: the order it was first seen in (Your order, D-47). */
   startMs: number;
 }
 
@@ -279,7 +279,7 @@ export function needsYou(items: RailItem[]): RailItem[] {
 
 /** Open now: open and interactive. A session that needs you stays in its
  * place here too, its state in amber; Needs you lists it as well, as a
- * shortcut (D-45, which replaced "not in Needs you"). A pinned session
+ * shortcut (D-47, which replaced "not in Needs you"). A pinned session
  * stays where the user put it, under its place, once it has ended too
  * (AJ-E1502; Ended today leaves it out, so it is never in neither). */
 export function openNow(item: RailItem): boolean {

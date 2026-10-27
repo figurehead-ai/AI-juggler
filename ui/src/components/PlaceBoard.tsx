@@ -6,7 +6,7 @@
  * focus is in the list, moves through them with ↑ and ↓, and takes ⌘1–9
  * to bring a place's app forward (stable: places never re-sort).
  *
- * D-45: Open now keeps the order picked on its header, Your order by
+ * D-47: Open now keeps the order picked on its header, Your order by
  * default (nothing moves by itself; rows and places are dragged, or moved
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
@@ -142,7 +142,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
     );
   };
-  // D-45: dragging and ⌥⌘↑ / ⌥⌘↓ in Your order.
+  // D-47: dragging and ⌥⌘↑ / ⌥⌘↓ in Your order.
   const showAll = (key: string) => setToggled((current) => new Set(current).add(`${key}#all`));
   const arrange = useArrange({
     root,
@@ -329,7 +329,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         </div>
       ))}
       {win && <div style={{ height: win.after }} aria-hidden="true" />}
-      {/* D-45: each move said, politely ("Moved to position 2 of 5"). */}
+      {/* D-47: each move said, politely ("Moved to position 2 of 5"). */}
       <p role="status" aria-live="polite" className="sr-only" data-testid="rail-order-said">
         {arrange.said}
       </p>

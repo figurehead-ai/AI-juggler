@@ -133,7 +133,7 @@ export function menuEdge(at: number, size: number, room: number): number {
 const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
 
 /** One action in a {@link RowMenu}; with `checked`, one option of a
- * choice (a `menuitemradio`, D-45's order menu). */
+ * choice (a `menuitemradio`, D-47's order menu). */
 export function MenuItem({
   onClick,
   disabled,

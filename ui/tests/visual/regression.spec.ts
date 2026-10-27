@@ -450,7 +450,7 @@ for (const theme of THEMES) {
   });
 }
 
-// D-45: Open now in Your order, the default: a pinned row (one another
+// D-47: Open now in Your order, the default: a pinned row (one another
 // app runs, pinned in AI Juggler's own record) leads its place; one that
 // asks stays in its place, amber, and is in Needs you too; a row's handle
 // and pin on hover; the order menu open.
@@ -538,7 +538,7 @@ test("status is never colour-only", async ({ page }) => {
   }
   // Not vacuous: every session in the fixture is a row, and every row is
   // one of those checked (a dot or a Needs you mark); the dots include at
-  // least the working and the ended state. D-45: one that needs you and
+  // least the working and the ended state. D-47: one that needs you and
   // is still open is in Needs you and in its place, so it's drawn twice.
   const twice = new Set(["waiting_user", "stuck", "quota_blocked"]);
   for (const session of TODAY.sessions) {

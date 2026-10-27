@@ -6,7 +6,7 @@
  * Needs you (never grouped: a shortcut list), then Open now by place (or
  * account), then the "Also:" line, then the views turned on (ended today,
  * inactive). A session that needs you is in both: in its place, where it
- * stays (D-45), and in Needs you; each list counts it once.
+ * stays (D-47), and in Needs you; each list counts it once.
  * Nothing hidden is silent: each thing left out leaves its count — a
  * folded place its header, a long place's rest "+n more" (Latest
  * activity: its quiet rows, "+n quiet"), the rest the "Also:" line.
@@ -76,7 +76,7 @@ export interface LineInputs {
   accountOf?: AccountOf;
   /** The Pool lens's pools (AJ-E1702), once you've made one. */
   poolOf?: PoolOf;
-  /** Open now's order (D-45): Your order when not given. */
+  /** Open now's order (D-47): Your order when not given. */
   order?: OrderInputs;
 }
 

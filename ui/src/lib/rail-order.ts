@@ -1,5 +1,5 @@
 /**
- * D-45 — Open now's order, as pure rules (the store that keeps it is
+ * D-47 — Open now's order, as pure rules (the store that keeps it is
  * `rail-order-store.ts`). Three orders, picked on Open now's header and in
  * Settings › General:
  *

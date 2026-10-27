@@ -1,12 +1,12 @@
 /**
  * AJ-E2104 — the rail's own icons: its View button, Open now's window,
- * a place's Open, History, and the app kinds a place can be; D-45's drag
+ * a place's Open, History, and the app kinds a place can be; D-47's drag
  * handle and the three orders.
  */
 import type { SVGProps } from "react";
 import { base } from "./icons";
 
-/** D-45: a drag handle (six dots): a row or place is dragged by it. */
+/** D-47: a drag handle (six dots): a row or place is dragged by it. */
 export function IconGrip(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

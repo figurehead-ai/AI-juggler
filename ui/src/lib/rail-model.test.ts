@@ -86,7 +86,7 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
       seen: {},
     });
     expect(needsYou(items).map((item) => item.key)).toEqual(["c:a1/theirs", "s:mine", "s:lim", "c:a1/rev"]);
-    // D-45 (it was "not in Needs you"): what needs you stays open in its
+    // D-47 (it was "not in Needs you"): what needs you stays open in its
     // place too; Needs you is a shortcut to it.
     expect(items.filter(openNow).map((item) => item.key)).toEqual(["s:mine", "s:lim", "c:a1/theirs", "c:a1/rev", "c:a1/calm"]);
   });
@@ -174,7 +174,7 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     const pin = sessionItem(own("pin", { status: "finished", pinned: true, last_activity_ms: NOW - 9_000_000 }), none, false);
     expect(openNow(pin)).toBe(true);
     expect(endedToday(pin, NOW)).toBe(false);
-    // D-45: a pinned one that asks stays in its place, and Needs you lists it.
+    // D-47: a pinned one that asks stays in its place, and Needs you lists it.
     const asks = sessionItem(own("ask", { status: "waiting_user", pinned: true }), none, false);
     expect(openNow(asks)).toBe(true);
     expect(needsYou([asks])).toHaveLength(1);
@@ -264,7 +264,7 @@ describe("the maintainer's review of 0.1.4: the way out, and folding in place", 
     const items = [conversationItem(talk("asks", { state: "asks_you" }), none, null), conversationItem(talk("busy", { state: "working" }), none, null)];
     const { lines } = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null });
     const kinds = (folded: ("needs" | "open")[]) => foldSections(lines, new Set(folded)).map((line) => line.kind);
-    // D-45: the one asking is a Needs you row and a row in its place.
+    // D-47: the one asking is a Needs you row and a row in its place.
     expect(kinds([])).toEqual(["section", "need", "section", "header", "row", "row", "also"]);
     expect(kinds(["needs"])).toEqual(["section", "section", "header", "row", "row", "also"]);
     expect(kinds(["open"])).toEqual(["section", "need", "section", "also"]);

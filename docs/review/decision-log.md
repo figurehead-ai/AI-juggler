@@ -985,7 +985,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-45 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-47 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1226,7 +1226,11 @@ has no "edit anything" path.
   `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
   `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.
 
-### D-45 Open now stays put: Your order, pins, drag to reorder and an order menu — SETTLED (2026-10-27)
+> D-45 and D-46 were settled on main for 0.1.9 (own sheets may suggest by
+> room; the optional Figurehead step returns to first run) and arrive here
+> when 0.1.9 merges forward.
+
+### D-47 Open now stays put: Your order, pins, drag to reorder and an order menu — SETTLED (2026-10-27)
 
 **Ruling.** The maintainer, testing 0.1.8: "the order the sessions and chat
 windows are shown … seem to be bouncing just too much … by default users

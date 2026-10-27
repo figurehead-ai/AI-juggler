@@ -1,5 +1,5 @@
 /**
- * D-45 — Open now's order as the user meets it: the order menu on its
+ * D-47 — Open now's order as the user meets it: the order menu on its
  * header (three orders with icons and what each does, then Reset my order,
  * with Undo), the same choice in Settings, the keyboard twin of a drag
  * (⌥⌘↑ / ⌥⌘↓, said politely, focus kept), the handle and pin shown on

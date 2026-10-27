@@ -10,7 +10,7 @@
  * - A **place header**: a fold chevron, the app's icon and name, the
  *   profile's badge and name, and a count (a click opens the profile's page here), and
  *   its ↗ (Open), which brings the running app forward (never launches it).
- * - D-45: in Your order, a row and a place show a drag handle on hover
+ * - D-47: in Your order, a row and a place show a drag handle on hover
  *   and focus (⌥⌘↑ and ⌥⌘↓ are its twin); a row shows its pin there too.
  *   A row that needs you stays in its place, its state in amber.
  *
@@ -159,7 +159,7 @@ function RowShell({
 }: RowProps & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   // One hook either way: the session's menu, or the conversation's. A
-  // session another app runs is pinned in the rail's own record (D-45).
+  // session another app runs is pinned in the rail's own record (D-47).
   const local = item.session ? undefined : { pinConversation: () => togglePin(item.key), isConversationPinned: () => item.pinned };
   const menu = useItemMenu(item.session ? "session" : "conversation", (item.session ?? item.conversation) as never, item.title, local);
   const where = goToWhere(item);
@@ -263,7 +263,7 @@ function whenWords(item: RailItem, now: number): string {
 }
 
 /** An Open now row under its place. One that needs you keeps its place
- * and says its state in amber (D-45); Needs you lists it as well, with
+ * and says its state in amber (D-47); Needs you lists it as well, with
  * why. One vocabulary on every row (AJ-E2104 Req.3). */
 export function PlaceRow(props: RowProps & { edge: string | null; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const { item, now, edge, subagents } = props;

@@ -1,5 +1,5 @@
 /**
- * D-45 — the one store of Open now's order (`rail-order.ts` has the rules):
+ * D-47 — the one store of Open now's order (`rail-order.ts` has the rules):
  * the chosen order, the user's arrangement of rows and places, folded
  * places and the pins of sessions other apps run.
  *

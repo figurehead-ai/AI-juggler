@@ -126,7 +126,7 @@ describe("every rail element opens a page here (place lens)", () => {
       "home",
     ]);
 
-    // Section heads fold and unfold in place. D-45: the one asking stays in
+    // Section heads fold and unfold in place. D-47: the one asking stays in
     // its place in Open now too, so folding Needs you leaves that row.
     const asking = () => list.querySelectorAll('[data-rail-item="c:claude-work/outside-3"]').length;
     expect(asking()).toBe(2);

@@ -1,12 +1,12 @@
 /**
- * D-45 — what a row or place of Open now shows to be arranged in Your
+ * D-47 — what a row or place of Open now shows to be arranged in Your
  * order: the drag handle (on hover and focus), and the line where a drag
  * would land.
  */
 import type { JSX, PointerEvent as ReactPointerEvent } from "react";
 import { IconGrip } from "./icons-places";
 
-/** D-45: a row or place that can be arranged (Your order), and how a drag
+/** D-47: a row or place that can be arranged (Your order), and how a drag
  * over it looks. */
 export interface Arrangeable {
   /** The group (rows) or its own key (places). */

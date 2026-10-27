@@ -84,7 +84,7 @@ export interface ActionHost {
   goToConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   continueConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   copyConversationResume?: (conversation: ConversationInfo) => void | Promise<void>;
-  /** AJ-E1502, D-45: pinned in the rail (AI Juggler's own record). */
+  /** AJ-E1502, D-47: pinned in the rail (AI Juggler's own record). */
   pinConversation?: (conversation: ConversationInfo) => void;
   isConversationPinned?: (conversation: ConversationInfo) => boolean;
 }

@@ -148,7 +148,7 @@ export const PREVIEW_CHANGED = "aij:preview-conversations-changed";
 export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {
   if (!hasLiveBackend()) {
     // The preview and the specs' seam: a changed fixture says so (states
-    // flipping under a rail that must hold still, D-45).
+    // flipping under a rail that must hold still, D-47).
     const preview = () => handler("live");
     window.addEventListener(PREVIEW_CHANGED, preview);
     return () => window.removeEventListener(PREVIEW_CHANGED, preview);

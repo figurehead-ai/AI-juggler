@@ -95,7 +95,7 @@ describe("AJ-E1504 the typing rule", () => {
       undo: { key: "z" },
       "go-place": { key: "1", code: "Digit1" },
       "rail-view": { key: "V", shiftKey: true },
-      // D-45: a row or place moved in Your order (a field's arrows are its own).
+      // D-47: a row or place moved in Your order (a field's arrows are its own).
       "rail-move": { key: "ArrowUp", altKey: true },
       "go-home": { key: "0", code: "Digit0" },
       "go-accounts": { key: "A", shiftKey: true },

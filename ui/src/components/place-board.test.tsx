@@ -88,7 +88,7 @@ describe("the rail by place", () => {
     setOrderMode("latest");
     const view = board([]);
     await view.findByTestId("rail-open-now");
-    // D-45: a place with one to review isn't quiet (that row stays in its place).
+    // D-47: a place with one to review isn't quiet (that row stays in its place).
     const personal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "Claude|Personal")!;
     expect(within(personal).getByTestId("rail-fold").getAttribute("aria-expanded")).toBe("true");
     const codex = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "ChatGPT|Codex")!;

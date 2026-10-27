@@ -8,7 +8,7 @@
  * The order is stable (⌘1–9 go to places, so a place never moves because
  * a row changed): AI Juggler's own place first, then by app and profile.
  * That is the default; in Your order the user's arrangement comes first
- * (`rail-order.ts`, D-45). In Latest activity (`foldGroup`), a quiet
+ * (`rail-order.ts`, D-47). In Latest activity (`foldGroup`), a quiet
  * place (nothing working) folds to one header ("Work · 4 idle"), and a
  * place shows its working rows and the 3 most recent others, then
  * "+n quiet".

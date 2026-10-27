@@ -1,5 +1,5 @@
 /**
- * D-45 — Open now's order, rule by rule: in Your order a state change
+ * D-47 — Open now's order, rule by rule: in Your order a state change
  * never moves a row, a new row joins the end, pinned rows lead, a gone row
  * closes its gap and nothing else moves; drags and ⌥⌘↑/↓ moves; Reset;
  * Name and Latest activity; Needs you mirrored with each list counting a
@@ -74,7 +74,7 @@ function seenBy(items: RailItem[], order: RailOrder = EMPTY_ORDER, today = TODAY
 
 const yours = (order: RailOrder): Partial<OrderInputs> => ({ rows: rankOf(order.rows), groups: order.groups.place });
 
-describe("Your order: nothing moves by itself (D-45)", () => {
+describe("Your order: nothing moves by itself (D-47)", () => {
   it("a state change never moves a row: Working, Idle, Asks you, Done and a new event", () => {
     const start = four();
     const order = seenBy(start);

@@ -1,5 +1,5 @@
 /**
- * D-45 — Settings › General › Appearance: Open now's order, the same
+ * D-47 — Settings › General › Appearance: Open now's order, the same
  * choice as the menu on its header, and Reset my order.
  */
 import type { JSX } from "react";

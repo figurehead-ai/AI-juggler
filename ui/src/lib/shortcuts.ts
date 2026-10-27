@@ -114,7 +114,7 @@ export const SHORTCUTS = [
   // AJ-E2104: ⌘1–9 go to the places in the list (their apps forward), in
   // the list's stable order; the View is ⇧V.
   { id: "go-place", owner: "app", area: "Anywhere", keys: ["⌘1 … ⌘9"], label: "Go to a place in the list (its app forward)", match: cmdDigit([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
-  // D-45: Your order, arranged from the keyboard (the drag's twin), on a
+  // D-47: Your order, arranged from the keyboard (the drag's twin), on a
   // focused row or place.
   { id: "rail-move", owner: "rows", area: "Anywhere", keys: ["⌥⌘↑", "⌥⌘↓"], label: "Move a row or place up or down the list (Your order)", match: cmdArrow, fieldOwnsIt: true },
   { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: group, show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },

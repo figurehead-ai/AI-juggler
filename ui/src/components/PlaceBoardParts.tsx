@@ -1,6 +1,6 @@
 /**
  * AJ-E2104 — the rail by place's smaller parts: a section's head (Needs
- * you, Open now with its order menu, D-45), the fold chevron and the
+ * you, Open now with its order menu, D-47), the fold chevron and the
  * "Also:" line. `PlaceBoard` draws the list with them.
  */
 import { Fragment, type JSX, type ReactNode } from "react";
@@ -37,7 +37,7 @@ export function SectionHead({ id, count, open, onToggle, extra }: { id: "needs" 
           <Chevron open={open} />
         </button>
       </h3>
-      {/* D-45: Open now's order menu, on its head, before the fold chevron
+      {/* D-47: Open now's order menu, on its head, before the fold chevron
           (which stays at the end, as Needs you's does). */}
       {extra && <div className="absolute bottom-0 right-7 flex h-6 max-w-[55%] items-center">{extra}</div>}
     </div>

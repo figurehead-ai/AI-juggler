@@ -1,6 +1,6 @@
 /**
  * Settings › General: the theme (D-16, kept in sync with ⌘⇧L), the
- * rail's density and Open now's order (D-45). Moved out of Settings.tsx so it stays within its size.
+ * rail's density and Open now's order (D-47). Moved out of Settings.tsx so it stays within its size.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";

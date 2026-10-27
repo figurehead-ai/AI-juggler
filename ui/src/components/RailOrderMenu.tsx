@@ -1,5 +1,5 @@
 /**
- * D-45 — Open now's order menu, on its header ("Your order ▾"): Your
+ * D-47 — Open now's order menu, on its header ("Your order ▾"): Your
  * order, Latest activity or Name, each with what it does, then Reset my
  * order. AJ-E2106: an icon on every line, two groups. Settings › General
  * offers the same choice (`RailOrderChoice`).
