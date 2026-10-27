@@ -219,7 +219,7 @@ export function HomeScreen({
         }
         onChanged?.();
       } catch (cause) {
-        showToast({ tone: "warning", message: `${session.account_label}: ${errorText(cause)}`, seconds: 8 });
+        showToast({ tone: "warning", message: `${session.account_label}: ${errorText(cause)}` });
       } finally {
         setBusy(null);
       }

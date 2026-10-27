@@ -4,7 +4,8 @@
  * the bottom right says the result in words, with Undo where the action
  * can be undone (Max-Depth C1: undo beats confirm) or Retry where it
  * failed. Six seconds, a bar shows the time left, hovering or focusing it
- * pauses it; an error stays until it is closed. The switch undo window
+ * pauses it; an error, or a warning (something didn't work), stays until
+ * it is closed. The switch undo window
  * (AJ-E206) is one of these.
  *
  * - `showToast` shows a result; with `undo` it carries an Undo button and
@@ -40,7 +41,7 @@ export interface ToastOptions {
   message: string;
   /** A quieter second part. */
   detail?: string;
-  /** `error` stays until it is closed. */
+  /** `error` and `warning` (a failure said) stay until closed. */
   tone?: "neutral" | "success" | "warning" | "error";
   undo?: ToastUndo;
   /** Its one other action (Retry, Sign in…): runs, then the toast goes. */
@@ -153,8 +154,9 @@ export function showToast(options: ToastOptions): string {
   counter += 1;
   const id = options.id ?? `toast-${counter}`;
   const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? TOAST_SECONDS);
-  // An error stays until it is closed (unless it holds an action to send).
-  const stays = options.tone === "error" && !options.onExpire && !options.undo;
+  // A failure stays until it is closed — an error, or a warning that
+  // something didn't work (unless it holds an action to send).
+  const stays = (options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo;
   if (entries.some((row) => row.id === id)) {
     clearTimer(id);
     entries = entries.filter((row) => row.id !== id);

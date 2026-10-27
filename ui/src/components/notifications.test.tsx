@@ -120,6 +120,18 @@ describe("§2 Toast", () => {
     expect(screen.queryByTestId("toast")).toBeNull();
   });
 
+  it("a warning that something didn't work stays until it's closed too", () => {
+    vi.useFakeTimers();
+    render(<ToastHost />);
+    act(() => void showToast({ message: "Work Max: the session couldn't be parked", tone: "warning" }));
+    act(() => vi.advanceTimersByTime(120_000));
+    const toast = screen.getByTestId("toast");
+    expect(toast.getAttribute("data-tone")).toBe("warning");
+    expect(screen.queryByTestId("toast-time")).toBeNull();
+    fireEvent.click(within(toast).getByRole("button", { name: "Close" }));
+    expect(screen.queryByTestId("toast")).toBeNull();
+  });
+
   it("sits at the bottom right, three at most, with the time left as a bar", () => {
     render(<ToastHost />);
     act(() => {
