@@ -349,6 +349,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Going back names the newest version that reads your data**: "Go back
+  to an earlier version" offered 0.1.0 (and 0.0.13) where 0.1.9 (and
+  0.0.17) read the same data; schema 37 is now listed as 0.2.0's.
 - **A session started from inside a Claude Code session no longer goes
   that session's way**: AI Juggler already dropped the parent session's
   markers, and now, when it sees them, also drops where that session

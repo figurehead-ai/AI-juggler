@@ -396,7 +396,9 @@ saved (it never risks it). So:
   an earlier version" puts back.
 - When a release changes the schema, add it to the table below and to
   `SCHEMA_RELEASES` in `crates/juggler-app/src/newer_data.rs` (it names the
-  version in "Prepare to go back to …").
+  version in "Prepare to go back to …" and "Install … from the releases
+  page", so it's the newest release on that schema: a patch release on
+  the newest schema moves that line to itself).
 
 | Version | Schema | Opens the previous version's data | The previous version opens its data |
 |---|---|---|---|
