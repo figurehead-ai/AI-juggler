@@ -16,6 +16,7 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
+import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
 import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
@@ -5809,3 +5810,234 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/sessions-terminal-1280x800-${theme}.png`) });
   });
 }
+
+/**
+ * The 0.2.0 re-render's last states (no gate state: the maintainer
+ * approves baselines, so CI shows them as new):
+ * - D-51, the switch check's notes row: the copy offer, the copy offer
+ *   with a note the other account has with other words, and, for a tool
+ *   that keeps no notes (Codex), "include them in the handover" with a
+ *   note left out for what looks like a key;
+ * - F1, the switch's targets with an account out of room: "Out of room
+ *   until …", listed last, and its Confirm's "Switch anyway";
+ * - AJ-E1904, a task's history with the switch as a line, and its
+ *   sessions with the one the switch carried it to.
+ * 1280×900, both themes.
+ */
+const RERENDER_VP = { width: 1280, height: 900 } as const;
+
+/** A one-click switch: the notes row sits in its only step. */
+const NOTES_ONE_CLICK = {
+  mechanism: "transplant",
+  fidelity: "F4",
+  fidelity_words: "Continues exactly",
+  score: 1,
+  warnings: [],
+  zombies: [],
+  diff_snapshotted: false,
+  source_live: false,
+  source_keeps_running: false,
+  experimental_copy: "The source stays resumable.",
+  door: "one-click" as const,
+  wizard_steps: [],
+  wizard_reasons: [],
+  usual_account: true,
+  carry: { carried: ["chat transcript"], regenerated: [], dropped: [] },
+};
+
+async function openSwitchWith(page: import("@playwright/test").Page, theme: (typeof THEMES)[number], seams: Record<string, unknown>) {
+  await page.addInitScript(
+    ({ fixture, theme: t, seams: s, t0 }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      for (const [key, value] of Object.entries(s)) w[key] = value;
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: structuredClone(allStatuses), theme, seams, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+  await page.setViewportSize(RERENDER_VP);
+  await page.goto("/");
+  await expectRail(page);
+  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await openSwitch(page);
+}
+
+/** Picks the switch target named `name` in the open switch list. */
+async function pickTarget(page: import("@playwright/test").Page, name: RegExp | null) {
+  const rows = page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)");
+  await (name ? rows.filter({ hasText: name }).first() : rows.first()).click();
+  await expect(page.getByTestId("switch-flow")).toBeVisible();
+}
+
+const NOTES_COPY = {
+  ...EXAMPLE_SETUP_NOTES,
+  offers: EXAMPLE_SETUP_NOTES.offers.map((offer) => (offer.kind === "memory" ? { ...offer, note: null } : offer)),
+};
+
+for (const theme of THEMES) {
+  for (const [state, setup, question] of [
+    ["notes-copy", NOTES_COPY, "Work Max's notes for this project (3) aren't on Personal: copy them?"],
+    ["notes-conflict", EXAMPLE_SETUP_NOTES, "Work Max's notes for this project (3) aren't on Personal: copy them?"],
+    ["notes-handover", EXAMPLE_SETUP_NOTES_HANDOVER, "Work Max's notes for this project (2): include them in the handover?"],
+  ] as const) {
+    test(`28 switch — ${state} — ${theme}`, async ({ page }) => {
+      // The handover's case: a switch to Codex, the conversation replayed.
+      const codex = state === "notes-handover";
+      const preflight = codex ? { ...NOTES_ONE_CLICK, mechanism: "replay", fidelity: "F1", fidelity_words: "Full story, fresh start", target_tool: "codex" } : NOTES_ONE_CLICK;
+      await openSwitchWith(page, theme, { __AIJ_SWITCH_PREFLIGHT__: preflight, __AIJ_SWITCH_SETUP__: setup });
+      await pickTarget(page, codex ? /Codex/ : /Personal/);
+      await expect(page.getByTestId("switch-step-confirm")).toContainText(codex ? "Ready to switch to Codex" : "Ready to switch to Personal");
+      const row = page.locator("[data-kind='memory']");
+      await expect(row.getByTestId("switch-notes-question")).toHaveText(question);
+      await expect(row.getByRole("checkbox")).not.toBeChecked();
+      if (state === "notes-conflict") await expect(row.getByTestId("switch-notes-kept")).toContainText("with other words: it stays as it is");
+      if (state === "notes-handover") await expect(row.getByTestId("switch-notes-left-out")).toHaveText("deploy.md looks like it holds a key or password, so it's left out.");
+      await row.scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/${state}-1280x900-${theme}.png`) });
+    });
+  }
+
+  // F1: Personal out of room, Codex and Lab with room.
+  const RESET = T0 + 26 * 3_600_000;
+  const week = (account: string, left: number) => ({
+    account,
+    weekly: { state: left === 0 ? "exhausted" : "ok", percentage: 100 - left, resets_at_ms: RESET, badge: "measured" },
+    five_hour: null,
+    forecast: { state: "learning", badge: "learning" },
+    renewal: { state: "none", label: "", entered_by_user: false },
+  });
+  const ROOM_TARGETS = [
+    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0 },
+    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62 },
+    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88 },
+  ];
+  const roomSeams = {
+    __AIJ_SWITCH_TARGETS__: ROOM_TARGETS.map(({ left: _left, ...target }) => ({
+      ...target,
+      provider: "claude-code",
+      badge: "Same conversation, new account · Beta",
+      validated: false,
+      cross_provider: false,
+      drops: [],
+      score: null,
+      filtered_reason: null,
+      top_factors: [],
+      factors: [],
+      confidence: "Measured",
+      tte_min: null,
+      suggested: false,
+    })),
+    __AIJ_QUOTA_DISPLAY__: ROOM_TARGETS.map((target) => week(target.account_id, target.left)),
+    __AIJ_SWITCH_PREFLIGHT__: { ...NOTES_ONE_CLICK, target_account: "acct-personal" },
+    __AIJ_SWITCH_SETUP__: { from: "Work Max", to: "Personal", already_there: 4, offers: [] },
+  };
+
+  test(`28 switch — targets with one out of room — ${theme}`, async ({ page }) => {
+    await openSwitchWith(page, theme, roomSeams);
+    const section = page.getByTestId("handover-section");
+    const rows = section.locator("button[data-row]");
+    await expect(rows.last()).toContainText("Personal");
+    await expect(section.getByTestId("target-room").last()).toContainText(/Out of room until .+You can still pick it/);
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `28-switch/targets-out-of-room-1280x900-${theme}.png`) });
+  });
+
+  test(`28 switch — Switch anyway to an account out of room — ${theme}`, async ({ page }) => {
+    await openSwitchWith(page, theme, roomSeams);
+    await pickTarget(page, /Personal/);
+    await expect(page.getByTestId("switch-summary-room")).toHaveText("Personal is out of room: see below before you switch.");
+    await expect(page.getByTestId("switch-confirm")).toHaveText("Switch anyway");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `28-switch/switch-anyway-1280x900-${theme}.png`) });
+  });
+}
+
+// AJ-E1904: a task's history with the switch as a line.
+const SWITCHED_POOL = "pool-checkout";
+const SWITCHED_TASKS = {
+  tasks: [
+    {
+      id: "aj-1a2b",
+      pool_id: SWITCHED_POOL,
+      kind: "task",
+      parent_id: null,
+      title: "Cart endpoints return an empty list, not 404",
+      status: "in_progress",
+      stored_status: null,
+      priority: "normal",
+      holder: "Planner",
+      holder_session_id: "sess-live-1",
+      blocked_by: [],
+      items: 0,
+      items_done: 0,
+      written_by: "Planner",
+      by_agent: true,
+      updated_at_ms: T0 - 4 * 60_000,
+      issue_label: null,
+    },
+  ],
+  details: {
+    "aj-1a2b": {
+      pool_name: "Checkout redesign",
+      body: "An empty cart is a normal state for the mobile client: GET /cart returns { items: [] }, never a 404.",
+      acceptance: "- GET /cart on an empty cart is 200 with no items\n- the mobile client's contract test passes",
+      sessions: [
+        { session_id: "sess-done-1", name: "A session that ended", how: "claimed", live: false, at_ms: T0 - 50 * 60_000 },
+        { session_id: "sess-live-1", name: "Planner", how: "switched", live: true, at_ms: T0 - 12 * 60_000 },
+      ],
+      history: [
+        { id: 4, at_ms: T0 - 4 * 60_000, who: "Planner", by_agent: true, what: "noted: the empty list ships; the contract test is green" },
+        { id: 3, at_ms: T0 - 12 * 60_000, who: "Planner", by_agent: true, what: "continued on Personal (from Work Max)" },
+        { id: 2, at_ms: T0 - 50 * 60_000, who: "Planner", by_agent: true, what: "took it" },
+        { id: 1, at_ms: T0 - 60 * 60_000, who: "Planner", by_agent: true, what: "added it" },
+      ],
+    },
+  },
+  needs: [],
+  sessions: { "sess-live-1": ["aj-1a2b"], "sess-done-1": ["aj-1a2b"] },
+};
+
+for (const theme of THEMES) {
+  test(`95 tasks — a task's history with a switch — ${theme}`, async ({ page }) => {
+    await page.clock.setFixedTime(T0);
+    await page.addInitScript(
+      ({ theme: t, pool, seed }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_POOLS__ = {
+          pools: [{ id: pool, name: "Checkout redesign" }],
+          members: [{ session_id: "sess-live-1", pool_id: pool, role: "lead" }],
+        };
+        w.__AIJ_TASKS__ = seed;
+        w.__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { theme, pool: SWITCHED_POOL, seed: SWITCHED_TASKS },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize(RERENDER_VP);
+    await page.goto("/");
+    await expect(page.getByTestId("rail")).toBeVisible();
+    await openFilters(page);
+    await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
+    await page.keyboard.press("Escape");
+    await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
+    await expect(page.getByTestId("pool-page")).toBeVisible();
+    await page.getByRole("tab", { name: "Tasks" }).click();
+    await expect(page.getByTestId("task-view")).toBeVisible();
+    await expect(page.getByTestId("task-sessions")).toContainText("Planner continued it after a switch");
+    const history = page.getByTestId("task-history");
+    await expect(history).toContainText("Planner continued on Personal (from Work Max)");
+    await history.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `95-tasks/history-switch-1280x900-${theme}.png`) });
+  });
+}
+
