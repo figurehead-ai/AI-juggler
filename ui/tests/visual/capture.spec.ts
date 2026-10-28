@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -2445,6 +2445,7 @@ for (const theme of THEMES) {
     const openDialog = async (page: import("@playwright/test").Page) => {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      await terminalDrawn(page);
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2632,6 +2633,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      await terminalDrawn(page);
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -2870,6 +2872,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      await terminalDrawn(page);
       await openSwitch(page);
       await page.getByTestId("handover-section")
         // AJ-E209: the ranked, badged row is the switch entry point.
@@ -3174,8 +3177,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
-      // Its terminal loads on first use (#173): the capture waits for it.
-      await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+      await terminalDrawn(page);
       await openSwitch(page);
       await expect(page.getByTestId("switch-target-rows")).toBeVisible();
       await page.screenshot({
@@ -3407,6 +3409,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+      await terminalDrawn(page);
       await openSwitch(page);
       await page.getByTestId("handover-section")
         .locator("button[data-row]:not(:disabled)")
@@ -4784,9 +4787,8 @@ const openCross = async (
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
   await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
+  await terminalDrawn(page);
   await expect(page.getByTestId("handover-section")).toBeVisible();
-  // Its terminal loads on first use (#173): the capture waits for it.
-  await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
   await openSwitch(page);
 };
 
@@ -5105,6 +5107,7 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
+      await terminalDrawn(page);
       await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
     });
   }
@@ -5918,6 +5921,7 @@ for (const theme of THEMES) {
   test(`75 feedback — a held stop, with Undo — ${theme}`, gate("75-feedback"), async ({ page }) => {
     await openFeedback(page, theme);
     await page.locator('[data-instance-id="sess-2"]').first().click();
+    await terminalDrawn(page);
     await page.getByTestId("inspector-stop").click();
     await expect(page.getByTestId("stop-undo-toast")).toContainText("Undo keeps it running.");
     await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
@@ -5978,6 +5982,7 @@ for (const theme of THEMES) {
       await openFeedback(page, theme);
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.locator('[data-instance-id="sess-2"]').first().click();
+      await terminalDrawn(page);
       await expect(page.getByRole("tablist")).toBeVisible();
       await page.keyboard.press("Meta+Shift+I");
       await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");

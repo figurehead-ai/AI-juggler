@@ -455,6 +455,16 @@ export async function openOutsidePage(page: import("@playwright/test").Page): Pr
  * D-25: a session's ranked switch list sits behind "Switch account…"
  * (open by itself only when the session hit its limit). Opens it once.
  */
+/**
+ * A session page's terminal loads on first use (#173), and xterm draws
+ * its text a moment later: a shot with the terminal in the frame waits
+ * until the preview terminal has drawn, or it races xterm (an empty pane
+ * on some runs, its text on others — PR 194's held-stop cell).
+ */
+export async function terminalDrawn(page: import("@playwright/test").Page): Promise<void> {
+  await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+}
+
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
   if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
