@@ -763,3 +763,60 @@ fn the_sample_ring_keeps_the_newest_five_minutes() {
     assert!(newest - ring.front().unwrap().at_ms <= 300_000);
     assert_eq!(ring.len(), 76);
 }
+
+/// The tasks lab of 2026-10-28: a busy Claude Code in a PTY outlived Stop by
+/// more than 30 s, and a switch's Stop now gave up ("The session didn't
+/// stop"). The PTY ladder's last step was SIGHUP (portable-pty's kill), which
+/// a process may handle; it ends with SIGKILL, as the piped one does.
+#[test]
+fn a_pty_session_that_ignores_term_and_hup_still_stops() {
+    let workdir = tempfile::tempdir().unwrap();
+    let supervisor = Supervisor::new();
+    let session = SessionId::new("s-pty-stubborn");
+    let ready = workdir.path().join("ready");
+    let spec = LaunchSpec {
+        program: PathBuf::from("/bin/sh"),
+        args: vec![
+            "-c".into(),
+            format!(
+                "trap '' TERM HUP; touch '{}'; while true; do sleep 1; done",
+                ready.display()
+            ),
+        ],
+        env: EnvMap::new(),
+        cwd: workdir.path().to_path_buf(),
+        needs_pty: true,
+    };
+    let spawned = supervisor
+        .spawn(&session, &spec, &ledger_test_ctx())
+        .unwrap();
+    // Whatever happens below, the fixture never outlives the test.
+    struct Reap(u32);
+    impl Drop for Reap {
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("kill")
+                .args(["-9", &self.0.to_string()])
+                .output();
+        }
+    }
+    let _reap = Reap(spawned.pid);
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !ready.exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the fixture didn't start"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let started = std::time::Instant::now();
+    let _ = supervisor.stop(&session, Duration::from_millis(500));
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while !supervisor.is_finished(&session) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "still running {:?} after Stop",
+            started.elapsed()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}

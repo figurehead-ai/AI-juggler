@@ -629,7 +629,7 @@ impl Supervisor {
             });
         };
         let reaped = Arc::new(AtomicBool::new(false));
-        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped));
+        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped), pid);
         let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
         // Output tracking exists from chunk 1 without pre-registering the
         // handle: the atomic is independent of the children map.
@@ -1393,14 +1393,21 @@ fn spawn_reader(
 /// The terminal path's force-kill. Its killer signals the pid itself: once
 /// the wait has reaped the process (`reaped`), the pid may be another
 /// process's, so nothing is sent.
+/// The PTY ladder's last step. portable-pty's own kill is SIGHUP on Unix,
+/// which a process may handle: a busy Claude Code outlived Stop by more
+/// than 30 s (the tasks lab of 2026-10-28). So it ends as the piped ladder
+/// does, with a kill the process can't refuse, while the child isn't
+/// reaped (its number is still its own).
 fn pty_force_kill(
     killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
     reaped: Arc<AtomicBool>,
+    pid: u32,
 ) -> Arc<dyn Fn() + Send + Sync> {
     let killer = Mutex::new(killer);
     Arc::new(move || {
         if !reaped.load(Ordering::Acquire) {
             let _ = killer.lock().map(|mut k| k.kill());
+            send_kill(pid);
         }
     })
 }
@@ -1550,6 +1557,19 @@ fn send_terminate(pid: u32) {
     use nix::unistd::Pid;
     let nix_pid = Pid::from_raw(i32::try_from(pid).unwrap_or_default());
     let _ = kill(nix_pid, Some(Signal::SIGTERM));
+}
+
+#[cfg(unix)]
+fn send_kill(pid: u32) {
+    use nix::sys::signal::{Signal, kill};
+    use nix::unistd::Pid;
+    let nix_pid = Pid::from_raw(i32::try_from(pid).unwrap_or_default());
+    let _ = kill(nix_pid, Some(Signal::SIGKILL));
+}
+
+#[cfg(not(unix))]
+fn send_kill(_pid: u32) {
+    // portable-pty's kill already ends the process here (TerminateProcess).
 }
 
 #[cfg(not(unix))]
