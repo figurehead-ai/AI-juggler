@@ -29,8 +29,8 @@ use crate::claude_transcript;
 impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
     /// A file in one of the [`ACCOUNT_AREAS`] is in the account's own
     /// folder for it (`file-history/`, `tasks/`: where
-    /// [`Self::bundle_session`] read it); every other one is beside the
-    /// transcript.
+    /// [`bundle_session`](juggler_adapter::handover::HandoverSupport::bundle_session)
+    /// read it); every other one is beside the transcript.
     fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
         let beside = reference
             .path
