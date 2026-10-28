@@ -84,11 +84,10 @@ export function groupsFor(tools: string[]): Group[] {
   );
 }
 
-/** A group's tool, in its header: its version, or — found but its
- * version couldn't be read (0.0.11) — that, never "not installed". */
+/** A group's tool, in its header: its version, or that it couldn't be
+ * read (0.0.11) or wasn't asked (the bridge), never "not installed". */
 function cliWords(name: string, row: ProviderInstallData): string {
-  if (versionNotAsked(row)) return `${name} installed; its version isn't known`;
-  return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
+  return versionNotAsked(row) ? `${name} installed; its version isn't known` : versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
 }
 
 /** Grouped by kind of setup, as the tool's spec defines them: the first
