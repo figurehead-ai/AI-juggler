@@ -245,10 +245,14 @@ test("processes — Stop… opens the confirm sheet; Esc returns to the row", as
   await open(page, allStatuses);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  // D-25: Processes waits under More (a pill shows while something's left).
-  await tabTo(page, stops, /^button: More$/);
+  // AJ-E2507: Processes is in your menu (a pill shows while something's
+  // left); the menu's lines are reached with the arrows.
+  await tabTo(page, stops, /^button: Your menu/);
   await page.keyboard.press("Enter");
-  await tabTo(page, stops, /^button: Processes/);
+  for (let i = 0; i < 12 && !/^menuitem: Processes/.test((await focused(page)).name); i++) {
+    await page.keyboard.press("ArrowDown");
+  }
+  stops.push(await focused(page));
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("processes-page")).toBeVisible();
   // The tree is one Tab stop; arrows move inside it (AJ-E2404).

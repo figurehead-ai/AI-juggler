@@ -297,6 +297,15 @@ fn restart(state: &Arc<AppState>, crashed: &SessionId, attempt: usize) {
                     tries_words(attempt)
                 ),
             );
+            // AJ-E2501: told once in the centre (after the lock goes).
+            drop(storage);
+            crate::features::notifications::sources::restarted(
+                state,
+                crashed.as_str(),
+                replacement.as_str(),
+                attempt,
+                TRIES,
+            );
         }
         Err(error) => {
             let _ = storage.sessions().record_lifecycle(

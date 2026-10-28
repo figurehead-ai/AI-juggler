@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-48. Do not re-litigate them; supersede only via a
+   decisions D-01..D-49. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E24 below).
+4. The epic file for the task you claim (E1-E25 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -47,6 +47,7 @@
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
+| [E25-notifications-and-user-menu.md](E25-notifications-and-user-menu.md) | Notifications and your menu: one model, one count, every view | AJ-E2501-E2507 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

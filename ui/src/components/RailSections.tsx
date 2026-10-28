@@ -11,7 +11,8 @@ import { useActionHost } from "./ItemMenu";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../lib/bridge";
-import { isSnoozed, type RowGroup, type SnoozeState } from "../lib/railview";
+import type { RowGroup } from "../lib/railview";
+import { useBackendNeeds } from "../lib/needs-you";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -26,8 +27,9 @@ export interface RailOrder {
   shown: (rows: InstanceInfo[]) => InstanceInfo[];
 }
 
-export function railOrder(sorted: InstanceInfo[], snooze: SnoozeState, now: number): RailOrder {
-  const needs = sorted.filter((row) => row.needs_attention !== null && !isSnoozed(row, snooze, now));
+export function railOrder(sorted: InstanceInfo[], isNeed: (row: InstanceInfo) => boolean, now: number): RailOrder {
+  // D-49: in Needs you as the backend says (a snoozed one waits in its project).
+  const needs = sorted.filter(isNeed);
   const folded = (row: InstanceInfo) => ENDED.has(row.status) && !row.pinned && !needs.includes(row);
   const since = startOfDay(now);
   return {
@@ -133,8 +135,9 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
  * apps say ask you or finished something to look at. Never grouped. */
 export function NeedsYouSection({ rows, renderRow, ...props }: RowProps & { rows: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode }): JSX.Element | null {
   const { all } = useConversations();
+  const { needOf } = useBackendNeeds();
   const [open, setOpen] = useState(true);
-  const asking = outside(all).filter(asksYou);
+  const asking = outside(all).filter((c) => asksYou(c) && needOf.has(`c:${c.account_id}/${c.id}`));
   if (rows.length === 0 && asking.length === 0) return null;
   return (
     <section aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">

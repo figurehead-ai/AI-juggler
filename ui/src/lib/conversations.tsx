@@ -13,9 +13,11 @@ interface ConversationsState {
   all: ConversationInfo[];
   /** Read the list again (after a launch, an import). */
   refresh: () => void;
+  /** AJ-E2502: the first read has answered (Needs you is whole). */
+  loaded: boolean;
 }
 
-const Context = createContext<ConversationsState>({ all: [], refresh: () => {} });
+const Context = createContext<ConversationsState>({ all: [], refresh: () => {}, loaded: true });
 
 /**
  * The list is the backend's working set (open, in a sidebar, today's and
@@ -27,8 +29,11 @@ const Context = createContext<ConversationsState>({ all: [], refresh: () => {} }
 export function ConversationsProvider({ children, want = null }: { children: ReactNode; want?: { accountId: string; id: string } | null }): JSX.Element {
   const [working, setAll] = useState<ConversationInfo[]>([]);
   const [extra, setExtra] = useState<ConversationInfo | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const refresh = useCallback(() => {
-    void conversationsList().then(setAll, () => undefined);
+    void conversationsList()
+      .then(setAll, () => undefined)
+      .finally(() => setLoaded(true));
   }, []);
   useEffect(() => {
     refresh();
@@ -51,7 +56,7 @@ export function ConversationsProvider({ children, want = null }: { children: Rea
     () => (missing && extra && want && extra.account_id === want.accountId && extra.id === want.id ? [...working, extra] : working),
     [missing, extra, want, working],
   );
-  const value = useMemo(() => ({ all, refresh }), [all, refresh]);
+  const value = useMemo(() => ({ all, refresh, loaded }), [all, refresh, loaded]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

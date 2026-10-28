@@ -1,3 +1,4 @@
+import { needsOfRows } from "../test/needs-kit";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MinimalInstanceColumn, SessionRow } from "./WorkflowRail";
@@ -174,6 +175,7 @@ describe("AJ-E403 density field presence per mode", () => {
 
   it("Minimal shows disc + state glyph + ! badge and keeps the full text in its name and description", () => {
     const rows = [mk(), mk({ id: "sess-wait", status: "waiting_user", needs_attention: "waiting_user" })];
+    needsOfRows(rows); // D-49: the backend's list
     const { container } = render(
       <MinimalInstanceColumn sessions={rows} selectedId={null} onSelect={() => {}} />,
     );

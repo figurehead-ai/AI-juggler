@@ -129,7 +129,7 @@ ui/src/lib/bridge.ts mac-words 6
 ui/src/lib/home-needs.ts mac-words 1
 ui/src/lib/machine-memory.ts mac-words 2
 ui/src/lib/machine.ts mac-words 9
-ui/src/lib/nav.ts mac-words 3
+ui/src/lib/nav.ts mac-words 1
 ui/src/lib/providers.ts mac-words 1
 ui/src/lib/shortcuts.ts mac-words 2
 ui/src/pages/AccountProbe.tsx mac-words 1
@@ -140,7 +140,6 @@ ui/src/pages/session/LastMessages.tsx mac-words 1
 ui/src/pages/session/UsageTab.tsx mac-words 1
 ui/src/screens/FirstRun.tsx mac-words 2
 ui/src/screens/FleetScreen.tsx mac-words 9
-ui/src/screens/Home.tsx mac-words 1
 ui/src/screens/PairingWizard.tsx mac-words 4
 ui/src/screens/ThisMacScreen.tsx mac-words 5
 ui/src/screens/Usage.tsx mac-words 2

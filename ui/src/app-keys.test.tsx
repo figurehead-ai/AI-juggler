@@ -102,6 +102,7 @@ describe("AJ-E1504 the typing rule", () => {
       "go-usage": { key: "U", shiftKey: true },
       "go-fleet": { key: "F", shiftKey: true },
       settings: { key: "," },
+      notifications: { key: "N", shiftKey: true },
       processes: { key: "C", shiftKey: true },
       "processes-search": { key: "f" },
       stop: { key: "." },

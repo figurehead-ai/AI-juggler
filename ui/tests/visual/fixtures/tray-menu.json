@@ -1,0 +1,49 @@
+{
+  "title": "3",
+  "tooltip": "AI Juggler · 3 things need you",
+  "lines": [
+    {
+      "type": "heading",
+      "text": "Needs you · 3"
+    },
+    {
+      "type": "item",
+      "id": "tray:notice:1",
+      "text": "“Docs bot” needs your reply · 24 m"
+    },
+    {
+      "type": "item",
+      "id": "tray:notice:2",
+      "text": "Work Max is almost out of room · 7%"
+    },
+    {
+      "type": "item",
+      "id": "tray:notice:3",
+      "text": "“Site deployment” is done — review it"
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "type": "heading",
+      "text": "Open now · 10 · 4 working"
+    },
+    {
+      "type": "note",
+      "text": "Claude app · 6 · Codex in ChatGPT · 3 · Terminal · 1"
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "type": "item",
+      "id": "tray:open",
+      "text": "Open AI Juggler"
+    },
+    {
+      "type": "item",
+      "id": "tray:new-session",
+      "text": "New session…"
+    }
+  ]
+}

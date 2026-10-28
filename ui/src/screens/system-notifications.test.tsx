@@ -43,7 +43,7 @@ describe("AJ-E1510 — Settings › Notifications", () => {
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("A session finishes"));
     });
-    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false, left_behind: false });
+    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false, left_behind: false, quota: false, crash: false, reset: false });
     await waitFor(() =>
       expect(getByTestId("settings-notifications").textContent).toContain("You'll get a notification when a session finishes."),
     );

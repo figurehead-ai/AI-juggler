@@ -16,6 +16,7 @@ import { placesConversations, PREVIEW_PLACES } from "../preview/places";
 import { mockMachineHealth, mockThisMac } from "../lib/machine";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import { needsFor } from "../test/needs-kit";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const seams = () => window as unknown as Record<string, unknown>;
@@ -47,6 +48,7 @@ function own(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
 
 function home(sessions: InstanceInfo[], conversations: ConversationInfo[], props: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
   seams().__AIJ_FIXTURE__ = { conversations };
+  needsFor({ sessions, conversations, accounts: ACCOUNTS, thisMac: props.thisMac ?? null });
   return render(
     <ConversationsProvider>
       <HomeScreen sessions={sessions} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} {...props} />
@@ -108,6 +110,7 @@ describe("Home, desktop first", () => {
     const goToConversation = vi.fn();
     const openConversation = vi.fn();
     seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
+    needsFor({ sessions: [own("aj", { status: "waiting_user", needs_attention: "waiting_user" })], conversations: placesConversations(NOW), accounts: ACCOUNTS });
     const view = render(
       <ConversationsProvider>
         <ActionHostProvider host={{ goToConversation, openConversation }}>

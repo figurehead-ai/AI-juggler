@@ -1,33 +1,47 @@
 /**
- * AJ-E611 — the alert/notification region: polite live-region
- * semantics (never assertive — anti-fatigue), badge-carrying copy
- * (Estimated reads differently), and the reset-queue rows with their
- * countdown / ready states + an explicit Resume click (the click is
- * the ONLY action; nothing here launches by itself).
+ * AJ-E611, AJ-E2504 — the band of banners above a screen, one polite live
+ * region, every banner the shared §2 Banner (the approved design of
+ * 2026-10-27): an account almost out of room (from the notification
+ * model, with its meter, Hand over…, Queue for the reset, Snooze 1 h,
+ * and a close that leaves it in the centre; at most three), an update,
+ * a parked session's reset, a queued resume, this computer's alerts and
+ * another computer's. Plain words, real actions; nothing here launches by
+ * itself — every action is a click.
+ *
+ * The alert pass still runs here on its 30 s poll: it feeds the
+ * notification model (and the paired consoles); the model's banners are
+ * what shows.
  */
 import { useContext, useEffect, useState, type JSX } from "react";
 import {
   alertsTick,
-  instancesList,
   fleetRemote,
+  instancesList,
   parkedDismiss,
   parkedOffers,
   parkedResume,
-  type ParkedOfferInfo,
   resetQueueDismiss,
   resetQueueList,
-  type AlertEventData,
-  type RemoteMachineInfo,
-  type ResetQueueRow,
-  onUpdateStatus,
   statsEvent,
   updateRestart,
   updateStatus,
+  onUpdateStatus,
+  type AccountInfo,
+  type InstanceInfo,
+  type ParkedOfferInfo,
+  type RemoteMachineInfo,
+  type ResetQueueRow,
   type UpdateStatusInfo,
 } from "../lib/bridge";
+import { Banner } from "./Banner";
 import { ChannelChip, updateErrorText } from "./UpdatesCard";
 import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
+import { usePagedList } from "../lib/paged";
+import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";
+import { acted } from "../lib/notices-store";
+import { useNoticeActions } from "../lib/notice-actions";
+import { clock, quotaDetail } from "../lib/notice-words";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -40,57 +54,29 @@ function notification(kind: string, action: "shown" | "clicked" | "dismissed"): 
   statsEvent("ui.notification", { kind, action });
 }
 
-export function NotificationRegion({
-  onQueueResume,
-  onOpenRemote,
-  hideMachineAlerts = false,
-}: {
-  onQueueResume?: (row: ResetQueueRow) => void;
-  /** AJ-E709: open the machine a Fleet alert came from. */
-  onOpenRemote?: (machineId: string) => void;
-  /** Home shows the Mac's alerts once, in Needs you: the banner keeps
-   * them for the other screens (the 0.0.12 report). */
-  hideMachineAlerts?: boolean;
-}): JSX.Element {
-  const [events, setEvents] = useState<AlertEventData[]>([]);
-  const [queue, setQueue] = useState<ResetQueueRow[]>([]);
-  const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
-  const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
-  // AJ-E1408: overload alerts — told once, dismissable, never an action
-  // on anything (passive only).
-  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
-  // A notice whose condition has ended goes (This Mac's alerts are the
-  // ones still on, 45 s grace included).
-  const thisMac = useContext(ThisMacContext);
-  useEffect(() => {
-    const now = machineNotices();
-    if (!thisMac || now.length === 0) return;
-    const active = new Set(thisMac.alerts.map((alert) => alert.key));
-    const kept = keptNotices(now, active, Date.now());
-    if (kept.length !== now.length) publishMachineNotices(kept);
-  }, [thisMac]);
-  useEffect(() => {
-    const stop = subscribeMachineNotices(setMachineAlertsState);
-    return () => {
-      stop();
-    };
-  }, []);
-  // AJ-E1010: an update announced by the launch check — one notice per
-  // version, never an install. Once one is installed, "Restart to update"
-  // — offered only while it is safe (the backend holds it back during a
-  // switch, a bring-in or live sessions), never forced.
+function seen(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return ""; /* storage unavailable: show it */
+  }
+}
+
+function remember(key: string, version: string): void {
+  try {
+    localStorage.setItem(key, version);
+  } catch {
+    /* best effort */
+  }
+}
+
+/** AJ-E1010: an update announced by the launch check — one notice per
+ * version, never an install — and, once installed, "Restart to update",
+ * offered only while it is safe, never forced. */
+function useUpdateNotices() {
   const [update, setUpdate] = useState<{ version: string; channel: string } | null>(null);
   const [ready, setReady] = useState<{ version: string; channel: string } | null>(null);
-  const [restartError, setRestartError] = useState<string | null>(null);
   useEffect(() => {
-    const seen = (key: string): string => {
-      try {
-        return localStorage.getItem(key) ?? "";
-      } catch {
-        return ""; /* storage unavailable: show it */
-      }
-    };
     const apply = (status: UpdateStatusInfo) => {
       const version = status.available?.version ?? null;
       if (status.state === "available" && version && seen("aij.update.noticed") !== version) {
@@ -100,64 +86,22 @@ export function NotificationRegion({
       if (status.state === "installed" && version && !status.restart_wait && seen("aij.update.restart.later") !== version) {
         setUpdate(null);
         setReady({ version, channel: status.channel });
-      } else {
-        setReady(null);
-      }
+      } else setReady(null);
     };
     let alive = true;
-    void updateStatus()
-      .then((status) => {
-        if (alive) apply(status);
-      })
-      .catch(() => null);
+    void updateStatus().then((status) => alive && apply(status), () => null);
     const stop = onUpdateStatus(apply);
     return () => {
       alive = false;
       stop();
     };
   }, []);
-  const closeUpdate = (version: string) => {
-    try {
-      localStorage.setItem("aij.update.noticed", version);
-    } catch {
-      /* best effort */
-    }
-    setUpdate(null);
-  };
-  const later = (version: string) => {
-    try {
-      localStorage.setItem("aij.update.restart.later", version);
-    } catch {
-      /* best effort */
-    }
-    setReady(null);
-  };
+  return { update, ready, closeUpdate: (version: string) => (remember("aij.update.noticed", version), setUpdate(null)), later: (version: string) => (remember("aij.update.restart.later", version), setReady(null)) };
+}
 
-  // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported
-  // (the link delivers within the second; this only paints it).
-  useEffect(() => {
-    let alive = true;
-    const poll = () => {
-      fleetRemote()
-        .then((machines) => {
-          if (alive) setRemote(machines);
-        })
-        .catch(() => null);
-    };
-    poll();
-    const timer = window.setInterval(poll, 2_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-  const remoteAlerts = remote.flatMap((machine) =>
-    (machine.alerts ?? [])
-      .map((alert) => ({ machine, alert, key: `${machine.machine_id}-${alert.kind}-${alert.at_ms}-${alert.account}` }))
-      .filter((entry) => !dismissed.has(entry.key))
-      .slice(0, 3),
-  );
-
+/** The 30 s pass: the alert pass (into the model), this computer's alerts
+ * drained once, the reset queue and parked offers. */
+function usePoll(setQueue: (rows: ResetQueueRow[]) => void, setOffers: (rows: ParkedOfferInfo[]) => void): void {
   useEffect(() => {
     let alive = true;
     const poll = () => {
@@ -167,46 +111,19 @@ export function NotificationRegion({
           const sessions = await instancesList().catch(() => []);
           const nameOf = (id: string) => {
             const row = sessions.find((s) => s.id === id);
-            if (!row) return null;
-            return row.git_branch ?? ((row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label);
+            return row ? (row.git_branch ?? ((row.cwd ?? "").replace(/\/+$/, "").split("/").pop() || row.account_label)) : null;
           };
-          // Counted as "other": the usage-stats schema has no machine kind.
           fresh.forEach(() => notification("other", "shown"));
-          // Kept outside the component: a drained alert survives a
-          // remount (switching screens) until it is dismissed.
+          // Kept outside the component: a drained alert survives a remount.
           const toldAt = Date.now();
-          publishMachineNotices(
-            keptNotices(
-              [
-                ...[...fresh].reverse().map((alert) => ({
-                  key: `${alert.key}-${alert.since_ms}`,
-                  alertKey: alert.key,
-                  kind: alert.kind,
-                  text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!),
-                  toldAt,
-                })),
-                ...machineNotices(),
-              ],
-              null,
-              toldAt,
-            ).slice(0, 3),
-          );
+          const told = [...fresh].reverse().map((alert) => ({ key: `${alert.key}-${alert.since_ms}`, alertKey: alert.key, kind: alert.kind, text: (({ title, detail }) => `${title} — ${detail}`)(alertWords([alert], nameOf)!), toldAt }));
+          publishMachineNotices(keptNotices([...told, ...machineNotices()], null, toldAt).slice(0, 3));
         })
         .catch(() => null);
-      alertsTick().then((emitted) => {
-        for (const event of emitted) notification(alertKind(event.kind), "shown");
-        if (alive && emitted.length > 0) setEvents((prior) => [...emitted, ...prior].slice(0, 5));
-      });
-      resetQueueList().then((rows) => {
-        if (alive) setQueue(rows);
-      });
-      // AJ-E1003: parked Instances whose quota reset — with the same
-      // poll as the alerts (no timer of its own).
-      parkedOffers()
-        .then((rows) => {
-          if (alive) setOffers(rows);
-        })
-        .catch(() => null);
+      alertsTick().then((emitted) => emitted.forEach((event) => notification(alertKind(event.kind), "shown")), () => null);
+      resetQueueList().then((rows) => alive && setQueue(rows), () => null);
+      // AJ-E1003: parked sessions whose quota reset, on the same poll.
+      parkedOffers().then((rows) => alive && setOffers(rows), () => null);
     };
     poll();
     const timer = window.setInterval(poll, 30_000); // ≥30 s — never a busy loop
@@ -214,211 +131,153 @@ export function NotificationRegion({
       alive = false;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [setQueue, setOffers]);
+}
 
+export function NotificationRegion({
+  onQueueResume,
+  onOpenRemote,
+  hideMachineAlerts = false,
+  sessions = [],
+  accounts = [],
+}: {
+  onQueueResume?: (row: ResetQueueRow) => void;
+  /** AJ-E709: open the machine a Fleet alert came from. */
+  onOpenRemote?: (machineId: string) => void;
+  /** Home lists this computer's alerts and the accounts almost out of
+   * room in Needs you: the banners keep them for the other screens. */
+  hideMachineAlerts?: boolean;
+  sessions?: InstanceInfo[];
+  accounts?: AccountInfo[];
+}): JSX.Element {
+  const [queue, setQueue] = useState<ResetQueueRow[]>([]);
+  const [remote, setRemote] = useState<RemoteMachineInfo[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
+  const [restartError, setRestartError] = useState<string | null>(null);
+  // AJ-E1408: overload alerts — told once, dismissable, passive only.
+  const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
+  const thisMac = useContext(ThisMacContext);
+  const updates = useUpdateNotices();
+  const actions = useNoticeActions(sessions);
+  const banners = usePagedList<NoticeInfo>("notices:banners", (request) => notificationsPage("banners", request), { keyOf: (row) => String(row.id) });
+  const [now] = useState(() => Date.now());
+  // A notice whose condition has ended goes (45 s grace included).
+  useEffect(() => {
+    const told = machineNotices();
+    if (!thisMac || told.length === 0) return;
+    const active = new Set(thisMac.alerts.map((alert) => alert.key));
+    const kept = keptNotices(told, active, Date.now());
+    if (kept.length !== told.length) publishMachineNotices(kept);
+  }, [thisMac]);
+  useEffect(() => subscribeMachineNotices(setMachineAlertsState), []);
+  // AJ-E709 Req.3: Fleet alerts — a local read of what peers reported.
+  useEffect(() => {
+    let alive = true;
+    const poll = () => void fleetRemote().then((machines) => alive && setRemote(machines), () => null);
+    poll();
+    const timer = window.setInterval(poll, 2_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+  usePoll(setQueue, setOffers);
+  const remoteAlerts = remote.flatMap((machine) =>
+    (machine.alerts ?? [])
+      .map((alert) => ({ machine, alert, key: `${machine.machine_id}-${alert.kind}-${alert.at_ms}-${alert.account}` }))
+      .filter((entry) => !dismissed.has(entry.key))
+      .slice(0, 3),
+  );
+  const accountName = (id: string) => accounts.find((account) => account.id === id || account.label === id)?.label ?? "its account";
+  const { update, ready } = updates;
   return (
-    <div aria-live="polite" role="status" data-testid="notification-region" className="flex flex-col gap-1">
-      {events.map((event) => (
-        <p
-          key={`${event.at_ms}-${event.account}-${event.kind}`}
-          data-testid={`alert-${event.kind}`}
-          className={`rounded border px-2 py-1 text-label ${
-            event.kind === "exhausted" || event.kind === "actionable"
-              ? "border-warning/50 text-warning"
-              : event.kind === "digest"
-                ? "border-dashed border-hairline text-muted"
-                : "border-hairline text-muted"
-          }`}
-        >
-          {event.kind === "digest" ? "Digest · " : ""}
-          {event.text}
-        </p>
-      ))}
-      {!hideMachineAlerts && machineAlerts.map((alert) => (
-        <p
-          key={alert.key}
-          data-testid="machine-alert"
-          className="flex flex-wrap items-center gap-2 rounded border border-warning/50 px-2 py-1 text-label text-warning"
-        >
-          <span className="min-w-0 flex-1">{alert.text}.</span>
-          <button
-            type="button"
-            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => {
-              notification("other", "dismissed");
-              publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key));
-            }}
-          >
-            dismiss
-          </button>
-        </p>
-      ))}
+    <div aria-live="polite" role="status" data-testid="notification-region" className="flex flex-col gap-2 [&:not(:empty)]:mb-3">
+      {!hideMachineAlerts &&
+        banners.items.map((notice) => (
+          <Banner
+            key={notice.id}
+            tone="warning"
+            title={notice.title}
+            detail={quotaDetail(notice, now)}
+            meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
+            actions={[
+              { label: "Hand over…", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
+              { label: "Queue for the reset", onClick: () => actions.second(notice, "queue-reset"), testId: "quota-banner-queue" },
+              { label: "Snooze 1 h", quiet: true, onClick: () => actions.snooze(notice, "hour") },
+            ]}
+            onDismiss={() => void acted(() => notificationsDismiss(notice.id))}
+            dismissLabel={`Close: ${notice.title} (it stays in Notifications)`}
+            testId="quota-banner"
+          />
+        ))}
+      {!hideMachineAlerts &&
+        machineAlerts.map((alert) => (
+          <Banner key={alert.key} tone="warning" title={`${alert.text}.`} onDismiss={() => (notification("other", "dismissed"), publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key)))} testId="machine-alert" />
+        ))}
       {remoteAlerts.map(({ machine, alert, key }) => (
-        <p
+        <Banner
           key={key}
-          data-testid={`remote-alert-${alert.kind}`}
-          className={`flex flex-wrap items-center gap-2 rounded border px-2 py-1 text-label ${
-            alert.kind === "exhausted" || alert.kind === "actionable" || alert.kind === "peer-offline"
-              ? "border-warning/50 text-warning"
-              : "border-hairline text-muted"
-          }`}
-        >
-          <span className="font-medium">{machine.label}</span>
-          <span>·</span>
-          <span className="min-w-0 flex-1">{alert.text}</span>
-          {onOpenRemote && (
-            <button
-              type="button"
-              className="underline focus:outline-none focus:ring-2 focus:ring-accent"
-              onClick={() => {
-                notification("fleet", "clicked");
-                onOpenRemote(machine.machine_id);
-              }}
-            >
-              Open
-            </button>
-          )}
-          <button
-            type="button"
-            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => {
-              notification("fleet", "dismissed");
-              setDismissed((prior) => new Set(prior).add(key));
-            }}
-          >
-            dismiss
-          </button>
-        </p>
+          tone={alert.kind === "exhausted" || alert.kind === "actionable" || alert.kind === "peer-offline" ? "warning" : "neutral"}
+          title={`${machine.label} · ${alert.text}`}
+          actions={onOpenRemote ? [{ label: "Open", onClick: () => (notification("fleet", "clicked"), onOpenRemote(machine.machine_id)) }] : []}
+          onDismiss={() => (notification("fleet", "dismissed"), setDismissed((prior) => new Set(prior).add(key)))}
+          testId={`remote-alert-${alert.kind}`}
+        />
       ))}
       {update && (
-        <div
-          data-testid="update-notice"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
-        >
-          <span className="min-w-0 flex-1">
-            AI Juggler {update.version} is available. Nothing is installed until you choose.
-          </span>
-          <ChannelChip channel={update.channel} testId="update-notice-channel" />
-          <button
-            type="button"
-            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => {
-              notification("update", "clicked");
-              window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
-              closeUpdate(update.version);
-            }}
-            data-testid="update-notice-review"
-          >
-            Review
-          </button>
-          <button
-            type="button"
-            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => {
-              notification("update", "dismissed");
-              statsEvent("update.flow", { step: "deferred", reason: "none" });
-              closeUpdate(update.version);
-            }}
-            data-testid="update-notice-later"
-          >
-            Not now
-          </button>
-        </div>
+        <Banner
+          tone="accent"
+          title={`AI Juggler ${update.version} is available`}
+          detail="Nothing is installed until you choose."
+          aside={<ChannelChip channel={update.channel} testId="update-notice-channel" />}
+          actions={[
+            { label: "Review", primary: true, testId: "update-notice-review", onClick: () => (notification("update", "clicked"), window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } })), updates.closeUpdate(update.version)) },
+            { label: "Not now", quiet: true, testId: "update-notice-later", onClick: () => (notification("update", "dismissed"), statsEvent("update.flow", { step: "deferred", reason: "none" }), updates.closeUpdate(update.version)) },
+          ]}
+          testId="update-notice"
+        />
       )}
       {ready && (
-        <div
-          data-testid="update-ready"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
+        <Banner
+          tone="accent"
+          title={`AI Juggler ${ready.version} is installed`}
+          detail="Restart when you're ready — nothing restarts by itself."
+          aside={<ChannelChip channel={ready.channel} testId="update-ready-channel" />}
+          actions={[
+            { label: "Restart to update", primary: true, testId: "update-ready-restart", onClick: () => (setRestartError(null), void updateRestart().catch((cause: unknown) => setRestartError(updateErrorText(cause)))) },
+            { label: "Later", quiet: true, testId: "update-ready-later", onClick: () => updates.later(ready.version) },
+          ]}
+          testId="update-ready"
         >
-          <span className="min-w-0 flex-1">
-            AI Juggler {ready.version} is installed. Restart when you're ready — nothing restarts by itself.
-          </span>
-          <ChannelChip channel={ready.channel} testId="update-ready-channel" />
-          <button
-            type="button"
-            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => {
-              setRestartError(null);
-              updateRestart().catch((cause: unknown) => setRestartError(updateErrorText(cause)));
-            }}
-            data-testid="update-ready-restart"
-          >
-            Restart to update
-          </button>
-          <button
-            type="button"
-            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => later(ready.version)}
-            data-testid="update-ready-later"
-          >
-            Later
-          </button>
           {restartError && (
-            <p role="alert" className="basis-full" data-testid="update-ready-error">
+            <p role="alert" className="mt-1 text-meta text-danger" data-testid="update-ready-error">
               {restartError}
             </p>
           )}
-        </div>
+        </Banner>
       )}
       {offers.map((offer) => (
-        <div
+        <Banner
           key={`parked-${offer.session_id}`}
-          data-testid="parked-offer"
-          className="flex flex-wrap items-center gap-2 rounded border border-accent/40 bg-accent-soft px-2 py-1.5 text-label text-ink"
-        >
-          <span className="min-w-0 flex-1">{offer.text}</span>
-          <button
-            type="button"
-            className="rounded border border-accent/50 px-2 py-0.5 font-medium text-accent-hi focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() =>
-              void parkedResume(offer.session_id).then(() =>
-                setOffers((rows) => rows.filter((row) => row.session_id !== offer.session_id)),
-              )
-            }
-            data-testid="parked-offer-resume"
-          >
-            Resume
-          </button>
-          <button
-            type="button"
-            className="text-ink underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() =>
-              void parkedDismiss(offer.session_id).then(() =>
-                setOffers((rows) => rows.filter((row) => row.session_id !== offer.session_id)),
-              )
-            }
-            data-testid={offer.last ? "parked-offer-stop" : "parked-offer-snooze"}
-          >
-            {offer.last ? "Stop reminding me" : "Remind me in 30 min"}
-          </button>
-        </div>
+          tone="accent"
+          title={offer.text}
+          actions={[
+            { label: "Resume", primary: true, testId: "parked-offer-resume", onClick: () => void parkedResume(offer.session_id).then(() => setOffers(offers.filter((row) => row.session_id !== offer.session_id))) },
+            { label: offer.last ? "Stop reminding me" : "Remind me in 30 min", quiet: true, testId: offer.last ? "parked-offer-stop" : "parked-offer-snooze", onClick: () => void parkedDismiss(offer.session_id).then(() => setOffers(offers.filter((row) => row.session_id !== offer.session_id))) },
+          ]}
+          testId="parked-offer"
+        />
       ))}
       {queue.map((row) => (
-        <p key={row.id} data-testid={`queue-${row.state}`} className="flex items-center gap-2 rounded border border-hairline px-2 py-1 text-label">
-          <span>
-            {row.state === "ready"
-              ? `reset reached — ${row.account} ready to resume`
-              : row.state === "stale"
-                ? `queued resume went stale (session ${row.session} is gone)`
-                : `queued at ${new Date(row.resume_at_ms).toLocaleTimeString()} — ${row.account}`}
-          </span>
-          {row.state === "ready" && onQueueResume && (
-            <button
-              type="button"
-              className="underline focus:outline-none focus:ring-2 focus:ring-accent"
-              onClick={() => onQueueResume(row)}
-            >
-              Resume
-            </button>
-          )}
-          <button
-            type="button"
-            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => void resetQueueDismiss(row.id).then(() => setQueue((rows) => rows.filter((entry) => entry.id !== row.id)))}
-          >
-            dismiss
-          </button>
-        </p>
+        <Banner
+          key={row.id}
+          tone="neutral"
+          title={row.state === "ready" ? `${accountName(row.account)} has room again — ready to resume` : row.state === "stale" ? "A queued resume can't go ahead: its session is gone" : `Queued for ${accountName(row.account)}'s reset at ${clock(row.resume_at_ms)}`}
+          actions={row.state === "ready" && onQueueResume ? [{ label: "Resume", primary: true, onClick: () => onQueueResume(row) }] : []}
+          onDismiss={() => void resetQueueDismiss(row.id).then(() => setQueue(queue.filter((entry) => entry.id !== row.id)))}
+          testId={`queue-${row.state}`}
+        />
       ))}
     </div>
   );

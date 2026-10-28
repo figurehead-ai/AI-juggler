@@ -681,11 +681,11 @@ pub async fn alerts_tick(
     local_hour: Option<u32>,
 ) -> AppResult<Vec<AlertEventInfo>> {
     crate::ipc::blocking(state.inner(), "alerts tick", move |state| {
-        // AJ-E1510: the local hour, for notifications' quiet hours.
-        state.notifier.local_hour_seen(local_hour, now_millis());
+        state.notifier.local_hour_seen(local_hour, now_millis()); // AJ-E1510: quiet hours
         let events = alerts_tick_inner(state, local_hour);
-        // AJ-E709: route them to paired consoles too (a no-op with Link off).
+        // AJ-E709: paired consoles hear of them (no-op with Link off); AJ-E2501: the model too.
         crate::link::publish_alerts(state, &events);
+        crate::features::notifications::sources::quota_pass(state, &events);
         Ok(events)
     })
     .await

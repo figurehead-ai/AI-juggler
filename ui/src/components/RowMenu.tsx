@@ -14,14 +14,18 @@ export function RowMenu({
   ariaLabel,
   at,
   onClose,
+  wide = false,
   children,
 }: {
-  /** The small uppercase line on top (what the menu is about). */
+  /** The small uppercase line on top (what the menu is about); none when
+   * the menu's own first lines say it (the user menu). */
   heading: string;
   ariaLabel: string;
   /** Where it opens (viewport px), from {@link menuPoint}. */
   at: { x: number; y: number };
   onClose: () => void;
+  /** AJ-E2507: a little wider (the user menu's inline choices). */
+  wide?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -111,9 +115,9 @@ export function RowMenu({
       role="menu"
       aria-label={ariaLabel}
       style={style}
-      className="fixed z-50 flex max-h-[calc(100vh-8px)] w-64 flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+      className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-64")}
     >
-      <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>
+      {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
       {children}
     </div>,
     document.body,

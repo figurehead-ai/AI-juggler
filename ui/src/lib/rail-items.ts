@@ -251,13 +251,15 @@ export interface ItemInputs {
   snoozed?: (row: InstanceInfo) => boolean;
   /** The rail's pins of sessions other apps run, by key (`lib/rail-order`). */
   pins?: ReadonlySet<string>;
+  /** D-49: the backend's Needs you, by item key (its word decides). */
+  needOf?: ReadonlyMap<string, Need>;
 }
 
 /** Every item: AI Juggler's sessions, then the sessions it didn't start. */
-export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins }: ItemInputs): RailItem[] {
+export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  return [
+  const items = [
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
@@ -266,6 +268,12 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
         return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
       }),
   ];
+  // D-49: what is in Needs you is the backend's (one list, one count).
+  if (!needOf) return items;
+  return items.map((item) => {
+    const need = needOf.get(item.key) ?? null;
+    return need === item.need ? item : { ...item, need, probably: item.session ? need === "stuck" : item.probably, live: item.live || (item.session !== null && need !== null) };
+  });
 }
 
 const NEED_ORDER: Need[] = ["asks", "limit", "failed", "stuck", "review"];

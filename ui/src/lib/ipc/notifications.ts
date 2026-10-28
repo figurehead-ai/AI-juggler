@@ -19,12 +19,16 @@ export const NOTIFY_DEFAULT: SystemNotificationsInfo = {
   finished: false,
   this_mac: false,
   left_behind: false,
+  quota: false,
+  crash: false,
+  reset: false,
 };
 
 /** What a clicked notification opens. */
 export interface OpenRequest {
   session_id: string | null;
-  page: "this_mac" | null;
+  /** `this_mac`, or (AJ-E2501) `notifications`: the centre. */
+  page: "this_mac" | "notifications" | null;
   /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
   machine_id?: string | null;
 }

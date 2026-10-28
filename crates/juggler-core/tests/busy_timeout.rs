@@ -316,23 +316,20 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v36, E19 tasks) is
+    // One version behind: the last migration (v37, AJ-E2501 notices) is
     // undone by hand and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 36,
-        "a new migration landed: undo it here instead (this test's undo is v36's)"
+        version, 37,
+        "a new migration landed: undo it here instead (this test's undo is v37's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch(
-            "DROP TABLE task_needs; DROP TABLE task_events; DROP TABLE task_sessions; \
-             DROP TABLE task_links; DROP TABLE tasks;",
-        )
-        .unwrap();
+        conn.execute_batch("DROP TABLE notice_mutes; DROP TABLE need_snoozes; DROP TABLE notices;")
+            .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

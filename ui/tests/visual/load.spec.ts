@@ -50,7 +50,7 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  await expect(page.getByTestId("user-menu-button")).toBeVisible();
 }
 
 /** Click, then wait until `done` holds; the browser clock measures it. */
@@ -178,8 +178,9 @@ test("the Processes page paints its first rows in under 300 ms", async ({ page }
     if ((await main.getByRole("button", { name: "Processes", exact: true }).count()) > 0) {
       return main.getByRole("button", { name: "Processes", exact: true }).first();
     }
-    await main.getByRole("button", { name: "More", exact: true }).click();
-    return page.locator("#nav-more").getByRole("button", { name: /^Processes\b/ });
+    // AJ-E2507: Processes is in your menu now.
+    await page.getByTestId("user-menu-button").click();
+    return page.getByRole("menu", { name: "Your menu" }).getByRole("menuitem", { name: /^Processes\b/ });
   };
   for (let i = 0; i < 5; i++) {
     await goTo(page, "Home");

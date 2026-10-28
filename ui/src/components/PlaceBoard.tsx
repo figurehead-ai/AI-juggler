@@ -28,6 +28,9 @@ import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-stor
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
+import { useBackendNeeds } from "../lib/needs-you";
+import { useNoticeActions } from "../lib/notice-actions";
+import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
 import { accountName, useSubscriptions } from "../lib/subscriptions";
 import { railPoolOf, usePools } from "../lib/pools";
@@ -52,11 +55,16 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const view = useRailView();
   const order = useRailOrder();
   const parsed = useMemo(() => parseQuery(query), [query]);
+  // D-49: Needs you is the backend's: its sessions, and the rest beside.
+  const needsNow = useBackendNeeds();
+  const actions = useNoticeActions(sessions);
   const pins = useMemo(() => new Set(order.pins), [order.pins]);
   const items = useMemo(
-    () => itemsOf({ sessions, conversations: all, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), pins }),
-    [sessions, all, projects, seen, snooze, now, pins],
+    () => itemsOf({ sessions, conversations: all, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), pins, needOf: needsNow.needOf }),
+    [sessions, all, projects, seen, snooze, now, pins, needsNow.needOf],
   );
+  const shownKeys = new Set(items.map((item) => item.key));
+  const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
   assignProfiles(items.map((item) => item.place.profile ?? ""));
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const toggle = (key: string) =>
@@ -84,7 +92,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     () => ({ mode: order.mode, rows: rankOf(order.rows), groups: order.groups[orderLens], folded: new Set(order.folded) }),
     [order.mode, order.rows, order.groups, order.folded, orderLens],
   );
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs });
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
@@ -243,6 +251,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <SectionHead id={line.id} count={line.count} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} />;
+      case "notice":
+        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
       case "header": {
         const group = line.group;
         const own = group.key === OWN_PLACE;
@@ -309,7 +319,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height) : null;
   const shown = win ? lines.slice(win.start, win.end) : lines;
   const keyOf = (line: Line, index: number): string =>
-    line.kind === "need" || line.kind === "plain" ? `${line.kind}:${line.item.key}` : line.kind === "row" ? `row:${line.item.key}` : line.kind === "header" || line.kind === "more" ? `${line.kind}:${line.group.key}` : `${line.kind}:${"id" in line ? line.id : index}`;
+    line.kind === "notice" ? `notice:${line.notice.subject}` : line.kind === "need" || line.kind === "plain" ? `${line.kind}:${line.item.key}` : line.kind === "row" ? `row:${line.item.key}` : line.kind === "header" || line.kind === "more" ? `${line.kind}:${line.group.key}` : `${line.kind}:${"id" in line ? line.id : index}`;
   return (
     <div
       ref={root}

@@ -8,6 +8,7 @@ import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
 import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
 import { useProjectLens } from "./project-lens.test-kit";
+import { notificationsSnoozes } from "../lib/ipc/notices";
 
 // AJ-E2104: these read the project board, the rail's Project lens.
 useProjectLens();
@@ -345,10 +346,12 @@ describe("AJ-E1503 snooze with Undo", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Snooze for an hour" }));
     expect(screen.getByTestId("toast").textContent).toContain("Snoozed Work Max for 1 h.");
-    expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeTruthy();
+    // D-49: the snooze is the backend's (here its stand-in), by subject.
+    const snoozed = async () => (await notificationsSnoozes({ cursor: null, limit: 50 })).items.map((row) => row.subject);
+    await waitFor(async () => expect(await snoozed()).toContain("s:sess-1"));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
     });
-    expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeUndefined();
+    await waitFor(async () => expect(await snoozed()).not.toContain("s:sess-1"));
   });
 });

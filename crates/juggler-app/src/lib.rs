@@ -536,6 +536,21 @@ macro_rules! app_commands {
             Read  features::staging::staging_ready,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
+            // AJ-E2501: the one notification model (the centre, banners,
+            // bell); the window keeps Needs you in step with it.
+            Read  features::notifications::commands::notifications_summary,
+            Read  features::notifications::commands::notifications_page,
+            Read  features::notifications::commands::notifications_mutes,
+            Write features::notifications::commands::notifications_read,
+            Write features::notifications::commands::notifications_snooze,
+            Read  features::notifications::commands::notifications_snoozes,
+            Write features::notifications::commands::notifications_dismiss,
+            Write features::notifications::commands::notifications_mute,
+            Write features::notifications::commands::notifications_unmute,
+            // AJ-E2507: the user menu's name (the system's, never stored).
+            Read  features::app::user::app_user_get,
+            // Opens the browser: never from the read-only bridge.
+            Write features::app::user::app_help_open,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
@@ -813,6 +828,12 @@ pub fn run() {
                 app.handle().clone(),
             );
             features::notifications::connect(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
+            // AJ-E2501: the badge, the menu-bar item and the bell follow
+            // the notification model from here on.
+            features::notifications::views::connect(
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
@@ -1137,6 +1158,9 @@ fn spawn_read_model_ticks(
         // working here, before This Mac says so.
         features::app::awake::tick(&resource_state);
         let _ = machine_health::emit_this_mac(&app, &resource_state);
+        // D-49: Needs you, worked out here (no window needed); a snooze
+        // whose time came brings its need back into every count.
+        features::notifications::needs::refresh(&resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.

@@ -51,6 +51,25 @@ export function Select({
   );
 }
 
+/** §2.5: Tab and Shift+Tab stay inside `container` (a dialog's trap). */
+export function keepTabInside(container: HTMLElement | null, event: KeyboardEvent<HTMLElement>): void {
+  if (event.key !== "Tab") return;
+  const focusable = Array.from(
+    container?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']") ?? [],
+  );
+  if (focusable.length === 0) return;
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  const at = document.activeElement;
+  if (event.shiftKey && (at === first || at === container || !container?.contains(at))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 /**
  * The app's sheet: a titled dialog over a dimmed window. AJ-E1503: it is
  * a real modal dialog — named by its title, focus moves inside on open
@@ -91,22 +110,7 @@ export function Modal({
       if (before && document.contains(before)) before.focus();
     };
   }, []);
-  const trapTab = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(
-      dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']") ?? [],
-    );
-    if (focusable.length === 0) return;
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
+  const trapTab = (event: KeyboardEvent<HTMLDivElement>) => keepTabInside(dialogRef.current, event);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-6 backdrop-blur-sm"

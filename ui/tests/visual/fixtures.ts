@@ -312,8 +312,23 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
     await direct.first().click();
     return;
   }
-  await main.getByRole("button", { name: "More", exact: true }).click();
-  await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
+  // AJ-E2507: Settings and the old More (This Mac, Processes, Privacy)
+  // are in your menu, behind the avatar. D-49: Fleet ("My Macs") is in it
+  // only with a Figurehead account; otherwise ⌘⇧F opens it, as here.
+  if (name === "Fleet") {
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "fleet" } })));
+    return;
+  }
+  await openUserMenu(page);
+  await page.getByRole("menu", { name: "Your menu" }).getByRole("menuitem", { name: new RegExp(`^${name}\\b`) }).click();
+}
+
+/** AJ-E2507: opens your menu (the avatar), once. */
+export async function openUserMenu(page: import("@playwright/test").Page): Promise<void> {
+  const menu = page.getByRole("menu", { name: "Your menu" });
+  if (await menu.isVisible()) return;
+  await page.getByTestId("user-menu-button").click();
+  await menu.waitFor();
 }
 
 /** AJ-E2110: opens one of Settings' panes from its sidebar. */

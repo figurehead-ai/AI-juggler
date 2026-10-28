@@ -7,3 +7,4 @@ pub mod diagnostics;
 pub mod login_item;
 pub mod own;
 pub mod uninstall;
+pub mod user;

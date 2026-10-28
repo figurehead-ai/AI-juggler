@@ -6,6 +6,7 @@
  * hover and focus only, pinning a session another app runs, a session
  * that needs you staying in its place, and a remembered fold.
  */
+import { needsFor } from "../test/needs-kit";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -42,6 +43,7 @@ const projects = [{ id: "proj-ai-juggler", root: "/Users/you/Dev/ai-juggler", na
 
 function board(sessions: InstanceInfo[] = []) {
   seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
+  needsFor({ sessions, conversations: placesConversations(NOW), projects }); // D-49: the backend's list
   return render(
     <ConversationsProvider>
       <InstanceBoard sessions={sessions} loginTerminals={[]} selectedId={null} onSelect={() => {}} density="comfortable" freshness={{}} now={NOW} projects={projects} snooze={{}} onSnooze={() => {}} />

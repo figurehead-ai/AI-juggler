@@ -521,7 +521,7 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_RANKING__ = ranked;
-        w.__AIJ_ALERTS__ = events;
+        w.__AIJ_NOTICES__ = events;
         w.__AIJ_RESET_QUEUE__ = rows;
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -553,10 +553,29 @@ for (const theme of ["dark", "light"] as const) {
             suggested: false,
           },
         ],
-        events: [
-          { kind: "actionable", account: "claude-work", text: "claude-work at 92% used (Measured), five-hour window — hand over or queue at reset", at_ms: T0 - 60_000 },
-          { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
-        ],
+        // AJ-E2501: the account almost out of room, as the model keeps it.
+        events: {
+          app: [
+            {
+              id: 41,
+              kind: "quota",
+              needs: true,
+              title: "Work Max is almost out of room",
+              detail: "8% of its 5-hour window left",
+              project_id: null,
+              project: null,
+              target: { session_id: null, conversation_id: null, account_id: "claude-work", project_id: null, page: null, task_id: null, pool_id: null },
+              facts: { window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Work Max" },
+              action: "hand-over",
+              meter: 8,
+              created_ms: T0 - 60_000,
+              unread: true,
+              snoozed_until_ms: null,
+              muted: false,
+              dismissed: false,
+            },
+          ],
+        },
         rows: [
           { id: "rq-1", session: "sess-1", account: "claude-work", resume_at_ms: T0 + 45 * 60_000, state: "queued" },
           { id: "rq-2", session: "sess-2", account: "claude-lab", resume_at_ms: T0 - 60_000, state: "ready" },
@@ -568,7 +587,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     // The notification region renders in the work view (polite
     // live-region semantics assertable before the modal opens).
-    await expect(page.getByTestId("alert-actionable")).toBeVisible();
+    await expect(page.getByTestId("home-need-quota")).toBeVisible();
     await expect(page.getByTestId("queue-ready")).toBeVisible();
     await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
     await expect(page.getByTestId("ranked-rows")).toBeVisible();
@@ -1478,7 +1497,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     // Wait for the shell (its key listener) before the shortcut.
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await expect(page.getByTestId("settings-screen")).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
@@ -1509,7 +1528,7 @@ for (const theme of ["dark", "light"] as const) {
       };
     });
     await goTo(page, "Fleet");
-    await page.getByRole("button", { name: "Settings" }).first().click();
+    await goTo(page, "Settings");
     await expect(page.getByTestId("cloud-offline")).toBeVisible();
     await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -2083,7 +2102,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("backup-restore").click();
@@ -2148,7 +2167,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await expect(page.getByTestId("beta-label")).toBeVisible();
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
@@ -2243,7 +2262,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await expect(page.getByTestId("recovery-code")).toBeFocused();
     await page.keyboard.press("Tab");
@@ -2281,7 +2300,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-backup-restore").click();
     await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
@@ -2370,7 +2389,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await settingsPane(page, "Privacy");
     await expect(page.getByTestId("settings-privacy")).toBeVisible();

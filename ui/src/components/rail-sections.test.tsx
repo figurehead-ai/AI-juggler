@@ -4,6 +4,7 @@
  * turning its view on. Ended sessions from other apps are no longer added
  * under every project, and a session open in two places is one row.
  */
+import { needsFor } from "../test/needs-kit";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -51,6 +52,7 @@ const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, a
 
 function board(rows: InstanceInfo[], conversations: ConversationInfo[]) {
   (window as unknown as { __AIJ_FIXTURE__?: unknown }).__AIJ_FIXTURE__ = { conversations };
+  needsFor({ sessions: rows, conversations }); // D-49: the backend's list
   return render(
     <ConversationsProvider>
       <InstanceBoard

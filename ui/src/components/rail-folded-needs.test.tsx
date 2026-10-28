@@ -2,6 +2,7 @@
  * 0.0.11 walk, Q7: a folded project still says what needs you inside it —
  * the session rows' "!" mark and a count — and nothing unfolds by itself.
  */
+import { needsOfRows } from "../test/needs-kit";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -32,6 +33,7 @@ const project = (id: string, name: string): ProjectInfo =>
   ({ id, root: `/Users/dev/${name}`, name, last_activity_ms: NOW, active_instance: null, accounts_used: ["Work Max"], instance_count: 1, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false }) as ProjectInfo;
 
 function board(rows: InstanceInfo[]) {
+  needsOfRows(rows); // D-49: the backend's list
   return render(
     <InstanceBoard
       sessions={rows}

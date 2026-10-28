@@ -1,19 +1,18 @@
 /**
- * The header's main navigation (D-25): Home, Accounts, History, Settings;
+ * The header's main navigation (D-25): Home, Accounts, Usage, History;
  * Fleet once a Mac is paired; the cleanup pill when there's something to
- * tidy; More. AJ-E1534: what's lit comes from the page shown — an
- * account's page is under Accounts. (0.1.5: Usage joins the header; a
- * tool's details are in Settings › Accounts.)
+ * tidy. AJ-E1534: what's lit comes from the page shown — an account's
+ * page is under Accounts. (0.1.5: Usage joins the header; a tool's
+ * details are in Settings › Accounts. AJ-E2507: Settings and More moved
+ * into your menu, behind the avatar.)
  */
 import type { JSX } from "react";
-import { MoreMenu, type MoreItem } from "./MoreMenu";
 
 const NAV_BUTTON = "rounded-md px-2 py-1.5 text-meta font-medium transition-colors xl:px-2.5 ";
 const lit = (current: boolean) => (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink");
 
 export function MainNav<Id extends string>({
   primary,
-  more,
   global,
   page,
   pairedCount,
@@ -21,7 +20,6 @@ export function MainNav<Id extends string>({
   onPick,
 }: {
   primary: Array<{ id: Id | "home"; label: string }>;
-  more: MoreItem<Id>[];
   /** The global screen shown, if any. */
   global: Id | null;
   /** The kind of item page shown, else "none". */
@@ -58,7 +56,6 @@ export function MainNav<Id extends string>({
           {cleanupCount === 1 ? "1 thing to clean up" : `${cleanupCount} things to clean up`}
         </button>
       )}
-      <MoreMenu items={more} current={global} inTools={global === null && page === "provider"} onPick={onPick} />
     </nav>
   );
 }

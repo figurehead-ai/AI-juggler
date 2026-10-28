@@ -1410,6 +1410,8 @@ pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
+    // D-49: Needs you reads This Mac on the same tick, window or not.
+    state.notifier.set_this_mac(payload.clone());
     let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
         should_emit(
             &mut last,

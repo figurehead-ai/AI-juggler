@@ -1,8 +1,12 @@
 /**
- * AJ-E1503 — one feedback system. Every action answers the same way: a
- * toast at the bottom of the window says the result in words, with Undo
- * where the action can be undone (Max-Depth C1: undo beats confirm for a
- * single action). The switch undo window (AJ-E206) is one of these.
+ * AJ-E1503 — one feedback system; §2's Toast (AJ-E2505, the approved
+ * design of 2026-10-27). Every action answers the same way: a toast at
+ * the bottom right says the result in words, with Undo where the action
+ * can be undone (Max-Depth C1: undo beats confirm) or Retry where it
+ * failed. Six seconds, a bar shows the time left, hovering or focusing it
+ * pauses it; an error, or a warning (something didn't work), stays until
+ * it is closed. The switch undo window
+ * (AJ-E206) is one of these.
  *
  * - `showToast` shows a result; with `undo` it carries an Undo button and
  *   a countdown. Nothing is undone unless the user clicks Undo (or ⌘Z).
@@ -15,7 +19,6 @@
  *   in the page, and never take focus from anything (Req.5). `focusWhenFree`
  *   only lands on Undo when focus would otherwise fall to the page body.
  */
-import { useEffect, useRef, useState, useSyncExternalStore, type JSX } from "react";
 import { errorText } from "../lib/bridge";
 
 export interface ToastUndo {
@@ -38,9 +41,12 @@ export interface ToastOptions {
   message: string;
   /** A quieter second part. */
   detail?: string;
-  tone?: "neutral" | "warning";
+  /** `error` and `warning` (a failure said) stay until closed. */
+  tone?: "neutral" | "success" | "warning" | "error";
   undo?: ToastUndo;
-  /** How long a toast without Undo stays, in seconds (default 5). */
+  /** Its one other action (Retry, Sign in…): runs, then the toast goes. */
+  action?: { label: string; run: () => unknown };
+  /** How long a toast without Undo stays, in seconds (default 6, §2). */
   seconds?: number;
   /** The window closed without Undo: what a held action sends. */
   onExpire?: () => unknown;
@@ -62,9 +68,16 @@ export interface ToastEntry {
   phase: Phase;
   /** When the window closes (epoch ms); null once it no longer counts. */
   expiresAt: number | null;
+  /** Its whole window, ms (the time bar's length). */
+  total: number;
+  /** Paused (hovered): the ms that were left. */
+  pausedLeft: number | null;
   /** The failed undo's words. */
   failure: string | null;
 }
+
+/** A plain toast's time on screen, seconds (§2). */
+export const TOAST_SECONDS = 6;
 
 // --- the store ---------------------------------------------------------------
 
@@ -85,7 +98,7 @@ function subscribe(listener: () => void): () => void {
 
 function announce(text: string): void {
   // The same words twice in a row must still be read out.
-  announcement = announcement === text ? `${text} ` : text;
+  announcement = announcement === text ? `${text} ` : text;
 }
 
 function clearTimer(id: string): void {
@@ -132,11 +145,7 @@ async function settle(id: string): Promise<void> {
     await entry.options.onExpire();
   } catch (cause) {
     const words = errorText(cause);
-    showToast({
-      tone: "warning",
-      message: entry.options.expireFailed?.(words) ?? `That didn’t finish: ${words}`,
-      seconds: 8,
-    });
+    showToast({ tone: "error", message: entry.options.expireFailed?.(words) ?? `That didn’t finish: ${words}` });
   }
 }
 
@@ -144,25 +153,38 @@ async function settle(id: string): Promise<void> {
 export function showToast(options: ToastOptions): string {
   counter += 1;
   const id = options.id ?? `toast-${counter}`;
-  const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? 5);
-  const existing = entries.find((row) => row.id === id);
-  if (existing) {
+  const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? TOAST_SECONDS);
+  // A failure stays until it is closed — an error, or a warning that
+  // something didn't work (unless it holds an action to send).
+  const stays = (options.tone === "error" || options.tone === "warning") && !options.onExpire && !options.undo;
+  if (entries.some((row) => row.id === id)) {
     clearTimer(id);
     entries = entries.filter((row) => row.id !== id);
   }
-  const entry: ToastEntry = {
-    id,
-    options,
-    phase: "counting",
-    expiresAt: Date.now() + seconds * 1000,
-    failure: null,
-  };
-  entries = [...entries, entry];
+  const total = seconds * 1000;
+  entries = [...entries, { id, options, phase: "counting", expiresAt: stays ? null : Date.now() + total, total, pausedLeft: null, failure: null }];
   const words = [options.message, options.detail].filter(Boolean).join(" ");
   announce(options.undo ? `${words} Undo is available for ${seconds} seconds.` : words);
-  arm(id, seconds * 1000, () => void settle(id));
+  if (!stays) arm(id, total, () => void settle(id));
   emit();
   return id;
+}
+
+/** Hovered or focused: the time stops. */
+export function pauseToast(id: string): void {
+  const entry = entries.find((row) => row.id === id);
+  if (!entry || entry.phase !== "counting" || entry.expiresAt === null || entry.pausedLeft !== null) return;
+  clearTimer(id);
+  update(id, { pausedLeft: Math.max(0, entry.expiresAt - Date.now()) });
+}
+
+/** Left: the time goes on from where it stopped. */
+export function resumeToast(id: string): void {
+  const entry = entries.find((row) => row.id === id);
+  if (!entry || entry.pausedLeft === null) return;
+  const left = entry.pausedLeft;
+  update(id, { pausedLeft: null, expiresAt: Date.now() + left });
+  arm(id, left, () => void settle(id));
 }
 
 /** Closes a toast now; a held action is sent at once. */
@@ -176,7 +198,7 @@ export async function undoToast(id: string): Promise<void> {
   if (!entry || entry.phase !== "counting" || !entry.options.undo) return;
   const undo = entry.options.undo;
   clearTimer(id);
-  update(id, { phase: "undoing", expiresAt: null });
+  update(id, { phase: "undoing", expiresAt: null, pausedLeft: null });
   announce(undo.undoing ?? "Undoing…");
   emit();
   try {
@@ -206,27 +228,14 @@ export function undoLatest(): boolean {
  * Holds `run` for the undo window, then sends it. Undo in time and it is
  * never sent. Holding the same id again while it waits changes nothing.
  */
-export function holdAction(options: {
-  id: string;
-  message: string;
-  detail?: string;
-  seconds?: number;
-  run: () => unknown;
-  undone?: string;
-  failed?: (cause: string) => string;
-  testId?: string;
-}): void {
+export function holdAction(options: { id: string; message: string; detail?: string; seconds?: number; run: () => unknown; undone?: string; failed?: (cause: string) => string; testId?: string }): void {
   if (isHeld(options.id)) return;
   showToast({
     id: options.id,
     message: options.message,
     detail: options.detail,
     testId: options.testId,
-    undo: {
-      seconds: options.seconds ?? 5,
-      onUndo: () => undefined,
-      done: options.undone ?? "Undone — nothing was sent.",
-    },
+    undo: { seconds: options.seconds ?? 5, onUndo: () => undefined, done: options.undone ?? "Undone — nothing was sent." },
     onExpire: options.run,
     expireFailed: options.failed,
   });
@@ -256,115 +265,8 @@ export function toastEntries(): ToastEntry[] {
   return entries;
 }
 
-// --- the view ----------------------------------------------------------------
+/** Store internals for the view (ToastStack.tsx). */
+export const toastStore = { subscribe, entries: () => entries, announcement: () => announcement, remove: (id: string) => void remove(id) };
 
-const snapshotEntries = () => entries;
-const snapshotAnnouncement = () => announcement;
-
-/** The one place toasts appear. Mounted once, by App. */
-export function ToastHost(): JSX.Element {
-  const rows = useSyncExternalStore(subscribe, snapshotEntries, snapshotEntries);
-  const said = useSyncExternalStore(subscribe, snapshotAnnouncement, snapshotAnnouncement);
-  return (
-    <>
-      {/* Always in the page, so a new message is read out (Req.5). */}
-      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-testid="toast-announcer">
-        {said}
-      </div>
-      {rows.length > 0 && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[520px] flex-col items-stretch gap-2">
-          {rows.slice(-3).map((entry) => (
-            <Toast key={entry.id} entry={entry} />
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-function secondsUntil(at: number | null): number {
-  return at === null ? 0 : Math.max(0, Math.ceil((at - Date.now()) / 1000));
-}
-
-/** One toast (the switch toast's look, AJ-E206, for every result). */
-export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
-  const { options, phase } = entry;
-  const [left, setLeft] = useState(() => secondsUntil(entry.expiresAt));
-  useEffect(() => {
-    setLeft(secondsUntil(entry.expiresAt));
-    if (entry.expiresAt === null) return;
-    // display only: the countdown's seconds (the store owns the timing).
-    const timer = window.setInterval(() => setLeft(secondsUntil(entry.expiresAt)), 1000);
-    return () => window.clearInterval(timer);
-  }, [entry.expiresAt]);
-  const undoRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!options.focusWhenFree) return;
-    if (!document.activeElement || document.activeElement === document.body) undoRef.current?.focus();
-  }, [options.focusWhenFree]);
-  const warning = options.tone === "warning" || phase === "failed";
-  return (
-    <div
-      className="pointer-events-auto flex items-center gap-3 rounded-xl border border-hairline bg-surface px-4 py-3 shadow-card"
-      role="group"
-      aria-label={options.message}
-      data-testid={options.testId ? `${options.testId}-toast` : "toast"}
-      data-phase={phase}
-    >
-      {phase === "counting" && (
-        <>
-          <p className={"min-w-0 flex-1 text-xs" + (warning ? " text-warning" : "")}>
-            {options.message}
-            {options.detail && <span className="text-muted"> {options.detail}</span>}
-          </p>
-          {options.undo && (
-            <button
-              type="button"
-              ref={undoRef}
-              onClick={() => void undoToast(entry.id)}
-              data-testid={options.testId ?? "toast-undo"}
-              title="Undo (⌘Z)"
-              className="shrink-0 rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi hover:border-accent/60"
-            >
-              Undo ({left}s)
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => dismissToast(entry.id)}
-            aria-label={options.onExpire ? "Do it now" : "Dismiss"}
-            title={options.onExpire ? "Do it now" : "Dismiss"}
-            className="shrink-0 rounded-lg border border-hairline px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
-          >
-            ✕
-          </button>
-        </>
-      )}
-      {phase === "undoing" && (
-        <p className="text-xs" data-testid={options.testId ? `${options.testId}ing` : "toast-undoing"}>
-          {options.undo?.undoing ?? "Undoing…"}
-        </p>
-      )}
-      {phase === "undone" && (
-        <p className="text-xs" data-testid="toast-undone">
-          {options.undo?.done ?? "Undone."}
-        </p>
-      )}
-      {phase === "failed" && (
-        <>
-          <div className="flex flex-col">
-            <p className="text-xs text-warning">Undo didn’t complete</p>
-            <p className="text-label text-muted">{entry.failure}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void remove(entry.id)}
-            className="shrink-0 rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-          >
-            Close
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
+// The view lives in ToastStack.tsx; App and tests take it from here too.
+export { Toast, ToastHost } from "./ToastStack";

@@ -24,6 +24,7 @@ mod fleet_sync;
 mod footprints;
 mod identity;
 mod messages;
+mod notices;
 mod pools;
 mod process_ledger;
 mod projects;
@@ -55,6 +56,9 @@ pub use identity::{IdentityAssertion, IdentityRepo};
 pub use messages::{
     Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, NewMessage, Recipient,
     RecipientState, SENDER_USER, Thread, ThreadState,
+};
+pub use notices::{
+    NOTICE_KEEP_DAYS, NOTICE_KEEP_MS, NewNotice, Notice, NoticeMute, NoticesRepo, Written,
 };
 pub use pools::{
     MemberRef, Memberships, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
@@ -607,9 +611,14 @@ const V35: &str = sightings::MIGRATION;
 /// The tasks module owns its tables ([`tasks::MIGRATION`]).
 const V36: &str = tasks::MIGRATION;
 
+/// v37 (AJ-E2501): the one notification model's history — what needs the
+/// user and what happened, kept 30 days — and the user's mutes. The
+/// notices module owns its tables ([`notices::MIGRATION`]).
+const V37: &str = notices::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -986,6 +995,13 @@ impl Storage {
     #[must_use]
     pub fn tasks(&self) -> TasksRepo<'_> {
         TasksRepo::new(&self.conn)
+    }
+
+    /// Repository for the notification model's history and the user's
+    /// mutes (schema v37, AJ-E2501).
+    #[must_use]
+    pub fn notices(&self) -> NoticesRepo<'_> {
+        NoticesRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

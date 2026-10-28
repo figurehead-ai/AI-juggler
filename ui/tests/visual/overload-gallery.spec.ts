@@ -156,7 +156,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("machine-alert")).toContainText("The Claude app is using CPU 140%");
     await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
     // Told once: dismissing clears it, and nothing else is offered.
-    await page.getByTestId("machine-alert").getByRole("button", { name: "dismiss" }).click();
+    await page.getByTestId("machine-alert").getByRole("button", { name: /^Close/ }).click();
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
     await axeClean(page);
   });

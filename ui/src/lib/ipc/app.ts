@@ -10,6 +10,7 @@ import type { LoginItemInfo } from "../../types/generated/LoginItemInfo";
 import type { UninstallPrepInfo } from "../../types/generated/UninstallPrepInfo";
 import type { DiagnosticsPreviewInfo } from "../../types/generated/DiagnosticsPreviewInfo";
 import type { DiagnosticsSavedInfo } from "../../types/generated/DiagnosticsSavedInfo";
+import type { AppUserInfo } from "../../types/generated/AppUserInfo";
 
 export type { UninstallPrepInfo };
 
@@ -109,6 +110,19 @@ export async function appDiagnosticsExport(id: string, dest: string): Promise<Di
 }
 
 /** Opens the bug form on GitHub in the browser. */
+/** AJ-E2507: who the user menu says you are (the system's name for you
+ * and for this computer). */
+export async function appUserGet(): Promise<AppUserInfo> {
+  if (!hasLiveBackend()) return (window as unknown as { __AIJ_USER__?: AppUserInfo }).__AIJ_USER__ ?? { name: "Sam", initial: "S", computer: "Mac", computers: "Macs" };
+  return invoke<AppUserInfo>("app_user_get");
+}
+
+/** AJ-E2507: Help and guides, in the browser. */
+export async function appHelpOpen(): Promise<void> {
+  if (!hasLiveBackend()) return;
+  return invoke<void>("app_help_open");
+}
+
 export async function appReportBugOpen(): Promise<void> {
   if (!hasLiveBackend()) {
     const seams = diagnosticsSeams();

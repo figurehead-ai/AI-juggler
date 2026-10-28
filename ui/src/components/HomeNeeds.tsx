@@ -75,6 +75,13 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
       case "heavy":
         if (need.sessionId) handlers.onOpenSession(need.sessionId);
         return;
+      case "quota":
+        // Hand over: its busiest session's hand-over, else its account.
+        if (need.sessionId) {
+          handlers.onOpenSession(need.sessionId);
+          window.setTimeout(() => window.dispatchEvent(new Event("aij:focus-handover")), 0);
+        } else if (need.account) host.openAccount?.(need.account);
+        return;
       case "leftovers":
         handlers.onOpenCleanup?.();
     }

@@ -282,5 +282,12 @@
 | AJ-E2405 | Automatic rules shown, previewed and told | E24-processes.md | P1 | M | AJ-E2401 |
 | AJ-E2407 | One source: the session tab, Cleanup and This Mac on the graph | E24-processes.md | P0 | M | AJ-E2401, AJ-E2404 |
 | AJ-E2406 | Privacy lines, guide, and the processes lab | E24-processes.md | P0 | S | AJ-E2402, AJ-E2403, AJ-E2404 |
-Total: 280 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2501 | The one notification model | E25-notifications-and-user-menu.md | P0 | L | AJ-E1510, AJ-E611 |
+| AJ-E2502 | One count: the bell, the app badge, Needs you | E25-notifications-and-user-menu.md | P0 | M | AJ-E2501 |
+| AJ-E2503 | The notification centre | E25-notifications-and-user-menu.md | P0 | L | AJ-E2501 |
+| AJ-E2504 | §2 Banner, the alert banners, and the offline banner | E25-notifications-and-user-menu.md | P0 | M | AJ-E2501 |
+| AJ-E2505 | §2 Toast | E25-notifications-and-user-menu.md | P0 | S | AJ-E1503 |
+| AJ-E2506 | The menu-bar item (§4.17) | E25-notifications-and-user-menu.md | P1 | M | AJ-E2501 |
+| AJ-E2507 | Your menu (the avatar) | E25-notifications-and-user-menu.md | P0 | M | AJ-E1203 |
+Total: 287 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

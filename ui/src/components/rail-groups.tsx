@@ -6,7 +6,6 @@
 import type { JSX } from "react";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { lastWorked } from "../lib/project-words";
-import { isSnoozed, unsnoozedNeedsCount, type SnoozeState } from "../lib/railview";
 import { attentionBadge } from "./indicator";
 
 const FOLDED_KEY = "aij.rail.folded";
@@ -63,10 +62,11 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
  * the same "!" mark the session rows' icons carry, and how many. The fold
  * stays the user's choice — nothing unfolds by itself.
  */
-export function FoldedNeeds({ rows, snooze, now }: { rows: InstanceInfo[]; snooze: SnoozeState; now: number }): JSX.Element | null {
-  const count = unsnoozedNeedsCount(rows, snooze, now);
+export function FoldedNeeds({ rows, isNeed }: { rows: InstanceInfo[]; isNeed: (row: InstanceInfo) => boolean }): JSX.Element | null {
+  // D-49: in Needs you as the backend says (a snoozed one is not).
+  const count = rows.filter(isNeed).length;
   if (count === 0) return null;
-  const danger = rows.some((row) => !isSnoozed(row, snooze, now) && attentionBadge(row)?.tone === "danger");
+  const danger = rows.some((row) => isNeed(row) && attentionBadge(row)?.tone === "danger");
   return (
     <span
       className={"flex items-center gap-1 text-label font-semibold " + (danger ? "text-danger" : "text-warning")}

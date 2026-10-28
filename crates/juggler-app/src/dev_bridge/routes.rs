@@ -257,6 +257,11 @@ read_routes! {
     "editor_choices" => async_result manage::editor_choices(state);
     "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
     "notifications_get" => async_result features::notifications::prefs::notifications_get(state);
+    // AJ-E2501: the notification model's summary and lists (reads only).
+    "notifications_summary" => async_result features::notifications::commands::notifications_summary(state);
+    "notifications_page" => async_result features::notifications::commands::notifications_page(state; section: String, request: crate::paging::PageRequest);
+    "notifications_mutes" => async_result features::notifications::commands::notifications_mutes(state; request: crate::paging::PageRequest);
+    "notifications_snoozes" => async_result features::notifications::commands::notifications_snoozes(state; request: crate::paging::PageRequest);
     // AJ-E1507: the project's rules and servers, compared (reads only).
     "project_sync_rules" => async_result features::project_sync::commands::project_sync_rules(state; project_id: String, master: Option<String>);
     "project_sync_diff" => async_result features::project_sync::commands::project_sync_diff(state; project_id: String, master: String, file: String, how: String);
@@ -398,6 +403,10 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     (
         "features::app::login_item::app_login_item_get",
         "asks macOS about the login item, not the app's data",
+    ),
+    (
+        "features::app::user::app_user_get",
+        "the user's name from the system, not the app's data",
     ),
 ];
 

@@ -94,7 +94,8 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
 
     let storage = Storage::open(&db).unwrap();
     assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
-    assert_eq!(Storage::schema_version(), 36);
+    // v37 (AJ-E2501, notices) came after E19's tables.
+    assert_eq!(Storage::schema_version(), 37);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);
@@ -147,7 +148,7 @@ fn upgrading_from_sightings_adds_the_tasks() {
     assert!(!before.contains(&"tasks".to_owned()));
 
     let storage = Storage::open(&db).unwrap();
-    assert_eq!(storage.user_version().unwrap(), 36);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     assert_eq!(pre_migration_copies(&db)[0].0, 35);
     let after = tables(&db);
     for table in [V35_TABLES, V36_TABLES].concat() {

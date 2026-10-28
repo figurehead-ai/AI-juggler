@@ -66,6 +66,8 @@ function expiryTieBreak(row: InstanceInfo, accounts: AccountInfo[], now: number)
 
 export type SnoozeState = Record<string, { until: number | null; muted: boolean }>;
 
+/** Where the window kept its snoozes before 0.2 (they live in the backend
+ * now, D-49: read once, moved over, forgotten). */
 const SNOOZE_KEY = "aij.snooze";
 
 export function readSnooze(storage: Storage = localStorage): SnoozeState {
@@ -77,8 +79,12 @@ export function readSnooze(storage: Storage = localStorage): SnoozeState {
   }
 }
 
-export function storeSnooze(state: SnoozeState, storage: Storage = localStorage): void {
-  storage.setItem(SNOOZE_KEY, JSON.stringify(state));
+export function forgetSnooze(storage: Storage = localStorage): void {
+  try {
+    storage.removeItem(SNOOZE_KEY);
+  } catch {
+    // Storage blocked: nothing kept to forget.
+  }
 }
 
 /** Is the row currently snoozed (muted = forever)? */
@@ -226,10 +232,6 @@ export function chipCounts(rows: InstanceInfo[]): Record<ChipId, number> {
   };
 }
 
-/** Unsnoozed attention count — the only number the rail badge shows (Req.6). */
-export function unsnoozedNeedsCount(rows: InstanceInfo[], snooze: SnoozeState, now: number): number {
-  return rows.filter((row) => row.needs_attention !== null && !isSnoozed(row, snooze, now)).length;
-}
 
 // --- grouping ------------------------------------------------------------------------
 

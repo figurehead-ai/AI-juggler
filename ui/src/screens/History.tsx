@@ -248,7 +248,7 @@ export function History({
       });
       changed();
     } catch (cause) {
-      showToast({ tone: "warning", message: `${label}: ${errorText(cause)}`, seconds: 8 });
+      showToast({ tone: "warning", message: `${label}: ${errorText(cause)}` });
     }
   };
 

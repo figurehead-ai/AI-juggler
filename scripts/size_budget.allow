@@ -12,10 +12,9 @@
 crates/juggler-app/src/commands.rs 4245
 crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
-ui/src/App.tsx 1212
+ui/src/App.tsx 1182
 ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
-ui/src/components/NotificationRegion.tsx 425
 ui/src/components/RemoteTabs.tsx 494
 ui/src/components/RightInspector.tsx 1246
 ui/src/components/SwitchFlow.tsx 762
