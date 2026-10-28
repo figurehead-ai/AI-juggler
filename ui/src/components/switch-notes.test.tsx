@@ -33,7 +33,7 @@ const PREFLIGHT: PreflightInfoData = {
   redaction: { global: "strip", override: null, effective: "strip", source: "global", line: "Redaction: Strip" },
   redaction_items: [],
   carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
-  move_line: "The whole conversation is carried over — all 12 messages. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 12 messages.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: "claude-code",
 };

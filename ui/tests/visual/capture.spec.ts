@@ -2207,7 +2207,7 @@ const SWITCH_WIZARD_FIXTURE = {
     { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
     { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
 };
 
 for (const theme of THEMES) {
@@ -2671,7 +2671,7 @@ for (const theme of THEMES) {
         { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
         { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
       ],
-      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work. The original stays as it was.",
+      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
       secrets: { asks: true, reader: "Codex (OpenAI)" },
       target_tool: "codex",
     };

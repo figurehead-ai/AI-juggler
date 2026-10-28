@@ -2146,7 +2146,7 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
     { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves" },
     { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
   ],
-  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: MOCK_ACCOUNTS[0]!.provider, // the mock accounts' tool (no tool id written here: ADR-0019)
 };
