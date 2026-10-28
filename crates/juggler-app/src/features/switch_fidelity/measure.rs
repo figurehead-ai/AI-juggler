@@ -197,13 +197,15 @@ fn new_turns<'a>(
         .iter()
         .filter_map(|turn| turn.uuid.as_deref())
         .collect();
+    // By id when the turn has one: identical words (a second "ran the
+    // tests") are new work all the same.
     away.turns
         .iter()
-        .filter(|turn| !turn.uuid.as_deref().is_some_and(|id| ids.contains(id)))
-        .filter(|turn| {
-            !original.turns.iter().any(|own| {
+        .filter(|turn| match turn.uuid.as_deref() {
+            Some(id) => !ids.contains(id),
+            None => !original.turns.iter().any(|own| {
                 own.user == turn.user && own.text == turn.text && own.tools == turn.tools
-            })
+            }),
         })
         .filter(|turn| {
             !(turn.user
@@ -287,7 +289,15 @@ fn tool_calls_row(turns: &Measured<'_>, received: &Received) -> Row {
 }
 
 fn tool_results_row(source: &Conversation, received: &Received) -> Row {
-    let had = source.content.tool_results;
+    // Switching back, the away side began as the original's own turns:
+    // only the results after them are new.
+    let had = match received {
+        Received::Return { original, .. } => source
+            .content
+            .tool_results
+            .saturating_sub(original.content.tool_results),
+        _ => source.content.tool_results,
+    };
     match received {
         Received::Native(target) => {
             let carried = had.min(target.content.tool_results);

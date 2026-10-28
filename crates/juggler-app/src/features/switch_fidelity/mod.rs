@@ -396,7 +396,8 @@ pub fn surroundings(
     around
 }
 
-/// The opening sentence every registered tool's replay starts with
+/// The opening sentence every registered tool's replay starts with (as
+/// the handover's pointer starts)
 /// ([`Hop::openings`]).
 #[must_use]
 pub fn replay_openings(state: &Arc<AppState>) -> Vec<String> {
@@ -404,7 +405,10 @@ pub fn replay_openings(state: &Arc<AppState>) -> Vec<String> {
         .registry
         .ids()
         .into_iter()
-        .map(|id| crate::commands::replay_header(state, &id))
+        .map(|id| {
+            crate::features::handover::opening(&crate::commands::replay_header(state, &id))
+                .to_owned()
+        })
         .filter(|line| !line.trim().is_empty())
         .collect()
 }

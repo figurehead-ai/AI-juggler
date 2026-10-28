@@ -527,3 +527,27 @@ fn rules_a_switch_back_update_names_count_as_carried() {
     };
     assert_eq!(carried(&measure(&back)), 1);
 }
+
+#[test]
+fn switching_back_counts_new_work_with_the_same_words_as_old() {
+    let original = Conversation::from_bytes(&fixture("claude-code/session-basic.jsonl"));
+    let mut away = original.clone();
+    // A second "ran the tests" away, its own message: new work.
+    let mut again = original.turns[2].clone();
+    again.uuid = Some("away-1".to_owned());
+    away.turns.push(again);
+    let report = measure(&hop(
+        away,
+        Received::Return {
+            original,
+            update: "- [assistant] (ran \"npm test -- login\")".to_owned(),
+        },
+        Vec::new(),
+    ));
+    let calls = report
+        .rows
+        .iter()
+        .find(|row| row.measure == "Tool calls")
+        .unwrap();
+    assert_eq!((calls.source, calls.carried), (1, 1));
+}
