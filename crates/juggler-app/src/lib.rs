@@ -1162,7 +1162,10 @@ fn spawn_read_model_ticks(
         features::pools::cards::tick(&processes_state);
     });
     // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
-    features::subagents::count::start(subagents_app, quota_state.clone());
+    features::subagents::count::start(subagents_app.clone(), quota_state.clone());
+    // 0.2: an own session of a tool without hooks learns its conversation
+    // (one rail row, carrying its count).
+    features::sessions::linking::start(subagents_app, quota_state.clone());
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
         let _ = commands::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).

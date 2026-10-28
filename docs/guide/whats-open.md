@@ -11,6 +11,13 @@ is the setup an app runs on, such as a Claude Code folder or a Claude app
 profile; see [Accounts and profiles](accounts.md). Sessions AI Juggler
 started itself are a place of their own, **AI Juggler**.
 
+A session AI Juggler started shows once, under AI Juggler, even for a
+tool that doesn't report to AI Juggler (OpenCode, Grok Build, Kimi Code):
+AI Juggler tells which conversation the session started from the tool's
+own records, or from the process it runs in. When more than one
+conversation could be the session's (two started in the same folder at
+once), it doesn't guess: the conversation shows as a row of its own too.
+
 The list has three parts:
 
 - **Needs you:** sessions that ask you something, and anything else waiting

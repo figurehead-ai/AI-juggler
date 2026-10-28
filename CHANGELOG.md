@@ -320,6 +320,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An OpenCode, Grok Build or Kimi Code session started in AI Juggler
+  shows once in the list (0.2): AI Juggler now tells which conversation
+  the session started (from the tool's own records, or the process it
+  runs in) and folds it into the session's row, which carries its "+N
+  agents". When more than one conversation could be the session's, it
+  links none and both rows stay as before.
 - **OpenCode 2** accounts AI Juggler manages no longer collide with your
   own OpenCode or OpenCode Desktop: each of their sessions runs its own
   private server, which ends with the session, instead of OpenCode 2's

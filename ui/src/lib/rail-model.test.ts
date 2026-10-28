@@ -284,4 +284,19 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
     // Not read yet: no count, never a guessed one.
     expect(conversationItem(talk("unread", { tool: "codex", subtask_count: null }), none, null).subagents).toBe(0);
   });
+
+  it("AI Juggler's own session of a tool without hooks is one row once linked, carrying the count", () => {
+    for (const tool of ["opencode", "grok-build", "kimi-code"]) {
+      const session = own(`s-${tool}`, { subtask_count: 2 });
+      // Its conversation, linked to it by the backend (features/sessions/linking.rs).
+      const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
+      const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
+      expect(items).toHaveLength(1);
+      expect(items[0].session?.id).toBe(session.id);
+      expect(items[0].subagents).toBe(2);
+      // Not linked (more than one could be its own): both rows, as before.
+      const unlinked = talk(`c-${tool}`, { tool, session_id: null });
+      expect(itemsOf({ sessions: [session], conversations: [unlinked], projects: [], seen: {} })).toHaveLength(2);
+    }
+  });
 });
