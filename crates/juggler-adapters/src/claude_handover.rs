@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
-    BundleFile, BundleManifest, FILE_HISTORY_AREA, Fidelity, InstallOutcome, SessionBundle,
-    TurnText, embedded_cwd, fork_session_id, is_safe_bundle_name, mangled_dir, session_files,
-    tail_parses, tree_files,
+    ACCOUNT_AREAS, BundleFile, BundleManifest, Fidelity, InstallOutcome, SessionBundle, TurnText,
+    account_area_path, embedded_cwd, fork_session_id, is_safe_bundle_name, mangled_dir,
+    session_files, tail_parses, tree_files,
 };
 use juggler_adapter::model::Account;
 use juggler_core::model::{Timestamp, TranscriptRef};
@@ -27,20 +27,19 @@ use crate::claude_code::ClaudeCodeAdapter;
 use crate::claude_transcript;
 
 impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
-    /// A file in the [`FILE_HISTORY_AREA`] is in the account's own
-    /// `file-history/` (where [`Self::bundle_session`] read it); every
-    /// other one is beside the transcript.
+    /// A file in one of the [`ACCOUNT_AREAS`] is in the account's own
+    /// folder for it (`file-history/`, `tasks/`: where
+    /// [`Self::bundle_session`] read it); every other one is beside the
+    /// transcript.
     fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
         let beside = reference
             .path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(name);
-        let Some(rest) = name.strip_prefix(&format!("{FILE_HISTORY_AREA}/")) else {
-            return beside;
-        };
         account_of(&reference.path)
-            .map_or(beside, |account| account.join("file-history").join(rest))
+            .and_then(|account| account_area_path(account, name))
+            .unwrap_or(beside)
     }
 
     fn bundle_session(&self, reference: &TranscriptRef) -> Result<SessionBundle, AdapterError> {
@@ -67,15 +66,25 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         // `file-history/<id>/`. A partial read or torn tail refuses the
         // whole bundle.
         let mut entries = session_files(dir, &stem);
-        if let Some(history) = history_dir(path, &stem)
-            && history.is_dir()
-        {
-            tree_files(
-                &history,
-                &format!("{FILE_HISTORY_AREA}/{stem}"),
-                4,
-                &mut entries,
-            );
+        // The live lab of 2026-10-28: and its task list, which Claude Code
+        // keeps in the account's `tasks/<id>/`.
+        if let Some(account) = account_of(path) {
+            for (area, folder) in ACCOUNT_AREAS {
+                let own = account.join(folder).join(&stem);
+                if own.is_dir() {
+                    let mut found = Vec::new();
+                    tree_files(&own, &format!("{area}/{stem}"), 4, &mut found);
+                    // A lock file (`tasks/<id>/.lock`) is the tool's, not
+                    // the session's.
+                    found.retain(|(name, _)| {
+                        !name
+                            .rsplit('/')
+                            .next()
+                            .is_some_and(|last| last.starts_with('.'))
+                    });
+                    entries.extend(found);
+                }
+            }
         }
         let mut files = Vec::new();
         for (name, sibling) in entries {
@@ -189,7 +198,6 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         })?;
         // Each file is staged under its index, with where it goes: beside
         // the transcript, or (AJ-E1540) the account's own file history.
-        let history_area = format!("{FILE_HISTORY_AREA}/");
         let mut planned: Vec<(PathBuf, PathBuf)> = Vec::new();
         for (index, file) in bundle.files.iter().enumerate() {
             let bytes = if collision && file.name.to_ascii_lowercase().ends_with(".jsonl") {
@@ -202,10 +210,8 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             } else {
                 file.name.clone()
             };
-            let to = match name.strip_prefix(&history_area) {
-                Some(rest) => target.state_dir.join("file-history").join(rest),
-                None => dir_b.join(&name),
-            };
+            let to =
+                account_area_path(&target.state_dir, &name).unwrap_or_else(|| dir_b.join(&name));
             let staged = staging.join(index.to_string());
             if let Err(error) = std::fs::write(&staged, &bytes) {
                 let _ = std::fs::remove_dir_all(&staging);
@@ -270,7 +276,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
 /// AJ-E1540: a bundle name this session may install: a safe name that is
 /// the session's own file beside the transcript (`<id>…`, as a bundle
 /// names them), or inside the session's own folder (`<id>/…`), or its own
-/// file history (`~file-history/<id>/…`). Anything else in a bundle from a
+/// file history or task list (`~file-history/<id>/…`, `~tasks/<id>/…`). Anything else in a bundle from a
 /// paired Mac is refused: it can't bring in another conversation (review
 /// of #132).
 fn belongs_to_session(name: &str, native_id: &str) -> bool {
@@ -285,7 +291,11 @@ fn belongs_to_session(name: &str, native_id: &str) -> bool {
             .strip_prefix(native_id)
             .is_some_and(|rest| rest.starts_with('.') || rest.starts_with('-')),
         (Some(first), Some(_)) if first == native_id => true,
-        (Some(FILE_HISTORY_AREA), Some(second)) => second == native_id && parts.next().is_some(),
+        (Some(area), Some(second))
+            if ACCOUNT_AREAS.iter().any(|(reserved, _)| *reserved == area) =>
+        {
+            second == native_id && parts.next().is_some()
+        }
         _ => false,
     }
 }
@@ -390,9 +400,4 @@ pub fn bundle_is_compacted(bundle: &SessionBundle) -> bool {
 /// (`<account>/projects/<folder>/<stem>.jsonl`).
 fn account_of(path: &Path) -> Option<&Path> {
     path.parent().and_then(Path::parent).and_then(Path::parent)
-}
-
-/// The account's `file-history/<stem>/` for the transcript at `path`.
-fn history_dir(path: &Path, stem: &str) -> Option<PathBuf> {
-    account_of(path).map(|account| account.join("file-history").join(stem))
 }

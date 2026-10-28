@@ -193,6 +193,27 @@ pub trait HandoverSupport: HarnessAdapter {
 /// name no tool gives a file: `~` never starts a session id).
 pub const FILE_HISTORY_AREA: &str = "~file-history";
 
+/// The live lab of 2026-10-28: the leading folder of a bundle file name
+/// that belongs in the account's own `tasks/` (a session's task list,
+/// kept outside its transcript).
+pub const TASKS_AREA: &str = "~tasks";
+
+/// Every reserved area of a bundle, with the account folder it stands for.
+pub const ACCOUNT_AREAS: &[(&str, &str)] =
+    &[(FILE_HISTORY_AREA, "file-history"), (TASKS_AREA, "tasks")];
+
+/// Where the bundle file `name` lives in the account folder `account`,
+/// when it is in one of the [`ACCOUNT_AREAS`]; `None` for a file that goes
+/// beside the transcript.
+#[must_use]
+pub fn account_area_path(account: &Path, name: &str) -> Option<PathBuf> {
+    let (area, rest) = name.split_once('/')?;
+    ACCOUNT_AREAS
+        .iter()
+        .find(|(reserved, _)| *reserved == area)
+        .map(|(_, folder)| account.join(folder).join(rest))
+}
+
 /// How deep a session's folder is walked (`<id>/subagents/…`).
 const SESSION_TREE_DEPTH: usize = 6;
 
@@ -243,7 +264,7 @@ pub fn tree_files(dir: &Path, prefix: &str, depth: usize, out: &mut Vec<(String,
 
 /// AJ-E1540: whether a bundle file name is a safe path to install: `/`
 /// separated plain components (no `.`, `..`, hidden or empty ones, no `\`
-/// or NUL), at most eight deep, the reserved [`FILE_HISTORY_AREA`] only
+/// or NUL), at most eight deep, a reserved area ([`ACCOUNT_AREAS`]) only
 /// first. A bundle can come from a paired Mac, so its names are untrusted.
 #[must_use]
 pub fn is_safe_bundle_name(name: &str) -> bool {
@@ -252,7 +273,7 @@ pub fn is_safe_bundle_name(name: &str) -> bool {
         && name.len() <= 1024
         && parts.len() <= 8
         && parts.iter().enumerate().all(|(index, part)| {
-            (index == 0 && *part == FILE_HISTORY_AREA && parts.len() > 1)
+            (index == 0 && ACCOUNT_AREAS.iter().any(|(area, _)| area == part) && parts.len() > 1)
                 || (!part.is_empty()
                     && part.len() <= 255
                     && !part.starts_with('.')
@@ -468,6 +489,13 @@ mod tests {
         assert!(is_safe_bundle_name("abc.jsonl"));
         assert!(is_safe_bundle_name("abc/subagents/a.jsonl"));
         assert!(is_safe_bundle_name("~file-history/abc/f1@v2"));
+        assert!(is_safe_bundle_name("~tasks/abc/1.json"));
+        assert!(!is_safe_bundle_name("~other/abc/1.json"));
+        assert_eq!(
+            account_area_path(Path::new("/acct"), "~tasks/abc/1.json"),
+            Some(PathBuf::from("/acct/tasks/abc/1.json"))
+        );
+        assert_eq!(account_area_path(Path::new("/acct"), "abc.jsonl"), None);
         for bad in [
             "",
             "../x",

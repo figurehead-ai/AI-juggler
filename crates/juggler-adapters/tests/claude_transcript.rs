@@ -318,3 +318,45 @@ fn tool_calls_results_and_images_are_counted_on_the_main_thread_only() {
     assert_eq!(parsed.content.tool_results, 1);
     assert_eq!(parsed.content.tool_errors, 1);
 }
+
+/// The live lab of 2026-10-28 (Claude Code 2.1.310): the task list is set
+/// by `TaskCreate` and `TaskUpdate`, each call written on more than one
+/// line, the item's id in the create's result.
+#[test]
+fn the_task_list_is_rebuilt_from_the_task_tools() {
+    let create = |call: &str, subject: &str| {
+        format!(
+            r#"{{"type":"assistant","uuid":"a-{call}","message":{{"role":"assistant","content":[{{"type":"tool_use","id":"{call}","name":"TaskCreate","input":{{"subject":"{subject}","description":"x"}}}}]}}}}"#
+        )
+    };
+    let created = |call: &str, id: &str, subject: &str| {
+        format!(
+            r#"{{"type":"user","uuid":"r-{call}","toolUseResult":{{"task":{{"id":"{id}","subject":"{subject}"}}}},"message":{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"{call}","content":"ok"}}]}}}}"#
+        )
+    };
+    let update = |call: &str, id: &str, status: &str| {
+        format!(
+            r#"{{"type":"assistant","uuid":"u-{call}","message":{{"role":"assistant","content":[{{"type":"tool_use","id":"{call}","name":"TaskUpdate","input":{{"taskId":"{id}","status":"{status}"}}}}]}}}}"#
+        )
+    };
+    let lines = [
+        create("t1", "add"),
+        created("t1", "1", "add"),
+        create("t2", "sub"),
+        created("t2", "2", "sub"),
+        create("t3", "mul"),
+        // The same call again, as a message's lines repeat it.
+        create("t3", "mul"),
+        created("t3", "3", "mul"),
+        update("t4", "1", "completed"),
+        update("t5", "3", "in_progress"),
+        update("t6", "2", "deleted"),
+    ]
+    .join("\n");
+    let tasks = parse_transcript(lines.as_bytes()).tasks.unwrap();
+    let shown: Vec<(&str, bool, bool)> = tasks
+        .iter()
+        .map(|item| (item.text.as_str(), item.done, item.in_progress))
+        .collect();
+    assert_eq!(shown, vec![("add", true, false), ("mul", false, true)]);
+}

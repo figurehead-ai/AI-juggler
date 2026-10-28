@@ -91,6 +91,7 @@ pub enum MessageRole {
 #[must_use]
 pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
     let mut parsed = ParsedTranscript::default();
+    let mut board = TaskBoard::default();
     for line in bytes.split(|b| *b == b'\n') {
         if line.iter().all(u8::is_ascii_whitespace) {
             continue;
@@ -120,6 +121,9 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
                     &mut parsed.content,
                     value.get("message").and_then(|m| m.get("content")),
                 );
+                if board.line(&value) {
+                    parsed.tasks = Some(board.items());
+                }
             }
             accumulate_usage(&mut parsed.usage, message.usage);
             for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
@@ -131,6 +135,124 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
         }
     }
     parsed
+}
+
+/// Claude Code's task tools (2.1.x), which keep the task list outside the
+/// transcript: `TaskCreate` adds an item (its result names the item's id),
+/// `TaskUpdate` changes one's status or subject, or deletes it. The list
+/// is rebuilt from the calls, each call once (a message's lines repeat
+/// it). The live lab of 2026-10-28: without this a session using them had
+/// no task list in a handover, and its switch measured none.
+#[derive(Debug, Default)]
+struct TaskBoard {
+    /// Each item with its id, once known.
+    items: Vec<(Option<String>, crate::tool_summary::TaskItem)>,
+    /// Calls already applied (by their `tool_use` id).
+    seen: std::collections::BTreeSet<String>,
+    /// A create call's `tool_use` id → its item.
+    created: BTreeMap<String, usize>,
+}
+
+impl TaskBoard {
+    /// Applies one line; whether the list changed.
+    fn line(&mut self, value: &serde_json::Value) -> bool {
+        let Some(serde_json::Value::Array(parts)) =
+            value.get("message").and_then(|m| m.get("content"))
+        else {
+            return false;
+        };
+        let mut changed = false;
+        for part in parts {
+            match part.get("type").and_then(serde_json::Value::as_str) {
+                Some("tool_use") => changed |= self.call(part),
+                Some("tool_result") => {
+                    let created = string_field(part, "tool_use_id")
+                        .and_then(|call| self.created.get(&call).copied());
+                    let id = value
+                        .get("toolUseResult")
+                        .and_then(|result| result.get("task"))
+                        .and_then(|task| string_field(task, "id"));
+                    if let (Some(index), Some(id)) = (created, id) {
+                        self.items[index].0 = Some(id);
+                    }
+                }
+                _ => {}
+            }
+        }
+        changed
+    }
+
+    fn call(&mut self, part: &serde_json::Value) -> bool {
+        let name = part.get("name").and_then(serde_json::Value::as_str);
+        if !matches!(name, Some("TaskCreate" | "TaskUpdate")) {
+            return false;
+        }
+        if let Some(call) = string_field(part, "id")
+            && !self.seen.insert(call)
+        {
+            return false;
+        }
+        let input = part.get("input").unwrap_or(&serde_json::Value::Null);
+        if name == Some("TaskCreate") {
+            let Some(text) = string_field(input, "subject") else {
+                return false;
+            };
+            if let Some(call) = string_field(part, "id") {
+                self.created.insert(call, self.items.len());
+            }
+            self.items.push((
+                None,
+                crate::tool_summary::TaskItem {
+                    text,
+                    done: false,
+                    in_progress: false,
+                },
+            ));
+            return true;
+        }
+        let Some(id) = string_field(input, "taskId") else {
+            return false;
+        };
+        // An item whose create result wasn't read is known by its place
+        // (Claude Code numbers them from 1).
+        let at = self
+            .items
+            .iter()
+            .enumerate()
+            .position(|(index, (known, _))| {
+                known
+                    .as_deref()
+                    .map_or_else(|| (index + 1).to_string() == id, |known| known == id)
+            });
+        let Some(at) = at else {
+            return false;
+        };
+        if let Some(subject) = string_field(input, "subject") {
+            self.items[at].1.text = subject;
+        }
+        match string_field(input, "status").as_deref() {
+            Some("deleted") => {
+                self.items.remove(at);
+                self.created.retain(|_, index| *index != at);
+                for index in self.created.values_mut() {
+                    if *index > at {
+                        *index -= 1;
+                    }
+                }
+            }
+            Some(status) => {
+                let item = &mut self.items[at].1;
+                item.done = status == "completed";
+                item.in_progress = status == "in_progress";
+            }
+            None => {}
+        }
+        true
+    }
+
+    fn items(&self) -> Vec<crate::tool_summary::TaskItem> {
+        self.items.iter().map(|(_, item)| item.clone()).collect()
+    }
 }
 
 /// Counts one message's tool calls, tool results (and errors among them)
