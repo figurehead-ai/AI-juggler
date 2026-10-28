@@ -79,7 +79,7 @@ pub(crate) fn unset_inherited_credentials(env: &mut EnvMap) {
     unset_inherited_in(env, |key| std::env::var_os(key).is_some());
 }
 
-/// [`unset_inherited_credentials`] against an explicit inherited
+/// `unset_inherited_credentials` against an explicit inherited
 /// environment (pure, testable: tests build their own maps). A routing key
 /// the profile's Launch settings set stays as set.
 pub fn unset_inherited_in(env: &mut EnvMap, inherited: impl Fn(&str) -> bool) {
