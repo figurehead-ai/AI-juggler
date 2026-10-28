@@ -55,3 +55,14 @@ fn with_nothing_to_read_nothing_needs_the_user() {
     assert!(needs.is_empty());
     assert_eq!(open, OpenNowInput::default());
 }
+
+#[test]
+fn saving_a_seen_mark_or_a_shown_app_refreshes_needs_you_at_once() {
+    assert!(reads_setting("conversation_seen"));
+    assert!(reads_setting("show_sessions_from.claude-desktop"));
+    assert!(
+        !reads_setting("rail_order"),
+        "other settings wait for the tick"
+    );
+    assert!(!reads_setting("conversation_seen_extra"));
+}

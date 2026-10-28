@@ -35,6 +35,14 @@ use crate::state::AppState;
 pub const OWN_APP: &str = "AI Juggler";
 /// The seen marks (AJ-E2107), as the window keeps them.
 const SEEN_KEY: &str = "conversation_seen";
+
+/// Whether saving the app setting `key` changes what Needs you holds
+/// (the seen marks, an app's sessions shown or not): its save refreshes
+/// the list at once rather than on the next tick.
+#[must_use]
+pub fn reads_setting(key: &str) -> bool {
+    key == SEEN_KEY || key.starts_with("show_sessions_from.")
+}
 /// How long an account's sign-in check is reused (a Keychain lookup each).
 const SIGN_INS_FRESH_MS: i64 = 30_000;
 
