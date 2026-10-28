@@ -172,6 +172,20 @@ pub trait HandoverSupport: HarnessAdapter {
     /// [`AdapterError::Unsupported`] when the harness has no prime
     /// path.
     fn prime_prompt(&self, turns: &[TurnText]) -> Result<String, AdapterError>;
+
+    /// Where a file of the bundle [`HandoverSupport::bundle_session`]
+    /// made for `reference` lives at the source, so the switch can check
+    /// it was copied, never moved or changed. Default: beside the
+    /// transcript. A tool that keeps some of a session's files elsewhere
+    /// (in the [`FILE_HISTORY_AREA`]) says where.
+    #[must_use]
+    fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
+        reference
+            .path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(name)
+    }
 }
 
 /// AJ-E1540: the leading folder of a bundle file name that belongs in the

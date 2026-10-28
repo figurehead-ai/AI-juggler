@@ -564,12 +564,6 @@ pub fn execute(
             disposition: "copy".to_owned(),
         })
         .collect();
-    let source_dir = reference
-        .path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_default();
-
     // Stage + verify (atomic, fork-aware). An adapter failure here
     // cleaned its own temp (E204); nothing partial remains.
     let install = support.install_bundle(&bundle, target)?;
@@ -597,9 +591,12 @@ pub fn execute(
     // verified stage — the caller retries from it.
     let pid = launch(&install).map_err(SwitchFailure::LaunchFailed)?;
 
-    // Copy-never-move, checked post-launch too.
+    // Copy-never-move, checked post-launch too: each file where the
+    // adapter read it (a session's file history isn't beside the
+    // transcript: found by the live lab of 2026-10-28, every such switch
+    // failed here as "the source changed").
     for row in &source_hashes {
-        let path = source_dir.join(&row.rel_path);
+        let path = support.source_file(reference, &row.rel_path);
         match std::fs::read(&path) {
             Ok(bytes) if sha256_hex(&bytes) == row.sha256 => {}
             _ => {

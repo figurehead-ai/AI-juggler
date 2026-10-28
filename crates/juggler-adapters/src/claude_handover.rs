@@ -27,6 +27,22 @@ use crate::claude_code::ClaudeCodeAdapter;
 use crate::claude_transcript;
 
 impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
+    /// A file in the [`FILE_HISTORY_AREA`] is in the account's own
+    /// `file-history/` (where [`Self::bundle_session`] read it); every
+    /// other one is beside the transcript.
+    fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
+        let beside = reference
+            .path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(name);
+        let Some(rest) = name.strip_prefix(&format!("{FILE_HISTORY_AREA}/")) else {
+            return beside;
+        };
+        account_of(&reference.path)
+            .map_or(beside, |account| account.join("file-history").join(rest))
+    }
+
     fn bundle_session(&self, reference: &TranscriptRef) -> Result<SessionBundle, AdapterError> {
         let path = &reference.path;
         if !path.is_file() {
@@ -51,16 +67,15 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         // `file-history/<id>/`. A partial read or torn tail refuses the
         // whole bundle.
         let mut entries = session_files(dir, &stem);
-        if let Some(account_dir) = dir.parent().and_then(Path::parent) {
-            let history = account_dir.join("file-history").join(&stem);
-            if history.is_dir() {
-                tree_files(
-                    &history,
-                    &format!("{FILE_HISTORY_AREA}/{stem}"),
-                    4,
-                    &mut entries,
-                );
-            }
+        if let Some(history) = history_dir(path, &stem)
+            && history.is_dir()
+        {
+            tree_files(
+                &history,
+                &format!("{FILE_HISTORY_AREA}/{stem}"),
+                4,
+                &mut entries,
+            );
         }
         let mut files = Vec::new();
         for (name, sibling) in entries {
@@ -369,4 +384,15 @@ pub fn bundle_is_compacted(bundle: &SessionBundle) -> bool {
         .iter()
         .find(|file| file.name.to_ascii_lowercase().ends_with(".jsonl"))
         .is_some_and(|file| claude_transcript::parse_transcript(&file.bytes).has_compact_boundary())
+}
+
+/// The account folder a transcript at `path` is in
+/// (`<account>/projects/<folder>/<stem>.jsonl`).
+fn account_of(path: &Path) -> Option<&Path> {
+    path.parent().and_then(Path::parent).and_then(Path::parent)
+}
+
+/// The account's `file-history/<stem>/` for the transcript at `path`.
+fn history_dir(path: &Path, stem: &str) -> Option<PathBuf> {
+    account_of(path).map(|account| account.join("file-history").join(stem))
 }

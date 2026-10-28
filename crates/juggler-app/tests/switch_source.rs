@@ -362,3 +362,92 @@ fn stop_now_stops_the_source_before_the_copy() {
 fn finish_this_turn_stops_the_source_once_it_is_quiet() {
     freezing("finish-turn");
 }
+
+/// The live lab of 2026-10-28 (Claude Code 2.1.310): a headless Claude
+/// turn that edits a file leaves file history in the account's
+/// `file-history/<id>/`. The switch copied it, then, checking the source
+/// was untouched, looked for it beside the transcript, found nothing and
+/// failed every such Claude → Claude switch: "source changed during the
+/// switch: ~file-history/…". It now checks each file where it was read.
+#[test]
+fn a_session_with_file_history_switches_and_its_history_travels() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
+    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
+    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e12";
+    let a_dir = state
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&account_a.id);
+    let transcript = a_dir
+        .join("projects")
+        .join(cwd.replace('/', "-"))
+        .join(format!("{native}.jsonl"));
+    seed(&transcript, native, &cwd);
+    let history = a_dir.join("file-history").join(native);
+    std::fs::create_dir_all(&history).unwrap();
+    std::fs::write(
+        history.join("6757c7b1fa2c80a2@v3"),
+        "calc.py before the edit",
+    )
+    .unwrap();
+
+    let session = SessionId::new("with-history");
+    let machine = commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        let project_row = storage
+            .projects()
+            .touch(&juggler_core::storage::project_root(&project), None)
+            .unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(native)),
+                profile: juggler_core::model::ProfileId::new(profile_a.id.clone()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: Some(project_row.id),
+                cwd: project.clone(),
+                status: SessionStatus::Finished,
+                started_at: Timestamp::from_millis(Timestamp::now().millis() + 60_000),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+    }
+
+    commands::switch_execute_impl(
+        &state,
+        session.as_str(),
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .expect("a session with file history switches");
+    let b_history = state
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&account_b.id)
+        .join("file-history")
+        .join(native)
+        .join("6757c7b1fa2c80a2@v3");
+    assert_eq!(
+        std::fs::read_to_string(b_history).unwrap(),
+        "calc.py before the edit"
+    );
+    // Copied, never moved.
+    assert!(history.join("6757c7b1fa2c80a2@v3").is_file());
+}

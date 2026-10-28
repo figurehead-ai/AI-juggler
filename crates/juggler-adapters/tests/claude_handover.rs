@@ -722,3 +722,41 @@ fn a_bundle_cant_bring_in_another_conversation() {
             .is_err()
     );
 }
+
+/// The live lab of 2026-10-28: the switch checks, after the launch, that
+/// every file it copied is unchanged at the source. A file-history file
+/// was looked for beside the transcript, so every Claude → Claude switch
+/// of a session with file history failed as "the source changed". Each
+/// bundle file's source is where the bundle read it.
+#[test]
+fn every_bundle_file_is_found_where_it_was_read() {
+    let a = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5e";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let history = a.path().join("file-history").join(session);
+    std::fs::create_dir_all(&history).unwrap();
+    std::fs::write(history.join("6757c7b1fa2c80a2@v3"), "before the edit").unwrap();
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let bundle = adapter().bundle_session(&reference).unwrap();
+    assert!(
+        bundle
+            .files
+            .iter()
+            .any(|file| file.name.starts_with("~file-history/"))
+    );
+    for file in &bundle.files {
+        let source = adapter().source_file(&reference, &file.name);
+        assert_eq!(std::fs::read(&source).unwrap(), file.bytes, "{}", file.name);
+    }
+    assert_eq!(
+        adapter().source_file(
+            &reference,
+            &format!("~file-history/{session}/6757c7b1fa2c80a2@v3")
+        ),
+        history.join("6757c7b1fa2c80a2@v3")
+    );
+}
