@@ -20,4 +20,10 @@ offers: Array<OfferInfo>,
 /**
  * How many items the source has that the target already has.
  */
-already_there: number, };
+already_there: number, 
+/**
+ * D-51: how many of the source's notes for this project stay with
+ * it, because the target's tool keeps no notes like these; `null`
+ * when none do.
+ */
+notes_stay?: number | null, };

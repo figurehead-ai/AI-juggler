@@ -68,6 +68,27 @@ pub fn ensure_own_private_dir(dir: &Path) -> std::io::Result<()> {
     ensure_private_dir(dir, crate::user::current()?)
 }
 
+/// Makes the one new folder `dir` (its parent must be there), closed to
+/// everyone but this user. Nothing existing is touched: a folder already
+/// there is an `AlreadyExists` error.
+///
+/// # Errors
+///
+/// The create's error, or `Unsupported` where owner-only folders aren't
+/// available (Windows).
+pub fn create_private_dir(dir: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        std::fs::DirBuilder::new().mode(0o700).create(dir)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = dir;
+        Err(crate::unsupported("a folder only you can open"))
+    }
+}
+
 /// Writes `contents` to `path`, readable by this user only: written in
 /// full beside it first, then moved into place, so a reader never sees
 /// half a file.

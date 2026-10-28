@@ -411,6 +411,22 @@ pub enum Undo {
         /// formatting aside; the value itself is never recorded).
         entries: Vec<(String, String)>,
     },
+    /// D-51: take a project's copied notes out again
+    /// ([`crate::memory::undo`]): the index lines added, each while it's
+    /// there, and the notes made, all only while each is as it was made.
+    RemoveNotes {
+        /// Each note made and its hash.
+        files: Vec<(PathBuf, String)>,
+        /// Folders made, removed when empty.
+        dirs: Vec<PathBuf>,
+        /// The index lines were added to, when any were.
+        index: Option<PathBuf>,
+        /// The exact lines added to it.
+        lines: Vec<String>,
+        /// Whether the index was made by the copy (removed again when
+        /// nothing else is in it).
+        index_created: bool,
+    },
 }
 
 /// Which file `path` is, following links: its device and inode, or its

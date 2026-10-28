@@ -168,3 +168,81 @@ fn a_parent_sessions_markers_never_reach_a_launch() {
         }
     }
 }
+
+/// Started from a terminal inside a Claude Code session, AI Juggler also
+/// inherited where that session routes its requests (`ANTHROPIC_BASE_URL`),
+/// and every session it started went the host's way. With a parent
+/// session's markers, launches remove it; without them it is the user's own
+/// gateway and stays; a profile's own value is never touched. The inherited
+/// environments here are the test's own maps, never a real one (D-37).
+#[test]
+fn a_parent_sessions_base_url_never_reaches_a_launch() {
+    use juggler_adapter::EnvMap;
+    use juggler_adapters::claude_code::{
+        INHERITED_CREDENTIAL_KEYS, PARENT_SESSION_ROUTING_KEYS, has_parent_session,
+        launch_unset_keys, unset_inherited_in,
+    };
+    use std::collections::BTreeMap;
+    let shell: BTreeMap<&str, &str> = [
+        ("ANTHROPIC_BASE_URL", "https://gateway.example.test"),
+        ("PATH", "/usr/bin"),
+    ]
+    .into_iter()
+    .collect();
+    let mut nested = shell.clone();
+    nested.insert("CLAUDECODE", "1");
+    let mut child = shell.clone();
+    child.insert("CLAUDE_CODE_CHILD_SESSION", "1");
+
+    // A shell of the user's own: their gateway stays.
+    assert!(!has_parent_session(|key| shell.contains_key(key)));
+    let mut env = EnvMap::new();
+    unset_inherited_in(&mut env, |key| shell.contains_key(key));
+    assert_eq!(
+        env.get("ANTHROPIC_BASE_URL"),
+        None,
+        "the user's own gateway"
+    );
+    assert_eq!(
+        env.get("ANTHROPIC_API_KEY").map(String::as_str),
+        Some(ENV_UNSET)
+    );
+
+    // Inside a Claude Code session (either marker): the host's routing goes.
+    for parent in [&nested, &child] {
+        assert!(has_parent_session(|key| parent.contains_key(key)));
+        let mut env = EnvMap::new();
+        unset_inherited_in(&mut env, |key| parent.contains_key(key));
+        for key in PARENT_SESSION_ROUTING_KEYS {
+            assert_eq!(env.get(key).map(String::as_str), Some(ENV_UNSET), "{key}");
+        }
+        // A profile's own Launch settings value is never touched.
+        let mut own = EnvMap::new();
+        own.insert("ANTHROPIC_BASE_URL".into(), "http://127.0.0.1:8080".into());
+        unset_inherited_in(&mut own, |key| parent.contains_key(key));
+        assert_eq!(
+            own.get("ANTHROPIC_BASE_URL").map(String::as_str),
+            Some("http://127.0.0.1:8080")
+        );
+    }
+
+    // The list isn't kept by hand: credentials and markers always, the
+    // routing only with a parent, each once.
+    let without: Vec<_> = launch_unset_keys(false).collect();
+    let with: Vec<_> = launch_unset_keys(true).collect();
+    assert!(!without.contains(&"ANTHROPIC_BASE_URL"));
+    assert!(with.contains(&"ANTHROPIC_BASE_URL"));
+    assert_eq!(
+        with.len(),
+        without.len() + PARENT_SESSION_ROUTING_KEYS.len()
+    );
+    let mut unique = with.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), with.len());
+
+    // The copyable shell line still removes the credentials only (fa21ce10).
+    use juggler_adapter::HarnessAdapter;
+    let adapter = juggler_adapters::ClaudeCodeAdapter::with_bin("/bin/true");
+    assert_eq!(adapter.launch_unset_keys(), &INHERITED_CREDENTIAL_KEYS);
+}

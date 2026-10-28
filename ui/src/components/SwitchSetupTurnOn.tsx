@@ -10,6 +10,7 @@
 import { useId, useState, type JSX } from "react";
 import { SWITCHING_GUIDE_URL, switchSetupOpen, type GetItInfo } from "../lib/ipc/switchSetup";
 import { errorText } from "../lib/bridge";
+import { trustOpen } from "../lib/ipc/trust";
 
 const BUTTON =
   "rounded border border-hairline px-2 py-0.5 text-meta text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -114,7 +115,7 @@ export function TurnOnSteps({
 
 /** "What does this mean?": the choice in a sentence, an example, and the
  * guide's section. */
-export function Meaning({ text, example }: { text: string; example: string }): JSX.Element {
+export function Meaning({ text, example, guide }: { text: string; example: string; guide?: string }): JSX.Element {
   return (
     <details className="text-meta" data-testid="setup-meaning">
       <summary className="cursor-pointer text-muted hover:text-ink">What does this mean?</summary>
@@ -125,7 +126,9 @@ export function Meaning({ text, example }: { text: string; example: string }): J
           <button
             type="button"
             className="text-accent underline underline-offset-2 hover:no-underline"
-            onClick={() => void switchSetupOpen(SWITCHING_GUIDE_URL)}
+            // A section of its own (D-51's notes), or the guide's on what
+            // the other account doesn't have.
+            onClick={() => void (guide ? trustOpen({ kind: "guide", id: guide }) : switchSetupOpen(SWITCHING_GUIDE_URL))}
           >
             Read more in the switching guide ↗
           </button>

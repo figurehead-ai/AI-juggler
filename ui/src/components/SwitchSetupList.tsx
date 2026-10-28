@@ -20,6 +20,7 @@ import {
 } from "../lib/ipc/switchSetup";
 import { Meaning, TurnOnSteps } from "./SwitchSetupTurnOn";
 import { SecretSteps } from "./switch/SecretSteps";
+import { NOTES_KIND, NotesRow } from "./switch/NotesRow";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -107,13 +108,18 @@ function meaning(offer: OfferInfo, check: SetupCheckInfo): { text: string; examp
 
 /** How many of the offers will be set up, in a sentence. */
 export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>): string {
-  const missing = check.offers.length;
+  // This project's notes (D-51) are no conversation's: their row asks for
+  // itself, and the count is of what was set up.
+  const offers = check.offers.filter((offer) => offer.kind !== NOTES_KIND);
+  const missing = offers.length;
   if (missing === 0) {
-    return `${check.to} already has everything ${check.from} has set up.`;
+    return offers.length < check.offers.length
+      ? `${check.to} has everything else ${check.from} has set up.`
+      : `${check.to} already has everything ${check.from} has set up.`;
   }
   // Only a tool that says what was used can say "this conversation".
-  const reported = check.offers.some((offer) => offer.used !== null);
-  const lead = check.offers.filter((offer) => offer.used !== false);
+  const reported = offers.some((offer) => offer.used !== null);
+  const lead = offers.filter((offer) => offer.used !== false);
   if (lead.length === 0) {
     const setUp = picked.size > 0 ? ` ${picked.size} will be set up.` : "";
     return `${check.to} has everything this conversation used.${setUp}`;
@@ -229,9 +235,13 @@ export function SwitchSetupList({
   }
   const lead = check.offers.filter((offer) => offer.used !== false);
   const rest = check.offers.filter((offer) => offer.used === false);
-  const row = (offer: OfferInfo) => (
-    <SetupRow key={offer.id} offer={offer} check={check} picked={picked} onToggle={onToggle} onCheckAgain={onCheckAgain} />
-  );
+  const row = (offer: OfferInfo) =>
+    // D-51: this project's notes, one row for all of them.
+    offer.kind === NOTES_KIND ? (
+      <NotesRow key={offer.id} offer={offer} check={check} picked={picked} onToggle={onToggle} />
+    ) : (
+      <SetupRow key={offer.id} offer={offer} check={check} picked={picked} onToggle={onToggle} onCheckAgain={onCheckAgain} />
+    );
   return (
     <section
       className="flex flex-col gap-2"

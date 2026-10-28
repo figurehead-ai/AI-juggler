@@ -67,4 +67,9 @@ get_it: GetItInfo | null,
  * For `turn-on`: whether it may be copied instead when it's the
  * user's own (ticking it copies it, with an undo).
  */
-can_copy: boolean, };
+can_copy: boolean, 
+/**
+ * D-51: for `memory` (this project's notes), how many the target
+ * lacks.
+ */
+count?: number | null, };

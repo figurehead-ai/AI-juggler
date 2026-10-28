@@ -683,6 +683,17 @@ const SERVICE_WRITERS: &[(&str, &str)] = &[
     ),
 ];
 
+/// The only shipped files that may name a redirect to take it AWAY, and
+/// the one each may name: a launch started inside another Claude Code
+/// session drops that session's routing (`ANTHROPIC_BASE_URL`), so it
+/// never goes the host's way. Each names it once, in its list of keys to
+/// remove, and sets nothing.
+const REDIRECT_REMOVERS: &[(&str, &str, &str)] = &[(
+    "crates/juggler-adapters/src/claude_env.rs",
+    "ANTHROPIC_BASE_URL",
+    "pub const PARENT_SESSION_ROUTING_KEYS: [&str; 1] = [\"ANTHROPIC_BASE_URL\"];",
+)];
+
 /// The services' data (`services.json`), as shipped.
 fn service_presets() -> &'static [juggler_adapter::endpoint::ServicePreset] {
     juggler_adapters::services::presets()
@@ -747,7 +758,14 @@ fn ai_juggler_never_points_a_tool_at_another_address() {
                 .to_string_lossy()
                 .replace('\\', "/");
             for redirect in REDIRECTS {
-                let allowed = SERVICE_WRITERS.contains(&(rel.as_str(), *redirect));
+                // A remover names it once, in its list of keys to remove.
+                let removes = REDIRECT_REMOVERS.iter().any(|(file, name, line)| {
+                    *file == rel
+                        && name == redirect
+                        && without_comments(&text).matches(redirect).count() == 1
+                        && text.contains(line)
+                });
+                let allowed = removes || SERVICE_WRITERS.contains(&(rel.as_str(), *redirect));
                 if !allowed && without_comments(&text).contains(redirect) {
                     found.push(format!("{rel} names {redirect}"));
                 }

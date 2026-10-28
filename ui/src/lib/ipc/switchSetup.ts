@@ -24,7 +24,7 @@ export type { AppliedInfo, GetItInfo, OfferInfo, SetupCheckInfo, SetUpInfo, Turn
 export const SWITCHING_GUIDE_URL =
   "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/guide/switching.md#things-the-other-account-doesnt-have";
 
-export { EXAMPLE_SETUP, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "./switchSetupExamples";
+export { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "./switchSetupExamples";
 
 const seam = () =>
   (window as unknown as { __AIJ_SWITCH_SETUP__?: SetupCheckInfo }).__AIJ_SWITCH_SETUP__;
@@ -91,9 +91,14 @@ export async function switchSetupApply(
       if (offer.verdict === "turn-on" && !offer.can_copy) {
         return { offer: id, record: null, message: `${offer.name} isn't copied: turn it on for ${check.to} instead`, note: null };
       }
-      const what = `${KIND_WORDS[offer.kind] ?? offer.kind} ${offer.name}`;
+      // D-51: this project's notes, as the backend says it.
+      const what =
+        offer.kind === "memory"
+          ? `${offer.count ?? 0} notes for this project from ${check.from}`
+          : `${KIND_WORDS[offer.kind] ?? offer.kind} ${offer.name}`;
       previewSetUps.set(`record-${id}`, what);
-      return { offer: id, record: `record-${id}`, message: `Set up the ${what}`, note: null };
+      const done = offer.kind === "memory" ? "Copied" : "Set up";
+      return { offer: id, record: `record-${id}`, message: `${done} the ${what}`, note: null };
     });
   }
   return invoke<AppliedInfo[]>("switch_setup_apply", { sessionId, targetProfileId, offers });

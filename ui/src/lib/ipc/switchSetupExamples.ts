@@ -86,3 +86,23 @@ export const EXAMPLE_SETUP_UNUSED: SetupCheckInfo = {
   ],
 };
 
+
+/** D-51: Work Max's notes for this project that Personal lacks (3), one of
+ * them kept as Personal has it, beside a skill used here. */
+export const EXAMPLE_SETUP_NOTES: SetupCheckInfo = {
+  ...EXAMPLE_SETUP,
+  offers: [
+    EXAMPLE_SETUP.offers[0],
+    {
+      ...OFFER,
+      id: "memory-0123456789abcdef",
+      kind: "memory",
+      name: "notes for this project",
+      scope: "project-private",
+      verdict: "copy",
+      about: "3 notes",
+      count: 3,
+      note: "Personal has its own project-codename.md with other words: it stays as it is, and Work Max's isn't copied",
+    },
+  ],
+};

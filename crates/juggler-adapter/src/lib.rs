@@ -28,6 +28,7 @@ pub mod inventory;
 pub mod jsonc;
 pub mod launch;
 pub mod live;
+pub mod memory;
 pub mod registry;
 pub mod reports;
 pub mod runtime;

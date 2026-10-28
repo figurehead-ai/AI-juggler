@@ -20,6 +20,7 @@
 //! those lead and the rest wait under one collapsed line
 //! (switch-setup-items.md).
 
+pub mod memory;
 pub mod turn_ons;
 
 use std::path::{Path, PathBuf};
@@ -79,6 +80,10 @@ pub struct OfferInfo {
     /// For `turn-on`: whether it may be copied instead when it's the
     /// user's own (ticking it copies it, with an undo).
     pub can_copy: bool,
+    /// D-51: for `memory` (this project's notes), how many the target
+    /// lacks.
+    #[ts(optional = nullable)]
+    pub count: Option<u32>,
 }
 
 /// How an account gets an item it can't be given by a copy: the steps for
@@ -133,6 +138,11 @@ pub struct SetupCheckInfo {
     pub offers: Vec<OfferInfo>,
     /// How many items the source has that the target already has.
     pub already_there: u32,
+    /// D-51: how many of the source's notes for this project stay with
+    /// it, because the target's tool keeps no notes like these; `null`
+    /// when none do.
+    #[ts(optional = nullable)]
+    pub notes_stay: Option<u32>,
 }
 
 /// What applying one offer did.
@@ -285,11 +295,11 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    check_sides(
-        state,
-        &sides(state, session_id, target_profile_id)?,
-        &for_a_switch,
-    )
+    let sides = sides(state, session_id, target_profile_id)?;
+    let mut check = check_sides(state, &sides, &for_a_switch)?;
+    // D-51: this project's notes, one more thing the target may lack.
+    memory::check(state, &sides).add_to(&mut check);
+    Ok(check)
 }
 
 /// What a switch offers: everything but the account's own settings, which
@@ -331,6 +341,7 @@ pub(crate) fn check_sides(
         to: sides.target.label.clone(),
         offers,
         already_there,
+        notes_stay: None,
     })
 }
 
@@ -450,6 +461,7 @@ pub(crate) fn offers(
             provided_by,
             get_it,
             can_copy,
+            count: None,
         });
     }
     offers.sort_by_key(|offer| {
@@ -477,10 +489,13 @@ pub fn apply_impl(
     picked: &[String],
 ) -> AppResult<Vec<AppliedInfo>> {
     let sides = sides(state, session_id, target_profile_id)?;
-    let applied = apply_sides(state, &sides, picked, &for_a_switch)?;
+    // D-51: this project's notes are copied apart from the items.
+    let (notes, picked) = memory::apply(state, &sides, picked)?;
+    let mut applied = apply_sides(state, &sides, &picked, &for_a_switch)?;
+    applied.extend(notes);
     // What the target turns on itself is kept as a reminder until it has
     // it; a reminder that can't be kept never stops the switch.
-    let _ = turn_ons::remember(state, &sides, picked);
+    let _ = turn_ons::remember(state, &sides, &picked);
     Ok(applied)
 }
 
@@ -651,6 +666,8 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     }
     Ok(if record.what.is_empty() {
         format!("Undid: {}", record.applied.summary)
+    } else if matches!(record.applied.undo, Undo::RemoveNotes { .. }) {
+        format!("Took out the {}", record.what)
     } else if matches!(record.applied.undo, Undo::Restore { .. }) {
         format!("Put back the {} as it was", record.what)
     } else {
@@ -783,6 +800,14 @@ fn undo(how: &Undo) -> AppResult<()> {
                     file.display()
                 ))
             }),
+        Undo::RemoveNotes {
+            files,
+            dirs,
+            index,
+            lines,
+            index_created,
+        } => juggler_adapter::memory::undo(files, dirs, index.as_deref(), lines, *index_created)
+            .map_err(AppError::Refused),
     }
 }
 

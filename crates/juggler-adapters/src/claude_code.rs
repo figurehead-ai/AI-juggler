@@ -22,6 +22,12 @@ use juggler_adapter::{
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
+use crate::claude_env::unset_inherited_credentials;
+pub use crate::claude_env::{
+    INHERITED_CREDENTIAL_KEYS, INHERITED_SESSION_MARKERS, PARENT_SESSION_ROUTING_KEYS,
+    has_parent_session, launch_unset_keys, unset_inherited_in,
+};
+
 /// Harness id: `claude-code`.
 pub const CLAUDE_CODE_ID: &str = "claude-code";
 
@@ -468,6 +474,28 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         transcript: &Path,
     ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
         crate::claude_used::used_in(transcript)
+    }
+
+    // D-51: its auto memory, `projects/<project>/memory/`.
+    fn keeps_project_memory(&self) -> bool {
+        true
+    }
+
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<juggler_adapter::memory::ProjectMemory> {
+        crate::claude_memory::project_memory(state_dir, project)
+    }
+
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &juggler_adapter::memory::ProjectMemory,
+    ) -> Result<juggler_adapter::memory::MemoryAdded, AdapterError> {
+        crate::claude_memory::add(state_dir, project, from)
     }
 
     fn how_to_get(
@@ -1092,75 +1120,6 @@ pub fn is_vendor_default_dir(dir: &Path) -> bool {
 pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
     let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
     trimmed == home.join(".claude")
-}
-
-/// Credentials Claude Code takes from the environment ahead of the
-/// folder's own sign-in. Started from a terminal that exports one, AI
-/// Juggler would otherwise run EVERY account on that one key.
-pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
-    "ANTHROPIC_API_KEY",
-    "ANTHROPIC_AUTH_TOKEN",
-    "CLAUDE_CODE_OAUTH_TOKEN",
-];
-
-/// What a running Claude Code session marks its own child processes with:
-/// whose session they belong to, how to reach its host, whose account it
-/// is. Started from a terminal inside a Claude Code session (AI Juggler Dev
-/// run from one, or a harness), AI Juggler passed them on, and every
-/// session it started took itself for that session's child: "Transcript
-/// saving is off — inherited `CLAUDE_CODE_CHILD_SESSION` marker", so its
-/// conversation was never written and couldn't be found or switched (the
-/// lab of 2026-10-28). A new session is nobody's child.
-pub const INHERITED_SESSION_MARKERS: [&str; 14] = [
-    "CLAUDECODE",
-    "CLAUDE_CODE_CHILD_SESSION",
-    "CLAUDE_CODE_ENTRYPOINT",
-    "CLAUDE_CODE_SESSION_ID",
-    "CLAUDE_CODE_HOST_SESSION_ID",
-    "CLAUDE_CODE_MESSAGING_SOCKET",
-    "CLAUDE_CODE_MESSAGING_TOKEN",
-    "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
-    "CLAUDE_CODE_ACCOUNT_UUID",
-    "CLAUDE_CODE_ORGANIZATION_UUID",
-    "CLAUDE_CODE_USER_EMAIL",
-    "CLAUDE_CODE_OAUTH_SCOPES",
-    "CLAUDE_CODE_EXECPATH",
-    "CLAUDE_PID",
-];
-
-/// Everything a launch removes from what it inherits: the credentials
-/// ([`INHERITED_CREDENTIAL_KEYS`]) and a parent session's markers
-/// ([`INHERITED_SESSION_MARKERS`]).
-pub const LAUNCH_UNSET_KEYS: [&str; 17] = [
-    INHERITED_CREDENTIAL_KEYS[0],
-    INHERITED_CREDENTIAL_KEYS[1],
-    INHERITED_CREDENTIAL_KEYS[2],
-    INHERITED_SESSION_MARKERS[0],
-    INHERITED_SESSION_MARKERS[1],
-    INHERITED_SESSION_MARKERS[2],
-    INHERITED_SESSION_MARKERS[3],
-    INHERITED_SESSION_MARKERS[4],
-    INHERITED_SESSION_MARKERS[5],
-    INHERITED_SESSION_MARKERS[6],
-    INHERITED_SESSION_MARKERS[7],
-    INHERITED_SESSION_MARKERS[8],
-    INHERITED_SESSION_MARKERS[9],
-    INHERITED_SESSION_MARKERS[10],
-    INHERITED_SESSION_MARKERS[11],
-    INHERITED_SESSION_MARKERS[12],
-    INHERITED_SESSION_MARKERS[13],
-];
-
-/// Each account signs in as itself, as a session of its own: remove
-/// [`LAUNCH_UNSET_KEYS`] from what the launch inherits (an account set up
-/// with a key keeps it in its own settings, which this doesn't touch).
-fn unset_inherited_credentials(env: &mut EnvMap) {
-    for key in LAUNCH_UNSET_KEYS {
-        env.insert(
-            key.to_owned(),
-            juggler_adapter::launch::ENV_UNSET.to_owned(),
-        );
-    }
 }
 
 /// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's
