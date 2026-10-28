@@ -320,6 +320,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asking whether Claude Code's own limits check is offered no longer
+  makes an empty `overlays/limits-probe` folder in AI Juggler's data; the
+  folder is made only when the check runs (the 0.2 walk, F19).
+- For testers (the 0.2 walk, F19): the read-only test bridge now passes
+  on Needs you's changes (and those of Processes, tasks, messages and
+  driven sessions), so a bridged page's counts stay live; `just
+  dev-bridge-data` fills a fresh AI Juggler Dev data folder with this
+  computer's setups, used where they are, named "Account A–Z", with
+  Claude Code's limits check off, starting no tool
+  (`docs/qa/DEV-BRIDGE.md`).
 - An OpenCode, Grok Build or Kimi Code session started in AI Juggler
   shows once in the list (0.2): AI Juggler now tells which conversation
   the session started (from the tool's own records, or the process it
