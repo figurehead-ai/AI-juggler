@@ -13,6 +13,7 @@ import type { RankedRowData, QuotaDisplayData, AccountInfo, LaunchRecipeInfo, In
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
 import { useTwinToggle } from "../lib/use-twin-toggle";
+import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { MachinePicker, RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 
@@ -48,7 +49,7 @@ export function NewSessionModal({
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
   const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
   const where = useWhere(); // AJ-E1515: or on a paired Mac
   // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
@@ -248,18 +249,8 @@ export function NewSessionModal({
 
         <div
           className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            // In-browser drop of a folder: webview file drops carry names
-            // only; the native Tauri drop path (App-level) carries full
-            // paths and opens this modal pre-filled.
-          }}
+          data-testid="new-session-drop"
+          {...zone}
         >
           <MachinePicker where={where} />
           <PackPicker pack={pack} />

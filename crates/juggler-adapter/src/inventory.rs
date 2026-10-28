@@ -219,6 +219,21 @@ pub enum SetUp {
     Impossible(String),
 }
 
+/// How the user finishes an item themselves, in the target tool's own
+/// words (AJ-E1543: never a bare status): numbered steps, and the one
+/// command they run, when there is one. Examples carry placeholders
+/// (`<your GITHUB_TOKEN>`), never a value.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct HowTo {
+    /// The steps, in order.
+    pub steps: Vec<String>,
+    /// The command the steps say to run, exactly as it's run.
+    pub command: Option<String>,
+    /// Whether the steps happen on the account's settings page
+    /// ([`crate::HarnessAdapter::account_settings_url`]).
+    pub on_account_page: bool,
+}
+
 /// What setting up an item did, so it can be undone from the same place.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Applied {

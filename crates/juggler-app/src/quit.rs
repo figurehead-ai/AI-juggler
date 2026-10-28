@@ -245,10 +245,7 @@ pub fn request(app: &tauri::AppHandle) -> bool {
             false
         }
         RequestAction::Ask { id, plan } => {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            crate::main_window::bring_forward(app);
             let _ = app.emit(EVENT_QUIT_REQUESTED, plan);
             let app = app.clone();
             std::thread::spawn(move || {

@@ -29,6 +29,11 @@ const NONE: Record<string, string> = {
 /** Meta text: 7:1 or better on every surface, both themes. */
 const META = "text-meta text-muted";
 
+/** "1 key", "3 keys". */
+function keysWords(count: number): string {
+  return count === 1 ? "1 key" : `${count} keys`;
+}
+
 function openSettings(): void {
   window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "last-messages" } }));
 }
@@ -70,7 +75,7 @@ export function LastMessages({
         {chat.state === "shown" && (
           <span className={"ml-auto " + META} data-testid="last-messages-note">
             From its transcript · nothing kept
-            {chat.redacted > 0 && ` · ${chat.redacted === 1 ? "1 key" : `${chat.redacted} keys`} taken out`}
+            {chat.redacted > 0 && ` · ${keysWords(chat.redacted)} taken out`}
           </span>
         )}
       </div>

@@ -43,7 +43,7 @@ export function AccessStep({
           <span />
         )}
         <Button variant="primary" onClick={onDone} data-testid="first-run-start">
-          Start working
+          Continue
         </Button>
       </div>
     </div>

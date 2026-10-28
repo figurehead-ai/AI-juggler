@@ -6,6 +6,8 @@
  * or tick one that needs them. Nothing is written until the switch runs.
  */
 import { useState, type JSX } from "react";
+import { trustOpen } from "../lib/ipc/trust";
+import { SecretSteps } from "./switch/SecretSteps";
 import {
   switchSetupUndo,
   type AppliedInfo,
@@ -32,7 +34,7 @@ function verdictWords(offer: OfferInfo): string {
     case "translate":
       return `Set up ${offer.note ?? "in this tool's form"}`;
     case "needs-you":
-      return `Needs you: ${offer.note ?? ""}`;
+      return `Needs you: ${offer.note ?? ""}${/[.!?]$/.test(offer.note ?? "") ? "" : "."}`;
     default:
       return `Can't be set up: ${offer.note ?? ""}`;
   }
@@ -45,7 +47,40 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
     return `${check.to} already has everything ${check.from} has set up.`;
   }
   const thing = missing === 1 ? "thing" : "things";
-  return `${check.to} doesn't have ${missing} ${thing} ${check.from} has. ${picked.size} will be set up.`;
+  // "0 will be set up" says nothing when none of them can be.
+  const settable = check.offers.some((offer) => offer.verdict !== "impossible");
+  return `${check.to} doesn't have ${missing} ${thing} ${check.from} has.${settable ? ` ${picked.size} will be set up.` : ""}`;
+}
+
+/** Something the account turns on itself (its plan, its features): the
+ * adapter's steps, numbered, its settings page and Check again. It never
+ * blocks the switch, and says so. */
+function AccountSteps({ offer, to, onRecheck, checking }: { offer: OfferInfo; to: string; onRecheck?: () => void; checking?: boolean }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="switch-setup-steps">
+      <p className="text-body text-ink">
+        You can switch now. {to} won't have {offer.name} until you turn it on for that account.
+      </p>
+      <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-meta text-ink">
+        {offer.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      <p className="text-meta text-ink">It's there only if {to}'s plan includes it.</p>
+      <div className="flex flex-wrap gap-2">
+        {offer.steps_page && (
+          <button type="button" onClick={() => void trustOpen({ kind: "account-settings", id: offer.steps_page! })} className="min-h-7 rounded-lg border border-hairline px-3 text-meta text-ink hover:bg-surface-2" data-testid="switch-setup-open-page">
+            {offer.steps_page_label ?? "Open the account's settings"} ↗
+          </button>
+        )}
+        {onRecheck && (
+          <button type="button" onClick={onRecheck} disabled={checking} className="min-h-7 rounded-lg border border-hairline px-3 text-meta text-ink hover:bg-surface-2" data-testid="switch-setup-recheck">
+            {checking ? "Checking…" : "Check again"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function SwitchSetupList({
@@ -53,6 +88,8 @@ export function SwitchSetupList({
   picked,
   onToggle,
   bare = false,
+  onRecheck,
+  checking = false,
 }: {
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
@@ -60,6 +97,9 @@ export function SwitchSetupList({
   /** The rows only, under a line that already says what they are
    * (AJ-E1508's "Start with the same settings as …"). */
   bare?: boolean;
+  /** Reads the target again (after the user turned something on). */
+  onRecheck?: () => void;
+  checking?: boolean;
 }): JSX.Element | null {
   // Nothing missing, nothing to show: the switch screen stays short.
   if (check.offers.length === 0) return null;
@@ -72,21 +112,29 @@ export function SwitchSetupList({
     >
       {!bare && (
         <>
-          <h4 id="switch-setup-title" className="text-xs font-semibold">
+          <h4 id="switch-setup-title" className="text-body font-semibold text-ink">
             Set up on {check.to}
           </h4>
-          <p className="text-xs text-muted" data-testid="switch-setup-summary">
+          <p className="text-body text-ink" data-testid="switch-setup-summary">
             {setupSummary(check, picked)}
           </p>
         </>
       )}
       {check.offers.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-3">
           {check.offers.map((offer) => {
             const settable = offer.verdict !== "impossible";
             const id = `switch-setup-${offer.id}`;
+            // The steps have their own buttons, so they sit beside the
+            // row's label, never inside it.
+            const steps = offer.steps.length === 0 ? null : settable ? (
+              <SecretSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
+            ) : (
+              <AccountSteps offer={offer} to={check.to} onRecheck={onRecheck} checking={checking} />
+            );
+            const Wrap = settable ? "label" : "div";
             return (
-              <li key={offer.id} className="flex items-start gap-2 text-xs" data-testid="switch-setup-row">
+              <li key={offer.id} className="flex items-start gap-2 text-body text-ink" data-testid="switch-setup-row">
                 {settable ? (
                   <input
                     id={id}
@@ -98,20 +146,28 @@ export function SwitchSetupList({
                 ) : (
                   <span aria-hidden="true" className="mt-0.5 inline-block w-[13px]" />
                 )}
-                <label htmlFor={settable ? id : undefined} className={settable ? "" : "text-muted"}>
-                  {/* One of a kind (an account's permissions, its status
-                      line): its kind is its name, said once. */}
-                  {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
-                    <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
-                  ) : (
-                    <>
-                      <span className="font-medium">{offer.name}</span>{" "}
-                      <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
-                    </>
-                  )}
-                  {offer.about && <span className="block text-muted">{offer.about}</span>}
-                  <span className="block text-muted">{verdictWords(offer)}</span>
-                </label>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <Wrap htmlFor={settable ? id : undefined} className="flex min-w-0 flex-col gap-0.5">
+                    {/* One of a kind (an account's permissions, its status
+                        line): its kind is its name, said once. */}
+                    {(KIND_WORDS[offer.kind] ?? "").toLowerCase() === offer.name.toLowerCase() ? (
+                      <span className="font-medium">{KIND_WORDS[offer.kind]}</span>
+                    ) : (
+                      <span>
+                        <span className="font-medium">{offer.name}</span>{" "}
+                        <span className="text-muted">· {KIND_WORDS[offer.kind] ?? offer.kind}</span>
+                      </span>
+                    )}
+                    {offer.about && <span className="block text-meta">{offer.about}</span>}
+                    {(settable || !steps) && (
+                      <span className="block text-meta">
+                        {verdictWords(offer)}
+                        {!settable && ` You can switch now; ${check.to} won't have it.`}
+                      </span>
+                    )}
+                  </Wrap>
+                  {steps}
+                </div>
               </li>
             );
           })}

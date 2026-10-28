@@ -363,7 +363,7 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
     assert!(
         blocked
             .to_string()
-            .contains("Choose how secrets are handled in packs first"),
+            .contains("Choose what happens to keys and passwords first"),
         "an unset policy blocks the export"
     );
 

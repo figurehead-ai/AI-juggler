@@ -417,6 +417,32 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_inventory::can_set_up(item)
     }
 
+    fn how_to_get(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+        state_dir: &Path,
+    ) -> juggler_adapter::inventory::HowTo {
+        // The folder as the user's shell reads it: `$HOME/…`, quoted.
+        let env = config_dir_value(state_dir);
+        let shown = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            home_dir()
+                .and_then(|home| {
+                    Path::new(&env)
+                        .strip_prefix(&home)
+                        .ok()
+                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
+                })
+                .unwrap_or(env)
+        };
+        crate::claude_inventory::how_to_get(item, &shown)
+    }
+
+    fn account_settings_url(&self) -> Option<String> {
+        Some(crate::claude_inventory::ACCOUNT_SETTINGS_URL.to_owned())
+    }
+
     fn set_up(
         &self,
         state_dir: &Path,

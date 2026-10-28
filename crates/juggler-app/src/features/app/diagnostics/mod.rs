@@ -100,6 +100,11 @@ const LOGS: &[(&str, &str, &str)] = &[
         "logs/funnel-events.jsonl",
         "First-run steps",
     ),
+    (
+        crate::error_log::RELATIVE,
+        "logs/errors.log",
+        "What went wrong behind the messages you saw",
+    ),
     ("last-run", "logs/last-run", "How the last run ended"),
     (
         "crash-relaunches",

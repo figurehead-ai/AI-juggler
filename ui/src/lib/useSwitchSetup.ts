@@ -17,26 +17,42 @@ export function useSwitchSetup(sessionId: string, targetProfileId: string) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<AppliedInfo[]>([]);
 
+  // "Check again" reads the target once more (after the user turned
+  // something on in its account), keeping what they had ticked.
+  const [round, setRound] = useState(0);
+  const [checking, setChecking] = useState(false);
   useEffect(() => {
     let alive = true;
     // A new target starts clean: nothing picked or set up for the last one
     // carries over, even when this check fails (review of #132).
-    setSetup(null);
-    setPicked(new Set());
-    setResults([]);
+    if (round === 0) {
+      setSetup(null);
+      setPicked(new Set());
+      setResults([]);
+    }
+    setChecking(true);
     switchSetupCheck(sessionId, targetProfileId)
       .then((check) => {
         if (!alive) return;
         setSetup(check);
-        setPicked(new Set(check.offers.filter((offer) => offer.suggested).map((offer) => offer.id)));
+        setPicked((current) =>
+          round === 0
+            ? new Set(check.offers.filter((offer) => offer.suggested).map((offer) => offer.id))
+            : new Set(check.offers.filter((offer) => current.has(offer.id)).map((offer) => offer.id)),
+        );
       })
       .catch(() => {
-        if (alive) setSetup(null);
+        if (alive && round === 0) setSetup(null);
+      })
+      .finally(() => {
+        if (alive) setChecking(false);
       });
     return () => {
       alive = false;
     };
-  }, [sessionId, targetProfileId]);
+  }, [sessionId, targetProfileId, round]);
+  useEffect(() => setRound(0), [sessionId, targetProfileId]);
+  const recheck = () => setRound((n) => n + 1);
 
   const toggle = (id: string) => {
     setPicked((current) => {
@@ -57,5 +73,5 @@ export function useSwitchSetup(sessionId: string, targetProfileId: string) {
     return applied;
   };
 
-  return { setup, picked, toggle, results, setResults, applyPicked };
+  return { setup, picked, toggle, results, setResults, applyPicked, recheck, checking };
 }

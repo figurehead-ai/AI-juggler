@@ -109,6 +109,14 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await page.screenshot({ path: `${OUT}/access-one-allowed-1280x800-dark.png` });
   await page.getByTestId("first-run-start").click();
   primaryClicks += 1;
+  // D-46: the optional Figurehead account, skipped in one click (AJ-E1203:
+  // counted honestly).
+  const account = page.getByTestId("first-run-figurehead");
+  await expect(account).toBeVisible();
+  await page.screenshot({ path: `${OUT}/figurehead-1280x800-dark.png` });
+  await axeClean(page, "the optional account");
+  await page.getByTestId("first-run-figurehead-skip").click();
+  primaryClicks += 1;
   await expect(page.getByTestId("first-run")).toHaveCount(0);
   expect(primaryClicks).toBeLessThanOrEqual(5);
   expect(await page.evaluate(() => (window as unknown as { __AIJ_TYPED__: number }).__AIJ_TYPED__)).toBe(0);

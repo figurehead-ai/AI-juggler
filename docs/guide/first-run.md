@@ -57,3 +57,19 @@ AI Juggler works without any special permission. These are optional:
 Turn on the first two in Settings › Desktop apps › **Going to a session**.
 Going to a session never asks for a permission by itself. macOS asks for
 Local Network when you first pair a Mac.
+
+## A Figurehead account (optional)
+
+First run ends with one optional step: **Connect a Figurehead account**.
+You can do everything in AI Juggler without one. A free Figurehead account
+adds Cloud features you choose to turn on: encrypted backups you can restore
+on another Mac, and finding your own Macs for Fleet without a pairing code.
+Your sign-ins to Claude, Codex and other tools never leave this Mac.
+
+- **Connect account** opens figurehead.ai in your browser to approve this
+  Mac, then asks which Cloud features to turn on.
+- **Continue without an account** finishes first run. Nothing reminds you
+  later.
+
+Neither is chosen for you. Connect one later, or never, in Settings ›
+Figurehead & Cloud.

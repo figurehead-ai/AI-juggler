@@ -4,6 +4,7 @@
  * Plain data, so a Playwright spec can read it too.
  */
 import type { SetupCheckInfo } from "../types/generated/SetupCheckInfo";
+import { EXAMPLE_GITHUB_OFFER } from "./mcp-secret-offer";
 
 /** By the account copied from. */
 export const EXAMPLE_ACCOUNT_SETTINGS: Record<string, SetupCheckInfo> = {
@@ -12,19 +13,10 @@ export const EXAMPLE_ACCOUNT_SETTINGS: Record<string, SetupCheckInfo> = {
     to: "the new account",
     already_there: 0,
     offers: [
-      { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null },
-      {
-        id: "o-github",
-        kind: "mcp-server",
-        name: "github",
-        scope: "user",
-        verdict: "needs-you",
-        note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
-        suggested: false,
-        about: null,
-      },
-      { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: "4 allowed, 1 denied" },
-      { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: "runs ~/bin/statusline" },
+      { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+      { ...EXAMPLE_GITHUB_OFFER, id: "o-github" },
+      { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: "4 allowed, 1 denied", steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+      { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: "runs ~/bin/statusline", steps: [], steps_page: null, steps_page_label: null, steps_command: null },
       {
         id: "o-tidy",
         kind: "plugin",
@@ -33,7 +25,7 @@ export const EXAMPLE_ACCOUNT_SETTINGS: Record<string, SetupCheckInfo> = {
         verdict: "needs-you",
         note: "install it in this account with `claude plugin install tidy@market`",
         suggested: false,
-        about: null,
+        about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null,
       },
     ],
   },

@@ -176,7 +176,7 @@ describe("D-25 first run — the flow", () => {
     expect(opened[0]).toMatch(/^Sign in · /);
   });
 
-  it("computer access: Allow asks the system, the entry flips to Allowed, Start working finishes", async () => {
+  it("computer access: Allow asks the system, the entry flips to Allowed, Continue goes on", async () => {
     const onDone = vi.fn();
     const { findByTestId, getByTestId } = renderIt({ onDone });
     await findByTestId("first-run-found");
@@ -193,6 +193,8 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(getByTestId("first-run-access-focus").textContent).toContain("Allowed"));
     expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:focus"]);
     fireEvent.click(getByTestId("first-run-start"));
+    // D-46: the optional account comes last; skipping it finishes.
+    await skipAccount(findByTestId);
     expect(onDone).toHaveBeenCalledOnce();
   });
 
@@ -229,6 +231,7 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
+    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
@@ -249,6 +252,7 @@ describe("D-25 first run — the flow", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     // Nothing to sign in to: straight on (no access step on this OS).
+    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
     expect(queryByTestId("first-run-signin")).toBeNull();
   });
@@ -431,6 +435,7 @@ describe("D-25 first run — the flow", () => {
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
+    await skipAccount(findByTestId);
     await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
   });
 
@@ -893,4 +898,59 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     spy.mockRestore();
   });
 
+});
+
+/** D-46: first run's last step, skipped. */
+async function skipAccount(find: (id: string) => Promise<HTMLElement>): Promise<void> {
+  const skip = await find("first-run-figurehead-skip");
+  fireEvent.click(skip);
+}
+
+describe("D-46 the optional Figurehead account", () => {
+  const renderIt = (props: Partial<Parameters<typeof FirstRun>[0]> = {}) =>
+    render(<FirstRun mode={props.mode} onDone={props.onDone ?? (() => null)} openLoginTerminal={() => null} />);
+  it("ends first run with two equal choices, nothing chosen for the user", async () => {
+    w().__AIJ_OS_ACCESS__ = [];
+    const onDone = vi.fn();
+    const { findByTestId, getByTestId } = renderIt({ onDone });
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    const step = await findByTestId("first-run-figurehead");
+    expect(step.textContent).toContain("Connect a Figurehead account (optional)");
+    expect(step.textContent).toContain("You can do everything in AI Juggler without an account");
+    const connect = getByTestId("first-run-figurehead-connect");
+    const skip = getByTestId("first-run-figurehead-skip");
+    // Equal: the same kind of button, neither focused for the user.
+    expect(connect.className).toBe(skip.className);
+    expect(document.activeElement).not.toBe(connect);
+    expect(document.activeElement).not.toBe(skip);
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.click(skip);
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("Connect account starts the same browser link as Settings", async () => {
+    w().__AIJ_OS_ACCESS__ = [];
+    const { findByTestId, getByTestId } = renderIt();
+    await findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-bring-in"));
+    });
+    await waitFor(() => expect((getByTestId("first-run-figurehead-connect") as HTMLButtonElement).disabled).toBe(false));
+    await act(async () => {
+      fireEvent.click(getByTestId("first-run-figurehead-connect"));
+    });
+    // Settings' own flow: the code to check in the browser.
+    expect((await findByTestId("cloud-user-code")).textContent).toBe("QVM3-GABM");
+    expect((w() as unknown as { __AIJ_FLEET_CALLS__?: string[] }).__AIJ_FLEET_CALLS__).toContain("fh-link-start:Studio Mac");
+  });
+
+  it("Add account never asks", async () => {
+    const onDone = vi.fn();
+    const { findByTestId, queryByTestId } = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />);
+    await findByTestId("first-run");
+    expect(queryByTestId("first-run-figurehead")).toBeNull();
+  });
 });

@@ -267,7 +267,7 @@ fn a_launched_codex_session_is_linked_to_its_rollout_on_first_use() {
     // The preflight reads the file but never writes the link down …
     let preflight = commands::switch_preflight_impl(&state, &launched.session_id, &profile_b.id);
     assert!(
-        !matches!(&preflight, Err(error) if error.to_string().contains("Couldn't tell which file")),
+        !matches!(&preflight, Err(error) if error.to_string().contains("couldn't tell which file")),
         "the preflight found the session's own file"
     );
     let stored = |state: &Arc<AppState>| {
@@ -319,7 +319,7 @@ fn two_sessions_one_file(provider: &str, write: impl Fn(&Path, &str)) {
     for session in [&s1.session_id, &s2.session_id] {
         let error = commands::switch_preflight_impl(&state, session, &recipe_b.id).unwrap_err();
         assert!(
-            error.to_string().contains("Couldn't tell which file"),
+            error.to_string().contains("couldn't tell which file"),
             "ambiguous: the switch asks instead of guessing"
         );
         let _ =

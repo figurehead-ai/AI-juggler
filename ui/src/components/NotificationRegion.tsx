@@ -14,9 +14,9 @@ import {
   parkedOffers,
   parkedResume,
   type ParkedOfferInfo,
-  resetQueueDismiss,
   resetQueueList,
   type AlertEventData,
+  type InstanceInfo,
   type RemoteMachineInfo,
   type ResetQueueRow,
   onUpdateStatus,
@@ -26,6 +26,7 @@ import {
   type UpdateStatusInfo,
 } from "../lib/bridge";
 import { ChannelChip, updateErrorText } from "./UpdatesCard";
+import { AlertLines, QueueLines } from "./AlertLines";
 import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 
@@ -44,8 +45,14 @@ export function NotificationRegion({
   onQueueResume,
   onOpenRemote,
   hideMachineAlerts = false,
+  sessions = [],
+  onHandOver,
 }: {
   onQueueResume?: (row: ResetQueueRow) => void;
+  /** The sessions an alert's actions are for (its account's latest live one). */
+  sessions?: InstanceInfo[];
+  /** Hand over: the limit dialog for that session. */
+  onHandOver?: (sessionId: string) => void;
   /** AJ-E709: open the machine a Fleet alert came from. */
   onOpenRemote?: (machineId: string) => void;
   /** Home shows the Mac's alerts once, in Needs you: the banner keeps
@@ -218,22 +225,8 @@ export function NotificationRegion({
 
   return (
     <div aria-live="polite" role="status" data-testid="notification-region" className="flex flex-col gap-1">
-      {events.map((event) => (
-        <p
-          key={`${event.at_ms}-${event.account}-${event.kind}`}
-          data-testid={`alert-${event.kind}`}
-          className={`rounded border px-2 py-1 text-label ${
-            event.kind === "exhausted" || event.kind === "actionable"
-              ? "border-warning/50 text-warning"
-              : event.kind === "digest"
-                ? "border-dashed border-hairline text-muted"
-                : "border-hairline text-muted"
-          }`}
-        >
-          {event.kind === "digest" ? "Digest · " : ""}
-          {event.text}
-        </p>
-      ))}
+      {/* D-25: plain words, local time, Hand over and Queue for the reset. */}
+      <AlertLines events={events} sessions={sessions} onHandOver={onHandOver} />
       {!hideMachineAlerts && machineAlerts.map((alert) => (
         <p
           key={alert.key}
@@ -393,33 +386,7 @@ export function NotificationRegion({
           </button>
         </div>
       ))}
-      {queue.map((row) => (
-        <p key={row.id} data-testid={`queue-${row.state}`} className="flex items-center gap-2 rounded border border-hairline px-2 py-1 text-label">
-          <span>
-            {row.state === "ready"
-              ? `reset reached — ${row.account} ready to resume`
-              : row.state === "stale"
-                ? `queued resume went stale (session ${row.session} is gone)`
-                : `queued at ${new Date(row.resume_at_ms).toLocaleTimeString()} — ${row.account}`}
-          </span>
-          {row.state === "ready" && onQueueResume && (
-            <button
-              type="button"
-              className="underline focus:outline-none focus:ring-2 focus:ring-accent"
-              onClick={() => onQueueResume(row)}
-            >
-              Resume
-            </button>
-          )}
-          <button
-            type="button"
-            className="text-muted underline focus:outline-none focus:ring-2 focus:ring-accent"
-            onClick={() => void resetQueueDismiss(row.id).then(() => setQueue((rows) => rows.filter((entry) => entry.id !== row.id)))}
-          >
-            dismiss
-          </button>
-        </p>
-      ))}
+      <QueueLines queue={queue} sessions={sessions} onResume={onQueueResume} onDismissed={(id) => setQueue((rows) => rows.filter((entry) => entry.id !== id))} />
     </div>
   );
 }

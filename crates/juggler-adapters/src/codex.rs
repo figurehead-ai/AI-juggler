@@ -756,6 +756,32 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_inventory::can_set_up(item)
     }
 
+    fn how_to_get(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+        state_dir: &Path,
+    ) -> juggler_adapter::inventory::HowTo {
+        let user_home = crate::inventory_files::user_home();
+        let value = user_home.as_deref().map_or_else(
+            || state_dir.to_string_lossy().into_owned(),
+            |home| codex_home_value_in(state_dir, home),
+        );
+        // The home as the user's shell reads it: `$HOME/…`.
+        let shown = if value == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            user_home
+                .and_then(|home| {
+                    Path::new(&value)
+                        .strip_prefix(&home)
+                        .ok()
+                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
+                })
+                .unwrap_or(value)
+        };
+        crate::codex_inventory::how_to_get(item, &shown)
+    }
+
     fn set_up(
         &self,
         state_dir: &Path,

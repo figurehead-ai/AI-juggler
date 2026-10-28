@@ -294,7 +294,7 @@ fn describe(state: &Arc<AppState>, session_id: &str) -> About {
 /// A notification was clicked: AI Juggler comes forward on its session
 /// (or This Mac). An unknown id still brings the window forward.
 pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppState>, id: i32) {
-    use tauri::{Emitter, Manager};
+    use tauri::Emitter;
     let open = match state.notifier.target_of(id) {
         Some(Target::Session(session_id)) => Some(OpenRequest {
             session_id: Some(session_id),
@@ -310,11 +310,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     };
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
-        if let Some(window) = handle.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
+        crate::main_window::bring_forward(&handle);
         if let Some(open) = open {
             let _ = handle.emit(EVENT_OPEN, open);
         }

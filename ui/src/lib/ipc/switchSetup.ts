@@ -6,6 +6,7 @@
  */
 import { hasLiveBackend } from "../bridge";
 import { invoke } from "./transport";
+import { EXAMPLE_GITHUB_OFFER } from "../../preview/mcp-secret-offer";
 import type { AppliedInfo } from "../../types/generated/AppliedInfo";
 import type { OfferInfo } from "../../types/generated/OfferInfo";
 import type { SetupCheckInfo } from "../../types/generated/SetupCheckInfo";
@@ -32,18 +33,9 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       verdict: "copy",
       note: null,
       suggested: true,
-      about: null,
+      about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null,
     },
-    {
-      id: "mcp-github",
-      kind: "mcp-server",
-      name: "github",
-      scope: "user",
-      verdict: "needs-you",
-      note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
-      suggested: false,
-      about: null,
-    },
+    EXAMPLE_GITHUB_OFFER,
     {
       id: "skill-team-style",
       kind: "skill",
@@ -53,6 +45,14 @@ export const EXAMPLE_SETUP: SetupCheckInfo = {
       note: "it comes with the claude.ai account, so it can't be copied to another one",
       suggested: false,
       about: null,
+      // The adapter's steps (claude_inventory::how_to_get), as it words them.
+      steps: [
+        "Open claude.ai settings in your browser, signed in as the account you're switching to.",
+        "Find team-style there and turn it on.",
+        "Come back here and choose Check again.",
+      ],
+      steps_page: "the target's tool",
+      steps_page_label: "Open claude.ai settings", steps_command: null,
     },
   ],
 };

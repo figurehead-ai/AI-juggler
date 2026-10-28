@@ -36,4 +36,25 @@ about: string | null,
 /**
  * Ticked to start with: set up as it is, or translated.
  */
-suggested: boolean, };
+suggested: boolean, 
+/**
+ * What the user does to finish it themselves (turn it on for the
+ * account, give it its secret): the steps, from the target tool's
+ * adapter (never written here).
+ */
+steps: Array<string>, 
+/**
+ * The one command those steps say to run, exactly as it's run (a
+ * secret in it is a placeholder, never a value).
+ */
+steps_command: string | null, 
+/**
+ * The target tool's id when it has a page for those steps (opened
+ * by `trust_open` kind `account-settings`).
+ */
+steps_page: string | null, 
+/**
+ * That page's button ("Open claude.ai settings"), named from its
+ * address.
+ */
+steps_page_label: string | null, };

@@ -148,7 +148,7 @@ export function SwitchBackFlow({
             <h3 className="text-sm font-semibold">
               Switch back to {plan.original_account}
               <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
-                {plan.original_alive ? "Continues, with what changed since" : "Briefing pack"}
+                {plan.original_alive ? "Continues, with what changed since" : "Handover notes"}
               </span>
             </h3>
             {/* Req.3 verbatim — suggested, never executed. */}
@@ -181,7 +181,7 @@ export function SwitchBackFlow({
                 {plan.sf7_fallback.startsWith("nearest-epoch") &&
                   " — the nearest surviving conversation resumes instead."}
                 {plan.sf7_fallback === "fresh-f0" &&
-                  " — a fresh session starts from a briefing pack."}
+                  " — a fresh session starts from handover notes."}
               </p>
             )}
             <p className="text-label text-muted" data-testid="switch-back-divergence">
@@ -310,7 +310,7 @@ export function SwitchBackFlow({
             <h3 className="text-sm font-semibold">You returned to the original conversation</h3>
             <p className="text-label text-muted">
               It resumed exactly where it rested — the away work arrived as one
-              “while you were away” update. {phase.sessionId}
+              “while you were away” update.
             </p>
             <div className="flex justify-end">
               <button

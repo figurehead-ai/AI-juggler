@@ -1,3 +1,4 @@
+import { useFolderDrop } from "../lib/use-folder-drop";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -94,7 +95,7 @@ export function NewProjectSheet({
   const [detour, setDetour] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const { dragging, zone } = useFolderDrop(setDirectory); // wf03: a dropped folder
   const tilesRef = useRef<HTMLDivElement | null>(null);
 
   const reload = () => {
@@ -200,17 +201,8 @@ export function NewProjectSheet({
 
         <div
           className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            // Webview drops carry names only; the native Tauri drop
-            // path (App-level) opens this sheet pre-filled.
-          }}
+          data-testid="new-project-drop"
+          {...zone}
         >
           {/* Step 1 — where */}
           <p className="text-section font-semibold text-ink">
@@ -327,7 +319,7 @@ export function NewProjectSheet({
                     </div>
                     {!signedIn(loginByAccount.get(recommended.account_id)) && (
                       <p className="text-label text-muted">
-                        This account needs sign-in (Ready home) — pick another or sign in first.
+                        This account needs sign-in — pick another or sign in first.
                       </p>
                     )}
                   </>
@@ -356,7 +348,7 @@ export function NewProjectSheet({
                           </Chip>
                           <span className="text-muted">·</span>
                           <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                          {!ready && <Chip tone="neutral">needs sign-in (Ready home)</Chip>}
+                          {!ready && <Chip tone="neutral">needs sign-in</Chip>}
                         </button>
                       );
                     })}

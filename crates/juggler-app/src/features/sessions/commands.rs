@@ -102,3 +102,21 @@ pub async fn sessions_get(
     })
     .await
 }
+
+/// A session's History tab (wf09, AJ-E1533): its status changes,
+/// lifecycle steps and switches, oldest first, a page at a time.
+///
+/// # Errors
+///
+/// As [`super::history::history_page_impl`].
+#[tauri::command]
+pub async fn sessions_history(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+    page: crate::paging::PageRequest,
+) -> AppResult<crate::paging::Page<super::history::SessionEventInfo>> {
+    crate::ipc::blocking(state.inner(), "the session's history", move |state| {
+        super::history::history_page_impl(state, &session_id, &page)
+    })
+    .await
+}

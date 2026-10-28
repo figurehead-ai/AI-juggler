@@ -716,11 +716,15 @@ generalizes beyond Claude-only to every registered Provider:
 4. **Login** — the Provider's own flow in an embedded terminal;
    sign-in queue with auto-detected state; isolation verified per
    account (state-dir containment check) before "ready".
-5. **First-run policy choice** — pack redaction policy (D-14) and
-   optional renewal dates (D-12) are asked once, explicitly. An
-   optional, skippable "Connect a Figurehead account" step follows,
-   with **Connect account** and **Continue without an account** as
-   equal buttons (D-18); skipping is the default path.
+5. **First-run policy choice** — *amended by D-25 and D-46 (as
+   built, 0.1.9):* first run has three steps (what's here, sign in,
+   computer access) and then the optional, skippable "Connect a
+   Figurehead account" step, with **Connect account** and **Continue
+   without an account** as equal buttons, nothing pre-selected and no
+   reminder afterwards (D-18, D-46); it is the same connect flow as
+   Settings › Figurehead & Cloud. The keys-and-passwords choice (D-14)
+   moved to the first switch that sends a conversation's words to
+   another tool, and renewal dates are set in Settings › Accounts.
 6. **Summary** — what was created, what was skipped, originals
    untouched.
 

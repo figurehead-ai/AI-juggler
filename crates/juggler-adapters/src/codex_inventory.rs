@@ -20,7 +20,7 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
+    Applied, ConfigFormat, Detail, HowTo, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
     SettingCheck, Undo, Value, secret_variable, value_of,
 };
 
@@ -346,11 +346,187 @@ fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
     let secrets = secret_names(name, server);
     if !secrets.is_empty() {
         return SetUp::NeedsYou(format!(
-            "it needs {} in your environment: secrets are never copied",
-            secrets.join(", ")
+            "it needs your {}, and AI Juggler never copies a secret",
+            secrets.join(" and ")
         ));
     }
     SetUp::Copy
+}
+
+/// How the user gives an MCP server that needs a secret its value on the
+/// Codex account whose home is `codex_home` (as the shell reads it, `$HOME/…`;
+/// empty for Codex's default `~/.codex`). Codex's own ways
+/// (<https://learn.chatgpt.com/docs/extend/mcp?surface=cli>, `codex mcp
+/// add … --env VAR=VALUE -- <command>`, and the `[mcp_servers.<name>.env]`
+/// table; `config.toml` lives in `CODEX_HOME`, see
+/// <https://learn.chatgpt.com/docs/config-file/config-sample>):
+///
+/// - a local server whose environment is plain values and the secret: the
+///   two commands (`codex mcp remove`, as `codex mcp --help` lists it, then
+///   `codex mcp add --env`), the secret a placeholder;
+/// - any other local server: the lines to add to that account's
+///   `config.toml`, the secret a placeholder;
+/// - a server over HTTP: Codex reads its token from a variable in the
+///   environment it starts in (`bearer_token_env_var`), so the line for
+///   the shell's startup file — which every account on this Mac reads.
+///
+/// AI Juggler never writes the secret; empty for anything else.
+#[must_use]
+pub fn how_to_get(item: &Item, codex_home: &str) -> HowTo {
+    let Detail::Mcp(server) = &item.detail else {
+        return HowTo::default();
+    };
+    let name = &item.name;
+    let secrets = secret_names(name, server);
+    if server.oauth
+        || secrets.is_empty()
+        || !matches!(mcp_verdict(name, server), SetUp::NeedsYou(_))
+    {
+        return HowTo::default();
+    }
+    let values = secrets
+        .iter()
+        .map(|var| format!("<your {var}>"))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    match &server.transport {
+        McpTransport::Stdio { command, args, env }
+            if env.iter().all(|(_, value)| !matches!(value, Value::Env(_))) =>
+        {
+            add_with_env(name, codex_home, &values, command, args, env)
+        }
+        McpTransport::Stdio { .. } => env_lines(name, codex_home, &values, &secrets),
+        _ => shell_lines(&values, &secrets),
+    }
+}
+
+/// `codex mcp remove`, then `codex mcp add … --env …`, for the account.
+fn add_with_env(
+    name: &str,
+    codex_home: &str,
+    values: &str,
+    command: &str,
+    args: &[String],
+    env: &[(String, Value)],
+) -> HowTo {
+    let prefix = if codex_home.is_empty() {
+        String::new()
+    } else {
+        format!("CODEX_HOME=\"{codex_home}\" ")
+    };
+    let mut add = format!("{prefix}codex mcp add {}", shell_word(name));
+    for (key, value) in env {
+        let text = match value {
+            Value::Literal(text) => text.clone(),
+            _ => format!("<your {}>", secret_variable(name, key)),
+        };
+        add.push_str(" --env ");
+        add.push_str(&shell_word(&format!("{key}={text}")));
+    }
+    add.push_str(" --");
+    for word in std::iter::once(command).chain(args.iter().map(String::as_str)) {
+        add.push(' ');
+        add.push_str(&shell_word(word));
+    }
+    HowTo {
+        steps: vec![
+            "Open Terminal.".to_owned(),
+            format!(
+                "Paste the command below. Put your own value in place of {values} (keep the \
+                 quotes around it), then press Return."
+            ),
+            format!(
+                "It sets {name} up for this account, with the value in this account's own \
+                 Codex settings. Its first line takes away a {name} set up without the value; \
+                 if there isn't one, it says so, and that's fine."
+            ),
+            "Come back here and choose Check again.".to_owned(),
+        ],
+        command: Some(format!(
+            "{prefix}codex mcp remove {}\n{add}",
+            shell_word(name)
+        )),
+        on_account_page: false,
+    }
+}
+
+/// The lines for `[mcp_servers.<name>.env]` in the account's `config.toml`.
+fn env_lines(name: &str, codex_home: &str, values: &str, secrets: &[String]) -> HowTo {
+    let file = if codex_home.is_empty() {
+        "$HOME/.codex/config.toml".to_owned()
+    } else {
+        format!("{codex_home}/config.toml")
+    };
+    let lines = std::iter::once(format!("[mcp_servers.{name}.env]"))
+        .chain(
+            secrets
+                .iter()
+                .map(|var| format!("{var} = \"<your {var}>\"")),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+    HowTo {
+        steps: vec![
+            format!("Open this account's Codex settings file in a text editor: {file}"),
+            format!(
+                "Find the [mcp_servers.{name}.env] section (add that line under \
+                 [mcp_servers.{name}] if it isn't there), and add the lines below, with your own \
+                 value in place of {values}."
+            ),
+            format!(
+                "If [mcp_servers.{name}] has an env_vars line, take {} out of it, then save the \
+                 file.",
+                secrets.join(" and ")
+            ),
+            "Come back here and choose Check again.".to_owned(),
+        ],
+        command: Some(lines),
+        on_account_page: false,
+    }
+}
+
+/// A server over HTTP: Codex reads its token from the environment it
+/// starts in, so the line for the shell's startup file.
+fn shell_lines(values: &str, secrets: &[String]) -> HowTo {
+    HowTo {
+        steps: vec![
+            format!(
+                "Codex reads this server's {} from the environment it starts in, so it can't be \
+                 set for one account alone.",
+                secrets.join(" and ")
+            ),
+            "Open your shell's startup file (for zsh, ~/.zshrc) in a text editor.".to_owned(),
+            format!(
+                "Add the line below, with your own value in place of {values}, and save the \
+                 file. Every account on this Mac gets it."
+            ),
+            "Tick it here so it's set up on this account; sessions you start after that have \
+             the value."
+                .to_owned(),
+        ],
+        command: Some(
+            secrets
+                .iter()
+                .map(|var| format!("export {var}=\"<your {var}>\""))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ),
+        on_account_page: false,
+    }
+}
+
+/// One word as a POSIX shell reads it: as it is when it's plain, else in
+/// single quotes.
+fn shell_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "@%+=:,./_-".contains(c));
+    if plain {
+        word.to_owned()
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
 }
 
 /// Appends `[mcp_servers.<name>]` to `config.toml`, after a backup.
@@ -655,6 +831,74 @@ enabled = false
             add_mcp(home.path(), "github", &server).is_err(),
             "never replaces one that's there"
         );
+    }
+
+    /// AJ-E1543: a server that needs its secret says how to give it one
+    /// on that Codex account, with a placeholder, never the value.
+    #[test]
+    fn a_server_that_needs_a_secret_says_how_to_give_it_one() {
+        let mcp = |transport| Item {
+            tool: "claude-code".into(),
+            kind: ItemKind::McpServer,
+            name: "github".into(),
+            scope: Scope::User,
+            detail: Detail::Mcp(McpServer {
+                transport,
+                oauth: false,
+            }),
+        };
+        let stdio = mcp(McpTransport::Stdio {
+            command: "npx".into(),
+            args: vec!["-y".into(), "gh-mcp".into()],
+            env: vec![
+                ("GITHUB_TOKEN".into(), Value::Secret),
+                ("LOG".into(), Value::Literal("info level".into())),
+            ],
+        });
+        let how = how_to_get(&stdio, "$HOME/.codex-personal");
+        assert_eq!(
+            how.command.as_deref(),
+            Some(
+                "CODEX_HOME=\"$HOME/.codex-personal\" codex mcp remove github\n\
+                 CODEX_HOME=\"$HOME/.codex-personal\" codex mcp add github \
+                 --env 'GITHUB_TOKEN=<your GITHUB_TOKEN>' --env 'LOG=info level' -- npx -y gh-mcp"
+            )
+        );
+        assert!(!how.on_account_page);
+        assert_eq!(
+            how.steps.last().map(String::as_str),
+            Some("Come back here and choose Check again.")
+        );
+        // Codex's own home: no CODEX_HOME at all.
+        assert!(
+            how_to_get(&stdio, "")
+                .command
+                .unwrap()
+                .starts_with("codex mcp remove github\n")
+        );
+        // A variable it reads from the environment: the config.toml lines.
+        let forwarded = mcp(McpTransport::Stdio {
+            command: "gh-mcp".into(),
+            args: Vec::new(),
+            env: vec![
+                ("GITHUB_TOKEN".into(), Value::Secret),
+                ("HOME_DIR".into(), Value::Env("HOME".into())),
+            ],
+        });
+        let how = how_to_get(&forwarded, "$HOME/.codex-personal");
+        assert_eq!(
+            how.command.as_deref(),
+            Some("[mcp_servers.github.env]\nGITHUB_TOKEN = \"<your GITHUB_TOKEN>\"")
+        );
+        assert!(how.steps[0].ends_with("$HOME/.codex-personal/config.toml"));
+        // Nothing to give: nothing to say.
+        let plain = mcp(McpTransport::Stdio {
+            command: "x".into(),
+            args: Vec::new(),
+            env: Vec::new(),
+        });
+        assert_eq!(how_to_get(&plain, ""), HowTo::default());
+        assert_eq!(shell_word("it's"), "'it'\\''s'");
     }
 
     #[test]

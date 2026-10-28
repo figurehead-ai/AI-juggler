@@ -36,8 +36,27 @@ export function readDensity(storage: Storage = localStorage): Density {
   return raw !== null && isValidDensity(raw) ? raw : "comfortable";
 }
 
+/** The density the rail opens to again after ⌘B folded it: the last
+ * Comfortable or Compact chosen (AJ-E403: ⌘B never resets Compact). */
+export const OPEN_DENSITY_KEY = "aij.density.open";
+
 export function storeDensity(density: Density, storage: Storage = localStorage): void {
   storage.setItem(DENSITY_KEY, density);
+  if (density !== "minimal") storage.setItem(OPEN_DENSITY_KEY, density);
+}
+
+/** The open density ⌘B comes back to (Comfortable until one is chosen). */
+export function readOpenDensity(storage: Storage = localStorage): Exclude<Density, "minimal"> {
+  const raw = storage.getItem(OPEN_DENSITY_KEY);
+  return raw === "compact" ? "compact" : "comfortable";
+}
+
+/** ⌘B: fold to the icon column, or open to the density it had. */
+export function toggledDensity(current: Density, storage: Storage = localStorage): Density {
+  if (current === "minimal") return readOpenDensity(storage);
+  // Remember what it folds from (a density chosen before this was kept).
+  storage.setItem(OPEN_DENSITY_KEY, current);
+  return "minimal";
 }
 
 export function nextDensity(current: Density): Density {

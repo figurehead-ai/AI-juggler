@@ -132,19 +132,17 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
   });
 });
 
-describe("AJ-E309 — the pack restatement words", () => {
+describe("AJ-E309 — the keys restatement words (never \"pack\")", () => {
   it.each([
-    ["strip", "Packs: strip secrets (all tools)"],
-    ["keep", "Packs: keep secrets — packs stay on this Mac (all tools)"],
-    ["ask", "Packs: ask each time (all tools)"],
+    ["strip", "Keys: hidden from other tools (all tools)"],
+    ["keep", "Keys: left in for other tools to read (all tools)"],
+    ["ask", "Keys: asked on every switch (all tools)"],
   ] as const)("%s reads %s", (value, words) => {
     expect(packPolicyRestatement(value, "global", "Claude Code")).toBe(words);
   });
   it("names an override's scope; nothing chosen says the first switch asks", () => {
-    expect(packPolicyRestatement("strip", "override", "Codex")).toBe("Packs: strip secrets (Codex override)");
-    expect(packPolicyRestatement(null, "unset", "Claude Code")).toBe(
-      "Packs: not chosen yet — your first switch asks before any pack is built",
-    );
+    expect(packPolicyRestatement("strip", "override", "Codex")).toBe("Keys: hidden from other tools (Codex override)");
+    expect(packPolicyRestatement(null, "unset", "Claude Code")).toBe("Keys: not chosen yet — your first switch to another tool asks");
   });
 });
 

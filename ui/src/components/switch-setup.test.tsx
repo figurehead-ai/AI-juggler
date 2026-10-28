@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
 import { setupSummary } from "./SwitchSetupList";
@@ -27,7 +27,7 @@ const PREFLIGHT: PreflightInfoData = {
   wizard_steps: [],
   wizard_reasons: [],
   usual_account: true,
-  carry: { carried: ["chat transcript"], regenerated: [], dropped: [] },
+  carry: { carried: ["The whole conversation"], regenerated: [], dropped: [] },
   redaction: {
     global: "strip",
     override: null,
@@ -36,6 +36,10 @@ const PREFLIGHT: PreflightInfoData = {
     line: "Redaction: Strip",
   },
   redaction_items: [],
+  carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
+  move_line: "The whole conversation moves — all 12 messages, its subagents and file history. The original stays as it was.",
+  secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  target_tool: "claude-code",
 };
 
 type Seams = {
@@ -78,10 +82,36 @@ describe("what the target lacks", () => {
     expect(skill.checked).toBe(true);
     const server = view.getByLabelText(/github/) as HTMLInputElement;
     expect(server.checked).toBe(false);
-    expect(view.getByText(/Needs you: it needs GITHUB_TOKEN/)).toBeTruthy();
-    // Can't be set up: shown, with why, and no box to tick.
-    expect(view.getByText(/Can't be set up: it comes with the claude.ai account/)).toBeTruthy();
+    expect(view.getByText("Needs you: it needs your GITHUB_TOKEN, and AI Juggler never copies a secret.")).toBeTruthy();
+    // A server that needs its token: never a bare status — it doesn't
+    // stop the switch, it can be set up without the value, and the
+    // adapter's steps give the account its own copy (a placeholder).
+    const secret = view.getByTestId("switch-setup-secret-steps");
+    expect(secret.textContent).toContain("You can switch now; it doesn't stop the switch. Tick it to set github up on Personal without the value");
+    expect(secret.querySelectorAll("ol li").length).toBe(4);
+    const command = view.getByTestId("switch-setup-command").textContent ?? "";
+    expect(command).toContain('claude mcp add-json --scope user github');
+    expect(command).toContain('"GITHUB_TOKEN":"<your GITHUB_TOKEN>"');
+    expect(within(secret).getByTestId("switch-setup-recheck").textContent).toBe("Check again");
+    // Something the account turns on itself: no box to tick, but the
+    // adapter's steps, its page and Check again — and it never blocks.
     expect(view.queryByLabelText(/team-style/)).toBeNull();
+    const steps = view.getByTestId("switch-setup-steps");
+    expect(steps.textContent).toContain("You can switch now. Personal won't have team-style until you turn it on");
+    expect(steps.querySelectorAll("ol li").length).toBe(3);
+    expect(view.getByTestId("switch-setup-open-page").textContent).toContain("Open claude.ai settings");
+    expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false);
+    expect(view.getByTestId("switch-summary-needs").textContent).toBe("2 things need you below; none of them stops the switch.");
+  });
+
+  it("says one thing in the singular", async () => {
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = {
+      ...EXAMPLE_SETUP,
+      offers: EXAMPLE_SETUP.offers.filter((offer) => offer.id !== "skill-team-style"),
+    };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-summary-needs")).toBeTruthy());
+    expect(view.getByTestId("switch-summary-needs").textContent).toBe("1 thing needs you below; it doesn't stop the switch.");
   });
 
   it("sets up what's ticked when the switch runs, and says what it did", async () => {
@@ -134,5 +164,39 @@ describe("what the target lacks", () => {
     expect(setupSummary({ ...EXAMPLE_SETUP, offers: [] }, new Set())).toBe(
       "Personal already has everything Work Max has set up.",
     );
+  });
+});
+
+describe("Check again", () => {
+  it("reads the target again, and what was turned on leaves the list", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup-steps")).toBeTruthy());
+    // The user turned it on in the account: the next read hasn't it.
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = { ...EXAMPLE_SETUP, offers: EXAMPLE_SETUP.offers.filter((offer) => offer.steps.length === 0) };
+    fireEvent.click(within(view.getByTestId("switch-setup-steps")).getByTestId("switch-setup-recheck"));
+    await waitFor(() => expect(view.queryByTestId("switch-setup-steps")).toBeNull());
+    // What was ticked stays ticked.
+    expect((view.getByLabelText(/release-notes/) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("copies the command as the adapter gave it, with the placeholder", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup-copy")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-setup-copy"));
+    await waitFor(() => expect(view.getByText(/^Copied\./)).toBeTruthy());
+    expect(writeText).toHaveBeenCalledWith(EXAMPLE_SETUP.offers.find((offer) => offer.id === "mcp-github")?.steps_command);
+    // Ticking the row never ticks through the buttons beside it.
+    expect((view.getByLabelText(/github/) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("opens the account's page through the app, never as a link the screen holds", async () => {
+    const opened: Array<{ kind: string; id: string }> = [];
+    (window as never as { __AIJ_OPENED__?: typeof opened }).__AIJ_OPENED__ = opened;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup-open-page")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-setup-open-page"));
+    expect(opened[0]?.kind).toBe("account-settings");
   });
 });

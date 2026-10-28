@@ -1,5 +1,5 @@
 /**
- * AJ-E1511 — "Start from a context pack…" in New session. The pack is read
+ * AJ-E1511 — "Start from a saved handover…" in New session. The pack is read
  * and checked first, then shown as the switch screen shows a switch: where
  * it came from, its fidelity, what it carries and what it doesn't, and
  * what redaction withheld when it was made. The user picks the account and
@@ -46,7 +46,7 @@ export function usePack(onFolder: (folder: string) => void): PackChoice {
       setError(null);
     },
     start: async (profileId, folder) => {
-      if (!opened) throw new Error("no pack chosen");
+      if (!opened) throw new Error("No handover chosen");
       if (!folder) throw "pick where the session works first";
       return packsOpenStart(opened.path, opened.info.digest, profileId, folder);
     },
@@ -68,7 +68,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
     return (
       <div className="mb-4 flex flex-wrap items-center gap-2 text-label">
         <button type="button" onClick={() => void pack.choose()} className="text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
-          Start from a context pack…
+          Start from a saved handover…
         </button>
         {pack.error && (
           <span role="alert" className="text-danger" data-testid="pack-error">
@@ -84,7 +84,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
     <section className="mb-4 flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft/40 p-3" aria-labelledby="pack-title" data-testid="pack-summary">
       <div className="flex items-center gap-2">
         <h4 id="pack-title" className="text-xs font-semibold">
-          Starting from a context pack
+          Starting from a saved handover
         </h4>
         <Button size="sm" variant="ghost" className="ml-auto" onClick={pack.clear} data-testid="pack-clear">
           Don't use it
@@ -108,8 +108,8 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
         </span>
       </Row>
       <details className="text-label">
-        <summary className="cursor-pointer text-muted">The pack's brief</summary>
-        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-label text-ink" aria-label="The pack's brief (read-only)" tabIndex={0}>
+        <summary className="cursor-pointer text-muted">The handover's brief</summary>
+        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-label text-ink" aria-label="The handover's brief (read-only)" tabIndex={0}>
           {info.brief}
         </pre>
       </details>

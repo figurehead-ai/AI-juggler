@@ -27,6 +27,7 @@ import {
   nextDensity,
   readDensity,
   storeDensity,
+  toggledDensity,
   type Density,
 } from "./lib/density";
 import {
@@ -173,7 +174,7 @@ export default function App() {
     : density;
   const toggleRail = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);
-    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+    else setDensityAndStore(toggledDensity(density));
   }, [narrow, density, setDensityAndStore]);
   const cycleDensity = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);
@@ -402,9 +403,12 @@ export default function App() {
     return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
-  // Drop a folder anywhere → New session pre-filled with it.
+  // A dropped folder → New session with it (an open New project sheet takes it).
+  const projectSheetOpen = useRef(false);
+  projectSheetOpen.current = newProjectDir !== null;
   useEffect(() => {
     return onFolderDropped((path) => {
+      if (projectSheetOpen.current) return;
       setNewSessionDir(path);
       setNewSession(true);
     });
@@ -887,13 +891,12 @@ export default function App() {
             // The region takes its own space above the screen and pushes
             // it down — never over it, at any width (the 0.0.12 report).
             <div className="flex h-full min-h-0 flex-col">
-              {/* AJ-E611: the alert/notification region — polite
-                  live-region, badge-carrying copy, reset-queue rows
-                  with an explicit Resume click (the click opens the
-                  picker; nothing ever launches by itself). */}
+              {/* AJ-E611: the alerts (polite, plain words), reset-queue rows
+                  with an explicit Resume click (nothing launches by itself). */}
               <div className="shrink-0" data-testid="notification-band">
                 <NotificationRegion
                   onQueueResume={() => setNewSession(true)}
+                  sessions={sessions} onHandOver={setLimitFor}
                   onOpenRemote={(machineId) => inspectRemote(machineId, null)}
                   hideMachineAlerts={selection.kind === "none"}
                 />

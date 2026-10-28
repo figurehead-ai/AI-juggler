@@ -47,7 +47,7 @@ const TAB: Record<PageTabId, PageTab> = {
   usage: { id: "usage", label: "Usage", source: "usage tracking" },
   quality: { id: "quality", label: "Quality", source: "this Mac's process monitor" },
   processes: { id: "processes", label: "Processes", source: "this Mac's process monitor" },
-  history: { id: "history", label: "History", source: "the session's transcript" },
+  history: { id: "history", label: "History", source: "AI Juggler's record of the session" },
   actions: { id: "actions", label: "Actions", source: "the paired Mac" },
 };
 

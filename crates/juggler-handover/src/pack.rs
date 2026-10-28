@@ -436,7 +436,7 @@ fn render_pack_md(state: &PackState, diff_staged: bool) -> Vec<u8> {
     let mut out = String::new();
     let _ = writeln!(
         out,
-        "# Context pack\n\nWork `{}` on `{}` — {} under {}.",
+        "# Handover\n\nWork `{}` on `{}` — {} under {}.",
         state.work_id, state.project.root, state.source.account_label, state.source.provider
     );
     let _ = writeln!(out, "\n## What travels\n");
@@ -474,7 +474,7 @@ fn render_pack_md(state: &PackState, diff_staged: bool) -> Vec<u8> {
         // empty `diffs/`; it says so only when the patch is there.
         match (state.git.dirty, diff_staged) {
             (true, true) => " (dirty — diff snapshotted)",
-            (true, false) => " (dirty — the uncommitted changes aren't in this pack)",
+            (true, false) => " (with uncommitted changes, not in this handover)",
             (false, _) => "",
         }
     );
@@ -499,7 +499,7 @@ fn render_pack_md(state: &PackState, diff_staged: bool) -> Vec<u8> {
     );
     let _ = writeln!(
         out,
-        "- Pack `{}` created {}",
+        "- Handover `{}` created {}",
         state.pack_id, state.created_at
     );
     out.into_bytes()
@@ -539,13 +539,13 @@ fn render_conversation_md(state: &PackState, turns: &[IrTurn], mode: Conversatio
 pub enum PackWriteError {
     /// Credential material was found in pack content — the write is
     /// refused before any byte reaches disk.
-    #[error("pack content contains credential material ({0} hits) — refused")]
+    #[error("the handover holds what looks like a key or password ({0} found), so it wasn't saved")]
     Credentials(usize),
     /// An I/O failure (temp write, verify, or rename).
-    #[error("pack write failed: {0}")]
+    #[error("the handover couldn't be saved: {0}")]
     Io(#[from] std::io::Error),
     /// Verification failed: staged bytes do not match the manifest.
-    #[error("pack verification failed for {0}")]
+    #[error("the saved handover didn't match what was written: {0}")]
     Verify(String),
 }
 

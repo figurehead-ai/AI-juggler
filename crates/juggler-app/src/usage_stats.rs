@@ -661,12 +661,29 @@ pub fn error_class(error: &crate::error::AppError) -> Option<(&'static str, &'st
             "io_error",
         ),
         AppError::StatePoisoned => ("ui", "invalid_state"),
+        AppError::Switch { failure, .. } => ("switch", switch_code(failure)),
         AppError::Validation { .. }
         | AppError::NotFound { .. }
         | AppError::IdentityMismatch { .. }
         | AppError::AlreadyImported { .. }
         | AppError::Refused(_) => return None,
     })
+}
+
+/// A switch failure's class (its kind, never its text).
+fn switch_code(failure: &juggler_handover::pipeline::SwitchFailure) -> &'static str {
+    use juggler_handover::pipeline::{PreflightStop, SwitchFailure};
+    match failure {
+        SwitchFailure::LaunchFailed(_) => "spawn_failed",
+        SwitchFailure::StagingAborted(_) | SwitchFailure::Adapter(_) => "io_error",
+        SwitchFailure::UnresolvedSource
+        | SwitchFailure::TornTail
+        | SwitchFailure::CollisionForked(_)
+        | SwitchFailure::MergeConflictOpen
+        | SwitchFailure::OriginalSessionGone => "invalid_state",
+        SwitchFailure::Preflight(PreflightStop::VersionDrift) => "version_unsupported",
+        _ => "other",
+    }
 }
 
 /// An error reached the interface (counted by class only).

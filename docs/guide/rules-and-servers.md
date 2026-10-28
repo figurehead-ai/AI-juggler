@@ -44,7 +44,7 @@ Each other file says how it stands:
 An apply writes only that one rules file. It refuses a link, and a file
 that changed since you looked at it. It keeps the file as it was, so you
 can undo it: right away in the sheet, or later in Settings › Switching ›
-Context packs & secrets, where it's listed under the project's name. A file the apply
+Handovers and keys, where it's listed under the project's name. A file the apply
 created is removed by its undo.
 
 ## MCP servers
@@ -62,7 +62,7 @@ Work · from Personal", with a **Copy** button.
   what stays behind. A server with a secret in its address or arguments
   can't be copied.
 - Each copy has its own **Undo**, in the sheet and later in Settings ›
-  Switching › Context packs & secrets.
+  Switching › Handovers and keys.
 
 When no profile is missing a server, the sheet says so.
 

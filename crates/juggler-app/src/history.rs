@@ -561,6 +561,22 @@ fn lineage_of(
     storage: &juggler_core::storage::Storage,
     session_id: &str,
 ) -> AppResult<Vec<LineageStepInfo>> {
+    Ok(lineage_steps(storage, session_id)?
+        .into_iter()
+        .map(|(_, step)| step)
+        .collect())
+}
+
+/// The switches session `session_id` took part in, oldest first, each
+/// with when it happened (epoch ms).
+///
+/// # Errors
+///
+/// Storage failures.
+pub(crate) fn lineage_steps(
+    storage: &juggler_core::storage::Storage,
+    session_id: &str,
+) -> AppResult<Vec<(i64, LineageStepInfo)>> {
     let labels: BTreeMap<juggler_core::model::AccountId, String> = storage
         .accounts()
         .list()?
@@ -580,13 +596,14 @@ fn lineage_of(
             } else {
                 (&edge.from_account, &edge.from_provider)
             };
-            LineageStepInfo {
+            let step = LineageStepInfo {
                 direction: if outgoing { "out" } else { "in" }.to_owned(),
                 other_account: label(account),
                 other_provider: provider.to_string(),
-                state: format!("{:?}", edge.state).to_lowercase(),
+                state: edge.state.as_str().to_owned(),
                 fidelity: edge.fidelity_shown.clone(),
-            }
+            };
+            (edge.created_at.millis(), step)
         })
         .collect())
 }

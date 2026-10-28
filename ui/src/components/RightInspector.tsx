@@ -21,6 +21,7 @@ const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", t
 const KillSheet = lazyNamed(() => import("./KillSheet"), "KillSheet");
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
+const SessionHistoryTab = lazyNamed(() => import("../pages/session/HistoryTab"), "SessionHistoryTab");
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessRow, ProcessRowsHeader, type CleanupRowInfo } from "./ProcessRow";
 import type { KillBridge } from "./KillSheet";
@@ -43,6 +44,7 @@ import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { installWords, providerDisplayName } from "../lib/providers";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
+import { useSessionHasHistory } from "../pages/session/useSessionHasHistory";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
@@ -178,6 +180,8 @@ export function RightInspector({
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
+  // wf09: a session's History tab, once it has something recorded.
+  const hasHistory = useSessionHasHistory(remote ? null : (data.instance?.id ?? null));
 
   useEffect(() => {
     if (!remote || !onRemoteBack) return;
@@ -197,6 +201,7 @@ export function RightInspector({
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
     desktop: data.instance?.kind === "desktop",
+    hasHistory,
     hasUsage: projectUsage,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
@@ -331,6 +336,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
           );
         case "processes":
           return <ProcessesTab {...props} readOnly={false} />;
+        case "history":
+          return props.data.instance ? <SessionHistoryTab session={props.data.instance} onOpenProject={props.onOpenProject} /> : <HonestEmpty tab="history" />;
         default:
           return null;
       }
@@ -502,7 +509,8 @@ function InstanceOverview(props: PanelProps) {
           ) : null}
           <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
           <span data-testid="instance-native-id">
-            Claude session:{" "}
+            {/* The tool's own id for the conversation (never "Claude" for every tool). */}
+            Conversation id in {providerDisplayName(session.provider)}:{" "}
             <span className="font-mono text-ink">
               {session.conversation_id ?? "not found yet"}
             </span>
@@ -752,7 +760,7 @@ function InstanceOverview(props: PanelProps) {
                     key={recipe.id}
                     type="button"
                     disabled={!ready}
-                    title={ready ? undefined : "Needs sign-in first (Ready home)"}
+                    title={ready ? undefined : "Needs sign-in first: sign in from its account on Accounts"}
                     onClick={() => props.onLaunch(recipe, project)}
                     className={
                       "flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-left text-xs transition-colors " +

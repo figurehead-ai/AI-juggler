@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from "react";
+import { statusWords } from "../lib/status-words";
 import { Button, Card, Chip } from "./primitives";
 import { providerDisplayName } from "../lib/providers";
 import {
@@ -415,10 +416,10 @@ function MachineOverview({
                   data-testid="remote-machine-instance"
                 >
                   <span className="font-medium">{row.account_label}</span>
-                  <span className="text-muted">{row.provider}</span>
+                  <span className="text-muted">{providerDisplayName(row.provider)}</span>
                   {row.project_name && <span className="text-muted">· {row.project_name}</span>}
                   <span className="flex-1" />
-                  <Chip tone="neutral">{row.status.replace(/_/g, " ")}</Chip>
+                  <Chip tone="neutral">{statusWords(row.status)}</Chip>
                 </button>
               </li>
             ))}
@@ -484,7 +485,7 @@ function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineIn
           </li>
         ))}
       </ul>
-      <p className="text-label text-muted">Clean verified processes in Cleanup → All machines.</p>
+      <p className="text-label text-muted">Clean verified processes from each session's Processes tab.</p>
     </div>
   );
 }

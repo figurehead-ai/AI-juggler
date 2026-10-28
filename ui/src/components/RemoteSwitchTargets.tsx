@@ -7,6 +7,7 @@
  * T3 only / unavailable with the reason). Listing these moved nothing:
  * they come from what each machine published, never a transcript.
  */
+import { providerDisplayName } from "../lib/providers";
 import type { JSX } from "react";
 import type { RemoteSwitchTargetInfo } from "../lib/bridge";
 import { launchSettingsName } from "../lib/account-words";
@@ -68,7 +69,7 @@ export function RemoteSwitchTargets({
                           {target.account_label}
                           {" "}<span className="sr-only">on {label}</span>
                         </span>
-                        <span className="text-muted">{target.provider}</span>
+                        <span className="text-muted">{providerDisplayName(target.provider)}</span>
                         <span className="text-muted">· {launchSettingsName(target.recipe_name)}</span>
                         <span className="flex-1" />
                         <span

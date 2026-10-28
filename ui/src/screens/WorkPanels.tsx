@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { kindWords } from "../lib/status-words";
 import { providerDisplayName } from "../lib/providers";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { lazyNamed } from "../lib/lazy";
@@ -84,7 +85,7 @@ export function SessionPanel({
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {view && <Chip tone={view.tone}>{view.label}</Chip>}
         {!isLoginTerminal && session && (
-          <Chip tone={session.kind === "desktop" ? "accent" : "neutral"}>{session.kind}</Chip>
+          <Chip tone={session.kind === "desktop" ? "accent" : "neutral"}>{kindWords(session.kind)}</Chip>
         )}
         {project && !isLoginTerminal && (
           <button
@@ -163,7 +164,7 @@ export function SessionPanel({
                     title={
                       ready
                         ? "Moves this session's context to this account and resumes it"
-                        : "Needs sign-in first (Ready home)"
+                        : "Needs sign-in first: sign in from its account on Accounts"
                     }
                     className={
                       "rounded-lg border px-2.5 py-1.5 text-label transition-colors " +

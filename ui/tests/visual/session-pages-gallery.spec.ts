@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, terminalDrawn } from "./fixtures";
 import { askingTurns, workingTurns } from "./fixtures/session-chat";
 
 const PAGES = resolve(process.cwd(), "../docs/qa/evidence/_gallery/92-session-pages");
@@ -259,7 +259,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("page-tab-terminal")).toHaveText("Overview");
     await page.getByTestId("page-tab-terminal").click();
     await expect(page.getByTestId("own-session-overview")).toBeVisible();
-    await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+    await terminalDrawn(page);
     await expect(page.getByTestId("where-it-runs")).toContainText("AI Juggler's terminal");
     await expect(page.getByTestId("session-runway")).toBeVisible();
     await expect(page.getByTestId("handover-teaser")).toBeVisible();

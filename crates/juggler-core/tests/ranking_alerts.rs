@@ -155,7 +155,7 @@ fn affinity_words_carry_the_wrong_billing_guard() {
         usual
             .top_factors
             .iter()
-            .any(|words| words.contains("usual account")),
+            .any(|words| words.contains("used most here")),
         "the project-history share appears in words (Claude #87447 guard)"
     );
     // The full inputs feed the Why-this-order expander — §Q6's five

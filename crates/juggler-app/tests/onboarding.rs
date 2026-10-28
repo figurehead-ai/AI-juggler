@@ -287,12 +287,11 @@ fn errors_carry_code_retryable_and_user_message() {
     let wire = serde_json::to_value(error.wire()).unwrap();
     assert_eq!(wire["code"], "unknown_harness");
     assert_eq!(wire["retryable"], false);
+    // D-25: plain words, never the tool's id or the program's text.
+    let words = wire["user_message"].as_str().unwrap();
     assert!(
-        wire["user_message"]
-            .as_str()
-            .unwrap()
-            .contains("made-up-cli"),
-        "user-facing, not a raw OS string"
+        words.contains("doesn't support that tool") && !words.contains("made-up-cli"),
+        "user-facing words, not an id or a raw string"
     );
 
     // The wire form is what crosses the bridge.

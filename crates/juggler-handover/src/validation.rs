@@ -219,7 +219,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
     };
     // A same-tool transplant resumes the same conversation on the new
     // account (AJ-E1540): F3, "Same conversation, new account", as the
-    // switch screen says (F2 there when the session was compacted). The
+    // switch screen says, compacted or not (D-03 amendment). The
     // beta words carry how sure that is (AJ-E1543).
     rows.push(same(
         "claude-code",
@@ -260,7 +260,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "claude-code",
             "zcode",
             FidelityLabel::F0,
-            "Z Code takes a briefing pack only, until starting it from a story is proven",
+            "Z Code takes handover notes only, until starting it from a story is proven",
         ),
         (
             "zcode",
@@ -272,7 +272,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "codex",
             "zcode",
             FidelityLabel::F0,
-            "Z Code support isn't built yet; it takes a briefing pack only",
+            "Z Code support isn't built yet; it takes handover notes only",
         ),
         (
             "zcode",
@@ -302,7 +302,7 @@ pub fn validation_matrix() -> Vec<PairCell> {
             ci_green: false,
             dogfood: None,
             notes: vec![
-                "Briefing pack only: starting this tool from a story isn't planned for the beta"
+                "Handover notes only: starting this tool from a story isn't planned for the beta"
                     .to_owned(),
             ],
         });
@@ -340,7 +340,7 @@ pub fn advertised_badge(from: &str, to: &str, dogfood: Option<&DogfoodCell>) -> 
             };
             row.badge()
         }
-        None => "Briefing pack · Beta".to_owned(),
+        None => "Handover notes · Beta".to_owned(),
     }
 }
 
@@ -350,7 +350,7 @@ pub fn advertised_badge(from: &str, to: &str, dogfood: Option<&DogfoodCell>) -> 
 pub fn researched_badge(from: &str, to: &str) -> String {
     match pair_cell(from, to) {
         Some(row) => row.badge(),
-        None => "Briefing pack · Beta".to_owned(),
+        None => "Handover notes · Beta".to_owned(),
     }
 }
 
@@ -499,7 +499,7 @@ mod tests {
         assert!(!row.validated());
         assert_eq!(
             row.badge(),
-            "Same conversation, new account (compacted) · Beta"
+            "Same conversation, new account (a check failed) · Beta"
         );
         assert!(row.status_words().contains("promises one level less"));
     }
@@ -526,7 +526,7 @@ mod tests {
     fn advertised_badge_degrades_unknown_pairs_to_f0_beta() {
         assert_eq!(
             advertised_badge("claude-code", "unknown-cli", None),
-            "Briefing pack · Beta"
+            "Handover notes · Beta"
         );
         assert_eq!(
             researched_badge("claude-code", "claude-code"),

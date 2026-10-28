@@ -683,7 +683,7 @@ for (const theme of ["dark", "light"] as const) {
           {
             account: "claude-work",
             score: 0.87,
-            top_factors: ["82% headroom (Measured)", "usual account for this repo"],
+            top_factors: ["82% headroom (Measured)", "used most here"],
             factors: [["headroom 82%", 0.37], ["affinity", 0.2], ["fidelity", 0.075], ["cost fit", 0.1], ["calm", 0.1]],
             headroom_unknown: false,
             confidence: "Measured",
@@ -701,7 +701,7 @@ for (const theme of ["dark", "light"] as const) {
           },
         ],
         events: [
-          { kind: "actionable", account: "claude-work", text: "claude-work at 92% used (Measured), five-hour window — hand over or queue at reset", at_ms: T0 - 60_000 },
+          { kind: "actionable", account: "claude-work", text: "Work Max has 8% left in its 5-hour window, until it resets in 1 h 10 min", at_ms: T0 - 60_000, quota: { account_label: "Work Max", window: "five_hour", left_pct: 8, minutes_left: 40, resets_at_ms: T0 + 70 * 60_000 } },
           { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
         ],
         rows: [
@@ -741,22 +741,26 @@ for (const theme of ["dark", "light"] as const) {
 const DOOR_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account (compacted)",
+  fidelity_words: "Same conversation, new account",
   score: 0.78,
-  warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
+  warnings: ["Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call."],
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
   experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: ["This isn't the usual account for this project."],
+  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
   usual_account: false,
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"],
+    carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
     regenerated: [],
-    dropped: ["todo list"],
+    dropped: ["The task list"],
   },
+  carry_items: [
+    { label: "The whole conversation", hint: "Every message from the start.", how: "moves" },
+    { label: "The task list", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
+  ],
 };
 
 const DOOR_ONECLICK_FIXTURE = {
@@ -769,7 +773,7 @@ const DOOR_ONECLICK_FIXTURE = {
   wizard_reasons: [],
   usual_account: true,
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "MCP config", "skills & commands", "model settings"],
+    carried: ["The whole conversation", "Project rules", "Your uncommitted changes", "Connected tools (MCP servers)", "Skills and commands", "Model choice"],
     regenerated: [],
     dropped: [],
   },
@@ -793,7 +797,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "the session on the other account didn't start — the switch is ready to try again (terminal spawn failed).",
+        fail: "The new session on Personal didn't start, so nothing moved.",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -991,10 +995,11 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_SWITCH_PREFLIGHT__ = {
-          mechanism: "transplant",
-          fidelity: "F2",
-          fidelity_words: "Same conversation, new account (compacted)",
-          score: 0.78,
+          // A replay to another tool: the keys question applies.
+          mechanism: "replay",
+          fidelity: "F1",
+          fidelity_words: "Full story, fresh start",
+          score: 0.5,
           warnings: [],
           zombies: [],
           diff_snapshotted: true,
@@ -1002,15 +1007,17 @@ for (const theme of ["dark", "light"] as const) {
           experimental_copy: "Experimental copy.",
           door: "wizard",
           wizard_steps: ["Target", "What's carried", "Confirm"],
-          wizard_reasons: ["This isn't the usual account for this project."],
+          wizard_reasons: [],
           usual_account: false,
-          carry: {
-            carried: ["chat transcript"],
-            regenerated: [],
-            dropped: ["todo list"],
-          },
+          carry: { carried: ["The whole conversation"], regenerated: [], dropped: ["The task list"] },
+          carry_items: [
+            { label: "The whole conversation", hint: "The other tool reads it.", how: "moves" },
+            { label: "The task list", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
+          ],
+          secrets: { asks: true, reader: "Codex (OpenAI)" },
+          target_tool: "codex",
           redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
-          redaction_items: [],
+          redaction_items: [{ kind: "sk-key", preview: "s•••5678", segment: 0 }],
         };
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -1030,43 +1037,16 @@ for (const theme of ["dark", "light"] as const) {
       .locator("button[data-row]:not(:disabled)")
       .first()
       .click();
-    // The wizard renders the chooser on its carried/confirm steps —
-    // walk to Confirm (Target → What's carried) first.
+    // Step 2 asks about the keys (another tool reads the words).
     await page.getByTestId("switch-continue").click();
-    await page.getByTestId("switch-continue").click();
-    await expect(page.getByTestId("switch-redaction-chooser")).toBeVisible();
+    await expect(page.getByTestId("switch-keys")).toBeVisible();
     const chooserScan = await new AxeBuilder({ page })
       .include("[data-testid='switch-flow']")
       .analyze();
-
-    // Switch to a set policy + items on the preview step and re-scan
-    // (a second init script overwrites the seam on reload).
-    await page.addInitScript(() => {
-      const w = window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Record<string, unknown> };
-      if (w.__AIJ_SWITCH_PREFLIGHT__) {
-        w.__AIJ_SWITCH_PREFLIGHT__.redaction = {
-          global: "strip",
-          override: null,
-          effective: "strip",
-          source: "global",
-          line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
-        };
-        w.__AIJ_SWITCH_PREFLIGHT__.redaction_items = [
-          { kind: "sk-key", preview: "s•••5678", segment: 0 },
-        ];
-      }
-    });
-    await page.reload();
-    await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /Work Max/ }).first().click();
-    await openSwitch(page);
-    await page.getByTestId("handover-section")
-      // AJ-E209: the ranked, badged row is the switch entry point.
-      .locator("button[data-row]:not(:disabled)")
-      .first()
-      .click();
-    await page.getByTestId("switch-continue").click();
-    await expect(page.getByTestId("switch-redaction-items")).toBeVisible();
+    // Hide them: the "show one anyway" list, and the explainer open.
+    await page.getByTestId("switch-keys-hide").check();
+    await page.getByText("What does this mean?").first().click();
+    await expect(page.getByTestId("switch-keys-items")).toBeVisible();
     const itemsScan = await new AxeBuilder({ page })
       .include("[data-testid='switch-flow']")
       .analyze();
@@ -1917,8 +1897,8 @@ for (const theme of ["dark", "light"] as const) {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
           blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
-          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["chat transcript"], regenerated: [],
-          dropped: ["todo list"], same_path_project: null,
+          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
+          dropped: ["The task list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
         };

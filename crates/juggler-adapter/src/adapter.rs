@@ -152,6 +152,31 @@ pub trait HarnessAdapter: Send + Sync {
         crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
     }
 
+    /// How the user finishes `item` on the account in `state_dir`
+    /// themselves, in this tool's own words: turning on what the account
+    /// itself provides (its plan, its features: a claude.ai skill), or
+    /// giving a server the secret that is never copied. The switch dialog
+    /// shows the steps, the command, the account's settings page when
+    /// they happen there, and Check again; none of it blocks the switch.
+    /// Default: none.
+    #[must_use]
+    fn how_to_get(
+        &self,
+        item: &crate::inventory::Item,
+        state_dir: &Path,
+    ) -> crate::inventory::HowTo {
+        let _ = (item, state_dir);
+        crate::inventory::HowTo::default()
+    }
+
+    /// The web page where this tool's account turns features on, opened
+    /// in the user's browser (never signed in by AI Juggler). Default:
+    /// none.
+    #[must_use]
+    fn account_settings_url(&self) -> Option<String> {
+        None
+    }
+
     /// AJ-E1542: sets up `item` in this account (only on the user's
     /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
     /// says how to undo it. Never replaces anything the account has.
