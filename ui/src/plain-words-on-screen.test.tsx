@@ -139,6 +139,8 @@ describe("nothing internal on screen (D-25)", () => {
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
     expect(view.getByTestId("switch-failed-words").textContent).toBe(words);
+    // Said once: the dialog adds a title, never a second telling.
+    expect((view.getByTestId("switch-failed").textContent ?? "").split(words).length - 1).toBe(1);
     expect(leaks(view.container.textContent ?? "")).toEqual([]);
     expect(words).toMatch(/Work|Personal/);
     delete seams.__AIJ_SWITCH_PREFLIGHT__;

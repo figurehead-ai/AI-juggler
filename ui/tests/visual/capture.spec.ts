@@ -2286,7 +2286,7 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
           w.__AIJ_SWITCH_EXECUTE_FAIL__ =
-            "The new session on Personal didn't start, so nothing moved.";
+            "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.";
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2299,8 +2299,8 @@ for (const theme of THEMES) {
       await page.goto("/");
       await reachConfirm(page);
       await page.getByTestId("switch-confirm").click();
-      await expect(page.getByTestId("switch-failed")).toContainText("resume it where you left it");
-      await expect(page.getByTestId("switch-failed-words")).toHaveText("The new session on Personal didn't start, so nothing moved.");
+      await expect(page.getByTestId("switch-failed")).toContainText("where you left it");
+      await expect(page.getByTestId("switch-failed-words")).toHaveText("The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.");
       await expect(page.getByTestId("switch-retry")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/failed-${vp.name}-${theme}.png`),
@@ -2568,14 +2568,14 @@ for (const theme of THEMES) {
     test(`switch-back — S-F8 forked (refused merge) — ${vp.name} — ${theme}`, async ({ page }) => {
       await openInspector(page, {
         __AIJ_SWITCH_BACK_EXECUTE_FAIL__:
-          "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed",
+          "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed.",
       });
       await page.getByTestId("switch-back-card").click();
       await expect(page.getByTestId("switch-back-review")).toBeVisible();
       await page.getByText("Keep original").click();
       await page.getByTestId("switch-back-confirm").click();
       await expect(page.getByTestId("switch-back-failed")).toContainText(
-        "both sides stay resumable",
+        "both can still be resumed",
       );
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/sf8-forked-${vp.name}-${theme}.png`),

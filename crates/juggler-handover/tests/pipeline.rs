@@ -463,7 +463,7 @@ fn launch_failure_retains_stage_and_source_safe() {
     // The user's words name the account and never the spawn detail.
     assert_eq!(
         failure.words("Work", "Personal"),
-        "The new session on Personal didn't start, so nothing moved."
+        "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it."
     );
 }
 
@@ -596,10 +596,18 @@ fn every_failure_reads_in_plain_words() {
             "a failure's words name the account"
         );
         assert!(words.ends_with('.'), "a failure's words are sentences");
+        // The dialog shows them under a short title and adds nothing:
+        // each thing is said once in them.
+        for once in ["nothing moved", "try again", "where you left it"] {
+            assert!(
+                words.to_lowercase().matches(once).count() <= 1,
+                "a failure's words say {once:?} twice"
+            );
+        }
     }
     assert_eq!(
         SwitchFailure::PrimeQuotaDeath(12_400).words("Work", "Personal"),
-        "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens."
+        "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens. Pick another account."
     );
 }
 

@@ -284,14 +284,15 @@ export function SwitchFlow({
           </div>
         );
       case "failed":
+        // A short title, then the failure's own words: what happened and
+        // what to do next, each said once (`SwitchFailure::words`; any
+        // other error's words say what to do too). Nothing is added to
+        // them here, so nothing is said twice.
         return (
           <div className="flex flex-col gap-4" data-testid="switch-failed">
             <h3 className="text-title text-warning">The switch didn't complete</h3>
             <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
               {phase.message}
-            </p>
-            <p className="text-body text-ink">
-              {setupCheck.results.length > 0 ? "The original stays exactly as it was" : "Nothing was changed: the original stays exactly as it was"} — resume it where you left it, or try again.
             </p>
             {/* What was set up before the switch failed stays undoable. */}
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />

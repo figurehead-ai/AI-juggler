@@ -104,17 +104,21 @@ describe("AJ-E207 switch-back flow", () => {
     );
   });
 
-  it("renders the S-F8 forked copy when the return is refused", async () => {
+  it("renders the S-F8 forked copy when the return is refused, said once", async () => {
     (window as never as Seams).__AIJ_SWITCH_BACK_EXECUTE_FAIL__ =
-      "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed";
+      "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed.";
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-back-review")).toBeTruthy());
     fireEvent.click(view.getByLabelText("Keep original"));
     fireEvent.click(view.getByTestId("switch-back-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-back-failed")).toBeTruthy());
-    expect(view.getByTestId("switch-back-failed").textContent).toContain(
-      "both sides stay resumable",
+    const failed = view.getByTestId("switch-back-failed").textContent ?? "";
+    expect(view.getByTestId("switch-back-failed-words").textContent).toBe(
+      "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed.",
     );
+    // The failure's words are the explanation: nothing repeats them.
+    expect(failed.split("can still be resumed").length - 1).toBe(1);
+    expect(failed).not.toContain("resumable");
   });
 
   it("shows the honest S-F7 state when the original is gone", async () => {

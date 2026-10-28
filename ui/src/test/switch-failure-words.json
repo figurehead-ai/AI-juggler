@@ -1,7 +1,7 @@
 [
   {
     "kind": "unresolved-source",
-    "words": "AI Juggler couldn't tell which file holds this conversation on Work, so nothing moved."
+    "words": "AI Juggler couldn't tell which file holds this conversation on Work, so nothing moved. Resume it on Work where you left it."
   },
   {
     "kind": "torn-tail",
@@ -13,15 +13,15 @@
   },
   {
     "kind": "staging-aborted",
-    "words": "Copying to Personal stopped partway, so nothing moved. What was copied has been cleaned up."
+    "words": "Copying to Personal stopped partway, so nothing moved. What was copied has been cleaned up: try again."
   },
   {
     "kind": "launch-failed",
-    "words": "The new session on Personal didn't start, so nothing moved."
+    "words": "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it."
   },
   {
     "kind": "prime-quota-death",
-    "words": "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens."
+    "words": "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens. Pick another account."
   },
   {
     "kind": "original-session-gone",
@@ -41,10 +41,10 @@
   },
   {
     "kind": "preflight-version-drift",
-    "words": "Personal's version of its tool hasn't been checked with this kind of switch yet, so nothing moved."
+    "words": "Personal's version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account."
   },
   {
     "kind": "adapter",
-    "words": "The switch to Personal couldn't finish, so nothing moved."
+    "words": "Something went wrong on the way to Personal, so nothing moved. Try again."
   }
 ]

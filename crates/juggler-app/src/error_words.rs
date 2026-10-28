@@ -362,7 +362,7 @@ mod tests {
         );
         assert_eq!(
             error.wire().user_message,
-            "The new session on Personal didn't start, so nothing moved."
+            "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it."
         );
         assert_eq!(error.wire().code, "switch_failed");
         assert!(error.wire().retryable);

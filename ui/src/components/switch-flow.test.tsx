@@ -106,6 +106,10 @@ function mount(
   );
 }
 
+
+/** A failed launch's words, as the backend sends them (`SwitchFailure::words`). */
+const LAUNCH_FAILED = "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.";
+
 describe("AJ-E206 door", () => {
   it("counts the door it shows once, from the preflight's own answer", async () => {
     (window as never as { __AIJ_DOOR_COUNTS__?: unknown[] }).__AIJ_DOOR_COUNTS__ = [];
@@ -358,17 +362,36 @@ describe("leaving the switch", () => {
   });
 
   it("offers Retry after a failure, and Retry runs the switch again", async () => {
-    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: string }).__AIJ_SWITCH_EXECUTE_FAIL__ = "The new session didn't start.";
+    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: LAUNCH_FAILED };
     const onSwitched = vi.fn();
     const view = mountWith(ONECLICK, vi.fn(), onSwitched);
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
-    expect(view.getByTestId("switch-failed").textContent).toContain("Nothing was changed");
+    expect(view.getByTestId("switch-failed-words").textContent).toBe(LAUNCH_FAILED);
     await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("switch-retry")));
     delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: string }).__AIJ_SWITCH_EXECUTE_FAIL__;
     fireEvent.click(view.getByTestId("switch-retry"));
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));
+  });
+
+  it("a failed switch says each thing once: a short title, then what happened and what to do next", async () => {
+    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: LAUNCH_FAILED };
+    const view = mountWith(ONECLICK);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+    const text = view.getByTestId("switch-failed").textContent ?? "";
+    const times = (words: string) => text.split(words).length - 1;
+    expect(view.getByRole("heading", { name: "The switch didn't complete" })).toBeTruthy();
+    expect(times(LAUNCH_FAILED)).toBe(1);
+    // What happened and what's next, each once (the 0.1.9 dialog said
+    // "nothing moved", then "Nothing was changed … or try again").
+    expect(times("nothing moved")).toBe(1);
+    expect(text.match(/nothing (was )?changed/gi)).toBeNull();
+    expect(text.match(/try again/gi)).toHaveLength(1);
+    expect(text.match(/where you left it/gi)).toHaveLength(1);
+    delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__;
   });
 
   it("a double-click on Continue never starts the switch (H-5)", async () => {

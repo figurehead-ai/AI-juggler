@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A switch that didn't complete says each thing once (0.2): a short
+  title, then what happened and what to do next, instead of the same
+  "nothing changed" told twice; returning to the original does the same.
 - The switch dialog (0.1.9): Cancel and a close button on every step, a
   fixed header and footer so the buttons always show, a readable confirm
   step ("Ready to switch to…", up to three lines, Details), and plain

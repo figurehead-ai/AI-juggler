@@ -266,16 +266,17 @@ impl SwitchFailure {
         }
     }
 
-    /// What a person reads: one plain sentence (or two), with the
-    /// accounts named — `source` is the account the work comes from,
-    /// `target` the one it was going to. The detail in brackets (an OS
-    /// string, a spawn error, an id) never shows; it stays in
+    /// What a person reads: what happened, then what to do next, each
+    /// said once (the switch dialog adds only a short title above it),
+    /// with the accounts named — `source` is the account the work comes
+    /// from, `target` the one it was going to. The detail in brackets (an
+    /// OS string, a spawn error, an id) never shows; it stays in
     /// `Display`, which goes to the error log.
     #[must_use]
     pub fn words(&self, source: &str, target: &str) -> String {
         match self {
             Self::UnresolvedSource => format!(
-                "AI Juggler couldn't tell which file holds this conversation on {source}, so nothing moved."
+                "AI Juggler couldn't tell which file holds this conversation on {source}, so nothing moved. Resume it on {source} where you left it."
             ),
             Self::TornTail => format!(
                 "The original on {source} is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
@@ -284,13 +285,15 @@ impl SwitchFailure {
                 format!("{target} already has this conversation, so it opened as a separate copy.")
             }
             Self::StagingAborted(_) => format!(
-                "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up."
+                "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up: try again."
             ),
             Self::LaunchFailed(_) => {
-                format!("The new session on {target} didn't start, so nothing moved.")
+                format!(
+                    "The new session on {target} didn't start, so nothing moved. Try again, or resume it on {source} where you left it."
+                )
             }
             Self::PrimeQuotaDeath(tokens) => format!(
-                "{target} ran out of usage while picking up the work, so it stopped after using about {} tokens.",
+                "{target} ran out of usage while picking up the work, so it stopped after using about {} tokens. Pick another account.",
                 thousands(*tokens)
             ),
             Self::OriginalSessionGone => format!(
@@ -307,10 +310,10 @@ impl SwitchFailure {
                 "{target} has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account."
             ),
             Self::Preflight(PreflightStop::VersionDrift) => format!(
-                "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved."
+                "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account."
             ),
             Self::Adapter(_) => {
-                format!("The switch to {target} couldn't finish, so nothing moved.")
+                format!("Something went wrong on the way to {target}, so nothing moved. Try again.")
             }
         }
     }

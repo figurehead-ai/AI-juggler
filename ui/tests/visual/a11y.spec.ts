@@ -669,7 +669,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "The new session on Personal didn't start, so nothing moved.",
+        fail: "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
