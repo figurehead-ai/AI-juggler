@@ -76,11 +76,10 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
                     tree_files(&own, &format!("{area}/{stem}"), 4, &mut found);
                     // A lock file (`tasks/<id>/.lock`) is the tool's, not
                     // the session's.
-                    found.retain(|(name, _)| {
-                        !name
-                            .rsplit('/')
-                            .next()
-                            .is_some_and(|last| last.starts_with('.'))
+                    found.retain(|(_, file)| {
+                        !file
+                            .file_name()
+                            .is_some_and(|name| name.to_string_lossy().starts_with('.'))
                     });
                     entries.extend(found);
                 }
