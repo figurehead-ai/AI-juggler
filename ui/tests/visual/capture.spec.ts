@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
-import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn } from "./fixtures";
+import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -74,7 +74,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      if (vp.width < 900) {
+      if (vp.width < NARROW_RAIL_PX) {
         // D-25 (AJ-E1020): narrow windows fold the rail to its icon column.
         await expect(page.getByTestId("rail")).toHaveAttribute("data-density", "minimal");
         await expect(page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first()).toBeVisible();
@@ -102,8 +102,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // D-25 (AJ-E1020): below 900 px the rail is its icon column.
-      await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < 900 ? "minimal" : "comfortable");
+      // D-25 (AJ-E1020): below NARROW_RAIL_PX the rail is its icon column.
+      await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < NARROW_RAIL_PX ? "minimal" : "comfortable");
       // The row carries its account in the aria-label (initials disc on
       // screen) — click by accessible name (AJ-E402).
       await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -187,6 +187,7 @@ for (const density of DENSITIES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       if (density !== "minimal") await expectRail(page); // D-25: the list, or its icon column when narrow
+      if (density !== "minimal") await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       if (density === "minimal") {
         await expect(page.getByTitle(/Work Max/).first()).toBeVisible();
       } else {
@@ -648,6 +649,7 @@ test("model — not reported by Provider inspector state", async ({ page }) => {
 test("desktop — Instance panel (running app, isolation label, no terminal)", gate("13-desktop"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -675,6 +677,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -688,6 +691,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
 test("desktop — exited app state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -701,6 +705,7 @@ test("desktop — exited app state", async ({ page }) => {
 test("desktop — crashed app state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -714,6 +719,7 @@ test("desktop — crashed app state", async ({ page }) => {
 test("desktop — single-account warning state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -769,6 +775,7 @@ test("focus — panel outcome after focus (Focused window, dark)", gate("14-focu
     window_title: "aij-e414-a.txt",
   });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -788,6 +795,7 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
     window_title: null,
   });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -877,6 +885,7 @@ async function seedPreviewPage(
 
 async function openRunningDesktopPanel(page: import("@playwright/test").Page) {
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -937,6 +946,7 @@ test("preview — permission denied renders guidance, no frame", async ({ page }
 test("preview — exited instance renders no preview (status only)", async ({ page }) => {
   await seedPreviewPage(page, { width: 1280, height: 800 }, "dark", null);
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -2492,7 +2502,8 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      // The session the first card is for (the folded rail lists by place).
+      await page.getByTestId("rail").locator('[data-instance-id="sess-1"]').first().click();
     };
 
     test(`switch-back — suggestion card (verbatim, suggest-only) — ${vp.name} — ${theme}`, gate("30-switchback"), async ({ page }) => {
@@ -4259,6 +4270,7 @@ for (const theme of THEMES) {
       // Back to the home view (the board + the alert region).
       await page.reload();
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       // AJ-E2104: other Macs fold after this Mac, each to its header.
       await expect(page.getByTestId("rail-other-mac")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
@@ -4678,6 +4690,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("rail-identity").first()).toBeVisible();
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await expect(page.getByTestId("instance-identity")).toBeVisible();
@@ -4753,6 +4766,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("git-badge").first()).toBeVisible();
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");

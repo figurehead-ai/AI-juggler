@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, DOOR_WIZARD, openSwitch, expectRail } from "./fixtures";
+import { allStatuses, DOOR_WIZARD, openSwitch, expectRail, NARROW_RAIL_PX } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/zoom-motion");
@@ -69,7 +69,7 @@ async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
   // Rail. D-25 (AJ-E1020): at 200 % (640 px wide) it folds to its icon
   // column by itself; at full width it is the list.
-  const narrow = (page.viewportSize()?.width ?? 1280) < 900;
+  const narrow = (page.viewportSize()?.width ?? 1280) < NARROW_RAIL_PX;
   await expect(page.getByTestId("rail")).toHaveAttribute("data-density", narrow ? "minimal" : "comfortable");
   if (!narrow) await expect(page.locator("[data-instance-id]").first()).toBeVisible();
   await noHorizontalScroll(page);

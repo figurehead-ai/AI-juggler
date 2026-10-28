@@ -362,6 +362,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   terminal's; the list's View says "Subagents", what Inactive, Quiet ones
   and Background runs are, and offers "Not open in an app" instead of "An
   app".
+- History's replay shows "assistant" and unknown roles in colours readable
+  on its dark background (they were 3:1).
 - Asking whether Claude Code's own limits check is offered no longer
   makes an empty `overlays/limits-probe` folder in AI Juggler's data; the
   folder is made only when the check runs (the 0.2 walk, F19).
