@@ -184,7 +184,7 @@ fn a_401_unlinks_keeps_the_report_and_sends_nothing_anonymously() {
     assert!(!overview.sync.on);
     assert_eq!(
         overview.sync.notice.as_deref(),
-        Some("This Mac is no longer linked, so stats sync is off.")
+        Some("This computer is no longer linked, so stats sync is off.")
     );
     let report = overview.reports.iter().find(|r| r.week == last).unwrap();
     assert_eq!(report.status, "skipped");

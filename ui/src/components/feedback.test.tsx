@@ -181,6 +181,18 @@ describe("AJ-E1503 toasts and screen readers", () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 
+  it("takes the focus resting on the page itself, as on nothing (a page just opened, F11)", () => {
+    render(
+      <>
+        <main tabIndex={-1}>Page</main>
+        <ToastHost />
+      </>,
+    );
+    screen.getByRole("main").focus();
+    act(() => void showToast({ message: "Switched.", focusWhenFree: true, undo: { onUndo: () => {} } }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: /Undo/ }));
+  });
+
   it("a failed undo says so and stays until closed", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);

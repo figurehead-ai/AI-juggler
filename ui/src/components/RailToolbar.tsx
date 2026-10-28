@@ -5,7 +5,7 @@
 import { useMemo, type JSX, type RefObject } from "react";
 import { ViewPopover } from "./ViewPopover";
 import { useConversations } from "../lib/conversations";
-import { itemsOf } from "../lib/rail-items";
+import { SOME_APP, itemsOf } from "../lib/rail-items";
 import { ONLY_KEYS, onlyValue, type OnlyKey } from "../lib/rail-view";
 import type { InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
 
@@ -20,7 +20,8 @@ export function onlyOptions(
   const out = {} as Record<OnlyKey, { value: string; label: string }[]>;
   for (const key of ONLY_KEYS) {
     const values = [...new Set(items.map((item) => onlyValue(item, key)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    out[key] = values.map((value) => ({ value, label: value === "this-mac" ? "This Mac" : value }));
+    // The 0.2 walk (F18): "An app" as an app to pick meant nothing.
+    out[key] = values.map((value) => ({ value, label: value === "this-mac" ? "This Mac" : key === "app" && value === SOME_APP ? "Not open in an app" : value }));
   }
   if (machines.length > 0) {
     out.mac = [{ value: "this-mac", label: "This Mac" }, ...machines.map((machine) => ({ value: machine.machine_id, label: machine.label }))];

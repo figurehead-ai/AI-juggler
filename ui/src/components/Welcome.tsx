@@ -29,7 +29,7 @@ export function installedTools(rows: ProviderInstallData[]): ProviderInstallData
 export function foundWords(rows: ProviderInstallData[]): string {
   const ready = installedTools(rows);
   return ready.length > 0
-    ? `We found ${listWords(ready.map((row) => row.display_name))} on this Mac.`
+    ? `We found ${listWords(ready.map((row) => row.display_name))} on this computer.`
     : "No AI coding tools found yet.";
 }
 
@@ -41,7 +41,7 @@ const BENEFITS = [
 ] as const;
 
 const STEPS = [
-  { title: "Bring in your accounts", text: "AI Juggler finds the setups already on this Mac and uses each one where it is." },
+  { title: "Bring in your accounts", text: "AI Juggler finds the setups already on this computer and uses each one where it is." },
   { title: "Start a session", text: "Pick a project and an account. The session runs in its own terminal, right here." },
   { title: "Juggle", text: "See what needs you, and when an account runs low, carry on in another." },
 ] as const;
@@ -94,7 +94,7 @@ export function Welcome({
           <span aria-hidden="true" className="text-accent-hi">
             <IconTerminal width={14} height={14} />
           </span>
-          {installs === null ? "Looking at what's on this Mac…" : foundWords(installs)}
+          {installs === null ? "Looking at what's on this computer…" : foundWords(installs)}
           {toInstall.map((row) => (
             <a
               key={row.provider}

@@ -216,7 +216,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(installWords({ ...base, status: "unverified", version: "1.19.3", verified_against: [] } as never)).toBe(
       "Version 1.19.3 · not tested with AI Juggler yet",
     );
-    expect(installWords({ ...base, status: "not_installed", version: null, verified_against: [] } as never)).toBe("Not installed on this Mac");
+    expect(installWords({ ...base, status: "not_installed", version: null, verified_against: [] } as never)).toBe("Not installed on this computer");
     expect(installWords({ ...base, status: "error", version: null, verified_against: [] } as never)).toBe("Couldn't check what's installed");
   });
 

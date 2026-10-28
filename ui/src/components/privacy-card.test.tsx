@@ -54,7 +54,7 @@ const counting = overview({
     {
       week: "2026-W41",
       status: "skipped",
-      reason: "Counted while stats stayed on this Mac — never sent",
+      reason: "Counted while stats stayed on this computer — never sent",
       upload_at_ms: null,
       next_try_ms: null,
       attempts: 0,
@@ -88,7 +88,7 @@ describe("AJ-E1105 Settings › Privacy", () => {
     w().__AIJ_USAGE_STATS__ = counting;
     w().__AIJ_USAGE_STATS_REPORTS__ = { "skipped/2026-W41": '{"schema":1,"week":"2026-W41"}' };
     const { findByTestId, getByTestId, container } = render(<PrivacyCard />);
-    expect((await findByTestId("privacy-state")).textContent).toContain("Counting on this Mac only");
+    expect((await findByTestId("privacy-state")).textContent).toContain("Counting on this computer only");
     expect(getByTestId("privacy-rows-features").textContent).toContain("instance.started");
     expect(getByTestId("privacy-rows-environment").textContent).toContain("4-5");
     expect(getByTestId("privacy-rows-reliability").textContent).toContain("db_locked");
@@ -253,11 +253,11 @@ describe("AJ-E1109 personal stats sync in Privacy", () => {
   it("isn't offered otherwise; an unlink says sync is off", async () => {
     w().__AIJ_USAGE_STATS__ = overview({
       ...counting,
-      sync: { offered: false, on: false, email: null, notice: "This Mac is no longer linked, so stats sync is off." },
+      sync: { offered: false, on: false, email: null, notice: "This computer is no longer linked, so stats sync is off." },
     });
     const { findByTestId, queryByTestId } = render(<PrivacyCard />);
     expect((await findByTestId("privacy-sync-notice")).textContent).toBe(
-      "This Mac is no longer linked, so stats sync is off.",
+      "This computer is no longer linked, so stats sync is off.",
     );
     expect(queryByTestId("privacy-sync")).toBeNull();
   });

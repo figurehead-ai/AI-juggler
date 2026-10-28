@@ -23,6 +23,8 @@ export type Need = "asks" | "limit" | "stuck" | "failed" | "review";
 /** The place AI Juggler's own sessions are in. */
 export const OWN_PLACE = "ai-juggler";
 export const OWN_APP = "AI Juggler";
+/** A place whose app isn't named (a session no app shows now). */
+export const SOME_APP = "An app";
 
 export interface RailPlace {
   /** App and profile (or the app's instance): one place. */
@@ -204,7 +206,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
         : raw === "done_review" && looked < last
           ? "done_review"
           : "idle";
-  const app = first?.app || "An app";
+  const app = first?.app || SOME_APP;
   return {
     key: `c:${c.account_id}/${c.id}`,
     session: null,
@@ -273,11 +275,19 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
   if (!needOf) return items;
   return items.map((item) => {
     const need = needOf.get(item.key) ?? null;
-    return need === item.need ? item : { ...item, need, probably: item.session ? need === "stuck" : item.probably, live: item.live || (item.session !== null && need !== null) };
+    if (need === item.need) return item;
+    // The row's word follows the need (the 0.2 walk, F4: "Done, review it"
+    // on Home and in the centre, "Working" on its rail row).
+    const state: RailState = need === null ? item.state : (NEED_STATE[need] ?? item.state);
+    return { ...item, need, state, probably: item.session ? need === "stuck" : item.probably, live: item.live || (item.session !== null && need !== null) };
   });
 }
 
 const NEED_ORDER: Need[] = ["asks", "limit", "failed", "stuck", "review"];
+
+/** The state a need says, as `sessionItem` reads a session's (a failure
+ * keeps the state it has). */
+const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: "asks_you", limit: "asks_you", review: "done_review" };
 
 /** Needs you: what asks first, then limits, failures, stuck, things to
  * review; the longest waiting first within each. */

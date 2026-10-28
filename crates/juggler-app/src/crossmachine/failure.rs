@@ -387,7 +387,7 @@ mod tests {
         // Its own text speaks from its side: never shown.
         let words = refusal_words(
             "permission_denied",
-            "View-only pairing — change it in Fleet on this Mac.",
+            "View-only pairing — change it in Fleet on this computer.",
             Direction::To,
             true,
             "Studio",

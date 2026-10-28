@@ -137,7 +137,7 @@ describe("D-25 first run — the flow", () => {
   it("shows what's here, grouped, with one button that counts the picks", async () => {
     const { findByTestId, getByTestId } = renderIt();
     const list = await findByTestId("first-run-found");
-    expect(list.textContent).toContain("You already have 5 Claude Code setups on this Mac.");
+    expect(list.textContent).toContain("You already have 5 Claude Code setups on this computer.");
     expect(getByTestId("first-run-group-profiles").textContent).toContain("work-a");
     expect(getByTestId("first-run-group-default").textContent).toContain("Default");
     expect(getByTestId("first-run-group-other").textContent).toContain("claude-old");
@@ -456,7 +456,7 @@ describe("D-25 first run — the flow", () => {
     expect(step.textContent).not.toContain("No Claude Code setups found yet.");
     delete w().__AIJ_SCAN_FAILS__;
     fireEvent.click(getByTestId("first-run-scan-again"));
-    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("on this Mac."));
+    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("on this computer."));
     expect(getByTestId("first-run-found").textContent).not.toContain("couldn't look");
   });
 
@@ -688,7 +688,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const box = within(group).getByRole("checkbox") as HTMLInputElement;
     expect(box.checked).toBe(true);
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have 6 setups on this Mac.",
+      "You already have 6 setups on this computer.",
     );
     // The default mock has Codex not installed.
     expect((await view.findByTestId("first-run-no-codex")).textContent).toContain("npm install -g @openai/codex");
@@ -696,11 +696,11 @@ describe("AJ-E1301 — Codex setups in first run", () => {
 
   it("while looking, first run names no single tool; Add account names its own (0.0.11 walk)", async () => {
     const first = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
-    expect(first.getByTestId("first-run-scanning").textContent).toContain("Looking for your setups on this Mac");
+    expect(first.getByTestId("first-run-scanning").textContent).toContain("Looking for your setups on this computer");
     await first.findByTestId("first-run-found");
     cleanup();
     const add = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
-    expect(add.getByTestId("first-run-scanning").textContent).toContain("Looking for Codex on this Mac");
+    expect(add.getByTestId("first-run-scanning").textContent).toContain("Looking for Codex on this computer");
     await add.findByTestId("first-run-found");
   });
 
@@ -710,7 +710,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     expect(view.queryByTestId("first-run-group-codex")).toBeNull();
     expect(view.queryByTestId("first-run-no-codex")).toBeNull();
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have 5 Claude Code setups on this Mac.",
+      "You already have 5 Claude Code setups on this computer.",
     );
   });
 
@@ -800,7 +800,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have a Codex setup on this Mac.",
+      "You already have a Codex setup on this computer.",
     );
   });
 

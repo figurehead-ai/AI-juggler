@@ -79,7 +79,7 @@ function ExactWindowRow(): JSX.Element {
       testId="desktop-exact-window"
       control={
         entry === null ? (
-          <Chip tone="neutral">Not on this Mac</Chip>
+          <Chip tone="neutral">Not on this computer</Chip>
         ) : card?.state === "allowed" ? (
           <Chip tone="success">On</Chip>
         ) : (
@@ -217,7 +217,7 @@ function LastMessages(): JSX.Element {
     <PaneSection
       id="last-messages"
       title="Last messages"
-      footer="Read from the session's transcript on this Mac when you open it; nothing is kept or sent."
+      footer="Read from the session's transcript on this computer when you open it; nothing is kept or sent."
     >
       {on !== null && (
         <SwitchRow

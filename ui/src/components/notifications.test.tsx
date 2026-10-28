@@ -159,6 +159,16 @@ describe("the notification centre", () => {
     expect(mutedLine("09:00", 2)).toBe("Muted until 09:00 — Needs you still tracks 2.");
   });
 
+  it("its heading counts the rows under it, even when the count it was handed is behind (the 0.2 walk, F4)", async () => {
+    w().__AIJ_NOTICES__ = { app: [quota] };
+    standInNeeds([asks]);
+    const behind = { ...(await notificationsSummary()), count: 1 };
+    render(<NotificationCentre summary={behind} sessions={[]} onClose={() => {}} />);
+    const rows = await screen.findByTestId("notices-needs");
+    await waitFor(() => expect(within(rows).getAllByRole("listitem")).toHaveLength(2));
+    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs action · 2");
+  });
+
   it("lists Needs action and Earlier; opening it changes nothing by itself", async () => {
     w().__AIJ_NOTICES__ = { app: [quota], earlier: [notice({ id: 3, kind: "restarted", title: "“Nightly fix” crashed and was restarted (try 1 of 3)", action: "see-why", unread: true })] };
     standInNeeds([asks]);

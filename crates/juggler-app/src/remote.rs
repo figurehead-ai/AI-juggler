@@ -1034,7 +1034,10 @@ mod link_off_tests {
     #[test]
     fn link_off_says_whether_anything_was_sent() {
         let never = finished_or_link_off(Outbound::<u8>::NotSent).unwrap_err();
-        assert_eq!(never.message, "Link is off on this Mac — nothing was sent.");
+        assert_eq!(
+            never.message,
+            "Link is off on this computer — nothing was sent."
+        );
         let cut = finished_or_link_off(Outbound::<u8>::Ended).unwrap_err();
         assert_eq!(
             cut.message,

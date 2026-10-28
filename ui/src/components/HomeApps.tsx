@@ -106,7 +106,11 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const [all, setAll] = useState(false);
   const places = appPlaces(items);
   if (places.length === 0) return null;
-  const shown = all ? places : places.slice(0, TILES_SHOWN);
+  // Never a tile that hides a single app behind "+1" (the 0.2 walk, F18):
+  // seven show as seven; past that, six and a tile that says how many more.
+  const cut = places.length > TILES_SHOWN + 1;
+  const shown = all || !cut ? places : places.slice(0, TILES_SHOWN);
+  const more = places.length - TILES_SHOWN;
   return (
     <section aria-labelledby="home-apps" className="flex flex-col gap-2.5" data-testid="home-apps">
       <SectionTitle id="home-apps">Your apps</SectionTitle>
@@ -114,7 +118,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
         {shown.map((group) => (
           <Tile key={group.key} group={group} runway={runwayOf(group.items[0]?.accountId ?? null)} />
         ))}
-        {places.length > TILES_SHOWN && (
+        {cut && (
           <li className="flex">
             <button
               type="button"
@@ -123,7 +127,7 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
               data-testid="home-apps-more"
               className="flex min-h-16 flex-1 items-center justify-center rounded-card border border-dashed border-hairline text-body text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             >
-              {all ? "Fewer" : `+${places.length - TILES_SHOWN}`}
+              {all ? "Show fewer apps" : `Show ${more} more apps`}
             </button>
           </li>
         )}

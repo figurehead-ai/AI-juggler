@@ -65,7 +65,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
             When you switch to another tool, or save a handover, the other tool reads the
             conversation. Choose what happens to keys and passwords in it — remembered for every
             tool unless one has its own. A switch between accounts of the same tool copies the
-            conversation as it is, on this Mac.
+            conversation as it is, on this computer.
           </p>
         </div>
         <fieldset className="flex flex-col gap-1.5" data-testid="pack-secrets-global">

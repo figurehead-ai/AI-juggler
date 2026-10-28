@@ -81,7 +81,7 @@ describe("AJ-E2404 the Processes page", () => {
     fireEvent.click(getByTestId("filter-others"));
     await waitFor(() => expect(rowKeys(container)).toContain("o:Safari"));
     const heading = container.querySelector('[data-testid="process-row-a:other"]') as HTMLElement;
-    expect(heading.textContent).toContain("Other apps on this Mac");
+    expect(heading.textContent).toContain("Other apps on this computer");
     expect(heading.textContent).toContain("names and memory only");
     const safari = container.querySelector('[data-testid="process-row-o:Safari"]') as HTMLElement;
     expect(safari.textContent).toContain("14 processes");

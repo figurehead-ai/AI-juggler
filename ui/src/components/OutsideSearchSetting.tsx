@@ -20,7 +20,7 @@ export function indexWords(info: OutsideSearchInfo, estimate: OutsideSearchEstim
   if (!info.enabled) {
     if (!estimate) return "Working out how big its index would be…";
     if (estimate.sessions === 0) return "There are no sessions started outside AI Juggler to index yet.";
-    return `Its index would take about ${byteSize(estimate.size_bytes)} on this Mac, for ${estimate.sessions} sessions.`;
+    return `Its index would take about ${byteSize(estimate.size_bytes)} on this computer, for ${estimate.sessions} sessions.`;
   }
   const size = byteSize(info.size_bytes ?? 0);
   return info.indexed < info.sessions
@@ -74,7 +74,7 @@ export function OutsideSearchSetting(): JSX.Element | null {
       </label>
       <p className="text-label text-muted">
         History can find what was said in sessions started outside AI Juggler too. For that, AI Juggler keeps an index
-        of their words on this Mac, read from the tools&apos; own files, which it never changes. Off by default; turning
+        of their words on this computer, read from the tools&apos; own files, which it never changes. Off by default; turning
         it off deletes the index.
       </p>
       <p className="text-label text-ink" data-testid="outside-search-size" aria-live="polite">

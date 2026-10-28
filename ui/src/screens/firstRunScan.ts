@@ -56,14 +56,14 @@ export function foundWords(
   }
   if (count === 1) {
     return {
-      heading: `You already have a ${kind} setup on this Mac.`,
+      heading: `You already have a ${kind} setup on this computer.`,
       lead: inPlace
         ? "AI Juggler uses it where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
         : "AI Juggler makes its own copy; your original is never changed, and you can keep using it as before.",
     };
   }
   return {
-    heading: `You already have ${count} ${kind ? `${kind} setups` : "setups"} on this Mac.`,
+    heading: `You already have ${count} ${kind ? `${kind} setups` : "setups"} on this computer.`,
     lead: inPlace
       ? "Pick the ones to bring in. AI Juggler uses each one where it is, so it stays signed in and keeps its history, the same as everywhere else you use it."
       : "Pick the ones to bring in. AI Juggler makes its own copy of each; your originals are never changed, and you can keep using them as before.",

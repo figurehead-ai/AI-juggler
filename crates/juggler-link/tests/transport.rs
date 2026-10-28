@@ -105,7 +105,7 @@ impl NodeHandler for Handler {
             }
             _ => Err(CommandRejection {
                 reason_code: "unknown_record".into(),
-                message: "No such session on this Mac.".into(),
+                message: "No such session on this computer.".into(),
             }),
         }
     }

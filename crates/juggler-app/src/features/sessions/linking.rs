@@ -20,6 +20,13 @@
 //!    it), when it is linked to another session, or when the live view
 //!    sees it open in a process that isn't this session's.
 //!
+//!    Never for an account used in place (shared with the user's own
+//!    terminal) whose tool's records can't say which process holds a
+//!    session (its adapter doesn't declare
+//!    `Capabilities::SESSION_PROCESS_RECORDED`): a session the user
+//!    started there by hand looks the same as AI Juggler's, so the launch
+//!    would be a guess. Both rows stay.
+//!
 //! No tool is named here (ADR-0019): every tool's identification is its
 //! adapter's, every process fact the supervisor's.
 
@@ -27,6 +34,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use juggler_adapter::Capabilities;
 use juggler_core::model::{
     Account, ConversationId, InstanceKind, InstanceRecord, ProfileId, SessionId, SessionStatus,
 };
@@ -94,6 +102,15 @@ pub fn decide(facts: &Facts) -> Option<String> {
     let found = facts.by_launch.as_ref()?;
     (!facts.rival && !facts.linked.contains(found) && !facts.open_elsewhere.contains(found))
         .then(|| found.clone())
+}
+
+/// Whether a session's launch may name its conversation: always for an
+/// account only AI Juggler uses; for one used in place, only when the
+/// tool's records say which process holds each session (else a session
+/// the user started in their own terminal can't be told from ours).
+#[must_use]
+pub fn launch_may_link(in_place: bool, tool: Capabilities) -> bool {
+    !in_place || tool.contains(Capabilities::SESSION_PROCESS_RECORDED)
 }
 
 /// A session that ran since the earliest unlinked one started, and its
@@ -224,6 +241,7 @@ fn facts_of(state: &Arc<AppState>, one: &Unlinked, others: &[Other]) -> Facts {
             None => state
                 .registry
                 .get(&one.account.harness)
+                .filter(|adapter| launch_may_link(one.account.in_place, adapter.capabilities()))
                 .and_then(|adapter| {
                     adapter.locate_transcript(
                         &one.account.state_dir,
@@ -330,6 +348,18 @@ mod tests {
             ..Facts::default()
         };
         assert_eq!(decide(&facts).as_deref(), Some("found"));
+    }
+
+    #[test]
+    fn an_account_used_in_place_links_by_launch_only_when_records_name_the_process() {
+        let recorded = Capabilities::RESUME | Capabilities::SESSION_PROCESS_RECORDED;
+        let unrecorded = Capabilities::RESUME;
+        // Only AI Juggler uses it: its launch tells.
+        assert!(launch_may_link(false, unrecorded));
+        assert!(launch_may_link(false, recorded));
+        // Shared with the user's own terminal: only with the process named.
+        assert!(launch_may_link(true, recorded));
+        assert!(!launch_may_link(true, unrecorded));
     }
 
     #[test]

@@ -115,7 +115,7 @@ export function BackupRestoreCard(): JSX.Element {
       <CardTitle>Backup &amp; restore</CardTitle>
       <p className="text-label text-muted">
         One file with AI Juggler's records, Launch settings, history and lineage, to keep or to move to a new Mac. It never
-        holds your sign-ins or this Mac's identity, and it stays on your disk; nothing is uploaded.
+        holds your sign-ins or this computer's identity, and it stays on your disk; nothing is uploaded.
       </p>
       <div className="flex flex-wrap gap-2">
         <button
@@ -218,8 +218,8 @@ export function BackupRestoreCard(): JSX.Element {
                 data-testid="restore-other-machine"
               >
                 <span aria-hidden="true">⚠ </span>
-                This backup comes from {phase.plan.manifest.origin.label}: it carries that Mac's data, never its identity.
-                This Mac keeps its own and must pair again with your other Macs.
+                This backup comes from {phase.plan.manifest.origin.label}: it carries that computer's data, never its identity.
+                This computer keeps its own and must pair again with your other computers.
               </p>
             )}
             <ul id="restore-notes" className="ml-4 list-disc text-label text-ink" data-testid="restore-notes">

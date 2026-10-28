@@ -55,7 +55,7 @@ export function DiagnosticsCard(): JSX.Element {
         <CardTitle>Report a problem</CardTitle>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
           Tell us what went wrong on GitHub. Diagnostics help: versions, settings and AI Juggler's own logs, scrubbed on
-          this Mac. No transcripts, terminal output, credentials, home folder or user name. You see every file before
+          this computer. No transcripts, terminal output, credentials, home folder or user name. You see every file before
           it's saved, and attach the zip yourself.
         </p>
       </div>

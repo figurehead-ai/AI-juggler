@@ -243,7 +243,7 @@ pub fn fleet_switch_back_plan_impl(
     }
     if view.as_ref().and_then(|view| view.permission.as_deref()) != Some("control") {
         blockers.push(format!(
-            "{label} lets this Mac view only — switching back needs View + control (change it on {label})."
+            "{label} lets this computer view only — switching back needs View + control (change it on {label})."
         ));
     }
     Ok(Some(FleetSwitchBackPlanInfo {
@@ -681,7 +681,12 @@ fn original_here(
     ),
     HandoverRejection,
 > {
-    let unknown = || refuse("unknown_record", "That work's original isn't on this Mac.");
+    let unknown = || {
+        refuse(
+            "unknown_record",
+            "That work's original isn't on this computer.",
+        )
+    };
     let storage = state
         .storage
         .lock()
@@ -723,7 +728,12 @@ pub(crate) fn switch_back_here(
 ) -> Result<HandoverAccepted, HandoverRejection> {
     use juggler_adapter::LaunchMode;
 
-    let unknown = || refuse("unknown_record", "That work's original isn't on this Mac.");
+    let unknown = || {
+        refuse(
+            "unknown_record",
+            "That work's original isn't on this computer.",
+        )
+    };
     let (original, session, at_handover) = original_here(state, back)?;
     if matches!(
         session.status,
@@ -734,7 +744,7 @@ pub(crate) fn switch_back_here(
     ) {
         return Err(refuse(
             "busy",
-            "The original is still running on this Mac — stop it first.",
+            "The original is still running on this computer — stop it first.",
         ));
     }
     let reference = session
@@ -744,7 +754,7 @@ pub(crate) fn switch_back_here(
         .ok_or_else(|| {
             refuse(
                 "original_gone",
-                "The original session is gone from this Mac.",
+                "The original session is gone from this computer.",
             )
         })?;
     let native = original

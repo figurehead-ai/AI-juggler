@@ -154,3 +154,10 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 [[test]]
 name = "activation_real"
 harness = false
+
+# F19 (the 0.2 walk): `just dev-bridge-data` fills a fresh AI Juggler Dev
+# data folder for a walk through the bridge, starting no tool (see the
+# file and docs/qa/DEV-BRIDGE.md). Debug builds with the bridge only.
+[[example]]
+name = "dev_walk_data"
+required-features = ["dev-bridge"]

@@ -95,7 +95,7 @@ export function installWords(install: import("./bridge").ProviderInstallData): s
         ? `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`
         : `Version ${install.version ?? "unknown"} · not tested with AI Juggler yet`;
     case "not_installed":
-      return "Not installed on this Mac";
+      return "Not installed on this computer";
     default:
       if (versionUnchecked(install)) return FOUND_UNCHECKED;
       return "Couldn't check what's installed";

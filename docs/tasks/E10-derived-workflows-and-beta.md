@@ -305,10 +305,10 @@
 **Research basis**: D-25 (plain words; depth on request; calm until it matters).
 
 ### AJ-E1020 The rail folds to icons in a narrow window (D-25) | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E403, AJ-E1014
-**Goal**: Below 900 px the rail stops crowding the screen by itself and comes back when the window widens.
+**Goal**: Below 1100 px (the screen spec's breakpoint, deep/11 §3; 900 px until the 0.2 walk's F14, 2026-10-28, found the rail at full width in the 1024×680 minimum window) the rail stops crowding the screen by itself and comes back when the window widens.
 **User story**: As a developer with AI Juggler in a narrow side window, I want the session list to fold to its icon column on its own, without changing my density setting.
 **Requirements**:
-1. Below 900 px the rail SHALL show its minimal (icon) density; at 900 px and wider, the density chosen in Settings › Appearance. The stored density SHALL NOT change.
+1. Below 1100 px the rail SHALL show its minimal (icon) density; at 1100 px and wider, the density chosen in Settings › Appearance. The stored density SHALL NOT change.
 2. While narrow, ⌘B (and the logo button) SHALL open the list for now; widening forgets it.
 3. A chosen Minimal stays minimal at every width.
 **Quality gates**: `rail-narrow.spec.ts` (fold, restore, compact kept, ⌘B while narrow, stored density untouched, axe on each gallery state); the 390 px captures and the 200 % zoom walk expect the folded rail.

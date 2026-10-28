@@ -219,7 +219,7 @@
         },
         {
           "id": "agent-tools-sees",
-          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool, their cards, the pool's tasks, its own messages and the pool's shared documents; at Work together and Full, also its own status line, sending messages, sharing documents, and adding, taking and changing tasks. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this Mac can open.",
+          "text": "What an agent sees is up to its pool's level: at Read, who's in the pool, their cards, the pool's tasks, its own messages and the pool's shared documents; at Work together and Full, also its own status line, sending messages, sharing documents, and adding, taking and changing tasks. It sees each account by the name you gave it, never an email or a plan, and only through a connection no one but you on this computer can open.",
           "tests": [
             "crates/juggler-agentbridge/tests/bridge.rs::each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited",
             "crates/juggler-agentbridge/tests/bridge.rs::agents_see_account_labels_never_emails_or_plans",
@@ -239,7 +239,7 @@
         },
         {
           "id": "agent-messages-stay",
-          "text": "Messages and shared documents stay in AI Juggler's own data on this Mac, with secrets handled as you chose for handovers: anything but Leave them in replaces them with •••. Loops are capped: a thread pauses after 6 agent messages in a row without you, and two agents answering each other pause the pool until you resume it. Nothing about messages goes over Fleet.",
+          "text": "Messages and shared documents stay in AI Juggler's own data on this computer, with secrets handled as you chose for handovers: anything but Leave them in replaces them with •••. Loops are capped: a thread pauses after 6 agent messages in a row without you, and two agents answering each other pause the pool until you resume it. Nothing about messages goes over Fleet.",
           "tests": [
             "crates/juggler-app/tests/messages.rs::shared_docs_are_redacted_content_addressed_and_only_the_pools",
             "crates/juggler-app/tests/messages.rs::a_ping_pong_between_two_fake_agents_stops_at_the_cap",
@@ -258,7 +258,7 @@
         },
         {
           "id": "agent-tasks-stay",
-          "text": "Tasks stay in AI Juggler's own data on this Mac, with every change in a history that can't be rewritten. A task's words are its writer's and change nothing. The title and state of a GitHub issue a task links to are looked up only when you click, by GitHub's own command line with your own sign-in there. Nothing about tasks goes over Fleet.",
+          "text": "Tasks stay in AI Juggler's own data on this computer, with every change in a history that can't be rewritten. A task's words are its writer's and change nothing. The title and state of a GitHub issue a task links to are looked up only when you click, by GitHub's own command line with your own sign-in there. Nothing about tasks goes over Fleet.",
           "tests": [
             "crates/juggler-core/src/storage/tasks.rs::a_claim_takes_a_ready_task_once",
             "crates/juggler-app/tests/tasks_guardrails.rs::a_tasks_words_are_data_and_change_nothing",

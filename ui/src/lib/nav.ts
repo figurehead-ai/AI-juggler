@@ -71,5 +71,26 @@ export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
  * screen has rendered and the menu that opened it has given focus back.
  */
 export function focusPageSoon(): void {
-  requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true })));
+  requestAnimationFrame(() => requestAnimationFrame(() => focusPage()));
+}
+
+/** The page's own place for the keyboard: the app's `<main>`. */
+export function focusPage(): void {
+  document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
+}
+
+/**
+ * A page opened however (a row on Home, the palette, a notice): when what
+ * had focus went with the old page, the keyboard lands on the new page,
+ * never on the window's body where the next Tab starts at the rail again
+ * (the 0.2 walk, F11). Focus that is still somewhere (a rail row, the
+ * terminal taking it) stays where it is.
+ */
+export function focusPageIfLost(): void {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body || !active.isConnected) focusPage();
+    }),
+  );
 }

@@ -616,6 +616,11 @@ fn over_the_wire_refresh_events_stream_behind_the_token() {
             let _ = bridge
                 .handle
                 .emit(crate::EVENT_SESSIONS_UPDATED, vec![1, 2]);
+            // F4/F19 (0.2 walk): Needs you's count reaches a bridged page.
+            let _ = bridge.handle.emit(
+                crate::features::notifications::views::EVENT_CHANGED,
+                serde_json::json!({ "count": 4 }),
+            );
             // A terminal's output never leaves through the bridge.
             let _ = bridge
                 .handle
@@ -623,7 +628,9 @@ fn over_the_wire_refresh_events_stream_behind_the_token() {
         }
         let read = stream.read(&mut buffer).unwrap_or(0);
         seen.push_str(&String::from_utf8_lossy(&buffer[..read]));
-        if seen.contains("event: session://updated\ndata: [1,2]") {
+        if seen.contains("event: session://updated\ndata: [1,2]")
+            && seen.contains("event: notifications://changed\ndata: {\"count\":4}")
+        {
             break;
         }
     }
@@ -632,7 +639,67 @@ fn over_the_wire_refresh_events_stream_behind_the_token() {
         seen.contains("event: session://updated\ndata: [1,2]"),
         "{seen}"
     );
+    assert!(
+        seen.contains("event: notifications://changed\ndata: {\"count\":4}"),
+        "{seen}"
+    );
     assert!(!seen.contains("secret"), "{seen}");
+}
+
+/// Every event the UI listens to is forwarded or named, with its reason,
+/// as never forwarded: a new refresh event can't be left out silently
+/// (the 0.2 walk's stale Needs you counts, F4/F19).
+#[test]
+fn every_event_the_ui_listens_to_is_forwarded_or_refused_by_name() {
+    use super::{FORWARDED_EVENTS, NOT_FORWARDED_EVENTS};
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if name != "generated" {
+                    walk(&path, out);
+                }
+            } else if (name.ends_with(".ts") || name.ends_with(".tsx")) && !name.contains(".test.")
+            {
+                out.push(path);
+            }
+        }
+    }
+    let ui = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ui/src");
+    let mut files = Vec::new();
+    walk(&ui, &mut files);
+    assert!(files.len() > 50, "read the UI's sources: {}", ui.display());
+    let mut named = std::collections::BTreeSet::new();
+    for file in files {
+        let text = std::fs::read_to_string(&file).unwrap();
+        for quote in ['"', '`', '\''] {
+            for piece in text.split(quote).skip(1).step_by(2) {
+                let Some((scheme, rest)) = piece.split_once("://") else {
+                    continue;
+                };
+                let event = !scheme.is_empty()
+                    && scheme.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    && !matches!(scheme, "http" | "https")
+                    && !rest.is_empty()
+                    && rest
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || matches!(c, '-' | '/' | '.' | '_'));
+                if event {
+                    named.insert(piece.to_owned());
+                }
+            }
+        }
+    }
+    assert!(named.contains("notifications://changed"), "{named:?}");
+    for event in &named {
+        let forwarded = FORWARDED_EVENTS.contains(&event.as_str());
+        let refused = NOT_FORWARDED_EVENTS.iter().any(|(name, _)| name == event);
+        assert!(
+            forwarded != refused,
+            "{event}: forward it, or name it in NOT_FORWARDED_EVENTS with why (exactly one)"
+        );
+    }
 }
 
 /// A secret's masked preview never leaves the bridge: the switch check's

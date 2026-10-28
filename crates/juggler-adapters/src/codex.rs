@@ -472,6 +472,9 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::AGENT_BRIDGE
             // AJ-E2303 (D-40): driven through its own app-server.
             | Capabilities::PROTOCOL_SERVER
+            // A session process holds its thread's lock and rollout open
+            // (`held_sessions`), so its files name the process.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.

@@ -458,11 +458,11 @@ pub const PROMPT_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// What a peer hears when Link was off (or went off) on this Mac before
 /// its command or handover could run.
-pub(crate) const NOTHING_RAN: &str = "Link is off on that Mac — nothing ran.";
+pub(crate) const NOTHING_RAN: &str = "Link is off on that computer — nothing ran.";
 
 /// What this Mac's user hears when Link off kept a command or handover
 /// from going out.
-pub(crate) const NOTHING_SENT: &str = "Link is off on this Mac — nothing was sent.";
+pub(crate) const NOTHING_SENT: &str = "Link is off on this computer — nothing was sent.";
 
 /// How a question to this Mac's user ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -862,7 +862,7 @@ impl NodeHandler for AppNode {
         let state = self
             .state
             .upgrade()
-            .ok_or_else(|| reject("unavailable", "This Mac is shutting down."))?;
+            .ok_or_else(|| reject("unavailable", "This computer is shutting down."))?;
         if crate::fleet::peer_asks_each_time(&state, &peer.machine_id) {
             // "Ask each time": this Mac's user decides, on this Mac.
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
@@ -873,7 +873,7 @@ impl NodeHandler for AppNode {
                 Answer::Denied => {
                     return Err(reject(
                         "not_confirmed",
-                        "Not allowed on that Mac — nothing ran.",
+                        "Not allowed on that computer — nothing ran.",
                     ));
                 }
                 Answer::LinkOff => return Err(reject("link_off", NOTHING_RAN)),
@@ -890,7 +890,10 @@ impl NodeHandler for AppNode {
                     .and_then(|storage| crate::commands::session_infos_snapshot(&storage).ok())
                     .is_some_and(|rows| rows.iter().any(|row| row.id == stop.instance_id));
                 if !known {
-                    return Err(reject("unknown_record", "No such session on this Mac."));
+                    return Err(reject(
+                        "unknown_record",
+                        "No such session on this computer.",
+                    ));
                 }
                 state
                     .supervisor
@@ -912,14 +915,17 @@ impl NodeHandler for AppNode {
                     let project = projects
                         .into_iter()
                         .find(|project| project.id == launch.project_id)
-                        .ok_or_else(|| reject("unknown_record", "No such project on this Mac."))?;
+                        .ok_or_else(|| {
+                            reject("unknown_record", "No such project on this computer.")
+                        })?;
                     Some(project.root)
                 };
                 let launched = crate::commands::launch_profile(&state, &launch.recipe_id, cwd)
                     .map_err(|e| match e {
-                        AppError::NotFound { .. } => {
-                            reject("unknown_record", "No such Launch settings on this Mac.")
-                        }
+                        AppError::NotFound { .. } => reject(
+                            "unknown_record",
+                            "No such Launch settings on this computer.",
+                        ),
                         other => reject("launch_failed", &other.wire().user_message),
                     })?;
                 // AJ-E1515: the console follows the new session by its id.
@@ -958,7 +964,7 @@ impl NodeHandler for AppNode {
         let state = self
             .state
             .upgrade()
-            .ok_or_else(|| refuse("unavailable", "This Mac is shutting down."))?;
+            .ok_or_else(|| refuse("unavailable", "This computer is shutting down."))?;
         if crate::fleet::peer_asks_each_time(&state, &peer.machine_id) {
             let label = crate::fleet::peer_label(&state, &peer.machine_id)
                 .unwrap_or_else(|| "A paired machine".to_owned());
@@ -968,7 +974,7 @@ impl NodeHandler for AppNode {
                 Answer::Denied => {
                     return Err(refuse(
                         "not_confirmed",
-                        "Not allowed on that Mac — nothing ran.",
+                        "Not allowed on that computer — nothing ran.",
                     ));
                 }
                 Answer::LinkOff => return Err(refuse("link_off", NOTHING_RAN)),

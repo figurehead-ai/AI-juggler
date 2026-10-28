@@ -365,7 +365,7 @@ function FoundStep({
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-stat font-semibold tracking-tight">
-          {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
+          {tools.length > 1 ? "Looking for your setups on this computer…" : `Looking for ${toolName} on this computer…`}
         </h1>
         <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
       </div>

@@ -46,18 +46,18 @@ export type PageTab = {
 };
 
 const TAB: Record<PageTabId, PageTab> = {
-  terminal: { id: "terminal", label: "Terminal", source: "this Mac's process monitor" },
-  window: { id: "window", label: "Window preview", source: "this Mac's process monitor" },
+  terminal: { id: "terminal", label: "Terminal", source: "this computer's process monitor" },
+  window: { id: "window", label: "Window preview", source: "this computer's process monitor" },
   sessions: { id: "sessions", label: "Sessions", source: "the tools' own session files" },
-  overview: { id: "overview", label: "Overview", source: "this Mac's process monitor" },
+  overview: { id: "overview", label: "Overview", source: "this computer's process monitor" },
   usage: { id: "usage", label: "Usage", source: "usage tracking" },
-  quality: { id: "quality", label: "Quality", source: "this Mac's process monitor" },
-  processes: { id: "processes", label: "Processes", source: "this Mac's process monitor" },
+  quality: { id: "quality", label: "Quality", source: "this computer's process monitor" },
+  processes: { id: "processes", label: "Processes", source: "this computer's process monitor" },
   history: { id: "history", label: "History", source: "AI Juggler's record of the session" },
   actions: { id: "actions", label: "Actions", source: "the paired Mac" },
   members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
-  messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this Mac" },
-  tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this Mac" },
+  messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this computer" },
+  tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this computer" },
   subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
 };

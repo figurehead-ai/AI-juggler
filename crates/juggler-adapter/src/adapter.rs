@@ -248,7 +248,10 @@ pub trait HarnessAdapter: Send + Sync {
     /// profile at `state_dir`. The tool asks its vendor with its own
     /// sign-in, which AI Juggler never sees, and keeps the answer where
     /// the tool's limit records are read. No model turn, no transcript.
-    /// `None`: the tool has no such command, or isn't installed.
+    /// `None`: the tool has no such command, or isn't installed. The
+    /// spec's `cwd` is a folder of AI Juggler's own that the run makes;
+    /// asking for the spec writes nothing (it is read to say whether the
+    /// probe is offered).
     #[must_use]
     fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
         let _ = state_dir;

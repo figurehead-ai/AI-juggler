@@ -87,7 +87,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
       )}
       {caps.length > 0 && (
         <p className="text-label text-muted">
-          Estimated at list prices from what this Mac measured, as in the table below. On a subscription that's what your use
+          Estimated at list prices from what this computer measured, as in the table below. On a subscription that's what your use
           would cost by the token, not your bill.
         </p>
       )}

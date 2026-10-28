@@ -272,6 +272,8 @@ impl HarnessAdapter for KimiCodeAdapter {
             | Capabilities::RESUME
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            // Its session locks name the process that holds each one.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     fn verified_against(&self) -> &'static [&'static str] {

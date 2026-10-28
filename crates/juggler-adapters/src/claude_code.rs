@@ -137,6 +137,8 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::STATE_REPORTS
             // AJ-E2308: without a terminal, a per-session Beta.
             | Capabilities::PROTOCOL_SERVER
+            // Its `sessions/<pid>.json` name each session's process.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
@@ -558,11 +560,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         unset_inherited_credentials(&mut env);
         // An empty folder of AI Juggler's own: run in the profile, Claude
         // would treat it as a project (a trust prompt, a projects/ entry).
-        let cwd = self
-            .overlays_root
-            .as_ref()
-            .map(|root| root.join("limits-probe"))
-            .filter(|dir| std::fs::create_dir_all(dir).is_ok())?;
+        // Named here, made only when the probe runs: reading the spec (to
+        // say whether it is offered) creates nothing.
+        let cwd = self.overlays_root.as_ref()?.join("limits-probe");
         Some(LaunchSpec {
             program: bin,
             args: crate::claude_limits::usage_probe_args(),

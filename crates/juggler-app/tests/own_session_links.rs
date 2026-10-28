@@ -4,8 +4,10 @@
 //! rail shows the work once: the session's row carries the "+N agents"
 //! count, and the conversation's row is linked to it (the rail folds it
 //! in). When more than one conversation could be its own, nothing is
-//! linked and the rail stays as it was. Over the conformance kit's
-//! synthetic records for each tool, read-only.
+//! linked and the rail stays as it was. An account used in place (shared
+//! with the user's own terminal) is linked by its launch only when its
+//! tool's records name the process that holds a session. Over the
+//! conformance kit's synthetic records for each tool, read-only.
 
 #![allow(
     clippy::unwrap_used,
@@ -156,6 +158,16 @@ fn another_record(lab: &Lab) {
     }
 }
 
+/// Marks the lab's account as used in place (ADR-0018): the user's own
+/// folder, which their own terminal uses too.
+fn in_place(lab: &Lab) {
+    let storage = lab.state.storage.lock().unwrap();
+    let profile = storage.profiles().get(&lab.profile).unwrap();
+    let mut account = storage.accounts().get(&profile.account).unwrap();
+    account.in_place = true;
+    storage.accounts().update(&account).unwrap();
+}
+
 fn conversation_of(lab: &Lab, session: &SessionId) -> Option<String> {
     let storage = lab.state.storage.lock().unwrap();
     storage
@@ -280,4 +292,56 @@ fn a_session_that_has_ended_is_left_alone() {
     index(&lab);
     assert_eq!(linking::tick(&lab.state), 0);
     assert_eq!(conversation_of(&lab, &session), None);
+}
+
+#[test]
+fn in_place_without_a_process_in_its_records_keeps_both_rows() {
+    // OpenCode and Grok Build record no process per session: on an account
+    // the user's own terminal shares, the conversation could be theirs.
+    for tool in [OPENCODE_ID, GROK_BUILD_ID] {
+        let lab = lab(tool);
+        in_place(&lab);
+        let session = started(&lab, "sess-own");
+        let id = tools_record(&lab);
+        index(&lab);
+        assert_eq!(linking::tick(&lab.state), 0, "{tool}: a guess");
+        assert_eq!(conversation_of(&lab, &session), None, "{tool}");
+        let row = juggler_app::features::conversations::commands::list_impl(&lab.state)
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == id)
+            .unwrap_or_else(|| panic!("{tool}: the conversation isn't listed"));
+        assert_eq!(row.session_id, None, "{tool}: its own row, as before");
+    }
+}
+
+#[test]
+fn in_place_with_the_process_in_its_records_still_links_by_launch() {
+    // Kimi Code's session locks name the process: a session the user ran
+    // by hand would be open in a process of theirs, which refuses the link.
+    let lab = lab(KIMI_CODE_ID);
+    in_place(&lab);
+    let session = started(&lab, "sess-own");
+    let id = tools_record(&lab);
+    index(&lab);
+    assert_eq!(linking::tick(&lab.state), 1);
+    assert_eq!(
+        conversation_of(&lab, &session).as_deref(),
+        Some(id.as_str())
+    );
+}
+
+#[test]
+fn which_tools_records_name_a_sessions_process() {
+    use juggler_adapter::{Capabilities, HarnessAdapter};
+    let recorded = |adapter: &dyn HarnessAdapter| {
+        adapter
+            .capabilities()
+            .contains(Capabilities::SESSION_PROCESS_RECORDED)
+    };
+    assert!(!recorded(&OpenCodeAdapter::with_bin("/usr/bin/true")));
+    assert!(!recorded(&GrokBuildAdapter::with_bin("/usr/bin/true")));
+    assert!(recorded(&KimiCodeAdapter::with_bin("/usr/bin/true")));
+    // A managed account (only AI Juggler uses it) is linked by launch for
+    // every tool: `a_hookless_tools_session_is_one_rail_row_carrying_its_count`.
 }

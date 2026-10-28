@@ -167,6 +167,11 @@ fn record(account_id: &str, outcome: &'static str) {
 /// nowhere: never kept, never logged.
 #[must_use]
 pub fn run(spec: &juggler_adapter::LaunchSpec, timeout: Duration) -> &'static str {
+    // The adapter names a folder of AI Juggler's own; it is made only now,
+    // so a read of the probe's status leaves nothing behind.
+    if std::fs::create_dir_all(&spec.cwd).is_err() {
+        return "not_started";
+    }
     let mut command = std::process::Command::new(&spec.program);
     command
         .args(&spec.args)

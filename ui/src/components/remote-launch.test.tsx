@@ -63,14 +63,14 @@ describe("AJ-E1515 — New session on a paired Mac", () => {
 
   it("shows that Mac's own words when it refuses", async () => {
     w().__AIJ_LAUNCH_MACHINES__ = [STUDIO];
-    w().__AIJ_REMOTE_OUTCOME__ = { accepted: false, reason_code: "not_confirmed", message: "Not allowed on that Mac — nothing ran." };
+    w().__AIJ_REMOTE_OUTCOME__ = { accepted: false, reason_code: "not_confirmed", message: "Not allowed on that computer — nothing ran." };
     const onClose = vi.fn();
     const { findByRole, getByTestId } = render(<Sheet onClose={onClose} />);
     fireEvent.click(await findByRole("radio", { name: "Studio Mac" }));
     await act(async () => {
       fireEvent.click(getByTestId("remote-start"));
     });
-    await waitFor(() => expect(getByTestId("remote-error").textContent).toBe("Not allowed on that Mac — nothing ran."));
+    await waitFor(() => expect(getByTestId("remote-error").textContent).toBe("Not allowed on that computer — nothing ran."));
     expect(onClose).not.toHaveBeenCalled();
   });
 });

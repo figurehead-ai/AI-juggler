@@ -57,7 +57,7 @@ describe("AJ-E706 destinations", () => {
         targets={[
           target(),
           target({ recipe_id: "rec-2", readiness: "t2_blocked", mechanism: "replay" }),
-          target({ recipe_id: "rec-3", readiness: "unavailable", blockers: ["Studio Mac lets this Mac view only — switching needs View + control (change it on Studio Mac)."] }),
+          target({ recipe_id: "rec-3", readiness: "unavailable", blockers: ["Studio Mac lets this computer view only — switching needs View + control (change it on Studio Mac)."] }),
         ]}
         onPick={() => {}}
       />,

@@ -300,7 +300,10 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
   const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
   const pinned = item.pinned;
-  const label = [word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
+  // AI Juggler's own session: the account it runs on too (its place is
+  // AI Juggler, which names no profile), so a screen reader hears it.
+  const on = item.session ? `on ${item.accountLabel}` : null;
+  const label = [word, item.title, pinned ? "pinned" : null, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
   if (compact) {
     // One line: the state's dot, the title, then an exception (low
     // runway, heavy load) or when, and the state word (AJ-E403: the

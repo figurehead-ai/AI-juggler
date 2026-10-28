@@ -17,6 +17,10 @@ AI Juggler tells which conversation the session started from the tool's
 own records, or from the process it runs in. When more than one
 conversation could be the session's (two started in the same folder at
 once), it doesn't guess: the conversation shows as a row of its own too.
+The same holds for an OpenCode or Grok Build account you use where it is
+(shared with your own terminal): their records don't say which program
+wrote a conversation, so one you started yourself in that folder can't be
+told from AI Juggler's, and both rows stay.
 
 The list has three parts:
 

@@ -23,8 +23,9 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, PRIMARY_NAV, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
-import { IconJuggler } from "./components/icons";
+import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
+import { SkipLink } from "./components/SkipLink";
+import { RailHeader } from "./components/RailHeader";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import {
@@ -141,7 +142,7 @@ export default function App() {
     storeDensity(next);
     window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
-  // D-25: below 900 px the rail folds to its icon column by itself and
+  // D-25: below 1100 px (lib/window.ts) the rail folds to its icon column by itself and
   // comes back when the window widens. In a narrow window ⌘B, the logo,
   // the density shortcut and a double-click on the rail only open or
   // close the list for now — they never write Settings › Appearance,
@@ -199,6 +200,15 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
+  // F11: a page opened from something that went with the old page (not
+  // the first one: the window opens with nothing focused, the skip link first).
+  const shownPage = useRef(JSON.stringify([selection, global]));
+  useEffect(() => {
+    const page = JSON.stringify([selection, global]);
+    if (page === shownPage.current) return;
+    shownPage.current = page;
+    focusPageIfLost();
+  }, [selection, global]);
   // D-25: Fleet surfaces only when it's relevant. AJ-E2404: the pill
   // counts what is left to clean up, the Processes view's own count (the
   // same as This Mac's), and hears of every change.
@@ -314,6 +324,9 @@ export default function App() {
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("");
+  // F7: ⌘K's "Search History for …" opens History searching for it.
+  const [historyQuery, setHistoryQuery] = useState("");
+  useEffect(() => void (global !== "history" && setHistoryQuery("")), [global]);
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
@@ -611,6 +624,7 @@ export default function App() {
       refresh={() => void refresh()}
     >
     <div className="relative flex h-screen w-screen overflow-hidden">
+      <SkipLink />
       <AttentionAnnouncer sessions={sessions} />
       {/* AJ-E2502: the menu-bar item's asks (Needs you is the backend's, D-49). */}
       <NoticeOpeners ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} />
@@ -638,43 +652,7 @@ export default function App() {
         }
         onSelectRemote={inspectRemote}
         loading={!loaded}
-        header={(minimal) => (
-          <div
-            className={
-              "flex h-14 shrink-0 items-center gap-2.5 overflow-hidden " +
-              (minimal ? "justify-center px-0" : "px-4")
-            }
-          >
-            <button
-              type="button"
-              title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
-              aria-label={minimal ? "Show the list" : "Show icons only"}
-              aria-keyshortcuts="Meta+B"
-              onClick={toggleRail}
-              className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
-            >
-              <span className="block drop-shadow-[0_0_10px_#7c7cf466]">
-                <IconJuggler width={22} height={22} />
-              </span>
-            </button>
-            {!minimal && (
-              <span className="whitespace-nowrap text-section font-semibold tracking-tight">
-                AI Juggler
-              </span>
-            )}
-            {/* D-23: which edition this window belongs to, when it isn't
-                AI Juggler itself (Nightly and Dev run side by side). */}
-            {info && info.edition !== "main" && (
-              <span
-                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-ink"
-                data-testid="edition-badge"
-                title={`${info.name}: its own data, separate from AI Juggler`}
-              >
-                {info.edition === "nightly" ? "Nightly" : "Dev"}
-              </span>
-            )}
-          </div>
-        )}
+        header={(minimal) => <RailHeader minimal={minimal} info={info} onToggle={toggleRail} />}
         footer={(minimal) =>
           minimal ? (
             <MachineStatusLine minimal onOpen={() => setGlobal("thismac")} />
@@ -748,7 +726,7 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "history" ? (
             <ScrollingScreen key="history" screen="history" label="History">
-              <History sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
+              <History key={historyQuery} initialQuery={historyQuery} sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
             <ScrollingScreen key="usage" screen="usage" label="Usage">
@@ -1018,6 +996,12 @@ export default function App() {
         hotkey={goToHotkey}
         onHotkeyChange={async (combo) => (await goToHotkeySet(combo), setGoToHotkey(combo))}
         selected={paletteSelection(selectedSession, selectedProject, selectedAccount, selectedProvider?.id ?? null)}
+        selectedConversation={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}
+        app={{
+          openScreen: (id) => (id === "home" ? openHome() : id === "settings" ? (setSettingsFocusCloud(false), setSettingsSection(undefined), setGlobal(id)) : setGlobal(id)),
+          newSession: () => setNewSession(true), newProject: () => setNewProjectDir((current) => current ?? ""), notifications: () => setCentreOpen(true),
+          shortcuts: () => setShortcutsOpen(true), toggleRail, searchHistory: (words) => (setHistoryQuery(words), setGlobal("history")), fleet: pairedCount > 0,
+        }}
         projects={projects}
         onChanged={() => void refresh()}
       />
@@ -1120,7 +1104,7 @@ export default function App() {
       )}
       {/* AJ-E1503: the one feedback system, and the quit warning. */}
       <ToastHost />
-      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
+      {shortcutsOpen && <ShortcutSheet fleet={pairedCount > 0} onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
       <PoolSheetHost sessions={railSessions} projects={projects} />
       {newSession && (

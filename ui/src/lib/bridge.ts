@@ -2778,7 +2778,7 @@ export async function usageStatsSet(mode: UsageStatsMode): Promise<UsageStatsSet
         mode === "off"
           ? "Usage stats are off. Local stats deleted."
           : mode === "local"
-            ? "Usage stats are counted on this Mac only."
+            ? "Usage stats are counted on this computer only."
             : "Usage stats are on. One small report a week will be sent.",
     };
   }
