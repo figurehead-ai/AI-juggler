@@ -104,8 +104,8 @@ pub struct FactRow {
 #[must_use]
 pub fn question(facts: &[Fact]) -> String {
     let mut out = String::from(
-        "Answer from this conversation only; don't change any file. Give one line per item, \
-         exactly `KEY=value`, and `KEY=UNKNOWN` when you don't know:",
+        "Don't change any file. Give one line per item, exactly `KEY=value`, and \
+         `KEY=UNKNOWN` when you don't know:",
     );
     for fact in facts {
         let _ = write!(out, "\n{}: {}", fact.key, fact.ask);

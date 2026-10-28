@@ -63,6 +63,11 @@ pub struct DeltaInput {
     /// session in the same folder made it ambiguous). Named in the update,
     /// so a missing hop is never silent.
     pub unread: Vec<String>,
+    /// The rules files the work followed while away that the returning
+    /// tool doesn't load itself (another tool's), already in words; `None`
+    /// when there are none (the measured lab of 2026-10-28: back on Codex,
+    /// the rule only `CLAUDE.md` states was no longer in force).
+    pub rules_note: Option<String>,
 }
 
 /// One account the work continued on before the away one, and what was
@@ -193,6 +198,9 @@ pub fn delta_turn_text(input: &DeltaInput) -> String {
     }
     if let Some(todos) = &input.todo_note {
         let _ = writeln!(text, "Todos changed: {todos}.");
+    }
+    if let Some(rules) = &input.rules_note {
+        let _ = writeln!(text, "\n{rules}");
     }
     let _ = write!(
         text,
@@ -381,6 +389,7 @@ mod tests {
             todo_note: Some("\"add retry\" → done".into()),
             earlier_hops: Vec::new(),
             unread: Vec::new(),
+            rules_note: None,
         }
     }
 

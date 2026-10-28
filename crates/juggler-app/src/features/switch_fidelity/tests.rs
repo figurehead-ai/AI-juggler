@@ -279,6 +279,7 @@ fn switching_back_measures_only_what_was_new_away() {
         todo_note: None,
         earlier_hops: Vec::new(),
         unread: Vec::new(),
+        rules_note: None,
     });
     let report = measure(&hop(
         away,
@@ -496,4 +497,33 @@ fn the_report_renders_a_table_and_a_verdict() {
         text.contains("**Verdict.** PARTIAL: nothing lost; 0 of 1 facts answered."),
         "{text}"
     );
+}
+
+#[test]
+fn rules_a_switch_back_update_names_count_as_carried() {
+    let source = Conversation::from_bytes(&fixture("claude-code/session-basic.jsonl"));
+    let mut back = hop(
+        source.clone(),
+        Received::Return {
+            original: Conversation::default(),
+            update: "While you were away …".to_owned(),
+        },
+        Vec::new(),
+    );
+    back.target.around.rules = vec!["AGENTS.md".to_owned()];
+    let carried = |report: &HopReport| {
+        report
+            .rows
+            .iter()
+            .find(|row| row.measure == "Rules files in force")
+            .unwrap()
+            .carried
+    };
+    assert_eq!(carried(&measure(&back)), 0);
+    back.target.history = Received::Return {
+        original: Conversation::default(),
+        update: "…rules files Codex doesn't load itself:\n  CLAUDE.md (read by Claude Code)"
+            .to_owned(),
+    };
+    assert_eq!(carried(&measure(&back)), 1);
 }

@@ -136,6 +136,30 @@ pub fn rules_section(rules: &[RulesFile]) -> Option<String> {
     Some(out)
 }
 
+/// Switching back to a tool that doesn't load every rules file the work
+/// followed while away: the ones it doesn't load itself, and who reads
+/// them, for the "While you were away" update. `None` when there are
+/// none (the same tool, or no other tool's rules file in the folder).
+#[must_use]
+pub fn rules_while_away(rules: &[RulesFile], returning: &ToolSpec) -> Option<String> {
+    let unread: Vec<&RulesFile> = rules
+        .iter()
+        .filter(|file| !returning.rules_files.contains(&file.name))
+        .collect();
+    if unread.is_empty() {
+        return None;
+    }
+    let mut out = format!(
+        "While away the work also followed rules files {} doesn't load itself:\n",
+        returning.display_name
+    );
+    for file in unread {
+        let _ = writeln!(out, "  {} (read by {})", file.name, file.tools.join(", "));
+    }
+    out.push_str("Read them before going on: their rules still hold for this work.");
+    Some(out)
+}
+
 /// Writes the handover for `state.edge` under `data_dir`: the folder and
 /// both files readable by this user only. Returns the handover's path.
 ///

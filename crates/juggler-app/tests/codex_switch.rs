@@ -906,3 +906,48 @@ fn a_pack_changed_after_the_preview_or_unsafe_starts_nothing() {
         .unwrap_or(0);
     assert_eq!(written, 1, "only the switch's own handover");
 }
+
+#[test]
+fn switching_back_to_another_tool_names_the_rules_it_doesnt_load() {
+    // The measured lab of 2026-10-28: the work went Codex → Claude and back.
+    // On Claude it followed CLAUDE.md, which Codex doesn't load; back on
+    // Codex nothing said so, and the rule was no longer in force. Here the
+    // other way round: Claude → Codex → back to Claude names AGENTS.md.
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    std::fs::write(
+        Path::new(&s.cwd).join("CLAUDE.md"),
+        "Docstrings start with LAB:.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        Path::new(&s.cwd).join("AGENTS.md"),
+        "Test names end with _lab.\n",
+    )
+    .unwrap();
+    write_claude_transcript(&s.source_home, &s.cwd);
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    let info = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    let args = args_of(&s.target_home);
+    let at = args.iter().position(|a| a == "--").unwrap();
+    write_later_rollout(
+        &s.target_home,
+        &s.cwd,
+        "019a1b2c-0000-7000-8000-0000000000cc",
+        &args[at + 1..].join("\n"),
+        "Added test_sub_lab.",
+    );
+    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    let delta = &plan.delta_preview;
+    assert!(delta.contains("AGENTS.md (read by Codex)"), "{delta}");
+    assert!(delta.contains("Claude Code doesn't load itself"), "{delta}");
+    assert!(!delta.contains("CLAUDE.md"), "{delta}");
+}

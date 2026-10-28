@@ -200,6 +200,7 @@ fn delta_of(
         todo_note: None,
         earlier_hops: Vec::new(),
         unread: Vec::new(),
+        rules_note: None,
     };
     let turns = u32::try_from(delta_turns(&input).len()).unwrap_or(u32::MAX);
     Ok((delta_turn_text(&input), turns))

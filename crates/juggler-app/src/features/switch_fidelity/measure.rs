@@ -400,8 +400,10 @@ fn rules_row(hop: &Hop) -> Row {
         .filter(|name| {
             hop.target.around.rules.contains(name)
                 || match &hop.target.history {
-                    Received::Handover { text, .. } => text.contains(name.as_str()),
-                    _ => false,
+                    Received::Handover { text, .. } | Received::Return { update: text, .. } => {
+                        text.contains(name.as_str())
+                    }
+                    Received::Native(_) => false,
                 }
         })
         .collect();
@@ -414,10 +416,10 @@ fn rules_row(hop: &Hop) -> Row {
             "source reads {}; target reads {} itself{}",
             list(had),
             list(&hop.target.around.rules),
-            if matches!(hop.target.history, Received::Handover { .. }) {
-                ", the handover names the rest"
-            } else {
-                ""
+            match hop.target.history {
+                Received::Handover { .. } => ", the handover names the rest",
+                Received::Return { .. } => ", the update names the rest",
+                Received::Native(_) => "",
             }
         ),
     }

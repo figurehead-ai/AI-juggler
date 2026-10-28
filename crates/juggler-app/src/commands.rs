@@ -11743,6 +11743,33 @@ fn away_diff_stat(cwd: &std::path::Path) -> Option<String> {
     })
 }
 
+/// The rules files the tools the work went through while away read, which
+/// the tool it returns to doesn't load itself (the measured lab of
+/// 2026-10-28), in words for the update; `None` when there are none.
+fn away_rules_note(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    away: &juggler_core::model::Account,
+    original: &juggler_core::model::Account,
+) -> Option<String> {
+    use crate::features::handover;
+    let returning = state.registry.get(&original.harness)?.spec();
+    let mut tools: Vec<juggler_core::model::HarnessId> = lineage
+        .intermediate
+        .iter()
+        .map(|hop| hop.epoch.provider.clone())
+        .collect();
+    tools.push(away.harness.clone());
+    tools.retain(|tool| *tool != original.harness);
+    tools.dedup();
+    let specs: Vec<_> = tools
+        .iter()
+        .filter_map(|tool| state.registry.get(tool).map(|adapter| adapter.spec()))
+        .collect();
+    let rules = handover::rules_in_play(&lineage.away_session.cwd, &specs);
+    handover::rules_while_away(&rules, &returning)
+}
+
 /// AJ-E1541: the task list as the away session left it, on one line.
 fn away_task_note(reference: Option<&juggler_core::model::TranscriptRef>) -> Option<String> {
     let bytes = juggler_adapters::read_session_file(&reference?.path).ok()?;
@@ -12015,6 +12042,7 @@ fn back_facts(
         todo_note: away_task_note(away_reference.as_ref()),
         earlier_hops,
         unread,
+        rules_note: away_rules_note(state, &lineage, &away_account, &original_account),
     };
     let away_live = matches!(
         lineage.away_session.status.as_str(),
