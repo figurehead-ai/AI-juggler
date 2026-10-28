@@ -71,6 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alike, and for sessions other apps run (a CLI in a terminal, Codex in
   ChatGPT) as well as AI Juggler's own. The count is read from the same
   records as the session's Subagents tab, and shows only once read.
+- **A switch offers this project's notes** (D-51, the maintainer's ruling
+  of 2026-10-28): the notes Claude Code keeps for itself about a project
+  didn't travel, so the other account forgot what the first had learned.
+  When it lacks some, the switch now asks "Work Max's notes for this
+  project (3) aren't on Personal: copy them?", unticked. Ticked, the
+  missing notes are copied as private files and listed in its index, a
+  note it has with other words is kept as it is (and the switch says so),
+  and **Undo** takes out what was copied. A switch to a tool that keeps no
+  notes says in What's carried that they stay with their own account.
 
 ### Changed
 
@@ -331,6 +340,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A session started from inside a Claude Code session no longer goes
+  that session's way**: AI Juggler already dropped the parent session's
+  markers, and now, when it sees them, also drops where that session
+  sends its requests (`ANTHROPIC_BASE_URL`). A gateway you export in your
+  own shell stays, and an account's or a profile's own endpoint is never
+  touched.
 - **The rail folded to icons** (⌘B, the 0.2 walk, F2) no longer says "All
   clear" while something needs you: it shows the same Needs you count as
   the bell (a sign-in or This Mac included; it opens Home), then every

@@ -494,6 +494,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 4. Each write is previewed, made through the tool's own command where one exists (`claude mcp add-json`, `codex mcp add`) or as a new file that never overwrites, recorded in the switch's manifest, and undone from the same place.
 5. ADR-0018 is amended: these are user-approved writes into the target account, like AJ-E1530's.
 6. Things with no equivalent (claude.ai-synced skills and connectors, plugins across tools, SSE servers on Codex) are listed as "can't be set up there", with the reason.
+7. D-51 (2026-10-28): this project's notes (the tool's own memory, Claude Code's `projects/<project>/memory/`) are offered as one more row when the target lacks some, never ticked for the user; a copy adds only what's missing, keeps a note that differs as it is, merges the index without repeats, writes private files confined to the notes folder, and is undone from the same place. A tool that keeps no notes gets no offer, and What's carried says they stay with their own account. Evidence: `crates/juggler-adapters/tests/claude_memory.rs`, `crates/juggler-app/tests/switch_memory.rs`, `ui/src/components/switch-notes.test.tsx`.
 **Quality gates**: a no-write guardrail test without an approval; translation fixtures per pair; the secret filter test; the lab's journey runs with one MCP server and one skill on A only, and checks they're offered and set up on B and Codex.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1542/manifest.md`.
 

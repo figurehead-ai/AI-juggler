@@ -107,6 +107,7 @@ pub fn check_impl(
         to: "the new account".to_owned(),
         offers,
         already_there: 0,
+        notes_stay: None,
     })
 }
 

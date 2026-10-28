@@ -998,7 +998,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27 and D-50 on 2026-10-28. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27 and D-50..D-51 on 2026-10-28. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1446,3 +1446,57 @@ the centre needed another key; the bell stays one click away.
   `tests/visual/keyboard-flows.spec.ts` ("launch keys — ⌘N New session,
   ⌘⇧N New project, ⌥⌘N notifications (D-50)"), and flow (b) by ⌘⇧N in
   `new-project.spec.ts` and `a11y.spec.ts`.
+
+### D-51 A switch offers this project's notes — SETTLED (2026-10-28)
+
+**Ruling.** The maintainer, 2026-10-28, on the switch lab's finding that
+Claude Code's auto memory doesn't travel (after A→B, account B no longer
+had the codename memory A had saved): "Yes: the switch check offers to
+copy this project's memory to the new account, the same way it offers
+missing MCP servers and skills, and copies only with my approval."
+
+**What changed.**
+
+- A tool's per-project memory is an adapter capability
+  (`HarnessAdapter::keeps_project_memory`, `project_memory`,
+  `add_project_memory`): the adapter says whether its tool keeps notes
+  for a project, and lists, reads and writes them through one shared
+  module (`juggler_adapter::memory`). Claude Code implements it
+  (`projects/<project>/memory/`: `MEMORY.md` and one file per note);
+  no other tool does yet. Nothing outside the adapters names a tool.
+- The switch's set-up check offers them as one more row of the same
+  list, only when the source has notes for this project and the target
+  lacks some: "Work Max's notes for this project (3) aren't on Personal:
+  copy them?". It is never ticked for the user; nothing is copied
+  unless they tick it.
+- A copy adds only the missing notes, as new files only the user can
+  read, and adds the index lines for what the target's index doesn't
+  list yet, never one twice. A note the target has with other words is
+  a conflict: kept as it is, and the row and the result say so. Only
+  plain note files directly in the notes folder are read or written (no
+  links, no `..`, no hidden files or subfolders).
+- The copy is recorded like any set-up and undone from the same place:
+  the undo takes out the index lines it added and the notes it made,
+  only while each note is as it was made.
+- A target whose tool keeps no notes (Codex) gets no offer: What's
+  carried says plainly that this project's notes stay with their own
+  account. *Quoting the notes into a cross-tool handover file, with
+  approval, is left for later: it needs an approval passed into the
+  switch itself and the keys check over the notes' text. The agent's
+  call, for the maintainer to confirm.*
+- AJ-E1542's text (E15) points here; the user guide's switching page has
+  **This project's notes**.
+
+**Why.** The notes are what the tool learned about the project; a new
+account that starts without them repeats questions the user already
+answered. They are the user's own files on this Mac, like a skill, so
+they are offered the same way, with the same undo.
+
+- Risk: a copied note goes stale on one account while the other is
+  edited; a later switch offers only the notes still missing, and says
+  which differ.
+- Evidence: `cargo test -p juggler-adapters --test claude_memory`
+  (capability, merge, conflict, undo, private files, confinement),
+  `cargo test -p juggler-app --test switch_memory` (offer, approval,
+  apply, undo, a tool without notes), the `memory` unit tests in
+  `juggler-adapter`; vitest `src/components/switch-notes.test.tsx`.

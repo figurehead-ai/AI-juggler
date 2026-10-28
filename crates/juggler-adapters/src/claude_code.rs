@@ -476,6 +476,28 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_used::used_in(transcript)
     }
 
+    // D-51: its auto memory, `projects/<project>/memory/`.
+    fn keeps_project_memory(&self) -> bool {
+        true
+    }
+
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<juggler_adapter::memory::ProjectMemory> {
+        crate::claude_memory::project_memory(state_dir, project)
+    }
+
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &juggler_adapter::memory::ProjectMemory,
+    ) -> Result<juggler_adapter::memory::MemoryAdded, AdapterError> {
+        crate::claude_memory::add(state_dir, project, from)
+    }
+
     fn how_to_get(
         &self,
         item: &juggler_adapter::inventory::Item,

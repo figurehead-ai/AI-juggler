@@ -120,6 +120,11 @@ mean?** lists them all.
   choice** and **Subagents' work**.
 - **Recreated on the account you switch to:** the task list, from its latest
   version.
+- **This project's notes:** what the tool noted for itself about the
+  project. When the other account lacks some, they're under **Not on …
+  yet**, and the last step asks whether to copy them; a tool that keeps no
+  such notes leaves them behind. See [This project's
+  notes](#this-projects-notes).
 - **Stays behind:** the new session starts without it. This is the only part
   shown as a warning.
 
@@ -166,7 +171,8 @@ what moves, what happens to the original, and whether anything needs you.
 fine is under **Details**.
 
 It lists what your current profile has set up and the other one lacks: MCP
-servers, skills, commands, subagents, rules and plugins. None of them stops
+servers, skills, commands, subagents, rules, plugins and [this project's
+notes](#this-projects-notes). None of them stops
 the switch. What this conversation used comes first, marked **Used here**.
 The rest waits under one closed line, **Also on Work Max, not on Personal
 (not used in this conversation)**: open it to see them. When a tool's
@@ -316,6 +322,38 @@ still has to turn on stays in Settings › Switching › Context packs &
 secrets › **Set up by AI Juggler**, under **Still to turn on**, with the
 same steps and **Check again**. Each one leaves the list once the account
 has it, or when you choose **Stop reminding me**.
+
+### This project's notes
+
+Claude Code keeps notes it writes for itself about each project: what it
+learned, and what you asked it to remember, such as the project's
+codename or how to run its tests. It keeps them in each account's own
+folder, one file per note with a list of them
+([Claude Code: memory](https://code.claude.com/docs/en/memory)), so an
+account you switch to starts without the first account's notes.
+
+When the other account lacks some of this project's notes, the switch
+asks, for example: **Work Max's notes for this project (3) aren't on
+Personal: copy them?** It's never ticked for you; nothing is copied
+unless you tick it.
+
+- **Ticked:** AI Juggler copies the notes Personal doesn't have, as new
+  files only you can read, and adds a line for each to Personal's list of
+  notes. A line it already has isn't added twice.
+- **A note Personal has with other words** is kept as it is, and Work
+  Max's isn't copied. The line says which, for example "Personal has its
+  own project-codename.md with other words: it stays as it is".
+- **Undo:** the result has **Undo**, and so does Settings › Switching ›
+  Handovers and keys › **Set up by AI Juggler**. It takes out the notes it
+  copied and their lines in the list. If a copied note has changed since,
+  nothing is taken out; **Forget** leaves everything as it is.
+
+Only plain note files are copied: nothing outside the notes folder, and no
+links or hidden files.
+
+Switching to a tool that keeps no notes like these (Codex), there's
+nothing to copy them into: **What's carried** says that this project's
+notes stay with the first account.
 
 ## After the switch
 

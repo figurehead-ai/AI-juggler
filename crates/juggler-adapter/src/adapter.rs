@@ -210,6 +210,50 @@ pub trait HarnessAdapter: Send + Sync {
         )))
     }
 
+    /// D-51: whether this tool keeps notes of its own about each project
+    /// (Claude Code's auto memory), which a switch can offer to copy. A
+    /// tool that doesn't: the switch says the notes stay with their own
+    /// account. Default: it doesn't.
+    #[must_use]
+    fn keeps_project_memory(&self) -> bool {
+        false
+    }
+
+    /// D-51: this account's notes for `project`, read through
+    /// [`crate::memory::read`] (plain note files in the account's own
+    /// folder, never a link). `None` when it has none. Reads only.
+    #[must_use]
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<crate::memory::ProjectMemory> {
+        let _ = (state_dir, project);
+        None
+    }
+
+    /// D-51: copies the notes in `from` that this account lacks for
+    /// `project` (only on the user's approval), through
+    /// [`crate::memory::add`]: new private files, never replacing a note
+    /// that differs, the index merged, with how to undo it.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when this tool keeps no notes, or
+    /// there's nothing to copy; the write's error.
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &crate::memory::ProjectMemory,
+    ) -> Result<crate::memory::MemoryAdded, AdapterError> {
+        let _ = (state_dir, project, from);
+        Err(AdapterError::Unsupported(format!(
+            "{} doesn't keep notes for a project",
+            self.id()
+        )))
+    }
+
     /// AJ-E1529: the conversation files this account's tool keeps under
     /// `state_dir` (every one, AI Juggler's or not). Lists only; reads
     /// nothing. Default: none (a tool without a readable history).

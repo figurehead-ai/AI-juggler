@@ -9,6 +9,7 @@ import type { CarryItemData } from "../../lib/bridge";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { GUIDE } from "../../lib/switch-words";
 import { Explain } from "./Explain";
+import { NOTES_KIND } from "./NotesRow";
 
 function Items({ items, testId, tone = "text-ink" }: { items: CarryItemData[]; testId: string; tone?: string }): JSX.Element {
   const id = useId();
@@ -40,7 +41,7 @@ const SETUP_KINDS: Record<string, string[]> = { mcp: ["mcp-server"], skills: ["s
  * again on the new account" beside "9 aren't on the other account"): its
  * line says what the check found, and one this conversation used that the
  * other account lacks is "Not on {target} yet", never "Goes along". */
-export function withSetup(items: CarryItemData[], setup: SetupCheckInfo | null | undefined, target: string): { items: CarryItemData[]; missing: CarryItemData[] } {
+export function withSetup(items: CarryItemData[], setup: SetupCheckInfo | null | undefined, target: string, tool = "its tool"): { items: CarryItemData[]; missing: CarryItemData[] } {
   if (!setup) return { items, missing: [] };
   const missing: CarryItemData[] = [];
   const kept = items.flatMap((item) => {
@@ -55,11 +56,33 @@ export function withSetup(items: CarryItemData[], setup: SetupCheckInfo | null |
     missing.push({ ...item, hint: `${used.length} this conversation used ${used.length === 1 ? "isn't" : "aren't"} set up on ${target} yet: pick ${used.length === 1 ? "it" : "them"} on the last step to set ${used.length === 1 ? "it" : "them"} up first.` });
     return [];
   });
+  // D-51: this project's notes, when the check found any to speak for.
+  const notes = setup.offers.find((offer) => offer.kind === NOTES_KIND);
+  if (notes) {
+    const count = notes.count ?? 0;
+    missing.push({
+      label: NOTES_LABEL,
+      how: "moves",
+      kind: NOTES_KIND,
+      hint: `${count === 1 ? `1 of ${setup.from}'s notes for this project isn't` : `${count} of ${setup.from}'s notes for this project aren't`} on ${target} yet: tick them under Before you switch to copy them.`,
+    });
+  }
+  if (setup.notes_stay) {
+    kept.push({
+      label: NOTES_LABEL,
+      how: "stays",
+      kind: NOTES_KIND,
+      hint: `${setup.from}'s ${setup.notes_stay === 1 ? "note" : `${setup.notes_stay} notes`} for this project stay${setup.notes_stay === 1 ? "s" : ""} with ${setup.from}: ${tool} doesn't keep notes like these.`,
+    });
+  }
   return { items: kept, missing };
 }
 
+/** This project's notes, in the carry list (D-51). */
+const NOTES_LABEL = "This project's notes";
+
 export function CarryList({ items: given, target, tool, setup }: { items: CarryItemData[]; target: string; tool: string; setup?: SetupCheckInfo | null }): JSX.Element {
-  const { items, missing } = withSetup(given, setup, target);
+  const { items, missing } = withSetup(given, setup, target, tool);
   const moves = items.filter((item) => item.how === "moves");
   const recreated = items.filter((item) => item.how === "recreated");
   const stays = items.filter((item) => item.how === "stays");
