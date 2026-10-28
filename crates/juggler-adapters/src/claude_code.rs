@@ -426,7 +426,7 @@ impl HarnessAdapter for ClaudeCodeAdapter {
     }
 
     fn launch_unset_keys(&self) -> &'static [&'static str] {
-        &INHERITED_CREDENTIAL_KEYS
+        &LAUNCH_UNSET_KEYS
     }
 
     fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
@@ -1095,11 +1095,59 @@ pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
     "CLAUDE_CODE_OAUTH_TOKEN",
 ];
 
-/// Each account signs in as itself: remove [`INHERITED_CREDENTIAL_KEYS`]
-/// from what the launch inherits (an account set up with a key keeps it
-/// in its own settings, which this doesn't touch).
+/// What a running Claude Code session marks its own child processes with:
+/// whose session they belong to, how to reach its host, whose account it
+/// is. Started from a terminal inside a Claude Code session (AI Juggler Dev
+/// run from one, or a harness), AI Juggler passed them on, and every
+/// session it started took itself for that session's child: "Transcript
+/// saving is off — inherited `CLAUDE_CODE_CHILD_SESSION` marker", so its
+/// conversation was never written and couldn't be found or switched (the
+/// lab of 2026-10-28). A new session is nobody's child.
+pub const INHERITED_SESSION_MARKERS: [&str; 14] = [
+    "CLAUDECODE",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_HOST_SESSION_ID",
+    "CLAUDE_CODE_MESSAGING_SOCKET",
+    "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
+    "CLAUDE_CODE_ACCOUNT_UUID",
+    "CLAUDE_CODE_ORGANIZATION_UUID",
+    "CLAUDE_CODE_USER_EMAIL",
+    "CLAUDE_CODE_OAUTH_SCOPES",
+    "CLAUDE_CODE_EXECPATH",
+    "CLAUDE_PID",
+];
+
+/// Everything a launch removes from what it inherits: the credentials
+/// ([`INHERITED_CREDENTIAL_KEYS`]) and a parent session's markers
+/// ([`INHERITED_SESSION_MARKERS`]).
+pub const LAUNCH_UNSET_KEYS: [&str; 17] = [
+    INHERITED_CREDENTIAL_KEYS[0],
+    INHERITED_CREDENTIAL_KEYS[1],
+    INHERITED_CREDENTIAL_KEYS[2],
+    INHERITED_SESSION_MARKERS[0],
+    INHERITED_SESSION_MARKERS[1],
+    INHERITED_SESSION_MARKERS[2],
+    INHERITED_SESSION_MARKERS[3],
+    INHERITED_SESSION_MARKERS[4],
+    INHERITED_SESSION_MARKERS[5],
+    INHERITED_SESSION_MARKERS[6],
+    INHERITED_SESSION_MARKERS[7],
+    INHERITED_SESSION_MARKERS[8],
+    INHERITED_SESSION_MARKERS[9],
+    INHERITED_SESSION_MARKERS[10],
+    INHERITED_SESSION_MARKERS[11],
+    INHERITED_SESSION_MARKERS[12],
+    INHERITED_SESSION_MARKERS[13],
+];
+
+/// Each account signs in as itself, as a session of its own: remove
+/// [`LAUNCH_UNSET_KEYS`] from what the launch inherits (an account set up
+/// with a key keeps it in its own settings, which this doesn't touch).
 fn unset_inherited_credentials(env: &mut EnvMap) {
-    for key in INHERITED_CREDENTIAL_KEYS {
+    for key in LAUNCH_UNSET_KEYS {
         env.insert(
             key.to_owned(),
             juggler_adapter::launch::ENV_UNSET.to_owned(),
