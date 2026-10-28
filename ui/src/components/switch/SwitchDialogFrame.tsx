@@ -69,7 +69,7 @@ export function ContinueButton({ onClick, ready, testId }: { onClick: () => void
 
 /**
  * The keyboard: the phase's default first (`data-autofocus`), else the
- * first control in header, body, footer order; Tab wraps inside; Esc
+ * step's heading, else the first control in header, body, footer order; Tab wraps inside; Esc
  * calls `onEscape` (the flow decides whether it closes); ⏎ calls `onEnter`
  * when given (not on a button, which ⏎ already presses). Runs again when
  * `phase` changes.
@@ -82,7 +82,15 @@ export function useDialogKeys(
 ): void {
   useEffect(() => {
     const node = dialogRef.current;
-    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? node?.querySelector<HTMLElement>("input:checked, button, input"))?.focus();
+    // deep/11 §9: a step change puts the keyboard on the step's heading
+    // (the walk of fix-walk-a: it landed on ×, so ⏎ closed the switch).
+    const heading = node?.querySelector<HTMLElement>("[data-testid=switch-body] h3");
+    if (heading && !heading.hasAttribute("tabindex")) {
+      // Read out, not operated: no ring (the scroll box would cut it).
+      heading.tabIndex = -1;
+      heading.classList.add("outline-none");
+    }
+    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? heading ?? node?.querySelector<HTMLElement>("input:checked, button, input"))?.focus();
   }, [dialogRef, phase]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

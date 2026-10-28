@@ -152,17 +152,29 @@ export function ContinueOn({
   // the keyboard, else the first that can be picked, else the card (its
   // words say why there's none).
   const cardRef = useRef<HTMLDivElement | null>(null);
-  useHandoverFocus(() => {
+  // Asked while the targets still load: the card holds the keyboard, and
+  // hands it to the best target once they're in.
+  const waiting = useRef(false);
+  const takeFocus = () => {
     const card = cardRef.current;
-    card?.scrollIntoView?.({ block: "center" });
     const buttons = card?.querySelectorAll<HTMLButtonElement>("[data-testid='continue-target']:not(:disabled)");
     const best = card?.querySelector<HTMLButtonElement>("[data-testid='continue-target'][data-suggested='true']:not(:disabled)");
     (best ?? buttons?.[0] ?? card)?.focus();
+    return Boolean(best ?? buttons?.[0]);
+  };
+  useHandoverFocus(() => {
+    cardRef.current?.scrollIntoView?.({ block: "center" });
+    waiting.current = !takeFocus() && rows === null;
   });
+  useEffect(() => {
+    if (rows === null || !waiting.current) return;
+    waiting.current = false;
+    if (document.activeElement === cardRef.current) requestAnimationFrame(() => void takeFocus());
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
   return (
-    <Card ref={cardRef} tabIndex={-1} className="flex flex-col gap-3 p-5 outline-none" data-testid="continue-on">
+    <Card ref={cardRef} tabIndex={-1} className="flex flex-col gap-3 p-5 outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="continue-on">
       <CardTitle>Continue on another account</CardTitle>
       {switchBack && onSwitchBack && (
         <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">

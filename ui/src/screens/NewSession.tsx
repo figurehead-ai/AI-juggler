@@ -146,7 +146,7 @@ export function NewSessionModal({
   }, [projectId]);
   // AJ-E610: the account's two-clock display for the row chip (one
   // query for all rows; typed states render as copy, never 0%).
-  const [quotaByAccount, setQuotaByAccount] = useState<Record<string, QuotaDisplayData>>({});
+  const [quotaByAccount, setQuotaByAccount] = useState<Record<string, QuotaDisplayData> | undefined>(undefined);
   useEffect(() => {
     let alive = true;
     quotaDisplayAll().then((all) => {
@@ -177,7 +177,7 @@ export function NewSessionModal({
   // F17: a pick of yours, else the Suggested one (the one order by room);
   // a row picked above becomes the pick.
   const pick = useMemo(
-    () => (profiles !== null ? pickLaunch(profiles, project, Object.values(quotaByAccount), accounts, pickedAccount ?? null, sessions) : null),
+    () => (profiles !== null ? pickLaunch(profiles, project, Object.values(quotaByAccount ?? {}), accounts, pickedAccount ?? null, sessions) : null),
     [profiles, project, quotaByAccount, accounts, pickedAccount, sessions],
   );
   const preselected = pick?.recipe ?? null;
@@ -313,7 +313,7 @@ export function NewSessionModal({
               settings preselected; the full list under Customise ▸. */}
           {ranked.length > 0 && (
             <div className="mt-5">
-              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount[account], sessionsOf(account)).left} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
+              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
             </div>
           )}
           <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
@@ -326,14 +326,14 @@ export function NewSessionModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <IconTerminal width={13} height={13} />
                   <span className="font-medium">{preselected.account_label}</span>
-                  <RunwayWords display={quotaByAccount[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} />
+                  <RunwayWords display={quotaByAccount?.[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} loading={!quotaByAccount} />
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
                   {preselected.model && (
                     <span className="font-mono text-label text-muted">{preselected.model}</span>
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
-                  {pick && <LaunchPickWhy pick={pick} quota={quotaByAccount} onUse={setPickedAccount} />}
+                  {pick && <LaunchPickWhy pick={pick} quota={quotaByAccount ?? {}} onUse={setPickedAccount} />}
                 </div>
                 <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">
@@ -395,7 +395,7 @@ export function NewSessionModal({
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <RunwayWords display={quotaByAccount[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} />
+                    <RunwayWords display={quotaByAccount?.[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} loading={!quotaByAccount} />
                     <span className="text-muted">·</span>
                     <span className="text-muted">Launch settings: {launchSettingsName(recipe.name)}</span>
                     <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />

@@ -30,8 +30,9 @@ export function focusHandover(): boolean {
   return taken;
 }
 
-/** What ⌘⇧H says when no session's page is open. */
-export const NO_SESSION_OPEN = "⌘⇧H continues the session whose page is open on another account. Open a session first.";
+/** What ⌘⇧H says where no switch list is (Home, a project, an account,
+ * another computer's session). */
+export const NO_SESSION_OPEN = "Nothing here to continue on another account: ⌘⇧H works on the page of a session on this computer.";
 
 /** The same, for a page that is only opening now (after selecting it). */
 export function focusHandoverSoon(): void {

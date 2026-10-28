@@ -254,12 +254,13 @@ export function AccountRunway({
 
 /** The account's room in the one runway's words (`runwayOf`): the same
  * sentence Home shows, never a bare or defaulted number. */
-export function RunwayWords({ display, sessions = [] }: { display?: QuotaDisplayData; sessions?: InstanceInfo[] }): JSX.Element {
+export function RunwayWords({ display, sessions = [], loading = false }: { display?: QuotaDisplayData; sessions?: InstanceInfo[]; loading?: boolean }): JSX.Element {
   // The same words as Home for the same account: its sessions' newest
-  // reading when the account has none, else "Not measured yet" (AJ-E1535).
+  // reading when the account has none, else "Not measured yet" (AJ-E1535);
+  // never "Not measured yet" before the readings have answered.
   return (
     <span className="text-label text-muted" data-testid="launch-runway">
-      {runwayOf(display, sessions).words}
+      {loading ? "Checking its room…" : runwayOf(display, sessions).words}
     </span>
   );
 }

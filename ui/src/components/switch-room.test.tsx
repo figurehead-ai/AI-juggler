@@ -6,7 +6,8 @@
  * anyway". "What's carried" and Confirm agree on what the other account
  * has (one source: the set-up check).
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { focusHandover } from "../lib/handover-focus";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bridge from "../lib/bridge";
 import * as setup from "../lib/ipc/switchSetup";
@@ -109,6 +110,18 @@ describe("F1 Continue on another account", () => {
     // Not hidden, not greyed: the user may still pick it.
     expect((within(last).getByTestId("continue-target") as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it("F8: ⌘⇧H while the targets load holds the card, then hands the keyboard to the Suggested one", async () => {
+    let resolve!: (rows: SwitchTargetData[]) => void;
+    vi.mocked(bridge.switchTargets).mockReturnValue(new Promise((done) => (resolve = done)));
+    const model = fromInstance({ id: "s-1", provider: "claude-code", account_id: "src", account_label: "Source", conversation_id: "c", status: "running", cwd: "/w" } as unknown as InstanceInfo);
+    render(<ContinueOn model={model} accounts={[]} displays={DISPLAYS} onPick={vi.fn()} />);
+    act(() => void focusHandover());
+    expect(document.activeElement?.getAttribute("data-testid")).toBe("continue-on");
+    await act(async () => resolve(TARGETS));
+    await waitFor(() => expect(document.activeElement?.getAttribute("data-suggested")).toBe("true"));
+    expect(document.activeElement?.textContent).toContain("Account B");
+  });
 });
 
 const ONECLICK = {
@@ -170,7 +183,10 @@ describe("F1 the switch dialog says the target's room", () => {
     const room = await screen.findByTestId("switch-room");
     expect(room.textContent).toBe("Room on Account F: 98% left this week · Week resets " + room.textContent!.split("Week resets ")[1]);
     expect(screen.getByTestId("switch-step-target").textContent).toContain("Nothing happens until you choose Switch now");
+    // deep/11 §9: the step's heading has the keyboard, never × (⏎ closed it).
+    await waitFor(() => expect(document.activeElement?.textContent).toBe("Switch to Account F"));
     fireEvent.click(screen.getByTestId("switch-continue"));
+    await waitFor(() => expect(document.activeElement?.textContent).toBe("Ready to switch to Account F"));
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch now");
   });
 });
