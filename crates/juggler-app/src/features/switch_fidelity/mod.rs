@@ -13,8 +13,9 @@
 //! in the source's own units: how many of its turns, tool calls, results
 //! and images arrived whole, shortened or not at all; its task list with
 //! each item's state; its subagents, rules files, MCP servers, folder and
-//! uncommitted changes; and the facts planted in its early, middle and
-//! late turns, probed on the target ([`facts`]).
+//! uncommitted changes; this project's notes (D-51); and the facts planted
+//! in its early, middle and late turns (or in a note), probed on the
+//! target ([`facts`]).
 //!
 //! [`measure`] is pure (unit-tested on the conformance fixtures);
 //! [`conversation_path`] and [`surroundings`] read what a live hop needs
@@ -201,6 +202,12 @@ pub struct Surroundings {
     /// MCP servers: on a source, the ones its conversation used; on a
     /// target, the ones its account has set up.
     pub mcp: Vec<String>,
+    /// D-51: the notes this side's account keeps for the project (the
+    /// tool's own memory of it), by name; none when its tool keeps none.
+    pub notes: Vec<String>,
+    /// Those notes' text, for finding a planted fact in them.
+    #[serde(skip)]
+    pub notes_text: String,
 }
 
 /// How the target received the history.
@@ -351,6 +358,18 @@ pub fn surroundings(
     let Some(adapter) = adapter else {
         return around;
     };
+    // D-51: the notes the account keeps for this project, through the
+    // adapter's own reader.
+    if let Some(record) = record.as_ref().filter(|_| adapter.keeps_project_memory())
+        && let Some(memory) = adapter.project_memory(&record.state_dir, folder)
+    {
+        for note in memory.notes {
+            around.notes_text.push_str(&note.text);
+            around.notes_text.push('\n');
+            around.notes.push(note.name);
+        }
+        around.notes.sort();
+    }
     around.rules = adapter
         .spec()
         .rules_files

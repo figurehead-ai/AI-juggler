@@ -1508,4 +1508,8 @@ they are offered the same way, with the same undo.
   apply, undo, a tool without notes), `--test switch_notes_handover`
   (the handover offer, the quote with the tick only, a note with a key
   left out), the `memory` unit tests in `juggler-adapter` and
-  `juggler-app`; vitest `src/components/switch-notes.test.tsx`.
+  `juggler-app`; vitest `src/components/switch-notes.test.tsx`; live,
+  the switching lab's notes suite (`just switch-lab-notes`, lab 21 in
+  `docs/qa/evidence/AJ-E1539/lab-2026-10-28.md`): a planted note
+  answered on B after the ticked copy, gone after its undo, and answered
+  by Codex from the handover.

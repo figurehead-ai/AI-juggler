@@ -60,6 +60,7 @@ pub fn measure(hop: &Hop) -> HopReport {
         subagents_row(hop),
         rules_row(hop),
         mcp_row(hop),
+        notes_row(hop),
         folder_row(hop),
         changes_row(hop),
     ];
@@ -458,6 +459,52 @@ fn mcp_row(hop: &Hop) -> Row {
     }
 }
 
+/// D-51: this project's notes. They travel only with the user's tick
+/// (copied to an account whose tool keeps notes, or quoted in a
+/// handover), and a note the keys check finds a key in is left out: one
+/// that didn't arrive is a reduction by design, never a loss.
+fn notes_row(hop: &Hop) -> Row {
+    let had = &hop.source.around.notes;
+    let quoted = |text: &str, name: &str| text.contains(&format!("{name}:\n> "));
+    let carried: Vec<String> = had
+        .iter()
+        .filter(|name| {
+            hop.target.around.notes.contains(name)
+                || match &hop.target.history {
+                    Received::Handover { text, .. } => quoted(text, name),
+                    _ => false,
+                }
+        })
+        .cloned()
+        .collect();
+    let how = match &hop.target.history {
+        Received::Handover { .. } => "quoted in the handover",
+        _ => "on the target",
+    };
+    Row {
+        measure: "Project notes",
+        source: had.len(),
+        carried: carried.len(),
+        carry: if carried.len() >= had.len() {
+            Carry::Whole
+        } else {
+            Carry::ByDesign
+        },
+        notes: if had.is_empty() {
+            "none kept for this project".to_owned()
+        } else if carried.len() >= had.len() {
+            format!("the source keeps {}; {how}: {}", list(had), list(&carried))
+        } else {
+            format!(
+                "the source keeps {}; {how}: {} (they travel only with your tick; a note with a \
+                 key is left out)",
+                list(had),
+                list(&carried)
+            )
+        },
+    }
+}
+
 fn folder_row(hop: &Hop) -> Row {
     let same = hop.source.around.folder == hop.target.around.folder;
     Row {
@@ -494,11 +541,23 @@ fn changes_row(hop: &Hop) -> Row {
 }
 
 fn fact_rows(hop: &Hop) -> Vec<FactRow> {
-    let source = hop.source.history.all_text().to_lowercase();
+    // A planted note's fact is in the side's notes, not its conversation.
+    let source = format!(
+        "{}\n{}",
+        hop.source.history.all_text(),
+        hop.source.around.notes_text
+    )
+    .to_lowercase();
     let received = match &hop.target.history {
-        Received::Native(target) => target.all_text(),
+        Received::Native(target) => {
+            format!("{}\n{}", target.all_text(), hop.target.around.notes_text)
+        }
         Received::Handover { text, .. } => text.clone(),
-        Received::Return { original, update } => format!("{}\n{update}", original.all_text()),
+        Received::Return { original, update } => format!(
+            "{}\n{update}\n{}",
+            original.all_text(),
+            hop.target.around.notes_text
+        ),
     }
     .to_lowercase();
     let holds = |text: &str, words: &[String]| {

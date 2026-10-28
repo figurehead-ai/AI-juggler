@@ -551,3 +551,91 @@ fn switching_back_counts_new_work_with_the_same_words_as_old() {
         .unwrap();
     assert_eq!((calls.source, calls.carried), (1, 1));
 }
+
+fn note_fact() -> Fact {
+    Fact {
+        key: "NOTE_CODENAME".to_owned(),
+        ask: "the codename this project's notes hold".to_owned(),
+        expect: vec!["marsh-wren".to_owned()],
+        planted: "A's notes for this project".to_owned(),
+        kind: Kind::Note,
+    }
+}
+
+#[test]
+fn project_notes_copied_or_quoted_are_whole_and_a_planted_note_is_found() {
+    let source = Conversation::from_bytes(&fixture("claude-code/session-basic.jsonl"));
+    let with_notes = |text: &str| Surroundings {
+        notes: vec!["lab-codename.md".to_owned()],
+        notes_text: text.to_owned(),
+        ..around("/lab")
+    };
+    // Copied to an account whose tool keeps notes.
+    let mut copied = hop(
+        source.clone(),
+        Received::Native(source.clone()),
+        vec![facts::score(
+            "NOTE_CODENAME=MARSH-WREN",
+            &note_fact(),
+            false,
+        )],
+    );
+    copied.source.around = with_notes("The codename is MARSH-WREN.");
+    copied.target.around = with_notes("The codename is MARSH-WREN.");
+    let report = measure(&copied);
+    let row = report
+        .rows
+        .iter()
+        .find(|row| row.measure == "Project notes")
+        .unwrap();
+    assert_eq!((row.source, row.carried, row.carry), (1, 1, Carry::Whole));
+    assert!(
+        row.notes.contains("on the target: lab-codename.md"),
+        "{}",
+        row.notes
+    );
+    assert!(report.facts[0].in_source && report.facts[0].received);
+    assert_eq!(report.grade, "PASS", "{}", report.markdown());
+    assert!(report.markdown().contains("| NOTE_CODENAME | A's notes for this project | a project note (the tool's own memory) | no | yes | answered |"));
+
+    // Quoted in a handover, for a tool that keeps none.
+    let mut quoted = hop(
+        source.clone(),
+        Received::Handover {
+            text: "This project's notes from Lab A:\n\nlab-codename.md:\n> The codename is MARSH-WREN.\n".to_owned(),
+            included: 1,
+            left_out: 0,
+        },
+        Vec::new(),
+    );
+    quoted.source.around = with_notes("The codename is MARSH-WREN.");
+    let row = measure(&quoted)
+        .rows
+        .into_iter()
+        .find(|row| row.measure == "Project notes")
+        .unwrap();
+    assert_eq!((row.source, row.carried, row.carry), (1, 1, Carry::Whole));
+    assert!(
+        row.notes.contains("quoted in the handover"),
+        "{}",
+        row.notes
+    );
+
+    // Not ticked: by design, never a loss.
+    let mut left = hop(source.clone(), Received::Native(source), Vec::new());
+    left.source.around = with_notes("The codename is MARSH-WREN.");
+    let row = measure(&left)
+        .rows
+        .into_iter()
+        .find(|row| row.measure == "Project notes")
+        .unwrap();
+    assert_eq!(
+        (row.source, row.carried, row.carry),
+        (1, 0, Carry::ByDesign)
+    );
+    assert!(
+        row.notes.contains("they travel only with your tick"),
+        "{}",
+        row.notes
+    );
+}

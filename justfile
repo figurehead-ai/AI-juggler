@@ -153,6 +153,16 @@ switch-lab project claude_a claude_b codex out probe="aij-lab-probe":
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
 
+# D-51 in the live lab: a note planted in Claude A's notes for the throwaway
+# project travels to B (ticked, then undone) and into Codex's handover (ticked).
+switch-lab-notes project claude_a claude_b codex out:
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=notes \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_notes_live --exact
+
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":

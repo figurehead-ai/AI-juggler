@@ -20,6 +20,9 @@ pub enum Kind {
     Rule,
     /// The open items of the task list.
     Tasks,
+    /// A note the source's tool keeps for the project (D-51), never in
+    /// the conversation.
+    Note,
 }
 
 impl Kind {
@@ -32,6 +35,7 @@ impl Kind {
             Self::Decision => "a decision, only in the conversation",
             Self::Rule => "a rules file",
             Self::Tasks => "the task list",
+            Self::Note => "a project note (the tool's own memory)",
         }
     }
 }

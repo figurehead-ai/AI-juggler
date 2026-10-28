@@ -36,6 +36,12 @@
 //! holds the words, so asking there would prove nothing), and at the end
 //! undoes every set-up.
 //!
+//! With `AIJ_LAB_SUITE=notes` (`just switch-lab-notes`), the
+//! `switch_lab_notes_live` suite checks D-51 instead: a note planted in A's
+//! notes folder for the lab project travels to B when its offer is ticked
+//! (and its undo takes it out), and into Codex's handover when its "include
+//! in the handover" offer is ticked (`switch_lab/notes.rs`).
+//!
 //! It never signs in, never reads a credential, and starts nothing outside
 //! the lab project. Before and after, it records every account folder's
 //! paths, sizes and modification times (never contents); the report lists
@@ -63,6 +69,8 @@ use serde_json::{Value, json};
 
 #[path = "switch_lab/fidelity.rs"]
 mod fidelity;
+#[path = "switch_lab/notes.rs"]
+mod notes;
 
 /// The codename the first turn is asked to remember.
 const CODENAME: &str = "BLUE-HERON";
@@ -960,6 +968,14 @@ fn switch_lab_live() {
         "{} lab step(s) failed; see the report",
         failed.len()
     );
+}
+
+/// D-51's suite: a project note on A travels to B and into Codex's
+/// handover, each only with the (harness's) tick (`switch_lab/notes.rs`).
+#[test]
+#[ignore = "the live switching lab's notes suite; needs AIJ_LAB_* and real, agreed accounts"]
+fn switch_lab_notes_live() {
+    notes::journey();
 }
 
 /// The three accounts the main journey brought in.
