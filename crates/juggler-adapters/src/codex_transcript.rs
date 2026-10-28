@@ -135,6 +135,9 @@ impl RolloutParser {
                 .entry(format!("{kind}/{subtype}"))
                 .or_default() += 1;
         }
+        if kind == "response_item" {
+            count_content(&mut parsed.content, payload);
+        }
         match kind.as_str() {
             "session_meta" => self.session_id = text(payload, "id").or(self.session_id.take()),
             "turn_context" => self.model = text(payload, "model").or(self.model.take()),
@@ -238,6 +241,42 @@ impl RolloutParser {
             usize::MAX,
         );
         self.parsed
+    }
+}
+
+/// Counts one `response_item`'s part in what the conversation carries
+/// besides text: a tool call (`function_call`, `custom_tool_call`,
+/// `local_shell_call`, … — every item type ending in `_call`), its result
+/// (`…_call_output`, an error when it says it failed) and the images in
+/// a message (`input_image`).
+fn count_content(
+    counts: &mut crate::claude_transcript::ContentCounts,
+    payload: &serde_json::Value,
+) {
+    let Some(item) = payload.get("type").and_then(serde_json::Value::as_str) else {
+        return;
+    };
+    if item.ends_with("_call") {
+        counts.tool_calls += 1;
+    } else if item.ends_with("_call_output") {
+        counts.tool_results += 1;
+        let failed = payload
+            .get("output")
+            .and_then(|output| output.get("success"))
+            .and_then(serde_json::Value::as_bool)
+            == Some(false);
+        if failed {
+            counts.tool_errors += 1;
+        }
+    } else if item == "message"
+        && let Some(serde_json::Value::Array(parts)) = payload.get("content")
+    {
+        counts.images += parts
+            .iter()
+            .filter(|part| {
+                part.get("type").and_then(serde_json::Value::as_str) == Some("input_image")
+            })
+            .count();
     }
 }
 
@@ -614,6 +653,9 @@ pub(crate) mod reference {
                     .subtypes
                     .entry(format!("{kind}/{subtype}"))
                     .or_default() += 1;
+            }
+            if kind == "response_item" {
+                count_content(&mut parsed.content, &payload);
             }
             match kind.as_str() {
                 "session_meta" => session_id = text(&payload, "id").or(session_id),

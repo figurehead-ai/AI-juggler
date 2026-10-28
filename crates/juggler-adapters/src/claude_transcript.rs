@@ -30,6 +30,24 @@ pub struct ParsedTranscript {
     pub usage: TokenCounts,
     /// AJ-E1541: the task list as the last call that set one left it.
     pub tasks: Option<Vec<crate::tool_summary::TaskItem>>,
+    /// What the conversation carries besides its words: tool calls, their
+    /// results and images (the measured switch fidelity counts them).
+    pub content: ContentCounts,
+}
+
+/// What a conversation's main thread carries besides text, counted. A
+/// subagent's own (sidechain) lines are left out: they are its work, not
+/// the conversation's.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ContentCounts {
+    /// Tool calls the model made.
+    pub tool_calls: usize,
+    /// Results that came back to it.
+    pub tool_results: usize,
+    /// Of those, results that were errors.
+    pub tool_errors: usize,
+    /// Images (and other attachments) in the conversation's messages.
+    pub images: usize,
 }
 
 /// One conversation message extracted from a transcript.
@@ -97,6 +115,12 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
         if (kind == "user" || kind == "assistant")
             && let Some(message) = extract_message(&value, &kind)
         {
+            if !message.sidechain {
+                count_content(
+                    &mut parsed.content,
+                    value.get("message").and_then(|m| m.get("content")),
+                );
+            }
             accumulate_usage(&mut parsed.usage, message.usage);
             for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
                 if let Some(tasks) = crate::tool_summary::task_list(name, input) {
@@ -107,6 +131,27 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
         }
     }
     parsed
+}
+
+/// Counts one message's tool calls, tool results (and errors among them)
+/// and images: Claude Code keeps each as a typed part of `content`.
+fn count_content(counts: &mut ContentCounts, content: Option<&serde_json::Value>) {
+    let Some(serde_json::Value::Array(parts)) = content else {
+        return;
+    };
+    for part in parts {
+        match part.get("type").and_then(serde_json::Value::as_str) {
+            Some("tool_use") => counts.tool_calls += 1,
+            Some("tool_result") => {
+                counts.tool_results += 1;
+                if part.get("is_error").and_then(serde_json::Value::as_bool) == Some(true) {
+                    counts.tool_errors += 1;
+                }
+            }
+            Some("image" | "document") => counts.images += 1,
+            _ => {}
+        }
+    }
 }
 
 fn extract_message(value: &serde_json::Value, kind: &str) -> Option<ParsedMessage> {

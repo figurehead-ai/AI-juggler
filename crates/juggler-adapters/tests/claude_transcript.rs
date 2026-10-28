@@ -292,3 +292,29 @@ fn subagents_are_read_from_task_and_agent_calls() {
         ]
     );
 }
+
+#[test]
+fn tool_calls_results_and_images_are_counted_on_the_main_thread_only() {
+    let parsed = parse_transcript(&fixture("session-basic.jsonl"));
+    assert_eq!(parsed.content.tool_calls, 1);
+    assert_eq!(parsed.content.tool_results, 1);
+    assert_eq!(parsed.content.tool_errors, 0);
+    let lines = concat!(
+        r#"{"type":"user","uuid":"u1","message":{"role":"user","content":[{"type":"text","text":"look"},{"type":"image","source":{"type":"base64","data":""}}]}}"#,
+        "\n",
+        r#"{"type":"assistant","uuid":"a1","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"false"}}]}}"#,
+        "\n",
+        r#"{"type":"user","uuid":"u2","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"exit 1"}]}}"#,
+        "\n",
+        r#"{"type":"assistant","uuid":"s1","isSidechain":true,"message":{"role":"assistant","content":[{"type":"tool_use","id":"t2","name":"Read","input":{}}]}}"#,
+        "\n"
+    );
+    let parsed = parse_transcript(lines.as_bytes());
+    assert_eq!(parsed.content.images, 1);
+    assert_eq!(
+        parsed.content.tool_calls, 1,
+        "the sidechain's call is its own"
+    );
+    assert_eq!(parsed.content.tool_results, 1);
+    assert_eq!(parsed.content.tool_errors, 1);
+}
