@@ -3,14 +3,17 @@
  * (D-03: cross-machine is always a brief wizard, never one click).
  *
  * Target lists every precondition before anything runs: T2 (the same
- * conversation, transplanted) needs the same harness version and the same
+ * conversation, transplanted) needs the same tool version and the same
  * project path, or a project mapping the user confirms; otherwise T2 is
  * blocked with its reasons and T3 (full story, fresh start) is OFFERED —
- * never a silent downgrade. "What's carried" lists what will drop in
- * plain words before Switch enables. Nothing crosses the link until the
- * final "Switch to <machine>…" click; the push shows progress and can be
- * cancelled. Keyboard: radio groups with descriptions, Esc closes, Tab
- * stays in the dialog.
+ * never a silent downgrade. "What goes along" lists what stays behind in
+ * plain words before Switch now enables. Nothing crosses the link until
+ * the final Switch now; the push shows progress and Stop sending stops it.
+ *
+ * It shares this Mac's switch dialog's frame (switch/SwitchDialogFrame):
+ * the step marks and × in a header, a body that scrolls, Cancel (Esc) ·
+ * Back · the primary in a footer, on every step; Retry on a failure; Esc
+ * waits while the push runs (§4.9), saying so.
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import {
@@ -23,6 +26,9 @@ import {
   type RemoteSwitchTargetInfo,
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
+import type { FreezeChoice } from "./SwitchFreezeChoice";
+import { CrossCarried, CrossConfirm, CrossProject, CrossTarget, type Mechanism } from "./switch/CrossSteps";
+import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, SECONDARY, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 
 type Phase =
   | { kind: "wizard" }
@@ -42,14 +48,19 @@ export function CrossMachineSwitchFlow({
   onSwitched?: (outcome: FleetSwitchOutcomeInfo) => void;
 }): JSX.Element {
   const t2Possible = target.readiness === "t2_ready" || target.readiness === "needs_mapping";
-  const [mechanism, setMechanism] = useState<"transplant" | "replay">(t2Possible ? "transplant" : "replay");
+  const [mechanism, setMechanism] = useState<Mechanism>(t2Possible ? "transplant" : "replay");
   const [projectId, setProjectId] = useState<string | null>(target.same_path_project);
   const [confirmed, setConfirmed] = useState(false);
   const [secrets, setSecrets] = useState<"strip" | "keep" | null>(null);
-  const [freeze, setFreeze] = useState<"finish-turn" | "stop-now">("finish-turn");
+  const [freeze, setFreeze] = useState<FreezeChoice>("finish-turn");
   const [phase, setPhase] = useState<Phase>({ kind: "wizard" });
   const [step, setStep] = useState(0);
+  // §4.9: Esc (or ×) pressed while the push runs: said, not obeyed.
+  const [holding, setHolding] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  // AJ-E804 (WCAG 2.4.3): closing returns focus to what opened it.
+  const invokerRef = useRef<Element | null>(null);
+  if (invokerRef.current === null) invokerRef.current = document.activeElement;
 
   const mapped = projectId !== null && projectId !== target.same_path_project;
   const steps = useMemo(() => {
@@ -61,43 +72,29 @@ export function CrossMachineSwitchFlow({
   const current = steps[step];
   const projectReady = projectId !== null && (!mapped || confirmed);
   const secretsReady = mechanism === "transplant" || secrets !== null;
-  const stepReady =
-    current === "Project" ? projectReady : current === "What's carried" ? secretsReady : true;
+  const stepReady = current === "Project" ? projectReady : current === "What's carried" ? secretsReady : true;
   const armed = current === "Confirm" && projectReady && secretsReady;
+  const pushing = phase.kind === "pushing";
 
   useEffect(() => onFleetSwitchProgress((update) => {
     if (update.machine_id !== target.machine_id) return;
     setPhase((now) => (now.kind === "pushing" ? { kind: "pushing", progress: update } : now));
   }), [target.machine_id]);
 
-  useEffect(() => {
-    const node = dialogRef.current;
-    node?.querySelector<HTMLElement>("input:checked, button, input")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        if (phase.kind === "pushing") void fleetSwitchCancel(target.machine_id);
-        else onClose();
-      }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(node.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, phase.kind, step, target.machine_id]);
+  const close = () => {
+    if (pushing) {
+      setHolding(true);
+      return;
+    }
+    const invoker = invokerRef.current;
+    onClose();
+    requestAnimationFrame(() => {
+      if (invoker instanceof HTMLElement && invoker.isConnected) invoker.focus();
+    });
+  };
 
   const execute = async () => {
+    setHolding(false);
     setPhase({ kind: "pushing", progress: null });
     try {
       const outcome = await fleetSwitchExecute({
@@ -121,315 +118,44 @@ export function CrossMachineSwitchFlow({
     }
   };
 
+  // Focus, Tab and Esc: the switch dialogs' shared rules.
+  useDialogKeys(dialogRef, `${phase.kind}:${step}`, close);
+
   const machine = target.machine_label;
-  const projectName =
-    target.projects.find((project) => project.project_id === projectId)?.name ?? "the project";
-  const orderedProjects = [...target.projects].sort(
-    (a, b) => Number(b.same_path) - Number(a.same_path) || Number(b.same_name) - Number(a.same_name),
-  );
+  const projectName = target.projects.find((project) => project.project_id === projectId)?.name ?? "the project";
+  const cancel = <CancelButton onClick={close} testId="cross-switch-cancel" />;
+  const badge = mechanism === "transplant" ? target.badge : "Full story, fresh start · Not proven yet";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cross-switch-title"
-        data-testid="cross-switch-flow"
-        className="flex max-h-[90vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
-      >
-        <h3 id="cross-switch-title" className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-          Switch to {target.account_label} on {machine}
-          <span className="rounded border border-warning/60 px-1.5 py-px text-label font-normal text-warning">
-            {mechanism === "transplant" ? target.badge : "Full story, fresh start · Not proven yet"}
-          </span>
-        </h3>
+  const header = phase.kind === "wizard" && <StepMarks steps={steps} step={step} testId="cross-switch-steps" />;
 
-        {phase.kind === "wizard" && (
-          <>
-            <div className="flex flex-col gap-1" aria-live="polite" data-testid="cross-switch-steps">
-              <p className="text-section font-semibold text-ink">
-                Step {step + 1} of {steps.length}: {current}
-              </p>
-              <ol className="flex flex-wrap gap-1">
-                {steps.map((title, index) => (
-                  <li
-                    key={title}
-                    className={
-                      "rounded-full border px-2 py-0.5 text-label " +
-                      (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
-                    }
-                  >
-                    {index < step ? "✓ " : ""}
-                    {title}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {current === "Target" && (
-              <div className="flex flex-col gap-2" data-testid="cross-switch-target">
-                <ul className="flex flex-col gap-1 text-label" data-testid="cross-switch-preconditions">
-                  {target.provider === "" ? null : (
-                    <li className={target.version_there && target.version_here === target.version_there ? "text-ink" : "text-muted"}>
-                      <span aria-hidden="true">
-                        {target.version_there && target.version_here === target.version_there ? "✓ " : "✗ "}
-                      </span>
-                      {target.provider} {target.version_here ?? "unknown"} here,{" "}
-                      {target.version_there ?? "not installed"} on {machine}
-                    </li>
-                  )}
-                  <li className={target.same_path_project ? "text-ink" : "text-muted"}>
-                    <span aria-hidden="true">{target.same_path_project ? "✓ " : "✗ "}</span>
-                    {target.same_path_project
-                      ? `The project is at the same path on ${machine}`
-                      : `The project isn't at the same path on ${machine}`}
-                  </li>
-                </ul>
-                {target.blockers.length > 0 && (
-                  <ul className="flex flex-col gap-1" data-testid="cross-switch-blockers">
-                    {target.blockers.map((reason) => (
-                      <li key={reason} className="rounded border border-warning/40 px-2 py-1 text-label text-ink">
-                        <span aria-hidden="true">⚠ </span>
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div role="radiogroup" aria-label="How the work moves" className="flex flex-col gap-1.5">
-                  <label
-                    className={
-                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
-                      (mechanism === "transplant" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
-                      (t2Possible ? "" : " opacity-70")
-                    }
-                  >
-                    <input
-                      type="radio"
-                      name="cross-mechanism"
-                      checked={mechanism === "transplant"}
-                      disabled={!t2Possible}
-                      onChange={() => setMechanism("transplant")}
-                      aria-describedby="cross-t2-desc"
-                      data-testid="cross-switch-t2"
-                    />
-                    <span>
-                      <span className="block font-medium text-ink">Same conversation</span>
-                      <span id="cross-t2-desc" className="text-muted">
-                        {t2Possible
-                          ? `${machine} resumes this conversation — its files are copied there.`
-                          : "Not possible here — see the reasons above."}
-                      </span>
-                    </span>
-                  </label>
-                  <label
-                    className={
-                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
-                      (mechanism === "replay" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
-                      (target.replay_available ? "" : " opacity-70")
-                    }
-                  >
-                    <input
-                      type="radio"
-                      name="cross-mechanism"
-                      checked={mechanism === "replay"}
-                      disabled={!target.replay_available}
-                      onChange={() => setMechanism("replay")}
-                      aria-describedby="cross-t3-desc"
-                      data-testid="cross-switch-t3"
-                    />
-                    <span>
-                      <span className="block font-medium text-ink">Full story, fresh start</span>
-                      <span id="cross-t3-desc" className="text-muted">
-                        A new session on {machine} starts from the distilled turns (secrets handled as you choose).
-                      </span>
-                    </span>
-                  </label>
-                </div>
-              </div>
-            )}
-
+  const body = (() => {
+    switch (phase.kind) {
+      case "wizard":
+        return (
+          <div className="flex flex-col gap-4" data-testid="cross-switch-wizard">
+            {current === "Target" && <CrossTarget target={target} badge={badge} mechanism={mechanism} onMechanism={setMechanism} t2Possible={t2Possible} />}
             {current === "Project" && (
-              <div className="flex flex-col gap-2" data-testid="cross-switch-project">
-                <p className="text-label text-ink">
-                  The project isn't at the same path on {machine}. Pick its copy there — paths inside the
-                  conversation are mapped to it only with your confirmation.
-                </p>
-                {orderedProjects.length === 0 ? (
-                  <p className="text-label text-muted" data-testid="cross-switch-no-projects">
-                    {machine} knows no projects yet — open the project there once, then try again.
-                  </p>
-                ) : (
-                  <div role="radiogroup" aria-label={`Project on ${machine}`} className="flex flex-col gap-1">
-                    {orderedProjects.map((project) => (
-                      <label
-                        key={project.project_id}
-                        className={
-                          "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-label " +
-                          (projectId === project.project_id ? "border-accent/60 bg-accent-soft" : "border-hairline")
-                        }
-                      >
-                        <input
-                          type="radio"
-                          name="cross-project"
-                          checked={projectId === project.project_id}
-                          onChange={() => {
-                            setProjectId(project.project_id);
-                            setConfirmed(false);
-                          }}
-                          data-testid="cross-switch-project-option"
-                        />
-                        <span className="font-medium text-ink">{project.name}</span>
-                        {project.same_name && <span className="text-muted">— same name (suggested)</span>}
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {projectId !== null && mapped && (
-                  <label className="flex items-start gap-2 text-label text-ink">
-                    <input
-                      type="checkbox"
-                      checked={confirmed}
-                      onChange={(event) => setConfirmed(event.target.checked)}
-                      data-testid="cross-switch-confirm-mapping"
-                    />
-                    <span>
-                      Continue in <span className="font-medium">{projectName}</span> on {machine} — this
-                      conversation's paths are mapped to it.
-                    </span>
-                  </label>
-                )}
-              </div>
+              <CrossProject
+                target={target}
+                projectId={projectId}
+                onProject={(id) => {
+                  setProjectId(id);
+                  setConfirmed(false);
+                }}
+                confirmed={confirmed}
+                onConfirmed={setConfirmed}
+              />
             )}
-
-            {current === "What's carried" && (
-              <div className="flex flex-col gap-2 text-label" data-testid="cross-switch-carry">
-                {target.carried.length > 0 && (
-                  <p className="text-ink">
-                    <span className="font-medium">Carries:</span> {target.carried.join(", ")}
-                  </p>
-                )}
-                {target.regenerated.length > 0 && (
-                  <p className="text-ink">
-                    <span className="font-medium">Rebuilt there:</span> {target.regenerated.join(", ")}
-                  </p>
-                )}
-                <p className="text-ink" data-testid="cross-switch-drops">
-                  <span className="font-medium">Will drop:</span>{" "}
-                  {target.dropped.length > 0 ? target.dropped.join(", ") : "nothing"}
-                </p>
-                {mechanism === "transplant" ? (
-                  <p className="text-muted">
-                    The conversation's files are copied to {machine}; this Mac keeps its own copy unchanged.
-                  </p>
-                ) : (
-                  <div role="radiogroup" aria-label="Keys and passwords in this conversation" className="flex flex-col gap-1">
-                    <p className="text-ink">Keys and passwords in this conversation:</p>
-                    {(
-                      [
-                        ["strip", "Hide them (recommended)", "They're replaced with ••• and never leave this Mac. If the other session needs a key, it asks you."],
-                        ["keep", "Leave them in", `They travel to ${machine} exactly as written. Use this only if the work needs them.`],
-                      ] as const
-                    ).map(([value, title, body]) => (
-                      <label
-                        key={value}
-                        className={
-                          "flex items-start gap-2 rounded-lg border px-2.5 py-1.5 " +
-                          (secrets === value ? "border-accent/60 bg-accent-soft" : "border-hairline")
-                        }
-                      >
-                        <input
-                          type="radio"
-                          name="cross-secrets"
-                          checked={secrets === value}
-                          onChange={() => setSecrets(value)}
-                          data-testid={`cross-switch-secrets-${value}`}
-                        />
-                        <span>
-                          <span className="block font-medium text-ink">{title}</span>
-                          <span className="text-muted">{body}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {current === "Confirm" && (
-              <div className="flex flex-col gap-2 text-label" data-testid="cross-switch-confirm">
-                <p className="text-ink">
-                  {mechanism === "transplant" ? "Same conversation" : "Full story, fresh start"} under{" "}
-                  {target.account_label} in {projectName} on {machine}.
-                  {target.dropped.length > 0 ? ` Drops: ${target.dropped.join(", ")}.` : ""}
-                </p>
-                <div role="radiogroup" aria-label="This session" className="flex flex-col gap-1">
-                  {(
-                    [
-                      ["finish-turn", "Let the current turn finish, then switch"],
-                      ["stop-now", "Stop now and switch"],
-                    ] as const
-                  ).map(([value, title]) => (
-                    <label key={value} className="flex items-center gap-2 text-ink">
-                      <input
-                        type="radio"
-                        name="cross-freeze"
-                        checked={freeze === value}
-                        onChange={() => setFreeze(value)}
-                      />
-                      {title}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-                data-testid="cross-switch-back"
-              >
-                {step === 0 ? "Cancel" : "Back"}
-              </button>
-              {current !== "Confirm" ? (
-                <button
-                  type="button"
-                  disabled={!stepReady}
-                  onClick={() => setStep(step + 1)}
-                  className={
-                    "rounded-lg border px-3 py-1.5 text-xs " +
-                    (stepReady ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
-                  }
-                  data-testid="cross-switch-next"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!armed}
-                  onClick={() => void execute()}
-                  className={
-                    "rounded-lg border px-3 py-1.5 text-xs " +
-                    (armed ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
-                  }
-                  data-testid="cross-switch-go"
-                >
-                  Switch to {machine}…
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {phase.kind === "pushing" && (
-          <div className="flex flex-col gap-2" data-testid="cross-switch-pushing" aria-live="polite">
-            <p className="text-label text-ink">
-              {phase.progress?.phase === "installing"
-                ? `${machine} is installing and starting it…`
-                : `Sending to ${machine}…`}
+            {current === "What's carried" && <CrossCarried target={target} mechanism={mechanism} secrets={secrets} onSecrets={setSecrets} />}
+            {current === "Confirm" && <CrossConfirm target={target} badge={badge} mechanism={mechanism} projectName={projectName} freeze={freeze} onFreeze={setFreeze} />}
+          </div>
+        );
+      case "pushing":
+        return (
+          <div className="flex flex-col gap-3" data-testid="cross-switch-pushing" aria-live="polite">
+            <h3 className="text-title text-ink">Switching to {target.account_label} on {machine}…</h3>
+            <p className="text-body text-ink">
+              {phase.progress?.phase === "installing" ? `${machine} is setting it up and starting it…` : `Sending it to ${machine}…`}
             </p>
             {phase.progress && phase.progress.total_bytes > 0 && (
               <>
@@ -441,75 +167,86 @@ export function CrossMachineSwitchFlow({
                   aria-valuenow={phase.progress.received_bytes}
                   className="h-1.5 w-full overflow-hidden rounded-full bg-hairline"
                 >
-                  <div
-                    className="h-full bg-accent"
-                    style={{
-                      width: `${Math.min(100, (phase.progress.received_bytes / phase.progress.total_bytes) * 100)}%`,
-                    }}
-                  />
+                  <div className="h-full bg-accent" style={{ width: `${Math.min(100, (phase.progress.received_bytes / phase.progress.total_bytes) * 100)}%` }} />
                 </div>
-                <p className="text-label text-muted">
+                <p className="text-meta text-ink">
                   {byteSize(phase.progress.received_bytes)} of {byteSize(phase.progress.total_bytes)}
                 </p>
               </>
             )}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => void fleetSwitchCancel(target.machine_id)}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-                data-testid="cross-switch-cancel"
-              >
-                Cancel
-              </button>
-            </div>
+            <p className="text-body text-ink">The original stays safe on this Mac until the new session is running.</p>
+            {holding && (
+              <p className="text-body font-semibold text-ink" role="status" data-testid="cross-switch-holding">
+                Still sending. Choose Stop sending to stop it; nothing changes on either Mac.
+              </p>
+            )}
           </div>
-        )}
-
-        {phase.kind === "done" && (
-          <div className="flex flex-col gap-2" data-testid="cross-switch-done" aria-live="polite">
-            <p className="text-label text-ink">
-              <span aria-hidden="true">✓ </span>
-              {phase.outcome.message} — on {machine}. This session rests here as handed over.
+        );
+      case "done":
+        return (
+          <div className="flex flex-col gap-3" data-testid="cross-switch-done" aria-live="polite">
+            <h3 className="text-title text-ink">Switched to {target.account_label} on {machine}</h3>
+            <p className="text-body text-ink">
+              {phase.outcome.message}. This session rests here, handed over; you can switch back to it any time.
             </p>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              >
-                Close
-              </button>
-            </div>
           </div>
-        )}
-
-        {phase.kind === "failed" && (
-          <div className="flex flex-col gap-2" data-testid="cross-switch-failed" role="alert">
-            <p className="text-label text-ink">
-              <span aria-hidden="true">✗ </span>
+        );
+      case "failed":
+        return (
+          <div className="flex flex-col gap-4" data-testid="cross-switch-failed" role="alert">
+            <h3 className="text-title text-warning">The switch didn't complete</h3>
+            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="cross-switch-failed-words">
               {phase.message}
             </p>
-            <p className="text-label text-muted">Nothing changed on this Mac.</p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPhase({ kind: "wizard" })}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              >
-                Close
-              </button>
-            </div>
+            <p className="text-body text-ink">Nothing was changed: the original stays exactly as it was on this Mac — resume it where you left it, or try again.</p>
           </div>
-        )}
-      </div>
-    </div>
+        );
+    }
+  })();
+
+  const footer = (() => {
+    switch (phase.kind) {
+      case "wizard":
+        return (
+          <>
+            {cancel}
+            {step > 0 && <BackButton onClick={() => setStep(step - 1)} testId="cross-switch-back" />}
+            {current !== "Confirm" ? (
+              <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" />
+            ) : (
+              <button type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} className={armed ? PRIMARY : PRIMARY_WAITING} data-testid="cross-switch-go">
+                Switch now
+              </button>
+            )}
+          </>
+        );
+      case "pushing":
+        return (
+          <button type="button" onClick={() => void fleetSwitchCancel(target.machine_id)} className={SECONDARY} data-testid="cross-switch-stop">
+            Stop sending
+          </button>
+        );
+      case "done":
+        return (
+          <button type="button" data-autofocus onClick={close} className={PRIMARY} data-testid="cross-switch-close">
+            Close
+          </button>
+        );
+      case "failed":
+        return (
+          <>
+            {cancel}
+            <button type="button" data-autofocus onClick={() => void execute()} className={PRIMARY} data-testid="cross-switch-retry">
+              Retry
+            </button>
+          </>
+        );
+    }
+  })();
+
+  return (
+    <SwitchDialogFrame dialogRef={dialogRef} label={`Switch to ${target.account_label} on ${machine}`} testId="cross-switch-flow" header={header} footer={footer} onClose={pushing ? null : close}>
+      {body}
+    </SwitchDialogFrame>
   );
 }

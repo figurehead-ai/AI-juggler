@@ -9,7 +9,7 @@
  * and three described choices.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
@@ -80,9 +80,9 @@ describe("AJ-E706 wizard", () => {
     expect(q("cross-switch-preconditions")!.textContent).toContain("2.1.0 here, 2.1.0 on Studio Mac");
     expect(q("cross-switch-project")).toBeNull();
     fireEvent.click(q("cross-switch-next")!);
-    expect(q("cross-switch-drops")!.textContent).toContain("Will drop: MCP servers");
+    expect(q("switch-carry-stays")!.textContent).toContain("MCP servers");
     fireEvent.click(q("cross-switch-next")!);
-    expect(q("cross-switch-go")!.textContent).toBe("Switch to Studio Mac…");
+    expect(q("cross-switch-go")!.textContent).toBe("Switch now");
     expect(calls()).toEqual([]);
     await act(async () => {
       fireEvent.click(q("cross-switch-go")!);
@@ -134,7 +134,7 @@ describe("AJ-E706 wizard", () => {
         target={target({
           readiness: "t2_blocked",
           mechanism: "replay",
-          blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
+          blockers: ["Claude Code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
           version_there: "2.0.9",
         })}
         onClose={() => {}}
@@ -152,6 +152,82 @@ describe("AJ-E706 wizard", () => {
       fireEvent.click(q("cross-switch-go")!);
     });
     expect(calls()).toEqual(["switch:machine-studio:rec-desk:replay:proj-1"]);
+  });
+});
+
+/**
+ * The maintainer's walk of 0.1.8 (2026-10-27), for both switch dialogs:
+ * Cancel on every step and a close ×, the buttons in a footer outside the
+ * part that scrolls, the same words, Retry after a failure (focused), and
+ * Esc held while the push runs.
+ */
+describe("AJ-E706 the shared switch frame", () => {
+  const mount = (over: Partial<RemoteSwitchTargetInfo> = {}, onClose = vi.fn()) => {
+    const view = render(<CrossMachineSwitchFlow sessionId="s1" target={target(over)} onClose={onClose} />);
+    return { view, onClose, q: (id: string) => view.container.querySelector<HTMLElement>(`[data-testid='${id}']`) };
+  };
+
+  it("has Cancel (Esc) and × on every step, Back from the second, Continue to go on", () => {
+    const { q, onClose } = mount({ same_path_project: null, readiness: "needs_mapping" });
+    const body = q("switch-body")!;
+    for (let step = 0; step < 4; step += 1) {
+      expect(q("cross-switch-cancel")!.textContent).toBe("Cancel (Esc)");
+      expect(q("switch-close")).not.toBeNull();
+      expect(q("switch-footer")!.contains(q("cross-switch-cancel"))).toBe(true);
+      expect(body.contains(q("cross-switch-cancel"))).toBe(false);
+      expect(q("switch-header")!.contains(q("cross-switch-steps"))).toBe(true);
+      expect(q("cross-switch-back") === null).toBe(step === 0);
+      const next = q("cross-switch-next") as HTMLButtonElement | null;
+      if (step < 3) expect(next!.textContent).toBe("Continue");
+      if (step === 1) {
+        fireEvent.click(q("cross-switch-project-option")!);
+        fireEvent.click(q("cross-switch-confirm-mapping")!);
+      }
+      if (next) fireEvent.click(next);
+    }
+    expect(q("cross-switch-go")!.textContent).toBe("Switch now");
+    fireEvent.click(q("cross-switch-cancel")!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the tool, never its id", () => {
+    const { view } = mount();
+    expect(view.container.textContent).toContain("Claude Code 2.1.0 here");
+    expect(view.container.textContent).not.toContain("claude-code");
+  });
+
+  it("holds Esc while the push runs, with no ×; Stop sending stops it", async () => {
+    w().__AIJ_FLEET_SWITCH_HANG__ = true;
+    const { q, onClose } = mount();
+    fireEvent.click(q("cross-switch-next")!);
+    fireEvent.click(q("cross-switch-next")!);
+    await act(async () => {
+      fireEvent.click(q("cross-switch-go")!);
+    });
+    expect(q("cross-switch-pushing")).not.toBeNull();
+    expect(q("switch-close")).toBeNull();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(q("cross-switch-holding")!.textContent).toContain("Still sending");
+    expect(q("cross-switch-stop")!.textContent).toBe("Stop sending");
+    delete w().__AIJ_FLEET_SWITCH_HANG__;
+  });
+
+  it("offers Retry after a failure, focused, and Retry sends again", async () => {
+    w().__AIJ_FLEET_SWITCH_OUTCOME__ = { accepted: false, reason_code: "launch_failed", message: "The new session on Desktop Max didn't start, so nothing moved.", instance_id: null, edge_id: null, divergence: null };
+    const { q } = mount();
+    fireEvent.click(q("cross-switch-next")!);
+    fireEvent.click(q("cross-switch-next")!);
+    await act(async () => {
+      fireEvent.click(q("cross-switch-go")!);
+    });
+    await waitFor(() => expect(q("cross-switch-failed")).not.toBeNull());
+    expect(q("cross-switch-failed-words")!.textContent).toBe("The new session on Desktop Max didn't start, so nothing moved.");
+    await waitFor(() => expect(document.activeElement).toBe(q("cross-switch-retry")));
+    await act(async () => {
+      fireEvent.click(q("cross-switch-retry")!);
+    });
+    expect(calls().length).toBe(2);
   });
 });
 

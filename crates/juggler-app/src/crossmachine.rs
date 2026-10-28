@@ -218,6 +218,8 @@ pub struct RemoteSwitchTargetInfo {
 /// The source of a switch, as the assessment needs it.
 pub(crate) struct Source<'a> {
     pub provider: &'a str,
+    /// A tool's name from its id, for the reasons a person reads (D-25).
+    pub tool_name: &'a dyn Fn(&str) -> String,
     pub version: Option<&'a str>,
     pub root_digest: &'a str,
     pub project_name: &'a str,
@@ -330,19 +332,20 @@ fn readiness_of(
     if !unavailable.is_empty() {
         return ("unavailable", blockers);
     }
+    let tool = (source.tool_name)(provider);
     if provider != source.provider {
         if version_there.is_none() {
-            blockers.push(format!("{provider} isn't installed on {machine_label}."));
+            blockers.push(format!("{tool} isn't installed on {machine_label}."));
         }
         return ("t3_only", blockers);
     }
     match (source.version, version_there) {
-        (_, None) => blockers.push(format!("{provider} isn't installed on {machine_label}.")),
+        (_, None) => blockers.push(format!("{tool} isn't installed on {machine_label}.")),
         (None, Some(_)) => blockers.push(format!(
-            "This Mac's {provider} version couldn't be read — moving the same conversation needs both to match."
+            "This Mac's {tool} version couldn't be read — moving the same conversation needs both to match."
         )),
         (Some(here), Some(there)) if here != there => blockers.push(format!(
-            "{provider} {here} here, {there} on {machine_label} — moving the same conversation needs the same version."
+            "{tool} {here} here, {there} on {machine_label} — moving the same conversation needs the same version."
         )),
         _ => {}
     }
@@ -394,8 +397,10 @@ pub fn fleet_switch_targets_impl(
     let versions = harness_versions(state);
     let version = version_of(&versions, account.harness.as_str());
     let digest = root_digest(&root);
+    let tool_name = |id: &str| crate::features::tools::display_name(&state.registry, id);
     let source = Source {
         provider: account.harness.as_str(),
+        tool_name: &tool_name,
         version: version.as_deref(),
         root_digest: &digest,
         project_name: &project_name,

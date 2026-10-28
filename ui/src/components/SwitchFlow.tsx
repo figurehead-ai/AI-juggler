@@ -15,6 +15,7 @@
  * carry list in plain words; and a confirm screen to read.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 import { outsideWords, type FreezeChoice } from "./SwitchFreezeChoice";
 import { SwitchSetupResults } from "./SwitchSetupList";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
@@ -42,10 +43,6 @@ type Phase =
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null };
-
-const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
-const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
-const PRIMARY = `${BUTTON} border-accent/50 bg-accent-soft font-semibold text-accent-hi hover:border-accent/70`;
 
 export function SwitchFlow({
   sessionId,
@@ -137,41 +134,9 @@ export function SwitchFlow({
   // step only — never mid-wizard (deep/09 H-5).
   const executeArmed = phase.kind === "confirm" && (phase.preflight.door === "one-click" || step === steps.length - 1) && !keysPending;
 
-  // Focus trap + Esc/⏎ handling (2.1.2/2.1.1 — the dialog is the
-  // only operable surface while open).
-  useEffect(() => {
-    const node = dialogRef.current;
-    // The phase's own default (Retry, Go to the new session) first; else
-    // the first control, in the header, body, footer order.
-    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? node?.querySelector<HTMLElement>("button, input"))?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        cancel();
-        return;
-      }
-      if (event.key === "Enter" && executeArmed && !(event.target instanceof HTMLButtonElement)) {
-        event.preventDefault();
-        void execute(phase.kind === "confirm" ? phase.preflight : null);
-      }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(node.querySelectorAll<HTMLElement>("button:not(:disabled), input, summary"));
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last?.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase.kind, step, executeArmed, onClose]);
+  // Focus, Tab, Esc and ⏎: the switch dialogs' shared rules (2.1.2/2.1.1
+  // — the dialog is the only operable surface while open).
+  useDialogKeys(dialogRef, `${phase.kind}:${step}`, cancel, executeArmed ? () => void execute(phase.kind === "confirm" ? phase.preflight : null) : undefined);
 
   const toggleUnhide = (index: number) =>
     setUnhide((current) => {
@@ -255,17 +220,13 @@ export function SwitchFlow({
       // the user hasn't seen (deep/09 H-5).
       onClick={(event) => event.detail < 2 && void execute(preflight)}
       data-testid="switch-confirm"
-      className={keysPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}
+      className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
       Switch now
     </button>
   );
-  const cancelButton = (
-    <button type="button" onClick={cancel} className={SECONDARY} data-testid="switch-cancel" aria-keyshortcuts="Escape">
-      Cancel <span className="text-muted">(Esc)</span>
-    </button>
-  );
+  const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;
 
   // The dialog is a header (the step marks and ×), a body that scrolls,
   // and a footer with the buttons: the way on and the way out are always
@@ -273,23 +234,9 @@ export function SwitchFlow({
   const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
-  const header = wizard && (
-    // The step indicator lists ONLY the rendered steps — "Step 2 of 3",
-    // never phantom steps (§8).
-    <div className="flex flex-col gap-1.5" data-testid="switch-steps" aria-live="polite">
-      <p className="text-meta text-ink">
-        Step {step + 1} of {steps.length}: {steps[step]}
-      </p>
-      <ol className="flex flex-wrap gap-1">
-        {steps.map((title, index) => (
-          <li key={title} aria-current={index === step ? "step" : undefined} className={"rounded-full border px-2.5 py-0.5 text-label " + (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-ink")}>
-            {index < step ? "✓ " : ""}
-            {title}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
+  // The step marks list ONLY the rendered steps — "Step 2 of 3", never
+  // phantom steps (§8).
+  const header = wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />;
 
   const body = (() => {
     switch (phase.kind) {
@@ -375,15 +322,9 @@ export function SwitchFlow({
               </p>
             )}
             {cancelButton}
-            {step > 0 && (
-              <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} className={SECONDARY} data-testid="switch-back">
-                Back
-              </button>
-            )}
+            {step > 0 && <BackButton onClick={() => setStep((current) => Math.max(0, current - 1))} testId="switch-back" />}
             {step < steps.length - 1 ? (
-              <button key="continue" type="button" disabled={carriedPending} onClick={() => setStep((current) => current + 1)} data-testid="switch-continue" className={carriedPending ? `${BUTTON} border-hairline text-muted` : PRIMARY}>
-                Continue
-              </button>
+              <ContinueButton ready={!carriedPending} onClick={() => setStep((current) => current + 1)} testId="switch-continue" />
             ) : (
               switchButton(phase.preflight)
             )}
@@ -410,33 +351,9 @@ export function SwitchFlow({
   })();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Switch to ${targetLabel}`}
-        data-testid="switch-flow"
-        className="flex max-h-[min(92vh,760px)] w-full max-w-[680px] flex-col overflow-hidden rounded-xl border border-hairline bg-surface shadow-card"
-      >
-        <div className="flex shrink-0 items-start gap-3 px-6 pt-5" data-testid="switch-header">
-          <div className="min-w-0 flex-1 pb-3">{header}</div>
-          {!running && (
-            <button type="button" onClick={cancel} aria-label="Close" title="Close (Esc)" className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
-              <span aria-hidden="true" className="text-lg leading-none">×</span>
-            </button>
-          )}
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5" data-testid="switch-body">
-          {body}
-        </div>
-        {footer && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3" data-testid="switch-footer">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+    <SwitchDialogFrame dialogRef={dialogRef} label={`Switch to ${targetLabel}`} testId="switch-flow" header={header} footer={footer} onClose={running ? null : cancel}>
+      {body}
+    </SwitchDialogFrame>
   );
 }
 

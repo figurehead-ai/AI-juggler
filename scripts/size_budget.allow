@@ -14,11 +14,9 @@ crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
 crates/juggler-supervisor/src/supervisor.rs 1515
 ui/src/App.tsx 1215
-ui/src/components/CrossMachineSwitchFlow.tsx 518
 ui/src/components/KillSheet.tsx 622
 ui/src/components/RemoteTabs.tsx 494
 ui/src/components/RightInspector.tsx 1526
-ui/src/components/SwitchFlow.tsx 497
 ui/src/components/SwitchGraph.tsx 433
 ui/src/components/UpdatesCard.tsx 434
 ui/src/components/WorkflowRail.tsx 1038

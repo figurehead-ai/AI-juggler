@@ -4743,7 +4743,7 @@ const CROSS_TARGETS = [
     account_label: "Personal",
     readiness: "t2_blocked",
     mechanism: "replay",
-    blockers: ["claude-code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
+    blockers: ["Claude Code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
     version_there: "2.0.9",
     fidelity: "F1",
     badge: "Full story, fresh start · Not proven yet",
@@ -4815,11 +4815,21 @@ for (const theme of THEMES) {
     await page.getByTestId("cross-switch-confirm-mapping").check();
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/path-mapping-1280x800-${theme}.png`) });
     await page.getByTestId("cross-switch-next").click();
-    await expect(page.getByTestId("cross-switch-drops")).toContainText("The task list");
+    await expect(page.getByTestId("switch-carry-stays")).toContainText("The task list");
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/carried-1280x800-${theme}.png`) });
     await page.getByTestId("cross-switch-next").click();
-    await expect(page.getByTestId("cross-switch-go")).toHaveText("Switch to Mac mini…");
+    await expect(page.getByTestId("cross-switch-go")).toHaveText("Switch now");
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/confirm-1280x800-${theme}.png`) });
+    // The push, held: Esc says it's still sending, and only Stop sending stops it.
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__AIJ_FLEET_SWITCH_HANG__ = true;
+    });
+    await page.getByTestId("cross-switch-go").click();
+    await expect(page.getByTestId("cross-switch-pushing")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("cross-switch-holding")).toContainText("Still sending");
+    await expect(page.getByTestId("switch-close")).toHaveCount(0);
+    await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/progress-1280x800-${theme}.png`) });
   });
 
   test(`50 cross switch — switch-back preview and the conflict sheet — ${theme}`, async ({ page }) => {

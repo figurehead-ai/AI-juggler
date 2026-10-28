@@ -4015,6 +4015,8 @@ type CrossSeams = {
   __AIJ_FLEET_DIVERGENCES__?: DivergenceRecordInfo[];
   __AIJ_FLEET_CALLS__?: string[];
   __AIJ_FLEET_SWITCH_PROGRESS__?: (update: FleetSwitchProgressInfo) => void;
+  /** The push never ends (tests of Esc mid-push and the progress shot). */
+  __AIJ_FLEET_SWITCH_HANG__?: boolean;
 };
 
 const crossSeams = () => window as unknown as CrossSeams;
@@ -4036,6 +4038,7 @@ export async function fleetSwitchExecute(request: FleetSwitchRequest): Promise<F
     crossCall(`switch:${request.machine_id}:${request.recipe_id}:${request.mechanism}:${request.project_id ?? ""}`);
     const progress = crossSeams().__AIJ_FLEET_SWITCH_PROGRESS__;
     progress?.({ machine_id: request.machine_id, phase: "receiving", received_bytes: 6_000_000, total_bytes: 12_000_000 });
+    if (crossSeams().__AIJ_FLEET_SWITCH_HANG__) return new Promise<FleetSwitchOutcomeInfo>(() => {});
     return (
       crossSeams().__AIJ_FLEET_SWITCH_OUTCOME__ ?? {
         accepted: true,
