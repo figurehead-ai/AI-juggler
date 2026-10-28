@@ -22,7 +22,8 @@
 //!   one, on the launch settings the user picks ([`launch`]).
 //! - **Tasks follow the work**: a task's holder is a member ref (its Work
 //!   item once it has one), so a switch keeps it, and every session that
-//!   worked it is linked (the switch history shows it).
+//!   worked it is linked (the switch history shows it); a switch is a line
+//!   in its history ([`switched`]).
 //! - The user's reads ([`views`]), the issue a task comes from
 //!   ([`issues`]) and the **commands** ([`commands`]) the window calls.
 //!
@@ -38,6 +39,7 @@ pub mod issues;
 pub mod launch;
 pub mod needs;
 pub mod oversight;
+pub mod switched;
 pub mod views;
 
 use std::sync::{Arc, Mutex};

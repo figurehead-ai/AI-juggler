@@ -2,7 +2,8 @@
 //! through its agent tools, then its session is continued on another
 //! account with the app's real switch (the stub harness): the new session
 //! holds the same task, sees it as its own, can say where it is, its card
-//! shows it, and the switch history shows each session's task.
+//! shows it, the switch history shows each session's task, and the task's
+//! own history has the switch as a line.
 
 #![allow(
     clippy::unwrap_used,
@@ -184,6 +185,32 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
             .unwrap()
             .session_id;
     assert_ne!(next, planner);
+
+    // AJ-E1904 (the 2026-10-28 lab, step 6): the switch is a line of the
+    // task's own history, and the new session is one of its sessions,
+    // before it has done anything with the task.
+    let detail = views::detail(&state, &id, None).unwrap();
+    let line = detail
+        .history
+        .iter()
+        .find(|event| event.what.starts_with("continued on"))
+        .unwrap_or_else(|| panic!("no switch line: {:?}", detail.history));
+    assert_eq!(line.what, "continued on Personal (from Work Max)");
+    assert!(line.by_agent, "the holder's line, not the user's");
+    assert_eq!(
+        detail.history[0].id, line.id,
+        "the newest line: {:?}",
+        detail.history
+    );
+    let how: Vec<(&str, &str)> = detail
+        .sessions
+        .iter()
+        .map(|s| (s.session_id.as_str(), s.how.as_str()))
+        .collect();
+    assert!(
+        how.contains(&(planner.as_str(), "claimed")) && how.contains(&(next.as_str(), "switched")),
+        "{how:?}"
+    );
 
     // The new session holds the same task: its own, workable, on its card.
     let next_key = key(&state, &next, &b.id, project.as_str());

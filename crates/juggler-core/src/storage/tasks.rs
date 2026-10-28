@@ -1197,7 +1197,8 @@ impl TasksRepo<'_> {
     }
 
     /// Records that a session worked a task (`how`: `claimed`,
-    /// `started_for`, `assigned`, `worked`); the first word stays.
+    /// `started_for`, `assigned`, `worked`, `switched`: a switch carried
+    /// it there); the first word stays.
     ///
     /// # Errors
     ///

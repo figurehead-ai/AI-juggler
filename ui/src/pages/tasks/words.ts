@@ -46,6 +46,8 @@ export const HOW_WORDS: Record<string, string> = {
   started_for: "started for it",
   assigned: "was given it",
   worked: "worked on it",
+  // AJ-E1904: a switch carried it to this session.
+  switched: "continued it after a switch",
 };
 
 /** Where a task is, for a sentence ("in progress with Builder"). */

@@ -329,6 +329,8 @@ fn what(verb: &str, detail: Option<&str>) -> String {
         "cancelled" if detail.is_empty() => "cancelled it".to_owned(),
         "cancelled" => format!("cancelled it: {detail}"),
         "issue_looked_up" => format!("looked up the issue: {detail}"),
+        // AJ-E1904: "Planner continued on Personal (from Work Max)".
+        "switched" => format!("continued on {detail}"),
         other => other.replace('_', " "),
     }
 }

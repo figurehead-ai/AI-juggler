@@ -6040,6 +6040,7 @@ fn switch_execute_core(
 
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
     switch.succeeded();
+    tasks_after_switch(state, &new_session, &account_a, &account_b);
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -6056,6 +6057,12 @@ fn switch_execute_core(
         edge_id: edge_id.to_string(),
         source_session_id: source.id.to_string(),
     })
+}
+
+/// AJ-E1904: a switch from `from` to `to` that landed in `session` is a
+/// line in the history of each task it carried.
+fn tasks_after_switch(state: &Arc<AppState>, session: &SessionId, from: &Account, to: &Account) {
+    crate::features::tasks::switched::after_switch(state, session, &from.id, &to.id);
 }
 
 /// How long the source's conversation and terminal must be quiet for its
@@ -6299,6 +6306,7 @@ fn switch_replay(
         source_bytes,
     )?;
     switch.succeeded();
+    tasks_after_switch(state, &session, &sides.account_a, &sides.account_b);
     record_redaction_decision(
         state,
         &edge,
@@ -6917,6 +6925,13 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
     )?;
 
     record_compensating_edge(state, context, &new_session)?;
+    // AJ-E1904: the task's history says the work came back.
+    crate::features::tasks::switched::after_switch(
+        state,
+        &new_session,
+        &context.edge.to_account,
+        &context.edge.from_account,
+    );
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),
@@ -12514,6 +12529,12 @@ fn resume_original_with_delta(
         actions,
     )?;
     crate::identity::record(state, &new_session, &account_a, &assertion, "switch_back");
+    crate::features::tasks::switched::after_switch(
+        state,
+        &new_session,
+        &away_account.id,
+        &account_a.id,
+    );
 
     Ok(LaunchResult {
         session_id: new_session.to_string(),

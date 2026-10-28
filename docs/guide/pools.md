@@ -234,8 +234,11 @@ now**. Nothing starts by itself.
 
 A task belongs to its holder's line of work, not to one account. When you
 continue a session on another account or tool, the new session holds the
-same tasks, sees them as its own and carries on; the project's **How this
-work travelled** shows each session's task.
+same tasks, sees them as its own and carries on. The task's history has
+the switch as a line, for example "Planner continued on Personal (from
+Work Max)", its **Sessions** list the new one ("continued it after a
+switch"), and the project's **How this work travelled** shows the task
+under each session.
 
 ### The issue a task comes from
 

@@ -89,7 +89,8 @@ pub struct TaskSessionInfo {
     pub session_id: String,
     /// Its name.
     pub name: String,
-    /// `claimed` | `started_for` | `assigned` | `worked`.
+    /// `claimed` | `started_for` | `assigned` | `worked` | `switched` (a
+    /// switch carried it to this session).
     pub how: String,
     /// It runs now.
     pub live: bool,

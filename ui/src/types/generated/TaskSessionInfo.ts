@@ -13,7 +13,8 @@ session_id: string,
  */
 name: string, 
 /**
- * `claimed` | `started_for` | `assigned` | `worked`.
+ * `claimed` | `started_for` | `assigned` | `worked` | `switched` (a
+ * switch carried it to this session).
  */
 how: string, 
 /**

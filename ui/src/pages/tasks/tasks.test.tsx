@@ -153,6 +153,26 @@ describe("a pool's tasks", () => {
     expect((await findByTestId("task-view")).textContent).toContain("Set ready, but it waits on aj-7f3c");
   });
 
+  it("a switch is a line of the task's history, and the new session one of its sessions (AJ-E1904)", async () => {
+    seams().__AIJ_TASKS__!.details!["aj-1a2b"] = {
+      sessions: [
+        { session_id: "sess-ended", name: "A session that ended", how: "claimed", live: false, at_ms: NOW - 900_000 },
+        { session_id: live.id, name: "Builder", how: "switched", live: true, at_ms: NOW - 600_000 },
+      ],
+      history: [
+        { id: 4, at_ms: NOW - 600_000, who: "Builder", by_agent: true, what: "continued on Personal (from Work Max)" },
+        { id: 3, at_ms: NOW - 900_000, who: "Builder", by_agent: true, what: "took it" },
+      ],
+    };
+    const { findAllByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    fireEvent.click((await findAllByTestId("task-row")).find((r) => r.dataset.status === "in_progress")!);
+    const sessions = await findByTestId("task-sessions");
+    expect(sessions.textContent).toContain("A session that ended took it");
+    expect(sessions.textContent).toContain("Builder continued it after a switch");
+    const history = await findByTestId("task-history");
+    expect(history.querySelector("li")!.textContent).toContain("Builder continued on Personal (from Work Max)");
+  });
+
   it("filters to done ones, and shows the plan", async () => {
     const { findAllByTestId, getByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findAllByTestId("task-row");
