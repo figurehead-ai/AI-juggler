@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InstanceInfo, PreflightInfoData } from "./lib/bridge";
 import { errorText } from "./lib/bridge";
 import switchFailureWords from "./test/switch-failure-words.json";
+import crossFailureWords from "./test/cross-switch-failure-words.json";
 
 /**
  * D-25 (AJ-E1025) guard, from the 2026-10-27 spec gap audit: internal
@@ -145,6 +146,37 @@ describe("nothing internal on screen (D-25)", () => {
     expect(words).toMatch(/Work|Personal/);
     delete seams.__AIJ_SWITCH_PREFLIGHT__;
     delete seams.__AIJ_SWITCH_EXECUTE_FAIL__;
+  });
+
+  // Every way a switch to another computer stops, with the words the
+  // backend sends (crossmachine/failure.rs, committed by its golden
+  // test): said once, under the title only, with exactly one next step
+  // and the other computer named, never "this Mac".
+  it.each(crossFailureWords)("a failed switch to another computer ($kind) says it once, with one next step", async ({ words }) => {
+    const { CrossMachineSwitchFlow } = await import("./components/CrossMachineSwitchFlow");
+    const seams = window as never as { __AIJ_FLEET_SWITCH_OUTCOME__?: unknown };
+    seams.__AIJ_FLEET_SWITCH_OUTCOME__ = { accepted: false, reason_code: "made-up", message: words, instance_id: null, edge_id: null, divergence: null };
+    const target = {
+      machine_id: "m-1", machine_label: "Studio", recipe_id: "r-1", recipe_name: "Main", account_label: "Desktop Max", provider: "claude-code",
+      mechanism: "transplant", readiness: "t2_ready", blockers: [], fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false,
+      carried: [], regenerated: [], dropped: [], same_path_project: "p-1", projects: [{ project_id: "p-1", name: "shop", same_path: true, same_name: true }],
+      replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
+    };
+    const view = render(<CrossMachineSwitchFlow sessionId="s-1" target={target} onClose={() => {}} />);
+    fireEvent.click(view.getByTestId("cross-switch-next"));
+    fireEvent.click(view.getByTestId("cross-switch-next"));
+    fireEvent.click(view.getByTestId("cross-switch-go"));
+    await waitFor(() => expect(view.getByTestId("cross-switch-failed")).toBeTruthy());
+    expect(view.getByTestId("cross-switch-failed-words").textContent).toBe(words);
+    // Said once: the dialog adds its title and nothing else.
+    expect(view.getByTestId("cross-switch-failed").textContent).toBe(`The switch didn't complete${words}`);
+    // What happened, then exactly one next step.
+    const sentences = words.split(/(?<=\.) /);
+    expect(sentences).toHaveLength(2);
+    expect(sentences[0]).toMatch(/, so /);
+    expect(view.container.textContent ?? "").not.toMatch(/this Mac|either Mac/);
+    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+    delete seams.__AIJ_FLEET_SWITCH_OUTCOME__;
   });
 
   it("a server that needs its token says what to do, never a bare status", async () => {

@@ -77,6 +77,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A switch that didn't complete says each thing once (0.2): a short
   title, then what happened and what to do next, instead of the same
   "nothing changed" told twice; returning to the original does the same.
+- A switch to or from another computer that didn't complete says each
+  thing once too (0.2): what happened and one next step, naming the
+  other computer ("Studio is offline, so nothing was sent. Check that
+  Studio is on with AI Juggler open, then try again."), instead of the
+  other computer's words from its own side followed by "Nothing was
+  changed … on this Mac".
 - The switch dialog (0.1.9): Cancel and a close button on every step, a
   fixed header and footer so the buttons always show, a readable confirm
   step ("Ready to switch to…", up to three lines, Details), and plain

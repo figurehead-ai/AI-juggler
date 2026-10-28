@@ -456,11 +456,31 @@ fn conclude_back(
         } else {
             result.reason_code.clone()
         };
-        fail(&result.message);
+        // The conflict sheet says a divergence in its own words; any
+        // other refusal in this computer's (`failure.rs`).
+        let message = if reason == "diverged" {
+            result.message
+        } else {
+            let label = crate::fleet::peer_label(state, lineage.original_machine.as_str())
+                .unwrap_or_else(|| "the other computer".to_owned());
+            let tool = crate::features::tools::display_name(
+                &state.registry,
+                lineage.original.provider.as_str(),
+            );
+            super::failure::refusal_words(
+                &reason,
+                &result.message,
+                super::Direction::Back,
+                false,
+                &label,
+                &tool,
+            )
+        };
+        fail(&message);
         return Ok(FleetSwitchOutcomeInfo {
             accepted: false,
             reason_code: Some(reason),
-            message: result.message,
+            message,
             instance_id: None,
             edge_id: Some(edge.to_string()),
             divergence: outcome.divergence.map(super::divergence_info),
