@@ -35,6 +35,9 @@ async function openFresh(page: Page, theme: "dark" | "light") {
   await page.goto("/");
   await goTo(page, "Accounts");
   await page.getByTestId("add-account").click();
+  // AJ-E1601: with more than one tool found, Add account asks which first.
+  const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+  await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
   await expect(page.getByTestId("first-run-fresh")).toBeVisible();
 }
 
