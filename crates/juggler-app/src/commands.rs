@@ -11770,6 +11770,39 @@ fn away_rules_note(
     handover::rules_while_away(&rules, &returning)
 }
 
+/// The task list as the work left it while away: the away session's, else
+/// (a tool with no task list of its own, such as `codex exec`) the newest
+/// hop's before it that set one, saying whose it is (the measured lab of
+/// 2026-10-28: back from Codex, the update said nothing of the list B had
+/// moved on, and the original's was stale).
+fn chain_task_note(
+    state: &Arc<AppState>,
+    lineage: &BackLineage,
+    away: &juggler_core::model::Account,
+    away_reference: Option<&juggler_core::model::TranscriptRef>,
+) -> Option<String> {
+    if let Some(note) = away_task_note(away_reference) {
+        return Some(note);
+    }
+    lineage.intermediate.iter().rev().find_map(|hop| {
+        let account = lock_storage_arc(state)
+            .ok()?
+            .accounts()
+            .get(&hop.epoch.account)
+            .ok()?;
+        if account.id == away.id {
+            return None;
+        }
+        let reference = newest_transcript(
+            state,
+            &account,
+            hop.session.as_ref()?.transcript_ref.clone(),
+        );
+        away_task_note(reference.as_ref())
+            .map(|note| format!("{note} (as {} left it)", account.label))
+    })
+}
+
 /// AJ-E1541: the task list as the away session left it, on one line.
 fn away_task_note(reference: Option<&juggler_core::model::TranscriptRef>) -> Option<String> {
     let bytes = juggler_adapters::read_session_file(&reference?.path).ok()?;
@@ -12039,7 +12072,7 @@ fn back_facts(
         away_only_uuids: conversation.away_only_uuids.iter().cloned().collect(),
         conversation: conversation.clone(),
         diff_stat: away_diff_stat(&lineage.away_session.cwd),
-        todo_note: away_task_note(away_reference.as_ref()),
+        todo_note: chain_task_note(state, &lineage, &away_account, away_reference.as_ref()),
         earlier_hops,
         unread,
         rules_note: away_rules_note(state, &lineage, &away_account, &original_account),
