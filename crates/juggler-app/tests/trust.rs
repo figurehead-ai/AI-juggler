@@ -888,6 +888,8 @@ fn a_provider_address_is_only_ever_one_a_service_publishes() {
 const MOVES: &[&str] = &[
     "session_handover_impl",
     "switch_execute_impl",
+    // switch_execute_impl with the ticks the switch carries out (D-51).
+    "switch_execute_with",
     "switch_execute_core",
     "switch_undo_impl",
     "switch_back_execute_impl",
