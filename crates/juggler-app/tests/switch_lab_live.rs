@@ -445,6 +445,26 @@ fn new_project(project: &Path) {
     ]);
 }
 
+/// The lab runs only in a clean environment (`scripts/qa/lab_env.sh`):
+/// started from inside a Claude Code session, the tools it runs would
+/// inherit that session's markers and routing (the labs of 2026-10-28).
+/// Names only are reported, never a value.
+fn assert_clean_env() {
+    let inherited: Vec<String> = std::env::vars_os()
+        .filter_map(|(name, _)| name.into_string().ok())
+        .filter(|name| {
+            name == "CLAUDECODE"
+                || name.starts_with("CLAUDE_CODE_")
+                || name.starts_with("ANTHROPIC_")
+                || name.starts_with("OPENAI_")
+        })
+        .collect();
+    assert!(
+        inherited.is_empty(),
+        "run the lab in a clean environment (scripts/qa/lab_env.sh); inherited: {inherited:?}"
+    );
+}
+
 fn mentions(text: &str, needle: &str) -> bool {
     text.to_lowercase().contains(&needle.to_lowercase())
 }
@@ -468,6 +488,7 @@ fn switch_lab_live() {
         std::env::var_os("CLAUDE_CONFIG_DIR").is_none() && std::env::var_os("CODEX_HOME").is_none(),
         "run the lab with CLAUDE_CONFIG_DIR and CODEX_HOME unset (env -u …)"
     );
+    assert_clean_env();
     assert!(
         !data.exists() || std::fs::read_dir(&data).unwrap().next().is_none(),
         "AIJ_LAB_DATA must be a fresh, empty folder"
@@ -3020,6 +3041,7 @@ fn switch_lab_outside_live() {
         std::env::var_os("CLAUDE_CONFIG_DIR").is_none() && std::env::var_os("CODEX_HOME").is_none(),
         "run the lab with CLAUDE_CONFIG_DIR and CODEX_HOME unset (env -u …)"
     );
+    assert_clean_env();
     assert!(
         !data.exists() || std::fs::read_dir(&data).unwrap().next().is_none(),
         "AIJ_LAB_DATA must be a fresh, empty folder"

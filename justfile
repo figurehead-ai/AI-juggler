@@ -141,26 +141,50 @@ gate-signed:
 # throwaway project: it spends a little usage and adds the lab's sessions
 # to the accounts. Arguments: a new project folder, two Claude config
 # folders, a Codex home, and the report's path (keep it out of the
-# repository: it holds real paths). AIJ_LAB_PROBE=<name> also checks the
-# set-up step.
+# repository: it holds real paths). `probe` names the probe MCP server and
+# skill the set-up step is checked with (planted on A, removed after). Each
+# hop's measured fidelity is written beside the report (`<out>.fidelity.md`).
 # AJ-E1539: the live switching lab (read the test's header first).
-switch-lab project claude_a claude_b codex out:
+switch-lab project claude_a claude_b codex out probe="aij-lab-probe":
     cargo test -p juggler-app --test switch_lab_live --no-run
-    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME \
+    ./scripts/qa/lab_env.sh \
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
       AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
-      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
 
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
     cargo test -p juggler-app --test switch_lab_live --no-run
-    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME DISABLE_AUTOUPDATER=1 AIJ_LAB_SUITE=outside \
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=outside \
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{root}}" \
       AIJ_LAB_CLAUDE_A="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
       AIJ_LAB_PROBE="{{probe}}" AIJ_LAB_JOURNEYS="{{journeys}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_outside_live --exact
+
+# AJ-E1803 / AJ-E1902: the live agent labs, messaging or tasks (read the
+# header of crates/juggler-app/tests/agent_labs_live.rs first). Real Claude
+# Code (one profile, in place) and Codex (its home, in place) in a new
+# throwaway project; `out` (a new folder, 0700) gets the report, the
+# bridge's logs and the before/after snapshots (names, sizes and times only).
+# claude_b (optional): a second lab Claude profile, for the tasks lab's
+# switch step.
+agent-lab suite project claude codex out claude_b="":
+    cargo build -p juggler-agentbridge --bin juggler-agent
+    cargo test -p juggler-app --test agent_labs_live --no-run
+    mkdir -p "{{out}}" && chmod 700 "{{out}}"
+    AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh take before-{{suite}} "{{claude}}" "{{codex}}" {{ if claude_b != "" { quote(claude_b) } else { "" } }}
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE="{{suite}}" \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      {{ if claude_b != "" { "AIJ_LAB_CLAUDE_B=" + quote(claude_b) } else { "" } }} \
+      AIJ_LAB_AGENT="${CARGO_TARGET_DIR:-$(pwd)/target}/debug/juggler-agent" \
+      cargo test -p juggler-app --test agent_labs_live -- --ignored --nocapture agent_lab_live --exact; \
+      status=$?; \
+      AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh take after-{{suite}} "{{claude}}" "{{codex}}" {{ if claude_b != "" { quote(claude_b) } else { "" } }}; \
+      AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh diff before-{{suite}} after-{{suite}} > "{{out}}/snapshot-{{suite}}.txt"; \
+      exit $status
 
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:
