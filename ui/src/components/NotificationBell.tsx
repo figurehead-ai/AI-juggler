@@ -2,7 +2,7 @@
  * AJ-E2502 (§1.1, §4.14; the approved design of 2026-10-27) — the
  * header's bell: ONE count, the same number as Needs you on Home, the app
  * badge and the menu-bar item (the notification model's open needs), and
- * the notification centre it opens (or ⌘⇧N). The centre loads when it
+ * the notification centre it opens (or ⌥⌘N). The centre loads when it
  * first opens.
  */
 import type { JSX } from "react";
@@ -27,7 +27,7 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-keyshortcuts="Meta+Shift+N"
-        title="Notifications (⌘⇧N)"
+        title="Notifications (⌥⌘N)"
         data-testid="notification-bell"
         className={"relative flex size-9 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (open ? "border-hairline bg-surface-3 text-ink" : "border-transparent text-muted hover:bg-surface hover:text-ink")}
       >

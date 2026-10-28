@@ -73,6 +73,12 @@ function terminalTool(on: (event: KeyLike) => boolean) {
   };
 }
 
+/** ⌥⌘ + a letter, by the key's place (⌥ turns N into "˜" on a Mac). */
+function cmdAltCode(code: string, key: string) {
+  return (event: KeyLike) =>
+    (event.metaKey || event.ctrlKey) && !!event.altKey && !event.shiftKey && (event.code === code || event.key.toLowerCase() === key);
+}
+
 /** ⌥⌘↑ or ⌥⌘↓ (Ctrl+Alt elsewhere, as ⌘ is Ctrl there). */
 function cmdArrow(event: KeyLike): boolean {
   return (event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && (event.key === "ArrowUp" || event.key === "ArrowDown");
@@ -91,9 +97,14 @@ export const SHORTCUTS = [
   // Anywhere
   { id: "help", owner: "app", area: "Anywhere", keys: ["?"], label: "Show these shortcuts", match: plain("?") },
   { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search and go to a session", match: cmd("k") },
-  { id: "new-project", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New project", match: cmd("n") },
-  // AJ-E2503 (§4.14): the notification centre, as the bell opens it.
-  { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌘⇧N"], label: "Notifications", match: cmd("n", { shift: true }) },
+  // D-50 (the maintainer, 2026-10-28): ⌘N is New session, as deep/11 §3
+  // says; New project moved to ⌘⇧N.
+  { id: "new-session", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New session", match: cmd("n") },
+  { id: "new-project", owner: "app", area: "Anywhere", keys: ["⌘⇧N"], label: "New project", match: cmd("n", { shift: true }) },
+  // AJ-E2503 (§4.14): the notification centre, as the bell opens it. D-50:
+  // ⌥⌘N, since New project took ⌘⇧N (by the key's place: ⌥ changes what
+  // `key` reads on a Mac).
+  { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌥⌘N"], label: "Notifications", match: cmdAltCode("KeyN", "n") },
   { id: "toggle-rail", owner: "app", area: "Anywhere", keys: ["⌘B"], label: "Show or hide the list", match: cmd("b") },
   { id: "inspector", owner: "app", area: "Anywhere", keys: ["⌘⇧I"], label: "Fold or unfold the inspector", match: cmd("i", { shift: true }) },
   {

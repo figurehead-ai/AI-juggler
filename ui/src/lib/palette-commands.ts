@@ -74,7 +74,7 @@ export function keysOf(id: ShortcutId | undefined): string | undefined {
 export function appCommands(app: AppDoings): PaletteCommand[] {
   const screens: (GlobalId | "home")[] = ["home", ...GLOBAL_NAV.map((entry) => entry.id).filter((id) => id !== "fleet" || app.fleet)];
   return [
-    { id: "new-session", label: "New session…", icon: "new", words: "start launch run", top: true, run: app.newSession },
+    { id: "new-session", label: "New session…", icon: "new", words: "start launch run", keys: keysOf("new-session"), top: true, run: app.newSession },
     { id: "new-project", label: "New project…", icon: "project", words: "folder add", keys: keysOf("new-project"), run: app.newProject },
     ...screens.map((id): PaletteCommand => ({
       id: `go:${id}`,

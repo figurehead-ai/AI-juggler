@@ -15,7 +15,7 @@ Nothing in any of them acts by itself: every action is your click.
 
 ## The notification centre
 
-Click the bell, or press ⌘⇧N.
+Click the bell, or press ⌥⌘N.
 
 - **Needs action** is your Needs you list: sessions that ask you or may be
   stuck, a usage limit reached, finished work to review, a sign-in, an

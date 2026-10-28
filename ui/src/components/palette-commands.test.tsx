@@ -111,7 +111,7 @@ describe("App's actions as data", () => {
     expect(without).not.toContain("Go to Fleet");
     expect(appCommands(doings(true)).map((command) => command.label)).toContain("Go to Fleet");
     const keys = Object.fromEntries(appCommands(doings(false)).map((command) => [command.id, command.keys]));
-    expect(keys).toMatchObject({ "go:home": "⌘0", "go:settings": "⌘,", notifications: "⌘⇧N", "toggle-rail": "⌘B", shortcuts: "?" });
+    expect(keys).toMatchObject({ "go:home": "⌘0", "go:settings": "⌘,", notifications: "⌥⌘N", "new-session": "⌘N", "new-project": "⌘⇧N", "toggle-rail": "⌘B", shortcuts: "?" });
   });
 
   it("matches every word typed, in its label or its other words", () => {

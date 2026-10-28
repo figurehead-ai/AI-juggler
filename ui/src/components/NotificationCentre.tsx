@@ -1,6 +1,6 @@
 /**
  * AJ-E2503 (§4.14, wireframe 27; the approved design of 2026-10-27) — the
- * notification centre, from the bell or ⌘⇧N. **Needs action** mirrors
+ * notification centre, from the bell or ⌥⌘N. **Needs action** mirrors
  * Needs you (the same items, the same count; snoozed ones folded under
  * "Snoozed"); **Earlier** keeps what happened — resets, finishes, crashes
  * and restarts, updates — 30 days, a page at a time. Mark all read, the

@@ -241,6 +241,27 @@ test("launch — the sheet opens, traps focus, and Esc returns to New", async ({
   record("launch", stops, ["15 Tabs stay inside the sheet (focus trap); Esc closes it and focus returns to New session."]);
 });
 
+// D-50 (the maintainer, 2026-10-28): ⌘N opens New session, ⌘⇧N New
+// project, ⌥⌘N the notifications; each opens only its own sheet.
+test("launch keys — ⌘N New session, ⌘⇧N New project, ⌥⌘N notifications (D-50)", async ({ page }) => {
+  await open(page);
+  // The keys' handler mounts with the shell (AJ-E806: a test race otherwise).
+  await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeVisible();
+  await page.locator("body").focus();
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+Alt+KeyN");
+  await expect(page.getByTestId("notification-centre")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+Shift+N");
+  await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
+  await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
+});
+
 /** The Work Max session in the rail → its first ranked switch row. The
  * rail's list is one stop on the Tab path; ↓ goes through its rows. */
 async function toSwitchRow(page: Page, stops: Stop[]) {

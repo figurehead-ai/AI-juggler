@@ -3220,10 +3220,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
       // pressing during the first frames after load is a test race).
       await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-      await page.keyboard.press("Meta+n");
+      await page.keyboard.press("Meta+Shift+N");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       // Step 1: the tiles.
       await page.screenshot({
@@ -3264,10 +3264,10 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
       // pressing during the first frames after load is a test race).
       await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-      await page.keyboard.press("Meta+n");
+      await page.keyboard.press("Meta+Shift+N");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
       await expect(page.getByTestId("no-account-detour")).toBeVisible();

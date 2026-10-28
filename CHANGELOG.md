@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Notifications in one place** (0.2): a bell at the top right with one
   count — the same number as Needs you on Home, the Dock icon and a new
-  menu-bar item. Click it (or press ⌘⇧N) for the notification centre:
+  menu-bar item. Click it (or press ⌥⌘N) for the notification centre:
   **Needs action** (your Needs you list) and **Earlier** (an account with
   room again, a finished session, a crash restarted, an update; 30 days).
   Each item offers its action, and ⋯ snoozes it or mutes its project or
@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **⌘N opens New session** (D-50, the maintainer's ruling of 2026-10-28,
+  as the screen spec says); **New project** is ⌘⇧N, and the notification
+  centre moved to ⌥⌘N to make room. The shortcuts list (?), ⌘K and the
+  bell's tooltip say the new keys.
 - Words shared by every system say **this computer**, not "this Mac"
   (0.2, ahead of Windows and Linux): the switch's blockers ("Studio lets
   this computer view only", "This computer's Claude Code version couldn't

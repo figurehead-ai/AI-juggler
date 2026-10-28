@@ -178,7 +178,7 @@ new project in two clicks from a recent folder.
    Confirm step (label/plan/selection restored on reopen);
    closing SHALL require no confirm when nothing is in flight.
 **UI/UX reasoning**:
-Apple HIG (forgiveness) + Nielsen H3: every step reversible until its commit click; Back preserves state (Deep-03 §2.1). Step dots show 4 steps for (a); flow (b) is a 2-step sheet. Copy: (a) "You're ready — Work (Claude) is signed in."; (b) tiles show dir name + last-used Account. Shortcuts: `⌘N` New project; tiles arrow-key navigable (WCAG 2.1, visible focus).
+Apple HIG (forgiveness) + Nielsen H3: every step reversible until its commit click; Back preserves state (Deep-03 §2.1). Step dots show 4 steps for (a); flow (b) is a 2-step sheet. Copy: (a) "You're ready — Work (Claude) is signed in."; (b) tiles show dir name + last-used Account. Shortcuts: `⌘⇧N` New project (D-50, 2026-10-28: `⌘N` is New session, as deep/11 §3 says; it was `⌘N` here until then); tiles arrow-key navigable (WCAG 2.1, visible focus).
 **Performance budget**:
 Flow (a) scan-to-proposal ≤ 3 s (AJ-E302 budget); click-to-
 next-step paint ≤ 200 ms; flow (b) recents list ≤ 100 ms
@@ -676,7 +676,7 @@ account] (fresh remount), [Done]. Flow (b) is the new
 NewProjectSheet: recency tiles + native folder picker + drop, then
 the PURE preselect rule (last-used on dir → most headroom → most
 recent) with [Change] and [Start session →] — completed in 2
-clicks in `new-project.spec.ts` (≤ 3), summonable by ⌘N and the
+clicks in `new-project.spec.ts` (≤ 3), summonable by ⌘N (⌘⇧N since D-50) and the
 Projects rail's primary button; no Account detours INLINE into the
 add-account flow keeping the pending directory. Wizard state
 (label/plan/choices/edits) survives an accidental close on Confirm

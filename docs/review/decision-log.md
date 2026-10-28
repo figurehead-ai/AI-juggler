@@ -998,7 +998,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-49 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27 and D-50 on 2026-10-28. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1412,3 +1412,37 @@ the thing still needs them.
   (`snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay`),
   `juggler-core/tests/notices_storage.rs`, vitest
   `src/count-agreement.test.tsx` and `components/notifications.test.tsx`.
+
+### D-50 ⌘N opens New session; New project is ⌘⇧N — SETTLED (2026-10-28)
+
+**Ruling.** The maintainer, 2026-10-28, on the 0.2 walk's finding that ⌘N
+opened New project while the screen spec (deep/11 §3, §4.8, §13) gives it
+to New session: "⌘N opens New session (as the UX spec says), and New
+project moves to ⌘⇧N."
+
+**What changed.**
+
+- ⌘N opens New session from anywhere, as the header's New session button
+  and ⌘K's "New session…" do; ⌘⇧N opens New project (AJ-E305's flow (b),
+  which had ⌘N until now). The shortcut registry (`ui/src/lib/shortcuts.ts`)
+  holds both, so the ? sheet and ⌘K show the new keys.
+- The notification centre (AJ-E2503) had ⌘⇧N. It moves to **⌥⌘N**, the
+  nearest free key that still reads as "N for notifications" (matched by
+  the key's place, since ⌥ changes the letter on a Mac); the bell's
+  tooltip, the user guide and §4.14/§13 of the screen spec say so. *This
+  consequence is the agent's, not the ruling's: the maintainer to
+  confirm.*
+- AJ-E305's text (E3) and AJ-E2503's (E25) point here.
+
+**Why.** New session is the daily action and the spec's ⌘N; a new project
+is rarer and is one Shift away. The ruling takes ⌘⇧N for New project, so
+the centre needed another key; the bell stays one click away.
+
+- Risk: muscle memory for ⌘N (New project) and ⌘⇧N (notifications) from
+  0.1.x and the 0.2 nightlies; the ? sheet lists the keys.
+- Evidence: vitest `src/app-keys.test.tsx` (the three keys open their own
+  sheet and nothing else; the typing rule holds for each),
+  `src/components/palette-commands.test.tsx`; Playwright
+  `tests/visual/keyboard-flows.spec.ts` ("launch keys — ⌘N New session,
+  ⌘⇧N New project, ⌥⌘N notifications (D-50)"), and flow (b) by ⌘⇧N in
+  `new-project.spec.ts` and `a11y.spec.ts`.

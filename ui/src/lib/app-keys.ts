@@ -19,8 +19,11 @@ export function shortcutUsed(shortcut: string): void {
 export interface AppKeyActions {
   openShortcuts: () => void;
   togglePalette: () => void;
-  /** AJ-E2503: the notification centre (⌘⇧N). */
+  /** AJ-E2503: the notification centre (⌥⌘N, D-50). */
   toggleNotifications: () => void;
+  /** D-50: ⌘N. */
+  newSession: () => void;
+  /** D-50: ⌘⇧N. */
   newProject: () => void;
   toggleRail: () => void;
   toggleInspector: () => void;
@@ -58,9 +61,14 @@ export function useAppKeys(actions: AppKeyActions): void {
       shortcutUsed("other");
       d.toggleNotifications();
     },
-    // AJ-E305 flow (b).
-    "new-project": () => {
+    // D-50: ⌘N opens New session (deep/11 §3, §4.8); New project is ⌘⇧N
+    // (AJ-E305 flow (b)).
+    "new-session": () => {
       shortcutUsed("new_session");
+      d.newSession();
+    },
+    "new-project": () => {
+      shortcutUsed("other");
       d.newProject();
     },
     // The old collapse, kept for muscle memory.

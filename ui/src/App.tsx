@@ -554,6 +554,7 @@ export default function App() {
     openShortcuts: () => setShortcutsOpen(true),
     togglePalette: () => setGoToOpen((openNow) => !openNow),
     toggleNotifications: toggleCentre,
+    newSession: () => setNewSession(true),
     newProject: () => setNewProjectDir((current) => current ?? ""),
     toggleRail,
     toggleInspector,
