@@ -2009,6 +2009,17 @@ const rankedRows: Record<string, unknown>[] = [
   },
 ];
 
+/** Work Max's room (82% left this week, measured): what makes it Suggested. */
+const rankedRoom = [
+  {
+    account: "claude-work",
+    five_hour: null,
+    weekly: { state: "tracking", percentage: 18, badge: "measured", resets_at_ms: T0 + 3 * 86_400_000, burned_tokens: 340_000 },
+    renewal: { state: "none", label: "", entered_by_user: false },
+    forecast: { state: "exhausts", tte_min: 210, range_min: 150, range_max: 260, badge: "measured" },
+  },
+];
+
 /** AJ-E2501: what the alert pass told the notification model — an
  * account almost out of room (a need), and the digest's renewal line
  * (what happened) — in the model's own words. */
@@ -2032,16 +2043,19 @@ for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
     test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, gate("27-ranking"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked }) => {
+        ({ fixture, t0, theme: themeName, ranked, room }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_RANKING__ = ranked;
+          // The 0.2 walk (F1/F17): Suggested is the most room, read as
+          // Home's Runway reads it (the one order by room).
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows },
+        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows, room: rankedRoom },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -2050,7 +2064,9 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("ranked-rows")).toBeVisible();
       // Copy conformance before capture: Suggested badge, ≥2 factors
       // without hover, TTE, and the greyed filtered row keeps its seat.
-      await expect(page.getByText("Suggested")).toBeVisible();
+      await expect(page.getByTestId("ranked-rows").getByText("Suggested", { exact: true })).toBeVisible();
+      // F17: the pick says why it's the pick.
+      await expect(page.getByTestId("launch-default")).toHaveText("Suggested: the most room");
       await expect(page.getByText(/82% headroom \(Measured\)/)).toBeVisible();
       await expect(page.getByText(/exhausts ≈210 min/)).toBeVisible();
       await expect(page.getByText("logged out — sign in from the Ready home")).toBeVisible();
@@ -2400,7 +2416,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_ONECLICK_FIXTURE);
       await expect(page.getByTestId("switch-oneclick")).toBeVisible();
       await expect(page.getByTestId("switch-oneclick")).toContainText("Ready to switch to");
-      await expect(page.getByTestId("switch-summary")).toContainText("The whole conversation moves");
+      await expect(page.getByTestId("switch-summary")).toContainText("The whole conversation");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/oneclick-popover-${vp.name}-${theme}.png`),
       });
