@@ -262,7 +262,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(alertSubject(others, () => null)).toBe("Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB");
     const words = alertWords([others, { ...others, key: "swap", kind: "swap", detail: "swap is growing — 3004 MB a minute" }], () => null)!;
     expect(words.detail).toBe(
-      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB",
+      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB. To make room, quit next-server or another app you aren't using. Nothing is blocked, but everything is slower until it eases",
     );
     expect(words.detail).not.toContain("Claude");
   });

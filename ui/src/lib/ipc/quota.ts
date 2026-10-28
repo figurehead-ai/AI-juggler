@@ -24,6 +24,9 @@ export interface WindowDisplay {
    * percentage. */
   measured_at_ms: number | null;
   burned_tokens: number;
+  /** The window's tokens in and out, as Usage counts them (the 0.2 walk,
+   * F15); absent from a reading that predates it. */
+  burned_io_tokens?: number;
   burned_credits: number | null;
   headroom_tokens: number | null;
   /** AJ-E1512: sessions left and the burn-down (absent without a measured
@@ -76,6 +79,9 @@ export interface ForecastDisplay {
 
 /** AJ-E610: the two-clock display for one account. */
 export interface QuotaDisplayData {
+  /** The first read of the tools' history is still running: what isn't
+   * measured may only not be read yet (the 0.2 walk, F6). */
+  history_reading?: boolean;
   account: string;
   five_hour: WindowDisplay | null;
   five_hour_omitted_reason: string | null;

@@ -47,4 +47,14 @@ root_pid: number | null,
 /**
  * Folded to one line (its processes not listed).
  */
-folded: boolean, };
+folded: boolean, 
+/**
+ * Not a session: the app's own processes, shared by this many of its
+ * sessions and listed once (0 for a session).
+ */
+shared_by: number, 
+/**
+ * When it started (its earliest process), epoch ms, when known: an
+ * untitled session is named by it.
+ */
+started_ms: number | null, };

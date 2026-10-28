@@ -252,7 +252,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
         <CardTitle ref={heading} tabIndex={-1} id="settings-updates-title" className="scroll-mt-4 outline-none">
           About &amp; updates
         </CardTitle>
-        <ChannelChip channel="beta" testId="beta-label" />
+        <ChannelChip channel={status.channel} testId="beta-label" /> {/* the build's own, as your menu (F18) */}
       </div>
       <p className="text-label text-ink" data-testid="update-version">
         {status.app_name} {status.current_version} ·{" "}

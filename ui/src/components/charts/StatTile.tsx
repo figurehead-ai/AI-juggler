@@ -66,6 +66,7 @@ export function StatTile({
   note,
   words,
   atLeast = false,
+  estimate = false,
   testId,
 }: {
   label: string;
@@ -88,8 +89,11 @@ export function StatTile({
   /** Said instead of a number that can't be known ("No list price"):
    * never a made-up 0 (§4.11). */
   words?: string;
-  /** The number is a floor (some of it couldn't be counted): "≥ $12". */
+  /** The number is a floor (some of it couldn't be counted): "at least
+   * ~$12", in words (the 0.2 walk, F15: "≥ at least $53.2k"). */
   atLeast?: boolean;
+  /** The number is an estimate (a cost at API prices): "~$12" (§10). */
+  estimate?: boolean;
   testId?: string;
 }): JSX.Element {
   return (
@@ -99,12 +103,8 @@ export function StatTile({
         {label}
       </span>
       <span className={words !== undefined && value === null ? "text-section font-semibold text-ink" : "text-stat text-ink"} title={value === null ? undefined : exact(value, unit)} data-testid="stat-value">
-        {atLeast && value !== null && (
-          <>
-            <span aria-hidden="true">≥ </span>
-            <span className="sr-only">at least </span>
-          </>
-        )}
+        {atLeast && value !== null && <span className="text-section font-medium text-muted">at least </span>}
+        {estimate && value !== null ? "~" : ""}
         {value === null ? (words ?? "—") : full ? exact(value, unit) : short(value, unit)}
         {suffix && value !== null && <span className="ml-1 text-section font-medium text-muted">{suffix}</span>}
       </span>

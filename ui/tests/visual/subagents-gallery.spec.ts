@@ -121,7 +121,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the session's row says two subagents run, and its page's line opens their tab — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    // The View's "Sub-agents": each row says how many it runs.
+    // The View's "Subagents": each row says how many it runs.
     await railViewAs(page, { show: { subagents: true } });
     await expect(page.getByRole("button", { name: "Open its subagents: +2 agents" })).toBeVisible();
     await shoot(page, "row-count", theme);

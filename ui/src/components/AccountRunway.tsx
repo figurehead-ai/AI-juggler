@@ -11,7 +11,8 @@
  */
 import type { JSX } from "react";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
-import { asOfWords, limitWindows, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
+import { READING_LIMITS } from "../lib/history-reading";
+import { asOfWords, limitWindows, measured, resetClock, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
 
 export type RunwayLine = {
   label: string;
@@ -102,8 +103,11 @@ export function runwayOf(
     // The last reading, as history ("Last reading 13 h ago: 40% used; …").
     return { left: null, words: windowView(reset.window).words, resets: null };
   }
-  const used = windows.reduce((most, entry) => Math.max(most, entry.window?.burned_tokens ?? 0), 0);
-  return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
+  // The 0.2 walk (F6): while the first read runs, not measured may only
+  // be not read yet.
+  if (display?.history_reading) return { left: null, words: READING_LIMITS, resets: null };
+  const used = usedTokensWords(windows.map((entry) => entry.window));
+  return { left: null, words: `Not measured yet${used ? ` · used ${used}` : ""}`, resets: null };
 }
 
 /** At or under this much left, an account is low: never recommended. */

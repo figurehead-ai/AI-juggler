@@ -13,6 +13,7 @@ import { IconCopy, IconFolderOpen, IconGoTo, IconSnooze, IconStop, IconInfo } fr
 import { IconComputer, IconBroom } from "../../components/icons-actions";
 import { IconPin } from "../../components/icons";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
+import { sessionTitle } from "./cells";
 
 export interface RowHandlers {
   stop: (row: ProcessGraphRowInfo) => void;
@@ -60,7 +61,7 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
   const leftovers = row.kind === "session" ? (row.rollup?.to_clean ?? 0) : 0;
   const program = row.kind === "program";
   const sessionItself = isSessionItself(row) && !on.onSessionPage;
-  const name = row.kind === "session" ? (row.session?.title ?? "session") : program ? (row.app?.name ?? "program") : (proc?.name ?? "process");
+  const name = row.kind === "session" ? sessionTitle(row) : program ? (row.app?.name ?? "program") : (proc?.name ?? "process");
   const open = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setMenu(menuPoint(event));

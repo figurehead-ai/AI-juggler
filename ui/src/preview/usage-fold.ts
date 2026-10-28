@@ -50,7 +50,7 @@ function label(groupBy: string, key: string, names: Names): string {
   return key;
 }
 
-export type Folded = Omit<UsageHistoryInfo, "edges_ms" | "group_by" | "previous" | "started_per_bucket" | "switches" | "unmeasured_sessions" | "truncated" | "top_sessions" | "session_count"> & {
+export type Folded = Omit<UsageHistoryInfo, "edges_ms" | "group_by" | "previous" | "started_per_bucket" | "switches" | "unmeasured_sessions" | "truncated" | "top_sessions" | "session_count" | "reading"> & {
   sessions: UsageSessionInfo[];
 };
 

@@ -971,12 +971,18 @@ pub(crate) fn primed_conversation(
         let summary = adapter
             .read_conversation_quick(&path)
             .or_else(|| adapter.read_conversation(&path))?;
-        let opens = summary.title.as_deref().is_some_and(|title| {
-            // A title is the first line, cut at a length with "…" added.
-            let title = title.trim().trim_end_matches('…').trim_end();
-            title.chars().count() >= OPENING_MIN.min(header.chars().count())
-                && (header.starts_with(title) || title.starts_with(header))
-        });
+        // How it opens (AI Juggler's own words included): a title skips
+        // them (the 0.2 walk, F9).
+        let opens = summary
+            .opening
+            .as_deref()
+            .or(summary.title.as_deref())
+            .is_some_and(|title| {
+                // A title is the first line, cut at a length with "…" added.
+                let title = title.trim().trim_end_matches('…').trim_end();
+                title.chars().count() >= OPENING_MIN.min(header.chars().count())
+                    && (header.starts_with(title) || title.starts_with(header))
+            });
         let here = summary.cwd.as_deref() == Some(cwd);
         let after = summary.started_ms.is_some_and(|at| at >= after_ms);
         (opens && here && after).then_some(juggler_core::model::TranscriptRef {
@@ -1111,6 +1117,7 @@ mod tests {
             cwd: None,
             git_branch: None,
             title: None,
+            opening: None,
             started_ms: Some(started),
             last_ms: Some(last),
             tokens: juggler_core::model::TokenCounts::default(),

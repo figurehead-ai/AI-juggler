@@ -38,7 +38,7 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   quiet: "Quiet ones",
   ended: "Ended today",
   background: "Background runs",
-  subagents: "Sub-agents",
+  subagents: "Subagents",
   otherMacs: "Other Macs",
   archived: "Archived",
 };

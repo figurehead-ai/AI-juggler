@@ -29,6 +29,9 @@ use crate::state::AppState;
 pub struct SubscriptionProfileInfo {
     /// The profile (AI Juggler's stored account row).
     pub id: String,
+    /// Its name, as the user gave it or the import named it: what the
+    /// account is called on screen (never a vendor's id or organisation).
+    pub label: String,
     /// Its folder, `~`-relative.
     pub folder: String,
     /// Its plan, as set on it.
@@ -51,7 +54,8 @@ pub struct SubscriptionInfo {
     /// `signed_in`, `signed_out` (its profiles aren't signed in) or
     /// `unverified` (a sign-in AI Juggler can't read).
     pub state: String,
-    /// The sign-in, masked (`o…@work.com`, `ChatGPT account …9f2c`).
+    /// The sign-in's email, masked (`o…@work.com`); `None` when the
+    /// sign-in records no email (never an id or a fragment of one).
     pub email: Option<String>,
     /// The team's name, for a seat in one (never a personal one's).
     pub organisation: Option<String>,
@@ -130,7 +134,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                     0,
                     format!("in|{}|{subject}|{}", row.tool, org.as_deref().unwrap_or("")),
                     "signed_in",
-                    Some(email),
+                    email,
                     org_name,
                     None,
                 )
@@ -224,7 +228,9 @@ fn one(
 
 /// The probe's masked label as its email and its organisation's name.
 /// A personal organisation (Claude names it after the email) is no team.
-fn split_label(label: &str) -> (String, Option<String>) {
+/// A label that isn't an email (Codex's account label, the
+/// tail of an id) gives no email: an id is never shown (the 0.2 walk, F3).
+fn split_label(label: &str) -> (Option<String>, Option<String>) {
     let (email, org) = label
         .split_once(" · ")
         .map_or((label, None), |(email, org)| (email, Some(org)));
@@ -233,7 +239,11 @@ fn split_label(label: &str) -> (String, Option<String>) {
             && !org.contains('@')
             && !org.to_ascii_lowercase().ends_with("'s organization")
     });
-    (email.to_owned(), org.map(str::to_owned))
+    let email = email.trim();
+    (
+        email.contains('@').then(|| email.to_owned()),
+        org.map(str::to_owned),
+    )
 }
 
 /// A key the UI can hold: a hash, never the vendor's ids.
@@ -277,6 +287,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             tool: account.harness.to_string(),
             profile: SubscriptionProfileInfo {
                 id: account.id.to_string(),
+                label: account.label.clone(),
                 folder: crate::features::quota::capture::home_relative(&account.state_dir),
                 plan: account.plan.as_ref().map(|plan| plan.as_str().to_owned()),
                 renewal_date: account.renewal_date.clone(),
@@ -295,6 +306,7 @@ mod tests {
         ProfileRead {
             profile: SubscriptionProfileInfo {
                 id: id.to_owned(),
+                label: format!("Account {id}"),
                 folder: format!("~/{id}"),
                 plan: None,
                 renewal_date: None,
@@ -452,6 +464,28 @@ mod tests {
         assert_eq!(accounts[0].renewal_date.as_deref(), Some("2026-11-01"));
         assert_eq!(accounts[0].fee_usd, None);
         assert_eq!(accounts[0].differs, ["fee"]);
+    }
+
+    #[test]
+    fn an_id_is_never_an_email_and_each_profile_keeps_its_own_name() {
+        // The 0.2 walk (F3): Codex's label is the tail of an account id.
+        let accounts = group(vec![
+            row(
+                "codex",
+                "codex",
+                signed("acct-123456789", None, "ChatGPT account …6789"),
+            ),
+            row(
+                "team",
+                "claude-code",
+                signed("acct-1", Some("org-acme"), "o…@work.com · Acme"),
+            ),
+        ]);
+        assert_eq!(accounts[0].email, None);
+        assert_eq!(accounts[0].profiles[0].label, "Account codex");
+        assert_eq!(accounts[1].email.as_deref(), Some("o…@work.com"));
+        assert_eq!(accounts[1].organisation.as_deref(), Some("Acme"));
+        assert_eq!(accounts[1].profiles[0].label, "Account team");
     }
 
     #[test]

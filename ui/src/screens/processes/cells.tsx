@@ -10,6 +10,7 @@ import { IconComputer } from "../../components/icons-actions";
 import { memorySize } from "../../lib/compact";
 import { ageWords, cpuWords, portWords, processState, roleWords, sessionState, ZOMBIE_WORDS, type ProcessTone } from "../../lib/process-states";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
+import { untitledName } from "../../lib/session-titles";
 
 /** The table's columns: Process, State, CPU, Memory, Ports, Age, Owner,
  * and the row's actions. The table is a container: Owner shows once the
@@ -53,6 +54,19 @@ export function CpuLine({ samples }: { samples: readonly number[] }): JSX.Elemen
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
+}
+
+/** A session row's name: its title; the app's own processes, which its
+ * sessions share, as "The app itself"; an untitled session by its folder
+ * and when it started (the 0.2 walk, F5: three rows read "Untitled
+ * session"). */
+export function sessionTitle(row: ProcessGraphRowInfo, now = Date.now()): string {
+  const session = row.session;
+  if (!session) return "session";
+  if (session.shared_by > 0) return "The app itself";
+  if (session.title) return session.title;
+  if (session.started_ms != null) return untitledName(null, session.folder_name, session.started_ms, now);
+  return session.folder_name ? `${session.folder_name} · no title yet` : "A session with no title yet";
 }
 
 /** "6 processes · 1.2 GB · 4 %". */
@@ -128,12 +142,16 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
   }
   if (row.session) {
     const session = row.session;
-    const second = [session.folder_name, rollupWords(row)].filter(Boolean).join(" · ");
+    const shared = session.shared_by > 0;
+    const own = !shared && session.alive && (row.rollup?.processes ?? 0) === 0 ? "nothing of its own running" : rollupWords(row);
+    const second = shared
+      ? [`Shared by its ${session.shared_by} sessions`, rollupWords(row)].join(" · ")
+      : [session.title ? session.folder_name : null, own].filter(Boolean).join(" · ");
     return (
       <div role="gridcell" className="flex min-w-0 items-center gap-2" style={indent}>
         <Chevron row={row} open={open} onToggle={onToggle} />
         <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-body font-medium text-ink">{session.title || "Untitled session"}</span>
+          <span className="truncate text-body font-medium text-ink" data-testid="process-session-title">{sessionTitle(row)}</span>
           <span className="truncate text-label text-muted">{second}</span>
         </span>
       </div>

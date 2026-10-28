@@ -1874,7 +1874,7 @@ for (const theme of THEMES) {
         await goTo(page, "Usage");
         await page.getByTestId("usage-prices-open").click();
         await expect(
-          page.getByText("USD is Estimated — list pricing, not your subscription fee."),
+          page.getByText("Every cost here is an estimate. What the API would charge, not your bill."),
         ).toBeVisible();
         await page.screenshot({
           path: resolve(GALLERY, `25-costs/${state}-${vp.name}-${theme}.png`),

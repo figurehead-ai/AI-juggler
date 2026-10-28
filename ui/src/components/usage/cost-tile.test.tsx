@@ -43,7 +43,9 @@ describe("the cost tile", () => {
     const view = render(<UsageDashboard kind="all" scope={{}} range="30d" accounts={[]} />);
     const tile = await view.findByTestId("tile-cost");
     // (Another range than the first test's: the screen keeps what it read.)
-    await waitFor(() => expect(tile.querySelector("[data-testid=stat-value]")?.textContent).toBe("≥ at least $12"));
+    await waitFor(() => expect(tile.querySelector("[data-testid=stat-value]")?.textContent).toBe("at least ~$12"));
+    // Once, in words, and an estimate at the API's price (the 0.2 walk, F15).
+    expect(tile.textContent).toContain("What the API would charge, not your bill");
   });
 
   it("the tile says its words in place of a number", () => {

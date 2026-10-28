@@ -449,6 +449,23 @@ pub struct SessionNode {
     pub spark: Vec<f32>,
     /// Its own process's pid, while it runs.
     pub root_pid: Option<u32>,
+    /// Busy now (a turn running), when the session's files say.
+    pub busy: Option<bool>,
+    /// Not a session: the processes this many of the app's sessions share
+    /// (a desktop app's own tree, which each of its sessions sits in),
+    /// listed once under the app (the 0.2 walk, F5). 0 for a session.
+    pub shared_by: u32,
+    /// For the shared processes: the sessions that share them (their
+    /// ids), so each one's Processes tab shows them too.
+    pub sharers: Vec<String>,
+}
+
+impl SessionNode {
+    /// The app's shared processes, not a session.
+    #[must_use]
+    pub const fn is_shared(&self) -> bool {
+        self.shared_by > 0
+    }
 }
 
 /// An app in the graph.
@@ -865,6 +882,9 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
             rollup: Rollup::default(),
             spark: session.ring.clone(),
             root_pid: root_pid.filter(|_| root_alive),
+            busy: session.busy,
+            shared_by: 0,
+            sharers: Vec::new(),
         },
         inputs,
     )
@@ -926,15 +946,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
         });
     }
     let processes = tree_order(nodes, Some(session.root_pid));
-    let state = if session.busy.unwrap_or_else(|| {
-        processes
-            .iter()
-            .any(|node| node.state == ProcState::Working)
-    }) {
-        "working"
-    } else {
-        "idle"
-    };
+    let state = live_state(session.busy, &processes);
     finish_session(
         SessionNode {
             key: format!("s:theirs:{}:{}", session.tool, session.session_id),
@@ -951,9 +963,102 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
             rollup: Rollup::default(),
             spark: session.ring.clone(),
             root_pid: Some(session.root_pid),
+            busy: session.busy,
+            shared_by: 0,
+            sharers: Vec::new(),
         },
         inputs,
     )
+}
+
+/// A live session's state: working while a turn runs or any of its
+/// processes is busy, idle otherwise (the 0.2 walk, F5: a session whose
+/// files said idle showed "Idle" at 223 % CPU).
+fn live_state(busy: Option<bool>, processes: &[ProcNode]) -> &'static str {
+    if busy == Some(true)
+        || processes
+            .iter()
+            .any(|node| node.state == ProcState::Working)
+    {
+        "working"
+    } else {
+        "idle"
+    }
+}
+
+/// The processes several of an app's sessions hold (a desktop app's own
+/// tree: each of its sessions' trees has it), taken out of each and listed
+/// once, under the app, as shared by them (the 0.2 walk, F5: one desktop
+/// app's 18 processes read as 90 across its 5 sessions). Each session keeps
+/// what only it holds, and its state is worked out again from that.
+fn share_app_processes(app: &mut AppNode, inputs: &Inputs) {
+    if app.ours || app.sessions.len() < 2 {
+        return;
+    }
+    let mut holders: HashMap<&str, u32> = HashMap::new();
+    for session in &app.sessions {
+        for node in &session.processes {
+            *holders.entry(node.key.as_str()).or_default() += 1;
+        }
+    }
+    let shared: HashSet<String> = holders
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(key, _)| key.to_owned())
+        .collect();
+    if shared.is_empty() {
+        return;
+    }
+    let mut nodes: Vec<ProcNode> = Vec::new();
+    let mut listed: HashSet<String> = HashSet::new();
+    let mut sharers: Vec<String> = Vec::new();
+    let mut tool = String::new();
+    for session in &mut app.sessions {
+        let (theirs, own): (Vec<ProcNode>, Vec<ProcNode>) = std::mem::take(&mut session.processes)
+            .into_iter()
+            .partition(|node| shared.contains(&node.key));
+        if theirs.is_empty() {
+            session.processes = own;
+            continue;
+        }
+        sharers.push(session.session_id.clone());
+        session.tool.clone_into(&mut tool);
+        for node in theirs {
+            if listed.insert(node.key.clone()) {
+                nodes.push(node);
+            }
+        }
+        session.processes = tree_order(own, session.root_pid);
+        if session.alive {
+            session.state = live_state(session.busy, &session.processes);
+        }
+        let done = finish_session(session.clone(), inputs);
+        *session = done;
+    }
+    let processes = tree_order(nodes, app.pid);
+    let state = live_state(None, &processes);
+    app.sessions.push(finish_session(
+        SessionNode {
+            key: format!("s:shared:{}", app.key),
+            origin: Origin::Theirs,
+            session_id: String::new(),
+            tool,
+            account_id: None,
+            project_id: None,
+            title: String::new(),
+            folder: None,
+            alive: true,
+            state,
+            processes,
+            rollup: Rollup::default(),
+            spark: Vec::new(),
+            root_pid: None,
+            busy: None,
+            shared_by: u32::try_from(sharers.len()).unwrap_or(u32::MAX),
+            sharers,
+        },
+        inputs,
+    ));
 }
 
 /// Other apps' ended sessions, from their leftovers: one session node per
@@ -1059,6 +1164,9 @@ fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
                     rollup: Rollup::default(),
                     spark: Vec::new(),
                     root_pid: None,
+                    busy: None,
+                    shared_by: 0,
+                    sharers: Vec::new(),
                 },
                 inputs,
             ),
@@ -1083,9 +1191,11 @@ fn finish_session(mut session: SessionNode, inputs: &Inputs) -> SessionNode {
     session
 }
 
-/// Attention first, then working, then by title.
-fn session_rank(session: &SessionNode) -> (u8, u8, String) {
+/// The app's shared processes first, then attention, then working, then
+/// by title.
+fn session_rank(session: &SessionNode) -> (u8, u8, u8, String) {
     (
+        u8::from(!session.is_shared()),
         u8::from(session.rollup.attention == 0),
         match session.state {
             "working" => 0,
@@ -1176,6 +1286,9 @@ pub fn build(inputs: &Inputs) -> Graph {
             .push(node);
     }
     let mut theirs: Vec<AppNode> = theirs.into_values().collect();
+    for app in &mut theirs {
+        share_app_processes(app, inputs);
+    }
     theirs.sort_by_key(|app| app.name.to_lowercase());
     apps.extend(theirs);
     let mut counts = Counts::default();
@@ -1184,7 +1297,7 @@ pub fn build(inputs: &Inputs) -> Graph {
         let mut rollup = Rollup::default();
         for session in &app.sessions {
             rollup.merge(&session.rollup);
-            counts.sessions += 1;
+            counts.sessions += u32::from(!session.is_shared());
             for node in &session.processes {
                 if node.role.ours_internal() {
                     continue;

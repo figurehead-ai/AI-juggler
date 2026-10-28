@@ -10,7 +10,7 @@ import { Donut } from "../../components/charts/Donut";
 import { ShareBar, StatTile } from "../../components/charts/StatTile";
 import { TimeChart, timeTable } from "../../components/charts/TimeChart";
 import { modelName, seriesColor } from "../../components/charts/colors";
-import { exact, short } from "../../components/charts/scale";
+import { API_PRICE, exact, short } from "../../components/charts/scale";
 import { IconChart, IconDonut, IconGauge, IconLayers, IconList, IconMoney, IconTokens } from "../../components/usage/controls";
 import { useCached } from "../../lib/usage/cached";
 import { usageSession, type UsageSessionDetailInfo } from "../../lib/ipc/usageHistory";
@@ -76,7 +76,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
     <div className="@container flex flex-col gap-grid" data-testid="session-usage-visual">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4">
         <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={io} unit="tokens" testId="session-tile-tokens" />
-        <StatTile label="Estimated cost" icon={<IconMoney width={15} height={15} />} value={detail ? (detail.totals.usd ?? 0) : null} unit="usd" note={detail?.totals.unpriced ? "Some of it has no list price" : "at list prices"} testId="session-tile-cost" />
+        <StatTile label="Estimated cost" icon={<IconMoney width={15} height={15} />} value={detail?.totals.usd ?? null} words={detail && detail.totals.usd == null ? "No list price" : undefined} unit="usd" estimate atLeast={!!detail?.totals.unpriced && detail.totals.usd != null} note={detail?.totals.unpriced ? `${API_PRICE}. Some of it has no list price, so it isn't counted` : API_PRICE} testId="session-tile-cost" />
         <StatTile label="Turns" icon={<IconList width={15} height={15} />} value={detail?.totals.messages ?? null} unit="count" note={detail?.truncated ? `the last ${detail.turns.length} drawn below` : undefined} testId="session-tile-turns" />
         <StatTile label="Cache read" icon={<IconLayers width={15} height={15} />} value={detail?.totals.tokens.cache_read ?? null} unit="tokens" note="served from the prompt cache" testId="session-tile-cache" />
       </div>

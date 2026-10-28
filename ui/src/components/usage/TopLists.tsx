@@ -80,7 +80,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
         {short(share.io, "tokens")}
       </td>
       <td className="px-2.5 py-2 text-right text-body tabular-nums" title={share.usd == null ? "No list price" : exact(share.usd, "usd")}>
-        {share.usd == null ? "—" : usdWords(share.usd)}
+        {share.usd == null ? "—" : `~${usdWords(share.usd)}`}
       </td>
       <td className="px-2.5 py-2">
         <ShareBar parts={profileParts(share, labels)} total={total} scale={rows[0]?.io} unit="tokens" label={share.label} />
@@ -162,7 +162,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
         <span className="sr-only"> tokens</span>
       </span>
       <span className="text-right text-body tabular-nums" title={row.usd == null ? "No list price" : exact(row.usd, "usd")}>
-        {row.usd == null ? "—" : usdWords(row.usd)}
+        {row.usd == null ? "—" : `~${usdWords(row.usd)}`}
         <span className="sr-only"> estimated</span>
       </span>
     </div>

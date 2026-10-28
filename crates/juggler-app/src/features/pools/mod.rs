@@ -118,6 +118,7 @@ pub fn shown_pools(storage: &Storage) -> AppResult<Vec<(Pool, String)>> {
             (pool, name)
         })
         .collect();
+    told_apart(storage, &mut listed)?;
     listed.sort_by_key(|(pool, name)| match pool.kind {
         PoolKind::User => (0, pool.created_at, String::new()),
         PoolKind::Default if pool.project.is_none() => (2, 0, String::new()),
@@ -126,14 +127,58 @@ pub fn shown_pools(storage: &Storage) -> AppResult<Vec<(Pool, String)>> {
     Ok(listed)
 }
 
-/// One pool that isn't deleted, with its name on screen.
+/// Two projects' default pools with one name (two folders called `app`)
+/// are told apart by the folder each project is in: "app · all sessions
+/// (in work)" (the 0.2 walk, F10: three pairs of identical names). The
+/// user's own pools keep their names (a name is refused when taken).
+fn told_apart(storage: &Storage, listed: &mut [(Pool, String)]) -> AppResult<()> {
+    use std::fmt::Write as _;
+    let mut seen: HashMap<String, u32> = HashMap::new();
+    for (_, name) in listed.iter() {
+        *seen.entry(name.to_lowercase()).or_default() += 1;
+    }
+    if seen.values().all(|count| *count < 2) {
+        return Ok(());
+    }
+    let parents: HashMap<String, String> = storage
+        .projects()
+        .list()?
+        .into_iter()
+        .filter_map(|project| {
+            let parent = project.root.parent()?.file_name()?;
+            Some((
+                project.id.as_str().to_owned(),
+                parent.to_string_lossy().into_owned(),
+            ))
+        })
+        .collect();
+    for (pool, name) in listed.iter_mut() {
+        if pool.kind != PoolKind::Default || seen.get(&name.to_lowercase()).is_none_or(|n| *n < 2) {
+            continue;
+        }
+        if let Some(parent) = pool
+            .project
+            .as_ref()
+            .and_then(|project| parents.get(project.as_str()))
+        {
+            let _ = write!(name, " (in {parent})");
+        }
+    }
+    Ok(())
+}
+
+/// One pool that isn't deleted, with its name on screen (as the list says
+/// it, told apart from a namesake).
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] for a pool that isn't there; storage failures.
 pub fn named_pool(storage: &Storage, pool_id: &str) -> AppResult<(Pool, String)> {
     let pool = live_pool(storage, pool_id)?;
-    let name = shown_name(&pool, &project_names(storage)?);
+    let name = shown_pools(storage)?
+        .into_iter()
+        .find(|(listed, _)| listed.id == pool.id)
+        .map_or_else(|| shown_name(&pool, &HashMap::new()), |(_, name)| name);
     Ok((pool, name))
 }
 

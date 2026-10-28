@@ -297,6 +297,7 @@ pub fn history_impl(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult
         )
         .unwrap_or(u32::MAX),
         truncated,
+        reading: state.usage_reading.so_far(),
     })
 }
 

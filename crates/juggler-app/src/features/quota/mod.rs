@@ -41,8 +41,13 @@ pub struct WindowDisplay {
     /// When the vendor's reading behind this window was taken, epoch ms:
     /// the "as of" every surface shows beside a measured percentage.
     pub measured_at_ms: Option<i64>,
-    /// Absolute burn inside the window (the honest floor).
+    /// Absolute burn inside the window (the honest floor), every kind
+    /// counted (cache reads and writes too): what headroom is figured on.
     pub burned_tokens: u64,
+    /// The window's tokens in and out, counted as Usage counts them
+    /// (`usage_history::fold::io`): what every screen calls "tokens" (the
+    /// 0.2 walk, F15: 7.7B here against 4.4M on Usage).
+    pub burned_io_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
     pub burned_credits: Option<f64>,
     /// Headroom in tokens (cap − burned), ONLY when the cap is
@@ -202,6 +207,10 @@ pub struct QuotaDisplayInfo {
     /// maintainer's report, 0.1.6: a team seat's only week read as "no
     /// weekly limit"). Empty when the tool reports none.
     pub model_weeks: Vec<ModelWeekDisplay>,
+    /// The first read of the tools' history is still running, so what
+    /// isn't measured may only not be read yet (the 0.2 walk, F6). Set
+    /// by the commands that show it.
+    pub history_reading: bool,
 }
 
 /// A weekly limit on one model only ("This week · Fable only"). It limits
@@ -254,6 +263,21 @@ fn credits_of(
         as_of_ms: snapshot.ts,
         source: provider_name(account.harness.as_str()),
     })
+}
+
+/// One account's display as a screen shows it: with whether the first read
+/// of the history still runs, so "not measured" can say "not read yet"
+/// (the 0.2 walk, F6).
+#[must_use]
+pub fn shown(
+    state: &crate::state::AppState,
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+    now_ms: i64,
+) -> QuotaDisplayInfo {
+    let mut display = quota_display_inner(storage, account, now_ms);
+    display.history_reading = state.usage_reading.so_far().is_some();
+    display
 }
 
 /// Evaluates one account's two-clock display from the engine (E606
@@ -380,6 +404,7 @@ pub fn quota_display_inner(
             .saturating_add(reading.burn.tokens.cache_read)
             .saturating_add(reading.burn.tokens.cache_write)
             .saturating_add(reading.burn.tokens.reasoning),
+        burned_io_tokens: crate::features::usage_history::fold::io(&reading.burn.tokens),
         burned_credits: (reading.burn.credits > 0.0).then_some(reading.burn.credits),
         headroom_tokens: cap.tokens.map(|tokens| {
             #[allow(clippy::cast_precision_loss)]
@@ -627,6 +652,7 @@ pub fn quota_display_inner(
         unavailable_reason,
         credits: credits_of(storage, account),
         model_weeks,
+        history_reading: false,
     }
 }
 

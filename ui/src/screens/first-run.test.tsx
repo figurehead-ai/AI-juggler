@@ -517,6 +517,7 @@ describe("AJ-E1022 another folder", () => {
       { name: "settings.json", bytes: 60 },
     ],
     truncated: false,
+    reading: null,
     ceiling_bytes: 2_000_000_000,
     is_config: true,
     already_managed: false,

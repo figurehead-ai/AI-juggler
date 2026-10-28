@@ -299,6 +299,41 @@ fn each_project_has_its_own_default_pool_holding_all_its_sessions() {
 }
 
 /// D-33 with D-28: each project's default pool has its own level.
+/// The 0.2 walk (F10): two projects with one name (two folders called
+/// `app`) have default pools told apart by the folder each is in, in the
+/// list and on the pool's own page alike.
+#[test]
+fn two_projects_with_one_name_have_pools_told_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let work_root = dir.path().join("work").join("app");
+    let home_root = dir.path().join("home").join("app");
+    let work = project(&state, &work_root, "app");
+    let home = project(&state, &home_root, "app");
+    session(&state, "s-w", "work", Some(&work), &work_root);
+    session(&state, "s-h", "work", Some(&home), &home_root);
+
+    let info = pools::pools_list_impl(&state).unwrap();
+    let mut names: Vec<&str> = info
+        .pools
+        .iter()
+        .filter(|pool| pool.project_id.is_some())
+        .map(|pool| pool.name.as_str())
+        .collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "app · all sessions (in home)",
+            "app · all sessions (in work)"
+        ]
+    );
+    let storage = state.storage.lock().unwrap();
+    let (_, name) = pools::named_pool(&storage, default_pool_id(Some(&work)).as_str()).unwrap();
+    assert_eq!(name, "app · all sessions (in work)");
+}
+
 #[test]
 fn two_projects_default_pools_have_their_own_levels() {
     use juggler_core::agent_access::{AgentAction, Decision};

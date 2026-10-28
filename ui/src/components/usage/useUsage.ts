@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useCached } from "../../lib/usage/cached";
+import { READING_POLL_MS } from "../../lib/history-reading";
 import { cutRange, RANGES, type Cut, type RangeId } from "../../lib/usage/range";
 import { usageHistory, usageHistoryFirst, type UsageHistoryInfo, type UsageShareInfo } from "../../lib/ipc/usageHistory";
 import { toolSpec } from "../../lib/tools";
@@ -67,6 +68,15 @@ export function useUsageHistory(range: RangeId, groupBy: GroupBy, scope: Scope, 
   const ready = range !== "all" || !first.loading;
   const key = ready ? JSON.stringify({ e: [cut.edges[0], cut.edges[cut.edges.length - 1], cut.edges.length], groupBy, profile, project, top }) : null;
   const result = useCached<UsageHistoryInfo>(key, () => usageHistory({ edges_ms: cut.edges, group_by: groupBy, profile, project, top }));
+  // The 0.2 walk (F6): while the first read of the history runs, read
+  // again every few seconds, so its figures show as soon as they're in.
+  const reading = result.data?.reading != null;
+  const { refresh } = result;
+  useEffect(() => {
+    if (!reading) return;
+    const timer = window.setInterval(refresh, READING_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [reading, refresh]);
   return { cut, data: result.data, current: result.current, loading: result.loading || !ready, error: result.error };
 }
 

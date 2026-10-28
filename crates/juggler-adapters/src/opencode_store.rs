@@ -207,7 +207,8 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
                 summary: juggler_adapter::conversation::ConversationSummary {
                     cwd: (!session.directory.is_empty()).then(|| PathBuf::from(&session.directory)),
                     git_branch: None,
-                    title: juggler_adapter::conversation::title_from(&session.title, 120),
+                    title: juggler_adapter::conversation::prompt_title(&session.title, 120),
+                    opening: juggler_adapter::conversation::title_from(&session.title, 120),
                     started_ms: Some(session.created_ms),
                     last_ms: Some(session.updated_ms),
                     tokens: session.tokens,

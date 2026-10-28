@@ -150,7 +150,7 @@ describe("Home, desktop first", () => {
       conversations: [],
       subscriptions: [
         { key: "acct-1", tool: "claude-code", state: "signed_in", email: "o@work.com", organisation: null, reason: null, plan: "Max", renewal_date: null, fee_usd: null, differs: [],
-          profiles: ["claude-work", "claude-personal"].map((id) => ({ id, folder: id, plan: "Max", renewal_date: null, fee_usd: null })) },
+          profiles: ["claude-work", "claude-personal"].map((id) => ({ id, label: id, folder: id, plan: "Max", renewal_date: null, fee_usd: null })) },
       ],
     };
     await loadSubscriptions(true); // the list is cached for half a minute

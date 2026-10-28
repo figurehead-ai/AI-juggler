@@ -9,6 +9,11 @@ export type SubscriptionProfileInfo = {
  */
 id: string, 
 /**
+ * Its name, as the user gave it or the import named it: what the
+ * account is called on screen (never a vendor's id or organisation).
+ */
+label: string, 
+/**
  * Its folder, `~`-relative.
  */
 folder: string, 

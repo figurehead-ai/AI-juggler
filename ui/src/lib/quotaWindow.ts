@@ -108,6 +108,21 @@ export function tokenWords(tokens: number): string {
   return compactCount(tokens, (value, suffix) => (suffix === "k" || (suffix === "M" ? value >= 10 : value >= 100) ? 0 : 1));
 }
 
+/** A window's tokens as every screen counts them: in and out, like
+ * Usage's "Tokens in and out" (the 0.2 walk, F15: 7.7B on a session page
+ * against 4.4M on Usage for one account). A reading without that split
+ * counts cache too, and says so. `null` when it used none. */
+export function usedTokensWords(windows: ReadonlyArray<WindowDisplay | null | undefined>): string | null {
+  const io = windows.filter((w): w is WindowDisplay => w != null);
+  if (io.length === 0) return null;
+  if (io.every((w) => w.burned_io_tokens != null)) {
+    const most = Math.max(...io.map((w) => w.burned_io_tokens!));
+    return most > 0 ? `${tokenWords(most)} tokens in and out` : null;
+  }
+  const most = Math.max(...io.map((w) => w.burned_tokens));
+  return most > 0 ? `${tokenWords(most)} tokens, cache included` : null;
+}
+
 /** True when the window carries a real percentage (never a default). */
 export function measured(window: WindowDisplay | null | undefined): window is WindowDisplay & { percentage: number } {
   return (
@@ -154,7 +169,8 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
     return { left: 0, words: `Used up${until}${asOf}`, tone: "out", resets };
   }
   if (!measured(window)) {
-    const used = window.burned_tokens > 0 ? ` · ${tokenWords(window.burned_tokens)} tokens used` : "";
+    const tokens = usedTokensWords([window]);
+    const used = tokens ? ` · used ${tokens}` : "";
     const when = window.state === "unknown" ? "" : resets ? ` · ${resets}` : "";
     return { left: null, words: `Not measured yet${used}${when}`, tone: "none", resets };
   }
