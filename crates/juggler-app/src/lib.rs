@@ -1179,18 +1179,8 @@ fn spawn_read_model_ticks(
         // AJ-E1703: what each live session is working on (its card).
         features::pools::cards::tick(&processes_state);
     });
-    // AJ-E1520 (0.2): the rail's subagent count, each live session's
-    // reader refreshed (within its byte budget) on its own 2 s tick, so a
-    // slow store never holds up the process sampling; rows read only
-    // what it published.
-    {
-        let subagents_state = quota_state.clone();
-        ticks::every("subagents", features::subagents::count::EVERY, move || {
-            if features::subagents::count::tick(&subagents_state) {
-                let _ = commands::emit_sessions(&subagents_app, &subagents_state);
-            }
-        });
-    }
+    // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
+    features::subagents::count::start(subagents_app, quota_state.clone());
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
         let _ = commands::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
