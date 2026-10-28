@@ -2349,17 +2349,21 @@ export interface SwitchTargetData {
 /** The no-backend switch-targets default (preview mode shows a
  * realistic ranked, badged set; fixtures override wholesale). */
 const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
+  // Each row's words match its tool (the 0.2 re-render): another Claude
+  // Code account keeps the same conversation; Codex starts fresh from the
+  // story, as the backend's pair matrix says.
   {
     recipe_id: "recipe-work-max",
+    provider: "claude-code",
     account_id: "acct-work",
     account_label: "Work Max",
-    badge: "Full story, fresh start · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
-    drops: ["Subagents' work"],
+    cross_provider: false,
+    drops: [],
     score: 0.62,
     top_factors: ["80% headroom", "used most here"],
-    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["starts fresh from the story", 0.04], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
+    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["quiet", 0.1]],
     confidence: "Computed",
     tte_min: 262,
     filtered_reason: null,
@@ -2367,15 +2371,16 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-personal",
+    provider: "claude-code",
     account_id: "acct-personal",
     account_label: "Personal",
-    badge: "Full story, fresh start · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
-    drops: ["Subagents' work"],
+    cross_provider: false,
+    drops: [],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
-    factors: [["35% headroom", 0.16], ["quiet", 0.1], ["starts fresh from the story", 0.04]],
+    factors: [["35% headroom", 0.16], ["quiet", 0.1]],
     confidence: "Estimate",
     tte_min: 95,
     filtered_reason: null,
@@ -2383,6 +2388,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-codex",
+    provider: "codex",
     account_id: "acct-codex",
     account_label: "Codex",
     badge: "Full story, fresh start · Beta",
@@ -2399,11 +2405,12 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-lab",
+    provider: "claude-code",
     account_id: "acct-lab",
     account_label: "Lab",
     badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
+    cross_provider: false,
     drops: [],
     filtered_reason: "exhausted — resets in 3h",
     top_factors: [],

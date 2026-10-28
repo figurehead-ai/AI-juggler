@@ -5887,7 +5887,16 @@ for (const theme of THEMES) {
     test(`28 switch — ${state} — ${theme}`, async ({ page }) => {
       // The handover's case: a switch to Codex, the conversation replayed.
       const codex = state === "notes-handover";
-      const preflight = codex ? { ...NOTES_ONE_CLICK, mechanism: "replay", fidelity: "F1", fidelity_words: "Full story, fresh start", target_tool: "codex" } : NOTES_ONE_CLICK;
+      const preflight = codex
+        ? {
+            ...NOTES_ONE_CLICK,
+            mechanism: "replay",
+            fidelity: "F1",
+            fidelity_words: "Full story, fresh start",
+            target_tool: "codex",
+            move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
+          }
+        : NOTES_ONE_CLICK;
       await openSwitchWith(page, theme, { __AIJ_SWITCH_PREFLIGHT__: preflight, __AIJ_SWITCH_SETUP__: setup });
       await pickTarget(page, codex ? /Codex/ : /Personal/);
       await expect(page.getByTestId("switch-step-confirm")).toContainText(codex ? "Ready to switch to Codex" : "Ready to switch to Personal");
@@ -5911,19 +5920,19 @@ for (const theme of THEMES) {
     forecast: { state: "learning", badge: "learning" },
     renewal: { state: "none", label: "", entered_by_user: false },
   });
+  // Each target's words match its tool: Codex is a handover (the 0.2
+  // re-render caught it labelled "Same conversation, new account").
+  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, new account · Beta", cross_provider: false, drops: [] as string[] };
+  const CODEX = { provider: "codex", badge: "Full story, fresh start · Beta", cross_provider: true, drops: ["Subagents' work", "The task list"] };
   const ROOM_TARGETS = [
-    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0 },
-    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62 },
-    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88 },
+    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0, ...SAME_TOOL },
+    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62, ...CODEX },
+    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88, ...SAME_TOOL },
   ];
   const roomSeams = {
     __AIJ_SWITCH_TARGETS__: ROOM_TARGETS.map(({ left: _left, ...target }) => ({
       ...target,
-      provider: "claude-code",
-      badge: "Same conversation, new account · Beta",
       validated: false,
-      cross_provider: false,
-      drops: [],
       score: null,
       filtered_reason: null,
       top_factors: [],
