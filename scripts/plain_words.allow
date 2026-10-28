@@ -7,3 +7,16 @@
 crates/juggler-handover/src/register.rs ci-row 1
 crates/juggler-handover/src/register.rs fidelity-code 1
 crates/juggler-handover/src/register.rs live-cell 1
+# 2026-10-27 (pack, redaction): what is left is never on screen. IPC and
+# error-log context names ("export pack", "redaction policy"), usage-stats
+# site names, the debug dump of a token, export folder names in the
+# preview seams, and the register doc line above.
+crates/juggler-app/src/commands.rs pack 7
+crates/juggler-app/src/commands.rs redaction 6
+crates/juggler-app/src/dev_bridge.rs redaction 1
+crates/juggler-app/src/features/packs/mod.rs pack 4
+crates/juggler-app/src/usage_stats.rs pack 1
+crates/juggler-app/src/usage_stats.rs redaction 2
+crates/juggler-handover/src/register.rs pack 1
+ui/src/lib/bridge.ts pack 1
+ui/src/lib/ipc/packs.ts pack 1

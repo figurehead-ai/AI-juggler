@@ -75,7 +75,7 @@ describe("CostMatrix (AJ-E609, 0.1.8)", () => {
     const screen = render(<CostMatrix />);
     await screen.findAllByTestId("cost-row");
     const names = Array.from(screen.getByTestId("cost-columns").children).map((cell) => cell.textContent);
-    expect(names).toEqual(["Day", "Session", "Model", "USD (estimate)", "Tokens (in / out)", "Credits"]);
+    expect(names).toEqual(["Day", "Session", "Model", "Estimated USD", "Tokens (in / out)", "Credits"]);
     const row = screen.getAllByTestId("cost-row")[0]!;
     for (const name of ["Day", "Session", "Model", "USD, estimate", "Tokens in and out", "Credits"]) expect(row.textContent).toContain(name);
     expect(screen.getByRole("list", { name: "Cost per session and day" })).toBeTruthy();

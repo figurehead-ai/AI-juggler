@@ -239,11 +239,10 @@ fn preflight_input() -> PreflightInput {
             from_provider: "claude-code".into(),
             to_provider: "claude-code".into(),
             dispositions: Default::default(),
-            compact_boundary: false,
             flags: PairFlags::default(),
             unmapped_keys: vec![],
         },
-        compacted: false,
+        target_account: "Personal".into(),
         gates: PreflightGates::default(),
         target_quota_tight: None,
         git: juggler_handover::pipeline::GitState::default(),
@@ -284,6 +283,11 @@ fn preflight_stops_hard_gates_and_only_hard_gates() {
     input.gates.target_exhausted_no_reset = true;
     let stopped = pipeline::preflight(&input).unwrap_err();
     assert!(stopped.to_string().contains("exhausted"), "{stopped}");
+    assert!(
+        stopped
+            .words("Work", "Personal")
+            .starts_with("Personal has no usage left")
+    );
 
     // Hard: version drift.
     input.gates = PreflightGates {
@@ -298,7 +302,6 @@ fn preflight_stops_hard_gates_and_only_hard_gates() {
 
     // Soft warnings all pass through without stopping.
     input.gates = PreflightGates::default();
-    input.compacted = true;
     input.target_quota_tight = Some((8, 45));
     input.git.same_branch_both_live = true;
     input.git.zombie_children = vec!["pid 1234 (node vite)".into()];
@@ -306,9 +309,16 @@ fn preflight_stops_hard_gates_and_only_hard_gates() {
     let report = pipeline::preflight(&input).unwrap();
     assert_eq!(
         report.warnings.len(),
-        4,
-        "compacted + tight + same-branch + hop-cost"
+        3,
+        "tight + same-branch + hop-cost (a compacted source is no risk: D-03 amendment)"
     );
+    // The tight warning names the account, never the tool's id.
+    let tight = user_copy(report.warnings[0].clone());
+    assert!(
+        tight.starts_with("Personal has about 8% left"),
+        "the warning names the account"
+    );
+    assert!(!tight.contains("claude-code"), "no tool id in the warning");
     assert_eq!(
         report.zombie_children,
         vec!["pid 1234 (node vite)".to_owned()]
@@ -332,9 +342,6 @@ fn copy_table_is_verbatim() {
             provider_b: "Codex".into(),
             turns: 41,
             tokens: 41_000,
-        }),
-        user_copy(CopySituation::CompactedSource {
-            provider_b: "Codex".into(),
         }),
         user_copy(CopySituation::TargetQuotaTight {
             account_b: "Personal".into(),
@@ -361,7 +368,7 @@ fn copy_table_is_verbatim() {
         }),
     ];
     let joined = all.join(" | ");
-    assert!(joined.contains("Switching never happens automatically — your call."));
+    assert!(joined.contains("Switching never happens on its own — your call."));
     assert!(joined.contains("nothing is merged silently"));
     assert!(joined.contains("you can resume it exactly where you left it."));
     assert!(
@@ -453,9 +460,11 @@ fn launch_failure_retains_stage_and_source_safe() {
     );
     // …and the source is safe.
     assert_eq!(source_before, dir_hashes(main.parent().unwrap()));
-    // The user copy names the source's safety.
-    let copy = failure.copy("Work");
-    assert!(copy.contains("Nothing changed on Work"));
+    // The user's words name the account and never the spawn detail.
+    assert_eq!(
+        failure.words("Work", "Personal"),
+        "The new session on Personal didn't start, so nothing moved."
+    );
 }
 
 /// S-F2: a torn tail refuses before anything stages.
@@ -544,10 +553,53 @@ fn failure_stage_mapping_covers_the_taxonomy() {
         SwitchFailure::PrimeQuotaDeath(1200).stage(),
         FailureStage::Launch
     );
-    assert!(
-        SwitchFailure::UnresolvedSource
-            .copy("Work")
-            .contains("resume it exactly where you left it")
+}
+
+/// What a person reads for each failure: plain, the account named, never
+/// the detail in brackets, the taxonomy code or "preflight".
+#[test]
+fn every_failure_reads_in_plain_words() {
+    use juggler_handover::pipeline::PreflightStop;
+    let failures = [
+        SwitchFailure::UnresolvedSource,
+        SwitchFailure::TornTail,
+        SwitchFailure::CollisionForked("sess-9f3a".into()),
+        SwitchFailure::StagingAborted("No space left on device (os error 28)".into()),
+        SwitchFailure::LaunchFailed("terminal spawn failed".into()),
+        SwitchFailure::PrimeQuotaDeath(12_400),
+        SwitchFailure::OriginalSessionGone,
+        SwitchFailure::MergeConflictOpen,
+        SwitchFailure::HopCost(4, 380_000),
+        SwitchFailure::Preflight(PreflightStop::TargetExhausted),
+        SwitchFailure::Preflight(PreflightStop::VersionDrift),
+        SwitchFailure::Adapter(AdapterError::InvalidLaunch("model_id is missing".into())),
+    ];
+    for failure in failures {
+        let words = failure.words("Work", "Personal");
+        for token in [
+            "sess-9f3a",
+            "os error",
+            "spawn",
+            "S-F",
+            "preflight",
+            "harness",
+            "model_id",
+            "(",
+        ] {
+            assert!(
+                !words.contains(token),
+                "a failure's words carry program text"
+            );
+        }
+        assert!(
+            words.contains("Work") || words.contains("Personal"),
+            "a failure's words name the account"
+        );
+        assert!(words.ends_with('.'), "a failure's words are sentences");
+    }
+    assert_eq!(
+        SwitchFailure::PrimeQuotaDeath(12_400).words("Work", "Personal"),
+        "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens."
     );
 }
 

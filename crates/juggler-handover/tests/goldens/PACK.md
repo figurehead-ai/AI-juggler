@@ -1,4 +1,4 @@
-# Context pack
+# Handover
 
 Work `work-000123` on `/Users/dev/ai-juggler` — Work Max under claude-code.
 
@@ -17,4 +17,4 @@ Work `work-000123` on `/Users/dev/ai-juggler` — Work Max under claude-code.
 
 - Fidelity of this switch: F1 (beta)
 - Replay estimate: ≈460 tokens
-- Pack `01936657-6c2e-7a30-9a1f-3f2a11e9d000` created 1792094400000
+- Handover `01936657-6c2e-7a30-9a1f-3f2a11e9d000` created 1792094400000

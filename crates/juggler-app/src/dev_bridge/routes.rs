@@ -200,6 +200,7 @@ read_routes! {
     "instances_list" => async_result commands::sessions_list(state);
     "instance_quality" => async_result commands::instance_quality(state; session_id: String);
     "instance_replay" => async_result history::instance_replay(state; session_id: String);
+    "sessions_history" => async_result features::sessions::commands::sessions_history(state; session_id: String, page: crate::paging::PageRequest);
     "transcript_search" => async_result history::transcript_search(state; query: String);
     "projects_list" => async_result commands::projects_list(state);
     "ranking_rows" => async_result commands::ranking_rows(state; project: Option<String>);

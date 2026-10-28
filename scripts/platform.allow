@@ -25,11 +25,10 @@ crates/juggler-app/src/activation.rs mac-words 3
 crates/juggler-app/src/backup.rs mac-words 7
 crates/juggler-app/src/cloud_backup.rs mac-words 2
 crates/juggler-app/src/commands.rs applications 1
-crates/juggler-app/src/commands.rs mac-words 1
 crates/juggler-app/src/commands.rs slash-split 5
 crates/juggler-app/src/commands.rs unix-api 1
 crates/juggler-app/src/crash.rs unix-api 1
-crates/juggler-app/src/crossmachine.rs mac-words 5
+crates/juggler-app/src/crossmachine.rs mac-words 4
 crates/juggler-app/src/crossmachine/switch_back.rs mac-words 5
 crates/juggler-app/src/dev_bridge.rs unix-api 1
 crates/juggler-app/src/dev_bridge/routes.rs mac-words 2
@@ -77,7 +76,6 @@ crates/juggler-core/src/funnel_events.rs mac-words 1
 crates/juggler-core/src/storage/mod.rs unix-api 1
 crates/juggler-core/src/storage/transcript_index.rs unix-api 1
 crates/juggler-core/src/tasks.rs app-bundle 1
-crates/juggler-handover/src/redaction.rs mac-words 1
 crates/juggler-link/src/cert.rs mac-words 1
 crates/juggler-link/src/client.rs mac-words 1
 crates/juggler-link/src/identity.rs mac-words 1
@@ -109,14 +107,12 @@ ui/src/components/MarkSheet.tsx mac-words 1
 ui/src/components/NotificationSettings.tsx mac-words 3
 ui/src/components/OpenPack.tsx mac-words 1
 ui/src/components/OutsideSearchSetting.tsx mac-words 1
-ui/src/components/PackPolicyChooser.tsx mac-words 3
 ui/src/components/PlaceRows.tsx mac-words 1
 ui/src/components/PrivacyCard.tsx mac-words 2
 ui/src/components/RailToolbar.tsx mac-words 2
 ui/src/components/RemoteLaunch.tsx mac-words 1
 ui/src/components/RemoteTabs.tsx mac-words 1
 ui/src/components/SessionsSettings.tsx mac-words 7
-ui/src/components/SwitchFlow.tsx mac-words 1
 ui/src/components/UpdatesCard.tsx mac-words 2
 ui/src/components/UsageStatsChooser.tsx mac-words 1
 ui/src/components/Welcome.tsx mac-words 4

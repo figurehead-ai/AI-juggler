@@ -384,7 +384,7 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
             .find(|row| row.from == pair.from && row.to == pair.to);
         let validated = row.is_some_and(crate::validation::PairCell::validated);
         let badge = row.map_or_else(
-            || "Briefing pack · Beta".to_owned(),
+            || "Handover notes · Beta".to_owned(),
             crate::validation::PairCell::badge,
         );
         let (switch_rows, settings) = if validated {

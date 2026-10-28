@@ -7,15 +7,17 @@ import { ToolMark } from "../components/ToolMark";
 import { toolSpec } from "../lib/tools";
 import { trustOpen } from "../lib/ipc/trust";
 
-export type Step = "found" | "fresh" | "folder" | "signin" | "access";
+export type Step = "found" | "fresh" | "folder" | "signin" | "access" | "account";
 
-export function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
+/** D-46: first run (not Add account) ends with the optional account. */
+export function StepMarks({ step, skipAccess, withAccount = false }: { step: Step; skipAccess: boolean; withAccount?: boolean }): JSX.Element {
   // The fresh-account and folder steps are the first step's other doors.
   const first = step === "fresh" ? "Name the account" : step === "folder" ? "Check the folder" : "Bring in your accounts";
   const steps: Array<{ id: Step; label: string }> = [
     { id: step === "fresh" || step === "folder" ? step : "found", label: first },
     { id: "signin", label: "Sign in where needed" },
     ...(skipAccess ? [] : [{ id: "access" as Step, label: "Computer access" }]),
+    ...(withAccount ? [{ id: "account" as Step, label: "Figurehead account" }] : []),
   ];
   const at = steps.findIndex((entry) => entry.id === step);
   return (

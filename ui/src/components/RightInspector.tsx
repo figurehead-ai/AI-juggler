@@ -37,6 +37,7 @@ import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { installWords, providerDisplayName } from "../lib/providers";
+import { useToolInstall } from "../lib/useToolInstall";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
@@ -184,7 +185,7 @@ export function RightInspector({
     return () => window.removeEventListener("keydown", onKey);
   }, [remote, onRemoteBack]);
 
-  const sessionTabs = useSessionTabs(data.instance ?? null);
+  const sessionTabs = useSessionTabs(remote ? null : (data.instance ?? null));
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
   const kind = selection.kind;
@@ -328,7 +329,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "messages":
         case "tasks":
         case "subagents":
-          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} /> : null;
+        case "history":
+          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
         default:
           return null;
       }
@@ -480,7 +482,8 @@ function InstanceOverview(props: PanelProps) {
           ) : null}
           <CopyField testId="instance-cwd" label="folder" value={session.cwd} mono />
           <span data-testid="instance-native-id">
-            Claude session:{" "}
+            {/* The tool's own id for the conversation (never "Claude" for every tool). */}
+            Conversation id in {providerDisplayName(session.provider)}:{" "}
             <span className="font-mono text-ink">
               {session.conversation_id ?? "not found yet"}
             </span>
@@ -737,7 +740,7 @@ function InstanceOverview(props: PanelProps) {
                     key={recipe.id}
                     type="button"
                     disabled={!ready}
-                    title={ready ? undefined : "Needs sign-in first (Ready home)"}
+                    title={ready ? undefined : "Needs sign-in first: sign in from its account on Accounts"}
                     onClick={() => props.onLaunch(recipe, project)}
                     className={
                       "flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-left text-xs transition-colors " +
@@ -894,41 +897,10 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
 
 // --- AJ-E408: Provider / Account / Project content -----------------------
 
-/** Provider Overview (§5.3): counts, worst-first aggregate, honest
- * capability/version badges. */
-/** What this Mac has of a tool: installed version, verified range. */
-/** What's installed for one tool: null while checking (nothing shown),
- * "failed" when the check failed or doesn't know the tool. The result is
- * kept per tool, so another tool's version never shows while checking. */
-export function useToolInstall(
-  providerId: string | null,
-): import("../lib/bridge").ProviderInstallData | "failed" | null {
-  const [result, setResult] = useState<{
-    providerId: string;
-    install: import("../lib/bridge").ProviderInstallData | "failed";
-  } | null>(null);
-  useEffect(() => {
-    if (!providerId) return;
-    let alive = true;
-    void import("../lib/bridge")
-      .then((bridge) => bridge.providersDiscover())
-      .then(
-        (rows) => {
-          if (alive) setResult({ providerId, install: rows.find((row) => row.provider === providerId) ?? "failed" });
-        },
-        () => {
-          if (alive) setResult({ providerId, install: "failed" });
-        },
-      );
-    return () => {
-      alive = false;
-    };
-  }, [providerId]);
-  return result && result.providerId === providerId ? result.install : null;
-}
-
 export { installWords } from "../lib/providers";
 
+/** Provider Overview (§5.3): counts, worst-first aggregate, honest
+ * capability/version badges. */
 function ProviderOverview(props: PanelProps) {
   const provider = props.data.provider;
   const install = useToolInstall(provider?.id ?? null);

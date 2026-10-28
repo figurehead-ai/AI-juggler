@@ -275,7 +275,7 @@ export const atScale: FixtureSet = (() => {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account (compacted)",
+  fidelity_words: "Same conversation, new account",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],
@@ -286,7 +286,7 @@ export const DOOR_WIZARD = {
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
   usual_account: false,
-  carry: { carried: ["chat transcript", "rules & guidelines", "uncommitted git diff"], regenerated: [], dropped: ["todo list"] },
+  carry: { carried: ["The whole conversation", "Project rules", "Your uncommitted changes"], regenerated: [], dropped: ["The task list"] },
 };
 export const DOOR_ONECLICK = {
   ...DOOR_WIZARD,
@@ -297,7 +297,7 @@ export const DOOR_ONECLICK = {
   wizard_steps: [],
   wizard_reasons: [],
   usual_account: true,
-  carry: { carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "MCP config", "skills & commands", "model settings"], regenerated: [], dropped: [] },
+  carry: { carried: ["The whole conversation", "Project rules", "Your uncommitted changes", "Connected tools (MCP servers)", "Skills and commands", "Model choice"], regenerated: [], dropped: [] },
 };
 
 /**
@@ -393,6 +393,16 @@ export async function openOutsidePage(page: import("@playwright/test").Page): Pr
  * D-25: a session's ranked switch list sits behind "Switch account…"
  * (open by itself only when the session hit its limit). Opens it once.
  */
+/**
+ * A session page's terminal loads on first use (#173), and xterm draws
+ * its text a moment later: a shot with the terminal in the frame waits
+ * until the preview terminal has drawn, or it races xterm (an empty pane
+ * on some runs, its text on others — PR 194's held-stop cell).
+ */
+export async function terminalDrawn(page: import("@playwright/test").Page): Promise<void> {
+  await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+}
+
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
   if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;

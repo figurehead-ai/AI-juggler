@@ -164,7 +164,7 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
     assert_eq!(claude.advertised, "F2", "F3 lowered one level");
     assert_eq!(
         claude.badge,
-        "Same conversation, new account (compacted) · Beta"
+        "Same conversation, new account (a check failed) · Beta"
     );
     assert_eq!(claude.dogfood.as_ref().unwrap().verdict, "fail");
     assert!(claude.status.contains("promises one level less"));
@@ -259,7 +259,7 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
     // F3 lowered one level (AJ-E1543: a same-tool transplant is F3).
     assert_eq!(
         target.badge,
-        "Same conversation, new account (compacted) · Beta"
+        "Same conversation, new account (a check failed) · Beta"
     );
     assert!(!target.validated);
 }

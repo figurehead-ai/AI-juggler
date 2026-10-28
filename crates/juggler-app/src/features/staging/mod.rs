@@ -363,22 +363,19 @@ fn stage_one(
         return Ok(false);
     }
 
-    // One read and one parse for both the switch check's compaction scan
-    // and the pack's turns.
+    // One read and one parse for the pack's turns.
     let bytes = juggler_adapters::read_session_file(&reference.path).map_err(|e| io(&e))?;
     let parsed = juggler_adapters::parse_any(&bytes);
     drop(bytes);
-    let compacted = parsed.has_compact_boundary();
     let (_, turns) = crate::commands::turns_of(parsed);
-    let preflight =
-        match crate::commands::preflight_with(state, id, &target.recipe_id, Some(compacted)) {
-            Ok(preflight) => preflight,
-            Err(error) => {
-                // A switch that would stop isn't ready.
-                discard(&dir);
-                return Err(error);
-            }
-        };
+    let preflight = match crate::commands::preflight_with(state, id, &target.recipe_id) {
+        Ok(preflight) => preflight,
+        Err(error) => {
+            // A switch that would stop isn't ready.
+            discard(&dir);
+            return Err(error);
+        }
+    };
 
     private_folder(root).map_err(|e| io(&e))?;
     private_folder(&dir).map_err(|e| io(&e))?;

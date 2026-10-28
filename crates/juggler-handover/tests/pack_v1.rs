@@ -471,5 +471,5 @@ fn a_dirty_pack_says_whether_its_diff_travels() {
         !pack_md.contains("diff snapshotted"),
         "no patch, no claim that one travels"
     );
-    assert!(pack_md.contains("the uncommitted changes aren't in this pack"));
+    assert!(pack_md.contains("with uncommitted changes, not in this handover"));
 }

@@ -32,6 +32,7 @@ import {
   nextDensity,
   readDensity,
   storeDensity,
+  toggledDensity,
   type Density,
 } from "./lib/density";
 import {
@@ -45,6 +46,7 @@ import { primaryToolId } from "./lib/tools";
 import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
 import { holdStop, sessionLabel } from "./lib/stop";
+import { useWindowFolderDrop } from "./lib/use-folder-drop";
 import { ToastHost } from "./components/Toast";
 import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
@@ -79,7 +81,7 @@ import { MachineStatusLine } from "./components/MachineStatusLine";
 import { useWithSelected } from "./lib/session-lookup";
 import {
   accountsList, providersDiscover, launchRecipesList, onSessionsUpdated, onTerminalExit, projectsBackfill, projectsList,
-  instancesList, sessionHandover, switchBackSuggestions, onFolderDropped, launchSession, desktopFocus, goToHotkeySet,
+  instancesList, sessionHandover, switchBackSuggestions, launchSession, desktopFocus, goToHotkeySet,
   fetchAppInfo, onAppReady,
   type SwitchBackSuggestionData, type LaunchRecipeInfo, type AccountInfo, type AppInfo, type ProjectInfo, type InstanceInfo,
 } from "./lib/bridge";
@@ -161,7 +163,7 @@ export default function App() {
     : density;
   const toggleRail = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);
-    else setDensityAndStore(density === "minimal" ? "comfortable" : "minimal");
+    else setDensityAndStore(toggledDensity(density));
   }, [narrow, density, setDensityAndStore]);
   const cycleDensity = useCallback(() => {
     if (narrow) setNarrowOpen((open) => !open);
@@ -395,13 +397,8 @@ export default function App() {
     return onConversationsChanged((change) => change === "index" && void refresh());
   }, [refresh]);
 
-  // Drop a folder anywhere → New session pre-filled with it.
-  useEffect(() => {
-    return onFolderDropped((path) => {
-      setNewSessionDir(path);
-      setNewSession(true);
-    });
-  }, []);
+  // A dropped folder → New session with it (an open New project sheet takes it).
+  useWindowFolderDrop((path) => (setNewSessionDir(path), setNewSession(true)), newProjectDir !== null);
 
   useEffect(() => {
     void refresh();
@@ -857,10 +854,8 @@ export default function App() {
             // The region takes its own space above the screen and pushes
             // it down — never over it, at any width (the 0.0.12 report).
             <div className="flex h-full min-h-0 flex-col">
-              {/* AJ-E611: the alert/notification region — polite
-                  live-region, badge-carrying copy, reset-queue rows
-                  with an explicit Resume click (the click opens the
-                  picker; nothing ever launches by itself). */}
+              {/* AJ-E611: the alerts (polite, plain words), reset-queue rows
+                  with an explicit Resume click (nothing launches by itself). */}
               <div className="shrink-0" data-testid="notification-band">
                 <NotificationRegion onQueueResume={() => setNewSession(true)} onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>

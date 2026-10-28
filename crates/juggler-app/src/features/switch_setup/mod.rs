@@ -70,7 +70,11 @@ pub struct OfferInfo {
     pub origin: String,
     /// Who provides it, for `provided` (`Anthropic`, `OpenAI`).
     pub provided_by: Option<String>,
-    /// How the target account gets it, for `turn-on`.
+    /// How the user finishes it themselves, from the target tool's
+    /// adapter (never written here): for `turn-on`, how the target
+    /// account turns it on; for `needs-you`, how to give it the secret
+    /// that is never copied (the steps and the command, a placeholder in
+    /// place of the value). `null` when there are no steps.
     pub get_it: Option<GetItInfo>,
     /// For `turn-on`: whether it may be copied instead when it's the
     /// user's own (ticking it copies it, with an undo).
@@ -84,6 +88,10 @@ pub struct OfferInfo {
 pub struct GetItInfo {
     /// Short steps, in order.
     pub steps: Vec<String>,
+    /// The one command those steps say to run, exactly as it's run (a
+    /// secret in it is a placeholder, never a value).
+    #[serde(default)]
+    pub command: Option<String>,
     /// The page that does it (https), opened with `switch_setup_open`.
     pub open_url: Option<String>,
     /// What has to be true first, a sentence each.
@@ -101,6 +109,7 @@ impl GetItInfo {
         }
         Self {
             steps: get_it.steps,
+            command: get_it.command,
             open_url: get_it.open_url,
             needs: get_it
                 .needs
@@ -402,7 +411,12 @@ pub(crate) fn offers(
         let (verdict, note, get_it, can_copy) = match target_adapter.can_set_up(item) {
             SetUp::Copy => ("copy", None, None, false),
             SetUp::Translate(note) => ("translate", Some(note), None, false),
-            SetUp::NeedsYou(note) => ("needs-you", Some(note), None, false),
+            // The user's step, in the target tool's words (AJ-E1543).
+            SetUp::NeedsYou(note) => {
+                let how = target_adapter.how_to_get(item, &target.state_dir);
+                let get_it = (!how.steps.is_empty()).then(|| GetItInfo::of(&how, &target.label));
+                ("needs-you", Some(note), get_it, false)
+            }
             SetUp::Impossible(note) => ("impossible", Some(note), None, false),
             SetUp::TurnOn { get_it, can_copy } => (
                 "turn-on",

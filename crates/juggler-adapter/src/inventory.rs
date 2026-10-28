@@ -264,13 +264,18 @@ impl Need {
     }
 }
 
-/// How the user gets an item the other account can't be given by a copy:
-/// the steps, in order, in the app's words. Steps may name the account
-/// they're for as `{account}`; the app fills in its name.
+/// How the user finishes an item themselves, in the target tool's own
+/// words (AJ-E1543: never a bare status): turning on what comes with the
+/// other account, or giving a server the secret that is never copied.
+/// The steps, in order, in the app's words. Steps may name the account
+/// they're for as `{account}`; the app fills in its name. Examples carry
+/// placeholders (`<your GITHUB_TOKEN>`), never a value.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]
 pub struct GetIt {
     /// Short steps, in order.
     pub steps: Vec<String>,
+    /// The one command the steps say to run, exactly as it's run.
+    pub command: Option<String>,
     /// The page that does it (https only), opened in the browser.
     pub open_url: Option<String>,
     /// What has to be true first.
@@ -286,6 +291,7 @@ impl GetIt {
         let fill = |text: &str| text.replace("{account}", account);
         Self {
             steps: self.steps.iter().map(|step| fill(step)).collect(),
+            command: self.command.clone(),
             open_url: self.open_url.clone(),
             needs: self
                 .needs

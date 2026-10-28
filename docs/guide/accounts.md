@@ -65,8 +65,7 @@ profile lacks from another profile of the same tool, each with a box.
 Choose **Copy 2 settings** (or however many are ticked). Nothing the
 profile already has is changed.
 
-Every copied setting can be undone in Settings › Switching › Context packs
-& secrets. An undo takes out only what was copied, and only while it's
+Every copied setting can be undone in Settings › Switching › Handovers and keys. An undo takes out only what was copied, and only while it's
 unchanged.
 
 ## Through another service

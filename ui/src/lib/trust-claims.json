@@ -239,7 +239,7 @@
         },
         {
           "id": "agent-messages-stay",
-          "text": "Messages and shared documents stay in AI Juggler's own data on this Mac, with secrets handled as you chose for packs: anything but Keep replaces them with •••. Loops are capped: a thread pauses after 6 agent messages in a row without you, and two agents answering each other pause the pool until you resume it. Nothing about messages goes over Fleet.",
+          "text": "Messages and shared documents stay in AI Juggler's own data on this Mac, with secrets handled as you chose for handovers: anything but Leave them in replaces them with •••. Loops are capped: a thread pauses after 6 agent messages in a row without you, and two agents answering each other pause the pool until you resume it. Nothing about messages goes over Fleet.",
           "tests": [
             "crates/juggler-app/tests/messages.rs::shared_docs_are_redacted_content_addressed_and_only_the_pools",
             "crates/juggler-app/tests/messages.rs::a_ping_pong_between_two_fake_agents_stops_at_the_cap",

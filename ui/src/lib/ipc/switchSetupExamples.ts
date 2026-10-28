@@ -6,6 +6,7 @@
 import type { GetItInfo } from "../../types/generated/GetItInfo";
 import type { OfferInfo } from "../../types/generated/OfferInfo";
 import type { SetupCheckInfo } from "../../types/generated/SetupCheckInfo";
+import { EXAMPLE_GITHUB_OFFER } from "../../preview/mcp-secret-offer";
 
 /** The steps a claude.ai skill's offer carries, for the examples (the
  * backend's words, filled in for Personal). */
@@ -16,6 +17,7 @@ const TURN_ON_COMPUTER_USE: GetItInfo = {
     "In Customize > Skills, find computer-use under From Anthropic & Partners and turn it on.",
     "Start a session on Personal so it syncs.",
   ],
+  command: null,
   open_url: "https://claude.ai/customize/skills",
   needs: [
     "Needs a Pro or Max plan: computer use isn't offered on Team or Enterprise.",
@@ -50,23 +52,15 @@ function provided(id: string, name: string, used: boolean | null): OfferInfo {
 
 /** An example for tests and the gallery (set it as the seam): this
  * conversation used a skill Personal can be given, a server that needs a
- * token, and a claude.ai skill Personal turns on itself; two more claude.ai
- * skills weren't used here. */
+ * token (with the steps to give Personal its own) and a claude.ai skill
+ * Personal turns on itself; two more claude.ai skills weren't used here. */
 export const EXAMPLE_SETUP: SetupCheckInfo = {
   from: "Work Max",
   to: "Personal",
   already_there: 3,
   offers: [
     { ...OFFER, id: "skill-release-notes", kind: "skill", name: "release-notes", verdict: "copy", suggested: true, used: true },
-    {
-      ...OFFER,
-      id: "mcp-github",
-      kind: "mcp-server",
-      name: "github",
-      verdict: "needs-you",
-      note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
-      used: true,
-    },
+    EXAMPLE_GITHUB_OFFER,
     provided("skill-computer-use", "computer-use", true),
     provided("skill-deep-research", "deep-research", false),
     provided("skill-setup-writing-style", "setup-writing-style", false),

@@ -82,6 +82,7 @@ describe("set up by switches", () => {
         name: "computer-use",
         get_it: {
           steps: ["Sign in to claude.ai as Personal.", "Start a session on Personal so it syncs."],
+          command: null,
           open_url: "https://claude.ai/customize/skills",
           needs: ["Needs a Pro or Max plan."],
           then: null,
@@ -105,7 +106,7 @@ describe("set up by switches", () => {
     const seams = window as never as Seams;
     seams.__AIJ_SWITCH_SET_UPS__ = [];
     seams.__AIJ_SWITCH_TURN_ONS__ = [
-      { id: "t-2", account: "Personal", kind: "plugin", name: "notes", get_it: { steps: ["a"], open_url: null, needs: [], then: null }, at_ms: 1 },
+      { id: "t-2", account: "Personal", kind: "plugin", name: "notes", get_it: { steps: ["a"], command: null, open_url: null, needs: [], then: null }, at_ms: 1 },
     ];
     const view = render(<SwitchSetUpsCard />);
     await waitFor(() => expect(view.getByTestId("switch-turn-ons")).toBeTruthy());

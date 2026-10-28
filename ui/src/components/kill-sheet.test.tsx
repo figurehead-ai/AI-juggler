@@ -103,7 +103,9 @@ describe("KillSheet (AJ-E507)", () => {
       "Includes an MCP server that may hold unsaved state.",
     );
     // The ladder wording, verbatim platform string.
-    expect(view.getByTestId("kill-platform-8123").textContent ?? "").toContain("TERM → grace → KILL");
+    // The ladder in plain words (D-25: no TERM/KILL on screen).
+    expect(view.getByTestId("kill-platform-8123").textContent ?? "").toContain("asked to close, and AI Juggler waits");
+    expect(view.getByTestId("kill-platform-8123").textContent ?? "").not.toMatch(/SIGTERM|KILL|Ladder/);
     // Scope defaults to the narrowest.
     expect(
       (view.getByTestId("kill-scope-pid-8123") as HTMLInputElement).checked,
@@ -174,7 +176,7 @@ describe("KillSheet (AJ-E507)", () => {
     fireEvent.click(view.getByTestId("kill-confirm-8123"));
     await waitFor(() => expect(view.getByTestId("kill-running-8123")).toBeTruthy());
     // The countdown announces politely at 1 s intervals; ticks poll.
-    expect(view.getByTestId("kill-countdown-8123").textContent ?? "").toContain("5s");
+    expect(view.getByTestId("kill-countdown-8123").textContent ?? "").toContain("5 s");
     expect(view.getByTestId("kill-tick-8123").textContent ?? "").toContain("running");
     fireEvent.click(view.getByRole("button", { name: /Cancel — stop the escalation/ }));
     expect(b.cancel).toHaveBeenCalledWith(expect.stringMatching(/^kill-8123-/));
@@ -247,7 +249,7 @@ describe("KillSheet (AJ-E507)", () => {
     );
     await waitFor(() => expect(view.getByTestId("kill-ready-8123")).toBeTruthy());
     expect(view.getByTestId("kill-platform-8123").textContent ?? "").toContain(
-      "Windows: TerminateProcess only — there is no grace window here.",
+      "a stop is immediate: there's no waiting time to cancel in.",
     );
     view.unmount();
   });

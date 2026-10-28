@@ -4,162 +4,146 @@ import { SwitchFlow } from "./SwitchFlow";
 import type { PreflightInfoData } from "../lib/bridge";
 
 /**
- * AJ-E208 guardrails: the policy is visible and the user's will is
- * carried — the first-run chooser has NO pre-selected default and
- * blocks execution until chosen; the confirm line is verbatim
- * (global vs override); the per-switch Ask answer and per-item
- * un-redact indices ride the execute call and nothing else does.
+ * Keys and passwords in the conversation (D-14; the maintainer's walk of
+ * 0.1.8, 2026-10-27): asked only when the preflight says the words go
+ * somewhere new (a replay to another tool), never for a same-tool switch
+ * on this Mac; what was found and who reads it said plainly; nothing
+ * preselected; "Remember my choice" saves it, unticked it's this switch
+ * only; nothing found never blocks.
  */
 
-const BASE: PreflightInfoData = {
+const TRANSPLANT: PreflightInfoData = {
   mechanism: "transplant",
-  fidelity: "F1",
-  fidelity_words: "Full story, fresh start",
+  fidelity: "F3",
+  fidelity_words: "Same conversation, new account",
   score: 0.85,
   warnings: [],
   zombies: [],
   diff_snapshotted: false,
-  source_live: true,
+  source_live: false,
   source_keeps_running: false,
-  experimental_copy: "Experimental copy.",
+  experimental_copy: "Beta, not proven yet: the whole session moves.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
-  usual_account: true,
-  carry: {
-    carried: ["chat transcript"],
-    regenerated: [],
-    dropped: [],
-  },
-  redaction: {
-    global: "strip",
-    override: null,
-    effective: "strip",
-    source: "global",
-    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
-  },
-  redaction_items: [],
+  usual_account: false,
+  carry: { carried: ["The whole conversation"], regenerated: [], dropped: [] },
+  redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
+  redaction_items: [{ kind: "sk-key", preview: "s•••a91f", segment: 3 }],
+  carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
+  move_line: "The whole conversation moves — all 12 messages, its subagents and file history. The original stays as it was.",
+  secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  target_tool: "claude-code",
+};
+
+const REPLAY: PreflightInfoData = {
+  ...TRANSPLANT,
+  mechanism: "replay",
+  fidelity: "F1",
+  fidelity_words: "Full story, fresh start",
+  door: "wizard",
+  wizard_steps: ["Target", "What's carried", "Confirm"],
+  redaction_items: [
+    { kind: "sk-key", preview: "s•••a91f", segment: 3 },
+    { kind: "bearer", preview: "B•••x2k9", segment: 7 },
+  ],
+  secrets: { asks: true, reader: "Codex (OpenAI)" },
+  target_tool: "codex",
 };
 
 type Seams = {
   __AIJ_SWITCH_PREFLIGHT__?: PreflightInfoData;
-  __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
-  __AIJ_SWITCH_EXECUTE_REDACTION__?: {
-    redactionChoice: string | null | undefined;
-    redactionUnredact: number[];
-  }[];
+  __AIJ_SWITCH_EXECUTE_REDACTION__?: { redactionChoice: string | null | undefined; redactionUnredact: number[] }[];
   __AIJ_REDACTION_SET_GLOBAL__?: (string | null)[];
 };
+const seams = () => window as never as Seams;
 
 beforeEach(() => {
-  delete (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__;
-  delete (window as never as Seams).__AIJ_SWITCH_EXECUTE_HANG__;
-  delete (window as never as Seams).__AIJ_SWITCH_EXECUTE_REDACTION__;
-  delete (window as never as Seams).__AIJ_REDACTION_SET_GLOBAL__;
+  delete seams().__AIJ_SWITCH_PREFLIGHT__;
+  delete seams().__AIJ_SWITCH_EXECUTE_REDACTION__;
+  delete seams().__AIJ_REDACTION_SET_GLOBAL__;
 });
 afterEach(cleanup);
 
 function mount(preflight: PreflightInfoData) {
-  (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__ = preflight;
-  return render(
-    <SwitchFlow
-      sessionId="sess-1"
-      targetProfileId="p-1"
-      targetLabel="Personal"
-      onClose={() => {}}
-      onSwitched={() => {}}
-    />,
-  );
+  seams().__AIJ_SWITCH_PREFLIGHT__ = preflight;
+  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={() => {}} onSwitched={() => {}} />);
 }
 
-describe("AJ-E208 redaction policy", () => {
-  it("shows the policy line verbatim (global choice)", async () => {
-    const view = mount(BASE);
+async function toCarried(view: ReturnType<typeof mount>) {
+  await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+  fireEvent.click(view.getByTestId("switch-continue"));
+  await waitFor(() => expect(view.getByTestId("switch-step-carried")).toBeTruthy());
+}
+
+describe("keys and passwords", () => {
+  it("never asks for a same-tool switch on this Mac, and never blocks it", async () => {
+    const view = mount(TRANSPLANT);
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
-    expect(view.getByTestId("switch-redaction-line").textContent).toBe(
-      "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
+    expect(view.queryByTestId("switch-keys")).toBeNull();
+    expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__?.length).toBe(1));
+    expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__![0]!.redactionChoice).toBeNull();
+  });
+
+  it("asks for a replay: says what was found and who reads it, nothing preselected", async () => {
+    const view = mount(REPLAY);
+    await toCarried(view);
+    const question = view.getByTestId("switch-keys");
+    expect(view.getByTestId("switch-keys-found").textContent).toBe(
+      "We found 2: an API key (s•••a91f) and a sign-in token (B•••x2k9). Codex (OpenAI) will read this conversation to pick up the work.",
     );
-    expect(view.getByTestId("switch-redaction-none")).toBeTruthy();
+    expect(question.textContent).toContain("Codex sees OPENAI_API_KEY=•••");
+    expect(question.textContent).toContain("Codex and OpenAI see the keys exactly as written");
+    expect(question.textContent).not.toMatch(/\bpacks?\b|redact/i);
+    expect((view.getByTestId("switch-keys-hide") as HTMLInputElement).checked).toBe(false);
+    expect((view.getByTestId("switch-keys-leave") as HTMLInputElement).checked).toBe(false);
+    // Nothing moves on until it's answered.
+    expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(view.getByTestId("switch-keys-hide"));
+    expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("names the override variant", async () => {
-    const view = mount({
-      ...BASE,
-      redaction: {
-        global: "keep",
-        override: "strip",
-        effective: "strip",
-        source: "override",
-        line: "Redaction for Claude Code: Strip — replace keys with ••• (override)",
-      },
-    });
-    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
-    expect(view.getByTestId("switch-redaction-line").textContent).toContain("(override)");
-  });
-
-  it("first run: no default selected, blocks execution until the user chooses", async () => {
-    const view = mount({
-      ...BASE,
-      redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
-    });
-    await waitFor(() => expect(view.getByTestId("switch-redaction-chooser")).toBeTruthy());
-    const save = view.getByTestId("switch-redaction-save") as HTMLButtonElement;
-    expect(save.disabled).toBe(true); // no pick yet — nothing is guessed
-    const confirm = view.getByTestId("switch-confirm") as HTMLButtonElement;
-    expect(confirm.disabled).toBe(true); // the first pack is blocked
-    // Every radio starts UNCHECKED (no dark pattern).
-    const radios = view
-      .getAllByRole("radio")
-      .filter((radio) => (radio as HTMLInputElement).name === "redaction-global");
-    expect(radiansUnchecked(radios)).toBe(true);
-
-    fireEvent.click(view.getByLabelText("Strip — replace keys with •••"));
-    await waitFor(() => expect(save.disabled).toBe(false));
-    fireEvent.click(save);
-    await waitFor(() =>
-      expect((window as never as Seams).__AIJ_REDACTION_SET_GLOBAL__).toEqual(["strip"]),
-    );
-  });
-
-  it("Ask: requires the per-switch answer; the answer + un-redact indices ride the click", async () => {
-    const view = mount({
-      ...BASE,
-      door: "wizard",
-      wizard_steps: ["Target", "What's carried", "Confirm"],
-      redaction: {
-        global: "ask",
-        override: null,
-        effective: "ask",
-        source: "global",
-        line: "Redaction for Claude Code: Ask each time (your global choice)",
-      },
-      redaction_items: [
-        { kind: "sk-key", preview: "s•••5678", segment: 0 },
-        { kind: "bearer", preview: "c•••aaaa", segment: 1 },
-      ],
-    });
-    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
-    // The per-item un-redact list lives on the preview step.
+  it("this switch only: the answer and the ones shown anyway ride the click, nothing is saved", async () => {
+    const view = mount(REPLAY);
+    await toCarried(view);
+    fireEvent.click(view.getByTestId("switch-keys-hide"));
+    fireEvent.click(view.getByLabelText(/a sign-in token/));
     fireEvent.click(view.getByTestId("switch-continue"));
-    await waitFor(() => expect(view.getByTestId("switch-redaction-items")).toBeTruthy());
-    fireEvent.click(view.getByText("sk-key"));
-    // Ask answer lives on the Confirm step — and blocks until chosen.
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__?.length).toBe(1));
+    expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__![0]).toEqual({ redactionChoice: "strip", redactionUnredact: [1] });
+    expect(seams().__AIJ_REDACTION_SET_GLOBAL__).toBeUndefined();
+  });
+
+  it("Remember my choice saves it as the policy before the switch", async () => {
+    const view = mount(REPLAY);
+    await toCarried(view);
+    fireEvent.click(view.getByTestId("switch-keys-leave"));
+    fireEvent.click(view.getByTestId("switch-keys-remember"));
     fireEvent.click(view.getByTestId("switch-continue"));
-    await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
-    const confirm = view.getByTestId("switch-confirm") as HTMLButtonElement;
-    expect(confirm.disabled).toBe(true); // Ask each time requires the answer
-    fireEvent.click(view.getByLabelText("Strip secrets this time"));
-    await waitFor(() => expect(confirm.disabled).toBe(false));
-    fireEvent.click(confirm);
-    await waitFor(() =>
-      expect((window as never as Seams).__AIJ_SWITCH_EXECUTE_REDACTION__).toHaveLength(1),
-    );
-    const payload = (window as never as Seams).__AIJ_SWITCH_EXECUTE_REDACTION__![0];
-    expect(payload.redactionChoice).toBe("strip");
-    expect(payload.redactionUnredact).toEqual([0]); // the un-redacted item rides the click
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(seams().__AIJ_REDACTION_SET_GLOBAL__).toEqual(["keep"]));
+    await waitFor(() => expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__![0]!.redactionChoice).toBe("keep"));
+  });
+
+  it("nothing found: says so and doesn't block", async () => {
+    const view = mount({ ...REPLAY, redaction_items: [] });
+    await toCarried(view);
+    expect(view.getByTestId("switch-keys-none").textContent).toContain("We found no keys or passwords");
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(seams().__AIJ_SWITCH_EXECUTE_REDACTION__![0]!.redactionChoice).toBe("strip"));
+  });
+
+  it("a remembered choice is one line, and can be changed for this switch", async () => {
+    const view = mount({ ...REPLAY, redaction: { global: "strip", override: null, effective: "strip", source: "global", line: "" } });
+    await toCarried(view);
+    expect(view.getByTestId("switch-keys-remembered").textContent).toContain("hidden from Codex (OpenAI)");
+    expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(view.getByTestId("switch-keys-change"));
+    expect(view.getByTestId("switch-keys")).toBeTruthy();
+    expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(true);
   });
 });
-
-function radiansUnchecked(radios: HTMLElement[]): boolean {
-  return radios.every((radio) => !(radio as HTMLInputElement).checked);
-}

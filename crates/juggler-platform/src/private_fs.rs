@@ -99,9 +99,39 @@ pub fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     }
 }
 
+/// Opens `path` to add to its end, readable by this user only: a new
+/// file is made so, and an existing one of ours open to others is closed
+/// (a log AI Juggler keeps, never a file someone else made: that can't be
+/// changed and stays as it was).
+///
+/// # Errors
+///
+/// The open's error, or `Unsupported` where owner-only files aren't
+/// available (Windows).
+pub fn append_private(path: &Path) -> std::io::Result<std::fs::File> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .mode(0o600)
+            .open(path)?;
+        if file.metadata()?.permissions().mode() & 0o077 != 0 {
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        }
+        Ok(file)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Err(crate::unsupported("a file only you can read"))
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
-    use super::{ensure_own_private_dir, ensure_private_dir, write_private};
+    use super::{append_private, ensure_own_private_dir, ensure_private_dir, write_private};
     use crate::user::{UserId, current};
     use std::os::unix::fs::PermissionsExt;
 
@@ -125,6 +155,20 @@ mod tests {
         assert_eq!(mode(&file), 0o600);
         assert_eq!(std::fs::read(&file).unwrap(), b"{}");
         assert!(!dir.join("key.partial").exists(), "nothing left beside it");
+    }
+
+    #[test]
+    fn an_appended_file_is_ours_alone_and_keeps_what_it_had() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        let log = root.path().join("errors.log");
+        writeln!(append_private(&log).unwrap(), "one").unwrap();
+        assert_eq!(mode(&log), 0o600);
+        // One of ours left open to others is closed, and nothing is lost.
+        std::fs::set_permissions(&log, std::fs::Permissions::from_mode(0o644)).unwrap();
+        writeln!(append_private(&log).unwrap(), "two").unwrap();
+        assert_eq!(mode(&log), 0o600);
+        assert_eq!(std::fs::read_to_string(&log).unwrap(), "one\ntwo\n");
     }
 
     #[test]

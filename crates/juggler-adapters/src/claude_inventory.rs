@@ -24,8 +24,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, JsonEntry, McpServer, McpTransport, Origin,
-    Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, GetIt, Item, ItemKind, JsonEntry, McpServer, McpTransport,
+    Origin, Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
 };
 use juggler_adapter::jsonc;
 
@@ -454,6 +454,76 @@ fn permissions_words(value: &str) -> (Option<String>, SettingCheck) {
     ((!parts.is_empty()).then(|| parts.join(", ")), check)
 }
 
+/// How the user finishes `item` on another account themselves: for an
+/// MCP server that needs a secret, the command that sets it up for that
+/// account with the secret in its environment. Claude Code's own way
+/// (<https://code.claude.com/docs/en/mcp>, "Add MCP servers from JSON
+/// configuration" and "MCP installation scopes"): `claude mcp add-json`
+/// writes the server, with its `env` (or `headers`), into the account's
+/// `.claude.json`, which is in `CLAUDE_CONFIG_DIR` when that is set
+/// (`config_dir`, as the shell reads it; empty for the vendor's default
+/// folder). The secret is a placeholder the user replaces. What comes
+/// with the claude.ai account says how to turn it on in its verdict
+/// ([`SetUp::TurnOn`]).
+///
+/// Empty for anything else.
+#[must_use]
+pub fn how_to_get(item: &Item, config_dir: &str) -> GetIt {
+    match &item.detail {
+        Detail::Mcp(server)
+            if server.inline_secret_verdict().is_none()
+                && !server.oauth
+                && !secret_names(&item.name, server).is_empty() =>
+        {
+            mcp_secret_steps(&item.name, item.scope, server, config_dir)
+        }
+        _ => GetIt::default(),
+    }
+}
+
+/// The steps and the command for an MCP server that needs a secret.
+fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &str) -> GetIt {
+    let secrets = secret_names(name, server);
+    let placeholders: Vec<String> = secrets.iter().map(|var| format!("<your {var}>")).collect();
+    let scope_word = match scope {
+        Scope::User => "user",
+        Scope::ProjectPrivate => "local",
+    };
+    let prefix = if config_dir.is_empty() {
+        String::new()
+    } else {
+        format!("CLAUDE_CONFIG_DIR=\"{config_dir}\" ")
+    };
+    let json = entry_with(name, server, &|var| format!("<your {var}>")).to_string();
+    let command = format!(
+        "{prefix}claude mcp remove {name} --scope {scope_word}\n\
+         {prefix}claude mcp add-json --scope {scope_word} {name} '{json}'"
+    );
+    let mut steps = vec![
+        if scope == Scope::ProjectPrivate {
+            "Open Terminal, and go to the project's folder.".to_owned()
+        } else {
+            "Open Terminal.".to_owned()
+        },
+        format!(
+            "Paste the command below. Put your own value in place of {} (keep the quotes \
+             around it), then press Return.",
+            placeholders.join(" and ")
+        ),
+        format!(
+            "It sets {name} up for this account, with the value in this account's own Claude \
+             Code settings. Its first line takes away a {name} set up without the value; if \
+             there isn't one, it says so, and that's fine."
+        ),
+    ];
+    steps.push("Come back here and choose Check again.".to_owned());
+    GetIt {
+        steps,
+        command: Some(command),
+        ..GetIt::default()
+    }
+}
+
 /// Whether Claude Code can set up `item`.
 #[must_use]
 pub fn can_set_up(item: &Item) -> SetUp {
@@ -660,8 +730,8 @@ fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
     }
     if !secrets.is_empty() {
         return SetUp::NeedsYou(format!(
-            "it needs {} in your environment: secrets are never copied",
-            secrets.join(", ")
+            "it needs your {}, and AI Juggler never copies a secret",
+            secrets.join(" and ")
         ));
     }
     SetUp::Copy
@@ -784,10 +854,20 @@ fn add_mcp(
 /// An MCP server in Claude's JSON form; a dropped secret becomes a
 /// `${VARIABLE}` reference.
 pub(crate) fn claude_entry(name: &str, server: &McpServer) -> serde_json::Value {
+    entry_with(name, server, &|var| format!("${{{var}}}"))
+}
+
+/// The entry, with each secret as `secret(variable)`: a reference for
+/// the set-up, a placeholder for the user's own command.
+fn entry_with(
+    name: &str,
+    server: &McpServer,
+    secret: &dyn Fn(&str) -> String,
+) -> serde_json::Value {
     let render = |key: &str, value: &Value| match value {
         Value::Literal(text) => serde_json::Value::String(text.clone()),
         Value::Env(var) => serde_json::Value::String(format!("${{{var}}}")),
-        Value::Secret => serde_json::Value::String(format!("${{{}}}", secret_variable(name, key))),
+        Value::Secret => serde_json::Value::String(secret(&secret_variable(name, key))),
     };
     let map = |pairs: &[(String, Value)]| -> serde_json::Map<String, serde_json::Value> {
         pairs
@@ -992,6 +1072,41 @@ mod tests {
                 ..
             }
         ));
+        // AJ-E1543: a server that needs its secret says how to give it
+        // one on that account, with a placeholder, never the value.
+        let how = how_to_get(github, "$HOME/.claude-personal");
+        let command = how.command.clone().unwrap();
+        assert!(!format!("{how:?}").contains("ghp_live"), "never the secret");
+        assert_eq!(how.open_url, None);
+        assert!(command.starts_with(
+            "CLAUDE_CONFIG_DIR=\"$HOME/.claude-personal\" claude mcp remove github --scope user\n"
+        ));
+        let add = command.lines().nth(1).unwrap();
+        assert!(add.starts_with(
+            "CLAUDE_CONFIG_DIR=\"$HOME/.claude-personal\" claude mcp add-json --scope user github '"
+        ));
+        let json: serde_json::Value =
+            serde_json::from_str(add.split_once(" '").unwrap().1.trim_end_matches('\'')).unwrap();
+        assert_eq!(json["env"]["GITHUB_TOKEN"], "<your GITHUB_TOKEN>");
+        assert!(how.steps[1].contains("<your GITHUB_TOKEN>"));
+        assert_eq!(
+            how.steps.last().map(String::as_str),
+            Some("Come back here and choose Check again.")
+        );
+        // The vendor's own folder: no CLAUDE_CONFIG_DIR at all.
+        assert!(
+            how_to_get(github, "")
+                .command
+                .unwrap()
+                .starts_with("claude mcp remove github --scope user")
+        );
+        // A sign-in is no secret to paste; the account's own skill says
+        // how to turn it on in its verdict, not here.
+        assert_eq!(
+            how_to_get(linear, "$HOME/.claude-personal"),
+            GetIt::default()
+        );
+        assert_eq!(how_to_get(synced, ""), GetIt::default());
         let entry = claude_entry(
             "github",
             match &github.detail {

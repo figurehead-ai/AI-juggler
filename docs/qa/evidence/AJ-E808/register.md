@@ -18,12 +18,12 @@ app compares each cell's recorded versions with the installed ones. A pair shows
 | zcode→zcode | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | FAIL | FAIL | PASS | PASS | PASS |
 | codex→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | PASS | PASS | PASS | UNVALIDATED | UNVALIDATED | PASS | PASS | PASS |
-| claude-code→zcode | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code→zcode | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | zcode→claude-code | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
-| codex→zcode | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| codex→zcode | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | zcode→codex | Full story, fresh start · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
-| claude-code→gemini-cli | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
-| claude-code→opencode | Briefing pack · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code→gemini-cli | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
+| claude-code→opencode | Handover notes · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→claude-code+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code+service→claude-code | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code+service→claude-code+service | Same conversation, new account · Beta · Not proven yet | Beta — not proven yet | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |

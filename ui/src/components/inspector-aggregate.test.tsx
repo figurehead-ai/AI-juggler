@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector, installWords, useToolInstall } from "./RightInspector";
+import { RightInspector, installWords } from "./RightInspector";
+import { useToolInstall } from "../lib/useToolInstall";
 import { since } from "../lib/time-words";
 import { quotaDisplay, windowDisplay } from "../lib/wire";
 import { providerDisplayName } from "../lib/providers";

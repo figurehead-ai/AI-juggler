@@ -4,9 +4,10 @@
  * collapsed line ("Also on Work Max, not on Personal"), and a `null`
  * `used` (the tool's transcripts don't say) is never read as "not used".
  * Each row says what happens and whether it holds up the switch: set up
- * as it is, translated, needs you, or, for what comes with the other
- * account (a claude.ai skill), how to turn it on there (Show me how, its
- * page, Check again). Rows that can be set up safely and were used start
+ * as it is, translated, needs you (with the target tool's steps and
+ * command to give a server its own secret, AJ-E1543), or, for what comes
+ * with the other account (a claude.ai skill), how to turn it on there
+ * (Show me how, its page, Check again). Rows that can be set up safely and were used start
  * ticked; nothing is written until the switch runs. Each choice has a
  * "What does this mean?" with an example and the switching guide.
  */
@@ -18,6 +19,7 @@ import {
   type SetupCheckInfo,
 } from "../lib/ipc/switchSetup";
 import { Meaning, TurnOnSteps } from "./SwitchSetupTurnOn";
+import { SecretSteps } from "./switch/SecretSteps";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -31,6 +33,12 @@ const KIND_WORDS: Record<string, string> = {
   "status-line": "Status line",
 };
 
+/** A backend note as the end of a sentence: with its full stop. */
+function sentence(note: string | null): string {
+  const text = note ?? "";
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
 /** What happens to it, and whether the switch waits for it, in a line. */
 function consequence(offer: OfferInfo, check: SetupCheckInfo): string {
   switch (offer.verdict) {
@@ -39,11 +47,11 @@ function consequence(offer: OfferInfo, check: SetupCheckInfo): string {
     case "translate":
       return `Set up ${offer.note ?? "in this tool's form"} when you switch.`;
     case "needs-you":
-      return `You can switch now, then finish it: ${offer.note ?? ""}`;
+      return `You can switch now, then finish it: ${sentence(offer.note)}`;
     case "turn-on":
       return `You can switch now. ${check.to} won't have ${offer.name} until you turn it on.`;
     default:
-      return `You can switch now. ${check.to} won't have it: ${offer.note ?? ""}`;
+      return `You can switch now. ${check.to} won't have it: ${sentence(offer.note)}`;
   }
 }
 
@@ -113,6 +121,12 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
   const thing = lead.length === 1 ? "thing" : "things";
   const what = reported ? "this conversation used" : `${check.from} has`;
   const turnOn = lead.filter((offer) => offer.verdict === "turn-on" && !picked.has(offer.id)).length;
+  // "0 will be set up" says nothing when none of them can be.
+  const settable = lead.some((offer) => ["copy", "translate", "needs-you"].includes(offer.verdict) || offer.can_copy);
+  if (!settable) {
+    const them = turnOn === lead.length ? (turnOn === 1 ? "it" : "them") : `${turnOn} of them`;
+    return `${check.to} doesn't have ${lead.length} ${thing} ${what}.${turnOn > 0 ? ` You turn ${them} on yourself.` : ""}`;
+  }
   const yours = turnOn > 0 ? `, ${turnOn} you turn on yourself` : "";
   return `${check.to} doesn't have ${lead.length} ${thing} ${what}. ${picked.size} will be set up${yours}.`;
 }
@@ -128,12 +142,13 @@ function SetupRow({
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
-  onCheckAgain?: () => Promise<string>;
+  onCheckAgain?: (offerId: string) => Promise<string>;
 }): JSX.Element {
   const settable = ["copy", "translate", "needs-you"].includes(offer.verdict);
   const id = `switch-setup-${offer.id}`;
   const kind = KIND_WORDS[offer.kind] ?? offer.kind;
   const from = origin(offer, check);
+  const checkAgain = onCheckAgain && (() => onCheckAgain(offer.id));
   return (
     <li className="flex items-start gap-2" data-testid="switch-setup-row" data-verdict={offer.verdict}>
       {settable ? (
@@ -168,7 +183,10 @@ function SetupRow({
           {consequence(offer, check)}
         </span>
         {offer.verdict === "turn-on" && offer.get_it && (
-          <TurnOnSteps getIt={offer.get_it} name={offer.name} onCheckAgain={onCheckAgain} />
+          <TurnOnSteps getIt={offer.get_it} name={offer.name} onCheckAgain={checkAgain} />
+        )}
+        {offer.verdict === "needs-you" && offer.get_it && (
+          <SecretSteps getIt={offer.get_it} name={offer.name} to={check.to} onCheckAgain={checkAgain} />
         )}
         {offer.verdict === "turn-on" && offer.can_copy && (
           <label className="flex items-center gap-1.5 text-meta text-ink">
@@ -193,8 +211,9 @@ export function SwitchSetupList({
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
   /** Reads the target's set-up again (Check again, after turning
-   * something on); resolves to what it found, in words. */
-  onCheckAgain?: () => Promise<string>;
+   * something on, or giving it its secret); resolves to what it found
+   * for that offer, in words. */
+  onCheckAgain?: (offerId: string) => Promise<string>;
   /** The rows only, under a line that already says what they are
    * (AJ-E1508's "Start with the same settings as …"). */
   bare?: boolean;

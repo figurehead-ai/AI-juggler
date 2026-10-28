@@ -36,6 +36,19 @@
   what will copy, translate, regenerate, or drop.
 - Consequences: the daily quota-wall switch stays fast; lossy
   switches can never happen silently.
+- *Amended 2026-10-27 (the maintainer, on the switch dialog: "Isn't
+  the whole point of transferring to another account so that it is
+  not the usual account? isn't this message pointless?"):* the target
+  not being the project's usual account is no risk. It no longer
+  opens the wizard and is never a warning; "usual account" stays only
+  as a positive hint in the target list ("Used most here"). A
+  compacted source is no risk either: a same-tool switch copies the
+  whole session file and the target resumes it as the source tool
+  would, and a replay reads every turn, newest first while they fit.
+  The compaction reason, the compaction cap on fidelity and the
+  "(compacted)" label are gone. The wizard's warnings are real,
+  actionable risks only: little room left on the target, something
+  that stays behind, a conflict, or a fresh start instead of a resume.
 
 ### D-04 Fidelity gate under beta — SETTLED
 - Decision: **Ship all switching in beta immediately**, with an
@@ -985,7 +998,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24 D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-49 on 2026-10-27. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26 and D-44..D-49 on 2026-10-27. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1226,9 +1239,31 @@ has no "edit anything" path.
   `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
   `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.
 
-> D-45 and D-46 were settled on main for 0.1.9 (own sheets may suggest by
-> room; the optional Figurehead step returns to first run) and arrive here
-> when 0.1.9 merges forward.
+### D-45 Your own launch and switch sheets may suggest an account by its room — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27, asked whether their own launch and
+switch sheets may rank accounts by remaining usage and mark one
+"Suggested", given D-31 forbids quota-based picks: "Yes, keep suggestions."
+
+**What it means.** D-31 governs what agents and tasks do: an agent's or a
+task's assignment never reads quota, and nothing starts a session but the
+user. It does not govern the user's own sheets: there, accounts may be
+ranked by the room they have left and one marked "Suggested", because the
+user always makes the choice. The spec gap audit of 2026-10-27 had raised
+the overlap; this records the boundary.
+
+### D-46 First run offers the optional Figurehead account again — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27, told that the optional "Connect a
+Figurehead account" step left first run with the D-25 redesign (commit
+91b640d6) while SPEC §12.1 and AJ-E1203 still describe it: "Bring the step
+back."
+
+**What it means.** First run ends with the optional, skippable step from
+D-18 and AJ-E1203: **Connect account** and **Continue without an account**
+as equal buttons, nothing pre-selected, and no reminder afterwards (D-18:
+no pop-ups, banners or nagging). Everything works without an account; the
+account's home stays Settings › Figurehead & Cloud.
 
 ### D-47 Open now stays put: Your order, pins, drag to reorder and an order menu — SETTLED (2026-10-27)
 

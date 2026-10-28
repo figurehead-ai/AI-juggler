@@ -43,6 +43,16 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   plain: 42,
 };
 
+/** Compact (AJ-E403, §2.2: rail rows 32 px): a row is one line, a
+ * Needs you row two; heads and lines stay as they are. */
+export const LINE_HEIGHT_COMPACT: Record<Line["kind"], number> = { ...LINE_HEIGHT, need: 48, row: 32, plain: 32 };
+
+/** Each line's height at a density. */
+export type LineHeights = Record<Line["kind"], number>;
+export function lineHeights(compact: boolean): LineHeights {
+  return compact ? LINE_HEIGHT_COMPACT : LINE_HEIGHT;
+}
+
 /** Rows past this many render only what's in view. */
 export const VIRTUALISE_AT = 30;
 
@@ -192,8 +202,8 @@ export function foldSections(lines: Line[], folded: ReadonlySet<"needs" | "open"
 }
 
 /** Where a line starts, from the top of the list. */
-export function offsetOf(lines: Line[], index: number): number {
-  return lines.slice(0, index).reduce((sum, line) => sum + LINE_HEIGHT[line.kind], 0);
+export function offsetOf(lines: Line[], index: number, heights: LineHeights = LINE_HEIGHT): number {
+  return lines.slice(0, index).reduce((sum, line) => sum + heights[line.kind], 0);
 }
 
 /** What each list shows now, to freeze it. */
@@ -208,20 +218,20 @@ export function shownOrder(lines: Line[]): Map<string, string[]> {
 }
 
 /** The lines in view: `[start, end)`, and the space above and below. */
-export function windowOf(lines: Line[], top: number, height: number, overscan = 240): { start: number; end: number; before: number; after: number } {
+export function windowOf(lines: Line[], top: number, height: number, overscan = 240, heights: LineHeights = LINE_HEIGHT): { start: number; end: number; before: number; after: number } {
   let y = 0;
   let start = 0;
-  while (start < lines.length && y + LINE_HEIGHT[lines[start]!.kind] < top - overscan) {
-    y += LINE_HEIGHT[lines[start]!.kind];
+  while (start < lines.length && y + heights[lines[start]!.kind] < top - overscan) {
+    y += heights[lines[start]!.kind];
     start += 1;
   }
   const before = y;
   let end = start;
   while (end < lines.length && y < top + height + overscan) {
-    y += LINE_HEIGHT[lines[end]!.kind];
+    y += heights[lines[end]!.kind];
     end += 1;
   }
   let after = 0;
-  for (let i = end; i < lines.length; i += 1) after += LINE_HEIGHT[lines[i]!.kind];
+  for (let i = end; i < lines.length; i += 1) after += heights[lines[i]!.kind];
   return { start, end, before, after };
 }

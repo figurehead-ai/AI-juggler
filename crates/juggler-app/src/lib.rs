@@ -29,6 +29,8 @@ pub mod dev_bridge;
 pub mod edition;
 pub mod env_overlay;
 pub mod error;
+pub mod error_log;
+pub mod error_words;
 pub mod features;
 pub mod figurehead;
 pub mod fleet;
@@ -47,6 +49,7 @@ pub mod machine_health;
 pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
+pub mod main_window;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
@@ -266,6 +269,7 @@ macro_rules! app_commands {
             Write history::instance_delete,
             Read  history::transcript_search,
             Read  history::instance_replay,
+            Read  features::sessions::commands::sessions_history,
             Read  history::account_storage,
             Write history::retention_set,
             Write history::retention_preview,
@@ -468,7 +472,7 @@ macro_rules! app_commands {
             Write settings_policy::notification_prefs_set,
             Read  settings_policy::cleanup_default_get,
             Write settings_policy::cleanup_default_set,
-            Write commands::go_to_hotkey_set,
+            Write features::app::hotkey::app_go_to_hotkey_set,
             Write commands::open_accessibility_settings,
             Write commands::preview_start,
             Write commands::preview_stop,
@@ -664,6 +668,7 @@ pub fn run() {
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
+    error_log::install(&data_dir);
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user
     // chose to send.
@@ -723,12 +728,7 @@ pub fn run() {
         // Registered first: a second launch defers to the running app
         // (focus its window) instead of stacking ghost instances.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            use tauri::Manager;
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            main_window::bring_forward(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -746,7 +746,17 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        let _ = app.emit(EVENT_GO_TO, ());
+                        // §4.17: AI Juggler comes forward, then the
+                        // palette opens in it (on the main thread, where
+                        // window calls belong).
+                        let handle = app.clone();
+                        let _ = app.run_on_main_thread(move || {
+                            use tauri::Manager;
+                            let window = handle.get_webview_window(main_window::MAIN);
+                            main_window::go_to_pressed(window.as_ref(), || {
+                                let _ = handle.emit(EVENT_GO_TO, ());
+                            });
+                        });
                     }
                 })
                 .build(),
@@ -790,12 +800,7 @@ pub fn run() {
                     let (done, came) = std::sync::mpsc::channel();
                     let window_handle = raise_handle.clone();
                     let queued = raise_handle.run_on_main_thread(move || {
-                        use tauri::Manager;
-                        if let Some(window) = window_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
-                        }
+                        main_window::bring_forward(&window_handle);
                         let _ = done.send(());
                     });
                     queued.is_ok() && came.recv_timeout(handover::RAISE_WAIT).is_ok()
@@ -808,7 +813,7 @@ pub fn run() {
             // 0.1.5: Go to it hands activation over on the main thread.
             let main_handle = app.handle().clone();
             activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
-            register_go_to_hotkey(app.handle());
+            features::app::hotkey::register_go_to_hotkey(app.handle());
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
@@ -1081,29 +1086,6 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
         std::process::exit(1);
     }
     data_dir
-}
-
-/// Registers the "Go to instance…" hotkey the user chose (AJ-E414
-/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to `ChatGPT`,
-/// so nothing is registered until the user picks a key in Settings ›
-/// Desktop apps. A conflict or a locked-down system key logs and
-/// continues — the palette stays reachable in-app (⌘K).
-fn register_go_to_hotkey(app: &tauri::AppHandle) {
-    use tauri::Manager;
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let Some(hotkey) = app
-        .state::<std::sync::Arc<state::AppState>>()
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(GO_TO_HOTKEY_KEY).ok())
-        .flatten()
-    else {
-        return;
-    };
-    if let Err(error) = app.global_shortcut().register(hotkey.as_str()) {
-        eprintln!("ai-juggler: hotkey {hotkey} not registered: {error}");
-    }
 }
 
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven

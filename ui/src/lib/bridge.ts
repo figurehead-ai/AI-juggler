@@ -1279,7 +1279,7 @@ export async function goToHotkeySet(hotkey: string): Promise<void> {
     seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), go_to_hotkey: hotkey.trim() };
     return;
   }
-  await invoke("go_to_hotkey_set", { hotkey });
+  await invoke("app_go_to_hotkey_set", { hotkey });
 }
 
 /** Opens the system Accessibility privacy pane (the explainer's deep
@@ -1448,6 +1448,18 @@ export interface AlertEventData {
   account: string;
   text: string;
   at_ms: number;
+  /** A quota alert's numbers, as data (the notification model words them). */
+  quota?: AlertQuotaData;
+}
+
+/** The numbers behind a quota alert (`features::quota::alert_words`). */
+export interface AlertQuotaData {
+  account_label: string;
+  /** `five_hour` | `weekly`: data, never shown. */
+  window: string;
+  left_pct: number | null;
+  minutes_left: number | null;
+  resets_at_ms: number | null;
 }
 
 /** AJ-E611: one alert evaluation pass (at-most-once by the machines).
@@ -2036,6 +2048,28 @@ export interface PreflightInfoData {
   redaction_items: RedactionItemData[];
   /** AJ-E808: validated per the fidelity register (absent = not validated). */
   validated?: boolean;
+  /** What goes along, in plain words, a line on each. */
+  carry_items: CarryItemData[];
+  /** The Target step's first line: what moves, said positively. */
+  move_line: string;
+  /** Whether the keys-and-passwords question applies, and who reads. */
+  secrets: SecretsData;
+  /** The target's tool id (named from the catalog). */
+  target_tool: string;
+}
+
+/** One thing a switch moves, recreates or leaves behind. */
+export interface CarryItemData {
+  label: string;
+  hint: string;
+  how: "moves" | "recreated" | "stays";
+}
+
+/** The keys question: whether it applies (the conversation's words go to
+ * another tool), and who would read them ("Codex (OpenAI)"). */
+export interface SecretsData {
+  asks: boolean;
+  reader: string;
 }
 
 /** AJ-E208: the resolved redaction policy for one Provider. */
@@ -2086,13 +2120,14 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
     "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: ["This isn't the usual account for this project."],
+  // D-03 amendment: another account is no reason; an unproven pair is.
+  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
   usual_account: false,
   // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
   // the whole session moves, and the task list is rebuilt from it.
   carry: {
-    carried: ["chat transcript", "rules & guidelines", "uncommitted git diff", "subagent state"],
-    regenerated: ["todo list"],
+    carried: ["The whole conversation", "Project rules", "Your uncommitted changes", "Subagents' work"],
+    regenerated: ["The task list"],
     dropped: [],
   },
   redaction: {
@@ -2100,9 +2135,20 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
     override: null,
     effective: "strip",
     source: "global",
-    line: "Redaction for Claude Code: Strip — replace keys with ••• (your global choice)",
+    line: "Keys and passwords for Claude Code: hidden (your global choice)",
   },
   redaction_items: [],
+  carry_items: [
+    { label: "The whole conversation", hint: "Every message from the start, copied as the tool keeps it; the new account picks it up where it stopped.", how: "moves" },
+    { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves" },
+    { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
+    { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves" },
+    { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
+  ],
+  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  // The mock accounts' tool (no tool id written here: ADR-0019).
+  target_tool: MOCK_ACCOUNTS[0]!.provider,
 };
 
 /** AJ-E206 §5: the switch screen counts the door it shows (local
@@ -2135,6 +2181,7 @@ export async function switchPreflight(
         ...base,
         ...seam,
         redaction: { ...base.redaction, ...seam.redaction },
+        secrets: { ...base.secrets, ...seam.secrets },
       } as PreflightInfoData;
     }
     return base;
@@ -2370,10 +2417,10 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["subagent state"],
+    drops: ["Subagents' work"],
     score: 0.62,
-    top_factors: ["80% headroom", "usual account for this repo"],
-    factors: [["80% headroom", 0.36], ["usual account for this repo", 0.2], ["starts fresh from the story", 0.04], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
+    top_factors: ["80% headroom", "used most here"],
+    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["starts fresh from the story", 0.04], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
     confidence: "Computed",
     tte_min: 262,
     filtered_reason: null,
@@ -2386,7 +2433,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["subagent state"],
+    drops: ["Subagents' work"],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
     factors: [["35% headroom", 0.16], ["quiet", 0.1], ["starts fresh from the story", 0.04]],
@@ -2402,7 +2449,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
-    drops: ["subagent state", "todo list"],
+    drops: ["Subagents' work", "The task list"],
     score: 0.48,
     top_factors: ["53% headroom", "another tool's limits"],
     factors: [["53% headroom", 0.24], ["another tool's limits", 0.12], ["starts fresh from the story", 0.04]],
@@ -2415,7 +2462,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     recipe_id: "recipe-lab",
     account_id: "acct-lab",
     account_label: "Lab",
-    badge: "Same conversation, new account (compacted) · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
     cross_provider: true,
     drops: [],
@@ -2603,7 +2650,7 @@ const DEFAULT_VALIDATION_MATRIX: ValidationCellData[] = [
   mechanism: mechanism as string,
   researched_ceiling: ceiling as string,
   advertised: ceiling as string,
-  badge: `${ceiling === "F3" ? "Same conversation, new account" : ceiling === "F1" ? "Full story, fresh start" : "Briefing pack"} · Beta`,
+  badge: `${ceiling === "F3" ? "Same conversation, new account" : ceiling === "F1" ? "Full story, fresh start" : "Handover notes"} · Beta`,
   validated: false,
   mechanism_green: true,
   ci_green: ciGreen as boolean,
@@ -2637,6 +2684,8 @@ export function errorText(cause: unknown): string {
       ? wire.user_message
       : "Something went wrong — try again.";
   }
+  // A thrown Error says its message, never "Error: …" (D-25).
+  if (cause instanceof Error) return cause.message.length > 0 ? cause.message : "Something went wrong — try again.";
   const text = String(cause);
   return text === "[object Object]" ? "Something went wrong — try again." : text;
 }
@@ -3841,6 +3890,8 @@ type CrossSeams = {
   __AIJ_FLEET_DIVERGENCES__?: DivergenceRecordInfo[];
   __AIJ_FLEET_CALLS__?: string[];
   __AIJ_FLEET_SWITCH_PROGRESS__?: (update: FleetSwitchProgressInfo) => void;
+  /** The push never ends (tests of Esc mid-push and the progress shot). */
+  __AIJ_FLEET_SWITCH_HANG__?: boolean;
 };
 
 const crossSeams = () => window as unknown as CrossSeams;
@@ -3862,6 +3913,7 @@ export async function fleetSwitchExecute(request: FleetSwitchRequest): Promise<F
     crossCall(`switch:${request.machine_id}:${request.recipe_id}:${request.mechanism}:${request.project_id ?? ""}`);
     const progress = crossSeams().__AIJ_FLEET_SWITCH_PROGRESS__;
     progress?.({ machine_id: request.machine_id, phase: "receiving", received_bytes: 6_000_000, total_bytes: 12_000_000 });
+    if (crossSeams().__AIJ_FLEET_SWITCH_HANG__) return new Promise<FleetSwitchOutcomeInfo>(() => {});
     return (
       crossSeams().__AIJ_FLEET_SWITCH_OUTCOME__ ?? {
         accepted: true,

@@ -176,15 +176,21 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     // AJ-E1541: the task list is rebuilt from the conversation (proven by
     // the lab and the handover tests), and the carry-list says so, never
     // "some context" and never a byte copy.
-    assert!(info.carry.regenerated.contains(&"todo list".to_owned()));
-    assert!(!info.carry.dropped.contains(&"todo list".to_owned()));
+    assert!(info.carry.regenerated.contains(&"The task list".to_owned()));
+    assert!(!info.carry.dropped.contains(&"The task list".to_owned()));
+    // D-03 amendment (2026-10-27): another account is the point of a
+    // switch — never a reason, never a warning.
     assert!(
-        info.wizard_reasons
+        !info
+            .wizard_reasons
             .iter()
-            .any(|reason| reason.contains("isn't the usual account")),
-        "reasons explain the door: {:?}",
-        info.wizard_reasons
+            .any(|reason| reason.contains("usual account")),
+        "another account is not a risk"
     );
+    // A same-tool switch on this Mac copies the session as it is: the
+    // keys question doesn't apply, and the Target step says what moves.
+    assert!(!info.secrets.asks, "a transplant never asks about keys");
+    assert!(info.move_line.starts_with("The whole conversation moves"));
     // The preflight only reads: nothing is counted until the switch
     // screen counts the door it shows (§5 telemetry, KV only).
     assert!(

@@ -17,7 +17,7 @@
  */
 import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
-import { allStatuses, goTo, projectLens, railViewAs, settingsPane } from "./fixtures";
+import { allStatuses, goTo, projectLens, railViewAs, settingsPane, terminalDrawn } from "./fixtures";
 import { placesConversations } from "../../src/preview/places";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
@@ -270,6 +270,7 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_TOAST_PAUSED__: true } });
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.locator('[data-instance-id="sess-2"]').first().click();
+        await terminalDrawn(page);
         await page.getByTestId("inspector-stop").click();
         await expect(page.getByTestId("stop-undo")).toContainText("Undo (5s)");
         await page.mouse.move(0, 0);
@@ -332,12 +333,12 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.locator('[data-instance-id="sess-2"]').first().click();
+        await terminalDrawn(page);
         await page.keyboard.press("Meta+Shift+I");
         await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
-        // The terminal loads on first use (#173): without this the shot
-        // raced it, the empty pane on some runs and the terminal on others.
+        // Folding lays the terminal out again: the shot waits for it again.
         await expect(page.getByTestId("terminal-toolbar")).toBeVisible();
-        await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
+        await terminalDrawn(page);
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`inspector-folded-${cell}.png`, SCREEN);

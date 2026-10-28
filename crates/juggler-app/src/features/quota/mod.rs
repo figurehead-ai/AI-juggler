@@ -6,6 +6,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
+pub mod alert_words;
 pub mod capture;
 pub mod probe;
 pub(crate) mod records;

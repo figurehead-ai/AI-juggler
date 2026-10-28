@@ -115,6 +115,16 @@ pub(crate) fn snippet(path: &Path, offset: u64, len: u64, query: &str) -> Option
         buf
     };
     let text = juggler_core::storage::line_text(&String::from_utf8_lossy(&buf));
+    // Redacted as the session page's conversation is (D-14 patterns), over
+    // the whole line before the window is cut, so a key that straddles the
+    // window's edge is caught too (spec gap audit 2026-10-27: search
+    // results showed credential-like strings).
+    let (clean, _) = juggler_handover::redaction::strip_segments(
+        std::slice::from_ref(&text),
+        true,
+        &std::collections::BTreeSet::new(),
+    );
+    let text = clean.into_iter().next().unwrap_or_default();
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let lower = text.to_lowercase();
     let at = query
@@ -182,6 +192,30 @@ mod tests {
         assert_eq!(
             snippet(&plain, offset, len, "backoff"),
             snippet(&packed, offset, len, "backoff")
+        );
+    }
+
+    /// Spec gap audit, 2026-10-27: a search result showed a transcript
+    /// line's credential-like string. Snippets are redacted as the
+    /// session page's conversation is.
+    #[test]
+    fn a_snippet_never_shows_a_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("s.jsonl");
+        let line = serde_json::json!({
+            "type": "user",
+            "message": {"role": "user", "content": "deploy with sk-FAKE0000NOTAREALKEY111 now please"},
+        })
+        .to_string();
+        std::fs::write(&path, format!("{line}\n")).unwrap();
+        let size = std::fs::metadata(&path).unwrap().len();
+        let (lines, _) = read_lines(&path, 0, size).unwrap();
+        let (offset, len, _) = lines[0];
+        let shown = snippet(&path, offset, len, "deploy").unwrap();
+        assert!(shown.contains("deploy"), "the match still shows");
+        assert!(
+            !shown.contains("FAKE0000NOTAREALKEY111"),
+            "the key is redacted"
         );
     }
 }

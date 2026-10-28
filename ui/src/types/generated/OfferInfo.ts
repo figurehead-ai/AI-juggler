@@ -56,7 +56,11 @@ origin: string,
  */
 provided_by: string | null, 
 /**
- * How the target account gets it, for `turn-on`.
+ * How the user finishes it themselves, from the target tool's
+ * adapter (never written here): for `turn-on`, how the target
+ * account turns it on; for `needs-you`, how to give it the secret
+ * that is never copied (the steps and the command, a placeholder in
+ * place of the value). `null` when there are no steps.
  */
 get_it: GetItInfo | null, 
 /**

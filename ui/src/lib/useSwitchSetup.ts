@@ -9,8 +9,15 @@ import {
   switchSetupApply,
   switchSetupCheck,
   type AppliedInfo,
+  type OfferInfo,
   type SetupCheckInfo,
 } from "./ipc/switchSetup";
+
+/** Something only the user can finish: what the other account turns on
+ * itself, or a step of theirs (a server's secret, a sign-in). */
+export function finishedByYou(offer: OfferInfo): boolean {
+  return offer.verdict === "turn-on" || offer.verdict === "needs-you";
+}
 
 export function useSwitchSetup(sessionId: string, targetProfileId: string) {
   const [setup, setSetup] = useState<SetupCheckInfo | null>(null);
@@ -39,21 +46,24 @@ export function useSwitchSetup(sessionId: string, targetProfileId: string) {
   }, [sessionId, targetProfileId]);
 
   /** Check again: reads both accounts again (after the user turned
-   * something on), keeping the ticks of what's still offered; resolves to
-   * what it found, in words. */
-  const recheck = useCallback(async (): Promise<string> => {
-    // What this conversation used (or nothing says) and the account turns on.
-    const toTurnOn = (offers: SetupCheckInfo["offers"]) =>
-      offers.filter((offer) => offer.verdict === "turn-on" && offer.used !== false).length;
-    const before = toTurnOn(setup?.offers ?? []);
-    const check = await switchSetupCheck(sessionId, targetProfileId);
-    setSetup(check);
-    setPicked((current) => new Set([...current].filter((id) => check.offers.some((offer) => offer.id === id))));
-    const after = toTurnOn(check.offers);
-    if (after < before) return `${check.to} has ${before - after} of them now.`;
-    const them = after === 1 ? "it" : "them";
-    return `${check.to} doesn't have ${them} yet. Each arrives with ${check.to}'s next session after you turn it on.`;
-  }, [sessionId, targetProfileId, setup]);
+   * something on, or gave a server its secret), keeping the ticks of
+   * what's still offered; resolves to what it found for `offerId`, in
+   * words. */
+  const recheck = useCallback(
+    async (offerId: string): Promise<string> => {
+      const check = await switchSetupCheck(sessionId, targetProfileId);
+      setSetup(check);
+      setPicked((current) => new Set([...current].filter((id) => check.offers.some((offer) => offer.id === id))));
+      const still = check.offers.find((offer) => offer.id === offerId);
+      if (!still) {
+        const name = setup?.offers.find((offer) => offer.id === offerId)?.name;
+        return `${check.to} has ${name ?? "it"} now.`;
+      }
+      const turnOn = still.verdict === "turn-on" ? ` It arrives with ${check.to}'s next session after you turn it on.` : "";
+      return `${check.to} doesn't have it yet.${turnOn}`;
+    },
+    [sessionId, targetProfileId, setup],
+  );
 
   const toggle = (id: string) => {
     setPicked((current) => {

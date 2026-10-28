@@ -1,14 +1,20 @@
 //! The hybrid door (AJ-E206; decision D-03; pass2/02 §8 verbatim).
 //!
 //! The door is chosen by *risk computed at preflight* — never by
-//! habit or a setting: 1-click iff the target is the usual account
-//! AND the mechanism is transplant/native-resume AND fidelity is
-//! F3/F4 AND there is no compaction, no conflicts, no listed Drops,
-//! and target headroom ≥ Tight. Otherwise the wizard opens, and the
+//! habit or a setting: 1-click iff the mechanism is
+//! transplant/native-resume AND fidelity is F3/F4 AND there are no
+//! conflicts, no listed Drops, and target headroom ≥ Tight. Otherwise
+//! the wizard opens, and the
 //! wizard renders ONLY the steps whose data is non-trivial — 1-click
 //! is the wizard with all conditional steps proven empty, not a
 //! lesser flow. Ranking suggests; execution is always the user's
 //! click; copy never says "we switched you".
+//!
+//! Amended (D-03, the maintainer, 2026-10-27): another account is the
+//! point of a switch, so "not the usual account" is no risk and no
+//! longer opens the wizard (the usual account stays a ranking hint);
+//! and a compacted source loses nothing — a transplant copies the whole
+//! session file and the target resumes it as the source tool would.
 
 use crate::fidelity::FidelityLabel;
 use crate::pipeline::Mechanism;
@@ -19,15 +25,10 @@ use crate::pipeline::Mechanism;
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct DoorInputs {
-    /// The target is the usual account for this project (project
-    /// history's dominant account).
-    pub usual_account: bool,
     /// The mechanism computed for the ordered pair.
     pub mechanism: Option<Mechanism>,
     /// The fidelity label computed for the ordered pair.
     pub fidelity: Option<FidelityLabel>,
-    /// The source had a compaction boundary.
-    pub compacted: bool,
     /// Conflicts exist (three-way reconciliation, AJ-E207).
     pub conflicts: bool,
     /// The carry-list lists any Drop.
@@ -134,13 +135,10 @@ impl Door {
 /// their data exists.
 #[must_use]
 pub fn choose_door(inputs: &DoorInputs) -> Door {
-    let proven = inputs.usual_account
-        && matches!(
-            inputs.mechanism,
-            Some(Mechanism::Transplant | Mechanism::NativeResume)
-        )
-        && matches!(inputs.fidelity, Some(label) if label >= FidelityLabel::F3)
-        && !inputs.compacted
+    let proven = matches!(
+        inputs.mechanism,
+        Some(Mechanism::Transplant | Mechanism::NativeResume)
+    ) && matches!(inputs.fidelity, Some(label) if label >= FidelityLabel::F3)
         && !inputs.conflicts
         && !inputs.drops_listed
         && inputs.target_headroom_ok;
@@ -182,12 +180,6 @@ mod tests {
     }
 
     // One breaker per §8 NO leaf.
-    fn fail_usual(base: &DoorInputs) -> DoorInputs {
-        DoorInputs {
-            usual_account: false,
-            ..base.clone()
-        }
-    }
     fn fail_mechanism(base: &DoorInputs) -> DoorInputs {
         DoorInputs {
             mechanism: Some(Mechanism::Replay),
@@ -197,12 +189,6 @@ mod tests {
     fn fail_fidelity(base: &DoorInputs) -> DoorInputs {
         DoorInputs {
             fidelity: Some(FidelityLabel::F1),
-            ..base.clone()
-        }
-    }
-    fn fail_compacted(base: &DoorInputs) -> DoorInputs {
-        DoorInputs {
-            compacted: true,
             ..base.clone()
         }
     }
@@ -221,10 +207,8 @@ mod tests {
 
     fn one_click_ready() -> DoorInputs {
         DoorInputs {
-            usual_account: true,
             mechanism: Some(Mechanism::Transplant),
             fidelity: Some(FidelityLabel::F3),
-            compacted: false,
             conflicts: false,
             drops_listed: false,
             target_headroom_ok: true,
@@ -244,14 +228,7 @@ mod tests {
     #[test]
     fn every_other_leaf_is_the_wizard() {
         // One fixture per failing condition (the §8 tree's NO leaves).
-        for mutate in [
-            fail_usual,
-            fail_mechanism,
-            fail_fidelity,
-            fail_compacted,
-            fail_drops,
-            fail_headroom,
-        ] {
+        for mutate in [fail_mechanism, fail_fidelity, fail_drops, fail_headroom] {
             let inputs = mutate(&one_click_ready());
             assert!(
                 matches!(choose_door(&inputs), Door::Wizard { .. }),
@@ -260,12 +237,20 @@ mod tests {
         }
     }
 
+    /// D-03 amendment (2026-10-27): another account, or a compacted
+    /// source, is no risk on its own — a proven transplant stays one
+    /// click (the fields that said so are gone from the inputs).
+    #[test]
+    fn a_proven_transplant_to_another_account_is_one_click() {
+        assert_eq!(choose_door(&one_click_ready()), Door::OneClick);
+    }
+
     #[test]
     fn wizard_steps_render_only_when_needed() {
         // The minimal wizard: Target, Carried, Confirm (3 steps).
-        let minimal = choose_door(&fail_compacted(&one_click_ready()));
+        let minimal = choose_door(&fail_drops(&one_click_ready()));
         let Door::Wizard { steps } = &minimal else {
-            unreachable!("compacted ⇒ wizard")
+            unreachable!("a drop ⇒ wizard")
         };
         let steps = steps.clone();
         assert_eq!(
@@ -280,7 +265,7 @@ mod tests {
         let full = choose_door(&DoorInputs {
             conflicts: true,
             rules_diverged: true,
-            ..fail_compacted(&one_click_ready())
+            ..fail_drops(&one_click_ready())
         });
         let Door::Wizard { steps } = &full else {
             unreachable!("conflicts ⇒ wizard")

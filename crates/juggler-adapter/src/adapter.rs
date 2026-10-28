@@ -163,6 +163,23 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// How the user finishes `item` on the account in `state_dir`
+    /// themselves, in this tool's own words, when it can be set up but
+    /// one step is theirs: giving a server the secret that is never
+    /// copied (the steps and the command, with a placeholder). What comes
+    /// with the account says how to turn it on in
+    /// [`crate::inventory::SetUp::TurnOn`] instead. None of it blocks the
+    /// switch. Default: no steps.
+    #[must_use]
+    fn how_to_get(
+        &self,
+        item: &crate::inventory::Item,
+        state_dir: &Path,
+    ) -> crate::inventory::GetIt {
+        let _ = (item, state_dir);
+        crate::inventory::GetIt::default()
+    }
+
     /// AJ-E1542: sets up `item` in this account (only on the user's
     /// approval, after [`HarnessAdapter::can_set_up`] said it can), and
     /// says how to undo it. Never replaces anything the account has.

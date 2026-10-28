@@ -26,7 +26,9 @@ import {
   type FigureheadStatusInfo,
 } from "../lib/bridge";
 
-export function FigureheadCloudCard(): JSX.Element {
+/** The account's state and the calls that change it: the one connect
+ * flow, for Settings and for first run's optional step (D-46). */
+export function useFigurehead() {
   const [status, setStatus] = useState<FigureheadStatusInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,13 +69,16 @@ export function FigureheadCloudCard(): JSX.Element {
       setBusy(false);
     }
   };
+  return { status, error, busy, run };
+}
 
+export type Figurehead = ReturnType<typeof useFigurehead>;
+
+/** The flow itself: signed out, linking, the consent screen, connected. */
+export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
+  const { status, error, busy, run } = fh;
   return (
-    <Card className="flex flex-col gap-4 p-5" data-testid="account-cloud" data-state={status?.state ?? "loading"}>
-      <div className="flex items-center gap-2">
-        <CardTitle>Figurehead &amp; Cloud</CardTitle>
-        <Chip tone="neutral">Optional</Chip>
-      </div>
+    <>
       {status?.notice && (
         <div
           className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 px-3 py-2 text-xs"
@@ -114,6 +119,26 @@ export function FigureheadCloudCard(): JSX.Element {
       ) : (
         <Connected status={status} busy={busy} run={run} />
       )}
+    </>
+  );
+}
+
+/** Starts the browser link with this Mac's name, as the signed-out
+ * form's Connect account does. */
+export function connectFigurehead(fh: Figurehead): void {
+  const name = fh.status?.device_name ?? "";
+  if (name.trim()) void fh.run(() => figureheadLinkStart(name.trim()));
+}
+
+export function FigureheadCloudCard(): JSX.Element {
+  const fh = useFigurehead();
+  return (
+    <Card className="flex flex-col gap-4 p-5" data-testid="account-cloud" data-state={fh.status?.state ?? "loading"}>
+      <div className="flex items-center gap-2">
+        <CardTitle>Figurehead &amp; Cloud</CardTitle>
+        <Chip tone="neutral">Optional</Chip>
+      </div>
+      <FigureheadFlow fh={fh} />
     </Card>
   );
 }

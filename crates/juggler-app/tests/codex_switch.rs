@@ -829,7 +829,7 @@ fn a_pack_opens_in_every_tool_primed_labelled_and_in_the_graph() {
             "{from} → {into}: the conversation travels:\n{brief}"
         );
         assert!(
-            brief.contains("This session continues from a context pack"),
+            brief.contains("This session continues from a saved handover"),
             "{brief}"
         );
         assert!(!brief.contains(SECRET), "redacted when it was made");
@@ -897,7 +897,7 @@ fn a_pack_changed_after_the_preview_or_unsafe_starts_nothing() {
     );
     // A folder that isn't a pack.
     let not = packs::preview_impl(&s.state, Path::new(&s.cwd)).unwrap_err();
-    assert!(not.to_string().contains("isn't a context pack"), "{not}");
+    assert!(not.to_string().contains("isn't a saved handover"), "{not}");
     // Nothing launched, no handover written for it.
     assert!(!opener_home.join("last-args").exists());
     let switches = s.state.data_dir.join("switches");

@@ -4,6 +4,7 @@
  * Plain data, so a Playwright spec can read it too.
  */
 import type { SetupCheckInfo } from "../types/generated/SetupCheckInfo";
+import { EXAMPLE_GITHUB_OFFER } from "./mcp-secret-offer";
 
 /** By the account copied from. */
 export const EXAMPLE_ACCOUNT_SETTINGS: Record<string, SetupCheckInfo> = {
@@ -13,16 +14,7 @@ export const EXAMPLE_ACCOUNT_SETTINGS: Record<string, SetupCheckInfo> = {
     already_there: 0,
     offers: [
       { id: "o-docs", kind: "mcp-server", name: "docs", scope: "user", verdict: "copy", note: null, suggested: true, about: null, used: null, origin: "own", provided_by: null, get_it: null, can_copy: false },
-      {
-        id: "o-github",
-        kind: "mcp-server",
-        name: "github",
-        scope: "user",
-        verdict: "needs-you",
-        note: "it needs GITHUB_TOKEN in your environment: secrets are never copied",
-        suggested: false,
-        about: null, used: null, origin: "own", provided_by: null, get_it: null, can_copy: false,
-      },
+      { ...EXAMPLE_GITHUB_OFFER, id: "o-github", used: null },
       { id: "o-perm", kind: "permissions", name: "permissions", scope: "user", verdict: "copy", note: null, suggested: true, about: "4 allowed, 1 denied", used: null, origin: "own", provided_by: null, get_it: null, can_copy: false },
       { id: "o-line", kind: "status-line", name: "status line", scope: "user", verdict: "copy", note: null, suggested: true, about: "runs ~/bin/statusline", used: null, origin: "own", provided_by: null, get_it: null, can_copy: false },
       {

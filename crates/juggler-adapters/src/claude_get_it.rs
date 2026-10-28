@@ -79,6 +79,7 @@ pub fn skill(name: &str, origin: &Origin, requires: &[String]) -> GetIt {
     };
     GetIt {
         steps,
+        command: None,
         open_url: Some(SKILLS_PAGE.to_owned()),
         needs,
         then: Some(ARRIVES.to_owned()),
@@ -98,6 +99,7 @@ pub fn plugin(name: &str) -> GetIt {
             "Start a new session on {account}, or type /reload-plugins in one that's running."
                 .to_owned(),
         ],
+        command: None,
         open_url: None,
         needs: vec![Need::Admin(
             "If your organization turned Skills off on claude.ai, plugins don't sync either."

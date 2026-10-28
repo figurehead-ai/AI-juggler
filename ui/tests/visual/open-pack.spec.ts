@@ -40,12 +40,12 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await page.getByRole("button", { name: "New session", exact: true }).first().click();
     const sheet = page.getByTestId("new-session-sheet");
-    await sheet.getByRole("button", { name: "Start from a context pack…" }).click();
+    await sheet.getByRole("button", { name: "Start from a saved handover…" }).click();
     const summary = sheet.getByTestId("pack-summary");
     await expect(summary).toContainText("Claude Code on Work Max");
     await expect(summary).toContainText("Full story, fresh start · Beta");
     await expect(sheet.getByTestId("pack-withheld")).toHaveText("2 API keys, when it was made. They stay out.");
-    await summary.getByText("The pack's brief").click();
+    await summary.getByText("The handover's brief").click();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `summary-1280x800-${theme}.png`) });
     await axe(page, `open pack ${theme}`);

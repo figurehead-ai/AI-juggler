@@ -10,6 +10,11 @@ export type GetItInfo = {
  */
 steps: Array<string>, 
 /**
+ * The one command those steps say to run, exactly as it's run (a
+ * secret in it is a placeholder, never a value).
+ */
+command: string | null, 
+/**
  * The page that does it (https), opened with `switch_setup_open`.
  */
 open_url: string | null, 

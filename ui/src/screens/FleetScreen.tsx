@@ -1,4 +1,6 @@
 import { FleetPeersEmpty } from "../components/FleetPeersEmpty";
+import { statusWords } from "../lib/status-words";
+import { providerDisplayName } from "../lib/providers";
 import { Page } from "../components/Page";
 import { ClockSkewNote, ConnectionChip, SyncChip } from "../components/FleetChips";
 import { AccountMacsCard } from "../components/AccountMacsCard";
@@ -547,11 +549,11 @@ function RemoteInstances({
             data-testid="fleet-remote-instance"
           >
             <span className="font-medium">{row.account_label}</span>
-            <span className="text-muted">{row.provider}</span>
+            <span className="text-muted">{providerDisplayName(row.provider)}</span>
             {row.project_name && <span className="text-muted">· {row.project_name}</span>}
             {row.model && <span className="text-muted">· {row.model}</span>}
             <span className="flex-1" />
-            <Chip tone="neutral">{lastKnown ? `was ${row.status.replace(/_/g, " ")}` : row.status.replace(/_/g, " ")}</Chip>
+            <Chip tone="neutral">{lastKnown ? `was ${statusWords(row.status).toLowerCase()}` : statusWords(row.status)}</Chip>
           </button>
         </li>
       ))}

@@ -1,6 +1,6 @@
 /**
  * AJ-E1507: what a sync change did, with its Undo (the set-up record's,
- * so Settings › Context packs & secrets can undo it later too).
+ * so Settings › Handovers and keys can undo it later too).
  */
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../lib/bridge";

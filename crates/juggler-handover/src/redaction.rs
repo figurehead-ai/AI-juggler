@@ -57,9 +57,9 @@ impl RedactionPolicy {
     #[must_use]
     pub fn label(self) -> &'static str {
         match self {
-            Self::Strip => "Strip — replace keys with •••",
-            Self::Keep => "Keep — pack stays on this Mac",
-            Self::AskEachTime => "Ask each time",
+            Self::Strip => "Hide them — replaced with •••",
+            Self::Keep => "Leave them in",
+            Self::AskEachTime => "Ask on every switch",
         }
     }
 }

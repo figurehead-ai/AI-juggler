@@ -517,6 +517,7 @@ fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
         account: "Work Max".into(),
         text: "Work Max hit its 5-hour limit — resets at 14:00.".into(),
         at_ms: 1_800_000_000_000,
+        quota: None,
     };
     // Twice: a re-delivered alert is shown once.
     link::publish_alerts(&a, std::slice::from_ref(&event));

@@ -406,10 +406,15 @@ pub struct AlertEventInfo {
     pub kind: String,
     /// Account the alert belongs to.
     pub account: String,
-    /// The copy (badge-carrying: Estimated reads differently).
+    /// The copy, in plain words (D-25: no window ids, no tier tags); a
+    /// paired console shows it as it is.
     pub text: String,
     /// Emitted at, epoch ms.
     pub at_ms: i64,
+    /// A quota alert's numbers, so this Mac's banner can say the reset
+    /// in local time and offer its actions (wireframe 27).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quota: Option<crate::features::quota::alert_words::AlertQuotaInfo>,
 }
 
 /// The per-(account, window) persisted FSM states (`alert_fsms` KV).
@@ -483,50 +488,31 @@ fn step_account_alerts(
         } else {
             entry.weekly = next;
         }
-        let event = match emission {
-            AlertEmission::TrayAmber { .. } => Some((
-                "tray-amber",
-                format!(
-                    "{} ≈{} min left ({}), {} window",
-                    short_label(&account.label),
-                    display
-                        .forecast
-                        .tte_min
-                        .map_or_else(|| "—".into(), |tte| format!("{tte:.0}")),
-                    badge_word(confidence),
-                    slot
-                ),
-            )),
-            AlertEmission::Actionable { .. } => Some((
-                "actionable",
-                format!(
-                    "{} at {}{} used ({}), {} window — hand over or queue at reset",
-                    short_label(&account.label),
-                    window
-                        .percentage
-                        .map_or_else(String::new, |pct| format!("{pct:.0}%")),
-                    if window.percentage.is_some() {
-                        ""
-                    } else {
-                        "critical TTE"
-                    },
-                    badge_word(confidence),
-                    slot
-                ),
-            )),
-            AlertEmission::ExhaustedNotification => Some((
-                "exhausted",
-                format!("{} {} window exhausted", short_label(&account.label), slot),
-            )),
+        let kind = match emission {
+            AlertEmission::TrayAmber { .. } => Some("tray-amber"),
+            AlertEmission::Actionable { .. } => Some("actionable"),
+            AlertEmission::ExhaustedNotification => Some("exhausted"),
             AlertEmission::None | AlertEmission::ResetReached => None,
         };
-        if let Some((kind, text)) = event {
+        let event = kind.map(|kind| {
+            let quota = crate::features::quota::alert_words::AlertQuotaInfo {
+                account_label: account.label.clone(),
+                window: slot.to_owned(),
+                left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
+                minutes_left: display.forecast.tte_min,
+                resets_at_ms: window.resets_at_ms,
+            };
+            let text = crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
+            (kind, text, quota)
+        });
+        if let Some((kind, text, quota)) = event {
             crate::usage_stats::quota_alert(account.harness.as_str(), slot, kind);
             out.push(AlertEventInfo {
                 kind: kind.to_owned(),
                 account: id.clone(),
                 text,
                 at_ms: now,
+                quota: Some(quota),
             });
         }
     }
@@ -614,9 +600,12 @@ fn queue_and_digest_events(
         }
         out.push(AlertEventInfo {
             kind: "reset-reached".to_owned(),
+            text: crate::features::quota::alert_words::reset_reached_words(
+                storage, &account, &session,
+            ),
             account,
-            text: format!("reset reached — resume {session}?"),
             at_ms: now,
+            quota: None,
         });
         let _ = usage.set_reset_state(&id, "notified");
     }
@@ -647,24 +636,13 @@ fn queue_and_digest_events(
             account: entry.key.clone(),
             text: entry.text,
             at_ms: now,
+            quota: None,
         });
     }
     if let Ok(blob) = serde_json::to_string(&next_digest) {
         let _ = storage.app_settings().set(ALERT_DIGEST_KEY, &blob);
     }
     out
-}
-
-fn short_label(label: &str) -> String {
-    label.chars().take(18).collect()
-}
-
-fn badge_word(confidence: juggler_core::model::Confidence) -> &'static str {
-    match confidence {
-        juggler_core::model::Confidence::Measured => "Measured",
-        juggler_core::model::Confidence::Computed => "Computed",
-        juggler_core::model::Confidence::Estimated => "estimate",
-    }
 }
 
 /// AJ-E611: the alert evaluation pass (UI polls this on its own
@@ -3597,63 +3575,6 @@ pub async fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()>
         })
 }
 
-/// Rebinds the global "Go to instance…" hotkey (AJ-E414 Req.4). The
-/// new binding is registered with the OS FIRST; only a successful
-/// registration persists it — and a failed registration restores the
-/// previous one, so the user is never left without the key they had.
-/// An empty binding turns the hotkey off (AJ-E2110: there is no
-/// default; the user picks one in Settings › Desktop apps).
-#[tauri::command]
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] message for an OS registration
-/// failure (conflict, unparseable accelerator) or a storage failure.
-pub async fn go_to_hotkey_set(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, Arc<AppState>>,
-    hotkey: String,
-) -> AppResult<()> {
-    crate::ipc::blocking(state.inner(), "go to hotkey set", move |state| {
-        use tauri_plugin_global_shortcut::GlobalShortcutExt;
-        let hotkey = hotkey.trim().to_string();
-        let previous = {
-            let storage = lock_storage_arc(state)?;
-            storage
-                .app_settings()
-                .get(crate::GO_TO_HOTKEY_KEY)
-                .map_err(AppError::from)?
-        };
-        let shortcuts = app.global_shortcut();
-        if let Some(previous) = &previous {
-            let _ = shortcuts.unregister(previous.as_str());
-        }
-        // Empty: the key is off (and stays unset), nothing registered.
-        let registered = if hotkey.is_empty() {
-            Ok(())
-        } else {
-            shortcuts.register(hotkey.as_str())
-        };
-        match registered {
-            Ok(()) => lock_storage_arc(state)?
-                .app_settings()
-                .set(crate::GO_TO_HOTKEY_KEY, &hotkey)
-                .map_err(AppError::from),
-            Err(error) => {
-                // Best-effort restore of the previous binding.
-                if let Some(previous) = &previous {
-                    let _ = shortcuts.register(previous.as_str());
-                }
-                Err(AppError::Io {
-                    context: "register hotkey",
-                    message: format!("{hotkey}: {error}"),
-                })
-            }
-        }
-    })
-    .await
-}
-
 /// Lists Instances (board feed), newest first (canonical name
 /// `instances_list`; legacy alias registered in the handler).
 #[tauri::command(rename = "instances_list")]
@@ -5360,6 +5281,14 @@ pub struct PreflightInfo {
     /// AJ-E808: the pair is validated (the same verdict the switch rows
     /// and Settings › Beta show; strict on the installed versions).
     pub validated: bool,
+    /// The carry list in plain words, a line on each.
+    pub carry_items: Vec<crate::features::handover::switch_words::CarryItemInfo>,
+    /// The Target step's first line: what moves, said positively.
+    pub move_line: String,
+    /// Whether the keys-and-passwords question applies, and who reads.
+    pub secrets: crate::features::handover::switch_words::SecretsInfo,
+    /// The target's tool (its id: the UI names it from the catalog).
+    pub target_tool: String,
 }
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
@@ -5405,16 +5334,14 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
-    preflight_with(state, session_id, target_profile_id, None)
+    preflight_with(state, session_id, target_profile_id)
 }
 
-/// [`switch_preflight_impl`], given the compaction scan when the caller
-/// already parsed the transcript (AJ-E1513: staging reads it once).
+/// [`switch_preflight_impl`] (AJ-E1513: staging checks the switch too).
 pub(crate) fn preflight_with(
     state: &Arc<AppState>,
     session_id: &str,
     target_profile_id: &str,
-    compacted: Option<bool>,
 ) -> AppResult<PreflightInfo> {
     use juggler_handover::pipeline;
 
@@ -5422,12 +5349,11 @@ pub(crate) fn preflight_with(
     let (source, account_a) = handover_source(state, session_id)?;
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "Couldn't tell which file is this session — pick it".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+            .into(),
     })?;
-
-    // Compaction scan from the source transcript (the F2 signal).
-    let compacted =
-        compacted.unwrap_or_else(|| juggler_adapters::records_compaction(&reference.path));
+    // (No compaction scan: a compacted source loses nothing in a switch —
+    // D-03 amendment, 2026-10-27.)
 
     // Target quota gate + the usual-account test (one storage pass).
     let now = Timestamp::now().millis();
@@ -5461,8 +5387,8 @@ pub(crate) fn preflight_with(
     dispositions.flags.validated = validated;
 
     let input = pipeline::PreflightInput {
-        fidelity: dispositions,
-        compacted,
+        fidelity: dispositions.clone(),
+        target_account: account_b.label.clone(),
         gates: pipeline::PreflightGates {
             target_exhausted_no_reset: exhausted,
             version_drift: false, // per-version pinning rides E210's matrix
@@ -5472,10 +5398,8 @@ pub(crate) fn preflight_with(
         hop_count: 0,
         replay_tokens_spent: 0,
     };
-    let report = pipeline::preflight(&input).map_err(|failure| AppError::Io {
-        context: "hand over",
-        message: failure.to_string(),
-    })?;
+    let report = pipeline::preflight(&input)
+        .map_err(|failure| AppError::switch(failure, &account_a.label, &account_b.label))?;
     let warnings: Vec<String> = report
         .warnings
         .iter()
@@ -5489,26 +5413,23 @@ pub(crate) fn preflight_with(
     // already stopped above at the hard gate); conflicts arrive with
     // E207's reconciliation and rules divergence has no source yet.
     let door_inputs = juggler_handover::door::DoorInputs {
-        usual_account,
         mechanism: Some(report.mechanism),
         fidelity: Some(report.pair.label),
-        compacted,
         conflicts: false,
         drops_listed: !carry.dropped.is_empty(),
         target_headroom_ok: tight.is_none(),
         rules_diverged: false,
     };
     let (door, wizard_steps, wizard_reasons) = door_verdict(&door_inputs, &carry, validated);
-    let (redaction, redaction_items) = {
-        let storage = lock_storage_arc(state)?;
-        let policy = RedactionPolicyInfo::from_parts(
-            &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
-            redaction_global_of(&storage),
-            redaction_override_of(&storage, account_b.harness.as_str()),
-        );
-        (policy, redaction_items_of(&source))
-    };
+    let (redaction, (redaction_items, messages)) = redaction_for(state, &account_b, &source)?;
     let tool_b = crate::features::tools::display_name(&state.registry, account_b.harness.as_str());
+    let words = crate::features::handover::switch_words::preflight_words(
+        state,
+        &account_b,
+        report.mechanism,
+        &input.fidelity,
+        messages,
+    );
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -5537,7 +5458,28 @@ pub(crate) fn preflight_with(
         redaction,
         redaction_items,
         validated,
+        carry_items: words.carry_items,
+        move_line: words.move_line,
+        secrets: words.secrets,
+        target_tool: account_b.harness.to_string(),
     })
+}
+
+/// The target's keys policy, and the source conversation's detected
+/// secrets (masked) with its message count.
+fn redaction_for(
+    state: &Arc<AppState>,
+    account_b: &Account,
+    source: &juggler_core::model::InstanceRecord,
+) -> AppResult<(RedactionPolicyInfo, (Vec<RedactionItemInfo>, usize))> {
+    let storage = lock_storage_arc(state)?;
+    let policy = RedactionPolicyInfo::from_parts(
+        &crate::features::tools::display_name(&state.registry, account_b.harness.as_str()),
+        redaction_global_of(&storage),
+        redaction_override_of(&storage, account_b.harness.as_str()),
+    );
+    drop(storage);
+    Ok((policy, redaction_items_of(source)))
 }
 
 /// What the switch leaves of the source, for the switch screen.
@@ -5682,7 +5624,7 @@ fn move_copy(
             "a fresh start on {tool_b}, which reads the conversation, what each tool did, the task list and the project's changes. Tool state and subagents don't carry. {account_a} stays resumable."
         )),
         Mechanism::PackOnly => unproven(format!(
-            "{tool_b} gets the conversation as a pack to read, and starts from it. {account_a} stays resumable."
+            "{tool_b} starts fresh from notes about the work: what it is, what was decided and what's left. {account_a} stays resumable."
         )),
     }
 }
@@ -5765,27 +5707,24 @@ fn wizard_reasons_of(
     validated: bool,
 ) -> Vec<String> {
     use juggler_handover::pipeline::Mechanism;
+    // D-03 amendment (2026-10-27): only real, actionable risks — another
+    // account is the point of a switch, and a compacted source loses
+    // nothing, so neither is a reason.
     let mut reasons = Vec::new();
-    if !inputs.usual_account {
-        reasons.push("This isn't the usual account for this project.".to_owned());
-    }
     match inputs.mechanism {
         Some(Mechanism::Replay) => {
             reasons.push("This switch replays — the target can't resume natively.".to_owned());
         }
         Some(Mechanism::PackOnly) => {
-            reasons.push("Only a pack can move — the target can't resume or replay.".to_owned());
+            reasons.push("The other tool can't continue this conversation: it starts from notes about the work.".to_owned());
         }
         _ => {}
     }
     // QA P23: no F-number. A lower label always has its own, plainer
-    // reason here (it replays, was compacted, or leaves something behind);
+    // reason here (it replays, or leaves something behind);
     // "not proven" is said as itself.
     if !validated {
         reasons.push("This move hasn't been proven on a real setup yet.".to_owned());
-    }
-    if inputs.compacted {
-        reasons.push("The source was compacted — the tail may not carry.".to_owned());
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));
@@ -6070,12 +6009,10 @@ fn switch_execute_core(
     let (record, pid) = match outcome {
         Ok(value) => value,
         Err(failure) => {
-            record_edge_failed(state, &edge_id, &failure);
             switch.failed(failure.stage());
-            return Err(AppError::Io {
-                context: "hand over",
-                message: failure.copy(&account_a.label),
-            });
+            let error = AppError::switch(failure, &account_a.label, &account_b.label);
+            record_edge_failed(state, &edge_id, &error);
+            return Err(error);
         }
     };
     record_edge_succeeded(
@@ -6209,8 +6146,8 @@ fn handover_support(
         .ok_or_else(|| AppError::Io {
             context: "hand over",
             message: format!(
-                "{} can't take over this conversation — only a fresh start or a briefing pack",
-                account.harness
+                "{} can't take over this conversation — only a fresh start or handover notes",
+                crate::features::tools::display_name(&state.registry, account.harness.as_str())
             ),
         })
 }
@@ -6245,12 +6182,13 @@ fn switch_sides(
     if source.project.is_none() {
         return Err(AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     }
     let reference = source.transcript_ref.clone().ok_or_else(|| AppError::Io {
         context: "hand over",
-        message: "Couldn't tell which file is this session — pick it".into(),
+        message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
+            .into(),
     })?;
     Ok(SwitchSides {
         source,
@@ -6286,10 +6224,6 @@ fn switch_replay(
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::SwitchFailure;
 
-    let refused = |message: String| AppError::Io {
-        context: "hand over",
-        message,
-    };
     // Review of #132 (M4): what can refuse the switch without the final
     // conversation is checked before anything is stopped.
     let strip = replay_strip(state, sides, redaction_choice)?;
@@ -6316,7 +6250,7 @@ fn switch_replay(
         let storage = lock_storage_arc(state)?;
         let id = sides.source.project.clone().ok_or_else(|| AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         })?;
         let mut project = storage.projects().get(&id)?;
         // The continuation runs where the source ran (its worktree).
@@ -6336,9 +6270,10 @@ fn switch_replay(
     let (session, pid) = match checked {
         Ok(value) => value,
         Err(failure) => {
-            record_edge_failed(state, &edge, &failure);
             switch.failed(failure.stage());
-            return Err(refused(failure.copy(&sides.account_a.label)));
+            let error = AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
+            record_edge_failed(state, &edge, &error);
+            return Err(error);
         }
     };
     record_replay_succeeded(
@@ -6517,16 +6452,12 @@ fn replay_prompt(
     use juggler_handover::pipeline::SwitchFailure;
     use juggler_handover::redaction::strip_segments;
 
-    let refused = |message: String| AppError::Io {
-        context: "hand over",
-        message,
-    };
+    let stopped =
+        |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
     let (sha, len) = juggler_adapters::session_file_sha256(&sides.reference.path)
-        .map_err(|_| refused(SwitchFailure::UnresolvedSource.copy(&sides.account_a.label)))?;
+        .map_err(|_| stopped(SwitchFailure::UnresolvedSource))?;
     if !juggler_adapters::last_line_parses(&sides.reference.path) {
-        return Err(refused(
-            SwitchFailure::TornTail.copy(&sides.account_a.label),
-        ));
+        return Err(stopped(SwitchFailure::TornTail));
     }
     // The preview's own segments, so a per-item un-redact lines up.
     let turns = replayable_turns(&sides.reference.path)?;
@@ -6832,11 +6763,11 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let graph = storage.switch_graph();
     let edge = graph.edge(&undo_of).map_err(|_| AppError::Io {
         context: "undo switch",
-        message: "That switch isn't in the graph — nothing to undo".to_owned(),
+        message: "That switch isn't recorded any more, so there's nothing to undo".to_owned(),
     })?;
     let not_landed = || AppError::Io {
         context: "undo switch",
-        message: "Only a completed switch can be undone — this one never landed".to_owned(),
+        message: "Only a switch that finished can be undone, and this one didn't".to_owned(),
     };
     if !matches!(edge.state, EdgeState::Confirmed) {
         return Err(not_landed());
@@ -6849,7 +6780,9 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let from_epoch = find(&edge.from_epoch)
         .ok_or_else(|| AppError::Io {
             context: "undo switch",
-            message: "The switch's source epoch is missing from the graph".to_owned(),
+            message:
+                "AI Juggler can't find where this work was before the switch, so it can't go back"
+                    .to_owned(),
         })?
         .clone();
     let target_session = find(&to_epoch_id).and_then(|epoch| epoch.session_ref.clone());
@@ -6870,7 +6803,7 @@ fn undo_edge_context(state: &Arc<AppState>, edge_id: &str) -> AppResult<UndoCont
     let Some(native_id) = from_epoch.native_id.clone().filter(|id| !id.is_empty()) else {
         return Err(AppError::Io {
             context: "undo switch",
-            message: "The source has no native session to resume".to_owned(),
+            message: "The original has no conversation AI Juggler can resume".to_owned(),
         });
     };
     Ok(UndoContext {
@@ -6899,10 +6832,13 @@ fn stop_continuation(state: &Arc<AppState>, target: Option<SessionId>) -> AppRes
         .stop(&target_session, Duration::from_secs(5));
     match stopped {
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
-        Err(error) => Err(AppError::Io {
-            context: "undo switch",
-            message: format!("Couldn't stop the continuation session: {error}"),
-        }),
+        Err(error) => {
+            crate::error_log::record("undo_switch", &error.to_string());
+            Err(AppError::Io {
+                context: "undo switch",
+                message: "AI Juggler couldn't stop the new session, so nothing was undone. Stop it from its page and try again".to_owned(),
+            })
+        }
     }
 }
 
@@ -7205,7 +7141,7 @@ fn record_edge_staged(
     let Some(project) = source.project.as_ref() else {
         return Err(AppError::Io {
             context: "hand over",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     };
     // AJ-E1541: a session that itself came from a switch already has an
@@ -7231,12 +7167,7 @@ fn record_edge_staged(
     } else {
         // AJ-E1702: a session's first switch starts its own Work item, so
         // what hangs off it (a pool) follows this line of work only.
-        let work = graph
-            .create_work(project, "Work")
-            .map_err(|error| AppError::Io {
-                context: "hand over",
-                message: error.to_string(),
-            })?;
+        let work = graph.create_work(project, "Work")?;
         let from = Epoch {
             id: EpochId::new(format!("ep-{}", unique_suffix())),
             work: work.id.clone(),
@@ -7247,53 +7178,50 @@ fn record_edge_staged(
             resumed_from_epoch: None,
             machine: None,
         };
-        graph.insert_epoch(&from).map_err(|error| AppError::Io {
-            context: "hand over",
-            message: error.to_string(),
-        })?;
+        graph.insert_epoch(&from)?;
         (work, from)
     };
     let edge_id = SwitchEdgeId::new(format!("edge-{}", unique_suffix()));
-    graph
-        .append_edge(&SwitchEdge {
-            id: edge_id.clone(),
-            work: work.id.clone(),
-            from_epoch: from.id.clone(),
-            to_epoch: None,
-            from_account: account_a.id.clone(),
-            to_account: account_b.id.clone(),
-            from_provider: account_a.harness.clone(),
-            to_provider: account_b.harness.clone(),
-            mechanism,
-            pack_id: None,
-            fidelity_shown: Some("F1".to_owned()),
-            manifest_sha256: None,
-            state: juggler_core::model::EdgeState::Staged,
-            actor: juggler_core::model::EdgeActor::User,
-            parent_edge_a: None,
-            parent_edge_b: None,
-            created_at: Timestamp::now(),
-            to_machine: None,
-        })
-        .map_err(|error| AppError::Io {
-            context: "hand over",
-            message: error.to_string(),
-        })?;
+    graph.append_edge(&SwitchEdge {
+        id: edge_id.clone(),
+        work: work.id.clone(),
+        from_epoch: from.id.clone(),
+        to_epoch: None,
+        from_account: account_a.id.clone(),
+        to_account: account_b.id.clone(),
+        from_provider: account_a.harness.clone(),
+        to_provider: account_b.harness.clone(),
+        mechanism,
+        pack_id: None,
+        fidelity_shown: Some("F1".to_owned()),
+        manifest_sha256: None,
+        state: juggler_core::model::EdgeState::Staged,
+        actor: juggler_core::model::EdgeActor::User,
+        parent_edge_a: None,
+        parent_edge_b: None,
+        created_at: Timestamp::now(),
+        to_machine: None,
+    })?;
     Ok((work.id.clone(), from.id.clone(), edge_id))
 }
 
 /// Transitions the edge to `Failed{stage, reason}` — the same edge,
 /// never a rewrite (S-G1); the source is safe by the pipeline's
 /// contract.
+/// The edge keeps the failure's stage and its words — the Switch Graph
+/// shows the reason as the dialog said it; the detail is in the log.
 fn record_edge_failed(
     state: &Arc<AppState>,
     edge: &juggler_core::model::SwitchEdgeId,
-    failure: &juggler_handover::pipeline::SwitchFailure,
+    error: &AppError,
 ) {
+    let AppError::Switch { failure, words } = error else {
+        return;
+    };
     if let Ok(storage) = lock_storage_arc(state) {
         let _ = storage
             .switch_graph()
-            .mark_failed(edge, failure.stage(), &failure.to_string());
+            .mark_failed(edge, failure.stage(), words);
     }
 }
 
@@ -11517,7 +11445,7 @@ fn back_lineage(
     let Some(_project) = away_session.project.clone() else {
         return Err(AppError::Io {
             context: "switch back",
-            message: "session has no project link".into(),
+            message: "AI Juggler doesn't know which project this session belongs to, so it can't switch it".into(),
         });
     };
     let graph = storage.switch_graph();
@@ -11648,7 +11576,7 @@ fn chain_back(
         else {
             return Err(AppError::Io {
                 context: "switch back",
-                message: "The switch's source epoch is missing from the graph".to_owned(),
+                message: "AI Juggler can't find where this work was before the switch, so it can't go back".to_owned(),
             });
         };
         if chain.iter().any(|(_, seen)| seen.id == from.id) {
@@ -12298,13 +12226,11 @@ pub fn switch_back_execute_to_impl(
     // error, never a guess.
     let resolutions = parse_switch_back_choices(choices);
     if !unresolved(&conflicts, &resolutions).is_empty() {
-        return Err(AppError::Io {
-            context: "switch back",
-            message: format!(
-                "{}",
-                juggler_handover::pipeline::SwitchFailure::MergeConflictOpen
-            ),
-        });
+        return Err(AppError::switch(
+            juggler_handover::pipeline::SwitchFailure::MergeConflictOpen,
+            &original_account.label,
+            &away_account.label,
+        ));
     }
 
     // Apply the file plan (file domain only — the transcript is not
@@ -12413,10 +12339,13 @@ fn apply_conflict_choices(
 fn stop_away_instance(state: &Arc<AppState>, session: &SessionId) -> AppResult<()> {
     match state.supervisor.stop(session, Duration::from_secs(5)) {
         Ok(()) | Err(juggler_supervisor::SupervisorError::UnknownSession(_)) => Ok(()),
-        Err(error) => Err(AppError::Io {
-            context: "switch back",
-            message: format!("Couldn't stop the away session: {error}"),
-        }),
+        Err(error) => {
+            crate::error_log::record("switch_back", &error.to_string());
+            Err(AppError::Io {
+                context: "switch back",
+                message: "AI Juggler couldn't stop the session on the other account, so nothing moved. Stop it from its page and try again".to_owned(),
+            })
+        }
     }
 }
 
@@ -12472,7 +12401,9 @@ fn resume_original_with_delta(
         .clone()
         .ok_or_else(|| AppError::Io {
             context: "switch back",
-            message: "The original session row is missing — resume it from the graph".to_owned(),
+            message:
+                "The original session isn't listed any more — resume it from the switch history"
+                    .to_owned(),
         })?;
     let (profile_a, account_a) = {
         let storage = lock_storage_arc(state)?;
@@ -12784,7 +12715,7 @@ pub struct RedactionPolicyInfo {
     pub effective: Option<String>,
     /// `global` | `override` | `unset`.
     pub source: String,
-    /// The verbatim confirm line ("Redaction for {Provider}: …").
+    /// The verbatim confirm line ("Keys and passwords for {Provider}: …").
     pub line: String,
 }
 
@@ -12859,7 +12790,7 @@ fn redaction_line(
         "your global choice"
     };
     format!(
-        "Redaction for {provider}: {} ({source})",
+        "Keys and passwords for {provider}: {} ({source})",
         strip_label(policy)
     )
 }
@@ -12868,13 +12799,11 @@ fn redaction_line(
 /// Keep/Ask use their own plain words.
 fn strip_label(policy: juggler_handover::redaction::RedactionPolicy) -> String {
     match policy {
-        juggler_handover::redaction::RedactionPolicy::Strip => {
-            "Strip — replace keys with •••".to_owned()
+        juggler_handover::redaction::RedactionPolicy::Strip => "hidden".to_owned(),
+        juggler_handover::redaction::RedactionPolicy::Keep => "left in".to_owned(),
+        juggler_handover::redaction::RedactionPolicy::AskEachTime => {
+            "asked on every switch".to_owned()
         }
-        juggler_handover::redaction::RedactionPolicy::Keep => {
-            "Keep — pack stays on this Mac".to_owned()
-        }
-        juggler_handover::redaction::RedactionPolicy::AskEachTime => "Ask each time".to_owned(),
     }
 }
 
@@ -13050,23 +12979,26 @@ pub struct RedactionItemInfo {
 
 /// Lists the source conversation's secrets (masked) for the
 /// preview; the un-redact indices the user picks address these.
-fn redaction_items_of(source: &juggler_core::model::InstanceRecord) -> Vec<RedactionItemInfo> {
+fn redaction_items_of(
+    source: &juggler_core::model::InstanceRecord,
+) -> (Vec<RedactionItemInfo>, usize) {
     let Some(reference) = source.transcript_ref.as_ref() else {
-        return Vec::new();
+        return (Vec::new(), 0);
     };
     let Some((_uuids, turns)) = transcript_side(&reference.path) else {
-        return Vec::new();
+        return (Vec::new(), 0);
     };
     let segments: Vec<String> = turns.iter().map(|turn| turn.text.clone()).collect();
     let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
-    juggler_handover::redaction::list_segments(&refs)
+    let items = juggler_handover::redaction::list_segments(&refs)
         .into_iter()
         .map(|listed| RedactionItemInfo {
             kind: listed.kind.to_owned(),
             preview: listed.preview,
             segment: u32::try_from(listed.segment).unwrap_or(u32::MAX),
         })
-        .collect()
+        .collect();
+    (items, turns.len())
 }
 
 // ---------------------------------------------------------------------------
@@ -13278,7 +13210,7 @@ pub fn switch_targets_impl(
                 account_id: account.id.to_string(),
                 account_label: account.label.clone(),
                 badge: matrix_row.as_ref().map_or_else(
-                    || "Briefing pack · Beta".to_owned(),
+                    || "Handover notes · Beta".to_owned(),
                     |row| row.badge_for(&installed, true),
                 ),
                 validated: matrix_row
@@ -13512,7 +13444,7 @@ fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
         SwitchMechanism::NativeResume => "Continues exactly",
         SwitchMechanism::Transplant => "Same conversation, new account",
         SwitchMechanism::Replay => "Full story, fresh start",
-        SwitchMechanism::Pack => "Briefing pack",
+        SwitchMechanism::Pack => "Handover notes",
     }
 }
 
@@ -13582,7 +13514,7 @@ fn find_epoch_with_session(
     }
     let epoch = found.ok_or_else(|| AppError::Io {
         context: "graph action",
-        message: "That epoch isn't in the graph".to_owned(),
+        message: "That point in the work isn't recorded any more".to_owned(),
     })?;
     let account = storage
         .accounts()
@@ -13654,7 +13586,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         .filter(|id| !id.is_empty())
         .ok_or_else(|| AppError::Io {
             context: "resume epoch",
-            message: "The epoch has no native session to resume".to_owned(),
+            message: "That point in the work has no conversation AI Juggler can resume".to_owned(),
         })?;
     let profile = {
         let storage = lock_storage_arc(state)?;
@@ -13791,7 +13723,7 @@ pub(crate) fn write_session_pack(
         juggler_handover::redaction::resolve_policy(redaction_global_of(&storage), None)
             .ok_or_else(|| AppError::Io {
                 context: "export pack",
-                message: "Choose how secrets are handled in packs first (Accounts → Pack secrets)"
+                message: "Choose what happens to keys and passwords first, in Settings › Switching › Handovers and keys"
                     .to_owned(),
             })?
     };
@@ -13800,7 +13732,7 @@ pub(crate) fn write_session_pack(
         .clone()
         .ok_or_else(|| AppError::Io {
             context: "export pack",
-            message: "The epoch has no transcript to pack".to_owned(),
+            message: "This step has no conversation to save.".to_owned(),
         })?;
     let turns = turns.unwrap_or_else(|| {
         transcript_side(&reference.path)

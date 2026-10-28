@@ -186,7 +186,7 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             (headroom_words, W_HEADROOM * headroom_input),
             (
                 if affinity >= 0.5 {
-                    "usual account for this repo".to_owned()
+                    "used most here".to_owned()
                 } else {
                     format!("{}% history here", (affinity * 100.0).round())
                 },

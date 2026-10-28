@@ -1,0 +1,50 @@
+[
+  {
+    "kind": "unresolved-source",
+    "words": "AI Juggler couldn't tell which file holds this conversation on Work, so nothing moved."
+  },
+  {
+    "kind": "torn-tail",
+    "words": "The original on Work is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
+  },
+  {
+    "kind": "collision-forked",
+    "words": "Personal already has this conversation, so it opened as a separate copy."
+  },
+  {
+    "kind": "staging-aborted",
+    "words": "Copying to Personal stopped partway, so nothing moved. What was copied has been cleaned up."
+  },
+  {
+    "kind": "launch-failed",
+    "words": "The new session on Personal didn't start, so nothing moved."
+  },
+  {
+    "kind": "prime-quota-death",
+    "words": "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens."
+  },
+  {
+    "kind": "original-session-gone",
+    "words": "The original conversation on Work is gone, so there's nothing to switch back to."
+  },
+  {
+    "kind": "merge-conflict-open",
+    "words": "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed."
+  },
+  {
+    "kind": "hop-cost",
+    "words": "Moving to Personal makes 4 switches for this work, about 380,000 tokens in all. Switching within the same tool costs less."
+  },
+  {
+    "kind": "preflight-target-exhausted",
+    "words": "Personal has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account."
+  },
+  {
+    "kind": "preflight-version-drift",
+    "words": "Personal's version of its tool hasn't been checked with this kind of switch yet, so nothing moved."
+  },
+  {
+    "kind": "adapter",
+    "words": "The switch to Personal couldn't finish, so nothing moved."
+  }
+]

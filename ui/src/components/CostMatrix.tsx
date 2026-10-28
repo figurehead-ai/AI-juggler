@@ -245,7 +245,7 @@ export function CostMatrix(): JSX.Element {
           <span className={WIDE}>Day</span>
           <span>Session</span>
           <span className={WIDE}>Model</span>
-          <span className="text-right">USD (estimate)</span>
+          <span className="text-right">Estimated USD</span>
           <span className={`${WIDE} text-right`}>Tokens (in / out)</span>
           {credits && <span className={`${WIDE} text-right`}>Credits</span>}
         </div>

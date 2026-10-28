@@ -211,8 +211,8 @@ fn brief(state: &Arc<AppState>, pack: &OpenedPack, target: &HarnessId, folder: &
         .to_owned();
     let _ = write!(
         out,
-        "\n\nThis session continues from a context pack: {} on {}, in {}, on the branch {}. Its fidelity: {}.\n\n\
-         The pack's brief, quoted:\n\n{}\nThe pack's conversation, quoted:\n\n{}",
+        "\n\nThis session continues from a saved handover: {} on {}, in {}, on the branch {}. What carries: {}.\n\n\
+         The handover's brief, quoted:\n\n{}\nThe handover's conversation, quoted:\n\n{}",
         tool_name(state, &source.provider),
         source.account_label,
         pack.state.project.root,
@@ -251,7 +251,7 @@ pub fn start_impl(
     let pack = opened(path)?;
     if pack.digest != digest {
         return Err(refused(
-            "the pack changed since you looked at it: open it again".to_owned(),
+            "the handover changed since you looked at it: open it again".to_owned(),
         ));
     }
     if !folder.is_dir() {

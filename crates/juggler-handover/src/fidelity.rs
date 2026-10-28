@@ -42,14 +42,15 @@ impl ArtifactKind {
     #[must_use]
     pub fn label(self) -> &'static str {
         match self {
-            Self::Chat => "chat transcript",
-            Self::Rules => "rules & guidelines",
-            Self::GitDiff => "uncommitted git diff",
-            Self::Todos => "todo list",
-            Self::Mcp => "MCP config",
-            Self::Skills => "skills & commands",
-            Self::EnvModel => "model settings",
-            Self::Subagents => "subagent state",
+            // Plain words (the maintainer's walk, 2026-10-27).
+            Self::Chat => "The whole conversation",
+            Self::Rules => "Project rules",
+            Self::GitDiff => "Your uncommitted changes",
+            Self::Todos => "The task list",
+            Self::Mcp => "Connected tools (MCP servers)",
+            Self::Skills => "Skills and commands",
+            Self::EnvModel => "Model choice",
+            Self::Subagents => "Subagents' work",
         }
     }
 }
@@ -132,11 +133,12 @@ impl Disposition {
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize, serde::Deserialize,
 )]
 pub enum FidelityLabel {
-    /// Briefing pack (T4): task/decisions/TODOs/diffs only.
+    /// Handover notes (T4): task/decisions/TODOs/diffs only.
     F0,
     /// Full story, fresh start (T3 replay).
     F1,
-    /// Same conversation, new account (compacted).
+    /// Same conversation, new account, with a check that failed (a
+    /// transplant's level lowered by its validation cell, AJ-E210).
     F2,
     /// Same conversation, new account (T2 transplant).
     F3,
@@ -149,9 +151,9 @@ impl FidelityLabel {
     #[must_use]
     pub fn user_label(self) -> &'static str {
         match self {
-            Self::F0 => "Briefing pack",
+            Self::F0 => "Handover notes",
             Self::F1 => "Full story, fresh start",
-            Self::F2 => "Same conversation, new account (compacted)",
+            Self::F2 => "Same conversation, new account (a check failed)",
             Self::F3 => "Same conversation, new account",
             Self::F4 => "Continues exactly",
         }
@@ -215,7 +217,7 @@ impl FidelityLabel {
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppliedCap {
     /// Machine name (`f4-requires-same-account-native-resume`,
-    /// `compact-boundary`, `drop-in-chat|rules|git`,
+    /// `drop-in-chat|rules|git`,
     /// `unvalidated-pair`, `zcode-target`).
     pub cap: String,
     /// The label the cap lowered to.
@@ -245,8 +247,6 @@ pub struct FidelityInput {
     /// Per-artifact dispositions (missing entries score Drop —
     /// the honest default).
     pub dispositions: BTreeMap<ArtifactKind, Disposition>,
-    /// The source transcript had a `compact_boundary`.
-    pub compact_boundary: bool,
     /// Cap-gating flags (they gate caps together).
     pub flags: PairFlags,
     /// Unmapped MCP/rules keys BY NAME (Req.5 — listed, never
@@ -361,15 +361,10 @@ pub fn score_pair(input: &FidelityInput) -> PairFidelity {
         });
     }
 
-    // Cap 2: a compaction boundary in the source caps at F2
-    // (live pre-compact context does not survive).
-    if input.compact_boundary && label > FidelityLabel::F2 {
-        label = FidelityLabel::F2;
-        caps.push(AppliedCap {
-            cap: "compact-boundary".to_owned(),
-            capped_at: FidelityLabel::F2,
-        });
-    }
+    // (Cap 2, the compaction boundary, is gone: a transplant copies the
+    // whole session file and resumes it as the source tool would, and a
+    // replay reads every turn, newest first while they fit — a compacted
+    // source loses nothing by being compacted. D-03 amendment.)
 
     // Cap 3: a Drop in chat/rules/git caps at F1 — the work itself
     // does not fully carry.
@@ -505,7 +500,6 @@ pub fn base_dispositions(from: &str, to: &str) -> FidelityInput {
         from_provider: from.to_owned(),
         to_provider: to.to_owned(),
         dispositions,
-        compact_boundary: false,
         flags: PairFlags::default(), // E210 owns flipping cells green
         unmapped_keys: Vec::new(),
     }

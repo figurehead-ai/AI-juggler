@@ -46,7 +46,7 @@ function Bubble({ message, now, onDeliver, busy }: { message: MessageInfo; now: 
       </p>
       {message.redacted > 0 && (
         <span className="text-label text-muted" data-testid="message-redacted">
-          {message.redacted === 1 ? "1 secret withheld" : `${message.redacted} secrets withheld`}, as you chose for packs
+          {message.redacted === 1 ? "1 secret withheld" : `${message.redacted} secrets withheld`}, as you chose for handovers
         </span>
       )}
       <ul className={"flex flex-col gap-1 " + (you ? "items-end" : "items-start")} aria-label="Where it is for each recipient">

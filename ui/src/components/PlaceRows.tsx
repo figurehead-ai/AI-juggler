@@ -136,6 +136,9 @@ interface RowProps {
   now: number;
   /** "Sub-agents" is on in the View: the row says how many it runs. */
   subagents?: boolean;
+  /** Settings › Appearance › Density is Compact (AJ-E403): fewer lines,
+   * the same words in its name. */
+  compact?: boolean;
 }
 
 
@@ -156,7 +159,7 @@ function RowShell({
   indent = false,
   arrange = null,
   tools = false,
-}: RowProps & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
+}: Omit<RowProps, "compact"> & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   // One hook either way: the session's menu, or the conversation's. A
   // session another app runs is pinned in the rail's own record (D-47).
@@ -231,10 +234,28 @@ function RowShell({
 }
 
 /** A Needs you row. */
-export function NeedRow(props: RowProps): JSX.Element {
+export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   const { item } = props;
   const word = needWord(item);
   const where = whereWords(item);
+  if (compact) {
+    // Two lines: what, and why it needs you (where is in its name).
+    return (
+      <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-2">
+        <span aria-hidden="true" className="flex shrink-0">
+          <PlaceMark place={item.place} profile={item.accountLabel} size={18} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
+            {item.title}
+          </span>
+          <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
+            {word}
+          </span>
+        </span>
+      </RowShell>
+    );
+  }
   return (
     <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2 pt-2">
       <span aria-hidden="true" className="mt-0.5 flex shrink-0">
@@ -265,7 +286,7 @@ function whenWords(item: RailItem, now: number): string {
 /** An Open now row under its place. One that needs you keeps its place
  * and says its state in amber (D-47); Needs you lists it as well, with
  * why. One vocabulary on every row (AJ-E2104 Req.3). */
-export function PlaceRow(props: RowProps & { edge: string | null; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
+export function PlaceRow({ compact = false, ...props }: RowProps & { edge: string | null; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const { item, now, edge, subagents } = props;
   const needs = item.need !== null;
   const word = stateWord(item.state, item.probably);
@@ -279,10 +300,29 @@ export function PlaceRow(props: RowProps & { edge: string | null; arrange?: Arra
   const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
   const pinned = item.pinned;
+  const label = [word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
+  if (compact) {
+    // One line: the state's dot, the title, then an exception (low
+    // runway, heavy load) or when, and the state word (AJ-E403: the
+    // state's words never go).
+    return (
+      <RowShell {...props} label={label} indent shape="rounded-r-lg" className="h-[30px] gap-2 border-l-2 pl-2.5" style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}>
+        <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" && !needs ? " animate-breathe" : "")} />
+        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="truncate text-meta font-semibold text-ink">{item.title}</span>
+          {pinned && <PinMark />}
+          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className="text-warning">{low}</span> : heavy ? <span className="text-warning" data-testid="rail-heavy">{heavy}</span> : when}</span>
+          <span className={"shrink-0 text-label font-medium " + tone.text} data-testid="state-word">
+            {word}
+          </span>
+        </span>
+      </RowShell>
+    );
+  }
   return (
     <RowShell
       {...props}
-      label={[word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ")}
+      label={label}
       indent
       shape="rounded-r-lg"
       className="h-[44px] gap-2 border-l-2 py-1 pl-2.5"

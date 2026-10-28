@@ -12,7 +12,7 @@
  * another, with the target tool's verdict. Secrets never move.
  *
  * Every change says what it did and can be undone here, or later from
- * Settings › Context packs & secrets.
+ * Settings › Handovers and keys.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "./form";

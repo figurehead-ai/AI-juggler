@@ -84,6 +84,7 @@ from the account's entitlements, never from code.
 **Files to touch**: new `ui/src/screens/Settings.tsx`, `ui/src/App.tsx` (nav), `ui/src/screens/OnboardingWizard.tsx`, `ui/src/lib/bridge.ts`, `ui/tests/visual/*`.
 **Research basis**: D-16 (Settings Appearance), D-18; ADR-0014; wireframe 26 (Settings).
 **Handover note**: The onboarding step must not break AJ-E305's ≤ 5-click flow (a): it is skippable with one click and counted honestly.
+*Req.3 evidence, amended 2026-10-27 (D-46):* the onboarding step left first run with the D-25 redesign (commit 91b640d6) and is back in 0.1.9 as first run's last step: `ui/src/screens/FigureheadStep.tsx` (reusing `useFigurehead`/`FigureheadFlow` from `ui/src/components/FigureheadCloudCard.tsx`, the Settings flow), wired in `ui/src/screens/FirstRun.tsx`; tests in `ui/src/screens/first-run.test.tsx` ("D-46 the optional Figurehead account": equal buttons, nothing pre-selected, skip finishes, Connect starts the same link, Add account never asks).
 
 ### AJ-E1204 Vault key, recovery code, encrypted backup format | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1009
 **Goal**: A documented, versioned, end-to-end encrypted container for the AJ-E1009 backup set.
