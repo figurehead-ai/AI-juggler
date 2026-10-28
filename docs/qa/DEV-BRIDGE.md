@@ -70,6 +70,8 @@ Then `just dev-bridge` as above.
 
 Start the Dev build Finder-like (`env -i HOME USER LOGNAME TMPDIR SHELL LANG PATH …`) so agent-shell variables such as `CLAUDE_CONFIG_DIR` don't skew what it sees.
 
+Put stand-in `claude`, `codex`, `opencode`, `grok` and `kimi` scripts first on that `PATH` (each logs its arguments and exits 1). A bridged Dev build still runs each tool's `--version` on its own within its first minute (the 0.2 walk's F19 check found it: tool discovery is reached from `switch_targets` and the Dev window's own Settings reads); with stand-ins, no real tool starts, and their log says what would have.
+
 ### On fixtures, or next to another AI Juggler Dev
 
 Point `HOME` at a throwaway folder. The Dev data folder and every vendor folder then live there. Put stand-in `claude` and `codex` scripts first on its `PATH`.
