@@ -65,7 +65,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
           Save your recovery code
         </h3>
         <p className="text-label text-ink">
-          Your Cloud backups are encrypted on this Mac with a key only you have. Figurehead can't read them. This code is
+          Your Cloud backups are encrypted on this computer with a key only you have. Figurehead can't read them. This code is
           that key: you'll need it to open your backups on a new Mac.
         </p>
         <p

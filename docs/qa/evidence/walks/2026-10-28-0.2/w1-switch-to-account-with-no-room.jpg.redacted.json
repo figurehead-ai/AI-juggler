@@ -1,0 +1,36 @@
+{
+  "boxes": [
+    [
+      0,
+      0,
+      1440,
+      247
+    ],
+    [
+      0,
+      247,
+      380,
+      406
+    ],
+    [
+      1060,
+      247,
+      380,
+      406
+    ],
+    [
+      0,
+      653,
+      1440,
+      222
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "w1-switch-to-account-with-no-room.jpg",
+  "note": "everything outside the dialog (rail, page, other accounts)",
+  "sha256": "067ac5f4bfa5f3da48424ef70a0b49e86b0b063906bde3a6e8a7b4fc8f982650",
+  "size": [
+    1440,
+    900
+  ]
+}

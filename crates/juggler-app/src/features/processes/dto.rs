@@ -112,6 +112,13 @@ pub struct ProcessSessionInfo {
     pub root_pid: Option<u32>,
     /// Folded to one line (its processes not listed).
     pub folded: bool,
+    /// Not a session: the app's own processes, shared by this many of its
+    /// sessions and listed once (0 for a session).
+    pub shared_by: u32,
+    /// When it started (its earliest process), epoch ms, when known: an
+    /// untitled session is named by it.
+    #[ts(type = "number | null")]
+    pub started_ms: Option<i64>,
 }
 
 /// A process's row.

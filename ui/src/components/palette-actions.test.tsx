@@ -82,7 +82,7 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     expect(stop.querySelector("kbd")?.textContent).toBe("⌘.");
     expect(stop.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(options()[2]!.querySelector("kbd")?.textContent).toBe("⌘⇧H");
-    expect(input.getAttribute("placeholder")).toBe("Act on login-fix, or go to a session…");
+    expect(input.getAttribute("placeholder")).toBe("Act on login-fix, or search…");
   });
 
   it("a greyed action says why and does nothing; Enter on another runs it and closes", () => {
@@ -122,6 +122,6 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     cleanup();
     const none = open(null, appHost());
     expect(none.options().map((option) => option.getAttribute("data-testid"))).toEqual(["goto-row-s2"]);
-    expect(none.input.getAttribute("placeholder")).toBe("Go to session…");
+    expect(none.input.getAttribute("placeholder")).toBe("Go to a session or screen, or type what to do…");
   });
 });

@@ -20,7 +20,8 @@ tool: string,
  */
 state: string, 
 /**
- * The sign-in, masked (`o…@work.com`, `ChatGPT account …9f2c`).
+ * The sign-in's email, masked (`o…@work.com`); `None` when the
+ * sign-in records no email (never an id or a fragment of one).
  */
 email: string | null, 
 /**

@@ -122,7 +122,7 @@ export function ExpertSetup({
     anchor.download = `ai-juggler-onboarding-funnel-${new Date().toISOString().slice(0, 10)}.md`;
     anchor.click();
     URL.revokeObjectURL(url);
-    setExported("Saved the local report — it never leaves this Mac unless you share it.");
+    setExported("Saved the local report — it never leaves this computer unless you share it.");
   };
 
   const recipe = recipes.find((entry) => entry.id === recipeId) ?? null;
@@ -306,7 +306,7 @@ export function ExpertSetup({
                 <div className="flex flex-col gap-1.5">
                   <span className="font-medium text-ink">Onboarding metrics</span>
                   <p className="leading-relaxed text-muted">
-                    Counts of setup steps, stored only on this Mac — never paths, names, or
+                    Counts of setup steps, stored only on this computer — never paths, names, or
                     credentials.
                   </p>
                   <Button

@@ -74,7 +74,10 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
   const placed = useRef(false);
   useEffect(() => {
     if (!options.focusWhenFree) return;
-    if (!document.activeElement || document.activeElement === document.body) {
+    // Free: on nothing, or resting on the page itself (a page opened
+    // puts the keyboard on `<main>`, F11), never on a control.
+    const active = document.activeElement;
+    if (!active || active === document.body || active.tagName === "MAIN") {
       placed.current = true;
       undoRef.current?.focus();
       placed.current = false;

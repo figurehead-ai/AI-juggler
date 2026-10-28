@@ -21,7 +21,7 @@ import { appWords, picksInSidebar, speakerName, type SessionModel } from "./mode
 
 /** Why there's nothing to show, in words. */
 const NONE: Record<string, string> = {
-  none: "There's no transcript of it on this Mac to read, so its title is all AI Juggler shows.",
+  none: "There's no transcript of it on this computer to read, so its title is all AI Juggler shows.",
   compressed: "Its transcript is stored compressed now that it has ended, so it isn't read here.",
   unreadable: "Its transcript couldn't be read just now.",
 };

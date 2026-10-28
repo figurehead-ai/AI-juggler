@@ -273,6 +273,13 @@ replica-walk: dev-icon
 dev-bridge: dev-icon agent-bridge
     AIJ_DEV_BRIDGE=1 cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json --features dev-bridge
 
+# A fresh AI Juggler Dev data folder for a walk on real data: the setups
+# found on this computer, used where they are, named "Account A–Z", with
+# limits_probe_allowed = off. Starts no tool and writes no tool's folder;
+# refuses if the Dev data folder exists (docs/qa/DEV-BRIDGE.md).
+dev-bridge-data:
+    cargo run -q -p juggler-app --features dev-bridge --example dev_walk_data
+
 # The page for the running bridge (reads its 0600 token file).
 dev-bridge-url:
     python3 scripts/dev_bridge_url.py

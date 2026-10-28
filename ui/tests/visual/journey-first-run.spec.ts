@@ -86,7 +86,7 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await expect(found).toBeVisible();
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
   await axeClean(page, "what's here");
-  await expect(found).toContainText("You already have 6 Claude Code setups on this Mac.");
+  await expect(found).toContainText("You already have 6 Claude Code setups on this computer.");
   await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 accounts");
   const looked = page.getByRole("button", { name: "Where we looked" });
   if (await looked.count()) await looked.click();

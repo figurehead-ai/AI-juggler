@@ -6,11 +6,12 @@ import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
-import { RailCalm } from "./RailCalm";
+import { FoldedRail } from "./RailFolded";
+import { useRoving } from "../lib/roving";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
 import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
@@ -58,13 +59,11 @@ import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
 import {
   StaleChip,
-  attentionBadge,
   attentionTooltip,
   isActiveStatus,
   lowLeftWords,
   stateChip,
 } from "./indicator";
-import { ariaSummary } from "./row-details";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
@@ -201,11 +200,7 @@ export function WorkflowRail({
       {/* The live list for the active tab */}
       <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {minimal ? (
-          <MinimalInstanceColumn
-            sessions={sessions}
-            selectedId={selectedId}
-            onSelect={onSelectSession}
-          />
+          <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} />
         ) : (
           <InstanceBoard
             onSelectProject={onSelectProject}
@@ -384,6 +379,8 @@ export function InstanceBoard({
     return () => window.removeEventListener("aij:focus-search", focus);
   }, []);
 
+  // F11: the list is one stop on the Tab path; ↑↓ move inside it.
+  useRoving(scrollRef);
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
@@ -519,6 +516,7 @@ export function InstanceBoard({
 
       <div
         ref={scrollRef}
+        data-testid="rail-list"
         className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
@@ -754,7 +752,7 @@ function BoardRow({
   // Its ↗ while it runs in another app's window (always shown when it needs you).
   const where = goToWhere(sessionItem(row, () => null, false)), needs = row.needs_attention !== null && !isSnoozed(row, snooze, now);
   return (
-    <div className="group relative" {...menu.triggerProps}>
+    <div className="group relative" data-rail-row {...menu.triggerProps}>
       {caption && (
         <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-label font-medium text-muted" title={caption}>
           {caption}
@@ -926,99 +924,3 @@ function ListSection({ label, children }: { label: string; children: ReactNode }
     </div>
   );
 }
-
-/**
- * Minimal density (AJ-E403 Req.2): the 36 px icon column — avatar disc +
- * state glyph + `!` badge per Instance. The full I-01..I-11 text rides
- * in the tooltip (CSS hover panel) and the `aria-label` (Req.3).
- */
-export function MinimalInstanceColumn({
-  sessions,
-  selectedId,
-  onSelect,
-}: {
-  sessions: InstanceInfo[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  // Active rows only — waiting/stuck/quota-blocked instances are the
-  // ones that must scream `!` in the collapsed rail (user story).
-  const active = sessions.filter((s) => isActiveStatus(s.status));
-  const { needOf } = useBackendNeeds(); // D-49: the backend's Needs you
-  const needsYou = active.filter((s) => needOf.has(`s:${s.id}`)).length;
-  const railId = useId();
-  return (
-    <div className="flex flex-col items-center gap-1 pt-1">
-      {active.map((s) => {
-        const chip = stateChip(s.status);
-        const badge = attentionBadge(s);
-        const said = sessionState(s); // AJ-E2104 Req.3: the rail's words
-        return (
-          <button
-            key={s.id}
-            type="button"
-            data-instance-id={s.id}
-            onClick={() => onSelect(s.id)}
-            aria-describedby={`${railId}-${s.id}`}
-            title={ariaSummary(s)}
-            className={
-              "group relative flex size-9 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (s.id === selectedId ? "bg-surface" : "hover:bg-surface")
-            }
-          >
-            {/* Icon-only: nothing else is shown, so the description is the full summary. */}
-            <span id={`${railId}-${s.id}`} hidden>
-              {ariaSummary(s)}
-            </span>
-            {/* WCAG 2.5.3: an icon-only button's name, in words. */}
-            <span className="sr-only">
-              {s.account_label}, {said.word}
-            </span>
-            <AccountAvatar accountId={s.account_id} label={s.account_label} size={22} />
-            <chip.Icon
-              width={10}
-              height={10}
-              className={"absolute bottom-0 right-0 rounded-full bg-surface p-px " + said.tone}
-            />
-            {badge ? (
-              <span
-                className={
-                  "absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full text-label font-bold " +
-                  (badge.tone === "danger"
-                    ? "bg-danger text-white"
-                    : "bg-warning text-black")
-                }
-                aria-hidden="true"
-              >
-                !
-              </span>
-            ) : null}
-            {/* Hover/focus tooltip: the full I-01..I-11 field text for THIS
-                instance (Req.3) — never a bare disc. */}
-            <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
-              <span className="flex items-center gap-1.5">
-                <span className="truncate text-meta font-medium text-ink">
-                  {s.account_label}
-                </span>
-                <AccountAvatar accountId={s.account_id} label={s.account_label} size={16} />
-              </span>
-              <span className="mt-1 block text-label leading-relaxed text-muted">
-                {ariaSummary(s)}
-              </span>
-            </span>
-          </button>
-        );
-      })}
-      {needsYou > 0 && (
-        <span
-          className="mt-1 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-label font-bold text-warning"
-          title={`${needsYou} session${needsYou === 1 ? "" : "s"} need you`}
-        >
-          ! {needsYou}
-        </span>
-      )}
-      {active.length === 0 && <RailCalm />}
-    </div>
-  );
-}
-

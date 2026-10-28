@@ -68,7 +68,7 @@ export function SessionsPerBucket({ data, cut, busy, emptyWords, className = "" 
       {data && (
         <p className="text-label text-muted">
           {started} started in this range.
-          {data.unmeasured_sessions > 0 && ` ${data.unmeasured_sessions} more ran without token counts on this Mac, so they aren't in these numbers.`}
+          {data.unmeasured_sessions > 0 && ` ${data.unmeasured_sessions} more ran without token counts on this computer, so they aren't in these numbers.`}
         </p>
       )}
     </Section>

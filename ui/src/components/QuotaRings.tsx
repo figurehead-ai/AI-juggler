@@ -139,7 +139,7 @@ export function WindowRing({
           {label} · {badgeText(window.badge)}
         </span>
         <span className="text-label text-muted">
-          {[reset, stale].filter(Boolean).join(" · ") || `${window.burned_tokens.toLocaleString()} tokens`}
+          {[reset, stale].filter(Boolean).join(" · ") || `${(window.burned_io_tokens ?? window.burned_tokens).toLocaleString()} tokens${window.burned_io_tokens != null ? " in and out" : ", cache included"}`}
         </span>
         {exhausted && (
           <span className="text-label text-danger">blocked — resets {reset || "unknown"}</span>

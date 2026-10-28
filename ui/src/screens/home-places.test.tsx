@@ -70,7 +70,7 @@ describe("Home, desktop first", () => {
     expect(railView().show.ended).toBe(true);
   });
 
-  it("Your apps: a tile per running app and profile, with its count, needs badge and Open; six, then +n", async () => {
+  it("Your apps: a tile per running app and profile, with its count, needs badge and Open; six, then how many more", async () => {
     const view = home([], placesConversations(NOW));
     const tiles = await view.findAllByTestId("home-app-tile");
     expect(tiles.map((tile) => tile.dataset.place)).toEqual(["ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]);
@@ -79,12 +79,19 @@ describe("Home, desktop first", () => {
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     cleanup();
-    // Eight places: six tiles, then "+2".
-    const many = [...Array(8)].map((_, n) => ({ ...placesConversations(NOW)[0]!, id: `p${n}`, places: [{ ...PREVIEW_PLACES[0]!, instance: `P${n}`, profile: `Profile ${n}`, pid: 900 + n }] }));
-    const again = home([], many);
+    // Eight places: six tiles, then "Show 2 more apps".
+    const places = (count: number) => [...Array(count)].map((_, n) => ({ ...placesConversations(NOW)[0]!, id: `p${n}`, places: [{ ...PREVIEW_PLACES[0]!, instance: `P${n}`, profile: `Profile ${n}`, pid: 900 + n }] }));
+    const again = home([], places(8));
     await waitFor(() => expect(again.getAllByTestId("home-app-tile")).toHaveLength(6));
+    expect(again.getByTestId("home-apps-more").textContent).toBe("Show 2 more apps");
     fireEvent.click(again.getByTestId("home-apps-more"));
     expect(again.getAllByTestId("home-app-tile")).toHaveLength(8);
+    expect(again.getByTestId("home-apps-more").textContent).toBe("Show fewer apps");
+    cleanup();
+    // Seven: all seven, never one behind a "+1" (the 0.2 walk, F18).
+    const seven = home([], places(7));
+    await waitFor(() => expect(seven.getAllByTestId("home-app-tile")).toHaveLength(7));
+    expect(seven.queryByTestId("home-apps-more")).toBeNull();
   });
 
   it("Needs you holds every kind, each with its own primary", async () => {
@@ -150,7 +157,7 @@ describe("Home, desktop first", () => {
       conversations: [],
       subscriptions: [
         { key: "acct-1", tool: "claude-code", state: "signed_in", email: "o@work.com", organisation: null, reason: null, plan: "Max", renewal_date: null, fee_usd: null, differs: [],
-          profiles: ["claude-work", "claude-personal"].map((id) => ({ id, folder: id, plan: "Max", renewal_date: null, fee_usd: null })) },
+          profiles: ["claude-work", "claude-personal"].map((id) => ({ id, label: id, folder: id, plan: "Max", renewal_date: null, fee_usd: null })) },
       ],
     };
     await loadSubscriptions(true); // the list is cached for half a minute

@@ -28,11 +28,16 @@ pub(crate) fn graph_trees(
         .flat_map(|tree| tree.pids.iter().copied())
         .collect();
     let mut out = Vec::new();
+    // Two sessions in one app's process (a desktop app's) are one tree.
+    let mut seen: HashSet<u32> = HashSet::new();
     for app in graph.apps.iter().filter(|app| !app.ours) {
         for session in app.sessions.iter().filter(|session| session.alive) {
             let Some(root) = session.root_pid else {
                 continue;
             };
+            if !seen.insert(root) {
+                continue;
+            }
             let Some(tree) = extra.get(&root).filter(|_| !counted.contains(&root)) else {
                 continue;
             };
@@ -257,6 +262,9 @@ mod tests {
             rollup: Rollup::default(),
             spark: Vec::new(),
             root_pid: Some(root),
+            busy: None,
+            shared_by: 0,
+            sharers: Vec::new(),
         }
     }
 

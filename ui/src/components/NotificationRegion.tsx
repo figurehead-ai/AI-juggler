@@ -2,7 +2,7 @@
  * AJ-E611, AJ-E2504 — the band of banners above a screen, one polite live
  * region, every banner the shared §2 Banner (the approved design of
  * 2026-10-27): an account almost out of room (from the notification
- * model, with its meter, Hand over…, Queue for the reset, Snooze 1 h,
+ * model, with its meter, Continue on another account…, Queue for the reset, Snooze 1 h,
  * and a close that leaves it in the centre; at most three), an update,
  * a parked session's reset, a queued resume, this computer's alerts and
  * another computer's. Plain words, real actions; nothing here launches by
@@ -34,7 +34,8 @@ import {
   type UpdateStatusInfo,
 } from "../lib/bridge";
 import { Banner } from "./Banner";
-import { ChannelChip, updateErrorText } from "./UpdatesCard";
+import { updateErrorText } from "./UpdatesCard";
+import { ChannelChip } from "./ChannelChip";
 import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 import { usePagedList } from "../lib/paged";
@@ -202,7 +203,8 @@ export function NotificationRegion({
             detail={quotaDetail(notice, now)}
             meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
             actions={[
-              { label: "Hand over…", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
+              // F16: the switch for its open session, else (named so) its account.
+              { label: actions.canHandOver(notice) ? "Continue on another account…" : "Open its account", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
               { label: "Queue for the reset", onClick: () => actions.second(notice, "queue-reset"), testId: "quota-banner-queue" },
               { label: "Snooze 1 h", quiet: true, onClick: () => actions.snooze(notice, "hour") },
             ]}

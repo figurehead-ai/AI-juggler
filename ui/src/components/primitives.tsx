@@ -56,13 +56,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
   );
 });
 
-export function Card({
-  className = "",
-  children,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function Card({ className = "", children, ...props }, ref) {
   return (
     <div
+      ref={ref}
       className={`sheen rounded-card border border-hairline bg-surface
         shadow-card transition-all duration-150
         hover:border-muted/25 ${className}`}
@@ -71,7 +68,7 @@ export function Card({
       {children}
     </div>
   );
-}
+});
 
 export type ChipTone =
   | "neutral"

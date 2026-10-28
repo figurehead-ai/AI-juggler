@@ -29,7 +29,7 @@ const PLACES: [&str; 3] = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bi
 
 /// Said when there's no `gh` at all.
 pub const NO_GH: &str =
-    "Looking it up needs GitHub's own command line, gh, on this Mac; the link still opens";
+    "Looking it up needs GitHub's own command line, gh, on this computer; the link still opens";
 
 /// The user's own `gh`, when it's there and safe to run (ours or root's,
 /// and no one but us and the Mac's administrators can change it:

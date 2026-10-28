@@ -12,7 +12,7 @@ use crate::transport::{HttpRequest, HttpResponse, Transport};
 pub enum ApiError {
     /// `401`: this Mac was unlinked on the website (or the token is
     /// gone). The caller deletes the token and turns cloud off.
-    #[error("This Mac was unlinked from Figurehead.")]
+    #[error("This computer was unlinked from Figurehead.")]
     Unlinked,
     /// `402`: the account's plan doesn't include `feature`.
     #[error("Your Figurehead plan doesn't include this.")]
@@ -429,7 +429,7 @@ impl AccountClient {
         if name.is_empty() || name.chars().count() > 64 {
             return Err(ApiError::Rejected {
                 status: 400,
-                code: "Use a name of 1–64 characters for this Mac.".to_owned(),
+                code: "Use a name of 1–64 characters for this computer.".to_owned(),
             });
         }
         let body = serde_json::json!({ "name": name, "appVersion": app_version });

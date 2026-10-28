@@ -354,7 +354,7 @@ fn scan(path: &Path) -> AppResult<Vec<String>> {
 fn origin(state: &Arc<AppState>) -> BackupOriginInfo {
     BackupOriginInfo {
         fingerprint: crate::fleet::this_machine_fingerprint(state).unwrap_or_default(),
-        label: sysinfo::System::host_name().unwrap_or_else(|| "this Mac".to_owned()),
+        label: sysinfo::System::host_name().unwrap_or_else(|| "this computer".to_owned()),
     }
 }
 
@@ -501,8 +501,8 @@ fn export_from(
         withheld,
         excluded: vec![
             "Sign-ins to Claude, Codex and other tools (the account folders) — sign in again after a restore".to_owned(),
-            "This Mac's Fleet identity and paired machines — a restored Mac keeps its own and pairs again".to_owned(),
-            "Process records — their process ids belong to the Mac that wrote them".to_owned(),
+            "This computer's Fleet identity and paired machines — a restored computer keeps its own and pairs again".to_owned(),
+            "Process records — their process ids belong to the computer that wrote them".to_owned(),
             "Each tool's own transcripts — they stay where the tool keeps them".to_owned(),
         ],
     };
@@ -721,14 +721,14 @@ pub fn backup_verify_impl(state: &Arc<AppState>, path: &Path) -> AppResult<Resto
     let here = origin(state);
     let other_machine = manifest.origin.fingerprint != here.fingerprint;
     let mut notes = vec![
-        "Restoring replaces AI Juggler's data on this Mac. What is here now is kept beside it, so it can be put back by hand.".to_owned(),
+        "Restoring replaces AI Juggler's data on this computer. What is here now is kept beside it, so it can be put back by hand.".to_owned(),
         "Sign in to each Account again afterwards — sign-ins are never in a backup.".to_owned(),
     ];
     if other_machine {
         notes.insert(
             0,
             format!(
-                "This backup comes from {}. It carries that Mac's data, never its identity: this Mac keeps its own and must pair again with your other Macs.",
+                "This backup comes from {}. It carries that computer's data, never its identity: this computer keeps its own and must pair again with your other computers.",
                 manifest.origin.label
             ),
         );

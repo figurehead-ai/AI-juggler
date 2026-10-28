@@ -58,7 +58,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
           ))}
         </ul>
       )}
-      <div role="radiogroup" aria-label="How the work moves" className="flex flex-col gap-1.5">
+      <div role="radiogroup" aria-label="How the work goes along" className="flex flex-col gap-1.5">
         <label className={OPTION + picked(mechanism === "transplant") + (t2Possible ? "" : " opacity-70")}>
           <input type="radio" name="cross-mechanism" checked={mechanism === "transplant"} disabled={!t2Possible} onChange={() => onMechanism("transplant")} aria-describedby="cross-t2-desc" data-testid="cross-switch-t2" />
           <span>
@@ -78,7 +78,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
           </span>
         </label>
       </div>
-      <p className="text-meta text-ink">Nothing moves until you choose Switch now on the last step.</p>
+      <p className="text-meta text-ink">Nothing happens until you choose Switch now on the last step.</p>
     </div>
   );
 }

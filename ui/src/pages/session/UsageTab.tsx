@@ -110,7 +110,7 @@ export function SessionUsageTab({
             </span>
             <div className="flex min-w-0 flex-col gap-0.5" data-testid="session-usage-none">
               <p className="text-body font-semibold text-ink">No token counts for it yet</p>
-              <p className="text-meta leading-[1.5] text-muted">They show here once its app writes them on this Mac: input, output and what came from the cache.</p>
+              <p className="text-meta leading-[1.5] text-muted">They show here once its app writes them on this computer: input, output and what came from the cache.</p>
             </div>
           </Card>
           <div className="grid grid-cols-1 items-start gap-4 @4xl:grid-cols-2">{side}</div>

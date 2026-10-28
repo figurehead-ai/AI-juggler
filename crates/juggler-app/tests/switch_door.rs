@@ -168,7 +168,7 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         assert!(
             info.wizard_reasons
                 .iter()
-                .any(|reason| reason == "This move hasn't been proven on a real setup yet."),
+                .any(|reason| reason == "This switch hasn't been proven on a real setup yet."),
             "{:?}",
             info.wizard_reasons
         );
@@ -188,9 +188,12 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
         "another account is not a risk"
     );
     // A same-tool switch on this Mac copies the session as it is: the
-    // keys question doesn't apply, and the Target step says what moves.
+    // keys question doesn't apply, and the Target step says what goes along.
     assert!(!info.secrets.asks, "a transplant never asks about keys");
-    assert!(info.move_line.starts_with("The whole conversation moves"));
+    assert!(
+        info.move_line
+            .starts_with("The whole conversation is carried over")
+    );
     // The preflight only reads: nothing is counted until the switch
     // screen counts the door it shows (§5 telemetry, KV only).
     assert!(

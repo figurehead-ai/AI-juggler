@@ -11,7 +11,9 @@
  */
 import type { JSX } from "react";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
-import { asOfWords, limitWindows, measured, resetClock, resetWords, tokenWords, windowView } from "../lib/quotaWindow";
+import { READING_LIMITS } from "../lib/history-reading";
+import { asOfWords, limitWindows, measured, resetClock, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
+import { LOW_LEFT, rankByRoom } from "../lib/room";
 
 export type RunwayLine = {
   label: string;
@@ -68,7 +70,7 @@ function sessionFallback(
 export function runwayOf(
   display: QuotaDisplayData | undefined,
   sessions: InstanceInfo[] = [],
-): { left: number | null; words: string; resets: string | null } {
+): { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null } {
   // A tool that doesn't report its limits, or has no source: its reason,
   // never a window's numbers.
   if (display?.unavailable_reason) return { left: null, words: display.unavailable_reason, resets: null };
@@ -83,7 +85,12 @@ export function runwayOf(
     const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
     const left = Math.max(0, Math.round(100 - tightest.window.percentage));
     const words = resetWords(tightest.window);
-    return { left, words: `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`, resets: words ? `${tightest.label} ${words}` : null };
+    return {
+      left,
+      words: `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
+      resets: words ? `${tightest.label} ${words}` : null,
+      resetsAtMs: tightest.window.resets_at_ms ?? null,
+    };
   }
   const reading = sessionFallback(display, sessions);
   if (reading) {
@@ -92,6 +99,7 @@ export function runwayOf(
       left,
       words: `${left}% left, from its latest session`,
       resets: reading.resets_at_ms != null ? `Resets ${resetClock(reading.resets_at_ms)}` : null,
+      resetsAtMs: reading.resets_at_ms ?? null,
     };
   }
   if (windows.some((entry) => entry.window?.state === "learning")) {
@@ -102,12 +110,12 @@ export function runwayOf(
     // The last reading, as history ("Last reading 13 h ago: 40% used; …").
     return { left: null, words: windowView(reset.window).words, resets: null };
   }
-  const used = windows.reduce((most, entry) => Math.max(most, entry.window?.burned_tokens ?? 0), 0);
-  return { left: null, words: `Not measured yet${used > 0 ? ` · ${tokenWords(used)} tokens used` : ""}`, resets: null };
+  // The 0.2 walk (F6): while the first read runs, not measured may only
+  // be not read yet.
+  if (display?.history_reading) return { left: null, words: READING_LIMITS, resets: null };
+  const used = usedTokensWords(windows.map((entry) => entry.window));
+  return { left: null, words: `Not measured yet${used ? ` · used ${used}` : ""}`, resets: null };
 }
-
-/** At or under this much left, an account is low: never recommended. */
-const LOW_LEFT = 25;
 
 /** A week on one model only limits that model alone, so it never sets an
  * account's room (a session on another model doesn't touch it, and which
@@ -138,15 +146,18 @@ export function newWorkAdvice(
       account,
       left: runwayOf(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id)).left,
     }));
-  const measuredRows = rows.flatMap((row) => (row.left === null ? [] : [{ account: row.account, left: row.left }]));
-  const top = measuredRows.sort((a, b) => b.left - a.left)[0];
-  if (!top) return { best: null, words: null };
-  const unmeasured = rows.filter((row) => row.left === null).map((row) => row.account.label);
+  // The one order by room (`lib/room`): the switch and New session rank
+  // and suggest by the same rule.
+  const ranked = rankByRoom(rows, (row) => row.left);
+  const first = ranked.find((row) => row.left !== null);
+  if (!first) return { best: null, words: null };
+  const top = { account: first.item.account, left: first.left! };
+  const unmeasured = ranked.filter((row) => row.left === null).map((row) => row.item.account.label);
   // Who isn't measured, by name when it's one ("Personal isn't measured yet").
   const unknown =
     unmeasured.length === 1 ? `${unmeasured[0]} isn't measured yet` : `${unmeasured.length} others aren't measured yet`;
   const name = top.account.label;
-  if (top.left > LOW_LEFT) {
+  if (first.suggested) {
     return {
       best: top,
       words: unmeasured.length === 0 ? `Best for new work: ${name}, ${top.left}% left.` : `${name} has ${top.left}% left; ${unknown}.`,
@@ -243,12 +254,13 @@ export function AccountRunway({
 
 /** The account's room in the one runway's words (`runwayOf`): the same
  * sentence Home shows, never a bare or defaulted number. */
-export function RunwayWords({ display, sessions = [] }: { display?: QuotaDisplayData; sessions?: InstanceInfo[] }): JSX.Element {
+export function RunwayWords({ display, sessions = [], loading = false }: { display?: QuotaDisplayData; sessions?: InstanceInfo[]; loading?: boolean }): JSX.Element {
   // The same words as Home for the same account: its sessions' newest
-  // reading when the account has none, else "Not measured yet" (AJ-E1535).
+  // reading when the account has none, else "Not measured yet" (AJ-E1535);
+  // never "Not measured yet" before the readings have answered.
   return (
     <span className="text-label text-muted" data-testid="launch-runway">
-      {runwayOf(display, sessions).words}
+      {loading ? "Checking its room…" : runwayOf(display, sessions).words}
     </span>
   );
 }

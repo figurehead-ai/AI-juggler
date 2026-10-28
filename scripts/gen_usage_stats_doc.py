@@ -88,7 +88,7 @@ generated from the schema the app and the server both enforce
 | Mode | What happens |
 |---|---|
 | **Off** (the default) | Nothing is counted, nothing is stored, and no request is made. There is no stats folder. |
-| **Keep stats on this Mac only** | AI Juggler counts which features you use so you can see it in Settings ▸ Privacy. Nothing is sent. |
+| **Keep stats on this computer only** | AI Juggler counts which features you use so you can see it in Settings ▸ Privacy. Nothing is sent. |
 | **Share weekly usage stats** | Once a week, AI Juggler sends one small report of those counts. |
 
 You choose in onboarding (no option is preselected) or at any time in
@@ -124,7 +124,7 @@ tool.
 In a report, that's `switch.completed` with `trigger` `quota_wall` and
 `outcome` `success`. A switch away from a session at its limit counts as
 `quota_wall` however you opened the switch screen. It's counted per week,
-like everything else. With **Keep stats on this Mac only**, you can see
+like everything else. With **Keep stats on this computer only**, you can see
 your own count in Settings ▸ Privacy.
 
 ## Never collected

@@ -2054,8 +2054,9 @@ export interface PreflightInfoData {
   move_line: string;
   /** Whether the keys-and-passwords question applies, and who reads. */
   secrets: SecretsData;
-  /** The target's tool id (named from the catalog). */
+  /** The target's tool id (named from the catalog), and its account (its room: the one runway). */
   target_tool: string;
+  target_account?: string;
 }
 
 /** One thing a switch moves, recreates or leaves behind. */
@@ -2063,10 +2064,10 @@ export interface CarryItemData {
   label: string;
   hint: string;
   how: "moves" | "recreated" | "stays";
+  kind?: string; // `mcp`, `skills`, …: joined with the set-up check
 }
 
-/** The keys question: whether it applies (the conversation's words go to
- * another tool), and who would read them ("Codex (OpenAI)"). */
+/** The keys question: whether it applies (the words go to another tool), and who reads ("Codex (OpenAI)"). */
 export interface SecretsData {
   asks: boolean;
   reader: string;
@@ -2117,11 +2118,11 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   source_live: true,
   source_keeps_running: false,
   experimental_copy:
-    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+    "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   // D-03 amendment: another account is no reason; an unproven pair is.
-  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
   usual_account: false,
   // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
   // the whole session moves, and the task list is rebuilt from it.
@@ -2145,10 +2146,9 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
     { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves" },
     { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
-  // The mock accounts' tool (no tool id written here: ADR-0019).
-  target_tool: MOCK_ACCOUNTS[0]!.provider,
+  target_tool: MOCK_ACCOUNTS[0]!.provider, // the mock accounts' tool (no tool id written here: ADR-0019)
 };
 
 /** AJ-E206 §5: the switch screen counts the door it shows (local
@@ -2778,7 +2778,7 @@ export async function usageStatsSet(mode: UsageStatsMode): Promise<UsageStatsSet
         mode === "off"
           ? "Usage stats are off. Local stats deleted."
           : mode === "local"
-            ? "Usage stats are counted on this Mac only."
+            ? "Usage stats are counted on this computer only."
             : "Usage stats are on. One small report a week will be sent.",
     };
   }
@@ -3676,7 +3676,7 @@ export interface ProviderInstallData {
   provider: string;
   display_name: string;
   install_url: string;
-  /** installed | not_installed | unverified | probe_failed */
+  /** installed | not_installed | unverified | probe_failed | found (its version not asked) */
   status: string;
   version?: string | null;
   binary?: string | null;

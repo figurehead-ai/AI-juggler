@@ -143,11 +143,11 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
     expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain(
       "Claude Code doesn't say how full its context is",
     );
-    expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("tokens used in this session so far");
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("at list prices");
+    expect(container.querySelector('[data-testid="quality-context"]')!.textContent).toContain("tokens in and out in this session so far");
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("what the API would charge, not your bill");
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).not.toContain("'s API prices");
     // A plain dollar sign, no backslash before it (0.0.11 walk).
-    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/about \$\d+\.\d{2} at /);
+    expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/~\$\d+\.\d{2}/);
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toMatch(/for Opus/i);
     expect(container.querySelector('[data-testid="quality-forecast"]')!.textContent).toContain("Not using its limit right now");
     expect(container.querySelector('[data-testid="quality-stuck"]')!.textContent).toContain("Probably stuck");

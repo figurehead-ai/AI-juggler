@@ -67,6 +67,11 @@ pub struct UsageHistoryInfo {
     /// The range held more than a summary carries; the oldest hours were
     /// left out.
     pub truncated: bool,
+    /// While the first read of the tools' history runs: how many
+    /// conversations it has read so far (the figures are still coming:
+    /// the 0.2 walk, F6). `None` once it's done.
+    #[ts(type = "number | null")]
+    pub reading: Option<u64>,
 }
 
 /// One group's usage over time.

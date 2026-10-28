@@ -119,7 +119,7 @@ export function ConversationRow({
   const places = conversation.places ?? [];
   const where = places.map((place) => place.label || "an app AI Juggler can't name").join(" and ");
   return (
-    <div className="group relative" {...menu.triggerProps}>
+    <div className="group relative" data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         data-conversation-id={conversation.id}

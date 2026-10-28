@@ -415,9 +415,14 @@ fn once_ruled_on_the_probe_runs_claude_codes_usage_in_the_profile_and_keeps_no_o
         .app_settings()
         .set(probe::ALLOWED_KEY, "on")
         .unwrap();
+    // A read changes nothing: the probe's own folder isn't made yet.
+    let probe_dir = root.join("app-data/overlays/limits-probe");
+    assert!(probe::status_impl(&state, &account).unwrap().offered);
+    assert!(!probe_dir.exists(), "a read made the probe's folder");
     let status = probe::turn_on_impl(&state, &account).unwrap();
     assert_eq!(status.state, "on");
     assert_eq!(status.last_outcome.as_deref(), Some("ran"));
+    assert!(probe_dir.is_dir(), "the run makes its folder");
     let ran = std::fs::read_to_string(&record).unwrap();
     assert!(
         ran.starts_with("-p /usage --no-session-persistence"),

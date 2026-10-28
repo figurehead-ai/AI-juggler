@@ -211,6 +211,9 @@ impl Summary {
             cwd,
             tokens: parser.usage(),
             title,
+            opening: parser.first_message().and_then(|text| {
+                juggler_adapter::conversation::title_from(text, crate::codex_titles::TITLE_MAX)
+            }),
             started_ms: self.started_ms,
             last_ms: self.last_ms,
             git_branch: self.git_branch,

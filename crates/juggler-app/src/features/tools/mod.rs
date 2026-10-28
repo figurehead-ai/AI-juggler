@@ -12,6 +12,49 @@ use std::sync::Arc;
 
 use juggler_adapter::{AdapterRegistry, Capabilities, HarnessAdapter, ToolKind};
 
+/// Whether this run may start a tool's program to ask its version (the
+/// 0.2 walk, F19): yes by default; never under the read-only test bridge,
+/// which promises to start no vendor program at all. Every discovery in
+/// the app goes through [`discover`], so this is the one place it's
+/// decided.
+#[derive(Debug)]
+pub struct ToolPrograms(std::sync::atomic::AtomicBool);
+
+impl Default for ToolPrograms {
+    fn default() -> Self {
+        Self(std::sync::atomic::AtomicBool::new(true))
+    }
+}
+
+impl ToolPrograms {
+    /// From now on, discovery reads files only (the bridge's promise).
+    pub fn stop(&self) {
+        self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Whether a tool may be started to ask its version.
+    #[must_use]
+    pub fn allowed(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+/// What's installed of `adapter`'s tool: its own `discover` (which runs
+/// `--version`), or, when this run starts no tool, what its files say
+/// (found with its version not asked, or not found). The one seam every
+/// discovery in the app goes through.
+#[must_use]
+pub fn discover(
+    state: &crate::state::AppState,
+    adapter: &dyn HarnessAdapter,
+) -> juggler_adapter::DiscoveryReport {
+    if state.tool_programs.allowed() {
+        adapter.discover()
+    } else {
+        juggler_adapter::DiscoveryReport::located(adapter.id(), adapter.locate())
+    }
+}
+
 /// One registered tool, as the UI sees it.
 #[must_use]
 pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {

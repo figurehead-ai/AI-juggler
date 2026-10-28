@@ -201,8 +201,8 @@ export function ProcessesView({
       )}
       {error && rows.length === 0 && <p className="text-body text-danger">Couldn't read the processes: {error}</p>}
       {view === "ports" ? (
-        <section className="flex flex-col gap-2" aria-label="Ports on this Mac" data-testid="processes-ports">
-          <p className="text-meta text-muted">Every port open on this Mac: what each is, and whether a session left it running.</p>
+        <section className="flex flex-col gap-2" aria-label="Ports on this computer" data-testid="processes-ports">
+          <p className="text-meta text-muted">Every port open on this computer: what each is, and whether a session left it running.</p>
           <div className="rounded-card border border-hairline bg-surface px-4 py-3">
             <PortInventoryList bridge={PORTS} />
           </div>

@@ -6,6 +6,7 @@
  */
 import { useId, type JSX } from "react";
 import type { CarryItemData } from "../../lib/bridge";
+import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { GUIDE } from "../../lib/switch-words";
 import { Explain } from "./Explain";
 
@@ -32,7 +33,33 @@ function Items({ items, testId, tone = "text-ink" }: { items: CarryItemData[]; t
   );
 }
 
-export function CarryList({ items, target, tool }: { items: CarryItemData[]; target: string; tool: string }): JSX.Element {
+/** The set-up check's offer kinds behind a carry item. */
+const SETUP_KINDS: Record<string, string[]> = { mcp: ["mcp-server"], skills: ["skill", "command"] };
+
+/** A carry item the set-up check speaks for (the 0.2 walk, F12: "connect
+ * again on the new account" beside "9 aren't on the other account"): its
+ * line says what the check found, and one this conversation used that the
+ * other account lacks is "Not on {target} yet", never "Goes along". */
+export function withSetup(items: CarryItemData[], setup: SetupCheckInfo | null | undefined, target: string): { items: CarryItemData[]; missing: CarryItemData[] } {
+  if (!setup) return { items, missing: [] };
+  const missing: CarryItemData[] = [];
+  const kept = items.flatMap((item) => {
+    const kinds = SETUP_KINDS[item.kind ?? ""];
+    if (!kinds || item.how !== "moves") return [item];
+    const lacks = setup.offers.filter((offer) => kinds.includes(offer.kind));
+    const used = lacks.filter((offer) => offer.used !== false);
+    if (lacks.length === 0) return [{ ...item, hint: `${target} has the same ones set up.` }];
+    if (used.length === 0) {
+      return [{ ...item, hint: `${target} lacks ${lacks.length} of this account's, none of them used in this conversation.` }];
+    }
+    missing.push({ ...item, hint: `${used.length} this conversation used ${used.length === 1 ? "isn't" : "aren't"} set up on ${target} yet: pick ${used.length === 1 ? "it" : "them"} on the last step to set ${used.length === 1 ? "it" : "them"} up first.` });
+    return [];
+  });
+  return { items: kept, missing };
+}
+
+export function CarryList({ items: given, target, tool, setup }: { items: CarryItemData[]; target: string; tool: string; setup?: SetupCheckInfo | null }): JSX.Element {
+  const { items, missing } = withSetup(given, setup, target);
   const moves = items.filter((item) => item.how === "moves");
   const recreated = items.filter((item) => item.how === "recreated");
   const stays = items.filter((item) => item.how === "stays");
@@ -52,13 +79,19 @@ export function CarryList({ items, target, tool }: { items: CarryItemData[]; tar
           <Items items={recreated} testId="switch-carry-recreated" />
         </section>
       )}
+      {missing.length > 0 && (
+        <section className="flex flex-col gap-1.5" data-testid="switch-carry-missing">
+          <h4 className="text-body font-semibold text-ink">Not on {target} yet: set up on the last step</h4>
+          <Items items={missing} testId="switch-carry-not-there" />
+        </section>
+      )}
       {stays.length > 0 && (
         <section className="flex flex-col gap-1.5 rounded-lg border border-warning/40 px-3 py-2" data-testid="switch-carry-dropped">
           <h4 className="text-body font-semibold text-warning">Stays behind: the new session starts without it</h4>
           <Items items={stays} testId="switch-carry-stays" />
         </section>
       )}
-      <Explain guide={GUIDE.carried} testId="switch-carry-explain" tips={items.map((item) => `${item.label}: ${item.hint}`)} />
+      <Explain guide={GUIDE.carried} testId="switch-carry-explain" tips={[...items, ...missing].map((item) => `${item.label}: ${item.hint}`)} />
     </div>
   );
 }

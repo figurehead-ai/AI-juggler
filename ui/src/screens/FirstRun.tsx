@@ -33,7 +33,7 @@
 import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionNotAsked, versionUnchecked, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
@@ -84,10 +84,10 @@ export function groupsFor(tools: string[]): Group[] {
   );
 }
 
-/** A group's tool, in its header: its version, or — found but its
- * version couldn't be read (0.0.11) — that, never "not installed". */
+/** A group's tool, in its header: its version, or that it couldn't be
+ * read (0.0.11) or wasn't asked (the bridge), never "not installed". */
 function cliWords(name: string, row: ProviderInstallData): string {
-  return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
+  return versionNotAsked(row) ? `${name} installed; its version isn't known` : versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
 }
 
 /** Grouped by kind of setup, as the tool's spec defines them: the first
@@ -365,7 +365,7 @@ function FoundStep({
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-stat font-semibold tracking-tight">
-          {tools.length > 1 ? "Looking for your setups on this Mac…" : `Looking for ${toolName} on this Mac…`}
+          {tools.length > 1 ? "Looking for your setups on this computer…" : `Looking for ${toolName} on this computer…`}
         </h1>
         <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
       </div>

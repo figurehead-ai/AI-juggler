@@ -136,6 +136,18 @@ describe("D-25 Home — the screen", () => {
     expect(onOpenSession).toHaveBeenCalledWith("f");
   });
 
+  it("its heading counts the rows under it, even while the count it was told is behind (the 0.2 walk, F4)", async () => {
+    const view = renderHome([mk("w", { status: "waiting_user" }), mk("f", { status: "failed" }), mk("r")], [...ACCOUNTS, { id: "out", provider: "claude-code", label: "Spare", plan: null, login_state: "signed_out" } as AccountInfo]);
+    await waitFor(() => expect(view.getAllByTestId(/^home-need-/)).toHaveLength(3));
+    // The summary behind the rows (an event missed): the same version, so
+    // nothing reads the list again, and a count one short.
+    const { applySummary } = await import("../lib/notices-store");
+    const { notificationsSummary } = await import("../lib/ipc/notices");
+    const now = await notificationsSummary();
+    act(() => applySummary({ ...now, count: now.count - 1 }));
+    expect(view.getByTestId("home-heading").textContent).toBe("2 sessions and 1 more thing need you");
+  });
+
   it("all clear while something runs; ready when nothing does", () => {
     expect(renderHome([mk("r")]).getByTestId("home").textContent).toContain("All clear — nothing needs you");
     cleanup();

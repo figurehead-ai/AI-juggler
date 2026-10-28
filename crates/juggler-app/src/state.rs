@@ -115,10 +115,17 @@ pub struct AppState {
     /// a fidelity-register PASS recorded on other versions reads
     /// UNVALIDATED (the upgrade resets it by itself).
     pub provider_versions: Mutex<std::collections::HashMap<String, String>>,
+    /// Whether this run may start a tool to ask its version (F19 of the
+    /// 0.2 walk): off under the read-only test bridge, where discovery
+    /// reads files only. The one seam: `features::tools::discover`.
+    pub tool_programs: crate::features::tools::ToolPrograms,
     /// Sessions a switch or switch-back is running for right now: one at
     /// a time per session (re-review of #132: off the main thread, two
     /// could run at once and transplant the same source twice).
     pub switching: Mutex<std::collections::HashSet<String>>,
+    /// The first read of the tools' history, while it runs (the 0.2 walk,
+    /// F6): what the screens say instead of a zero.
+    pub usage_reading: std::sync::Arc<crate::usage_pipeline::Reading>,
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
@@ -339,7 +346,9 @@ impl AppState {
             link: crate::link::LinkManager::default(),
             figurehead: crate::figurehead::FigureheadManager::default(),
             provider_versions: Mutex::new(std::collections::HashMap::new()),
+            tool_programs: crate::features::tools::ToolPrograms::default(),
             switching: Mutex::default(),
+            usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),

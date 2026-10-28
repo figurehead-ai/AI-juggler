@@ -1,5 +1,5 @@
 //! The switch dialog's words, decided here and not in the UI (the
-//! maintainer's walk of 0.1.8's switch, 2026-10-27): what moves, in
+//! maintainer's walk of 0.1.8's switch, 2026-10-27): what goes along, in
 //! plain words with a line on each; the positive line the Target step
 //! opens with; and whether the keys-and-passwords question applies at
 //! all. It applies only when the conversation's text goes somewhere new
@@ -19,6 +19,23 @@ pub struct CarryItemInfo {
     pub hint: String,
     /// `moves` | `recreated` | `stays`.
     pub how: String,
+    /// What it is, for the dialog to join with the set-up check (`mcp`,
+    /// `skills`, …): one source for what the other account has.
+    pub kind: String,
+}
+
+/// The kind's wire name.
+fn kind_name(kind: ArtifactKind) -> &'static str {
+    match kind {
+        ArtifactKind::Chat => "chat",
+        ArtifactKind::Rules => "rules",
+        ArtifactKind::GitDiff => "changes",
+        ArtifactKind::Todos => "tasks",
+        ArtifactKind::Mcp => "mcp",
+        ArtifactKind::Skills => "skills",
+        ArtifactKind::EnvModel => "model",
+        ArtifactKind::Subagents => "subagents",
+    }
 }
 
 /// Whether the switch asks about keys and passwords, and who would read
@@ -68,10 +85,15 @@ fn hint(kind: ArtifactKind, mechanism: Mechanism) -> &'static str {
             "Changes you haven't committed stay in the folder; a summary of them goes along for the other tool to read."
         }
         ArtifactKind::Todos => "What the session planned to do next, from its latest version.",
+        // What the other account has set up is the set-up check's to say
+        // (the 0.2 walk, F12: this line said they connect again while the
+        // check listed 9 that aren't there): the dialog joins the two.
         ArtifactKind::Mcp => {
-            "The servers that give the tool extra abilities; they connect again on the new account."
+            "The servers that give the tool extra abilities. The new session uses the ones set up on the other account."
         }
-        ArtifactKind::Skills => "Saved instructions and slash commands the tool can use.",
+        ArtifactKind::Skills => {
+            "Saved instructions and slash commands. The new session uses the ones set up on the other account."
+        }
         ArtifactKind::EnvModel => "Which model the session uses.",
         ArtifactKind::Subagents => "Work done by helper agents inside the session.",
     }
@@ -103,24 +125,30 @@ pub fn carry_items(input: &FidelityInput, mechanism: Mechanism) -> Vec<CarryItem
                 label: kind.label().to_owned(),
                 hint,
                 how: how.to_owned(),
+                kind: kind_name(*kind).to_owned(),
             }
         })
         .collect()
 }
 
-/// The line the Target step opens with: what moves, said positively.
+/// The line the Target step opens with: what goes along, said positively.
 #[must_use]
 pub fn move_line(mechanism: Mechanism, messages: usize, tool_b: &str) -> String {
     let count = if messages == 1 {
         "its 1 message".to_owned()
     } else if messages > 0 {
-        format!("all {messages} messages")
+        format!(
+            "all {} messages",
+            juggler_handover::pipeline::thousands(u64::try_from(messages).unwrap_or(u64::MAX))
+        )
     } else {
         "every message".to_owned()
     };
+    // Never "moves" (deep/11 §4.9): the conversation is carried over, and
+    // the original stays.
     match mechanism {
         Mechanism::Transplant | Mechanism::NativeResume => format!(
-            "The whole conversation moves — {count}, its subagents and file history. The original stays as it was."
+            "The whole conversation is carried over — {count}, its subagents and file history. The original stays as it was."
         ),
         Mechanism::Replay => format!(
             "{tool_b} starts fresh and reads the conversation — {count}, newest first as much as fits — to pick up the work. The original stays as it was."
@@ -212,8 +240,22 @@ mod tests {
     fn the_target_step_says_what_moves() {
         assert_eq!(
             move_line(Mechanism::Transplant, 42, "Claude Code"),
-            "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was."
+            "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was."
         );
+        // The 0.2 walk (F12): "all 31009 messages", and "moves".
+        let long = move_line(Mechanism::Replay, 31_009, "Codex");
+        assert!(long.contains("all 31,009 messages"), "{long}");
+        for mechanism in [
+            Mechanism::Transplant,
+            Mechanism::NativeResume,
+            Mechanism::Replay,
+            Mechanism::PackOnly,
+        ] {
+            let words = move_line(mechanism, 3, "Codex").to_lowercase();
+            for jargon in ["moves", "natively", "replay"] {
+                assert!(!words.contains(jargon), "{jargon} in {words}");
+            }
+        }
         assert_eq!(reader_words("Codex", "OpenAI"), "Codex (OpenAI)");
     }
 }

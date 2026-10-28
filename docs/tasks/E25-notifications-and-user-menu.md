@@ -74,7 +74,7 @@
 **Requirements**:
 1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
 2. Home SHALL list the model's own needs (an account almost out of room) with "Hand over…".
-3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌘⇧N, opens the centre.
+3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌥⌘N (⌘⇧N until D-50), opens the centre.
 4. The app badge SHALL be set through the platform seam on every change.
 **Quality gates**: `src/count-agreement.test.tsx` (the bell, Home and the rail); `tests/notification_model.rs` (the same count on the rail's list, the bell, the badge and the menu-bar item, worked out by the backend's tick with no window, a snooze ending bringing its need back); the gallery's header capture.
 **Files to touch**: `crates/juggler-app/src/features/notifications/needs.rs`, `ui/src/lib/needs-you.ts`, `components/NoticeOpeners.tsx`, `preview/needs.tsx`, `components/NotificationBell.tsx`, `components/AppHeader.tsx`, `components/PlaceBoard.tsx`, `components/RailNoticeRow.tsx`, `screens/Home.tsx`, `crates/juggler-platform/src/system.rs`, `features/notifications/views.rs`.
@@ -84,7 +84,7 @@
 ### AJ-E2503 The notification centre | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E2501
 **Goal**: §4.14's centre, as designed: Needs action, Earlier, the marks, the digest.
 **Requirements**:
-1. A labelled dialog from the bell or ⌘⇧N: focus moves in, Tab stays inside, Esc closes and focus goes back.
+1. A labelled dialog from the bell or ⌥⌘N (⌘⇧N until D-50): focus moves in, Tab stays inside, Esc closes and focus goes back.
 2. Needs action mirrors Needs you (snoozed ones folded under "Snoozed: n"); each row: an unread dot, its mark, its title, its line in the user's time ("waiting 24 min", "7% of its 5-hour window left · resets at 9:09 PM"), its primary (Open, Review, Hand over…, Sign in…, Continue elsewhere…), the design's second (Snooze 1 h, Queue for the reset, Mark reviewed) and ⋯ (Snooze 1 h, Snooze until tomorrow, Mute this project, Mute this kind — the shared row menu, icons on every line).
 3. Earlier: time · detail · its link (See why, What's new), 20 at a time, "Show earlier".
 4. Mark all read; the digest ("Today: 4 finished · 1 restarted · Work Max resets 9:09 PM"); Notification settings.

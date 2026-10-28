@@ -1139,7 +1139,7 @@ fn a_view_only_or_unconnected_mac_says_why_and_starts_nothing() {
     });
     assert_eq!(
         view_only.why_not.as_deref(),
-        Some("View only: on Studio Mac, let this Mac control it in Fleet")
+        Some("View only: on Studio Mac, let this computer control it in Fleet")
     );
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let refused = launch_there(&runtime, &pair, &desktop_id, None);

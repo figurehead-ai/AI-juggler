@@ -243,4 +243,31 @@ describe("the This Mac page", () => {
     expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
   });
+
+  /** The 0.2 walk (F13): every alert says what to do, names the app (never
+   * a bundle id), says nothing is blocked, and leads to what's using it. */
+  it("gives each alert its next step and a way to what's using it", () => {
+    const alert = {
+      key: "memory_pressure",
+      kind: "memory_pressure",
+      title: "Your Mac is under memory pressure",
+      detail: "macOS reports memory pressure",
+      session_id: null,
+      place: null,
+      subject_name: null,
+      subject_bytes: null,
+      subject_estimate: false,
+      subject_cpu: null,
+      subject_windows: null,
+      other_apps: [{ name: "Virtual Machine (part of macOS)", rss_bytes: 2_700_000_000, processes: 1 }],
+      since_ms: NOW - 60_000,
+    } as OverloadAlertInfo;
+    renderPage(info([ours("a")], { alerts: [alert] }));
+    const next = screen.getByTestId("this-mac-alert-next").textContent!;
+    expect(next).toBe("To make room, quit Virtual Machine (part of macOS) or another app you aren't using. Nothing is blocked, but everything is slower until it eases.");
+    expect(screen.getByTestId("this-mac-alert").textContent).not.toMatch(/com\.apple/);
+    expect(screen.getByTestId("this-mac-alert-using").textContent).toBe("See what's using it");
+    screen.getByTestId("this-mac-alert-using").click();
+    expect(document.activeElement?.id).toBe("this-mac-using-title");
+  });
 });

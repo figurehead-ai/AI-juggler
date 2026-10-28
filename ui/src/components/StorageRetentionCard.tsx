@@ -62,7 +62,9 @@ export function StorageRetentionCard(): JSX.Element {
           >
             <span className="min-w-0 flex-1 truncate font-medium text-ink">{row.label}</span>
             <span className="order-last w-full text-muted" data-testid="storage-usage">
-              {row.instances} {row.instances === 1 ? "session" : "sessions"} · {row.history_events} history events ·{" "}
+              {/* The 0.2 walk (F18): AI Juggler's own records, not the
+                  sessions History lists from the tools' files. */}
+              AI Juggler's own records: {row.instances} {row.instances === 1 ? "session it started" : "sessions it started"} · {row.history_events.toLocaleString("en-US")} events ·{" "}
               {row.index_lines.toLocaleString()} indexed lines · transcripts {byteSize(row.transcript_bytes)}
             </span>
             <label className="flex items-center gap-1.5 text-muted">

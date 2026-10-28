@@ -22,7 +22,7 @@ import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import { ConfirmBody } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
-import { Executing, OtherStep, TargetStep } from "./switch/StepBodies";
+import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { toolSpec } from "../lib/tools";
 import {
@@ -71,6 +71,7 @@ export function SwitchFlow({
   const [holding, setHolding] = useState(false);
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
+  const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
@@ -199,6 +200,7 @@ export function SwitchFlow({
     <ConfirmBody
       preflight={preflight}
       target={targetLabel}
+      room={room}
       freeze={freeze}
       onFreeze={setFreeze}
       setup={setup}
@@ -222,14 +224,13 @@ export function SwitchFlow({
       className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
-      Switch now
+      {risky(room) ? "Switch anyway" : "Switch now"}
     </button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;
 
-  // The dialog is a header (the step marks and ×), a body that scrolls,
-  // and a footer with the buttons: the way on and the way out are always
-  // on screen, at any window size, on every step and in every phase.
+  // A header (step marks, ×), a body that scrolls, a footer with the
+  // buttons: the way on and out always on screen (any size, step, phase).
   const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
@@ -255,11 +256,11 @@ export function SwitchFlow({
         }
         return (
           <div className="flex flex-col gap-5" data-testid="switch-wizard">
-            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} />}
+            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} room={room} />}
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-4" data-testid="switch-step-carried">
                 <h3 className="text-title text-ink">What goes along</h3>
-                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} />
+                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} />
                 {keys(phase.preflight)}
               </div>
             )}

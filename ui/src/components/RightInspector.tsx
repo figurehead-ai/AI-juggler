@@ -1116,7 +1116,7 @@ function QualityTab(props: PanelProps) {
             <span className="tabular-nums text-ink">
               {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
             </span>{" "}
-            tokens used in this session so far
+            tokens in and out in this session so far
           </span>
         ),
     });
@@ -1126,7 +1126,7 @@ function QualityTab(props: PanelProps) {
       tier: "Estimated",
       body: quality.session_cost_usd !== null ? (
         <span className="tabular-nums text-ink">
-          about ${quality.session_cost_usd.toFixed(2)} at list prices{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""}
+          ~${quality.session_cost_usd.toFixed(2)}{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""} · what the API would charge, not your bill
         </span>
       ) : (
         <span className="text-muted">

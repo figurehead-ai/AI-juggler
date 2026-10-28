@@ -113,7 +113,9 @@ It always asks before it moves anything.
 New sessions start on the default profile, unless a project has its own
 (set it from the project's menu). To choose the default, open a profile's
 menu and choose **Make the default**. With no default, new sessions start
-on the profile you used last.
+on the profile you used last in that folder, else the one whose account has
+the most room. A default (or the one used last) that's out of room gives way
+to the one with the most room, and New session says so.
 
 ## Launch settings
 

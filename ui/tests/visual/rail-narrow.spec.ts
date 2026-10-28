@@ -1,5 +1,5 @@
 /**
- * D-25 stage 4 (AJ-E1020): below 900 px the rail folds to its icon
+ * D-25 stage 4 (AJ-E1020): below 1100 px (deep/11 §3; 900 until the 0.2 walk, F14) the rail folds to its icon
  * column by itself and comes back when the window widens. In a narrow
  * window ⌘B and the density shortcut only open or close the list for now
  * and never write Settings › Appearance, whatever is stored.
@@ -44,13 +44,16 @@ async function axeClean(page: Page, what: string) {
 
 const rail = (page: Page) => page.getByTestId("rail");
 
-test("the rail folds below 900 px and comes back when wider; the stored density stays", async ({ page }) => {
+test("the rail folds below 1100 px and comes back when wider; the stored density stays", async ({ page }) => {
   await seed(page, "dark", 1280, 800);
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
-  await page.setViewportSize({ width: 899, height: 800 });
+  await page.setViewportSize({ width: 1099, height: 800 });
   await expect(rail(page)).toHaveAttribute("data-density", "minimal");
   await expect(rail(page)).toHaveCSS("width", "60px");
-  await page.setViewportSize({ width: 900, height: 800 });
+  // The minimum window (1024×680) is narrow too.
+  await page.setViewportSize({ width: 1024, height: 680 });
+  await expect(rail(page)).toHaveAttribute("data-density", "minimal");
+  await page.setViewportSize({ width: 1100, height: 800 });
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
   expect(await page.evaluate(() => localStorage.getItem("aij.density"))).toBe("comfortable");
 });

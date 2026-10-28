@@ -150,7 +150,7 @@ test("every clickable control shows the hand — the update UI", async ({ page }
     }
     await goTo(page, "Settings");
     await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
-    await expect(page.getByTestId("beta-label")).toBeVisible();
+    await expect(page.getByTestId("channel-label")).toBeVisible();
     if (name === "available") {
       // Go back to an earlier version: the disclosure, the choice, the confirm.
       await page.getByText("Go back to an earlier version", { exact: true }).click();

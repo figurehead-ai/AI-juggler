@@ -244,7 +244,7 @@ pub fn fleet_switch_back_plan_impl(
     }
     if view.as_ref().and_then(|view| view.permission.as_deref()) != Some("control") {
         blockers.push(format!(
-            "{label} lets this Mac view only — switching back needs View + control (change it on {label})."
+            "{label} lets this computer view only — switching back needs View + control (change it on {label})."
         ));
     }
     Ok(Some(FleetSwitchBackPlanInfo {
@@ -457,11 +457,31 @@ fn conclude_back(
         } else {
             result.reason_code.clone()
         };
-        fail(&result.message);
+        // The conflict sheet says a divergence in its own words; any
+        // other refusal in this computer's (`failure.rs`).
+        let message = if reason == "diverged" {
+            result.message
+        } else {
+            let label = crate::fleet::peer_label(state, lineage.original_machine.as_str())
+                .unwrap_or_else(|| "the other computer".to_owned());
+            let tool = crate::features::tools::display_name(
+                &state.registry,
+                lineage.original.provider.as_str(),
+            );
+            super::failure::refusal_words(
+                &reason,
+                &result.message,
+                super::Direction::Back,
+                false,
+                &label,
+                &tool,
+            )
+        };
+        fail(&message);
         return Ok(FleetSwitchOutcomeInfo {
             accepted: false,
             reason_code: Some(reason),
-            message: result.message,
+            message,
             instance_id: None,
             edge_id: Some(edge.to_string()),
             divergence: outcome.divergence.map(super::divergence_info),
@@ -662,7 +682,12 @@ fn original_here(
     ),
     HandoverRejection,
 > {
-    let unknown = || refuse("unknown_record", "That work's original isn't on this Mac.");
+    let unknown = || {
+        refuse(
+            "unknown_record",
+            "That work's original isn't on this computer.",
+        )
+    };
     let storage = state
         .storage
         .lock()
@@ -704,7 +729,12 @@ pub(crate) fn switch_back_here(
 ) -> Result<HandoverAccepted, HandoverRejection> {
     use juggler_adapter::LaunchMode;
 
-    let unknown = || refuse("unknown_record", "That work's original isn't on this Mac.");
+    let unknown = || {
+        refuse(
+            "unknown_record",
+            "That work's original isn't on this computer.",
+        )
+    };
     let (original, session, at_handover) = original_here(state, back)?;
     if matches!(
         session.status,
@@ -715,7 +745,7 @@ pub(crate) fn switch_back_here(
     ) {
         return Err(refuse(
             "busy",
-            "The original is still running on this Mac — stop it first.",
+            "The original is still running on this computer — stop it first.",
         ));
     }
     let reference = session
@@ -725,7 +755,7 @@ pub(crate) fn switch_back_here(
         .ok_or_else(|| {
             refuse(
                 "original_gone",
-                "The original session is gone from this Mac.",
+                "The original session is gone from this computer.",
             )
         })?;
     let native = original

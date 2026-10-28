@@ -34,6 +34,10 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
         foreground: "#cdd5e0",
         cursor: "#05070b",
         selectionBackground: "#7c7cf440",
+        // The role labels' colours, readable on the background (WCAG
+        // 1.4.3; xterm's own magenta and bright black are 3:1 there).
+        magenta: "#c792ea",
+        brightBlack: "#8b95a7",
       },
     });
     const fit = new FitAddon();

@@ -1,6 +1,6 @@
 /**
  * AJ-E2503 (§4.14, wireframe 27; the approved design of 2026-10-27) — the
- * notification centre, from the bell or ⌘⇧N. **Needs action** mirrors
+ * notification centre, from the bell or ⌥⌘N. **Needs action** mirrors
  * Needs you (the same items, the same count; snoozed ones folded under
  * "Snoozed"); **Earlier** keeps what happened — resets, finishes, crashes
  * and restarts, updates — 30 days, a page at a time. Mark all read, the
@@ -51,7 +51,9 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
   }, [onClose]);
   const awake = needs.items.filter((row) => !row.snoozed);
   const snoozed = needs.items.filter((row) => row.snoozed);
-  const count = summary?.count ?? needs.items.length;
+  // The 0.2 walk (F4): "Needs action · 2" over three rows. The heading
+  // counts the rows under it, read in the same answer.
+  const count = awake.length;
   const digest = summary ? digestLine(summary.digest, now) : null;
   const empty = !needs.loading && !earlier.loading && needs.items.length === 0 && earlier.items.length === 0;
   const unread = (summary?.unread ?? 0) > 0;
@@ -84,7 +86,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       <div className="min-h-0 flex-1 overflow-y-auto">
         {summary?.quiet && summary.quiet_until && (
           <p className="border-b border-hairline/50 bg-surface px-3.5 py-2 text-meta text-muted" data-testid="notices-muted">
-            {mutedLine(summary.quiet_until, count)}
+            {mutedLine(summary.quiet_until, summary.count)}
           </p>
         )}
         {empty ? (
@@ -96,7 +98,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
           <>
             <section aria-labelledby={`${titleId}-needs`}>
               <h3 id={`${titleId}-needs`} className="flex items-center justify-between px-3.5 pb-1 pt-2.5 text-label font-semibold uppercase tracking-wide text-muted">
-                <span>Needs action · {count}</span>
+                <span data-testid="notices-needs-heading">{needs.loading ? "Needs action" : `Needs action · ${count}`}</span>
                 {snoozed.length > 0 && (
                   <button type="button" aria-expanded={showSnoozed} onClick={() => setShowSnoozed((open) => !open)} className="rounded px-1 font-medium normal-case tracking-normal text-muted hover:text-ink" data-testid="notices-snoozed">
                     Snoozed: {snoozed.length}

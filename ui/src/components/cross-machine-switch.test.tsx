@@ -57,7 +57,7 @@ describe("AJ-E706 destinations", () => {
         targets={[
           target(),
           target({ recipe_id: "rec-2", readiness: "t2_blocked", mechanism: "replay" }),
-          target({ recipe_id: "rec-3", readiness: "unavailable", blockers: ["Studio Mac lets this Mac view only — switching needs View + control (change it on Studio Mac)."] }),
+          target({ recipe_id: "rec-3", readiness: "unavailable", blockers: ["Studio Mac lets this computer view only — switching needs View + control (change it on Studio Mac)."] }),
         ]}
         onPick={() => {}}
       />,
@@ -214,7 +214,7 @@ describe("AJ-E706 the shared switch frame", () => {
   });
 
   it("offers Retry after a failure, focused, and Retry sends again", async () => {
-    w().__AIJ_FLEET_SWITCH_OUTCOME__ = { accepted: false, reason_code: "launch_failed", message: "The new session on Desktop Max didn't start, so nothing moved.", instance_id: null, edge_id: null, divergence: null };
+    w().__AIJ_FLEET_SWITCH_OUTCOME__ = { accepted: false, reason_code: "launch_failed", message: "The session on Studio Mac didn't start, so nothing moved. Check that Claude Code works on Studio Mac, then try again.", instance_id: null, edge_id: null, divergence: null };
     const { q } = mount();
     fireEvent.click(q("cross-switch-next")!);
     fireEvent.click(q("cross-switch-next")!);
@@ -222,7 +222,7 @@ describe("AJ-E706 the shared switch frame", () => {
       fireEvent.click(q("cross-switch-go")!);
     });
     await waitFor(() => expect(q("cross-switch-failed")).not.toBeNull());
-    expect(q("cross-switch-failed-words")!.textContent).toBe("The new session on Desktop Max didn't start, so nothing moved.");
+    expect(q("cross-switch-failed-words")!.textContent).toBe("The session on Studio Mac didn't start, so nothing moved. Check that Claude Code works on Studio Mac, then try again.");
     await waitFor(() => expect(document.activeElement).toBe(q("cross-switch-retry")));
     await act(async () => {
       fireEvent.click(q("cross-switch-retry")!);

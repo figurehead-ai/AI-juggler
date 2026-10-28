@@ -1082,7 +1082,7 @@ for (const theme of ["dark", "light"] as const) {
 
 /**
  * AJ-E305 a11y gate: flow (b) completes FULLY from the keyboard
- * (⌘N → arrow keys over the tiles → Enter → Tab to Start session →
+ * (⌘⇧N, D-50 → arrow keys over the tiles → Enter → Tab to Start session →
  * Enter), and every step of flow (a) scans axe-clean
  * (0 critical/serious) — D-16, confirmatory re-scan per AJ-E806.
  */
@@ -1103,10 +1103,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     // Summon by keyboard alone.
-    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
     await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-    await page.keyboard.press("Meta+n");
+    await page.keyboard.press("Meta+Shift+N");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
     expect(confirmed).toHaveLength(0);
@@ -2148,7 +2148,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
       await goTo(page, "Settings");
-      await expect(page.getByTestId("beta-label")).toBeVisible();
+      await expect(page.getByTestId("channel-label")).toBeVisible();
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
         // Cancel returns to the choice.

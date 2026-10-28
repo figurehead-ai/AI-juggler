@@ -158,12 +158,25 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
     applies: (c, h) => has(h.openProjectById) && c.project_id !== null,
     run: (c, h) => h.openProjectById!(c.project_id!),
   },
+  // F8 (the 0.2 walk): the switch, as on AI Juggler's own sessions (D-05's
+  // name), with ⌘⇧H; it continues as a new session here, the original
+  // left open in its app.
+  {
+    id: "continue-elsewhere",
+    label: "Continue on another account…",
+    icon: "carry-over",
+    group: "work",
+    rank: 10,
+    shortcut: "handover",
+    applies: (_, h) => has(h.continueConversationElsewhere),
+    run: (c, h) => h.continueConversationElsewhere!(c),
+  },
   {
     id: "continue",
     label: "Continue in AI Juggler",
     icon: "carry-in",
     group: "work",
-    rank: 10,
+    rank: 15,
     applies: (_, h) => has(h.continueConversation),
     blocked: (c) => (c.live ? "It's open in another session now" : null),
     run: (c, h) => h.continueConversation!(c),

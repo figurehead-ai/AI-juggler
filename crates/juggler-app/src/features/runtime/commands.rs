@@ -401,6 +401,8 @@ pub fn choices_impl(state: &Arc<AppState>) -> AppResult<RuntimeChoicesInfo> {
         for profile in storage.profiles().list_by_account(&account.id)? {
             profiles.push(ProfileRuntimeInfo {
                 profile_id: profile.id.to_string(),
+                account_label: account.label.clone(),
+                name: profile.name.clone(),
                 label: driven.0.to_owned(),
                 default: driven.1.as_str().to_owned(),
                 chosen: chosen

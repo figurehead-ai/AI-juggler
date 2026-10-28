@@ -1,0 +1,24 @@
+{
+  "boxes": [
+    [
+      80,
+      525,
+      792,
+      290
+    ],
+    [
+      890,
+      520,
+      550,
+      355
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "w2-collapsed-rail-all-clear.jpg",
+  "note": "Needs you rows (session titles, projects) and Runway (organisation, emails)",
+  "sha256": "cc37933d21336a7844405e032fb27599a39122049a78a3b49668aebe95fcc218",
+  "size": [
+    1440,
+    900
+  ]
+}

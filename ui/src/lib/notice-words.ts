@@ -13,6 +13,17 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+/** When a limit resets, with its day when that isn't today (the 0.2
+ * walk, F18: "resets at 8:00 AM" for tomorrow): "resets at 3:10 PM",
+ * "resets at 8:00 AM tomorrow", "resets Thu 8:00 AM". */
+export function resetsWords(ms: number, now: number): string {
+  const day = (offset: number) => new Date(now + offset * 24 * HOUR_MS).toDateString();
+  const on = new Date(ms).toDateString();
+  if (on === day(0)) return `resets at ${clock(ms)}`;
+  if (on === day(1)) return `resets at ${clock(ms)} tomorrow`;
+  return `resets ${new Date(ms).toLocaleDateString([], { weekday: "short" })} ${clock(ms)}`;
+}
+
 /** When something happened: today a time, else its day. */
 export function happenedAt(ms: number, now: number): string {
   const day = new Date(ms).toDateString() === new Date(now).toDateString();
@@ -23,7 +34,7 @@ export function happenedAt(ms: number, now: number): string {
 export function quotaDetail(notice: NoticeInfo, now: number): string {
   const { window, resets_at_ms, sessions } = notice.facts;
   const parts = [notice.meter !== null ? `${notice.meter}% of its ${window ?? "usage"} window left` : notice.detail];
-  if (resets_at_ms !== null && resets_at_ms > now) parts.push(`resets at ${clock(resets_at_ms)}`);
+  if (resets_at_ms !== null && resets_at_ms > now) parts.push(resetsWords(resets_at_ms, now));
   if (sessions) parts.push(sessions === 1 ? "1 session uses it" : `${sessions} sessions use it`);
   return parts.join(" · ");
 }
@@ -49,7 +60,8 @@ export function needMeta(notice: NoticeInfo): string | null {
 }
 
 const PRIMARY: Record<string, string> = {
-  "hand-over": "Hand over…",
+  // D-05's name (the 0.2 walk, F16: it opened the account page).
+  "hand-over": "Continue on another account…",
   "see-why": "See why",
   "whats-new": "What's new",
   "sign-in": "Sign in…",

@@ -1,5 +1,7 @@
 import type { FixtureSet, InstanceInfo } from "../../src/lib/bridge";
 import { expect } from "@playwright/test";
+import { NARROW_RAIL_PX } from "../../src/lib/window";
+export { NARROW_RAIL_PX };
 
 /**
  * Deterministic fixture sets for the visual harness (AJ-E802 Req.1):
@@ -411,7 +413,7 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
 }
 
 /**
- * D-25 (AJ-E1020): at 900 px and wider the rail shows exactly the stored
+ * D-25 (AJ-E1020): at NARROW_RAIL_PX (1100 px, deep/11 §3) and wider the rail shows exactly the stored
  * density (Settings › Appearance); narrower, a non-Minimal rail folds to
  * its icon column by itself. Waits for the rail and, where it is the
  * list, for the list.
@@ -420,7 +422,7 @@ export async function expectRail(page: import("@playwright/test").Page): Promise
   const rail = page.getByTestId("rail");
   await expect(rail).toBeVisible();
   const stored = (await page.evaluate(() => localStorage.getItem("aij.density"))) ?? "comfortable";
-  const wide = (page.viewportSize()?.width ?? 1280) >= 900;
+  const wide = (page.viewportSize()?.width ?? 1280) >= NARROW_RAIL_PX;
   await expect(rail).toHaveAttribute("data-density", wide || stored === "minimal" ? stored : "minimal");
   if (wide && stored !== "minimal") await expect(page.getByTestId("instance-board")).toBeVisible();
 }

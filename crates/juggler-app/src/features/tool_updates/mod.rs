@@ -245,7 +245,7 @@ pub fn status_impl(state: &Arc<AppState>, tool: &str) -> Option<ToolUpdateInfo> 
         .get(&juggler_core::model::HarnessId::new(tool))?;
     let spec = adapter.spec();
     let found = load(state).remove(tool).unwrap_or_default();
-    let installed = match adapter.discover().install {
+    let installed = match crate::features::tools::discover(state, adapter.as_ref()).install {
         juggler_adapter::InstallStatus::Installed { version } => Some(version),
         _ => None,
     };

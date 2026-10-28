@@ -62,6 +62,16 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(exact("nonsense"), none, false).state).toBe("working");
   });
 
+  it("a row's state follows the backend's need: one word on Home, in the centre and on the rail (the 0.2 walk, F4)", () => {
+    const needOf = new Map([["c:a1/w", "review" as const], ["s:s", "asks" as const]]);
+    const items = itemsOf({ sessions: [own("s")], conversations: [talk("w", { state: "working" })], projects: [], seen: {}, needOf });
+    expect(items.find((item) => item.key === "c:a1/w")).toMatchObject({ need: "review", state: "done_review" });
+    expect(items.find((item) => item.key === "s:s")).toMatchObject({ need: "asks", state: "asks_you" });
+    // A failure keeps the state it has.
+    const failed = itemsOf({ sessions: [own("f")], conversations: [], projects: [], seen: {}, needOf: new Map([["s:f", "failed" as const]]) });
+    expect(failed[0]).toMatchObject({ need: "failed", state: "working" });
+  });
+
   it("anything worked out says probably", () => {
     const tail = conversationItem(talk("t", { state: "asks_you", probably: true }), none, null);
     expect(stateWord(tail.state, tail.probably)).toBe("Probably asks you");
@@ -283,5 +293,20 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
     }
     // Not read yet: no count, never a guessed one.
     expect(conversationItem(talk("unread", { tool: "codex", subtask_count: null }), none, null).subagents).toBe(0);
+  });
+
+  it("AI Juggler's own session of a tool without hooks is one row once linked, carrying the count", () => {
+    for (const tool of ["opencode", "grok-build", "kimi-code"]) {
+      const session = own(`s-${tool}`, { subtask_count: 2 });
+      // Its conversation, linked to it by the backend (features/sessions/linking.rs).
+      const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
+      const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
+      expect(items).toHaveLength(1);
+      expect(items[0].session?.id).toBe(session.id);
+      expect(items[0].subagents).toBe(2);
+      // Not linked (more than one could be its own): both rows, as before.
+      const unlinked = talk(`c-${tool}`, { tool, session_id: null });
+      expect(itemsOf({ sessions: [session], conversations: [unlinked], projects: [], seen: {} })).toHaveLength(2);
+    }
   });
 });

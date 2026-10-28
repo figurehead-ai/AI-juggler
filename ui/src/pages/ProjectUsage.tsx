@@ -28,7 +28,7 @@ export function ProjectUsage({ projectId }: { projectId: string; sessions?: Inst
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-usage">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-meta text-muted">Measured from each session's own files on this Mac, each message counted once.</p>
+        <p className="text-meta text-muted">Measured from each session's own files on this computer, each message counted once.</p>
         <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="project-usage-range" />
       </div>
       <UsageDashboard kind="project" scope={{ project: projectId }} range={range} accounts={accounts} testId="project-usage-dashboard" />

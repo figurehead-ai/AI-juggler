@@ -130,7 +130,7 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     expect(palette.querySelector('[data-testid="goto-row-sess-term-1"]')).not.toBeNull();
     expect(palette.querySelector('[data-testid="goto-row-sess-desk-1"]')).toBeNull();
     fireEvent.change(input, { target: { value: "nothing-matches" } });
-    expect(palette.textContent).toContain("No live sessions");
+    expect(palette.textContent).toContain("No matches for “nothing-matches”.");
   });
 
   it("combobox a11y: aria-expanded/activedescendant/roles wired", () => {
@@ -160,7 +160,7 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onHotkeyChange).not.toHaveBeenCalled();
-    expect(view.container.querySelector("input")!.getAttribute("placeholder")).toContain("Go to session");
+    expect(view.container.querySelector("input")!.getAttribute("placeholder")).toContain("Go to a session or screen");
   });
 
   it("capture failures surface inline, never silently", async () => {

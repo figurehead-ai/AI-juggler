@@ -45,6 +45,9 @@ export interface Shortcut {
   /** Who handles it: App's one listener, Home, the inspector, the
    * terminal, each sheet, a session's row, or the system-wide hotkey. */
   owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "rows" | "system";
+  /** Only while Fleet shows (another computer paired): the sheet leaves
+   * it out otherwise (the 0.2 walk, F18; D-49). */
+  fleet?: true;
 }
 
 /** ⌘ (or Ctrl) + `key`, with exactly these other modifiers. */
@@ -70,6 +73,12 @@ function terminalTool(on: (event: KeyLike) => boolean) {
   };
 }
 
+/** ⌥⌘ + a letter, by the key's place (⌥ turns N into "˜" on a Mac). */
+function cmdAltCode(code: string, key: string) {
+  return (event: KeyLike) =>
+    (event.metaKey || event.ctrlKey) && !!event.altKey && !event.shiftKey && (event.code === code || event.key.toLowerCase() === key);
+}
+
 /** ⌥⌘↑ or ⌥⌘↓ (Ctrl+Alt elsewhere, as ⌘ is Ctrl there). */
 function cmdArrow(event: KeyLike): boolean {
   return (event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && (event.key === "ArrowUp" || event.key === "ArrowDown");
@@ -88,9 +97,14 @@ export const SHORTCUTS = [
   // Anywhere
   { id: "help", owner: "app", area: "Anywhere", keys: ["?"], label: "Show these shortcuts", match: plain("?") },
   { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search and go to a session", match: cmd("k") },
-  { id: "new-project", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New project", match: cmd("n") },
-  // AJ-E2503 (§4.14): the notification centre, as the bell opens it.
-  { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌘⇧N"], label: "Notifications", match: cmd("n", { shift: true }) },
+  // D-50 (the maintainer, 2026-10-28): ⌘N is New session, as deep/11 §3
+  // says; New project moved to ⌘⇧N.
+  { id: "new-session", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New session", match: cmd("n") },
+  { id: "new-project", owner: "app", area: "Anywhere", keys: ["⌘⇧N"], label: "New project", match: cmd("n", { shift: true }) },
+  // AJ-E2503 (§4.14): the notification centre, as the bell opens it. D-50:
+  // ⌥⌘N, since New project took ⌘⇧N (by the key's place: ⌥ changes what
+  // `key` reads on a Mac).
+  { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌥⌘N"], label: "Notifications", match: cmdAltCode("KeyN", "n") },
   { id: "toggle-rail", owner: "app", area: "Anywhere", keys: ["⌘B"], label: "Show or hide the list", match: cmd("b") },
   { id: "inspector", owner: "app", area: "Anywhere", keys: ["⌘⇧I"], label: "Fold or unfold the inspector", match: cmd("i", { shift: true }) },
   {
@@ -124,13 +138,13 @@ export const SHORTCUTS = [
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
   { id: "go-accounts", owner: "app", area: "Screens", keys: ["⌘⇧A"], label: "Accounts", match: cmd("a", { shift: true }) },
   { id: "go-usage", owner: "app", area: "Screens", keys: ["⌘⇧U"], label: "Usage", match: cmd("u", { shift: true }) },
-  { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }) },
+  { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }), fleet: true },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
   { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
-  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Switch account", match: cmd("h", { shift: true }) },
+  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue on another account", match: cmd("h", { shift: true }) },
   {
     id: "inspector-tab",
     owner: "inspector",
@@ -139,14 +153,14 @@ export const SHORTCUTS = [
     label: "Inspector tabs",
     match: cmdDigit([1, 2, 3, 4, 5, 6], { alt: true }),
   },
-  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another Mac's session)", match: cmd("[") },
+  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another computer's session)", match: cmd("["), fleet: true },
   { id: "leave-terminal", owner: "terminal", area: "Session", keys: ["⌃Tab", "⌃⇧Tab"], label: "Leave the terminal" },
   // AJ-E1506: the terminal's own tools, read while typing in it (Ctrl+Shift
   // on Windows and Linux, where plain Ctrl is the shell's).
   { id: "terminal-find", owner: "terminal", area: "Session", keys: ["⌘F"], label: "Find in the terminal", match: terminalTool((e) => e.code === "KeyF") },
   { id: "terminal-larger", owner: "terminal", area: "Session", keys: ["⌘+"], label: "Larger terminal text", match: terminalTool((e) => e.code === "Equal" || e.code === "NumpadAdd") },
   { id: "terminal-smaller", owner: "terminal", area: "Session", keys: ["⌘−"], label: "Smaller terminal text", match: terminalTool((e) => e.code === "Minus" || e.code === "NumpadSubtract") },
-  { id: "terminal-reset", owner: "terminal", area: "Session", keys: ["⌘0"], label: "Terminal text as set", match: terminalTool((e) => e.code === "Digit0" || e.code === "Numpad0") },
+  { id: "terminal-reset", owner: "terminal", area: "Session", keys: ["⌘0"], label: "Terminal text as set (in the terminal)", match: terminalTool((e) => e.code === "Digit0" || e.code === "Numpad0") },
   { id: "terminal-maximize", owner: "terminal", area: "Session", keys: ["⌘↩"], label: "Fill the window with the terminal, or put it back", match: terminalTool((e) => e.key === "Enter") },
   // Home
   {

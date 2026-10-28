@@ -67,7 +67,7 @@ pub fn negotiate(major: u32, minor: u32) -> ServiceLevel {
         0 => ServiceLevel::Full,
         1 => ServiceLevel::Degraded {
             reason: format!(
-                "Peer v{major}.{minor}, this Mac v{PROTOCOL_MAJOR}.{PROTOCOL_MINOR} — telemetry only until both are updated"
+                "Peer v{major}.{minor}, this computer v{PROTOCOL_MAJOR}.{PROTOCOL_MINOR} — telemetry only until both are updated"
             ),
         },
         _ => ServiceLevel::Refused {

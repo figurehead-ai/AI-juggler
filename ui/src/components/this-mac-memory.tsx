@@ -121,6 +121,13 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
               </li>
             ))}
           </ul>
+          {more && compressed > 0 && (
+            // The 0.2 walk (F13): an alert named one app at more than
+            // "Other apps and macOS" here.
+            <p className="text-meta text-muted" data-testid="this-mac-memory-compressed-note">
+              Memory macOS keeps compressed is shown on its own, and an app's own figure counts memory its processes share more than once, so one app can show more than “Other apps and macOS” here.
+            </p>
+          )}
         </>
       )}
       <PressureNote info={info} more={more} />

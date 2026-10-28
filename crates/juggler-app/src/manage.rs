@@ -847,7 +847,7 @@ pub fn project_relocate_impl(
 ) -> AppResult<()> {
     if !folder.is_dir() {
         return Err(AppError::Refused(format!(
-            "{} isn't a folder on this Mac — pick the folder the project moved to",
+            "{} isn't a folder on this computer — pick the folder the project moved to",
             folder.display()
         )));
     }

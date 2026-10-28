@@ -7,6 +7,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewProjectSheet, pickRecipe } from "../screens/NewProjectSheet";
+import { pickLaunch } from "../lib/launch-pick";
 import * as bridgeModule from "../lib/bridge";
 import type { LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 
@@ -38,10 +39,13 @@ const project = (root: string, used: string[]): ProjectInfo =>
     gone: false,
   }) as unknown as ProjectInfo;
 
-const quota = (account: string, state: string) =>
+/** An account's display with `left`% of its week left (`null`: not measured). */
+const room = (account: string, left: number | null) =>
   ({
     account,
-    forecast: { state, badge: state },
+    weekly: left === null ? null : { state: "ok", percentage: 100 - left, resets_at_ms: null, badge: "measured" },
+    five_hour: null,
+    forecast: { state: "learning", badge: "learning" },
     renewal: { state: "none", label: "", entered_by_user: false },
   }) as unknown as bridgeModule.QuotaDisplayData;
 
@@ -52,11 +56,27 @@ describe("AJ-E305 pickRecipe — the preselect rule (Req.6)", () => {
     expect(pickRecipe(rows, project("/x", ["Side", "Work"]), [])).toBe(rows[0]);
   });
 
-  it("no history on the dir → most headroom (engine forecast order)", () => {
+  it("no history on the dir → the most room, as Home's Runway reads it (the one order by room)", () => {
     const rows = [recipe("a", "Work"), recipe("b", "Personal"), recipe("c", "Side")];
-    const quotas = [quota("acc-a", "exhausts"), quota("acc-b", "wont-exhaust"), quota("acc-c", "learning")];
+    const quotas = [room("acc-a", 40), room("acc-b", 88), room("acc-c", null)];
     expect(pickRecipe(rows, null, quotas)).toBe(rows[1]);
     expect(pickRecipe(rows, project("/x", []), quotas)).toBe(rows[1]);
+  });
+
+  it("F17: a pick of yours out of room gives way to the Suggested one, and says so", () => {
+    const rows = [recipe("a", "Work"), recipe("b", "Personal")];
+    const quotas = [room("acc-a", 0), room("acc-b", 70)];
+    const pick = pickLaunch(rows, project("/x", ["Work"]), quotas);
+    expect(pick?.recipe).toBe(rows[1]);
+    expect(pick?.why).toBe("suggested");
+    expect(pick?.passedOver).toMatchObject({ recipe: rows[0], why: "last-here" });
+    // Chosen in the sheet, it's honoured even out of room.
+    expect(pickLaunch(rows, project("/x", ["Work"]), quotas, [], "acc-a")?.recipe).toBe(rows[0]);
+    // With room, the last one used here stays the pick, the Suggested one offered beside it.
+    const roomy = pickLaunch(rows, project("/x", ["Work"]), [room("acc-a", 40), room("acc-b", 90)]);
+    expect(roomy?.recipe).toBe(rows[0]);
+    expect(roomy?.why).toBe("last-here");
+    expect(roomy?.suggested).toBe(rows[1]);
   });
 
   it("no signal at all → the first recipe (most recent)", () => {

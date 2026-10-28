@@ -32,10 +32,10 @@ describe("AJ-E1524 the welcome's words", () => {
     expect(listWords(["A", "B"])).toBe("A and B");
     expect(listWords(["A", "B", "C"])).toBe("A, B and C");
     expect(foundWords([row("one", "Tool One", "installed"), row("two", "Tool Two", "unverified")])).toBe(
-      "We found Tool One and Tool Two on this Mac.",
+      "We found Tool One and Tool Two on this computer.",
     );
     expect(foundWords([row("one", "Tool One", "installed"), row("two", "Tool Two", "not_installed")])).toBe(
-      "We found Tool One on this Mac.",
+      "We found Tool One on this computer.",
     );
     expect(foundWords([row("one", "Tool One", "not_installed")])).toBe("No AI coding tools found yet.");
   });
@@ -53,7 +53,7 @@ describe("AJ-E1524 the welcome", () => {
   it("names the tools found, without install links", async () => {
     w().__AIJ_PROVIDER_INSTALLS__ = [row("one", "Tool One", "installed"), row("two", "Tool Two", "not_installed")];
     render(<Welcome onFindAccounts={() => {}} onFreshAccount={() => {}} />);
-    await waitFor(() => expect(screen.getByTestId("welcome-found").textContent).toContain("We found Tool One on this Mac."));
+    await waitFor(() => expect(screen.getByTestId("welcome-found").textContent).toContain("We found Tool One on this computer."));
     expect(screen.queryByRole("link")).toBeNull();
   });
 

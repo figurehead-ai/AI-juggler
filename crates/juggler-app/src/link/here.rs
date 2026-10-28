@@ -46,7 +46,7 @@ pub(super) fn clean_here(
     let info = result.map_err(|error| match error {
         AppError::NotFound { .. } => reject(
             "unknown_record",
-            "Not owned by that session on this Mac — never touched.".to_owned(),
+            "Not owned by that session on this computer — never touched.".to_owned(),
         ),
         other => reject("clean_failed", other.wire().user_message),
     })?;
@@ -194,7 +194,7 @@ pub(super) fn focus_here(
     if !known {
         return Err(reject(
             "unknown_record",
-            "No such session on this Mac.".to_owned(),
+            "No such session on this computer.".to_owned(),
         ));
     }
     match crate::focus::screen_locked() {

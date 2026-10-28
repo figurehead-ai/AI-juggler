@@ -15,7 +15,7 @@ import { MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
 import { IconShield } from "./icons";
 import { IconBroom, IconComputer } from "./icons-actions";
 import { IconAppearance, IconCloud, IconConnect, IconGear, IconHelp, IconKeyboard, IconLeave, IconUpdate, IconAsk } from "./icons-menu";
-import { channelLabel } from "./UpdatesCard";
+import { channelLabel, shownChannel } from "./ChannelChip";
 import { cloudBackupStatus, fetchAppInfo, figureheadStatus, fleetPeers, updateStatus, type FigureheadStatusInfo } from "../lib/bridge";
 import { appHelpOpen, appReportBugOpen, appUserGet } from "../lib/ipc/app";
 import { agoWords } from "../lib/time-words";
@@ -100,7 +100,7 @@ export function UserMenu(): JSX.Element {
         backupAt: value(backup)?.last?.at_ms ?? null,
         computers: value(peers)?.length ?? 0,
         version: value(info)?.version ?? "",
-        channel: value(update)?.channel ?? null,
+        channel: (() => { const status = value(update); return status ? shownChannel(status) : null; })(),
       });
     });
   };

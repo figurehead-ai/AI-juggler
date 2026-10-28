@@ -46,4 +46,5 @@ export const GUIDE = {
   original: "switching#keep-or-stop-the-original",
   setUp: "switching#things-the-other-account-doesnt-have",
   carried: "switching#what-goes-along",
+  room: "switching#an-account-with-little-or-no-room",
 } as const;

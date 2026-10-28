@@ -185,6 +185,11 @@ pub struct RuntimeChoicesInfo {
 pub struct ProfileRuntimeInfo {
     /// The profile (launch settings) id.
     pub profile_id: String,
+    /// Its account's name, as the user gave it (the 0.2 walk, F12: the row
+    /// showed the id).
+    pub account_label: String,
+    /// The launch settings' own name (`Main` is shown as "Default").
+    pub name: String,
     /// How its driven runtime runs, in words.
     pub label: String,
     /// The tool's default: `terminal` or `driven`.

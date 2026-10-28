@@ -25,10 +25,10 @@ export function AdvancedPane({ anchor }: { anchor?: string }): JSX.Element {
       >
         <CleanupSettingsCard accounts={accounts} />
       </PaneSection>
-      <PaneSection id="data" title="Data: storage & retention" footer="How long AI Juggler keeps its own records on this Mac." card>
+      <PaneSection id="data" title="Data: storage & retention" footer="How long AI Juggler keeps its own records on this computer." card>
         <StorageRetentionCard />
       </PaneSection>
-      <PaneSection id="backup" title="Data: backup & restore" footer="A file of AI Juggler's settings and history, to keep or to restore on another Mac." card>
+      <PaneSection id="backup" title="Data: backup & restore" footer="A file of AI Juggler's settings and history, to keep or to restore on another computer." card>
         <BackupRestoreCard />
       </PaneSection>
       <PaneSection id="diagnostics" title="Diagnostics" footer="A scrubbed zip you look through and attach to a report yourself." card>

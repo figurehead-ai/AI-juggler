@@ -26,7 +26,7 @@ const account = (key: string, tool: string, ids: string[], plan: string): Subscr
   email: null,
   organisation: null,
   reason: null,
-  profiles: ids.map((id) => ({ id, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
+  profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
   plan,
   renewal_date: null,
   fee_usd: null,

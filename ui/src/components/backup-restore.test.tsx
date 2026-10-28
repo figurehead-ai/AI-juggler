@@ -71,7 +71,7 @@ describe("AJ-E1009 backup", () => {
       path: "",
       manifest,
       other_machine: true,
-      notes: ["This backup comes from Studio Mac. It carries that Mac's data, never its identity…", "Sign in to each Account again afterwards."],
+      notes: ["This backup comes from Studio Mac. It carries that computer's data, never its identity…", "Sign in to each Account again afterwards."],
       token: "tok-1",
     };
     w().__AIJ_RESTORE_RESULT__ = {

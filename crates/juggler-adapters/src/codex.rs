@@ -472,6 +472,9 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::AGENT_BRIDGE
             // AJ-E2303 (D-40): driven through its own app-server.
             | Capabilities::PROTOCOL_SERVER
+            // A session process holds its thread's lock and rollout open
+            // (`held_sessions`), so its files name the process.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
@@ -513,6 +516,11 @@ impl HarnessAdapter for CodexAdapter {
 
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        // Files only: never runs it (`discover` asks its version).
+        self.resolve_bin().filter(|bin| bin.is_file())
     }
 
     fn discover(&self) -> DiscoveryReport {

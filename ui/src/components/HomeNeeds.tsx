@@ -16,6 +16,7 @@ import { PlaceMark } from "./PlaceMarks";
 import { primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
+import { focusHandoverSoon } from "../lib/handover-focus";
 import { AskBatch } from "./AskCard";
 import { MessageNeeds } from "./MessageNeeds";
 import { TaskNeeds } from "./TaskNeeds";
@@ -60,7 +61,7 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
           host.openConversation?.(conversation);
         } else if (session) {
           handlers.onOpenSession(session.id);
-          if (second) window.dispatchEvent(new Event("aij:focus-handover"));
+          if (second) focusHandoverSoon();
         }
         return;
       case "limit":
@@ -76,10 +77,14 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
         if (need.sessionId) handlers.onOpenSession(need.sessionId);
         return;
       case "quota":
-        // Hand over: its busiest session's hand-over, else its account.
+        // F16: its open session's switch list (AI Juggler's or another
+        // app's), else its account.
         if (need.sessionId) {
           handlers.onOpenSession(need.sessionId);
-          window.setTimeout(() => window.dispatchEvent(new Event("aij:focus-handover")), 0);
+          focusHandoverSoon();
+        } else if (need.conversation) {
+          host.openConversation?.(need.conversation);
+          focusHandoverSoon();
         } else if (need.account) host.openAccount?.(need.account);
         return;
       case "leftovers":

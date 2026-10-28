@@ -353,10 +353,12 @@ export function HomeScreen({
   }
 
   const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now);
-  // E18, E19: agents' messages and tasks that wait on the user count with
-  // the others; AJ-E2502: the total is the bell's count.
+  // The heading counts the rows it sits over (the 0.2 walk, F4: "2
+  // sessions need you" over four rows): the backend's needs Home lists,
+  // and the caps, agents' messages and tasks with their own rows.
   const sessionNeeds = allNeeds.filter(isSessionNeed).length;
-  const headline = needsHeading({ sessions: sessionNeeds, others: Math.max(0, needsNow.count - sessionNeeds) }, {
+  const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
+  const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
     runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,

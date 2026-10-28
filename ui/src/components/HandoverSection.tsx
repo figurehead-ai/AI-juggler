@@ -8,7 +8,7 @@
  * session that came from another Mac, the way back (AJ-E708: with any
  * divergence that waits for you). Suggest-only: every move is a click.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
 import { Card } from "./primitives";
 import { SwitchTargetRows } from "./SwitchTargetRows";
@@ -27,15 +27,21 @@ import {
   type SwitchBackSuggestionData,
   type SwitchTargetData,
 } from "../lib/bridge";
+import { rankTargets, type TargetRoom } from "../lib/room-targets";
+import { useHandoverFocus } from "../lib/handover-focus";
+import { useSubscriptions } from "../lib/subscriptions";
+import { useRunways } from "../pages/session/data";
 
-/** What the folded list holds, in one line. */
-export function handoverTeaser(targets: SwitchTargetData[] | null): string {
+/** What the folded list holds, in one line: the Suggested one (most
+ * room, `lib/room`) with its room, or that none has much room. */
+export function handoverTeaser(targets: Array<SwitchTargetData & { room?: TargetRoom }> | null): string {
   if (targets === null) return "Ranking the other accounts…";
-  const open = targets.filter((target) => target.filtered_reason === null);
+  const open = targets.filter((target) => target.filtered_reason == null);
   if (open.length === 0) return targets.length === 0 ? "Add another account to juggle between them." : "No other account can take it now.";
-  const best = open.find((target) => target.suggested) ?? open[0]!;
-  const why = best.top_factors[0];
   const count = open.length === 1 ? "1 account can take it over" : `${open.length} accounts can take it over`;
+  const best = open.find((target) => target.suggested);
+  if (!best) return `${count}, but none has much room left now.`;
+  const why = best.room?.left != null ? `${best.room.left}% left` : best.top_factors[0];
   return `${count}. Suggested: ${best.account_label}${why ? `, ${why}` : ""}.`;
 }
 
@@ -52,28 +58,31 @@ export function HandoverSection({
 }): JSX.Element {
   const handoverRef = useRef<HTMLDetailsElement | null>(null);
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
-  useEffect(() => {
-    const scroll = () => {
-      setSwitchOpen(true);
-      // jsdom has no scrollIntoView; the guard keeps tests honest.
-      requestAnimationFrame(() => {
-        handoverRef.current?.scrollIntoView?.({ block: "center" });
-        // ⌘⇧H "focuses the hand-over section": its summary takes focus.
-        handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
-      });
-    };
-    window.addEventListener("aij:focus-handover", scroll);
-    return () => window.removeEventListener("aij:focus-handover", scroll);
-  }, []);
+  useHandoverFocus(() => {
+    setSwitchOpen(true);
+    // jsdom has no scrollIntoView; the guard keeps tests honest.
+    requestAnimationFrame(() => {
+      handoverRef.current?.scrollIntoView?.({ block: "center" });
+      // ⌘⇧H "focuses the hand-over section": its summary takes focus.
+      handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
+    });
+  });
   // Refetched when the session or its live state changes: the ranker's
   // inputs (quota, sessions) move with them.
-  const [targets, setTargets] = useState<SwitchTargetData[] | null>(null);
+  const [rows, setRows] = useState<SwitchTargetData[] | null>(null);
   const instanceId = session.id;
+  // The one order by room, as Home's Runway reads it (the 0.2 walk, F1).
+  const accounts = useSubscriptions();
+  const displays = useRunways();
+  const targets = useMemo(
+    () => (rows === null ? null : rankTargets(rows, accounts, displays, session.account_id)),
+    [rows, accounts, displays, session.account_id],
+  );
   useEffect(() => {
     let alive = true;
     switchTargets(instanceId)
-      .then((rows) => alive && setTargets(rows))
-      .catch(() => alive && setTargets([]));
+      .then((next) => alive && setRows(next))
+      .catch(() => alive && setRows([]));
     return () => {
       alive = false;
     };

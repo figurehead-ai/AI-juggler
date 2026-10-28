@@ -214,7 +214,7 @@ Per screen: **Purpose · Entry→Exit · Elements** (`→ cmd` via [bridge.ts](.
 │ EARLIER Work Max reset 17:00 · 2 finished  [Digest 18:30]│
 └──────────────────────────────────────────────────────────┘
 ```
-- **States:** empty `You're all caught up.` · muted `Muted until 09:00 — Inbox still tracks 2 items.` · macOS denied: fix guidance, centre keeps working. **Keys:** `⌘⇧N`; §4.1 batching + reduced-motion. **Copy:** `“billing-migration” needs your reply (waiting 24m)`; digest `Today: 4 finished · 1 handed over · Work Max reset 17:00`. Never bare “Session updated”.
+- **States:** empty `You're all caught up.` · muted `Muted until 09:00 — Inbox still tracks 2 items.` · macOS denied: fix guidance, centre keeps working. **Keys:** `⌥⌘N` (D-50, 2026-10-28: `⌘⇧N` went to New project); §4.1 batching + reduced-motion. **Copy:** `“billing-migration” needs your reply (waiting 24m)`; digest `Today: 4 finished · 1 handed over · Work Max reset 17:00`. Never bare “Session updated”.
 
 ### 4.15 Settings (all tabs) — New, P1 (specced [SPEC.md:353](../../SPEC.md#L353), absent in UI)
 - **Purpose:** thresholds/preferences without config files. **Entry→Exit:** `⌘,`/⚙/tray → `Esc`/Done returns to prior selection; save-on-change + `Saved` tick + Undo toast (no Apply).
@@ -401,7 +401,7 @@ Voice rules: sentence case, account/project names in quotes only in confirms, ti
 | 11 | Cost (§4.11) | New P1 | Pricing table + rollups | `e` export |
 | 12 | Search (§4.12) | New P0 | Transcript index | `⌘K→all` |
 | 13 | Review (§4.13) | New P2 | Diff stat + pack preview | `j/k` |
-| 14 | Notifications (§4.14) | New P1 | Digest scheduler | `⌘⇧N` |
+| 14 | Notifications (§4.14) | New P1 | Digest scheduler | `⌥⌘N` (D-50) |
 | 15 | Settings (§4.15) | New P1 | Settings store | `⌘,` |
 | 16 | Onboarding v2 (§4.16) | Fix P1 | Scan/import exist; persist step | Wizard keys |
 | 17 | Tray/hotkey/palette (§4.17) | New P1 | Tray + global-shortcut caps | `⌥Space/⌘K` |

@@ -58,7 +58,7 @@ fn project(state: &Arc<AppState>, project_id: &str) -> AppResult<Project> {
         .map_err(|_| AppError::Refused("that project isn't there any more".to_owned()))?;
     if !record.root.is_dir() {
         return Err(AppError::Refused(format!(
-            "{} isn't on this Mac any more",
+            "{} isn't on this computer any more",
             record.root.display()
         )));
     }

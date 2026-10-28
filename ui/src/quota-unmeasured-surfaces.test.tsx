@@ -60,7 +60,8 @@ vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
 }));
 
-const unmeasured = (tokens: number): WindowDisplay => windowDisplay("unmeasured", { burned_tokens: tokens });
+// Every kind counted (cache too), and the window's tokens in and out.
+const unmeasured = (tokens: number): WindowDisplay => windowDisplay("unmeasured", { burned_tokens: tokens * 50, burned_io_tokens: tokens });
 const DISPLAY: QuotaDisplayData = quotaDisplay("claude-work", {
   five_hour: unmeasured(12_000),
   weekly: unmeasured(12_000),
@@ -87,8 +88,11 @@ it("the one rule: no percentage, no '% left'; the tokens; no reset time", () => 
   expect(view.left).toBeNull();
   expect(view.tone).toBe("none");
   expect(view.words).not.toMatch(PERCENT_LEFT);
-  expect(view.words).toBe("Not measured yet · 12k tokens used");
+  expect(view.words).toBe("Not measured yet · used 12k tokens in and out");
   expect(view.resets).toBeNull();
+  // The 0.2 walk (F15): "tokens" means in and out, as on Usage; a reading
+  // without that split says it counts cache too.
+  expect(windowView(windowDisplay("unmeasured", { burned_tokens: 7_700_000_000 })).words).toBe("Not measured yet · used 7.7B tokens, cache included");
   // A tracking window that somehow lacks a percentage reads the same.
   expect(windowView(windowDisplay("tracking")).left).toBeNull();
 });
@@ -96,14 +100,14 @@ it("the one rule: no percentage, no '% left'; the tokens; no reset time", () => 
 it("Home's Runway and the Accounts cards", async () => {
   const user = userEvent.setup();
   const view = render(<App />);
-  const runway = await view.findByText(/Not measured yet · 12k tokens used/);
+  const runway = await view.findByText(/Not measured yet · used 12k tokens in and out/);
   expect(runway).toBeTruthy();
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
 
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   const card = await view.findByTestId("account-runway");
   expect(card.textContent).toContain("Not measured yet");
-  expect(card.textContent).toContain("12k tokens used");
+  expect(card.textContent).toContain("Used 12k tokens in and out");
   expect(card.textContent).not.toContain("resets");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
   // 0.1.5: "not measured" in words, never a filled ring, and said once
@@ -120,18 +124,18 @@ it("Home's Runway and the Accounts cards", async () => {
  * own copy of the runway read it as "100% left" for all 6 accounts. Home
  * and Accounts now share one runway; with that payload neither says it. */
 it("serde's tracking-with-null payload: no '% left' on Home or Accounts", async () => {
-  const tracking = (tokens: number): WindowDisplay => windowDisplay("tracking", { percentage: null, burned_tokens: tokens });
+  const tracking = (tokens: number): WindowDisplay => windowDisplay("tracking", { percentage: null, burned_tokens: tokens, burned_io_tokens: tokens });
   (window as unknown as Record<string, unknown>).__AIJ_QUOTA_DISPLAY__ = [
     quotaDisplay("claude-work", { five_hour: tracking(9_000), weekly: tracking(9_000) }),
   ];
   const user = userEvent.setup();
   const view = render(<App />);
-  expect(await view.findByText(/Not measured yet · 9k tokens used/)).toBeTruthy();
+  expect(await view.findByText(/Not measured yet · used 9k tokens in and out/)).toBeTruthy();
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   const card = await view.findByTestId("account-runway");
   expect(card.textContent).toContain("Not measured yet");
-  expect(card.textContent).toContain("9k tokens used");
+  expect(card.textContent).toContain("9k tokens in and out");
   expect(view.container.textContent).not.toMatch(PERCENT_LEFT);
 });
 

@@ -33,7 +33,7 @@ describe("AJ-E1538 Settings › Privacy", () => {
     const view = render(<OutsideSearchSetting />);
     await waitFor(() =>
       expect(view.getByTestId("outside-search-size").textContent).toBe(
-        "Its index would take about 640 MB on this Mac, for 3400 sessions.",
+        "Its index would take about 640 MB on this computer, for 3400 sessions.",
       ),
     );
     expect((view.getByTestId("outside-search-switch") as HTMLInputElement).checked).toBe(false);

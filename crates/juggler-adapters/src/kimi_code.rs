@@ -272,10 +272,17 @@ impl HarnessAdapter for KimiCodeAdapter {
             | Capabilities::RESUME
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
+            // Its session locks name the process that holds each one.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        // Files only: never runs it (`discover` asks its version).
+        self.resolve_bin().filter(|bin| bin.is_file())
     }
 
     fn discover(&self) -> DiscoveryReport {

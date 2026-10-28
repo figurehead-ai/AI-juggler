@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Notifications in one place** (0.2): a bell at the top right with one
   count — the same number as Needs you on Home, the Dock icon and a new
-  menu-bar item. Click it (or press ⌘⇧N) for the notification centre:
+  menu-bar item. Click it (or press ⌥⌘N) for the notification centre:
   **Needs action** (your Needs you list) and **Earlier** (an account with
   room again, a finished session, a crash restarted, an update; 30 days).
   Each item offers its action, and ⋯ snoozes it or mutes its project or
@@ -74,9 +74,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **⌘N opens New session** (D-50, the maintainer's ruling of 2026-10-28,
+  as the screen spec says); **New project** is ⌘⇧N, and the notification
+  centre moved to ⌥⌘N to make room. The shortcuts list (?), ⌘K and the
+  bell's tooltip say the new keys.
+- Words shared by every system say **this computer**, not "this Mac"
+  (0.2, ahead of Windows and Linux): the switch's blockers ("Studio lets
+  this computer view only", "This computer's Claude Code version couldn't
+  be read"), Fleet's refusals ("Link is off on this computer — nothing
+  was sent."), first run, Usage, Processes, backups, privacy and crash
+  reports, and Settings' "Tools on this computer". The This Mac page, My
+  Macs and Fleet's own pages keep their names.
 - A switch that didn't complete says each thing once (0.2): a short
   title, then what happened and what to do next, instead of the same
   "nothing changed" told twice; returning to the original does the same.
+- A switch to or from another computer that didn't complete says each
+  thing once too (0.2): what happened and one next step, naming the
+  other computer ("Studio is offline, so nothing was sent. Check that
+  Studio is on with AI Juggler open, then try again."), instead of the
+  other computer's words from its own side followed by "Nothing was
+  changed … on this Mac".
 - The switch dialog (0.1.9): Cancel and a close button on every step, a
   fixed header and footer so the buttons always show, a readable confirm
   step ("Ready to switch to…", up to three lines, Details), and plain
@@ -314,6 +331,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The rail folded to icons** (⌘B, the 0.2 walk, F2) no longer says "All
+  clear" while something needs you: it shows the same Needs you count as
+  the bell (a sign-in or This Mac included; it opens Home), then every
+  open session — yours and the ones other apps run — as its app's or
+  tool's icon with its state's dot and a `!` when it needs you, in Open
+  now's order. The logo and the Dev or Nightly mark are whole, one above
+  the other.
+- Below 1100 px the rail folds to icons by itself (the screen spec's
+  width; it was 900 px), so the 1024×680 smallest window has room for the
+  page (F14). ⌘B still opens the list there.
+- **Needs you counts agree on each screen** (F4): the notification centre's
+  "Needs action · n" and Home's heading count the rows they show, and a
+  session's rail row says the same word as Home and the centre ("Done,
+  review it", "Asks you").
+- **The keyboard** (F11): a "Skip to page" link is the first stop; the
+  session list is one stop on the Tab path (the row last used, else the
+  open page's), its row's own buttons after it, and ↑ ↓ Home End move
+  inside it — from a fresh start the page is a few Tabs away, not 84.
+  Opening a page from a row that goes away (Home's J and Enter, ⌘K, a
+  notice) puts the keyboard on the new page, not at the top of the window.
+- **⌘K does things** (F7): the selected session's actions come first (a
+  session another app runs too, and "switch" finds Continue on another
+  account…), then New session…, Go to any screen (with its key),
+  Notifications, Keyboard shortcuts and Show or hide the list, filtered by
+  what you type; then sessions and projects, and "Search History for …"
+  last. Screen readers no longer hear "terminal" before each session.
+- Smaller ones (F18): Home's Your apps shows a seventh app instead of a
+  "+1" tile ("Show 2 more apps" past that); a session's header names what
+  it folded ("Account and folder") instead of "+2", and its profile's name
+  gives way last; About says the channel this build is on (Nightly, Dev,
+  Beta or Stable), as your menu does; the shortcuts list leaves Fleet's
+  keys out until another computer is paired and says which ⌘0 is the
+  terminal's; the list's View says "Subagents", what Inactive, Quiet ones
+  and Background runs are, and offers "Not open in an app" instead of "An
+  app".
+- Continue on another account ranks the accounts by the room they have
+  left, read as Home's Runway reads it, and marks **Suggested** the one
+  Home calls "Best for new work" (the 0.2 walk, F1). Each account says its
+  room ("75% left this week", when it resets). An account out of room is
+  still offered, last, as "Out of room until Thu 08:00", with what picking
+  it does: the conversation stops at its limit straight away. The switch
+  says the same on every step (explained, with the guide), its last button
+  reads **Switch anyway**, and Confirm no longer says "Nothing needs you".
+  The switch card, the limit dialog and New session use the same order and
+  the same Suggested account.
+- New session (F17): "used most here" only on the account that is (it said
+  so of every account before a folder was picked); the pick is yours when
+  you made one (this project's default, your default, the account used
+  last in this folder) and otherwise the Suggested one, and says which
+  ("your default", "Suggested: the most room"). When it isn't the
+  Suggested one, "Suggested: Account B has the most room (98% left). Use
+  Account B" sits under it; a pick of yours out of room gives way to the
+  Suggested one and says until when. Picking a row of "Ranked for you"
+  makes it the pick.
+- Continue on another account is on the row menu (and ⌘K) of a session
+  another app runs too, with ⌘⇧H; ⌘⇧H takes the switch list of whatever
+  session's page is open (the Suggested target gets the keyboard, once the
+  list has loaded), and says why when none is (the 0.2 walk, F8). Each
+  step of the switch puts the keyboard on its heading, not on ×, where ⏎
+  closed it.
+- An account's out-of-room banner and Home's row continue its open session
+  on another account (AI Juggler's or another app's, the newest) instead
+  of opening the account's page; with no session open the button says
+  "Open its account" (F16). The banner says the day of a reset that isn't
+  today ("resets at 8:00 AM tomorrow").
+- The switch's words (F12): the conversation is "carried over", never
+  "moves"; no "replays … natively"; "all 31,009 messages"; Details says
+  "9 of the 18 things". "What's carried" and Confirm agree: MCP servers
+  and skills go along only where the other account has them; ones this
+  conversation used that it lacks are "Not on Account B yet: set up on the
+  last step". The rankings say "75% left · measured" and "Signed out: sign
+  in to it first" instead of "headroom" and "logged out".
+- A project's pool page says what it counts: "0 sessions in AI Juggler · 3
+  open in other apps", instead of "0 sessions" beside sessions open in the
+  Claude app.
+- History's replay shows "assistant" and unknown roles in colours readable
+  on its dark background (they were 3:1).
+- Asking whether Claude Code's own limits check is offered no longer
+  makes an empty `overlays/limits-probe` folder in AI Juggler's data; the
+  folder is made only when the check runs (the 0.2 walk, F19).
+- For testers (the 0.2 walk, F19): the read-only test bridge now passes
+  on Needs you's changes (and those of Processes, tasks, messages and
+  driven sessions), so a bridged page's counts stay live; `just
+  dev-bridge-data` fills a fresh AI Juggler Dev data folder with this
+  computer's setups, used where they are, named "Account A–Z", with
+  Claude Code's limits check off, starting no tool
+  (`docs/qa/DEV-BRIDGE.md`).
+- For testers (the 0.2 walk, F19): a Dev build started with the read-only
+  test bridge no longer runs any tool's `--version` (the switch's targets,
+  Settings › Accounts and a tool's page used to). What's installed is read
+  from the tool's files only, and the screens say "Installed; its version
+  isn't known (this build doesn't start tools to ask)" instead of "Couldn't
+  check" or "Not installed".
+- A test that opening the Processes tab never holds the window's thread
+  could fail on a busy computer (it read only memory and could finish
+  before it was first checked); it now checks that the tab answers at once
+  and never waits on AI Juggler's storage, and keeps the stricter check
+  for the pages that read storage.
+- An OpenCode, Grok Build or Kimi Code session started in AI Juggler
+  shows once in the list (0.2): AI Juggler now tells which conversation
+  the session started (from the tool's own records, or the process it
+  runs in) and folds it into the session's row, which carries its "+N
+  agents". When more than one conversation could be the session's, it
+  links none and both rows stay as before. On an OpenCode or Grok Build
+  account you use where it is (shared with your own terminal), it links
+  only what the session's own process shows: those tools don't record
+  which program wrote a conversation, so a guess could take one of yours.
+- **Accounts are told apart by your names** (the 0.2 walk): Usage's legend
+  and breakdown, Accounts and Home's Runway title each account by the
+  names you gave its profiles, never its team's name five times over;
+  the team, sign-in and plan are its second line. A Codex sign-in no
+  longer shows the end of an account id.
+- **Processes counts each process once**: a desktop app's own processes,
+  which every one of its sessions sits in, are listed once under the app
+  as "The app itself · Shared by its 5 sessions", not once per session
+  ("90 processes" for 18). A session busy at 223 % no longer says Idle,
+  and a session with no title is named by its folder and when it
+  started, never "Untitled session".
+- **The first start says it's reading your history** instead of "0
+  tokens" and "Not measured yet": Usage says how many conversations it
+  has read so far, its tiles and the accounts' runways say "Reading your
+  history…", and the figures fill in as soon as the read is done.
+- **Session titles are your words**: a session's title is never AI
+  Juggler's own prompt (a switch's history, a delivered message, a task's
+  brief) or an image note; a switched session keeps the title of the
+  first thing you asked, in every tool.
+- **A project's Tasks and Messages are one click away**: a project's
+  Overview has Agents, with Tasks, Messages and Agent access of its own
+  pool. Settings › Agent access opens each pool's page from its name,
+  unfolds its level in place, lists the pools a page at a time, and tells
+  two projects with one name apart by their folder.
+- **Plain words in Settings and Accounts**: How sessions run names each
+  launch setting as everywhere ("Work · Default"), never its id, and
+  offers "In AI Juggler, answer it here" or "In a terminal"; Accounts no
+  longer says "context packs". About shows the build's own channel, as
+  your menu does; Storage says its counts are AI Juggler's own records;
+  the View says "Subagents"; a limit a plan doesn't have is said once.
+- **Memory pressure says what to do**: every alert on This Mac, Home and
+  the banner names what to quit or stop and that nothing is blocked, with
+  See what's using it; a macOS service is named in words ("Virtual
+  Machine (part of macOS)"), never by its identifier; This Mac explains
+  why one app can show more than "Other apps and macOS".
+- **"Tokens" means one thing**: in and out, as Usage counts them, on
+  every runway and session page (a reading without that split says
+  "cache included"). Every cost is marked as an estimate with "~" and
+  says it's what the API would charge, not your bill; a partly priced
+  figure reads "at least ~$53.2k", once.
 - **OpenCode 2** accounts AI Juggler manages no longer collide with your
   own OpenCode or OpenCode Desktop: each of their sessions runs its own
   private server, which ends with the session, instead of OpenCode 2's

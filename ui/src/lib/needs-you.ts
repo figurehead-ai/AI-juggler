@@ -16,6 +16,8 @@ import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNe
 import { acted, useNoticeSummary } from "./notices-store";
 import { usePagedList, MAX_PAGE } from "./paged";
 import { quotaDetail } from "./notice-words";
+import { openOnAccount } from "./handover-focus";
+import type { ConversationInfo } from "./ipc/conversations";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
 const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "failed", "review"]);
@@ -77,10 +79,17 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       severe: kind === "mac" && thisMac?.machine.summary.level === "pressure",
       account,
       sessionId: row.kind === "quota" ? liveOn(sessions, row.target.account_id)?.id : (row.target.session_id ?? undefined),
+      conversation: row.kind === "quota" ? openElsewhere(items, row.target.account_id) : undefined,
     });
   }
   const rank = (need: HomeNeed) => (need.item?.need ? NEED_ORDER.indexOf(need.item.need) : 0);
   return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || (a.item?.lastMs ?? 0) - (b.item?.lastMs ?? 0));
+}
+
+/** An account's newest session open in another app (the rail's items). */
+function openElsewhere(items: RailItem[], accountId: string | null): ConversationInfo | undefined {
+  const found = openOnAccount(accountId, [], items.flatMap((item) => (item.conversation ? [item.conversation] : [])));
+  return found && "conversation" in found ? found.conversation : undefined;
 }
 
 /** The kinds counted elsewhere on Home (their own rows). */

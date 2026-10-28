@@ -287,13 +287,43 @@ describe("agent access", () => {
     const { findAllByTestId } = render(<AgentAccessCard />);
     await loaded();
     const rows = await findAllByTestId("agent-access-pool");
-    expect(rows.map((row) => row.querySelector("summary")?.textContent)).toEqual([
-      "›Checkout redesignWork together",
-      "›DocsWork together",
-      "›ai-juggler · all sessionsWork together",
-      "›payments-api · all sessionsWork together",
-      "›No project · all sessionsWork together",
+    const said = (row: HTMLElement) => [row.firstElementChild!.firstElementChild!.textContent, within(row).getByTestId("agent-access-level").getAttribute("aria-expanded")];
+    expect(rows.map(said)).toEqual([
+      ["Checkout redesign", "false"],
+      ["Docs", "false"],
+      ["ai-juggler · all sessions", "false"],
+      ["payments-api · all sessions", "false"],
+      ["No project · all sessions", "false"],
     ]);
+    expect(rows.every((row) => within(row).getByTestId("agent-access-level").textContent!.startsWith("Work together"))).toBe(true);
+  });
+
+  /** The 0.2 walk (F10): a row's name opens the pool's page; its level
+   * unfolds in place; a long list comes a page at a time. */
+  it("opens a pool's page from its row, and pages a long list", async () => {
+    seams().__AIJ_POOLS__ = { pools: Array.from({ length: 30 }, (_, i) => ({ id: `pool-${i}`, name: `Pool ${String(i).padStart(2, "0")}` })), members: [] };
+    const opened: string[] = [];
+    const view = render(
+      <ActionHostProvider host={{ openPool: (id) => opened.push(id) }}>
+        <AgentAccessCard />
+      </ActionHostProvider>,
+    );
+    await loaded();
+    const rows = await view.findAllByTestId("agent-access-pool");
+    expect(rows).toHaveLength(12);
+    fireEvent.click(within(rows[1]!).getByTestId("agent-access-open"));
+    expect(opened).toEqual(["pool-1"]);
+    expect(within(rows[1]!).getByTestId("agent-access-open").textContent).toBe("Pool 01: open its page");
+    // The level unfolds in place, and folds again.
+    const level = within(rows[0]!).getByTestId("agent-access-level");
+    fireEvent.click(level);
+    expect(level.getAttribute("aria-expanded")).toBe("true");
+    expect(rows[0]!.querySelector("[id^='agent-access-panel-']")).toBeTruthy();
+    // The rest, a page at a time (the projects' own pools grow with them).
+    const more = view.getByTestId("agent-access-more");
+    expect(more.textContent).toContain("of 21");
+    fireEvent.click(more);
+    expect(view.getAllByTestId("agent-access-pool").length).toBeGreaterThan(12);
   });
 });
 
@@ -357,5 +387,13 @@ describe("context cards", () => {
   it("says so when a pool is empty", () => {
     const { getByTestId } = render(<PoolCardRows list={listOf([])} sessions={[]} now={Date.now()} />);
     expect(getByTestId("pool-cards-empty")).toBeTruthy();
+  });
+});
+
+describe("the pool page's count (the 0.2 walk: \"0 sessions\" beside three open in the Claude app)", () => {
+  it("says what it counts: AI Juggler's sessions, and the project's open in other apps beside them", async () => {
+    const { poolCountWords } = await import("../pages/PoolPage");
+    expect(poolCountWords(0, 3)).toBe("0 sessions in AI Juggler · 3 open in other apps");
+    expect(poolCountWords(1, 0)).toBe("1 session in AI Juggler");
   });
 });

@@ -53,6 +53,10 @@ export function totalsOf(series: Series[], buckets: number): number[] {
   return totals;
 }
 
+/** What every cost estimate says it is (§4.11, the 0.2 walk F15): the
+ * API's price for the tokens, never the subscription's bill. */
+export const API_PRICE = "What the API would charge, not your bill";
+
 /** What a chart's values are. */
 export type Unit = "tokens" | "usd" | "count" | "hours" | "percent";
 
