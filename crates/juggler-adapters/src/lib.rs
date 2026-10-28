@@ -18,6 +18,7 @@ pub mod claude_bridge;
 pub mod claude_code;
 pub mod claude_conversations;
 mod claude_endpoint;
+mod claude_env;
 pub mod claude_environment;
 pub mod claude_get_it;
 pub mod claude_handover;
