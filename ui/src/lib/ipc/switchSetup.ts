@@ -24,7 +24,7 @@ export type { AppliedInfo, GetItInfo, OfferInfo, SetupCheckInfo, SetUpInfo, Turn
 export const SWITCHING_GUIDE_URL =
   "https://github.com/figurehead-ai/AI-juggler/blob/main/docs/guide/switching.md#things-the-other-account-doesnt-have";
 
-export { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "./switchSetupExamples";
+export { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "./switchSetupExamples";
 
 const seam = () =>
   (window as unknown as { __AIJ_SWITCH_SETUP__?: SetupCheckInfo }).__AIJ_SWITCH_SETUP__;

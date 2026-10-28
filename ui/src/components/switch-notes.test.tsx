@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
 import { setupSummary } from "./SwitchSetupList";
 import { CarryList } from "./switch/CarryList";
-import { notesQuestion } from "./switch/NotesRow";
-import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES } from "../lib/ipc/switchSetup";
+import { handoverQuestion, notesQuestion } from "./switch/NotesRow";
+import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../lib/ipc/switchSetup";
 import type { PreflightInfoData } from "../lib/bridge";
 
 /**
@@ -42,6 +42,7 @@ type Seams = {
   __AIJ_SWITCH_PREFLIGHT__?: PreflightInfoData;
   __AIJ_SWITCH_SETUP__?: typeof EXAMPLE_SETUP;
   __AIJ_OPENED__?: Array<{ kind: string; id: string }>;
+  __AIJ_SWITCH_EXECUTE_APPROVED__?: string[][];
 };
 
 beforeEach(() => {
@@ -53,6 +54,7 @@ afterEach(() => {
   delete (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__;
   delete (window as never as Seams).__AIJ_SWITCH_SETUP__;
   delete (window as never as Seams).__AIJ_OPENED__;
+  delete (window as never as Seams).__AIJ_SWITCH_EXECUTE_APPROVED__;
 });
 
 function mount() {
@@ -134,5 +136,67 @@ describe("What's carried", () => {
     const stays = view.getByTestId("switch-carry-stays");
     expect(stays.textContent).toContain("This project's notes");
     expect(stays.textContent).toContain("Work Max's 2 notes for this project stay with Work Max: Codex doesn't keep notes like these.");
+  });
+});
+
+describe("a tool that keeps no notes: the handover (D-51)", () => {
+  beforeEach(() => {
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = EXAMPLE_SETUP_NOTES_HANDOVER;
+  });
+  const mountCodex = () =>
+    render(<SwitchFlow sessionId="sess-1" targetProfileId="p-codex" targetLabel="Codex" onClose={() => {}} onSwitched={vi.fn()} />);
+
+  it("asks to include them in the handover, unticked, and says what is left out", async () => {
+    const view = mountCodex();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    const box = view.getByRole("checkbox", { name: "Work Max's notes for this project (2): include them in the handover?" }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    const row = box.closest("li") as HTMLElement;
+    expect(within(row).getByTestId("switch-notes-left-out").textContent).toBe("deploy.md looks like it holds a key or password, so it's left out.");
+    expect(within(row).getByTestId("switch-setup-consequence").textContent).toBe(
+      "Codex's tool keeps no notes like these. Ticked, their text goes in the handover Codex reads first, for this switch only; nothing is written to Codex's own files.",
+    );
+    expect(within(row).getByTestId("setup-meaning").textContent).toContain("A note that looks like it holds a key or password is never quoted.");
+    expect(handoverQuestion(1, "Work Max")).toBe("Work Max's note for this project (1): include it in the handover?");
+  });
+
+  it("goes with the switch only when ticked, and nothing is set up for it", async () => {
+    const view = mountCodex();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    expect(view.getByTestId("switch-setup-summary").textContent).toBe("Codex has everything else Work Max has set up.");
+    fireEvent.click(view.getByRole("checkbox", { name: /include them in the handover/ }));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect((window as never as Seams).__AIJ_SWITCH_EXECUTE_APPROVED__).toEqual([["memory-fedcba9876543210"]]));
+  });
+
+  it("left unticked, the switch carries no approval", async () => {
+    const view = mountCodex();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect((window as never as Seams).__AIJ_SWITCH_EXECUTE_APPROVED__).toEqual([[]]));
+  });
+
+  it("What's carried follows the tick: stays behind, or goes along in the handover", () => {
+    const setup = EXAMPLE_SETUP_NOTES_HANDOVER;
+    const unticked = render(<CarryList items={PREFLIGHT.carry_items} target="Codex" tool="Codex" setup={setup} picked={new Set()} />);
+    expect(unticked.getByTestId("switch-carry-stays").textContent).toContain(
+      "Work Max's 3 notes for this project stay with Work Max: Codex doesn't keep notes like these. Tick them under Before you switch to include them in the handover.",
+    );
+    unticked.unmount();
+    const ticked = render(<CarryList items={PREFLIGHT.carry_items} target="Codex" tool="Codex" setup={setup} picked={new Set([setup.offers[0].id])} />);
+    expect(ticked.getByTestId("switch-carry-moves").textContent).toContain(
+      "2 of Work Max's notes for this project go in the handover Codex reads first. The other one stays with Work Max.",
+    );
+    expect(ticked.queryByTestId("switch-carry-stays")).toBeNull();
+  });
+});
+
+describe("What's carried, copy ticked", () => {
+  it("lists the notes as going along once ticked", () => {
+    const view = render(
+      <CarryList items={PREFLIGHT.carry_items} target="Personal" tool="Claude Code" setup={EXAMPLE_SETUP_NOTES} picked={new Set(["memory-0123456789abcdef"])} />,
+    );
+    expect(view.getByTestId("switch-carry-moves").textContent).toContain("3 of Work Max's notes for this project are copied to Personal when you switch.");
+    expect(view.queryByTestId("switch-carry-not-there")).toBeNull();
   });
 });

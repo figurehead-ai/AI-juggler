@@ -5,8 +5,9 @@
 //! its data folder, readable by this user only, and starts the target
 //! with a short prompt that points at them. The file holds the brief as
 //! before (the conversation, redacted and quoted; what each tool call
-//! did; where the work stands), the rules files in play, and, when older
-//! turns don't fit, what they were about.
+//! did; where the work stands), the rules files in play, when older
+//! turns don't fit, what they were about, and (D-51, when the user ticked
+//! them) this project's notes, quoted.
 
 pub mod switch_words;
 
@@ -57,6 +58,14 @@ pub struct HandoverState {
     pub turns_left_out: usize,
     /// The rules files in the folder.
     pub rules_files: Vec<RulesFile>,
+    /// D-51: this project's notes quoted in it (the user ticked them), by
+    /// name.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes_quoted: Vec<String>,
+    /// D-51: the notes left out of it (the keys check found something in
+    /// them, or they didn't fit), by name.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes_left_out: Vec<String>,
 }
 
 /// One side of the switch.

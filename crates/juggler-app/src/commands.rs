@@ -5820,12 +5820,17 @@ pub struct SwitchExecutedInfo {
 /// AJ-E205: executes a switch with the user's freeze choice — the
 /// pipeline stages + verifies + launches (via the supervisor), and
 /// every attempt records its edge in the Switch Graph (E201).
+/// `approved`: the set-up check's offers the user ticked that the switch
+/// itself carries out (D-51: this project's notes quoted in the handover,
+/// for a tool that keeps none); what is set up beforehand goes through
+/// `switch_setup_apply`.
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message on any failure; the source
 /// is exactly resumable in all of them (S-F contract).
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // the Tauri command's flat wire args
 pub async fn switch_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
@@ -5834,6 +5839,7 @@ pub async fn switch_execute(
     redaction_choice: Option<String>,
     redaction_unredact: Option<Vec<u32>>,
     trigger: Option<String>,
+    approved: Option<Vec<String>>,
 ) -> AppResult<SwitchExecutedInfo> {
     // AJ-E1103: why the user switched (a closed word; anything else is
     // a manual switch).
@@ -5853,6 +5859,7 @@ pub async fn switch_execute(
             redaction_choice.as_deref(),
             &redaction_unredact.unwrap_or_default(),
             trigger,
+            &approved.unwrap_or_default(),
         )
     })
     .await
@@ -5887,6 +5894,32 @@ pub fn switch_execute_impl(
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
 ) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_with(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        redaction_choice,
+        redaction_unredact,
+        &[],
+    )
+}
+
+/// [`switch_execute_impl`] with the offers the user ticked that the switch
+/// itself carries out (see [`switch_execute`]).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on any failure.
+pub fn switch_execute_with(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    redaction_choice: Option<&str>,
+    redaction_unredact: &[u32],
+    approved: &[String],
+) -> AppResult<SwitchExecutedInfo> {
     switch_execute_core(
         state,
         session_id,
@@ -5895,6 +5928,7 @@ pub fn switch_execute_impl(
         redaction_choice,
         redaction_unredact,
         "manual",
+        approved,
     )
 }
 
@@ -5933,6 +5967,7 @@ impl Drop for SwitchSlot<'_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // the switch screen's answers, each its own
 fn switch_execute_core(
     state: &Arc<AppState>,
     session_id: &str,
@@ -5941,6 +5976,7 @@ fn switch_execute_core(
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
     trigger: &'static str,
+    approved: &[String],
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
     let _slot = SwitchSlot::take(state, session_id)?;
@@ -5958,6 +5994,7 @@ fn switch_execute_core(
             redaction_choice,
             redaction_unredact,
             trigger,
+            approved,
         );
     }
     let SwitchSides {
@@ -6238,6 +6275,7 @@ fn switch_replay(
     redaction_choice: Option<&str>,
     redaction_unredact: &[u32],
     trigger: &'static str,
+    approved: &[String],
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::SwitchFailure;
 
@@ -6274,7 +6312,7 @@ fn switch_replay(
         project.root.clone_from(&sides.source.cwd);
         project
     };
-    let launched = launch_with_handover(state, sides, &edge, &brief, &project);
+    let launched = launch_with_handover(state, sides, &edge, &brief, &project, approved);
     // Copy-never-move, checked after the launch as the pipeline does.
     let checked = launched.and_then(|started| {
         juggler_adapters::session_file_sha256(&sides.reference.path)
@@ -6384,9 +6422,10 @@ fn launch_with_handover(
     edge: &juggler_core::model::SwitchEdgeId,
     brief: &ReplayBrief,
     project: &juggler_core::model::ProjectRecord,
+    approved: &[String],
 ) -> Result<(SessionId, u32), juggler_handover::pipeline::SwitchFailure> {
     use juggler_handover::pipeline::SwitchFailure;
-    let file = write_handover(state, sides, edge, brief)
+    let file = write_handover(state, sides, edge, brief, approved)
         .map_err(|error| SwitchFailure::StagingAborted(error.to_string()))?;
     let mode = LaunchMode::Primed {
         prompt: crate::features::handover::pointer(
@@ -6422,12 +6461,14 @@ struct ReplayBrief {
 }
 
 /// AJ-E1541: writes the brief, with the rules files in play, as the
-/// switch's handover file; returns its path.
+/// switch's handover file; returns its path. D-51: with this project's
+/// notes, quoted, when the user ticked them (`approved`).
 fn write_handover(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     edge: &juggler_core::model::SwitchEdgeId,
     brief: &ReplayBrief,
+    approved: &[String],
 ) -> std::io::Result<PathBuf> {
     use crate::features::handover;
     let specs: Vec<_> = [&sides.account_a.harness, &sides.account_b.harness]
@@ -6435,10 +6476,23 @@ fn write_handover(
         .filter_map(|harness| state.registry.get(harness).map(|adapter| adapter.spec()))
         .collect();
     let rules = handover::rules_in_play(&sides.source.cwd, &specs);
-    let text = match handover::rules_section(&rules) {
-        Some(section) => format!("{}\n\n{section}\n", brief.text.trim_end()),
-        None => brief.text.clone(),
-    };
+    let notes = crate::features::switch_setup::memory::handover_notes(
+        state,
+        &sides.account_a,
+        &sides.account_b,
+        &sides.source.cwd,
+        approved,
+    );
+    let text = [
+        Some(brief.text.trim_end().to_owned()),
+        handover::rules_section(&rules),
+        notes.as_ref().map(|notes| notes.text.clone()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join("\n\n")
+        + "\n";
     let side = |account: &Account| handover::Side {
         tool: account.harness.to_string(),
         account: account.label.clone(),
@@ -6457,6 +6511,11 @@ fn write_handover(
             turns_included: brief.included,
             turns_left_out: brief.left_out,
             rules_files: rules,
+            notes_quoted: notes
+                .as_ref()
+                .map(|notes| notes.quoted.clone())
+                .unwrap_or_default(),
+            notes_left_out: notes.map(|notes| notes.left_out).unwrap_or_default(),
         },
     )
 }

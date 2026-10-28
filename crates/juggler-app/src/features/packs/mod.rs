@@ -288,6 +288,8 @@ pub fn start_impl(
             turns_included: usize::try_from(pack.state.conversation.turn_count).unwrap_or(0),
             turns_left_out: 0,
             rules_files: Vec::new(),
+            notes_quoted: Vec::new(),
+            notes_left_out: Vec::new(),
         },
     )
     .map_err(|error| {

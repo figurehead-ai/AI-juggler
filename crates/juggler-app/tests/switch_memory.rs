@@ -2,7 +2,8 @@
 //! the way it offers MCP servers and skills: only when the other account
 //! lacks some, never ticked for the user, copied only when picked, a note
 //! that differs kept as it is, and undone from the same place. A tool that
-//! keeps no notes gets no offer: the check says how many stay behind.
+//! keeps no notes is offered them in the handover instead
+//! (`switch_notes_handover.rs`): the check says how many stay behind.
 //! Temp folders only.
 
 #![allow(
@@ -188,10 +189,18 @@ fn the_other_claude_account_is_offered_the_notes_it_lacks_and_gets_them_only_whe
 }
 
 #[test]
-fn a_tool_without_notes_gets_no_offer_and_the_notes_stay() {
+fn a_tool_without_notes_is_offered_them_in_the_handover_and_they_stay_unticked() {
     let lab = lab();
     let check = check_impl(&lab.state, &lab.session, &lab.codex).unwrap();
-    assert!(check.offers.iter().all(|offer| offer.kind != "memory"));
+    let offer = check
+        .offers
+        .iter()
+        .find(|offer| offer.kind == "memory")
+        .unwrap();
+    assert_eq!(offer.verdict, "handover");
+    assert_eq!(offer.count, Some(3));
+    assert!(!offer.suggested);
+    assert_eq!(offer.note, None, "nothing is left out");
     assert_eq!(check.notes_stay, Some(3));
 }
 

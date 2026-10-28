@@ -145,7 +145,7 @@ export function ConfirmBody({
           <p className="text-body text-ink" data-testid="switch-oneclick-carry">
             {preflight.experimental_copy}
           </p>
-          {(preflight.carry_items?.length ?? 0) > 0 && <CarryList items={preflight.carry_items} target={target} tool={tool} setup={setup} />}
+          {(preflight.carry_items?.length ?? 0) > 0 && <CarryList items={preflight.carry_items} target={target} tool={tool} setup={setup} picked={picked} />}
           {setup && setup.already_there > 0 && (
             <p className="text-body text-ink">
               {target} already has {setup.already_there} of the {setup.already_there + offers} things this account has set up

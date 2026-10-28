@@ -1478,12 +1478,19 @@ missing MCP servers and skills, and copies only with my approval."
 - The copy is recorded like any set-up and undone from the same place:
   the undo takes out the index lines it added and the notes it made,
   only while each note is as it was made.
-- A target whose tool keeps no notes (Codex) gets no offer: What's
-  carried says plainly that this project's notes stay with their own
-  account. *Quoting the notes into a cross-tool handover file, with
-  approval, is left for later: it needs an approval passed into the
-  switch itself and the keys check over the notes' text. The agent's
-  call, for the maintainer to confirm.*
+- A target whose tool keeps no notes (Codex) is offered them in the
+  handover instead, the same row, unticked: "Work Max's notes for this
+  project (2): include them in the handover?". *Built 2026-10-28 (it was
+  left for later the same day, the agent's call):* the tick travels with
+  the switch itself (`switch_execute`'s `approved`, the offer ids the
+  switch carries out; the rest of the ticks are still set up beforehand),
+  and the switch quotes each note's text in the handover file under its
+  own heading, after the conversation and the rules files. Every note
+  goes through the keys check the handover applies to quoted text; a note
+  it finds a key, token or password in is left out whole, and the row and
+  the handover say which. Nothing is written to the other tool's files,
+  so there's nothing to undo; What's carried and the last step follow the
+  tick (unticked, the notes stay with their own account).
 - AJ-E1542's text (E15) points here; the user guide's switching page has
   **This project's notes**.
 
@@ -1498,5 +1505,7 @@ they are offered the same way, with the same undo.
 - Evidence: `cargo test -p juggler-adapters --test claude_memory`
   (capability, merge, conflict, undo, private files, confinement),
   `cargo test -p juggler-app --test switch_memory` (offer, approval,
-  apply, undo, a tool without notes), the `memory` unit tests in
-  `juggler-adapter`; vitest `src/components/switch-notes.test.tsx`.
+  apply, undo, a tool without notes), `--test switch_notes_handover`
+  (the handover offer, the quote with the tick only, a note with a key
+  left out), the `memory` unit tests in `juggler-adapter` and
+  `juggler-app`; vitest `src/components/switch-notes.test.tsx`.

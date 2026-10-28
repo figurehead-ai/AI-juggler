@@ -106,3 +106,26 @@ export const EXAMPLE_SETUP_NOTES: SetupCheckInfo = {
     },
   ],
 };
+
+/** D-51 for a tool that keeps no notes (Codex): Work Max's notes for this
+ * project, two of them offered for the handover, one left out for what
+ * looks like a key; unticked, all three stay. */
+export const EXAMPLE_SETUP_NOTES_HANDOVER: SetupCheckInfo = {
+  ...EXAMPLE_SETUP,
+  to: "Codex",
+  already_there: 0,
+  notes_stay: 3,
+  offers: [
+    {
+      ...OFFER,
+      id: "memory-fedcba9876543210",
+      kind: "memory",
+      name: "notes for this project",
+      scope: "project-private",
+      verdict: "handover",
+      about: "2 notes",
+      count: 2,
+      note: "deploy.md looks like it holds a key or password, so it's left out",
+    },
+  ],
+};

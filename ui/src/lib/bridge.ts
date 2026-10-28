@@ -2189,68 +2189,7 @@ export async function switchPreflight(
   return invoke<PreflightInfoData>("switch_preflight", { sessionId, targetProfileId });
 }
 
-/** AJ-E205: executes the switch with the user's freeze choice
- * (`finish-turn` default | `stop-now`) — the pipeline stages,
- * verifies, launches, and records the edge. */
-/** AJ-E1103: why the next switch happens — set when the user picks a
- * target (the suggested one, or another), read once by
- * [`switchExecute`]. */
-let pendingSwitchTrigger: "suggestion" | "manual" | null = null;
-
-/** AJ-E1103: the user picked a switch target. */
-export function noteSwitchPick(suggested: boolean): void {
-  pendingSwitchTrigger = suggested ? "suggestion" : "manual";
-}
-
-export async function switchExecute(
-  sessionId: string,
-  targetProfileId: string,
-  freezeChoice: string,
-  redactionChoice?: string | null,
-  redactionUnredact?: number[],
-): Promise<SwitchExecutedData> {
-  if (!hasBackend) {
-    const seams = window as unknown as {
-      __AIJ_SWITCH_EXECUTE_FAIL__?: string;
-      __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
-      __AIJ_SWITCH_EXECUTE_REDACTION__?: {
-        redactionChoice: string | null | undefined;
-        redactionUnredact: number[];
-      }[];
-    };
-    // The guardrail seam: the redaction payload is observable so
-    // tests can prove it fires only from the click.
-    seams.__AIJ_SWITCH_EXECUTE_REDACTION__ = [
-      ...(seams.__AIJ_SWITCH_EXECUTE_REDACTION__ ?? []),
-      {
-        redactionChoice,
-        redactionUnredact: redactionUnredact ?? [],
-      },
-    ];
-    if (seams.__AIJ_SWITCH_EXECUTE_FAIL__ !== undefined) {
-      return Promise.reject(seams.__AIJ_SWITCH_EXECUTE_FAIL__);
-    }
-    if (seams.__AIJ_SWITCH_EXECUTE_HANG__) {
-      return new Promise<SwitchExecutedData>(() => {});
-    }
-    return {
-      session_id: `sess-preview-${Date.now()}`,
-      pid: 0,
-      edge_id: `edge-preview-${Date.now()}`,
-      source_session_id: sessionId,
-    };
-  }
-  const trigger = pendingSwitchTrigger ?? "manual";
-  pendingSwitchTrigger = null;
-  return invoke<SwitchExecutedData>("switch_execute", {
-    sessionId,
-    targetProfileId,
-    freezeChoice,
-    redactionChoice: redactionChoice ?? null,
-    redactionUnredact: redactionUnredact ?? [],
-    trigger,
-  });
-}
+export { noteSwitchPick, switchExecute } from "./ipc/switchExecute";
 
 /** AJ-E206 §8.2: undoes a completed switch — stops the continuation
  * instance, resumes the source's native session, records the

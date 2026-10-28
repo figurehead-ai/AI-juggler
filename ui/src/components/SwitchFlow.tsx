@@ -163,7 +163,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : []);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved());
       if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
@@ -260,7 +260,7 @@ export function SwitchFlow({
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-4" data-testid="switch-step-carried">
                 <h3 className="text-title text-ink">What goes along</h3>
-                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} />
+                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} picked={picked} />
                 {keys(phase.preflight)}
               </div>
             )}

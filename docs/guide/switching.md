@@ -122,9 +122,10 @@ mean?** lists them all.
   version.
 - **This project's notes:** what the tool noted for itself about the
   project. When the other account lacks some, they're under **Not on …
-  yet**, and the last step asks whether to copy them; a tool that keeps no
-  such notes leaves them behind. See [This project's
-  notes](#this-projects-notes).
+  yet**, and the last step asks whether to copy them; for a tool that
+  keeps no such notes, it asks whether to include them in the handover,
+  and until you tick that they're under **Stays behind**. See [This
+  project's notes](#this-projects-notes).
 - **Stays behind:** the new session starts without it. This is the only part
   shown as a warning.
 
@@ -352,8 +353,20 @@ Only plain note files are copied: nothing outside the notes folder, and no
 links or hidden files.
 
 Switching to a tool that keeps no notes like these (Codex), there's
-nothing to copy them into: **What's carried** says that this project's
-notes stay with the first account.
+nothing to copy them into. The switch asks instead, for example: **Work
+Max's notes for this project (2): include them in the handover?** It's
+never ticked for you.
+
+- **Ticked:** their text goes in the handover, the file the new session
+  reads first, under its own heading ("This project's notes from Work
+  Max"), each note quoted. It's for this switch only: nothing is written
+  to Codex's own files, so there's nothing to undo.
+- **Keys and passwords:** each note goes through the same check as the
+  conversation's words. A note that looks like it holds a key, a token or
+  a password is left out whole, and the line says which, for example
+  "deploy.md looks like it holds a key or password, so it's left out".
+- **Not ticked:** **What's carried** lists this project's notes under
+  **Stays behind**: they stay with the first account.
 
 ## After the switch
 

@@ -79,7 +79,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missing notes are copied as private files and listed in its index, a
   note it has with other words is kept as it is (and the switch says so),
   and **Undo** takes out what was copied. A switch to a tool that keeps no
-  notes says in What's carried that they stay with their own account.
+  notes (Codex) asks instead "Work Max's notes for this project (2):
+  include them in the handover?", unticked; ticked, their text is quoted
+  in the handover the new session reads first. A note that looks like it
+  holds a key or password is left out, and the switch says which.
+  Unticked, What's carried says they stay with their own account.
+- **A switch is a line in a task's history**: when a session holding a
+  task is continued on another account or tool, the task's history says
+  "Planner continued on Personal (from Work Max)", its Sessions list the
+  new session, and How this work travelled shows the task under both
+  (the 2026-10-28 tasks lab, step 6).
 
 ### Changed
 

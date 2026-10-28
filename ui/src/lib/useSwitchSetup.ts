@@ -13,6 +13,10 @@ import {
   type SetupCheckInfo,
 } from "./ipc/switchSetup";
 
+/** D-51: the verdict of this project's notes when the other tool keeps
+ * none: quoted in the handover by the switch itself, when ticked. */
+export const IN_HANDOVER = "handover";
+
 /** Something only the user can finish: what the other account turns on
  * itself, or a step of theirs (a server's secret, a sign-in). */
 export function finishedByYou(offer: OfferInfo): boolean {
@@ -88,5 +92,9 @@ export function useSwitchSetup(sessionId: string, targetProfileId: string) {
     return applied;
   };
 
-  return { setup, picked, toggle, recheck, results, setResults, applyPicked };
+  /** D-51: the ticked offers the switch itself carries out (this
+   * project's notes quoted in the handover), passed with the switch. */
+  const approved = (): string[] => (setup?.offers ?? []).filter((offer) => offer.verdict === IN_HANDOVER && picked.has(offer.id)).map((offer) => offer.id);
+
+  return { setup, picked, toggle, recheck, results, setResults, applyPicked, approved };
 }

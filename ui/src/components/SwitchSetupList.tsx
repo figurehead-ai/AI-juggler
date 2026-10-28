@@ -20,7 +20,7 @@ import {
 } from "../lib/ipc/switchSetup";
 import { Meaning, TurnOnSteps } from "./SwitchSetupTurnOn";
 import { SecretSteps } from "./switch/SecretSteps";
-import { NOTES_KIND, NotesRow } from "./switch/NotesRow";
+import { IN_HANDOVER, NOTES_KIND, NotesRow } from "./switch/NotesRow";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -111,6 +111,9 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
   // This project's notes (D-51) are no conversation's: their row asks for
   // itself, and the count is of what was set up.
   const offers = check.offers.filter((offer) => offer.kind !== NOTES_KIND);
+  // What will be set up before the switch: notes quoted in the handover
+  // aren't set up anywhere.
+  const setUpCount = [...picked].filter((id) => !check.offers.some((offer) => offer.id === id && offer.verdict === IN_HANDOVER)).length;
   const missing = offers.length;
   if (missing === 0) {
     return offers.length < check.offers.length
@@ -121,7 +124,7 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
   const reported = offers.some((offer) => offer.used !== null);
   const lead = offers.filter((offer) => offer.used !== false);
   if (lead.length === 0) {
-    const setUp = picked.size > 0 ? ` ${picked.size} will be set up.` : "";
+    const setUp = setUpCount > 0 ? ` ${setUpCount} will be set up.` : "";
     return `${check.to} has everything this conversation used.${setUp}`;
   }
   const thing = lead.length === 1 ? "thing" : "things";
@@ -134,7 +137,7 @@ export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>)
     return `${check.to} doesn't have ${lead.length} ${thing} ${what}.${turnOn > 0 ? ` You turn ${them} on yourself.` : ""}`;
   }
   const yours = turnOn > 0 ? `, ${turnOn} you turn on yourself` : "";
-  return `${check.to} doesn't have ${lead.length} ${thing} ${what}. ${picked.size} will be set up${yours}.`;
+  return `${check.to} doesn't have ${lead.length} ${thing} ${what}. ${setUpCount} will be set up${yours}.`;
 }
 
 function SetupRow({
