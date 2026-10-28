@@ -1378,9 +1378,18 @@ fn spawn_reader(
                     }
                     // Throttle activity signals to ~1/250 ms per session —
                     // recovery latency stays <300 ms without spam.
+                    // A hint, never a wait: with no one draining the
+                    // signals (the app's drain stalled, or a harness
+                    // without it), a blocking send stopped this reader,
+                    // the terminal's output backed up, and the tool could
+                    // neither write nor exit (stuck exiting after Stop:
+                    // the tasks lab of 2026-10-28). A full channel already
+                    // says "this session has fresh output".
                     if now - last_notify >= 250 {
                         last_notify = now;
-                        if activity.send(session.clone()).is_err() {
+                        if let Err(std::sync::mpsc::TrySendError::Disconnected(_)) =
+                            activity.try_send(session.clone())
+                        {
                             break; // receiver gone
                         }
                     }
@@ -1954,6 +1963,58 @@ mod stop_identity_tests {
         assert!(stranger.try_wait().unwrap().is_none(), "never signalled");
         stranger.kill().unwrap();
         stranger.wait().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reader_tests {
+    #![allow(clippy::unwrap_used)]
+
+    use std::sync::atomic::AtomicI64;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use juggler_core::model::SessionId;
+
+    use super::{DEFAULT_RING_CAPACITY, OutputRing, spawn_reader};
+
+    /// A reader slow enough that the 250 ms throttle lets several
+    /// activity hints through.
+    struct Trickle(usize);
+
+    impl std::io::Read for Trickle {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.0 == 0 {
+                return Ok(0);
+            }
+            self.0 -= 1;
+            std::thread::sleep(Duration::from_millis(260));
+            buf[0] = b'x';
+            Ok(1)
+        }
+    }
+
+    /// The tasks lab of 2026-10-28: with the activity channel full and no
+    /// one draining it, the reader blocked and the terminal's output
+    /// backed up. It reads to the end however full the channel is.
+    #[test]
+    fn a_full_activity_channel_never_stops_the_reader() {
+        let (activity, _undrained) = std::sync::mpsc::sync_channel(1);
+        let (drained_tx, drained) = std::sync::mpsc::channel::<()>();
+        let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
+        spawn_reader(
+            Some(Trickle(5)),
+            Arc::clone(&ring),
+            Arc::new(AtomicI64::new(0)),
+            SessionId::new("s"),
+            activity,
+            drained_tx,
+        );
+        // The reader ends (its sender drops) only once it read everything.
+        assert!(matches!(
+            drained.recv_timeout(Duration::from_secs(10)),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected)
+        ));
     }
 }
 
