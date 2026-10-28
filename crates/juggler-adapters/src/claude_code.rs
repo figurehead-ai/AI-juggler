@@ -425,8 +425,11 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    // The credentials only: the copyable shell line names what it removes,
+    // and a parent session's markers matter only inside AI Juggler's own
+    // launches (which remove them: `unset_inherited_credentials`).
     fn launch_unset_keys(&self) -> &'static [&'static str] {
-        &LAUNCH_UNSET_KEYS
+        &INHERITED_CREDENTIAL_KEYS
     }
 
     fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
