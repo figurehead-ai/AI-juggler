@@ -334,6 +334,36 @@ fn two_projects_with_one_name_have_pools_told_apart() {
     assert_eq!(name, "app · all sessions (in work)");
 }
 
+/// Worktrees of two repositories sit in folders of one name (`.wt`): the
+/// names go up as many folders as tell them apart.
+#[test]
+fn pools_in_folders_of_one_name_go_up_until_told_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let a_root = dir.path().join("shop").join(".wt").join("egret");
+    let b_root = dir.path().join("blog").join(".wt").join("egret");
+    let a = project(&state, &a_root, "egret");
+    let b = project(&state, &b_root, "egret");
+    session(&state, "s-a", "work", Some(&a), &a_root);
+    session(&state, "s-b", "work", Some(&b), &b_root);
+    let info = pools::pools_list_impl(&state).unwrap();
+    let mut names: Vec<&str> = info
+        .pools
+        .iter()
+        .filter(|pool| pool.project_id.is_some())
+        .map(|pool| pool.name.as_str())
+        .collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "egret · all sessions (in blog/.wt)",
+            "egret · all sessions (in shop/.wt)"
+        ]
+    );
+}
+
 #[test]
 fn two_projects_default_pools_have_their_own_levels() {
     use juggler_core::agent_access::{AgentAction, Decision};

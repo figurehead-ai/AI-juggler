@@ -128,43 +128,75 @@ pub fn shown_pools(storage: &Storage) -> AppResult<Vec<(Pool, String)>> {
 }
 
 /// Two projects' default pools with one name (two folders called `app`)
-/// are told apart by the folder each project is in: "app · all sessions
-/// (in work)" (the 0.2 walk, F10: three pairs of identical names). The
+/// are told apart by the folders each project is in, as few as tell them
+/// apart: "app · all sessions (in work)", "egret · all sessions (in
+/// lab12/.wt)" (the 0.2 walk, F10: three pairs of identical names). The
 /// user's own pools keep their names (a name is refused when taken).
 fn told_apart(storage: &Storage, listed: &mut [(Pool, String)]) -> AppResult<()> {
     use std::fmt::Write as _;
-    let mut seen: HashMap<String, u32> = HashMap::new();
-    for (_, name) in listed.iter() {
-        *seen.entry(name.to_lowercase()).or_default() += 1;
+    let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+    for (at, (pool, name)) in listed.iter().enumerate() {
+        if pool.kind == PoolKind::Default && pool.project.is_some() {
+            groups.entry(name.to_lowercase()).or_default().push(at);
+        }
     }
-    if seen.values().all(|count| *count < 2) {
+    groups.retain(|_, members| members.len() > 1);
+    if groups.is_empty() {
         return Ok(());
     }
-    let parents: HashMap<String, String> = storage
+    // Each project's folders above it, nearest first.
+    let above: HashMap<String, Vec<String>> = storage
         .projects()
         .list()?
         .into_iter()
-        .filter_map(|project| {
-            let parent = project.root.parent()?.file_name()?;
-            Some((
-                project.id.as_str().to_owned(),
-                parent.to_string_lossy().into_owned(),
-            ))
+        .map(|project| {
+            let folders = project
+                .root
+                .ancestors()
+                .skip(1)
+                .filter_map(|folder| folder.file_name())
+                .map(|folder| folder.to_string_lossy().into_owned())
+                .collect();
+            (project.id.as_str().to_owned(), folders)
         })
         .collect();
-    for (pool, name) in listed.iter_mut() {
-        if pool.kind != PoolKind::Default || seen.get(&name.to_lowercase()).is_none_or(|n| *n < 2) {
-            continue;
-        }
-        if let Some(parent) = pool
-            .project
-            .as_ref()
-            .and_then(|project| parents.get(project.as_str()))
-        {
-            let _ = write!(name, " (in {parent})");
+    for members in groups.values() {
+        let folders: Vec<&[String]> = members
+            .iter()
+            .map(|at| {
+                listed[*at]
+                    .0
+                    .project
+                    .as_ref()
+                    .and_then(|project| above.get(project.as_str()))
+                    .map_or(&[][..], Vec::as_slice)
+            })
+            .collect();
+        let deepest = folders.iter().map(|list| list.len()).max().unwrap_or(0);
+        // The fewest folders that tell every one apart (all, at most).
+        let depth = (1..=deepest)
+            .find(|depth| {
+                let mut said = std::collections::HashSet::new();
+                folders
+                    .iter()
+                    .all(|list| said.insert(where_words(list, *depth)))
+            })
+            .unwrap_or(deepest);
+        for (at, list) in members.iter().zip(folders) {
+            if !list.is_empty() {
+                let _ = write!(listed[*at].1, " (in {})", where_words(list, depth));
+            }
         }
     }
     Ok(())
+}
+
+/// The `depth` nearest folders above a project, outermost first
+/// ("lab12/.wt").
+fn where_words(above: &[String], depth: usize) -> String {
+    let mut parts: Vec<&str> = above.iter().take(depth).map(String::as_str).collect();
+    parts.reverse();
+    parts.join("/")
 }
 
 /// One pool that isn't deleted, with its name on screen (as the list says
