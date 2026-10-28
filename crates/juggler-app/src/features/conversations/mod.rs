@@ -302,6 +302,16 @@ impl ConversationIndex {
         })
     }
 
+    /// Every conversation a running session is on now, `(account, tool,
+    /// id)` (the rail's subagent count follows them, AJ-E1520).
+    #[must_use]
+    pub fn live_keys(&self) -> Vec<live::Live> {
+        self.live
+            .lock()
+            .map(|live| live.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
     /// Where `account`'s `(tool, id)` is open now, and its state.
     #[must_use]
     pub fn live_entry(&self, account: &str, tool: &str, id: &str) -> Option<scan::LiveEntry> {

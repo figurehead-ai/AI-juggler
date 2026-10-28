@@ -40,7 +40,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
   return {
     id, tool: "claude-code", account_id: "a1", account_label: "Work Max", project_id: "proj-1", cwd: "/Users/dev/app",
     title: `Talk ${id}`, git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null,
-    live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false,
+    live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null,
     ...overrides,
   };
 }

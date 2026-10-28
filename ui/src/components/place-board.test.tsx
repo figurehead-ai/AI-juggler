@@ -61,6 +61,16 @@ function board(sessions: InstanceInfo[], conversations: ConversationInfo[] = pla
   );
 }
 
+/** A session another app runs, open in a terminal, on `tool`. */
+function elsewhere(id: string, tool: string, over: Partial<ConversationInfo> = {}): ConversationInfo {
+  return {
+    id, tool, account_id: "acc-1", account_label: "Work Max", project_id: "proj-payments", cwd: "/Users/you/Dev/payments-api", title: `Talk ${id}`,
+    git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null,
+    places: [{ app: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
+    pid: 77, state: "working", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
+  };
+}
+
 const headers = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>("[data-testid='place-header']")];
 
 describe("the rail by place", () => {
@@ -174,5 +184,22 @@ describe("the rail by place", () => {
     expect(drawn).toBeLessThan(40);
     expect(drawn).toBeGreaterThan(5);
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe("a row's sub-agents (AJ-E1520, 0.2)", () => {
+  it("every tool's session says how many it runs: AI Juggler's own and the ones other apps run", async () => {
+    setRailView({ ...DEFAULT_VIEW, show: { ...DEFAULT_VIEW.show, subagents: true } });
+    const view = board(
+      [own("aj", { subtask_count: 1 })],
+      [elsewhere("codex-1", "codex", { subtask_count: 3 }), elsewhere("kimi-1", "kimi-code", { subtask_count: 1, pid: 78 }), elsewhere("grok-1", "grok-build", { pid: 79 })],
+    );
+    await view.findByTestId("rail-open-now");
+    const line = (selector: string) => view.getByTestId("place-board").querySelector<HTMLElement>(selector)?.closest("[data-rail-row]")?.querySelector("[data-testid='row-subagents']")?.textContent ?? null;
+    expect(line("[data-instance-id='aj']")).toBe("+1 agent");
+    expect(line("[data-conversation-id='codex-1']")).toBe("+3 agents");
+    expect(line("[data-conversation-id='kimi-1']")).toBe("+1 agent");
+    // Not read yet: no line, never a guessed 0.
+    expect(line("[data-conversation-id='grok-1']")).toBeNull();
   });
 });

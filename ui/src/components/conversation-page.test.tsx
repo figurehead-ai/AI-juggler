@@ -45,6 +45,7 @@ function conversation(overrides: Partial<ConversationInfo> = {}): ConversationIn
     probably: false,
     background: false,
     inactive: false,
+    subtask_count: null,
     ...overrides,
   };
 }

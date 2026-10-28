@@ -27,7 +27,7 @@ function talk(id: string, over: Partial<ConversationInfo> = {}): ConversationInf
   return {
     id, tool: "claude-code", account_id: "a1", account_label: "Work Max", project_id: null, cwd: "/w/app", title: `Talk ${id}`, git_branch: "main",
     started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null, places: [place("Claude", "Work")],
-    pid: 10, state: "idle", probably: false, viewed_ms: null, background: false, inactive: false, ...over,
+    pid: 10, state: "idle", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
   };
 }
 
@@ -275,5 +275,13 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
   it("is the subagent count its tab reads, never its child processes", () => {
     expect(sessionItem(own("s1", { subtask_count: 3, child_count: 5 }), none, false).subagents).toBe(3);
     expect(sessionItem(own("s2", { subtask_count: null, child_count: 2 }), none, false).subagents).toBe(0);
+  });
+
+  it("a session another app runs has its count too, whatever its tool", () => {
+    for (const tool of ["codex", "opencode", "grok-build", "kimi-code", "claude-code"]) {
+      expect(conversationItem(talk(`t-${tool}`, { tool, subtask_count: 2 }), none, null).subagents).toBe(2);
+    }
+    // Not read yet: no count, never a guessed one.
+    expect(conversationItem(talk("unread", { tool: "codex", subtask_count: null }), none, null).subagents).toBe(0);
   });
 });

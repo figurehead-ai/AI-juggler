@@ -65,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   task, on the launch settings you pick; an agent can only ask. A switch
   keeps the task, and a task can link the GitHub or Linear issue it comes
   from (its title looked up with your own `gh`, when you click).
+- **Running subagents on every row** (0.2): with Sub-agents on in the
+  rail's View, a session's row says how many subagents it runs now ("+2
+  agents"), for Claude Code, Codex, OpenCode, Grok Build and Kimi Code
+  alike, and for sessions other apps run (a CLI in a terminal, Codex in
+  ChatGPT) as well as AI Juggler's own. The count is read from the same
+  records as the session's Subagents tab, and shows only once read.
 
 ### Changed
 

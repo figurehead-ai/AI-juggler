@@ -64,7 +64,8 @@ export interface RailItem {
   inactive: boolean;
   archived: boolean;
   /** Sub-agents it runs now, when read (AJ-E1520: its tool's subagent
-   * reader, the one its Subagents tab reads; never its child processes). */
+   * reader, the one its Subagents tab reads, for AI Juggler's sessions
+   * and the ones other apps run alike; never its child processes). */
   subagents: number;
   /** AJ-E1502: the user pinned it (an AI Juggler session's own pin, or
    * the rail's pin of one another app runs). Pinned rows lead their group. */
@@ -227,7 +228,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
     archived: false,
-    subagents: 0,
+    subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,
   };

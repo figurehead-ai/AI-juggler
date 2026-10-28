@@ -13,7 +13,8 @@
 //!
 //! The rail's count of a live session's running subagents (I-08,
 //! `count.rs`) is read by the same readers: one source for the row and
-//! the tab, for every tool whose adapter lists subagents.
+//! the tab, for every tool whose adapter lists subagents, and for every
+//! live session the rail shows, AI Juggler's own or another app's.
 //!
 //! A subagent's conversation is read like the session's own (the same
 //! last-turns reader, paged, followed while it runs), from the transcript
@@ -79,8 +80,8 @@ impl Entry {
 struct Kept {
     /// The sessions whose Subagents tab was opened last, the latest last.
     tab: Vec<Arc<Entry>>,
-    /// Each live session's, by AI Juggler's id for it (`count.rs`).
-    live: HashMap<String, Arc<Entry>>,
+    /// Each live session's, by its rail row (`count.rs`).
+    live: HashMap<count::Row, Arc<Entry>>,
 }
 
 /// Each session's subagent reader, for its tab and the rail's count, and
@@ -89,8 +90,8 @@ struct Kept {
 pub struct Readers {
     kept: Mutex<Kept>,
     /// What the count last published: each live session's running
-    /// subagents, by AI Juggler's id for it.
-    counts: Mutex<HashMap<String, u64>>,
+    /// subagents, by its rail row.
+    counts: Mutex<HashMap<count::Row, u64>>,
 }
 
 impl std::fmt::Debug for Readers {

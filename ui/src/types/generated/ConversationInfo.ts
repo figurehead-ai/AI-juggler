@@ -92,4 +92,13 @@ background: boolean,
 /**
  * In a running app's sidebar, with no process on it now.
  */
-inactive: boolean, };
+inactive: boolean, 
+/**
+ * I-08: how many subagents it started (and theirs) are running now,
+ * as its tool's adapter reads them — the same count an AI Juggler
+ * session's row has (AJ-E1520, `features::subagents::count`); `null`
+ * until read (not open, its tool records none AI Juggler reads, or
+ * not read yet), and on the row of a conversation AI Juggler's own
+ * session is (its session's row has it) — never a guessed count.
+ */
+subtask_count: number | null, };

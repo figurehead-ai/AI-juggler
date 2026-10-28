@@ -80,6 +80,7 @@ const conversation = (overrides: Partial<ConversationInfo>): ConversationInfo =>
   viewed_ms: null,
   background: false,
   inactive: false,
+  subtask_count: null,
   ...overrides,
 });
 

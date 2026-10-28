@@ -54,7 +54,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .collect();
         (labels, folders, projects, sessions, homes)
     };
-    Ok(state
+    let rows = state
         .conversations
         .all()?
         .into_iter()
@@ -97,6 +97,8 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
                 tokens: crate::commands::tokens_info(summary.tokens),
+                // AJ-E1520: `features::subagents::count` fills it; null until read.
+                subtask_count: None,
             };
             if let Some(entry) = state.conversations.live_entry(
                 &conversation.account_id,
@@ -107,7 +109,10 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             }
             info
         })
-        .collect())
+        .collect();
+    Ok(crate::features::subagents::count::counted_conversations(
+        state, rows,
+    ))
 }
 
 /// AJ-E2101: what the live view says of an open conversation: where it's
@@ -389,6 +394,7 @@ mod tests {
             viewed_ms: None,
             background: false,
             inactive,
+            subtask_count: None,
         }
     }
 

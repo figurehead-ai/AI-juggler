@@ -4,6 +4,11 @@
 //! it grows, says nothing until read (never a guessed 0), and leaves the
 //! row once the session ends (D-06: a subagent its records never saw end
 //! is unknown then). Over a synthetic Claude Code setup, read-only.
+//!
+//! Every tool whose adapter lists subagents is counted the same way:
+//! the count's reader comes through the adapter seam
+//! (`count::reader_for`), over the conformance kit's synthetic records
+//! for each tool (one of each session's subagents still running).
 
 #![allow(
     clippy::unwrap_used,
@@ -13,12 +18,25 @@
 )]
 #![cfg(unix)]
 
+#[path = "../../juggler-adapters/tests/grok_fixture/mod.rs"]
+mod grok_fixture;
+#[path = "../../juggler-adapters/tests/kimi_fixture/mod.rs"]
+mod kimi_fixture;
+#[path = "../../juggler-adapters/tests/opencode_fixture/mod.rs"]
+mod opencode_fixture;
+#[path = "../../juggler-adapters/tests/subagent_fixture/mod.rs"]
+mod subagent_fixture;
+
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
-use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_adapter::subagents::SubagentScope;
+use juggler_adapters::{
+    CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter, GROK_BUILD_ID, GrokBuildAdapter,
+    KIMI_CODE_ID, KimiCodeAdapter, OPENCODE_ID, OpenCodeAdapter,
+};
 use juggler_app::commands;
 use juggler_app::features::subagents::count;
 use juggler_app::paging::PageRequest;
@@ -164,19 +182,22 @@ fn the_rows_count_follows_the_tabs_reader_and_leaves_when_the_session_ends() {
     let lab = lab();
     let cwd = lab.transcript.parent().unwrap().to_path_buf();
     assert_eq!(row_count(&lab), None, "not read yet: never a guessed 0");
-    assert!(count::tick(&lab.state), "read: none running is a count");
+    assert!(
+        count::tick(&lab.state).sessions,
+        "read: none running is a count"
+    );
     assert_eq!(row_count(&lab), Some(0));
 
     append(&lab.transcript, &agent_call(&cwd, "t1", "Map the parsers"));
     append(&lab.transcript, &agent_call(&cwd, "t2", "Review errors"));
-    assert!(count::tick(&lab.state), "two started");
+    assert!(count::tick(&lab.state).sessions, "two started");
     assert_eq!(row_count(&lab), Some(2));
 
     append(&lab.transcript, &agent_answer(&cwd, "t1"));
-    assert!(count::tick(&lab.state));
+    assert!(count::tick(&lab.state).sessions);
     assert_eq!(row_count(&lab), Some(1));
     assert!(
-        !count::tick(&lab.state),
+        !count::tick(&lab.state).any(),
         "nothing appended: no change, no emit"
     );
 
@@ -198,7 +219,10 @@ fn the_rows_count_follows_the_tabs_reader_and_leaves_when_the_session_ends() {
         record.status = SessionStatus::Finished;
         storage.sessions().update(&record).unwrap();
     }
-    assert!(count::tick(&lab.state), "a running subagent left the count");
+    assert!(
+        count::tick(&lab.state).sessions,
+        "a running subagent left the count"
+    );
     assert_eq!(row_count(&lab), None, "ended: unknown, not 0");
 }
 
@@ -211,6 +235,111 @@ fn a_session_whose_conversation_isnt_indexed_is_not_counted() {
         record.conversation = Some(ConversationId::new("not-on-this-mac"));
         storage.sessions().update(&record).unwrap();
     }
-    assert!(!count::tick(&lab.state));
+    assert!(!count::tick(&lab.state).any());
     assert_eq!(row_count(&lab), None);
+}
+
+/// Every adapter that lists subagents, as the app registers them (`true`
+/// stands in for each tool: nothing runs).
+fn every_tool(home: &Path) -> AdapterRegistry {
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/usr/bin/true")));
+    registry.register(Arc::new(
+        CodexAdapter::with_bin("/usr/bin/true").with_home(home),
+    ));
+    registry.register(Arc::new(
+        OpenCodeAdapter::with_bin("/usr/bin/true").with_home(home),
+    ));
+    registry.register(Arc::new(
+        KimiCodeAdapter::with_bin("/usr/bin/true").with_home(home),
+    ));
+    registry.register(Arc::new(
+        GrokBuildAdapter::with_bin("/usr/bin/true").with_home(home),
+    ));
+    registry
+}
+
+/// The count a row gets for the conversation `path`/`id` of `tool`: its
+/// adapter's reader, read until it has caught up.
+fn counted_through_the_seam(registry: &AdapterRegistry, tool: &str, path: &Path, id: &str) -> u64 {
+    let mut reader = count::reader_for(registry, tool, SubagentScope { path, id })
+        .unwrap_or_else(|| panic!("{tool}: no reader through its adapter"));
+    let mut rounds = 0;
+    while !reader.refresh().unwrap() {
+        rounds += 1;
+        assert!(rounds < 100, "{tool}: never caught up");
+    }
+    count::running(&reader.subagents())
+}
+
+#[test]
+fn every_tool_that_lists_subagents_is_counted_through_its_adapter() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let cwd = root.join("Dev/shop");
+    std::fs::create_dir_all(&cwd).unwrap();
+    let registry = every_tool(&root.join("home"));
+    let folder = |tool: &str| {
+        let state_dir = root.join(tool);
+        std::fs::create_dir_all(&state_dir).unwrap();
+        state_dir
+    };
+    let records = [
+        (
+            CLAUDE_CODE_ID,
+            subagent_fixture::claude(&folder("claude"), &cwd),
+        ),
+        (CODEX_ID, subagent_fixture::codex(&folder("codex"), &cwd)),
+        (KIMI_CODE_ID, subagent_fixture::kimi(&folder("kimi"), &cwd)),
+        (GROK_BUILD_ID, subagent_fixture::grok(&folder("grok"), &cwd)),
+        (
+            OPENCODE_ID,
+            subagent_fixture::opencode(
+                &folder("opencode").join("opencode.db"),
+                opencode_fixture::Line::V2,
+                &cwd,
+            ),
+        ),
+        (
+            OPENCODE_ID,
+            subagent_fixture::opencode(
+                &folder("opencode-1").join("opencode.db"),
+                opencode_fixture::Line::V1,
+                &cwd,
+            ),
+        ),
+    ];
+    for (tool, (path, id)) in &records {
+        // Each session started three (one still running, which started
+        // one more, done): the row says one is running.
+        assert_eq!(
+            counted_through_the_seam(&registry, tool, path, id),
+            1,
+            "{tool}: the running one, and only it"
+        );
+    }
+    // A record that isn't the tool's own gets no reader (and no count).
+    let (claude_path, claude_id) = &records[0].1;
+    assert!(
+        count::reader_for(
+            &registry,
+            KIMI_CODE_ID,
+            SubagentScope {
+                path: claude_path,
+                id: claude_id
+            }
+        )
+        .is_none()
+    );
+    assert!(
+        count::reader_for(
+            &registry,
+            "a-tool-it-doesnt-know",
+            SubagentScope {
+                path: claude_path,
+                id: claude_id
+            }
+        )
+        .is_none()
+    );
 }
