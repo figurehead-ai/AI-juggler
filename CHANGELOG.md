@@ -327,6 +327,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The rail folded to icons** (⌘B, the 0.2 walk, F2) no longer says "All
+  clear" while something needs you: it shows the same Needs you count as
+  the bell (a sign-in or This Mac included; it opens Home), then every
+  open session — yours and the ones other apps run — as its app's or
+  tool's icon with its state's dot and a `!` when it needs you, in Open
+  now's order. The logo and the Dev or Nightly mark are whole, one above
+  the other.
+- Below 1100 px the rail folds to icons by itself (the screen spec's
+  width; it was 900 px), so the 1024×680 smallest window has room for the
+  page (F14). ⌘B still opens the list there.
+- **Needs you counts agree on each screen** (F4): the notification centre's
+  "Needs action · n" and Home's heading count the rows they show, and a
+  session's rail row says the same word as Home and the centre ("Done,
+  review it", "Asks you").
+- **The keyboard** (F11): a "Skip to page" link is the first stop; the
+  session list is one stop on the Tab path (the row last used, else the
+  open page's), its row's own buttons after it, and ↑ ↓ Home End move
+  inside it — from a fresh start the page is a few Tabs away, not 84.
+  Opening a page from a row that goes away (Home's J and Enter, ⌘K, a
+  notice) puts the keyboard on the new page, not at the top of the window.
+- **⌘K does things** (F7): the selected session's actions come first (a
+  session another app runs too, and "switch" finds Continue on another
+  account…), then New session…, Go to any screen (with its key),
+  Notifications, Keyboard shortcuts and Show or hide the list, filtered by
+  what you type; then sessions and projects, and "Search History for …"
+  last. Screen readers no longer hear "terminal" before each session.
+- Smaller ones (F18): Home's Your apps shows a seventh app instead of a
+  "+1" tile ("Show 2 more apps" past that); a session's header names what
+  it folded ("Account and folder") instead of "+2", and its profile's name
+  gives way last; About says the channel this build is on (Nightly, Dev,
+  Beta or Stable), as your menu does; the shortcuts list leaves Fleet's
+  keys out until another computer is paired and says which ⌘0 is the
+  terminal's; the list's View says "Subagents", what Inactive, Quiet ones
+  and Background runs are, and offers "Not open in an app" instead of "An
+  app".
 - Asking whether Claude Code's own limits check is offered no longer
   makes an empty `overlays/limits-probe` folder in AI Juggler's data; the
   folder is made only when the check runs (the 0.2 walk, F19).

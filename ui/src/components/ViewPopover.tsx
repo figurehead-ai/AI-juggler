@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
 import { IconView } from "./icons-places";
 import { Select } from "./RailControls";
-import { DEFAULT_VIEW, isDefaultView, ONLY_KEYS, setRailView, SHOW_KEYS, SHOW_LABELS, useRailView, type OnlyKey } from "../lib/rail-view";
+import { DEFAULT_VIEW, isDefaultView, ONLY_KEYS, setRailView, SHOW_KEYS, SHOW_LABELS, SHOW_NOTES, useRailView, type OnlyKey } from "../lib/rail-view";
 import type { GroupBy } from "../lib/rail-places";
 import { hasUserPools, usePools } from "../lib/pools";
 
@@ -124,16 +124,21 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
             <fieldset className="flex flex-col gap-0.5">
               <legend className={legend}>Show</legend>
               {SHOW_KEYS.map((key) => (
-                <label key={key} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-surface-2">
-                  <input
-                    type="checkbox"
-                    className="accent-accent"
-                    checked={view.show[key]}
-                    data-testid={`rail-view-show-${key}`}
-                    onChange={(event) => setRailView((current) => ({ ...current, show: { ...current.show, [key]: event.target.checked } }))}
-                  />
-                  <span>{SHOW_LABELS[key]}</span>
-                </label>
+                <div key={key} className="flex flex-wrap items-baseline gap-x-2 rounded px-1 py-0.5 hover:bg-surface-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-accent"
+                      checked={view.show[key]}
+                      data-testid={`rail-view-show-${key}`}
+                      aria-describedby={SHOW_NOTES[key] ? `${panelId}-note-${key}` : undefined}
+                      onChange={(event) => setRailView((current) => ({ ...current, show: { ...current.show, [key]: event.target.checked } }))}
+                    />
+                    <span>{SHOW_LABELS[key]}</span>
+                  </label>
+                  {/* What it is (the 0.2 walk, F18), described, not named. */}
+                  {SHOW_NOTES[key] && <span id={`${panelId}-note-${key}`} className="text-label text-muted">{SHOW_NOTES[key]}</span>}
+                </div>
               ))}
             </fieldset>
             <fieldset className="flex flex-col gap-1">

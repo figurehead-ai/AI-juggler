@@ -9,7 +9,8 @@ import { AppIcon, OWN_APP_ID } from "./AppIcon";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import { OWN_APP } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
-import { ActionOption, usePaletteActions, type PaletteSelection } from "./PaletteActions";
+import { ActionOption, CommandOption, paletteSelection, usePaletteActions, type PaletteSelection } from "./PaletteActions";
+import { appCommands, commandsFor, type AppDoings, type PaletteCommand } from "../lib/palette-commands";
 export { paletteSelection } from "./PaletteActions";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { sessionTitle } from "./ManageWork";
@@ -24,9 +25,11 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
  * focus their window (the tiered service), terminal entries select
  * their panel. Combobox pattern (aria-expanded/activedescendant),
  * full keyboard traversal; the footer names the binding and offers
- * the rebind capture. The full command palette (actions/search/
- * recents) is deep-review §4.17's own surface — this is its Go-to
- * slice.
+ * the rebind capture. deep/11 §4.17 (the 0.2 walk, F7): actions come
+ * first — the selected item's (a session another app runs too), then
+ * App's own (screens, New session…, notifications; `lib/palette-commands`)
+ * — filtered by what's typed, then sessions and projects, and a search
+ * of History for the words, last.
  */
 
 const isLive = (status: string) => status === "running" || status === "starting";
@@ -49,6 +52,8 @@ export function GoToPalette({
   selected = null,
   projects = [],
   onChanged = () => {},
+  selectedConversation = null,
+  app,
 }: {
   open: boolean;
   onClose: () => void;
@@ -67,6 +72,10 @@ export function GoToPalette({
   projects?: ProjectInfo[];
   /** Something an action changed (a rename, a pin). */
   onChanged?: () => void;
+  /** The page open on a session another app runs (its actions come first). */
+  selectedConversation?: { accountId: string; id: string } | null;
+  /** App's own actions (screens, New session, notifications…), F7. */
+  app?: AppDoings;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -78,11 +87,19 @@ export function GoToPalette({
   const { all: conversations } = useConversations();
   const host = useActionHost();
   const needle = parseQuery(query).text;
+  const conversation = selectedConversation ? (conversations.find((c) => c.account_id === selectedConversation.accountId && c.id === selectedConversation.id) ?? null) : null;
+  const chosen = selected ?? paletteSelection(null, null, null, null, conversation);
   // AJ-E2106: the selected item's actions first.
-  const panel = usePaletteActions(selected, needle, onChanged);
+  const panel = usePaletteActions(chosen, needle, onChanged);
   const actions = panel.actions;
+  // F7: App's own actions, by what's typed.
+  const commands = useMemo(() => (app ? appCommands(app) : []), [app]);
   const rows = useMemo<PaletteRow[]>(() => {
     const doing: PaletteRow[] = actions.map((action) => ({ where: "action", action, id: `action::${action.id}`, desktop: false }));
+    const shown = app ? commandsFor(commands, needle, app) : [];
+    const search = shown.filter((command) => command.id === "search-history");
+    const commanding: PaletteRow[] = shown.filter((command) => command.id !== "search-history").map((command) => ({ where: "command", command, id: `command::${command.id}`, desktop: false }));
+    const searching: PaletteRow[] = search.map((command) => ({ where: "command", command, id: `command::${command.id}`, desktop: false }));
     // Projects once something is typed: going to one is a search.
     const places: PaletteRow[] = needle
       ? projects
@@ -122,8 +139,10 @@ export function GoToPalette({
       ...elsewhere,
       ...remote.filter((r) => !r.desktop),
     ];
-    return named ? [...doing, ...places, ...sessionsFound] : [...doing, ...sessionsFound, ...places];
-  }, [sessions, remoteMachines, needle, conversations, actions, projects]);
+    // The selected item's actions, a project named by what's typed, App's
+    // actions, sessions, projects, and last a search of History.
+    return named ? [...doing, ...places, ...commanding, ...sessionsFound, ...searching] : [...doing, ...commanding, ...sessionsFound, ...places, ...searching];
+  }, [sessions, remoteMachines, needle, conversations, actions, projects, app, commands]);
 
   useEffect(() => {
     if (open) {
@@ -153,6 +172,11 @@ export function GoToPalette({
       if (entry.action.reason) return;
       onClose();
       void entry.action.run();
+      return;
+    }
+    if (entry.where === "command") {
+      onClose();
+      entry.command.run();
       return;
     }
     if (entry.where === "project") {
@@ -228,10 +252,10 @@ export function GoToPalette({
             aria-expanded="true"
             aria-controls="goto-listbox"
             aria-activedescendant={rows[active] ? `goto-option-${domId(rows[active]!.id)}` : undefined}
-            aria-label={selected ? `Actions for ${selected.heading}, or go to a session` : "Go to session"}
+            aria-label={chosen ? `Actions for ${chosen.heading}, or search and go` : "Search, act or go to a session"}
             value={query}
             placeholder={
-              capturing ? "Press the new combo (Esc cancels)…" : selected ? `Act on ${selected.heading}, or go to a session…` : "Go to session…"
+              capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Go to a session or screen, or type what to do…"
             }
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
@@ -241,12 +265,12 @@ export function GoToPalette({
         <ul
           id="goto-listbox"
           role="listbox"
-          aria-label={selected ? "Actions and live sessions" : "Live sessions"}
+          aria-label="Results"
           className="max-h-80 overflow-y-auto p-1.5"
         >
           {rows.length === 0 && (
             <li className="px-2.5 py-3 text-meta text-muted">
-              No live sessions — start one from the rail.
+              {needle ? `No matches for “${needle}”.` : "Nothing open yet — start one with New session."}
             </li>
           )}
           {rows.map((entry, index) => (
@@ -255,7 +279,7 @@ export function GoToPalette({
                   the options name themselves, so these are for the eye. */}
               {sectioned && sectionOf(entry) !== (index > 0 ? sectionOf(rows[index - 1]!) : null) && (
                 <li role="none" aria-hidden="true" className="px-2.5 pb-1 pt-2 text-label font-semibold text-muted first:pt-0.5">
-                  {entry.where === "action" ? `Actions for ${selected?.heading ?? ""}` : sectionOf(entry)}
+                  {entry.where === "action" ? `Actions for ${chosen?.heading ?? ""}` : sectionOf(entry)}
                 </li>
               )}
             {/* The option itself is the target: keyboard goes through the
@@ -275,6 +299,8 @@ export function GoToPalette({
             >
                 {entry.where === "action" ? (
                   <ActionOption action={entry.action} />
+                ) : entry.where === "command" ? (
+                  <CommandOption command={entry.command} />
                 ) : entry.where === "project" ? (
                   <>
                     {/* The project's own mark, its folder under your home (P24). */}
@@ -288,8 +314,8 @@ export function GoToPalette({
                 {/* D-38: the app it is in, by its own icon (AI Juggler's
                     for a session in its terminal); the words at the end
                     say what choosing it does. */}
+                {/* Its app, by its icon (decoration: the words say where). */}
                 <AppIcon {...paletteApp(entry)} size={16} />
-                <span className="sr-only">{entry.desktop ? "app" : "terminal"}</span>
                 {entry.where === "outside" ? (
                   <>
                     <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
@@ -337,6 +363,7 @@ export function GoToPalette({
 
 type PaletteRow =
   | { where: "action"; action: ResolvedAction; id: string; desktop: false }
+  | { where: "command"; command: PaletteCommand; id: string; desktop: false }
   | { where: "project"; project: ProjectInfo; id: string; desktop: false }
   | { where: "local"; row: InstanceInfo; id: string; desktop: boolean }
   | { where: "outside"; conversation: ConversationInfo; id: string; desktop: false }
@@ -352,7 +379,7 @@ function paletteApp(entry: Extract<PaletteRow, { where: "local" | "outside" | "r
 /** AJ-E2106: the palette's sections — the selected item's actions, then
  * sessions, then projects. */
 function sectionOf(entry: PaletteRow): string {
-  return entry.where === "action" ? "Actions" : entry.where === "project" ? "Projects" : "Sessions";
+  return entry.where === "action" ? "Selected" : entry.where === "command" ? (entry.command.id === "search-history" ? "Search" : "Actions") : entry.where === "project" ? "Projects" : "Sessions";
 }
 
 /** A remote focus is offered only where that machine allows control and

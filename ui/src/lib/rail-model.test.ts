@@ -62,6 +62,16 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(exact("nonsense"), none, false).state).toBe("working");
   });
 
+  it("a row's state follows the backend's need: one word on Home, in the centre and on the rail (the 0.2 walk, F4)", () => {
+    const needOf = new Map([["c:a1/w", "review" as const], ["s:s", "asks" as const]]);
+    const items = itemsOf({ sessions: [own("s")], conversations: [talk("w", { state: "working" })], projects: [], seen: {}, needOf });
+    expect(items.find((item) => item.key === "c:a1/w")).toMatchObject({ need: "review", state: "done_review" });
+    expect(items.find((item) => item.key === "s:s")).toMatchObject({ need: "asks", state: "asks_you" });
+    // A failure keeps the state it has.
+    const failed = itemsOf({ sessions: [own("f")], conversations: [], projects: [], seen: {}, needOf: new Map([["s:f", "failed" as const]]) });
+    expect(failed[0]).toMatchObject({ need: "failed", state: "working" });
+  });
+
   it("anything worked out says probably", () => {
     const tail = conversationItem(talk("t", { state: "asks_you", probably: true }), none, null);
     expect(stateWord(tail.state, tail.probably)).toBe("Probably asks you");

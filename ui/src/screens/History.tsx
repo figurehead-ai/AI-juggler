@@ -126,16 +126,19 @@ export function History({
   projects,
   accounts = [],
   onChanged,
+  initialQuery = "",
 }: {
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
   /** The profiles, for the account filter. */
   accounts?: AccountInfo[];
   onChanged: () => void;
+  /** ⌘K's "Search History for …" (the 0.2 walk, F7): the words to search. */
+  initialQuery?: string;
 }): JSX.Element {
   const live = hasLiveBackend();
   const [list, setList] = useState<ListId>("ended");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   // The backend's search waits for typing to pause; the preview's is instant.
   const [searched, setSearched] = useState("");
   const [snippets, setSnippets] = useState<Map<string, string>>(new Map());

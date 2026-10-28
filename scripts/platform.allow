@@ -102,7 +102,7 @@ ui/src/lib/home-needs.ts mac-words 1
 ui/src/lib/machine-memory.ts mac-words 2
 ui/src/lib/machine.ts mac-words 9
 ui/src/lib/nav.ts mac-words 1
-ui/src/lib/shortcuts.ts mac-words 2
+ui/src/lib/shortcuts.ts mac-words 1
 ui/src/pages/AccountProbe.tsx mac-words 1
 ui/src/pages/ItemHeader.tsx mac-words 1
 ui/src/pages/registry.ts mac-words 1

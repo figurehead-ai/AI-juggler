@@ -11,7 +11,7 @@ import { Button } from "./primitives";
 import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
 import { IconMute, IconSnooze } from "./icons-actions";
 import { IconAsk, IconClock, IconDone, IconStopped, IconWarn } from "./icons-menu";
-import { ChannelChip } from "./UpdatesCard";
+import { ChannelChip } from "./ChannelChip";
 import { happenedAt, needLine, needMeta, primaryLabel, secondOf, toneOf } from "../lib/notice-words";
 import type { NoticeActions } from "../lib/notice-actions";
 import type { NoticeInfo } from "../lib/ipc/notices";

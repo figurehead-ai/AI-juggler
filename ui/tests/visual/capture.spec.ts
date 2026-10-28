@@ -5226,7 +5226,7 @@ for (const theme of THEMES) {
         await expect(prompt.getByText("Beta", { exact: true })).toBeVisible();
       } else {
         await goTo(page, "Settings");
-        await expect(page.getByTestId("beta-label")).toBeVisible();
+        await expect(page.getByTestId("channel-label")).toBeVisible();
         await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
         if (name === "going-back-confirm") {
           await page.getByText("Go back to an earlier version", { exact: true }).click();

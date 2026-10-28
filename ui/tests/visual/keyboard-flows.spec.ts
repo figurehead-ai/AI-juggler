@@ -86,6 +86,19 @@ async function tabToEl(page: Page, stops: Stop[], selector: string, { max = 80, 
   throw new Error(`never reached ${selector} by keyboard; stops:\n${stops.map((s) => s.name).join("\n")}`);
 }
 
+/** ↓ (or ↑) inside a list until `match` holds for the focused element;
+ * every stop is recorded (F11: the rail's list is one Tab stop, its rows
+ * are reached with the arrows). */
+async function arrowTo(page: Page, stops: Stop[], match: RegExp, { max = 60, up = false } = {}): Promise<void> {
+  for (let i = 0; i < max; i++) {
+    const stop = await focused(page);
+    if (i > 0) stops.push(stop);
+    if (match.test(stop.name)) return;
+    await page.keyboard.press(up ? "ArrowUp" : "ArrowDown");
+  }
+  throw new Error(`never reached ${match} with the arrows; stops:\n${stops.map((s) => s.name).join("\n")}`);
+}
+
 /** Leaves the terminal if a selection put focus there. */
 async function leaveTerminalIfFocused(page: Page, stops: Stop[]) {
   // The terminal takes focus on the frame after it mounts.
@@ -154,6 +167,58 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   ]);
 });
 
+test("rail — Skip to page first; the list is one stop, ↓ moves in it; a page opened puts the keyboard on it", async ({ page }) => {
+  await open(page);
+  const stops: Stop[] = [];
+  await page.locator("body").focus();
+  // deep/11 §9: the skip link is the first stop and goes to the page.
+  await page.keyboard.press("Tab");
+  stops.push(await focused(page));
+  expect(stops[0]!.name).toBe("button: Skip to page");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+  stops.push(await focused(page));
+  // From the top again: into the list, then past it — a handful of
+  // Tabs, not one per row and control (the 0.2 walk, F11: 84).
+  await page.locator("body").focus();
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
+  const inList = () => page.evaluate(() => !!document.querySelector("[data-testid='rail-list']")?.contains(document.activeElement));
+  const rows = await page.locator("[data-testid='rail-list'] [data-rail-item]").count();
+  expect(rows).toBeGreaterThan(5);
+  let tabs = 0;
+  while (await inList()) {
+    await page.keyboard.press("Tab");
+    stops.push(await focused(page));
+    tabs += 1;
+    expect(tabs, "Tabs to leave the list").toBeLessThanOrEqual(4);
+  }
+  // Back into the list (Shift+Tab lands on the line it left), then ↓.
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]", { back: true, max: 6 });
+  const before = (await focused(page)).name;
+  await page.keyboard.press("ArrowDown");
+  const after = await focused(page);
+  stops.push(after);
+  expect(after.name).not.toBe(before);
+  expect(await inList()).toBe(true);
+  // Home's J then Enter opens a page; the row that had focus goes with
+  // Home, and the keyboard lands on the page, never the window's body.
+  await page.locator("main").focus();
+  await page.keyboard.press("Tab");
+  stops.push(await focused(page));
+  await page.keyboard.press("j");
+  stops.push(await focused(page));
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("home")).toHaveCount(0);
+  await expect.poll(async () => (await focused(page)).name).not.toBe("(body)");
+  stops.push(await focused(page));
+  record("rail", stops, [
+    "Tab 1 is Skip to page; Enter puts the keyboard on the page (`<main>`).",
+    `The list (${rows} rows) is one stop: at most 4 Tabs (its line's row and controls) leave it.`,
+    "↓ moves to the next line inside it; Shift+Tab comes back to the line last used.",
+    "Home's J then Enter opens the page and the keyboard is on it (not the window's body).",
+  ]);
+});
+
 test("launch — the sheet opens, traps focus, and Esc returns to New", async ({ page }) => {
   await open(page);
   const stops: Stop[] = [];
@@ -176,10 +241,12 @@ test("launch — the sheet opens, traps focus, and Esc returns to New", async ({
   record("launch", stops, ["15 Tabs stay inside the sheet (focus trap); Esc closes it and focus returns to New session."]);
 });
 
-/** The Work Max session in the rail → its first ranked switch row. */
+/** The Work Max session in the rail → its first ranked switch row. The
+ * rail's list is one stop on the Tab path; ↓ goes through its rows. */
 async function toSwitchRow(page: Page, stops: Stop[]) {
   await page.locator("body").focus();
-  await tabTo(page, stops, /Work Max/);
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
+  await arrowTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
   // D-25: the ranked list is folded; ⌘⇧H opens it and focuses it.

@@ -33,7 +33,7 @@ afterEach(() => {
 
 describe("AJ-E1504 the ? sheet", () => {
   it("lists exactly the registered shortcuts, by area, with their keys", () => {
-    render(<ShortcutSheet onClose={() => {}} />);
+    render(<ShortcutSheet onClose={() => {}} fleet />);
     const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
     expect(rows.map((row) => row.dataset.shortcut)).toEqual(
       SHORTCUT_AREAS.flatMap((area) => SHORTCUTS.filter((entry) => entry.area === area).map((entry) => entry.id)),
@@ -45,6 +45,18 @@ describe("AJ-E1504 the ? sheet", () => {
       for (const keys of entry.keys) expect(row.textContent).toContain(keys);
     }
     for (const area of SHORTCUT_AREAS) expect(screen.getByRole("heading", { name: area })).toBeTruthy();
+  });
+
+  it("leaves Fleet's keys out while Fleet doesn't show (the 0.2 walk, F18; D-49), and names each key once per place", () => {
+    render(<ShortcutSheet onClose={() => {}} />);
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
+    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("go-fleet");
+    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("remote-back");
+    expect(rows.some((row) => /Fleet/.test(row.textContent ?? ""))).toBe(false);
+    expect(rows).toHaveLength(SHORTCUTS.filter((entry) => !("fleet" in entry)).length);
+    // ⌘0 twice: Home, and the terminal's text size, which says where.
+    const zero = SHORTCUTS.filter((entry) => (entry.keys as readonly string[]).includes("⌘0"));
+    expect(zero.map((entry) => entry.label)).toEqual(["Home", "Terminal text as set (in the terminal)"]);
   });
 
   it("every area has a shortcut, every id is unique, and only a natively handled key has no match", () => {

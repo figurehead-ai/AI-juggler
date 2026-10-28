@@ -2,10 +2,11 @@
  * AJ-E1504 — `?` (outside a text field) opens every shortcut, by area.
  * It is rendered from the registry in `lib/shortcuts.ts`, the same list
  * the keys are matched against, so it can't drift from what they do.
+ * Fleet's keys show once Fleet does (the 0.2 walk, F18).
  */
 import type { JSX } from "react";
 import { Modal } from "./form";
-import { SHORTCUT_AREAS, SHORTCUTS } from "../lib/shortcuts";
+import { SHORTCUT_AREAS, SHORTCUTS, type Shortcut } from "../lib/shortcuts";
 
 /** One key, as a key cap (the tier tag's quiet border). */
 export function Keycap({ children }: { children: string }): JSX.Element {
@@ -14,7 +15,13 @@ export function Keycap({ children }: { children: string }): JSX.Element {
   );
 }
 
-export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element {
+/** The sheet's shortcuts: Fleet's only while Fleet shows. */
+export function shownShortcuts(fleet: boolean): readonly Shortcut[] {
+  return (SHORTCUTS as readonly Shortcut[]).filter((entry) => fleet || !entry.fleet);
+}
+
+export function ShortcutSheet({ onClose, fleet = false }: { onClose: () => void; fleet?: boolean }): JSX.Element {
+  const shown = shownShortcuts(fleet);
   return (
     <Modal
       title="Keyboard shortcuts"
@@ -30,7 +37,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
               {area}
             </h3>
             <ul className="flex flex-col">
-              {SHORTCUTS.filter((entry) => entry.area === area).map((entry) => (
+              {shown.filter((entry) => entry.area === area).map((entry) => (
                 <li
                   key={entry.id}
                   data-shortcut={entry.id}

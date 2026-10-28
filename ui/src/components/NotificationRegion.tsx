@@ -34,7 +34,8 @@ import {
   type UpdateStatusInfo,
 } from "../lib/bridge";
 import { Banner } from "./Banner";
-import { ChannelChip, updateErrorText } from "./UpdatesCard";
+import { updateErrorText } from "./UpdatesCard";
+import { ChannelChip } from "./ChannelChip";
 import { alertWords, keptNotices, machineAlertsTake, ThisMacContext, type MachineNotice } from "../lib/machine";
 import { machineNotices, publishMachineNotices, subscribeMachineNotices } from "../lib/machine-notices";
 import { usePagedList } from "../lib/paged";

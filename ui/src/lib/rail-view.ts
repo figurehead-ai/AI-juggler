@@ -38,9 +38,18 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   quiet: "Quiet ones",
   ended: "Ended today",
   background: "Background runs",
-  subagents: "Sub-agents",
+  subagents: "Subagents",
   otherMacs: "Other Macs",
   archived: "Archived",
+};
+
+/** What each one is, beside it (the 0.2 walk, F18: "Quiet ones" and
+ * "Inactive" said nothing of the difference). */
+export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
+  inactive: "in an app's list, not running",
+  quiet: "idle rows a place folds away",
+  background: "headless runs, from scripts",
+  subagents: "how many each session runs",
 };
 
 const KEY = "aij.rail.view.v1";

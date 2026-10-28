@@ -129,6 +129,8 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
   }, [open]);
   if (rows.length === 0) return null;
   const words = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
+  // What it holds, in words (the 0.2 walk, F18: a bare "+2").
+  const names = rows.map(([label], index) => (index === 0 ? label : label.toLowerCase())).join(" and ");
   return (
     <>
       <button
@@ -136,7 +138,6 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
         type="button"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
-        aria-label={`+${rows.length} more: its ${rows.map(([label]) => label.toLowerCase()).join(" and ")}`}
         title={words}
         onClick={() => {
           const rect = button.current?.getBoundingClientRect();
@@ -146,9 +147,10 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
         data-testid="session-more-chips"
         className="inline-flex h-6 shrink-0 items-center rounded-full border border-hairline bg-surface-2 px-2 text-meta leading-5 text-ink outline-none transition-colors hover:bg-surface-3 focus-visible:ring-1 focus-visible:ring-accent/60 @[60rem]:hidden"
       >
-        {/* "+2": how many more, unlike the page's own ⋯ menu beside it; its
-            name starts with the same words (WCAG 2.5.3). */}
-        <span className="tabular-nums">+{rows.length}</span>
+        {/* Its name is its words ("Account and folder"), unlike the page's
+            own ⋯ menu beside it. */}
+        <span>{names}</span>
+        <span aria-hidden="true" className="ml-1 text-muted">▾</span>
       </button>
       {open &&
         place &&
@@ -177,7 +179,9 @@ function MoreChips({ rows }: { rows: [string, string, boolean][] }): JSX.Element
 
 /** The header's chips, on one line at any width: its state, where it
  * runs and its profile always; its account and folder too where the
- * header has room (60 rem), else behind "+2" (and in Where it runs). */
+ * header has room (60 rem), else behind one chip that names them
+ * ("Account and folder"; and in Where it runs). Where it runs gives way
+ * before the profile's name does. */
 export function SessionChips({ model, account, now }: { model: SessionModel; account: SubscriptionInfo | undefined; now: number }): JSX.Element {
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
   const line = account ? accountLine(account) : null;
@@ -194,7 +198,7 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
         {model.state.words}
         {model.state.asks || model.state.tone === "accent" ? since : ""}
       </HeadChip>
-      <HeadChip testId="session-where-chip" title={where} className="shrink">
+      <HeadChip testId="session-where-chip" title={where} className="shrink-[3]">
         <span className="truncate">{where}</span>
       </HeadChip>
       <span

@@ -9,6 +9,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UpdatesCard } from "./UpdatesCard";
+import { channelLabel, shownChannel } from "./ChannelChip";
 import { NotificationRegion } from "./NotificationRegion";
 import type { UpdateStatusInfo } from "../lib/bridge";
 
@@ -48,10 +49,21 @@ describe("AJ-E1010 updates", () => {
     w().__AIJ_UPDATE_STATUS__ = { ...base, configured: false };
     const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='update-unconfigured']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='beta-label']")!.textContent).toBe("Beta");
+    expect(container.querySelector("[data-testid='channel-label']")!.textContent).toBe("Beta");
     expect(container.querySelector("[data-testid='update-version']")!.textContent).toContain("0.1.0");
     expect(container.querySelector("[data-testid='update-check']")).toBeNull();
     expect(calls()).toEqual([]);
+  });
+
+  it("About names what this build is on, as your menu does: Nightly, Dev, or the channel (the 0.2 walk, F18)", async () => {
+    w().__AIJ_UPDATE_STATUS__ = { ...base, edition: "nightly", channel: "nightly", channels: [] };
+    const nightly = render(<UpdatesCard />);
+    await waitFor(() => expect(nightly.container.querySelector("[data-testid='channel-label']")!.textContent).toBe("Nightly"));
+    nightly.unmount();
+    w().__AIJ_UPDATE_STATUS__ = { ...base, channel: "stable" };
+    const stable = render(<UpdatesCard />);
+    await waitFor(() => expect(stable.container.querySelector("[data-testid='channel-label']")!.textContent).toBe("Stable"));
+    expect(channelLabel(shownChannel({ edition: "dev", channel: "stable" }))).toBe("Dev");
   });
 
   it("a check shows the version and changes; install is the user's click", async () => {

@@ -45,6 +45,9 @@ export interface Shortcut {
   /** Who handles it: App's one listener, Home, the inspector, the
    * terminal, each sheet, a session's row, or the system-wide hotkey. */
   owner: "app" | "home" | "inspector" | "terminal" | "sheets" | "rows" | "system";
+  /** Only while Fleet shows (another computer paired): the sheet leaves
+   * it out otherwise (the 0.2 walk, F18; D-49). */
+  fleet?: true;
 }
 
 /** ⌘ (or Ctrl) + `key`, with exactly these other modifiers. */
@@ -124,7 +127,7 @@ export const SHORTCUTS = [
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
   { id: "go-accounts", owner: "app", area: "Screens", keys: ["⌘⇧A"], label: "Accounts", match: cmd("a", { shift: true }) },
   { id: "go-usage", owner: "app", area: "Screens", keys: ["⌘⇧U"], label: "Usage", match: cmd("u", { shift: true }) },
-  { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }) },
+  { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }), fleet: true },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
   { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
@@ -139,14 +142,14 @@ export const SHORTCUTS = [
     label: "Inspector tabs",
     match: cmdDigit([1, 2, 3, 4, 5, 6], { alt: true }),
   },
-  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another Mac's session)", match: cmd("[") },
+  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another computer's session)", match: cmd("["), fleet: true },
   { id: "leave-terminal", owner: "terminal", area: "Session", keys: ["⌃Tab", "⌃⇧Tab"], label: "Leave the terminal" },
   // AJ-E1506: the terminal's own tools, read while typing in it (Ctrl+Shift
   // on Windows and Linux, where plain Ctrl is the shell's).
   { id: "terminal-find", owner: "terminal", area: "Session", keys: ["⌘F"], label: "Find in the terminal", match: terminalTool((e) => e.code === "KeyF") },
   { id: "terminal-larger", owner: "terminal", area: "Session", keys: ["⌘+"], label: "Larger terminal text", match: terminalTool((e) => e.code === "Equal" || e.code === "NumpadAdd") },
   { id: "terminal-smaller", owner: "terminal", area: "Session", keys: ["⌘−"], label: "Smaller terminal text", match: terminalTool((e) => e.code === "Minus" || e.code === "NumpadSubtract") },
-  { id: "terminal-reset", owner: "terminal", area: "Session", keys: ["⌘0"], label: "Terminal text as set", match: terminalTool((e) => e.code === "Digit0" || e.code === "Numpad0") },
+  { id: "terminal-reset", owner: "terminal", area: "Session", keys: ["⌘0"], label: "Terminal text as set (in the terminal)", match: terminalTool((e) => e.code === "Digit0" || e.code === "Numpad0") },
   { id: "terminal-maximize", owner: "terminal", area: "Session", keys: ["⌘↩"], label: "Fill the window with the terminal, or put it back", match: terminalTool((e) => e.key === "Enter") },
   // Home
   {

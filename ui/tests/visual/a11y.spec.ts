@@ -2148,7 +2148,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
       await goTo(page, "Settings");
-      await expect(page.getByTestId("beta-label")).toBeVisible();
+      await expect(page.getByTestId("channel-label")).toBeVisible();
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
         // Cancel returns to the choice.

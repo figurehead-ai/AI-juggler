@@ -17,7 +17,8 @@
  *   even if the toast never renders.
  * - Toasts are announced through one polite live region that is always
  *   in the page, and never take focus from anything (Req.5). `focusWhenFree`
- *   only lands on Undo when focus would otherwise fall to the page body.
+ *   only lands on Undo when focus would otherwise fall to the page body
+ *   (or rests on the page itself, `<main>`).
  */
 import { errorText } from "../lib/bridge";
 

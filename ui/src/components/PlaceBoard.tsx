@@ -32,6 +32,7 @@ import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
+import { moveLine, onLine, roveKey } from "../lib/roving";
 import { accountName, useSubscriptions } from "../lib/subscriptions";
 import { railPoolOf, usePools } from "../lib/pools";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
@@ -227,26 +228,27 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     shown?.querySelector("button")?.focus({ preventScroll: true });
   }, [reveal, lines]);
 
-  // ↑ and ↓ move through rows and place headers; past the drawn ones, the
-  // list scrolls a row and moves on.
+  // ↑ and ↓ move through the lines (lib/roving: rows, place headers, the
+  // Also line); past the drawn ones, the list scrolls a row and moves on.
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (arrange.onKey(event)) return;
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    if (event.altKey || event.metaKey || event.ctrlKey) return;
-    const targets = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-rail-item], [data-rail-nav]") ?? []);
-    const at = targets.indexOf(document.activeElement as HTMLElement);
-    if (at < 0) return;
+    // The rail's list moved it already (lib/roving, on the list around).
+    if (event.defaultPrevented) return;
+    const box = root.current;
+    if (!box || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+    if (roveKey(box, event)) {
+      event.preventDefault();
+      return;
+    }
+    // At the first or last line drawn of a long list: it scrolls a row,
+    // and on (a short list's end is the rail's to pass, lib/roving).
+    if (!win || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey || !scroll.box || !onLine(box, event.target)) return;
     event.preventDefault();
     const step = event.key === "ArrowDown" ? 1 : -1;
-    const next = targets[at + step];
-    if (next) next.focus();
-    else if (scroll.box) {
-      scroll.box.scrollTop += step * heights.row;
-      requestAnimationFrame(() => {
-        const again = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-rail-item], [data-rail-nav]") ?? []);
-        again[step > 0 ? again.length - 1 : 0]?.focus();
-      });
-    }
+    scroll.box.scrollTop += step * heights.row;
+    requestAnimationFrame(() => {
+      if (root.current) moveLine(root.current, step > 0 ? "last" : "first");
+    });
   };
 
   const draw = (line: Line): ReactNode => {
@@ -340,7 +342,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     >
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
-        <div key={keyOf(line, index)} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
+        <div key={keyOf(line, index)} data-rail-line style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
           {draw(line)}
         </div>
       ))}

@@ -1,6 +1,6 @@
 /**
  * AJ-E1010 — Settings › General › About & updates. The version and the
- * Beta label are always shown. Updates are announced, never installed
+ * channel's label (Beta on the beta channel; Req.3) are always shown. Updates are announced, never installed
  * silently: a check shows the new version and what changed, and nothing
  * happens until Install. Install writes a backup first (the way back),
  * then downloads, verifies the signature and installs. A failure leaves
@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
 import { CardTitle } from "./CardTitle";
+import { ChannelChip, shownChannel } from "./ChannelChip";
 import {
   errorText,
   goingBackOptions,
@@ -54,24 +55,6 @@ const EDITION_NOTE: Record<string, string> = {
     "AI Juggler Dev is built from source on this computer: it doesn't update itself and never checks. " +
     "It has its own data, separate from AI Juggler.",
 };
-
-/** The channel's name as the update prompt shows it (D-04/D-11: the
- * beta channel is always labelled "Beta"). */
-export function channelLabel(channel: string): string {
-  return channel === "stable" ? "Stable" : channel === "nightly" ? "Nightly" : "Beta";
-}
-
-/** The channel chip: the same look in About and in every update prompt. */
-export function ChannelChip({ channel, testId }: { channel: string; testId?: string }): JSX.Element {
-  return (
-    <span
-      className="rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-label font-medium text-ink"
-      data-testid={testId}
-    >
-      {channelLabel(channel)}
-    </span>
-  );
-}
 
 /** A failure's headline, by kind (the sentence under it says why). */
 const FAILED_TITLE: Record<string, string> = {
@@ -252,7 +235,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
         <CardTitle ref={heading} tabIndex={-1} id="settings-updates-title" className="scroll-mt-4 outline-none">
           About &amp; updates
         </CardTitle>
-        <ChannelChip channel="beta" testId="beta-label" />
+        <ChannelChip channel={shownChannel(status)} testId="channel-label" />
       </div>
       <p className="text-label text-ink" data-testid="update-version">
         {status.app_name} {status.current_version} ·{" "}
