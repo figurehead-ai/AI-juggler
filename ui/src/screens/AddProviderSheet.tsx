@@ -140,7 +140,7 @@ export function AddProviderSheet({
                           what it was tested with are in the tool's own view. */}
                       {desktop && <Chip tone="accent">Desktop</Chip>}
                       <span className="text-label text-muted" data-testid="provider-state">
-                        {(row.status === "installed" || row.status === "unverified") && "Installed"}
+                        {(row.status === "installed" || row.status === "unverified" || row.status === "found") && "Installed"}
                         {row.status === "not_installed" && "Not installed"}
                         {versionUnchecked(row) && FOUND_UNCHECKED}
                         {row.status === "probe_failed" && !row.binary && "Couldn't check"}

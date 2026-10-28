@@ -14094,7 +14094,9 @@ pub struct ProviderInstallInfo {
     pub display_name: String,
     /// Vendor install page.
     pub install_url: String,
-    /// `installed` | `not_installed` | `unverified` | `probe_failed`.
+    /// `installed` | `not_installed` | `unverified` | `probe_failed` |
+    /// `found` (found from its files, its version not asked: this run
+    /// starts no tool, the read-only test bridge).
     pub status: String,
     /// The reported version, when a binary was found.
     pub version: Option<String>,
@@ -14280,7 +14282,7 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                                     binary: None,
                                     notes: Vec::new(),
                                 },
-                                |adapter| adapter.discover(),
+                                |adapter| crate::features::tools::discover(state, adapter.as_ref()),
                             )
                         })
                     })
@@ -14307,6 +14309,8 @@ fn providers_discover_rows(state: &Arc<AppState>) -> Vec<ProviderInstallInfo> {
                         )
                     }
                     juggler_adapter::discovery::InstallStatus::NotFound => ("not_installed", None),
+                    // F19: found from its files; this run starts no tool.
+                    juggler_adapter::discovery::InstallStatus::NotAsked => ("found", None),
                     juggler_adapter::discovery::InstallStatus::Failed { .. } => {
                         ("probe_failed", None)
                     }
@@ -14640,9 +14644,12 @@ fn scan_walk(state: &Arc<AppState>) -> ScanWalk {
                         installs = adapter.scan_environment();
                         aliases = adapter.scan_shell_aliases();
                         manager_hints = adapter.scan_managers();
-                        let report = adapter.discover();
+                        let report = crate::features::tools::discover(state, adapter.as_ref());
                         let words = if report.is_installed() {
                             "installed"
+                        } else if matches!(report.install, juggler_adapter::InstallStatus::NotAsked)
+                        {
+                            "found; its version isn't known"
                         } else if report.is_found() {
                             "found; couldn't check its version"
                         } else {

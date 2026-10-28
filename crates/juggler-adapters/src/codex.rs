@@ -518,6 +518,11 @@ impl HarnessAdapter for CodexAdapter {
         VERIFIED_AGAINST
     }
 
+    fn locate(&self) -> Option<PathBuf> {
+        // Files only: never runs it (`discover` asks its version).
+        self.resolve_bin().filter(|bin| bin.is_file())
+    }
+
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin() else {
             return self.not_found(

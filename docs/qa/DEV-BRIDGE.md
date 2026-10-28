@@ -70,7 +70,9 @@ Then `just dev-bridge` as above.
 
 Start the Dev build Finder-like (`env -i HOME USER LOGNAME TMPDIR SHELL LANG PATH …`) so agent-shell variables such as `CLAUDE_CONFIG_DIR` don't skew what it sees.
 
-Put stand-in `claude`, `codex`, `opencode`, `grok` and `kimi` scripts first on that `PATH` (each logs its arguments and exits 1). A bridged Dev build still runs each tool's `--version` on its own within its first minute (the 0.2 walk's F19 check found it: tool discovery is reached from `switch_targets` and the Dev window's own Settings reads); with stand-ins, no real tool starts, and their log says what would have.
+Put stand-in `claude`, `codex`, `opencode`, `grok` and `kimi` scripts first on that `PATH` (each logs its arguments and exits 1) as a belt-and-braces check: their log should stay empty.
+
+A bridged Dev build runs no tool's `--version`. Once `AIJ_DEV_BRIDGE=1` asks for the bridge, every tool discovery in the app (`switch_targets`'s version warm-up for the fidelity register, the Dev window's own Settings › Accounts and tool pages, the tool-update line, usage statistics and the recommendation) goes through one seam, `features::tools::discover`, which then reads files only: where the tool's program is, never running it. The screens say **"Installed; its version isn't known (this build doesn't start tools to ask)"**, and a switch pair whose register cell needs the installed version reads "not proven yet". Before the 0.2 walk's F19 fix it ran each tool's `--version` within its first minute. `tests/discovery_starts_no_tool.rs` holds it.
 
 ### On fixtures, or next to another AI Juggler Dev
 
@@ -151,7 +153,7 @@ These commands look like reads, but each has an effect a read must not have.
 | `figurehead_status`, `pairing_host_state` | Return a live device-link or pairing code. |
 | `expert_setup_info`, `launch_recipe_env_get` | Return Launch-settings environment values, which can hold keys. |
 | `terminal_snapshot` | Returns raw terminal output. |
-| `providers_discover`, `recommendation_for`, `environment_scan_full`, `validation_matrix`, `fleet_switch_targets` | Run (or can run) vendor CLIs with `--version`. |
+| `providers_discover`, `recommendation_for`, `environment_scan_full`, `validation_matrix`, `fleet_switch_targets` | Run vendor CLIs with `--version` in a build without the bridge. Under the bridge they read files only (above), but they stay off the route table until the coordinator says otherwise. |
 | `isolation_offer`, `git_status_refresh`, `worktree_removal_preview` | Run `git`. |
 | `instance_delete_preview`, `retention_preview` | Issue one-time confirmation tokens. |
 | `alerts_tick`, `cleanup_alerts`, `parked_offers`, `usage_stats_overview`, `switch_preflight`, `cost_csv_export`, `isolation_check` | Write settings, logs, files or overlays. |

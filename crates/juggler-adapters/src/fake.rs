@@ -145,6 +145,10 @@ impl HarnessAdapter for FakeHarnessAdapter {
         &["0.1.0"]
     }
 
+    fn locate(&self) -> Option<PathBuf> {
+        Some(self.bin.clone()).filter(|bin| bin.is_file())
+    }
+
     fn discover(&self) -> DiscoveryReport {
         let adapter = self.id();
         match Command::new(&self.bin).arg("--version").output() {

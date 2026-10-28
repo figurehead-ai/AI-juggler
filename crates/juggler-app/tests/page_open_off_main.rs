@@ -276,6 +276,51 @@ fn off_main<T>(
     (blocked, result)
 }
 
+/// For a page that never touches storage (the processes graph lives in
+/// memory): its first poll may already finish, since nothing it waits on
+/// is held, so `is_pending` would race under load. What it must prove
+/// instead: the first poll returns at once, and the page completes while
+/// this thread still holds the storage lock, so it never takes it (a page
+/// that did would wait here until the bounded timeout).
+fn without_storage<T: Send>(
+    what: &str,
+    state: &Arc<AppState>,
+    future: impl Future<Output = Result<T, juggler_app::error::AppError>> + Send,
+) -> Result<T, juggler_app::error::AppError> {
+    let mut future: Pin<Box<_>> = Box::pin(future);
+    let held = state.storage.lock().unwrap();
+    let started = Instant::now();
+    let first = future
+        .as_mut()
+        .poll(&mut Context::from_waker(Waker::noop()));
+    let blocked = started.elapsed();
+    eprintln!("[perf] {what}: the calling thread is held {blocked:?} now");
+    assert!(
+        blocked < Duration::from_millis(16),
+        "{what}: held the calling thread {blocked:?}"
+    );
+    match first {
+        std::task::Poll::Ready(result) => {
+            drop(held);
+            result
+        }
+        // Finished elsewhere while storage stays held here; a page that
+        // took the lock would still be waiting when the time runs out.
+        std::task::Poll::Pending => std::thread::scope(|scope| {
+            let (tx, rx) = std::sync::mpsc::channel();
+            scope.spawn(move || {
+                let _ = tx.send(tauri::async_runtime::block_on(future));
+            });
+            let finished = rx.recv_timeout(Duration::from_secs(30));
+            // Let it go before failing, so the scope can end.
+            drop(held);
+            finished.unwrap_or_else(|_| {
+                panic!("{what}: didn't finish while storage was held: it takes the storage lock")
+            })
+        }),
+    }
+}
+
 #[test]
 fn every_page_opens_without_holding_the_main_thread() {
     let fx = fixture();
@@ -339,8 +384,9 @@ fn every_page_opens_without_holding_the_main_thread() {
         "the whole transcript was read: {}",
         quality.error_label
     );
-    // AJ-E2407: a session's Processes tab reads the one graph.
-    let _ = off_main(
+    // AJ-E2407: a session's Processes tab reads the one graph, in memory:
+    // it never takes the storage lock (and may finish in its first poll).
+    let _ = without_storage(
         "processes_page",
         state,
         juggler_app::features::processes::commands::processes_page(

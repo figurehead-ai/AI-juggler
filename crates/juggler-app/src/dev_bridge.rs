@@ -154,6 +154,15 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         eprintln!("ai-juggler: dev bridge: Dev edition only; not started");
         return;
     }
+    // The bridge starts no vendor program (DEV-BRIDGE.md): from here on,
+    // what's installed is read from files only, the version not asked
+    // (the 0.2 walk, F19: `switch_targets` and Settings ran `--version`).
+    {
+        use tauri::Manager as _;
+        app.state::<Arc<crate::state::AppState>>()
+            .tool_programs
+            .stop();
+    }
     let origin = match std::env::var(ENV_ORIGIN) {
         Ok(origin) => origin,
         Err(_) => DEFAULT_ORIGIN.to_string(),

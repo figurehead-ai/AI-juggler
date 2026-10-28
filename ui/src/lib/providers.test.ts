@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace } from "./providers";
+import { inPlaceProviders, installWords, ownSignIn, providerDisplayName, sameAsWords, supportsInPlace, toolFound, versionNotAsked } from "./providers";
 
 describe("providers — copy helpers", () => {
   it("names tools by id, unknown ones as themselves", () => {
@@ -28,5 +28,14 @@ describe("providers — copy helpers", () => {
     expect(sameAsWords(["claude-code"])).toBe("as your Claude app");
     expect(sameAsWords(["codex", "codex"])).toBe("as when you run Codex yourself");
     expect(sameAsWords(["claude-code", "codex"])).toBe("as wherever you use them now");
+  });
+
+  it("F19: a tool found from its files, its version not asked, is installed with its version not known", () => {
+    const row = { provider: "codex", display_name: "Codex", install_url: "", status: "found", version: null, binary: "/usr/local/bin/codex", notes: [], verified_against: [], kind: "terminal" };
+    expect(toolFound(row)).toBe(true);
+    expect(versionNotAsked(row)).toBe(true);
+    const words = installWords(row as never);
+    expect(words).toContain("version isn't known");
+    expect(words).not.toMatch(/couldn't check|not installed/i);
   });
 });

@@ -33,7 +33,7 @@
 import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionUnchecked, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, versionNotAsked, versionUnchecked, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
@@ -87,6 +87,7 @@ export function groupsFor(tools: string[]): Group[] {
 /** A group's tool, in its header: its version, or — found but its
  * version couldn't be read (0.0.11) — that, never "not installed". */
 function cliWords(name: string, row: ProviderInstallData): string {
+  if (versionNotAsked(row)) return `${name} installed; its version isn't known`;
   return versionUnchecked(row) ? `${name} found; couldn't check its version` : `${name} ${row.version ?? ""} installed`;
 }
 

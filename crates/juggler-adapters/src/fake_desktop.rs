@@ -70,6 +70,10 @@ impl HarnessAdapter for FakeDesktopAdapter {
         &["0.1.0"]
     }
 
+    fn locate(&self) -> Option<PathBuf> {
+        self.bin.exists().then(|| self.bin.clone())
+    }
+
     fn discover(&self) -> DiscoveryReport {
         let installed = self.bin.exists();
         DiscoveryReport {

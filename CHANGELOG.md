@@ -374,6 +374,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   computer's setups, used where they are, named "Account A–Z", with
   Claude Code's limits check off, starting no tool
   (`docs/qa/DEV-BRIDGE.md`).
+- For testers (the 0.2 walk, F19): a Dev build started with the read-only
+  test bridge no longer runs any tool's `--version` (the switch's targets,
+  Settings › Accounts and a tool's page used to). What's installed is read
+  from the tool's files only, and the screens say "Installed; its version
+  isn't known (this build doesn't start tools to ask)" instead of "Couldn't
+  check" or "Not installed".
+- A test that opening the Processes tab never holds the window's thread
+  could fail on a busy computer (it read only memory and could finish
+  before it was first checked); it now checks that the tab answers at once
+  and never waits on AI Juggler's storage, and keeps the stricter check
+  for the pages that read storage.
 - An OpenCode, Grok Build or Kimi Code session started in AI Juggler
   shows once in the list (0.2): AI Juggler now tells which conversation
   the session started (from the tool's own records, or the process it

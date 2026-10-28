@@ -47,6 +47,15 @@ pub trait HarnessAdapter: Send + Sync {
     #[must_use]
     fn discover(&self) -> DiscoveryReport;
 
+    /// Where the harness's program is, found from files alone: never run,
+    /// never asked its version (the read-only test bridge's builds start no
+    /// tool; `DiscoveryReport::located` makes the report). `None`: not
+    /// found, or this adapter can't tell without running something.
+    #[must_use]
+    fn locate(&self) -> Option<PathBuf> {
+        None
+    }
+
     /// Prepares (idempotently) an isolated account state directory and
     /// returns the environment overlay that points the harness at it.
     ///

@@ -3676,7 +3676,8 @@ export interface ProviderInstallData {
   provider: string;
   display_name: string;
   install_url: string;
-  /** installed | not_installed | unverified | probe_failed */
+  /** installed | not_installed | unverified | probe_failed | found
+   * (found from its files, its version not asked: the bridge) */
   status: string;
   version?: string | null;
   binary?: string | null;
