@@ -64,3 +64,12 @@ export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "usage", label: "Usage" },
   { id: "history", label: "History" },
 ];
+
+/**
+ * A screen opened from a menu, a notice or the palette puts the keyboard
+ * on that screen's page (§2.5): the app's `<main>` takes focus once the
+ * screen has rendered and the menu that opened it has given focus back.
+ */
+export function focusPageSoon(): void {
+  requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true })));
+}

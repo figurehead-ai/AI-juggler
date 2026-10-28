@@ -23,7 +23,7 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
+import { GLOBAL_NAV, PRIMARY_NAV, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
 import { IconJuggler } from "./components/icons";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
@@ -340,7 +340,7 @@ export default function App() {
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
-    const openScreen = (event: Event) => setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current);
+    const openScreen = (event: Event) => { setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current); focusPageSoon(); };
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
     const shortcuts = () => setShortcutsOpen(true);
