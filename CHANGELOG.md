@@ -387,7 +387,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   makes it the pick.
 - Continue on another account is on the row menu (and ⌘K) of a session
   another app runs too, with ⌘⇧H; ⌘⇧H takes the switch list of whatever
-  session's page is open, and says why when none is (the 0.2 walk, F8).
+  session's page is open (the Suggested target gets the keyboard, once the
+  list has loaded), and says why when none is (the 0.2 walk, F8). Each
+  step of the switch puts the keyboard on its heading, not on ×, where ⏎
+  closed it.
 - An account's out-of-room banner and Home's row continue its open session
   on another account (AI Juggler's or another app's, the newest) instead
   of opening the account's page; with no session open the button says
