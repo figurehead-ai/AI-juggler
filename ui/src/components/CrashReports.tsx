@@ -48,11 +48,11 @@ export function CrashReportsSetting(): JSX.Element | null {
       <p className="text-label text-muted">
         {info.reason
           ? `${info.reason}.`
-          : "Separate from usage statistics. A report is scrubbed on this Mac first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
+          : "Separate from usage statistics. A report is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
       </p>
       {!info.can_send && info.effective !== "never" && (
         <p className="text-label text-muted" data-testid="crash-cannot-send">
-          This build can't send crash reports yet{info.queued > 0 ? ` — ${info.queued} kept on this Mac until one can` : ""}.
+          This build can't send crash reports yet{info.queued > 0 ? ` — ${info.queued} kept on this computer until one can` : ""}.
         </p>
       )}
       {error && (
@@ -93,9 +93,9 @@ export function CrashReportPrompt(): JSX.Element | null {
           AI Juggler quit unexpectedly. Send a crash report?
         </h2>
         <p className="text-label leading-relaxed text-muted">
-          This is the whole report, exactly as it would be sent. It was scrubbed on this Mac: no home folder, user name,
+          This is the whole report, exactly as it would be sent. It was scrubbed on this computer: no home folder, user name,
           links or keys.
-          {!info.can_send && " This build can't send it yet, so Send keeps it on this Mac until one can."}
+          {!info.can_send && " This build can't send it yet, so Send keeps it on this computer until one can."}
         </p>
         <pre
           className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-label text-ink"

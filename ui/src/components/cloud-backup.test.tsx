@@ -53,7 +53,7 @@ describe("AJ-E1205 Cloud backup", () => {
     };
     const { container } = render(<CloudBackupPanel />);
     await waitFor(() => expect(container.querySelector("[data-testid='cloud-backup-last']")!.textContent).toContain("larger than your plan allows"));
-    expect(container.querySelector("[data-testid='cloud-backup-last']")!.textContent).toContain("Nothing on this Mac was changed");
+    expect(container.querySelector("[data-testid='cloud-backup-last']")!.textContent).toContain("Nothing on this computer was changed");
   });
 
   it("restore on a new Mac asks for the code, then hands the plan to the restore dialog", async () => {

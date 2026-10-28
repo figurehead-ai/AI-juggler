@@ -19,7 +19,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="reads"
         title="What AI Juggler reads"
-        footer="All of it on this Mac. Every line below names the tests that check it."
+        footer="All of it on this computer. Every line below names the tests that check it."
       >
         <SettingRow
           title="To know what's open"
@@ -40,7 +40,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="stats"
         title="Usage statistics, crash reports and search"
-        footer="Usage statistics are off until you choose. Crash reports stay on this Mac."
+        footer="Usage statistics are off until you choose. Crash reports stay on this computer."
         card
       >
         <PrivacyCard />

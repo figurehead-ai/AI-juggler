@@ -224,7 +224,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
 
   it("every tab's footer names where its numbers come from", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    expect(container.querySelector("section:not([hidden]) footer")?.textContent).toContain("from this Mac's process monitor");
+    expect(container.querySelector("section:not([hidden]) footer")?.textContent).toContain("from this computer's process monitor");
     fireEvent.click(container.querySelector("#page-tab-usage")!);
     expect(container.querySelector("section:not([hidden]) footer")?.textContent).toContain("from usage tracking");
   });

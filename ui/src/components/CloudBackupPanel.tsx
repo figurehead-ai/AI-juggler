@@ -91,11 +91,11 @@ export function CloudBackupPanel(): JSX.Element | null {
       </h4>
       <p className="text-ink" aria-live="polite" data-testid="cloud-backup-last">
         {busy === "uploading"
-          ? "Backing up… (encrypting on this Mac, then uploading)"
+          ? "Backing up… (encrypting on this computer, then uploading)"
           : last
             ? last.ok
               ? `✓ Last backup ${ago(last.at_ms)}${last.size_bytes ? ` · ${byteSize(last.size_bytes)}` : ""}`
-              : `⚠ The last backup didn't finish (${ago(last.at_ms)}): ${last.error ?? "unknown reason"}. Nothing on this Mac was changed.`
+              : `⚠ The last backup didn't finish (${ago(last.at_ms)}): ${last.error ?? "unknown reason"}. Nothing on this computer was changed.`
             : "No backup yet."}
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -150,7 +150,7 @@ export function CloudBackupPanel(): JSX.Element | null {
             <>
               {needsCode && (
                 <label className="flex flex-col gap-1 text-ink">
-                  This Mac doesn't have your vault key yet — enter your recovery code
+                  This computer doesn't have your vault key yet — enter your recovery code
                   <input
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
@@ -169,7 +169,7 @@ export function CloudBackupPanel(): JSX.Element | null {
                       {new Date(row.created_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                       <span className="text-muted">
                         {" "}
-                        · {byteSize(row.size_bytes)} · {row.this_mac ? "this Mac" : (row.label ?? "another Mac")}
+                        · {byteSize(row.size_bytes)} · {row.this_mac ? "this computer" : (row.label ?? "another computer")}
                       </span>
                     </span>
                     <button

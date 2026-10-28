@@ -137,7 +137,7 @@ describe("Settings — Account & Cloud", () => {
       state: "signed_out",
       email: null,
       features: [],
-      notice: "This Mac was unlinked from Figurehead.",
+      notice: "This computer was unlinked from Figurehead.",
     };
     const view = render(<SettingsScreen focusCloud />);
     const notice = await view.findByTestId("cloud-notice");

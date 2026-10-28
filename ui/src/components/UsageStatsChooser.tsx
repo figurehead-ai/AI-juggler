@@ -18,7 +18,7 @@ export const USAGE_STATS_OPTIONS: { value: UsageStatsMode; title: string; conseq
   },
   {
     value: "local",
-    title: "Keep stats on this Mac only",
+    title: "Keep stats on this computer only",
     consequence: "Count locally so you can see them. Nothing is sent.",
   },
   {

@@ -238,7 +238,7 @@ describe("AJ-E1010 updates", () => {
     await waitFor(() => expect(container.querySelector("[data-testid='update-edition-note']")).not.toBeNull());
     expect(container.querySelector("[data-testid='update-edition-note']")!.textContent).toContain("doesn't update itself");
     expect(container.querySelector("[data-testid='update-version']")!.textContent).toBe(
-      "AI Juggler Dev 0.1.0 · built on this Mac",
+      "AI Juggler Dev 0.1.0 · built on this computer",
     );
     expect(container.querySelector("[data-testid='update-unconfigured']")).toBeNull();
     expect(container.querySelector("[data-testid='update-channel']")).toBeNull();

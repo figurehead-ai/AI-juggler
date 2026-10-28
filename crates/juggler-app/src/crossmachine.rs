@@ -244,7 +244,7 @@ pub(crate) fn assess(
     }
     if view.permission.as_deref() != Some("control") {
         unavailable.push(format!(
-            "{machine_label} lets this Mac view only — switching needs View + control (change it on {machine_label})."
+            "{machine_label} lets this computer view only — switching needs View + control (change it on {machine_label})."
         ));
     }
     let versions: Vec<(String, String)> = catalog
@@ -342,7 +342,7 @@ fn readiness_of(
     match (source.version, version_there) {
         (_, None) => blockers.push(format!("{tool} isn't installed on {machine_label}.")),
         (None, Some(_)) => blockers.push(format!(
-            "This Mac's {tool} version couldn't be read — moving the same conversation needs both to match."
+            "This computer's {tool} version couldn't be read — moving the same conversation needs both to match."
         )),
         (Some(here), Some(there)) if here != there => blockers.push(format!(
             "{tool} {here} here, {there} on {machine_label} — moving the same conversation needs the same version."

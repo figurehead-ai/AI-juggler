@@ -156,7 +156,7 @@ describe("AJ-E703 connection states", () => {
   it("each state reads as words and a shape, never colour alone", async () => {
     w().__AIJ_FLEET_PEERS__ = [
       { ...PEER, machine_id: "a", label: "A", connection: "connected", protocol: "v1.0" },
-      { ...PEER, machine_id: "b", label: "B", connection: "degraded", protocol: "v1.1", connection_detail: "Peer v1.1, this Mac v1.0 — telemetry only until both are updated" },
+      { ...PEER, machine_id: "b", label: "B", connection: "degraded", protocol: "v1.1", connection_detail: "Peer v1.1, this computer v1.0 — telemetry only until both are updated" },
       { ...PEER, machine_id: "c", label: "C", connection: "offline", last_seen_ms: 1_700_000_000_000 },
       { ...PEER, machine_id: "d", label: "D" },
     ];

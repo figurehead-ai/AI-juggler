@@ -50,8 +50,8 @@ export function UsageScreen({
           <h2 className="text-title text-ink">Usage</h2>
           <p className="mt-1 max-w-[70ch] text-meta text-muted">
             {profiles === 0
-              ? "What your sessions use, measured on this Mac."
-              : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this Mac from each session's own files.`}
+              ? "What your sessions use, measured on this computer."
+              : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this computer from each session's own files.`}
           </p>
         </div>
         {profiles > 0 && (

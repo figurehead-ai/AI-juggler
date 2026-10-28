@@ -1343,7 +1343,7 @@ pub fn category(metric: &str, gauge: bool) -> &'static str {
 #[must_use]
 pub fn reason_words(reason: &str) -> String {
     match reason {
-        "local" => "Counted while stats stayed on this Mac — never sent".to_owned(),
+        "local" => "Counted while stats stayed on this computer — never sent".to_owned(),
         "partial_consent" => "Sharing didn't cover the whole week — never sent".to_owned(),
         "expired" => "Too old to send".to_owned(),
         "not_sampled" => "Not picked this week (sampling) — never sent".to_owned(),
@@ -1353,7 +1353,9 @@ pub fn reason_words(reason: &str) -> String {
         "mode_changed" => "You stopped sharing before it was sent".to_owned(),
         "gave_up" => "Couldn't send it in time".to_owned(),
         "invalid" => "It didn't pass the checks — never sent".to_owned(),
-        "unlinked" => "This Mac is no longer linked, so stats sync is off — never sent".to_owned(),
+        "unlinked" => {
+            "This computer is no longer linked, so stats sync is off — never sent".to_owned()
+        }
         other => other.strip_prefix("rejected:").map_or_else(
             || "Not sent".to_owned(),
             |status| format!("Figurehead refused it ({status})"),
@@ -1444,7 +1446,7 @@ pub fn usage_stats_overview_impl(state: &Arc<AppState>) -> AppResult<UsageStatsO
             email,
             notice: juggler_stats::cycle::sync_notice(&dir)
                 .map_err(io)?
-                .map(|_| "This Mac is no longer linked, so stats sync is off.".to_owned()),
+                .map(|_| "This computer is no longer linked, so stats sync is off.".to_owned()),
         };
         Ok(UsageStatsOverview {
             info,
@@ -1603,7 +1605,7 @@ pub fn usage_stats_set_impl(state: &Arc<AppState>, mode: &str) -> AppResult<Usag
         #[cfg(feature = "stats")]
         enabled::apply(state, &juggler_stats::Environment::from_process())?;
         if mode == "local" {
-            "Usage stats are counted on this Mac only.".to_owned()
+            "Usage stats are counted on this computer only.".to_owned()
         } else {
             "Usage stats are on. One small report a week will be sent.".to_owned()
         }
@@ -2291,7 +2293,7 @@ mod tests {
         assert_eq!(report.status, "skipped");
         assert_eq!(
             report.reason.as_deref(),
-            Some("Counted while stats stayed on this Mac — never sent")
+            Some("Counted while stats stayed on this computer — never sent")
         );
         let json = usage_stats_report_impl(&state, "skipped", &last).unwrap();
         assert!(json.starts_with(r#"{"schema":1"#));

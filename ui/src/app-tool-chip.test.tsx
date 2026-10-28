@@ -50,5 +50,5 @@ it("Enter on About Claude Code opens Settings › Accounts at its tools, with fo
   expect(view.queryByRole("button", { name: "About Claude Code" })).toBeNull();
   // The opener went away: focus lands on the section, never on <body>.
   await waitFor(() => expect(document.activeElement?.id).toBe("settings-tools-title"));
-  expect(document.activeElement?.textContent).toBe("Tools on this Mac");
+  expect(document.activeElement?.textContent).toBe("Tools on this computer");
 });

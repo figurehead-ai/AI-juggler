@@ -44,7 +44,7 @@ export function otherRows(source: PreviewMac, input: ProcessQueryInput, find: Fi
     session_key: null,
   });
   return [
-    other("a:other", "Other apps on this Mac", "other", sum((p) => p.processes), sum((p) => p.rss_bytes)),
+    other("a:other", "Other apps on this computer", "other", sum((p) => p.processes), sum((p) => p.rss_bytes)),
     ...[...kept].sort((a, b) => b.rss_bytes - a.rss_bytes).map((program) => other(`o:${program.name}`, program.name, "program", program.processes, program.rss_bytes)),
   ];
 }

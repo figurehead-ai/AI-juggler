@@ -55,8 +55,8 @@ function stateLine(overview: UsageStatsOverview): string {
   if (!info.included) return "This build doesn't include usage statistics.";
   if (info.reason) return `${info.reason}.`;
   if (info.effective === "share") return "Sharing: one small report a week. You can read each one here before it goes.";
-  if (info.effective === "local") return "Counting on this Mac only. Nothing is sent.";
-  return "Off. Nothing is counted, and there is nothing on this Mac.";
+  if (info.effective === "local") return "Counting on this computer only. Nothing is sent.";
+  return "Off. Nothing is counted, and there is nothing on this computer.";
 }
 
 export function PrivacyCard(): JSX.Element {
@@ -166,7 +166,7 @@ export function PrivacyCard(): JSX.Element {
             <span className="flex flex-col gap-0.5">
               <span className="font-medium">Show my stats in my Figurehead dashboard</span>
               <span className="text-muted">
-                Links this Mac's weekly reports to your Figurehead account so you can see them at figurehead.ai. Only
+                Links this computer's weekly reports to your Figurehead account so you can see them at figurehead.ai. Only
                 you can see them, and they're deleted with your account. A synced week is never also sent anonymously.
               </span>
             </span>

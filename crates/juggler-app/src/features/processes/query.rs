@@ -253,7 +253,7 @@ fn app_row(app: &AppNode, rollup: &Rollup, sessions: u32) -> ProcessGraphRowInfo
 }
 
 /// The words of the rest of this Mac's heading.
-pub const OTHERS_NAME: &str = "Other apps on this Mac";
+pub const OTHERS_NAME: &str = "Other apps on this computer";
 /// Their owner words.
 pub const OTHERS_OWNER: &str = "Not in an AI session";
 

@@ -262,7 +262,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         // The shared skills folder is read by every Codex home on this Mac,
         // and an undo takes it away from all of them.
         (ItemKind::Skill, Detail::Files { .. }) if !from_codex => SetUp::Translate(
-            "into ~/.agents/skills, which every Codex home on this Mac reads".to_owned(),
+            "into ~/.agents/skills, which every Codex home on this computer reads".to_owned(),
         ),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
         (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { check, .. })

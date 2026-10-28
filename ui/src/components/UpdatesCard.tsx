@@ -51,7 +51,7 @@ const EDITION_NOTE: Record<string, string> = {
     "AI Juggler Nightly is built from the newest code every night and updates from the nightly channel. " +
     "It has its own data, separate from AI Juggler, so keep everyday work there.",
   dev:
-    "AI Juggler Dev is built from source on this Mac: it doesn't update itself and never checks. " +
+    "AI Juggler Dev is built from source on this computer: it doesn't update itself and never checks. " +
     "It has its own data, separate from AI Juggler.",
 };
 
@@ -256,7 +256,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
       </div>
       <p className="text-label text-ink" data-testid="update-version">
         {status.app_name} {status.current_version} ·{" "}
-        {status.edition === "dev" ? "built on this Mac" : `${status.channel} channel`}
+        {status.edition === "dev" ? "built on this computer" : `${status.channel} channel`}
       </p>
       {EDITION_NOTE[status.edition] && (
         <p className="text-label text-muted" data-testid="update-edition-note">

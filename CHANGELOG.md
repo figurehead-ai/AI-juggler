@@ -74,6 +74,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Words shared by every system say **this computer**, not "this Mac"
+  (0.2, ahead of Windows and Linux): the switch's blockers ("Studio lets
+  this computer view only", "This computer's Claude Code version couldn't
+  be read"), Fleet's refusals ("Link is off on this computer — nothing
+  was sent."), first run, Usage, Processes, backups, privacy and crash
+  reports, and Settings' "Tools on this computer". The This Mac page, My
+  Macs and Fleet's own pages keep their names.
 - A switch that didn't complete says each thing once (0.2): a short
   title, then what happened and what to do next, instead of the same
   "nothing changed" told twice; returning to the original does the same.

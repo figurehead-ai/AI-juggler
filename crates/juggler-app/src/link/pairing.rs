@@ -193,7 +193,7 @@ fn join_addresses(
             .and_then(|running| running.browser.as_ref())
             .ok_or_else(|| AppError::Validation {
                 subject: "pairing",
-                message: "This Mac can't see the local network — pair by address instead."
+                message: "This computer can't see the local network — pair by address instead."
                     .to_owned(),
             })?;
         let wanted = instance_id.unwrap_or_default();

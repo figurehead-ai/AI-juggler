@@ -95,7 +95,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
       </Row>
       <Row label="Where">
         <span className="font-mono">{info.project_root}</span> · {info.branch}
-        {!info.project_here && <span className="text-muted"> (not on this Mac: pick where to work below)</span>}
+        {!info.project_here && <span className="text-muted"> (not on this computer: pick where to work below)</span>}
       </Row>
       <Row label="Continues as">{info.fidelity}</Row>
       <Row label="Carries">{info.carries.join(", ")}</Row>
