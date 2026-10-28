@@ -277,10 +277,10 @@ fn tool_calls_row(turns: &Measured<'_>, received: &Received) -> Row {
                 measure: "Tool calls",
                 source,
                 carried: found,
-                carry: if found == source {
-                    Carry::ByDesign
-                } else {
-                    Carry::Lost
+                carry: match (source, found == source) {
+                    (0, _) => Carry::Whole,
+                    (_, true) => Carry::ByDesign,
+                    (_, false) => Carry::Lost,
                 },
                 notes: "as one line each saying what it did".to_owned(),
             }
@@ -426,10 +426,14 @@ fn rules_row(hop: &Hop) -> Row {
             "source reads {}; target reads {} itself{}",
             list(had),
             list(&hop.target.around.rules),
-            match hop.target.history {
-                Received::Handover { .. } => ", the handover names the rest",
-                Received::Return { .. } => ", the update names the rest",
-                Received::Native(_) => "",
+            match (
+                &hop.target.history,
+                had.iter()
+                    .all(|name| hop.target.around.rules.contains(name))
+            ) {
+                (_, true) | (Received::Native(_), _) => "",
+                (Received::Handover { .. }, false) => ", the handover names the rest",
+                (Received::Return { .. }, false) => ", the update names the rest",
             }
         ),
     }
