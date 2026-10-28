@@ -325,7 +325,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the session started (from the tool's own records, or the process it
   runs in) and folds it into the session's row, which carries its "+N
   agents". When more than one conversation could be the session's, it
-  links none and both rows stay as before.
+  links none and both rows stay as before. On an OpenCode or Grok Build
+  account you use where it is (shared with your own terminal), it links
+  only what the session's own process shows: those tools don't record
+  which program wrote a conversation, so a guess could take one of yours.
 - **OpenCode 2** accounts AI Juggler manages no longer collide with your
   own OpenCode or OpenCode Desktop: each of their sessions runs its own
   private server, which ends with the session, instead of OpenCode 2's

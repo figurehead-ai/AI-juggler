@@ -51,6 +51,14 @@ bitflags::bitflags! {
         /// through the tool's own hooks, from a per-launch file in AI
         /// Juggler's folder (`HarnessAdapter::state_reports` says how).
         const STATE_REPORTS = 1 << 14;
+        /// 0.2: its records say which process holds a session open — a
+        /// per-session file or lock naming its pid
+        /// (`HarnessAdapter::live_sessions`), or the files a running
+        /// session process holds open (`HarnessAdapter::held_sessions`).
+        /// Without it, nothing tells a session AI Juggler started from one
+        /// the user started in their own terminal on the same account, so
+        /// an account used in place is never linked by its launch alone.
+        const SESSION_PROCESS_RECORDED = 1 << 15;
     }
 }
 

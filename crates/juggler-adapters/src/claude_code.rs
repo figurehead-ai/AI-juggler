@@ -137,6 +137,8 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::STATE_REPORTS
             // AJ-E2308: without a terminal, a per-session Beta.
             | Capabilities::PROTOCOL_SERVER
+            // Its `sessions/<pid>.json` name each session's process.
+            | Capabilities::SESSION_PROCESS_RECORDED
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
