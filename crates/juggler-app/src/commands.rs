@@ -11718,6 +11718,10 @@ pub(crate) fn turns_of(
         // AJ-E1541: what the turn's tool calls did, after what it said, so
         // a handover carries the work and not only the chat.
         let text = match (message.text.trim().is_empty(), message.tools.is_empty()) {
+            // A message that only carries tool results says nothing of its
+            // own: quoted, it was an empty turn (the measured lab of
+            // 2026-10-28: 27 of a handover's 69 turns).
+            (true, true) => continue,
             (_, true) => message.text,
             (true, false) => format!("({})", message.tools.join("; ")),
             (false, false) => format!("{}\n({})", message.text, message.tools.join("; ")),
