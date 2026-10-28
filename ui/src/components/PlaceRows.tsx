@@ -134,7 +134,7 @@ interface RowProps {
   selected: boolean;
   onSelect: (id: string) => void;
   now: number;
-  /** "Sub-agents" is on in the View: the row says how many it runs. */
+  /** "Subagents" is on in the View: the row says how many it runs. */
   subagents?: boolean;
   /** Settings › Appearance › Density is Compact (AJ-E403): fewer lines,
    * the same words in its name. */

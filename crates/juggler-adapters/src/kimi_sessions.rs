@@ -141,10 +141,11 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
         .and_then(|text| serde_json::from_str(&text).ok())
         .filter(serde_json::Value::is_object)?;
     let text = |key: &str| state.get(key).and_then(serde_json::Value::as_str);
-    let title = text("title")
+    let raw = text("title")
         .filter(|title| !title.trim().is_empty())
-        .or_else(|| text("lastPrompt").or_else(|| text("last_prompt")))
-        .and_then(|title| juggler_adapter::conversation::title_from(title, 120));
+        .or_else(|| text("lastPrompt").or_else(|| text("last_prompt")));
+    let title = raw.and_then(|title| juggler_adapter::conversation::prompt_title(title, 120));
+    let opening = raw.and_then(|title| juggler_adapter::conversation::title_from(title, 120));
     let cwd = home_of(path).and_then(|home| {
         index(home)
             .into_iter()
@@ -156,6 +157,7 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
         cwd,
         git_branch: None,
         title,
+        opening,
         started_ms: first_time(
             &state,
             &["createdAt", "created_at", "startedAt", "started_at"],

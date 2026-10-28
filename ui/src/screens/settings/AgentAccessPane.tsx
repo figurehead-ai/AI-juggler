@@ -14,13 +14,14 @@
  */
 import { useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
-import { agentRuleRevoke, type PoolsInfo } from "../../lib/ipc/pools";
+import { agentRuleRevoke, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { ACTION_WORDS, levelLabel, setPools, usePools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { CardTitle } from "../../components/CardTitle";
 import { PoolAccessPanel } from "../../components/PoolAccess";
 import { AgentToolsSettings } from "../../components/AgentTools";
-import { Card } from "../../components/primitives";
+import { Button, Card } from "../../components/primitives";
+import { useActionHost } from "../../components/ItemMenu";
 import { Pane, PaneSection } from "./parts";
 
 export function AgentAccessPane({ anchor }: { anchor?: string }): JSX.Element {
@@ -54,38 +55,90 @@ export function AgentAccessPane({ anchor }: { anchor?: string }): JSX.Element {
   );
 }
 
-/** Every pool's level, on one card. A pool's row opens its details. */
+/** Pools shown before "Show more" (a project's own pool each: the list
+ * grows with the projects). */
+export const POOLS_SHOWN = 12;
+
+/** Every pool's level, on one card (the 0.2 walk, F10): a row's name opens
+ * the pool's page (its members, tasks, messages and access); its level
+ * unfolds in place to change it. Your own pools first, then each
+ * project's, a page at a time. */
 export function AgentAccessCard(): JSX.Element {
   const pools = usePools();
+  const host = useActionHost();
+  const [shown, setShown] = useState(POOLS_SHOWN);
+  const list = pools?.pools ?? [];
+  const more = Math.max(0, list.length - shown);
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-agent-access">
       <CardTitle>Agent access</CardTitle>
       {pools === null ? (
-        <p className="text-xs text-muted">Loading…</p>
+        <p className="text-meta text-muted">Loading…</p>
       ) : (
-        <ul className="flex flex-col gap-1.5" data-testid="agent-access-pools">
-          {pools.pools.map((pool) => (
-            <li key={pool.id}>
-              <details className="group rounded-lg border border-hairline/60 px-3 py-2" data-testid="agent-access-pool">
-                <summary className="flex cursor-pointer select-none items-center gap-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-                  <span aria-hidden="true" className="text-faint transition-transform group-open:rotate-90">›</span>
-                  <span className="min-w-0 flex-1 truncate font-medium text-ink">{pool.name}</span>
-                  <span className="shrink-0 text-muted">{levelLabel(pool.access.level)}</span>
-                  {pool.rules.length > 0 && (
-                    <span className="shrink-0 text-faint">
-                      · {pool.rules.length} {pool.rules.length === 1 ? "rule" : "rules"}
-                    </span>
-                  )}
-                </summary>
-                <div className="mt-2.5">
-                  <PoolAccessPanel pool={pool} />
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-1.5" data-testid="agent-access-pools">
+            {list.slice(0, shown).map((pool) => (
+              <PoolRow key={pool.id} pool={pool} onOpen={host.openPool ? () => host.openPool!(pool.id) : undefined} />
+            ))}
+          </ul>
+          {more > 0 && (
+            <Button size="sm" variant="secondary" className="w-fit" onClick={() => setShown((count) => count + POOLS_SHOWN * 2)} data-testid="agent-access-more">
+              Show {Math.min(more, POOLS_SHOWN * 2)} more of {more}
+            </Button>
+          )}
+        </>
       )}
     </Card>
+  );
+}
+
+/** One pool: its name (to its page), its level and rules, and the level
+ * unfolded in place. */
+function PoolRow({ pool, onOpen }: { pool: PoolInfo; onOpen?: () => void }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const panel = `agent-access-panel-${pool.id}`;
+  const rules = pool.rules.length > 0 ? ` · ${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}` : "";
+  return (
+    <li className="rounded-lg border border-hairline/60 px-3 py-2" data-testid="agent-access-pool">
+      <div className="flex items-center gap-2 text-body">
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="min-w-0 flex-1 truncate rounded-md text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+            title="Open its page: members, tasks, messages and access"
+            data-testid="agent-access-open"
+          >
+            {pool.name}
+            <span className="sr-only">: open its page</span>
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 truncate font-medium text-ink">{pool.name}</span>
+        )}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panel}
+          onClick={() => setOpen((now) => !now)}
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-testid="agent-access-level"
+        >
+          <span>
+            {levelLabel(pool.access.level)}
+            {rules}
+          </span>
+          <span className="sr-only">: {open ? "hide" : "change"} what agents may do in {pool.name}</span>
+          <span aria-hidden="true" className={`transition-transform ${open ? "rotate-90" : ""}`}>
+            ›
+          </span>
+        </button>
+      </div>
+      {open && (
+        <div id={panel} className="mt-2.5">
+          <PoolAccessPanel pool={pool} />
+        </div>
+      )}
+    </li>
   );
 }
 

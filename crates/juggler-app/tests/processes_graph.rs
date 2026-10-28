@@ -831,3 +831,161 @@ fn the_graph_and_a_page_fit_the_budget_at_two_thousand_processes() {
     assert!(build_ms < bound, "build {build_ms} ms");
     assert!(queries.values().all(|ms| *ms < bound), "{queries:?}");
 }
+
+/// The 0.2 walk (F5): a desktop app's sessions each sit in the app's own
+/// tree. Its processes are counted once, as the app's, shared by its
+/// sessions; each session keeps what only it started; an idle session's
+/// state is never "Idle" over busy processes, and an untitled session
+/// carries when it started.
+#[test]
+fn a_desktop_app_s_shared_tree_is_counted_once_as_the_app_s() {
+    let mut inputs = Inputs {
+        now_ms: NOW,
+        own_pid: OWN,
+        ..Inputs::default()
+    };
+    let app = AppRef {
+        app_id: Some("desk".into()),
+        name: "Desk App".into(),
+        pid: Some(900),
+        kind: Some("desktop".into()),
+    };
+    // The app's tree: 900 → 901 (a renderer, busy), 902 (a helper).
+    let shared = vec![
+        live(900, Some(1), "Desk App", 150.0, 400_000_000),
+        live(901, Some(900), "Desk App Helper", 73.0, 300_000_000),
+        live(902, Some(900), "Desk App Helper", 0.1, 100_000_000),
+    ];
+    for (index, id) in ["conv-a", "conv-b", "conv-c"].into_iter().enumerate() {
+        let mut tree = shared.clone();
+        // Session b started a dev server of its own.
+        if id == "conv-b" {
+            tree.push(live(950, Some(902), "node", 0.2, 50_000_000));
+        }
+        inputs.theirs.push(TheirsInput {
+            tool: "tool-a".into(),
+            session_id: id.into(),
+            title: if index == 2 {
+                String::new()
+            } else {
+                format!("Session {id}")
+            },
+            app: app.clone(),
+            root_pid: 900,
+            root_start: 9000,
+            busy: Some(false),
+            tree,
+            ..TheirsInput::default()
+        });
+    }
+    let graph = model::build(&inputs);
+    let desk = graph
+        .apps
+        .iter()
+        .find(|app| app.name == "Desk App")
+        .unwrap();
+    // Four nodes, three of them sessions: the shared one first.
+    assert_eq!(desk.sessions.len(), 4);
+    let first = &desk.sessions[0];
+    assert!(first.is_shared());
+    assert_eq!(first.shared_by, 3);
+    assert_eq!(first.rollup.processes, 3);
+    assert_eq!(first.state, "working");
+    // Counted once: 3 shared + 1 of session b's own.
+    assert_eq!(desk.rollup.processes, 4);
+    assert_eq!(graph.counts.processes, 4);
+    assert_eq!(graph.counts.sessions, 3);
+    let b = desk
+        .sessions
+        .iter()
+        .find(|s| s.session_id == "conv-b")
+        .unwrap();
+    assert_eq!(b.processes.iter().map(|p| p.pid).collect::<Vec<_>>(), [950]);
+    // Idle: its files say so and its own process is quiet.
+    assert_eq!(b.state, "idle");
+    let a = desk
+        .sessions
+        .iter()
+        .find(|s| s.session_id == "conv-a")
+        .unwrap();
+    assert!(a.processes.is_empty());
+
+    // Everything running lists the app once, its shared row, and each
+    // session (one with nothing of its own as a single line).
+    let rows = query::rows(
+        &graph,
+        &ProcessQueryInput {
+            view: "running".into(),
+            expanded: vec!["s:shared:a:desk".into()],
+            ..ProcessQueryInput::default()
+        },
+    );
+    let app_row = rows.iter().find(|row| row.kind == "app").unwrap();
+    assert_eq!(app_row.app.as_ref().unwrap().sessions, 3);
+    assert_eq!(app_row.rollup.as_ref().unwrap().processes, 4);
+    let sessions: Vec<_> = rows.iter().filter_map(|row| row.session.as_ref()).collect();
+    assert_eq!(sessions.len(), 4);
+    assert_eq!(sessions[0].shared_by, 3);
+    let untitled = sessions.iter().find(|s| s.session_id == "conv-c").unwrap();
+    assert!(untitled.title.is_empty());
+    assert_eq!(
+        untitled.started_ms, None,
+        "nothing of its own to date it by"
+    );
+    let with_own = sessions.iter().find(|s| s.session_id == "conv-b").unwrap();
+    assert_eq!(with_own.started_ms, Some(9500 * 1000));
+
+    // A session whose files say idle while its own process is busy reads
+    // working.
+    let mut busy = inputs.clone();
+    busy.theirs.truncate(1);
+    busy.theirs[0].tree = vec![live(900, Some(1), "Desk App", 223.0, 400_000_000)];
+    let graph = model::build(&busy);
+    let only = &graph.apps[0].sessions[0];
+    assert!(!only.is_shared());
+    assert_eq!(only.state, "working");
+}
+
+/// A session's own Processes tab lists the app's processes it shares, as
+/// the app's (the 0.2 walk, F5).
+#[test]
+fn a_session_s_tab_shows_the_app_processes_it_shares() {
+    let mut inputs = Inputs {
+        now_ms: NOW,
+        own_pid: OWN,
+        ..Inputs::default()
+    };
+    let app = AppRef {
+        app_id: Some("desk".into()),
+        name: "Desk App".into(),
+        pid: Some(900),
+        kind: Some("desktop".into()),
+    };
+    for id in ["conv-a", "conv-b"] {
+        inputs.theirs.push(TheirsInput {
+            tool: "tool-a".into(),
+            session_id: id.into(),
+            title: id.into(),
+            app: app.clone(),
+            root_pid: 900,
+            root_start: 9000,
+            tree: vec![
+                live(900, Some(1), "Desk App", 1.0, 400_000_000),
+                live(901, Some(900), "Desk App Helper", 0.1, 100_000_000),
+            ],
+            ..TheirsInput::default()
+        });
+    }
+    let graph = model::build(&inputs);
+    let rows = query::rows(
+        &graph,
+        &ProcessQueryInput {
+            session_id: Some("conv-a".into()),
+            ..ProcessQueryInput::default()
+        },
+    );
+    let sessions: Vec<_> = rows.iter().filter_map(|row| row.session.as_ref()).collect();
+    assert_eq!(sessions.len(), 2, "its own line and the app's shared one");
+    assert_eq!(sessions.iter().filter(|s| s.shared_by == 2).count(), 1);
+    assert_eq!(rows.iter().filter(|row| row.kind == "process").count(), 2);
+}

@@ -213,6 +213,15 @@ fn session_row(
             alive: session.alive,
             root_pid: session.root_pid,
             folded,
+            shared_by: session.shared_by,
+            started_ms: session
+                .processes
+                .iter()
+                .find(|node| Some(node.pid) == session.root_pid)
+                .or_else(|| session.processes.iter().min_by_key(|node| node.start_time))
+                .map(|node| node.start_time)
+                .filter(|start| *start > 0)
+                .map(|start| start.saturating_mul(1000)),
         }),
         process: None,
         rollup: Some(rollup_info(&session.rollup)),
@@ -226,7 +235,9 @@ fn app_row(app: &AppNode, rollup: &Rollup, sessions: u32) -> ProcessGraphRowInfo
         kind: "app".into(),
         depth: 0,
         parent_key: None,
-        has_children: sessions > 0,
+        // Listed only with a row under it (a session, or its shared
+        // processes).
+        has_children: true,
         state: rollup.worst.map_or("idle", ProcState::word).into(),
         origin: if app.ours { "ours" } else { "theirs" }.into(),
         owner_words: if app.ours {
@@ -338,9 +349,12 @@ fn other_rows(others: &[OtherProgram], search: &Search) -> Vec<ProcessGraphRowIn
 }
 
 /// Whether a session is the asked one: its id (the supervisor's for ours,
-/// the tool's for theirs).
+/// the tool's for theirs). The app's shared processes count for each
+/// session that shares them (its Processes tab shows them too).
 fn is_session(session: &SessionNode, id: &str) -> bool {
-    session.session_id == id || session.key == id
+    session.session_id == id
+        || session.key == id
+        || session.sharers.iter().any(|sharer| sharer == id)
 }
 
 /// A process passes the filters (not the view).
@@ -404,10 +418,13 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
                 .filter(|node| search.is_empty() || search.matches(app, session, node))
                 .filter(|node| one_session.is_some() || view == View::Running || node.attention)
                 .collect();
-            if keep.is_empty() && (narrowed || view == View::Attention) && one_session.is_none() {
-                continue;
-            }
-            if keep.is_empty() && one_session.is_none() {
+            // A live session whose processes are all its app's (a desktop
+            // app's session) still has its line in Everything running.
+            let bare = session.alive && !session.is_shared() && session.processes.is_empty();
+            if keep.is_empty()
+                && one_session.is_none()
+                && (narrowed || view == View::Attention || !bare)
+            {
                 continue;
             }
             // With their ancestors, so a subprocess shows under its parent.
@@ -452,7 +469,7 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
                 .iter()
                 .filter(|node| shown.contains(node.key.as_str()))
                 .collect();
-            sessions += 1;
+            sessions += u32::from(!session.is_shared());
             rollup.processes += session.rollup.processes;
             rollup.rss_bytes += session.rollup.rss_bytes;
             rollup.cpu_pct += session.rollup.cpu_pct;
@@ -474,7 +491,7 @@ pub fn rows(graph: &Graph, input: &ProcessQueryInput) -> Vec<ProcessGraphRowInfo
                 app_rows.push(process_row(app, session, node, has_children));
             }
         }
-        if sessions == 0 {
+        if app_rows.is_empty() {
             continue;
         }
         out.push(app_row(app, &rollup, sessions));

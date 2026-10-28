@@ -38,9 +38,13 @@ pub const OTHER_APPS_NAMED: usize = 3;
 /// A name is cut at this many characters.
 const NAME_MAX: usize = 40;
 
-/// A name with no path in it, cut to [`NAME_MAX`]; `None` when empty.
+/// A name with no path in it, in words when the system names the program
+/// by an identifier (never a bundle id: the 0.2 walk, F13), cut to
+/// [`NAME_MAX`]; `None` when empty.
 fn plain_name(name: &str) -> Option<String> {
     let name = name.rsplit('/').next().unwrap_or(name).trim();
+    let name =
+        juggler_platform::system::program_display_name(name).unwrap_or_else(|| name.to_owned());
     (!name.is_empty()).then(|| name.chars().take(NAME_MAX).collect())
 }
 
@@ -185,5 +189,23 @@ mod tests {
         assert!(apps.iter().all(|app| !app.name.trim().is_empty()));
         let long = other_apps(&[process(&"x".repeat(200), None, G)], 1);
         assert_eq!(long[0].name.chars().count(), NAME_MAX);
+    }
+
+    /// The 0.2 walk (F13): a service macOS names by an identifier is named
+    /// in words, never by its bundle id.
+    #[test]
+    fn a_service_is_named_in_words_never_by_its_identifier() {
+        let apps = other_apps(
+            &[process(
+                "com.apple.Virtualization.VirtualMachine",
+                None,
+                3 * G,
+            )],
+            1,
+        );
+        // Only macOS names its services so.
+        if cfg!(target_os = "macos") {
+            assert_eq!(apps[0].name, "Virtual Machine (part of macOS)");
+        }
     }
 }

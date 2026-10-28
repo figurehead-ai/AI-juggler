@@ -112,7 +112,7 @@ const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: str
   email: null,
   organisation: null,
   reason: null,
-  profiles: ids.map((id) => ({ id, folder: `~/AI Juggler/${id}`, plan: "Go Plus", renewal_date: null, fee_usd: null })),
+  profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/AI Juggler/${id}`, plan: "Go Plus", renewal_date: null, fee_usd: null })),
   plan: "Go Plus",
   renewal_date: null,
   fee_usd: null,
@@ -148,8 +148,9 @@ describe("the account card", () => {
 
   it("shows OpenCode Go as one account, an estimate, with both tools' profiles beneath", () => {
     const view = card(account(go, ["go", "go-codex"]), [profile("go", "claude-code", "Go"), profile("go-codex", "codex", "Go Codex")]);
-    expect(view.getByTestId("account-name").textContent).toBe("OpenCode Go");
-    expect(view.getByTestId("account-line").textContent).toBe("Go Plus · estimate");
+    // Your names are the title; the service says which on the line.
+    expect(view.getByTestId("account-name").textContent).toBe("Profile go and Profile go-codex");
+    expect(view.getByTestId("account-line").textContent).toBe("OpenCode Go · Go Plus · estimate");
     const usage = view.getByTestId("account-service-usage");
     expect(usage.getAttribute("data-usage")).toBe("estimate");
     expect(usage.textContent).toContain("a fifth of the month's amount");
@@ -164,7 +165,7 @@ describe("the account card", () => {
 
   it("says Kimi's usage is unknown", () => {
     const view = card(account(kimi, ["kimi"], { plan: "Pro" }), [profile("kimi", "claude-code", "Kimi", { service: "Kimi", plan: "Pro" })]);
-    expect(view.getByTestId("account-line").textContent).toBe("Pro · usage unknown");
+    expect(view.getByTestId("account-line").textContent).toBe("Kimi · Pro · usage unknown");
     expect(view.getByTestId("account-service-usage").getAttribute("data-usage")).toBe("unknown");
   });
 

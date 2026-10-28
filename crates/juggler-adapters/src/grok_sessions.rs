@@ -158,14 +158,14 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     if has_parent(&record) {
         return None;
     }
-    let title = record
-        .get("title")
-        .and_then(serde_json::Value::as_str)
-        .and_then(|title| juggler_adapter::conversation::title_from(title, 120));
+    let raw = record.get("title").and_then(serde_json::Value::as_str);
+    let title = raw.and_then(|title| juggler_adapter::conversation::prompt_title(title, 120));
+    let opening = raw.and_then(|title| juggler_adapter::conversation::title_from(title, 120));
     Some(ConversationSummary {
         cwd: dir.parent().and_then(folder_of),
         git_branch: None,
         title,
+        opening,
         started_ms: first_time(
             &record,
             &["createdAt", "created_at", "startedAt", "started_at"],

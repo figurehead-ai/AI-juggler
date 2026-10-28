@@ -94,6 +94,8 @@ pub struct RolloutParser {
     /// conversation's summary needs no more).
     keep_messages: bool,
     first_ask: Option<String>,
+    /// The first message the user's side sent, AI Juggler's included.
+    first_message: Option<String>,
 }
 
 impl RolloutParser {
@@ -159,7 +161,16 @@ impl RolloutParser {
                 {
                     return;
                 }
-                if role == MessageRole::User && self.first_ask.is_none() && !is_injected(&body) {
+                if role == MessageRole::User && self.first_message.is_none() && !is_injected(&body)
+                {
+                    self.first_message = Some(body.clone());
+                }
+                // The first ask that can title the thread: never an
+                // injected block, nor AI Juggler's own words (F9).
+                if role == MessageRole::User
+                    && self.first_ask.is_none()
+                    && crate::codex_titles::title(&body).is_some()
+                {
                     self.first_ask = Some(body.clone());
                 }
                 if !self.keep_messages {
@@ -213,6 +224,14 @@ impl RolloutParser {
             }
             _ => {}
         }
+    }
+
+    /// The first message the user's side sent (AI Juggler's own prompt
+    /// included; never a block Codex injects): how a switch's thread is
+    /// found again.
+    #[must_use]
+    pub fn first_message(&self) -> Option<&str> {
+        self.first_message.as_deref()
     }
 
     /// The first thing the user asked (not a block Codex, its app or a

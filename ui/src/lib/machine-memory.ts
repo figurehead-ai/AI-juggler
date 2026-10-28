@@ -95,6 +95,22 @@ export function alertSubject(alert: OverloadAlertInfo, nameOf: (sessionId: strin
   return `${who} is using ${what}${windows}`;
 }
 
+/** What to do about an alert, and whether it blocks anything, in one
+ * sentence (the 0.2 walk, F13: memory pressure had no next step). Names
+ * what to quit or stop: the biggest other app, the session, or the app
+ * whose windows to close. */
+export function alertNextStep(alert: OverloadAlertInfo, nameOf: (sessionId: string) => string | null): string {
+  if (alert.kind === "disk") return "Empty the Trash or remove files you don't need: when the disk is full, sessions can't save their work";
+  const slower = "Nothing is blocked, but everything is slower until it eases";
+  const memory = alert.kind === "memory_pressure" || alert.kind === "swap";
+  if (memory && alert.other_apps.length > 0) return `To make room, quit ${alert.other_apps[0]!.name} or another app you aren't using. ${slower}`;
+  const session = alert.session_id ? nameOf(alert.session_id) : null;
+  if (session) return `If you don't need ${session} now, stop it from its page. ${slower}`;
+  if (alert.place && alert.subject_name) return `Close the ${alert.subject_name} windows you aren't using. ${slower}`;
+  if (alert.kind === "thermal") return `Give it a break from heavy work, or quit apps you aren't using. ${slower}`;
+  return `Quit apps you aren't using to ${memory ? "make room" : "free the processor"}. ${slower}`;
+}
+
 /** The one source of a machine alert's words — the banner on other
  * screens and Home's Needs you say exactly this (the 0.0.12 report). */
 export function alertWords(
@@ -105,6 +121,6 @@ export function alertWords(
   if (!first) return null;
   return {
     title: first.title,
-    detail: [reasonSentence(alerts.map((alert) => alert.detail)), alertSubject(first, nameOf)].filter(Boolean).join(". "),
+    detail: [reasonSentence(alerts.map((alert) => alert.detail)), alertSubject(first, nameOf), alertNextStep(first, nameOf)].filter(Boolean).join(". "),
   };
 }

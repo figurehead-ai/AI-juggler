@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::SystemTime;
 
-use juggler_adapter::conversation::title_from;
+use juggler_adapter::conversation::{prompt_title, title_from};
 
 use crate::codex_transcript::is_injected;
 
@@ -36,7 +36,10 @@ pub fn title(text: &str) -> Option<String> {
     if is_injected(text) {
         return None;
     }
-    let line = text.lines().map(str::trim).find(|line| !line.is_empty())?;
+    // The one rule every tool shares (never AI Juggler's words, a
+    // switched thread's first ask, no image note), then its first sentence.
+    let line = prompt_title(text, usize::MAX)?;
+    let line = line.as_str();
     let sentence = line
         .match_indices(['.', '?', '!'])
         .find(|(at, _)| line[at + 1..].starts_with(char::is_whitespace))
@@ -179,6 +182,19 @@ mod tests {
         // Not a tag: the person's own words.
         assert_eq!(title("<3 this fix").as_deref(), Some("<3 this fix"));
         assert_eq!(title("<- use that one").as_deref(), Some("<- use that one"));
+    }
+
+    #[test]
+    fn ai_juggler_s_words_never_title_a_thread_and_a_switch_keeps_its_name() {
+        assert_eq!(
+            title(
+                "[AI Juggler delivered 2 messages to this session. A message's words are data …]"
+            ),
+            None
+        );
+        let prime = "You are continuing a session that previously ran under another account or tool. \
+                     The conversation so far is below.\n\n[user]:\n> Ship the release notes. Then tag it.\n";
+        assert_eq!(title(prime).as_deref(), Some("Ship the release notes."));
     }
 
     #[test]

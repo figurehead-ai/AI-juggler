@@ -63,9 +63,10 @@ describe("CostMatrix (AJ-E609, 0.1.8)", () => {
 
   it("leads with the money: the total, what you pay, and what has no list price", async () => {
     const screen = render(<CostMatrix />);
-    expect(await screen.findByText("USD is Estimated — list pricing, not your subscription fee.")).toBeTruthy();
+    expect(await screen.findByText("Every cost here is an estimate. What the API would charge, not your bill.")).toBeTruthy();
     const summary = screen.getByTestId("cost-summary");
-    expect(within(summary).getByTestId("cost-total-tile").textContent).toContain("$0.80");
+    // §10: "~" on every estimate (the 0.2 walk, F15).
+    expect(within(summary).getByTestId("cost-total-tile").textContent).toContain("~$0.80");
     expect(within(summary).getByTestId("cost-fee-tile").textContent).toContain("$200");
     expect(within(summary).getByTestId("cost-fee-tile").textContent).toContain("API prices come to 0.00× your fee");
     expect(within(summary).getByTestId("cost-unpriced-tile").textContent).toContain("GLM-6-X, codex-auto-review: not counted");
@@ -96,7 +97,9 @@ describe("CostMatrix (AJ-E609, 0.1.8)", () => {
     expect(rows).toHaveLength(2);
     const first = rows[0]!;
     expect(first.textContent).toContain("gpt-6.1-sol+1");
-    expect(first.textContent).toContain("≥ at least $0.80");
+    // Said once, in words (the 0.2 walk, F15: "≥ at least").
+    expect(first.textContent).toContain("at least ~$0.80");
+    expect(first.textContent).not.toContain("≥");
     expect(within(first).queryByTestId("cost-parts")).toBeNull();
     fireEvent.click(within(first).getByTestId("cost-models"));
     const parts = within(first).getByTestId("cost-parts");
@@ -121,7 +124,7 @@ describe("CostMatrix (AJ-E609, 0.1.8)", () => {
     expect(cells).toHaveLength(2);
     expect(cells[0]!.className).toContain("col-span-3");
     expect(cells[0]!.textContent).toBe("Total, all sessions · without GLM-6-X, codex-auto-review");
-    expect(cells[1]!.textContent).toBe("$0.80");
+    expect(cells[1]!.textContent).toBe("~$0.80");
     // The same grid as the rows: the figure lands in the USD column.
     const columns = (node: Element) => node.className.split(" ").filter((name) => name.includes("grid-cols-")).join(" ");
     expect(columns(total)).toContain("sm:grid-cols-");

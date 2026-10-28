@@ -85,13 +85,15 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const ownSessions = props.sessions.filter((s) => profiles.some((p) => p.id === s.account_id));
   const unmeasured = runwayOf(display, ownSessions).left === null;
   const renewal = renewalLabel(sub.renewal_date, props.now);
-  // AJ-E1601: through another service, the service names the account.
+  // AJ-E1601: an account through another service says which.
   const service = sub.service ?? null;
   const first = profiles[0];
   const [newKey, setNewKey] = useState(false);
+  // The 0.2 walk (F3): your names are the title; the team is the line.
   const line = [
+    service ? service.name : sub.organisation,
     service ? serviceLine(sub) : sub.email,
-    !service && sub.organisation && sub.plan ? sub.plan : null,
+    !service ? sub.plan : null,
     renewal && renewal.tier === "date" ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);

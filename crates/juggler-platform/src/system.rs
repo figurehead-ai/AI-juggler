@@ -78,9 +78,83 @@ pub fn user_display_name() -> Option<String> {
     None
 }
 
+/// A program's name for people when the system lists it by an identifier
+/// (the 0.2 walk, F13: an alert named
+/// `com.apple.Virtualization.VirtualMachine`). On macOS a service named in
+/// reverse-DNS reads as its maker and its last part in words: "Virtual
+/// Machine (part of macOS)" for the system's own, "Docker backend" for
+/// another maker's. `None` when the name is plain already, and on a system
+/// that doesn't name programs so.
+#[must_use]
+pub fn program_display_name(name: &str) -> Option<String> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let parts: Vec<&str> = name.split('.').collect();
+    let plain = |part: &&str| {
+        !part.is_empty()
+            && part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    };
+    if parts.len() < 3
+        || !parts.iter().all(plain)
+        || !parts[0].chars().all(|c| c.is_ascii_lowercase())
+    {
+        return None;
+    }
+    let last = spaced(parts[parts.len() - 1]);
+    if parts[0] == "com" && parts[1] == "apple" {
+        return Some(format!("{last} (part of macOS)"));
+    }
+    let mut maker = parts[1].to_owned();
+    if let Some(first) = maker.get_mut(..1) {
+        first.make_ascii_uppercase();
+    }
+    Some(format!("{maker} {last}"))
+}
+
+/// `VirtualMachine` → "Virtual Machine"; `helper-gpu` → "helper gpu".
+fn spaced(word: &str) -> String {
+    let mut out = String::new();
+    let mut previous: Option<char> = None;
+    for c in word.chars() {
+        if c == '-' || c == '_' {
+            out.push(' ');
+        } else {
+            if c.is_ascii_uppercase() && previous.is_some_and(|p| p.is_ascii_lowercase()) {
+                out.push(' ');
+            }
+            out.push(c);
+        }
+        previous = Some(c);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_service_named_in_reverse_dns_reads_in_words_on_macos() {
+        let words = |name: &str| program_display_name(name);
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                words("com.apple.Virtualization.VirtualMachine").as_deref(),
+                Some("Virtual Machine (part of macOS)")
+            );
+            assert_eq!(
+                words("com.docker.backend").as_deref(),
+                Some("Docker backend")
+            );
+        } else {
+            assert_eq!(words("com.apple.Virtualization.VirtualMachine"), None);
+        }
+        for plain in ["node", "next-server", "python3.11", "Docker", "my app.v2.x"] {
+            assert_eq!(words(plain), None, "{plain}");
+        }
+    }
 
     #[test]
     fn a_badge_shows_a_count_and_goes_at_zero() {

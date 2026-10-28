@@ -133,6 +133,7 @@ export async function previewHistory(input: UsageQueryInput): Promise<UsageHisto
     switches: [],
     unmeasured_sessions: input.project === null && input.profile === null ? 3 : 0,
     truncated: false,
+    reading: null,
   };
 }
 

@@ -22,14 +22,15 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { PagedList } from "./PagedList";
 import { StatTile } from "./charts/StatTile";
-import { exact, short } from "./charts/scale";
+import { API_PRICE, exact, short } from "./charts/scale";
 import { IconMoney, IconTokens } from "./usage/controls";
 import { costCsvExport, costRollups, type CostRollupRow, type CostRollupsData } from "../lib/bridge";
 import { costRowsKey, costRowsPage, costSessionName, type CostRow } from "../lib/ipc/costs";
 import { usePagedList } from "../lib/paged";
 
+/** An estimate at API prices: "~$12.40" (§10: "~" on every estimate). */
 const usdText = (value: number): string =>
-  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `~$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Its tier in plain words (never "MEASURED" in capitals). */
 function tierWords(confidence: string): string {
@@ -59,7 +60,7 @@ const WIDE = "hidden sm:block";
 
 const keyOf = (row: CostRow): string => `${row.day}\u001f${row.session}`;
 
-/** USD in a cell: a figure, "≥ figure" when a model has no list price,
+/** USD in a cell: a figure, "at least" before it when a model has no list price,
  * or "No list price" (never $0.00, deep/10 line 74). */
 function Usd({ usd, unpriced, testId }: { usd: number | null; unpriced: string[]; testId?: string }): JSX.Element {
   if (usd == null) {
@@ -72,12 +73,8 @@ function Usd({ usd, unpriced, testId }: { usd: number | null; unpriced: string[]
   const partial = unpriced.length > 0;
   return (
     <span className="truncate text-ink" title={partial ? `At least ${usdText(usd)}: ${unpriced.join(", ")} has no list price, so it isn't counted` : undefined} data-testid={testId}>
-      {partial && (
-        <>
-          <span aria-hidden="true">≥ </span>
-          <span className="sr-only">at least </span>
-        </>
-      )}
+      {/* In words, once (the 0.2 walk, F15: "≥ at least"). */}
+      {partial && <span className="text-label text-muted">at least </span>}
       {usdText(usd)}
     </span>
   );
@@ -205,6 +202,7 @@ export function CostMatrix(): JSX.Element {
           value={data?.total_usd ?? null}
           unit="usd"
           full
+          estimate
           note={unpriced.length > 0 ? "Models with a list price" : "Every session, every model"}
           testId="cost-total-tile"
         />
@@ -230,7 +228,7 @@ export function CostMatrix(): JSX.Element {
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* The permanent disclaimer — a label, never a tooltip (deep/10 §6). */}
-        <p className="min-w-0 flex-1 text-meta text-muted">USD is Estimated — list pricing, not your subscription fee.</p>
+        <p className="min-w-0 flex-1 text-meta text-muted">{`Every cost here is an estimate. ${API_PRICE}.`}</p>
         <Button size="sm" variant="secondary" disabled={none} onClick={() => void costCsvExport().then(setCsvPath)}>
           Export CSV
         </Button>

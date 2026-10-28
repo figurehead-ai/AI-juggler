@@ -326,6 +326,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs in) and folds it into the session's row, which carries its "+N
   agents". When more than one conversation could be the session's, it
   links none and both rows stay as before.
+- **Accounts are told apart by your names** (the 0.2 walk): Usage's legend
+  and breakdown, Accounts and Home's Runway title each account by the
+  names you gave its profiles, never its team's name five times over;
+  the team, sign-in and plan are its second line. A Codex sign-in no
+  longer shows the end of an account id.
+- **Processes counts each process once**: a desktop app's own processes,
+  which every one of its sessions sits in, are listed once under the app
+  as "The app itself · Shared by its 5 sessions", not once per session
+  ("90 processes" for 18). A session busy at 223 % no longer says Idle,
+  and a session with no title is named by its folder and when it
+  started, never "Untitled session".
+- **The first start says it's reading your history** instead of "0
+  tokens" and "Not measured yet": Usage says how many conversations it
+  has read so far, its tiles and the accounts' runways say "Reading your
+  history…", and the figures fill in as soon as the read is done.
+- **Session titles are your words**: a session's title is never AI
+  Juggler's own prompt (a switch's history, a delivered message, a task's
+  brief) or an image note; a switched session keeps the title of the
+  first thing you asked, in every tool.
+- **A project's Tasks and Messages are one click away**: a project's
+  Overview has Agents, with Tasks, Messages and Agent access of its own
+  pool. Settings › Agent access opens each pool's page from its name,
+  unfolds its level in place, lists the pools a page at a time, and tells
+  two projects with one name apart by their folder.
+- **Plain words in Settings and Accounts**: How sessions run names each
+  launch setting as everywhere ("Work · Default"), never its id, and
+  offers "In AI Juggler, answer it here" or "In a terminal"; Accounts no
+  longer says "context packs". About shows the build's own channel, as
+  your menu does; Storage says its counts are AI Juggler's own records;
+  the View says "Subagents"; a limit a plan doesn't have is said once.
+- **Memory pressure says what to do**: every alert on This Mac, Home and
+  the banner names what to quit or stop and that nothing is blocked, with
+  See what's using it; a macOS service is named in words ("Virtual
+  Machine (part of macOS)"), never by its identifier; This Mac explains
+  why one app can show more than "Other apps and macOS".
+- **"Tokens" means one thing**: in and out, as Usage counts them, on
+  every runway and session page (a reading without that split says
+  "cache included"). Every cost is marked as an estimate with "~" and
+  says it's what the API would charge, not your bill; a partly priced
+  figure reads "at least ~$53.2k", once.
 - **OpenCode 2** accounts AI Juggler manages no longer collide with your
   own OpenCode or OpenCode Desktop: each of their sessions runs its own
   private server, which ends with the session, instead of OpenCode 2's

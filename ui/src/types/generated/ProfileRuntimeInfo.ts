@@ -9,6 +9,15 @@ export type ProfileRuntimeInfo = {
  */
 profile_id: string, 
 /**
+ * Its account's name, as the user gave it (the 0.2 walk, F12: the row
+ * showed the id).
+ */
+account_label: string, 
+/**
+ * The launch settings' own name (`Main` is shown as "Default").
+ */
+name: string, 
+/**
  * How its driven runtime runs, in words.
  */
 label: string, 

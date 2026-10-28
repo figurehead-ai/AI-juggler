@@ -593,8 +593,12 @@ pub const fn may_user(
 pub fn brief(task: &Brief<'_>) -> String {
     use std::fmt::Write as _;
     let mut out = format!(
-        "[AI Juggler: you started this session for the task {} in the pool «{}». It's this session's now.]\n\n{} · {}\n",
-        task.id, task.pool, task.id, task.title
+        "{}you started this session for the task {} in the pool «{}». It's this session's now.]\n\n{} · {}\n",
+        crate::injected::TASK_OPENER,
+        task.id,
+        task.pool,
+        task.id,
+        task.title
     );
     if let Some(writer) = task.written_by_agent {
         let _ = writeln!(

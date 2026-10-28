@@ -3,9 +3,11 @@
  * fill turns amber, then red, as it runs out), the window's name, and
  * when it resets. Not measured is said in words, never drawn as empty.
  */
+import { READING_SHORT } from "../../lib/history-reading";
 import type { JSX } from "react";
 
-export type GaugeState = "measured" | "unmeasured" | "measuring" | "stale";
+/** `omitted`: the plan has no such limit; its note says so, alone. */
+export type GaugeState = "measured" | "unmeasured" | "measuring" | "reading" | "stale" | "omitted";
 
 /** What's left decides the ring's tone: plenty, getting low, nearly out. */
 export function gaugeTone(left: number): string {
@@ -65,10 +67,13 @@ export function Gauge({
   note?: string | null;
   testId?: string;
 }): JSX.Element {
-  const status = state === "measuring" ? "Measuring…" : state === "stale" ? "Not read since its reset" : left === null ? "Not measured yet" : null;
+  // The 0.2 walk (F18): "Not measured yet · Codex reports no five-hour
+  // limit" said two things; a limit the plan hasn't is said once.
+  const omitted = state === "omitted" && !!note;
+  const status = omitted ? note : state === "measuring" ? "Measuring…" : state === "reading" ? READING_SHORT : state === "stale" ? "Not read since its reset" : left === null ? "Not measured yet" : null;
   const said =
     status !== null
-      ? `${name}: ${status}${note ? `. ${note}` : ""}`
+      ? `${name}: ${status}${note && !omitted ? `. ${note}` : ""}`
       : `${name}: ${Math.round(left!)}% left${resets ? `, resets ${resets}` : ""}${resetsIn ? `, ${resetsIn}` : ""}`;
   return (
     <div className="flex min-w-0 items-center gap-3" role="img" aria-label={said} data-testid={testId ?? "gauge"} data-state={state}>
@@ -85,7 +90,7 @@ export function Gauge({
             {resetsIn && <span className="text-label text-muted">{resetsIn}</span>}
           </>
         )}
-        {note && <span className="text-label text-faint">{note}</span>}
+        {note && !omitted && <span className="text-label text-faint">{note}</span>}
       </span>
     </div>
   );

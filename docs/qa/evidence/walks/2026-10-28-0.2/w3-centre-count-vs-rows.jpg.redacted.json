@@ -1,0 +1,36 @@
+{
+  "boxes": [
+    [
+      0,
+      56,
+      942,
+      819
+    ],
+    [
+      1012,
+      140,
+      360,
+      62
+    ],
+    [
+      1012,
+      428,
+      360,
+      48
+    ],
+    [
+      1012,
+      282,
+      370,
+      90
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "w3-centre-count-vs-rows.jpg",
+  "note": "the page behind, session titles and projects, other apps' names",
+  "sha256": "6de4f5812a14951b2d338fde509db2a228c8d932c47d71549ec6879dc0ad96cf",
+  "size": [
+    1440,
+    900
+  ]
+}

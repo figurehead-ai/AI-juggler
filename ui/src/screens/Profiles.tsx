@@ -11,7 +11,7 @@ import { newWorkAdvice } from "../components/AccountRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
 import { inPlaceProviders, ownSignIn, providerDisplayName, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits } from "../lib/providers";
-import { loadSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { loadSubscriptions, withLiveLabels, type SubscriptionInfo } from "../lib/subscriptions";
 import { AccountCard } from "./accounts/AccountCard";
 import {
   accountsList,
@@ -152,12 +152,12 @@ export function ProfilesScreen({
   // Every profile under its account; one the grouping missed (just added)
   // stands alone until the next read.
   const grouped = subscriptions
-    .map((sub) => ({ sub, rows: sub.profiles.map((p) => accounts.find((a) => a.id === p.id)).filter((a): a is AccountInfo => a !== undefined) }))
+    .map((sub) => ({ sub: withLiveLabels(sub, accounts), rows: sub.profiles.map((p) => accounts.find((a) => a.id === p.id)).filter((a): a is AccountInfo => a !== undefined) }))
     .filter((group) => group.rows.length > 0);
   const missed = accounts.filter((a) => !subscriptions.some((sub) => sub.profiles.some((p) => p.id === a.id)));
   for (const a of missed) {
     grouped.push({
-      sub: { key: `new-${a.id}`, tool: a.provider, state: "unverified", email: null, organisation: null, reason: "just added: its sign-in is read next time", profiles: [{ id: a.id, folder: "", plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }], plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [] },
+      sub: { key: `new-${a.id}`, tool: a.provider, state: "unverified", email: null, organisation: null, reason: "just added: its sign-in is read next time", profiles: [{ id: a.id, label: a.label, folder: "", plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }], plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [] },
       rows: [a],
     });
   }
@@ -226,7 +226,7 @@ export function ProfilesScreen({
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
           proven switches is one click away, not on every visit. */}
       <p className="text-xs text-muted">
-        How keys and tokens in context packs are handled is in{" "}
+        What happens to keys and passwords in a conversation you carry to another account is in{" "}
         <button
           type="button"
           data-testid="accounts-pack-settings"

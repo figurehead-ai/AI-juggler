@@ -142,6 +142,20 @@ fn whole_summary(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
             .iter()
             .filter(|message| message.role == MessageRole::User)
             .find_map(|message| crate::codex_titles::title(&message.text)),
+        // How it opens: its first message, AI Juggler's own included.
+        opening: parsed
+            .messages
+            .iter()
+            .find(|message| {
+                message.role == MessageRole::User
+                    && !crate::codex_transcript::is_injected(&message.text)
+            })
+            .and_then(|message| {
+                juggler_adapter::conversation::title_from(
+                    &message.text,
+                    crate::codex_titles::TITLE_MAX,
+                )
+            }),
         ..ConversationSummary::default()
     };
     for line in String::from_utf8_lossy(bytes).lines() {

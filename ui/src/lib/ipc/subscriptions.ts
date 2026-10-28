@@ -17,15 +17,15 @@ async function previewSubscriptions(): Promise<SubscriptionInfo[]> {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { subscriptions?: SubscriptionInfo[] } }).__AIJ_FIXTURE__;
   if (fixture?.subscriptions) return fixture.subscriptions;
   const profiles = await accountsList();
-  const member = (id: string): SubscriptionProfileInfo => ({ id, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null });
+  const member = (id: string, label: string): SubscriptionProfileInfo => ({ id, label, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null });
   const base = { organisation: null, reason: null, plan: null, renewal_date: null, fee_usd: null, differs: [] };
   const signedInRows: SubscriptionInfo[] = profiles
     .filter((p) => signedIn(p.login_state))
-    .map((p) => ({ ...base, key: `k-${p.id}`, tool: p.provider, state: "signed_in", email: `${p.label.toLowerCase().replace(/\s+/g, "")[0] ?? "y"}…@example.com`, profiles: [{ ...member(p.id), plan: p.plan }], plan: p.plan }));
+    .map((p) => ({ ...base, key: `k-${p.id}`, tool: p.provider, state: "signed_in", email: `${p.label.toLowerCase().replace(/\s+/g, "")[0] ?? "y"}…@example.com`, profiles: [{ ...member(p.id, p.label), plan: p.plan }], plan: p.plan }));
   const out = new Map<string, SubscriptionInfo>();
   for (const p of profiles.filter((row) => !signedIn(row.login_state))) {
     const row = out.get(p.provider) ?? { ...base, key: `out-${p.provider}`, tool: p.provider, state: "signed_out", email: null, profiles: [] };
-    row.profiles.push(member(p.id));
+    row.profiles.push(member(p.id, p.label));
     out.set(p.provider, row);
   }
   return [...signedInRows, ...out.values()];

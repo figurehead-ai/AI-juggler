@@ -194,6 +194,8 @@ export function previewRows(source: PreviewMac, input: ProcessQueryInput): Proce
           alive: session.alive,
           root_pid: session.root_pid,
           folded,
+          shared_by: 0,
+          started_ms: null,
         },
         process: null,
         rollup: total,

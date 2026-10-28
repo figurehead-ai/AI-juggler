@@ -393,4 +393,4 @@ export function keptNotices(notices: MachineNotice[], activeKeys: Set<string> | 
   });
 }
 // The alerts' words live with the memory parts they name.
-export { alertSubject, alertWords } from "./machine-memory";
+export { alertNextStep, alertSubject, alertWords } from "./machine-memory";

@@ -172,7 +172,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("agent-access-rule")).toContainText("Give a task to someone else");
     const card = page.getByTestId("settings-agent-access");
     await expect(card.getByTestId("agent-access-pool")).toHaveCount(5);
-    await card.getByTestId("agent-access-pool").nth(1).locator("> summary").click();
+    await card.getByTestId("agent-access-pool").nth(1).getByTestId("agent-access-level").click();
     await card.scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `settings-agent-access-1280x800-${theme}.png`) });
