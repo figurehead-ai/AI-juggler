@@ -144,7 +144,7 @@ export const SHORTCUTS = [
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
-  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Switch account", match: cmd("h", { shift: true }) },
+  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue on another account", match: cmd("h", { shift: true }) },
   {
     id: "inspector-tab",
     owner: "inspector",

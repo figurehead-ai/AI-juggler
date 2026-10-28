@@ -8,7 +8,8 @@
 import { useEffect, useRef } from "react";
 import { hasLiveBackend, statsEvent } from "./bridge";
 import { matches, type AppShortcutId, type KeyLike } from "./shortcuts";
-import { undoLatest } from "../components/Toast";
+import { showToast, undoLatest } from "../components/Toast";
+import { focusHandover, NO_SESSION_OPEN } from "./handover-focus";
 
 /** AJ-E1103: one keyboard shortcut used (the schema's names). */
 export function shortcutUsed(shortcut: string): void {
@@ -141,7 +142,8 @@ export function useAppKeys(actions: AppKeyActions): void {
     },
     handover: () => {
       shortcutUsed("switch");
-      window.dispatchEvent(new Event("aij:focus-handover"));
+      // F8: the open session's switch list, any kind; else why not.
+      if (!focusHandover()) showToast({ id: "handover", message: NO_SESSION_OPEN });
     },
   } satisfies Record<AppShortcutId, (event?: KeyLike) => boolean | void>;
       // A sheet that is open owns its plain keys (`?` typed in it).

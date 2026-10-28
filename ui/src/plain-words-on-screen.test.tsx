@@ -79,7 +79,8 @@ describe("nothing internal on screen (D-25)", () => {
     expect(leaks(text)).toEqual([]);
     expect(text).toContain("Mia is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
-    expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Hand over…");
+    // F16: its session is open, so the button continues it elsewhere.
+    expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Continue on another account…");
     expect(view.getByTestId("quota-banner-queue").textContent).toBe("Queue for the reset");
     delete seams.__AIJ_NOTICES__;
     resetNoticeStandIn();

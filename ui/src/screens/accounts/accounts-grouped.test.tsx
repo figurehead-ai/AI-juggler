@@ -154,8 +154,8 @@ describe("AJ-E2109 accounts in words", () => {
 
   it("AJ-E2108: a profile on the session's own account gives no new room", () => {
     const targets = [
-      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, badge: null, crossTool: false },
-      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, badge: null, crossTool: false },
+      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
+      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
     ];
     const { others, sameAccount } = byAccount(targets, rows, "w1");
     expect(others.map((group) => group.targets.map((t) => t.profileId))).toEqual([["p1"]]);
@@ -165,7 +165,7 @@ describe("AJ-E2109 accounts in words", () => {
   it("the setup check in one line", () => {
     expect(setupWords({ from: "a", to: "b", already_there: 3, offers: [] })).toBe("Ready: same tools set up");
     const server = (id: string, verdict: string) => ({ id, kind: "mcp-server", name: id, scope: "user", verdict, note: null, suggested: true, about: null, used: null, origin: "own", provided_by: null, get_it: null, can_copy: false });
-    expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "copy"), server("y", "copy")] })).toBe("Needs 2 MCP servers, set up as it moves");
+    expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "copy"), server("y", "copy")] })).toBe("Needs 2 MCP servers, set up as it switches");
     expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "needs-you")] })).toBe("Needs 1 MCP server, some set up by you");
     // Only what this conversation used counts.
     expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [{ ...server("x", "turn-on"), used: false }] })).toBe(

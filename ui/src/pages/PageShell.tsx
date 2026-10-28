@@ -5,6 +5,7 @@
  * a type of page was left on is remembered for that type only.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HANDOVER_EVENT } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
 import { PAGE_LABELS, rememberTab, rememberedTab, type PageKind, type PageTab, type PageTabId } from "./registry";
@@ -163,11 +164,16 @@ export function PageShell({
     choose(next);
   };
 
-  // ⌘⇧H: hand over lives on the body.
+  // ⌘⇧H: a session's switch list lives on its body; from another tab
+  // the body opens and the list takes the keyboard as it mounts.
   useEffect(() => {
-    const toBody = () => setPicked(tabs[0]!.id);
-    window.addEventListener("aij:focus-handover", toBody);
-    return () => window.removeEventListener("aij:focus-handover", toBody);
+    const toBody = (event: Event) => {
+      if (kind !== "session" && kind !== "conversation") return;
+      if (tab !== tabs[0]!.id) event.preventDefault();
+      setPicked(tabs[0]!.id);
+    };
+    window.addEventListener(HANDOVER_EVENT, toBody);
+    return () => window.removeEventListener(HANDOVER_EVENT, toBody);
   });
 
   // E19: a tab's link asks for another of this page's tabs (a task's

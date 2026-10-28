@@ -35,7 +35,7 @@ pub fn user_copy(situation: CopySituation) -> String {
             "Continues on {account_b} with the full conversation. Running tools and subagents stop; {account_a} stays resumable."
         ),
         CopySituation::TransplantUnproven { account_a } => format!(
-            "Beta, not proven yet: the whole session moves, with its subagents and file history. {account_a} stays resumable."
+            "Beta, not proven yet: the whole session is carried over, with its subagents and file history. {account_a} stays resumable."
         ),
         CopySituation::ReplayCrossProvider {
             provider_b,
@@ -319,8 +319,10 @@ impl SwitchFailure {
     }
 }
 
-/// `12345` as `12,345`.
-fn thousands(value: u64) -> String {
+/// `12345` as `12,345`: every count the switch says (its failures here,
+/// its dialog's words in the app).
+#[must_use]
+pub fn thousands(value: u64) -> String {
     let digits = value.to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
     for (index, digit) in digits.chars().enumerate() {

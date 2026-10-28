@@ -46,8 +46,11 @@ pub struct Candidate {
     /// The headroom reading's confidence (Estimated ⇒ discounted).
     pub headroom_confidence: Confidence,
     /// This project's historical account share (0–1) — the
-    /// wrong-billing guard (deep/09 lines 458-461).
-    pub affinity: f64,
+    /// wrong-billing guard (deep/09 lines 458-461). `None` where no
+    /// project is known yet (no folder picked): scored as 0.5, the same
+    /// for every account, and never said to be "used most here" (the
+    /// 0.2 walk, F17: every account read so).
+    pub affinity: Option<f64>,
     /// Switch fidelity (0–1, the pair's label index ÷ 4); `None` where
     /// nothing is being switched (launch surfaces): scored as 0.5, the
     /// same for every account.
@@ -72,6 +75,9 @@ pub struct Candidate {
 /// never enough to outweigh a real factor gap, and hard-filtered
 /// rows never reach scoring.
 pub const RETURN_BONUS: f64 = 0.05;
+
+/// A row whose room isn't measured says so in its words.
+pub const ROOM_UNKNOWN: &str = "room left unknown — ranked by the rest";
 
 /// One ranked (or filtered) output row.
 #[derive(Clone, PartialEq, Debug)]
@@ -105,16 +111,32 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
         .iter()
         .filter_map(|candidate| candidate.projected_usd)
         .fold(0.0_f64, f64::max);
+    // "Used most here" is the one account with the biggest share, never a
+    // tie and never none.
+    let shares: Vec<f64> = candidates
+        .iter()
+        .filter_map(|candidate| candidate.affinity)
+        .collect();
+    let top_share = shares.iter().copied().fold(0.0_f64, f64::max);
+    let most_here = |share: f64| {
+        share > 0.0
+            && share >= top_share
+            && shares
+                .iter()
+                .filter(|other| (**other - top_share).abs() < f64::EPSILON)
+                .count()
+                == 1
+    };
     let mut survivors: Vec<RankedRow> = Vec::new();
     let mut filtered: Vec<RankedRow> = Vec::new();
 
     for candidate in candidates {
         let reason = if candidate.wrong_provider {
-            Some("wrong Provider for this request".to_owned())
+            Some("This tool can't take this request".to_owned())
         } else if candidate.logged_out {
-            Some("logged out".to_owned())
+            Some("Signed out: sign in to it first".to_owned())
         } else if candidate.exhausted_no_reset {
-            Some("quota exhausted — no reset before you need it".to_owned())
+            Some("Out of room, and no reset is known".to_owned())
         } else {
             None
         };
@@ -151,19 +173,21 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
                     pct
                 };
                 let words = format!(
-                    "{}% headroom · {}",
+                    "{}% left · {}",
                     pct.round(),
                     match candidate.headroom_confidence {
-                        Confidence::Measured => "Measured",
-                        Confidence::Computed => "Computed",
-                        Confidence::Estimated => "Estimate",
+                        Confidence::Measured => "measured",
+                        Confidence::Computed => "worked out",
+                        Confidence::Estimated => "estimated",
                     }
                 );
                 (discounted.clamp(0.0, 100.0) / 100.0, words)
             }
-            None => (0.0, "headroom unknown — ranked without quota".to_owned()),
+            None => (0.0, ROOM_UNKNOWN.to_owned()),
         };
-        let affinity = candidate.affinity.clamp(0.0, 1.0);
+        let affinity = candidate
+            .affinity
+            .map_or(0.5, |share| share.clamp(0.0, 1.0));
         let fidelity = candidate
             .fidelity
             .map_or(0.5, |value| value.clamp(0.0, 1.0));
@@ -185,10 +209,14 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
         let mut factors = vec![
             (headroom_words, W_HEADROOM * headroom_input),
             (
-                if affinity >= 0.5 {
-                    "used most here".to_owned()
-                } else {
-                    format!("{}% history here", (affinity * 100.0).round())
+                match candidate.affinity {
+                    None => "no folder picked yet".to_owned(),
+                    Some(share) if most_here(share) => "used most here".to_owned(),
+                    Some(share) if share <= 0.0 => "not used here yet".to_owned(),
+                    Some(share) => format!(
+                        "{}% of the sessions here",
+                        (share.clamp(0.0, 1.0) * 100.0).round()
+                    ),
                 },
                 W_AFFINITY * affinity,
             ),
@@ -235,8 +263,8 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             .take(2)
             .map(|(words, _)| words.clone())
             .collect();
-        if headroom_unknown && !top_factors.iter().any(|words| words.contains("unknown")) {
-            top_factors.push("headroom unknown — ranked without quota".to_owned());
+        if headroom_unknown && !top_factors.iter().any(|words| words == ROOM_UNKNOWN) {
+            top_factors.push(ROOM_UNKNOWN.to_owned());
         }
         survivors.push(RankedRow {
             account: candidate.account.clone(),

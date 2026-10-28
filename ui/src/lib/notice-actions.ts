@@ -12,7 +12,7 @@ import { errorText, instanceMarkReviewed, instanceUnmarkReviewed, resetQueueQueu
 import { focusTask } from "./ipc/tasks";
 import { notificationsMute, notificationsRead, notificationsSnooze, type NoticeInfo } from "./ipc/notices";
 import { acted } from "./notices-store";
-import { liveOn } from "./needs-you";
+import { focusHandoverSoon, openOnAccount } from "./handover-focus";
 import { clock, HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { rememberTab } from "../pages/registry";
 
@@ -26,6 +26,8 @@ function openScreen(id: string): void {
 export interface NoticeActions {
   /** Its primary (opens what it is about, or hands over…). */
   primary: (notice: NoticeInfo) => void;
+  /** A hand-over has a session to continue (else it opens the account). */
+  canHandOver: (notice: NoticeInfo) => boolean;
   /** Its second action beside the primary. */
   second: (notice: NoticeInfo, which: Second) => void;
   snooze: (notice: NoticeInfo, until: "hour" | "tomorrow") => void;
@@ -59,10 +61,13 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (notice.unread) void acted(() => notificationsRead(notice.id));
     switch (notice.action) {
       case "hand-over": {
-        const session = liveOn(sessions, notice.target.account_id);
-        if (!session) return open(notice);
-        host.openSessionById?.(session.id);
-        window.setTimeout(() => window.dispatchEvent(new Event("aij:focus-handover")), 0);
+        // F16: its newest open session, AI Juggler's or another app's,
+        // with its switch list; the account only when none is open.
+        const found = openOnAccount(notice.target.account_id, sessions, conversations);
+        if (!found) return open(notice);
+        if ("session" in found) host.openSessionById?.(found.session.id);
+        else host.openConversation?.(found.conversation);
+        focusHandoverSoon();
         return;
       }
       case "limit":
@@ -118,5 +123,6 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       );
     }
   };
-  return { primary, second, snooze, wake, mute };
+  const canHandOver = (notice: NoticeInfo) => openOnAccount(notice.target.account_id, sessions, conversations) !== null;
+  return { primary, canHandOver, second, snooze, wake, mute };
 }

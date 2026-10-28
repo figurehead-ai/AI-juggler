@@ -29,7 +29,6 @@ ui/src/lib/bridge.ts 4788
 ui/src/screens/FirstRun.tsx 1294
 ui/src/screens/FleetScreen.tsx 765
 ui/src/screens/Home.tsx 596
-ui/src/screens/NewProjectSheet.tsx 423
 ui/src/screens/NewSession.tsx 509
 ui/src/screens/PairingWizard.tsx 816
 ui/src/screens/Profiles.tsx 408

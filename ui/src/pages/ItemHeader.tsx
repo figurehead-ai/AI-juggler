@@ -4,6 +4,7 @@
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
 import { AccountAvatar } from "../components/Avatar";
+import { focusHandover } from "../lib/handover-focus";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
 import type { PageKind } from "./registry";
@@ -227,7 +228,7 @@ export function InspectorHeader({
       {/* D-25: the session's one-step-away move, beside its Stop. */}
       {/* Only with a conversation to carry over: the menu's own rule. */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => window.dispatchEvent(new Event("aij:focus-handover"))}>
+        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover()}>
           Switch account…
         </Button>
       )}

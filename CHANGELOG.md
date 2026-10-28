@@ -366,6 +366,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   terminal's; the list's View says "Subagents", what Inactive, Quiet ones
   and Background runs are, and offers "Not open in an app" instead of "An
   app".
+- Continue on another account ranks the accounts by the room they have
+  left, read as Home's Runway reads it, and marks **Suggested** the one
+  Home calls "Best for new work" (the 0.2 walk, F1). Each account says its
+  room ("75% left this week", when it resets). An account out of room is
+  still offered, last, as "Out of room until Thu 08:00", with what picking
+  it does: the conversation stops at its limit straight away. The switch
+  says the same on every step (explained, with the guide), its last button
+  reads **Switch anyway**, and Confirm no longer says "Nothing needs you".
+  The switch card, the limit dialog and New session use the same order and
+  the same Suggested account.
+- New session (F17): "used most here" only on the account that is (it said
+  so of every account before a folder was picked); the pick is yours when
+  you made one (this project's default, your default, the account used
+  last in this folder) and otherwise the Suggested one, and says which
+  ("your default", "Suggested: the most room"). When it isn't the
+  Suggested one, "Suggested: Account B has the most room (98% left). Use
+  Account B" sits under it; a pick of yours out of room gives way to the
+  Suggested one and says until when. Picking a row of "Ranked for you"
+  makes it the pick.
+- Continue on another account is on the row menu (and ⌘K) of a session
+  another app runs too, with ⌘⇧H; ⌘⇧H takes the switch list of whatever
+  session's page is open, and says why when none is (the 0.2 walk, F8).
+- An account's out-of-room banner and Home's row continue its open session
+  on another account (AI Juggler's or another app's, the newest) instead
+  of opening the account's page; with no session open the button says
+  "Open its account" (F16). The banner says the day of a reset that isn't
+  today ("resets at 8:00 AM tomorrow").
+- The switch's words (F12): the conversation is "carried over", never
+  "moves"; no "replays … natively"; "all 31,009 messages"; Details says
+  "9 of the 18 things". "What's carried" and Confirm agree: MCP servers
+  and skills go along only where the other account has them; ones this
+  conversation used that it lacks are "Not on Account B yet: set up on the
+  last step". The rankings say "75% left · measured" and "Signed out: sign
+  in to it first" instead of "headroom" and "logged out".
+- A project's pool page says what it counts: "0 sessions in AI Juggler · 3
+  open in other apps", instead of "0 sessions" beside sessions open in the
+  Claude app.
 - History's replay shows "assistant" and unknown roles in colours readable
   on its dark background (they were 3:1).
 - Asking whether Claude Code's own limits check is offered no longer

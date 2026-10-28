@@ -389,3 +389,11 @@ describe("context cards", () => {
     expect(getByTestId("pool-cards-empty")).toBeTruthy();
   });
 });
+
+describe("the pool page's count (the 0.2 walk: \"0 sessions\" beside three open in the Claude app)", () => {
+  it("says what it counts: AI Juggler's sessions, and the project's open in other apps beside them", async () => {
+    const { poolCountWords } = await import("../pages/PoolPage");
+    expect(poolCountWords(0, 3)).toBe("0 sessions in AI Juggler · 3 open in other apps");
+    expect(poolCountWords(1, 0)).toBe("1 session in AI Juggler");
+  });
+});

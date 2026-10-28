@@ -59,7 +59,7 @@ const WIZARD: PreflightInfoData = {
   fidelity_words: "Same conversation, new account",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
   usual_account: false,
   carry: {
     carried: ["The whole conversation"],

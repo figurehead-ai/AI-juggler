@@ -28,9 +28,20 @@ turn on **Search the words of every session** in Settings › Privacy:
   session the tool deletes leaves the index too.
 - **Turning it off deletes the index.**
 
-To start one, choose **New session**. Pick the project folder, the tool and
-the profile. A project can have its own profile (set it from the project's
-menu). Otherwise new sessions use your default profile.
+To start one, choose **New session** (⌘N). Pick the project folder, the tool
+and the profile. A project can have its own profile (set it from the
+project's menu). Otherwise new sessions use your default profile, then the
+one you used last in that folder.
+
+**Ranked for you** lists the profiles by the room their accounts have left,
+read as Home's **Runway by account** reads it, and marks **Suggested** the
+one with the most. The pick says why it's the pick ("your default", "used
+last here", "Suggested: the most room"). When it isn't the Suggested one,
+the sheet offers that one beside it ("Use Account B"). A pick of yours
+that's out of room gives way to the Suggested one, and the sheet says until
+when; **Use … anyway** keeps it. Picking a row of the ranking makes it the
+pick. "Used most here" is said only of the account that ran most sessions
+in that folder.
 
 A session you started elsewhere can be picked up with **Continue in AI
 Juggler**. To carry one to another account or tool, see

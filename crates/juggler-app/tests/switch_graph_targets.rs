@@ -199,7 +199,10 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
         row_c.badge
     );
     assert!(!row_c.drops.is_empty(), "the badge's honest companion");
-    assert_eq!(row_c.filtered_reason.as_deref(), Some("logged out"));
+    assert_eq!(
+        row_c.filtered_reason.as_deref(),
+        Some("Signed out: sign in to it first")
+    );
     for target in &targets {
         assert!(!target.validated, "E210 owns flipping cells green");
         assert!(
@@ -212,6 +215,39 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
     // Determinism: same inputs → same order + same explanation.
     let again = commands::switch_targets_impl(state, &source.session_id).unwrap();
     assert_eq!(targets, again, "ranking is deterministic");
+}
+
+/// The 0.2 walk (F1): the targets came in the order the accounts were
+/// added, so a held-back one could head the list. They come in the
+/// ranking's order: survivors first, held-back ones last.
+#[test]
+fn switch_targets_come_in_the_rankings_order() {
+    let work = tempfile::tempdir().unwrap();
+    let source = launch_source(work.path());
+    let state = &source.state;
+    // Added first, but signed out: held back.
+    let first = commands::create_account(state, CLAUDE_CODE_ID, "Added first", None).unwrap();
+    let second = commands::create_account(state, CLAUDE_CODE_ID, "Added second", None).unwrap();
+    sign_in(state, &second.id);
+    commands::create_profile(state, &first.id, "Main", None, None).unwrap();
+    commands::create_profile(state, &second.id, "Main", None, None).unwrap();
+
+    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let labels: Vec<&str> = targets
+        .iter()
+        .map(|target| target.account_label.as_str())
+        .collect();
+    assert_eq!(
+        labels,
+        ["Added second", "Added first"],
+        "ranked, not as added"
+    );
+    assert!(targets[1].filtered_reason.is_some());
+    // The preflight names the target's account, for its room (the one
+    // runway the UI reads, as Home does).
+    let profile = targets[0].recipe_id.clone();
+    let preflight = commands::switch_preflight_impl(state, &source.session_id, &profile).unwrap();
+    assert_eq!(preflight.target_account, second.id);
 }
 
 #[test]

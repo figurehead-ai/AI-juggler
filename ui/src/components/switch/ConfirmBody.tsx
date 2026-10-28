@@ -20,6 +20,8 @@ import { originalWords, SwitchFreezeChoice, type FreezeChoice } from "../SwitchF
 import { SwitchSetupList } from "../SwitchSetupList";
 import { finishedByYou } from "../../lib/useSwitchSetup";
 import { CarryList } from "./CarryList";
+import { risky, RoomNote } from "./TargetRoom";
+import type { TargetRoom } from "../../lib/room-targets";
 
 const DETAILS_KEY = "aij.switch.details";
 
@@ -40,6 +42,7 @@ export function needsYouCount(setup: SetupCheckInfo | null): number {
 export function ConfirmBody({
   preflight,
   target,
+  room = null,
   freeze,
   onFreeze,
   setup,
@@ -50,6 +53,8 @@ export function ConfirmBody({
 }: {
   preflight: PreflightInfoData;
   target: string;
+  /** The target's room (the one runway); a warning when out or low. */
+  room?: TargetRoom | null;
   freeze: FreezeChoice;
   onFreeze: (choice: FreezeChoice) => void;
   setup: SetupCheckInfo | null;
@@ -66,7 +71,8 @@ export function ConfirmBody({
   const needs = needsYouCount(setup);
   const offers = setup?.offers.length ?? 0;
   const stoppable = preflight.source_live && !preflight.source_keeps_running && !outside;
-  const before = preflight.warnings.length > 0 || stoppable || offers > 0 || extra !== undefined;
+  const tight = risky(room);
+  const before = preflight.warnings.length > 0 || stoppable || offers > 0 || extra !== undefined || tight;
   const tool = toolSpec(preflight.target_tool).display_name;
   return (
     <div className="flex flex-col gap-5" data-testid="switch-step-confirm">
@@ -80,11 +86,18 @@ export function ConfirmBody({
           <li data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>
             {originalWords({ live: preflight.source_live, keepsRunning: preflight.source_keeps_running, outside, choice: freeze })}
           </li>
+          {room && (
+            <li data-testid="switch-summary-room" className={tight ? "font-semibold text-warning" : undefined}>
+              {tight ? `${target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.` : `Room on ${target}: ${room.words}.`}
+            </li>
+          )}
           <li data-testid="switch-summary-needs">
             {needs === 0
               ? setup && offers === 0
-                ? `${target} has everything this account has set up. Nothing needs you.`
-                : "Nothing needs you."
+                ? `${target} has everything this account has set up.${tight ? "" : " Nothing needs you."}`
+                : tight
+                  ? "Nothing else needs you."
+                  : "Nothing needs you."
               : needs === 1
                 ? "1 thing needs you below; it doesn't stop the switch."
                 : `${needs} things need you below; none of them stops the switch.`}
@@ -97,6 +110,7 @@ export function ConfirmBody({
           <h4 id="switch-before" className="text-section text-ink">
             Before you switch
           </h4>
+          {tight && <RoomNote room={room} target={target} />}
           {preflight.warnings.length > 0 && (
             <ul className="flex flex-col gap-1.5" data-testid="switch-warnings">
               {preflight.warnings.map((warning) => (
@@ -131,10 +145,11 @@ export function ConfirmBody({
           <p className="text-body text-ink" data-testid="switch-oneclick-carry">
             {preflight.experimental_copy}
           </p>
-          {(preflight.carry_items?.length ?? 0) > 0 && <CarryList items={preflight.carry_items} target={target} tool={tool} />}
+          {(preflight.carry_items?.length ?? 0) > 0 && <CarryList items={preflight.carry_items} target={target} tool={tool} setup={setup} />}
           {setup && setup.already_there > 0 && (
             <p className="text-body text-ink">
-              {target} already has {setup.already_there} of the things this account has set up.
+              {target} already has {setup.already_there} of the {setup.already_there + offers} things this account has set up
+              {offers > 0 ? `; the other ${offers} are listed under Before you switch.` : "."}
             </p>
           )}
         </div>

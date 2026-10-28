@@ -45,7 +45,8 @@ function Line({ icon: Icon, label }: { icon: typeof IconSnooze; label: string })
 
 export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; actions: NoticeActions; now: number }): JSX.Element {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
-  const primary = primaryLabel(notice);
+  // F16: a hand-over with no open session opens the account, and says so.
+  const primary = notice.action === "hand-over" && !actions.canHandOver(notice) ? "Open its account" : primaryLabel(notice);
   const second = secondOf(notice);
   const meta = needMeta(notice);
   const pick = (run: () => void) => () => {

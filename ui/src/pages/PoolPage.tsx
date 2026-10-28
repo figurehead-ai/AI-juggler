@@ -13,6 +13,16 @@ import { PageHeader, PageShell } from "./PageShell";
 import { pageTabs } from "./registry";
 import { lazyNamed } from "../lib/lazy";
 import { PoolLinks } from "./messages/PoolLinks";
+import { liveOutside, useConversations } from "../lib/conversations";
+
+/** What a pool page counts, said precisely: its members (the sessions AI
+ * Juggler runs or carried in) and, beside them, its project's sessions
+ * open in other apps now (the 0.2 walk: "0 sessions" while three were
+ * open in the Claude app). */
+export function poolCountWords(members: number, openElsewhere: number): string {
+  const own = `${members} ${members === 1 ? "session" : "sessions"} in AI Juggler`;
+  return openElsewhere > 0 ? `${own} · ${openElsewhere} open in other apps` : own;
+}
 
 // E18: the Messages tab loads only when it opens.
 const PoolMessages = lazyNamed(() => import("./messages/PoolMessages"), "PoolMessages");
@@ -39,6 +49,7 @@ const CARDS_EVERY_MS = 10_000;
  */
 export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
   const pools = usePools();
+  const { all } = useConversations();
   const pool = poolById(pools, poolId);
   const [error, setError] = useState<string | null>(null);
   const [tasksShown, setTasksShown] = useState(false);
@@ -80,8 +91,8 @@ export function PoolPage({ poolId, sessions, projects, now }: { poolId: string; 
             name={pool?.name ?? "Pool"}
             chips={pool?.kind === "default" ? <Chip tone="neutral">Always here</Chip> : undefined}
             facts={
-              <span>
-                {members} {members === 1 ? "session" : "sessions"}
+              <span data-testid="pool-page-count" title="Its members are the sessions AI Juggler runs or carried in; ones other apps run in its project are counted beside them.">
+                {poolCountWords(members, project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0)}
                 {project ? ` · for ${project.name}` : ""}
                 {pool ? ` · agents: ${levelLabel(pool.access.level)}` : ""}
               </span>

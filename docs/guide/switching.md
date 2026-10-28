@@ -12,8 +12,12 @@ Open the session, then do one of these:
 - Open the session's menu in the list and choose **Continue on another
   account…**.
 - In the panel on the right, open **Continue on another account**. It lists
-  every account you can go to, ranked mostly by how much room each has
-  left, then by how much you've used it in this project.
+  every account you can go to, ranked by how much room each has left, read
+  the same way as Home's **Runway by account**: the most room first, then
+  accounts not measured yet, then low ones, then any out of room. The one
+  with the most room (over 25% left) is marked **Suggested**, the account
+  Home calls "Best for new work". Each account says its room ("75% left
+  this week", when it resets).
 
 A finished conversation in your history can be continued the same way.
 
@@ -21,6 +25,18 @@ You pick a profile to go to, listed under its account. A profile signed in
 to the same account as the one you're on is marked "no new room": profiles
 on one account share its limits, so moving there doesn't help when you've
 run out.
+
+### An account with little or no room
+
+An account out of room stays in the list, last, with when it has room
+again: "Out of room until Thu 08:00". You can still pick it: the
+conversation starts there, but its first message stops at that account's
+limit and waits for the reset. An account with 25% or less left says so
+too ("has only 12% left: the conversation may stop at its limit soon").
+
+The switch screen says the same on every step, and its last button reads
+**Switch anyway** instead of **Switch now**. To keep working at once, pick
+the account marked **Suggested** instead.
 
 ## Two kinds of switch
 

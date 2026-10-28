@@ -14,6 +14,7 @@ import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, t
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet } from "../lib/pools";
 import { markSeen } from "../lib/seen";
+import { focusHandoverSoon } from "../lib/handover-focus";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -54,10 +55,10 @@ export function AppActions({
 }): JSX.Element {
   const conversations = useConversations();
   const host = useMemo<ActionHost>(() => {
-    // The same as ⌘⇧H on the session: its hand-over section.
+    // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
       selectSession(row.id);
-      window.setTimeout(() => window.dispatchEvent(new Event("aij:focus-handover")), 0);
+      focusHandoverSoon();
     };
     return {
       openSession: (row) => selectSession(row.id),
@@ -89,6 +90,12 @@ export function AppActions({
         } catch (cause) {
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }
+      },
+      // F8: another app's session too, from its row menu and ⌘K.
+      continueConversationElsewhere: (c) => {
+        markSeen(c.account_id, c.id);
+        selectConversation(c);
+        focusHandoverSoon();
       },
       copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
       continueConversation: async (c) => {

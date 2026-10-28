@@ -14,6 +14,44 @@
 import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
+import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
+import type { TargetRoom } from "../lib/room-targets";
+
+/** "Suggested": the one with the most room (the one order by room). */
+export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
+  return (
+    <span className={"shrink-0 rounded border border-accent/50 px-1 text-label text-accent-hi " + className} data-testid="suggested-mark">
+      Suggested
+    </span>
+  );
+}
+
+/** An account's room under its name, in the one runway's words; out of
+ * room says until when and what picking it anyway does (the 0.2 walk, F1:
+ * it was offered like any other). */
+export function RoomLine({ name, room, testId = "target-room" }: { name: string; room: TargetRoom; testId?: string }): JSX.Element {
+  if (room.kind === "out") {
+    return (
+      <span className="flex flex-col text-label text-danger" data-testid={testId} data-room="out">
+        <span className="font-medium">{outOfRoomWords(room.resetsAtMs)}</span>
+        <span>{outOfRoomConsequence(name, room.resetsAtMs)}</span>
+      </span>
+    );
+  }
+  if (room.kind === "low" && room.left !== null) {
+    return (
+      <span className="text-label text-warning" data-testid={testId} data-room="low">
+        {lowRoomWords(name, room.left)}
+        {room.resets ? ` ${room.resets}.` : ""}
+      </span>
+    );
+  }
+  return (
+    <span className="text-label text-muted" data-testid={testId} data-room={room.kind}>
+      {room.resets ?? room.words}
+    </span>
+  );
+}
 
 /** The badge chip: solid when validated, hatched while beta. The text
  * label (the badge string itself + the validated line) carries the
@@ -48,7 +86,8 @@ export function SwitchTargetRows({
   targets,
   onPick,
 }: {
-  targets: SwitchTargetData[];
+  /** In the one order by room, each with its room (`rankTargets`). */
+  targets: Array<SwitchTargetData & { room?: TargetRoom }>;
   onPick: (target: SwitchTargetData) => void;
 }): JSX.Element {
   const [whyOpen, setWhyOpen] = useState(false);
@@ -93,6 +132,11 @@ export function SwitchTargetRows({
           Why this order?
         </button>
       </div>
+      {whyOpen && (
+        <p className="text-label text-muted" data-testid="why-this-order">
+          {ROOM_ORDER_WORDS}
+        </p>
+      )}
       <ul
         ref={listRef}
         onKeyDown={onKeyDown}
@@ -120,13 +164,10 @@ export function SwitchTargetRows({
                     {target.account_label}
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
-                  {target.suggested && !filtered && (
-                    <span className="rounded border border-accent/50 px-1 text-label text-accent">
-                      Suggested
-                    </span>
-                  )}
+                  {target.suggested && !filtered && <SuggestedMark />}
                   {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
+                {target.room && !filtered && <RoomLine name={target.account_label} room={target.room} />}
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}

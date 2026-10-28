@@ -201,7 +201,9 @@ fn rank_candidates_for(
                 .collect()
         })
         .unwrap_or_default();
-    let total_project_sessions = project_sessions.len().max(1);
+    let project_counts = project.map(|project_id| {
+        project_account_counts(&storage, &juggler_core::model::ProjectId::new(project_id))
+    });
 
     let mut candidates: Vec<juggler_core::ranking::Candidate> = Vec::new();
     let mut tte_by_account: std::collections::BTreeMap<String, Option<f64>> =
@@ -237,25 +239,19 @@ fn rank_candidates_for(
             Some("computed") => juggler_core::model::Confidence::Computed,
             _ => juggler_core::model::Confidence::Estimated,
         };
-        let affinity = if project.is_some() {
-            let own = sessions
-                .iter()
-                .filter(|record| {
-                    record
-                        .project
-                        .as_ref()
-                        .is_some_and(|p| p.as_str() == project.unwrap_or_default())
-                        && recipes.iter().any(|recipe| {
-                            recipe.id == record.profile
-                                && recipe.account.as_str() == account.id.as_str()
-                        })
-                })
-                .count();
-            f64::from(u32::try_from(own).unwrap_or(u32::MAX))
-                / f64::from(u32::try_from(total_project_sessions).unwrap_or(u32::MAX))
-        } else {
-            0.5
-        };
+        // F17: the project's share, from the same count as the usual
+        // account; none without a project (no folder picked).
+        let affinity = project_counts.as_ref().map(|counts| {
+            let total: u64 = counts.values().sum();
+            let own = counts.get(&account.id).copied().unwrap_or(0);
+            #[allow(clippy::cast_precision_loss)] // session counts, far below 2^52
+            let share = if total == 0 {
+                0.0
+            } else {
+                own as f64 / total as f64
+            };
+            share
+        });
         let events = storage
             .usage()
             .events_for_account(account.id.as_str(), now - juggler_core::quota::WEEK_MS)
@@ -5286,6 +5282,9 @@ pub struct PreflightInfo {
     pub secrets: crate::features::handover::switch_words::SecretsInfo,
     /// The target's tool (its id: the UI names it from the catalog).
     pub target_tool: String,
+    /// The target's account (its profile id): the UI reads its room from
+    /// the one runway, as Home does (the 0.2 walk, F1).
+    pub target_account: String,
 }
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
@@ -5459,6 +5458,7 @@ pub(crate) fn preflight_with(
         move_line: words.move_line,
         secrets: words.secrets,
         target_tool: account_b.harness.to_string(),
+        target_account: account_b.id.to_string(),
     })
 }
 
@@ -5635,6 +5635,26 @@ fn usual_account_for_project(
     project: &juggler_core::model::ProjectId,
     target: &Account,
 ) -> bool {
+    let counts = project_account_counts(storage, project);
+    let Some(target_count) = counts.get(&target.id).copied().filter(|count| *count > 0) else {
+        return false;
+    };
+    let others_max = counts
+        .iter()
+        .filter(|(id, _)| *id != &target.id)
+        .map(|(_, count)| *count)
+        .max()
+        .unwrap_or(0);
+    target_count > others_max
+}
+
+/// How often each account ran in `project`: its session records, plus one
+/// per imported-history label. The one count behind "used most here" in
+/// the rankings and the usual-account test.
+fn project_account_counts(
+    storage: &Storage,
+    project: &juggler_core::model::ProjectId,
+) -> std::collections::BTreeMap<juggler_core::model::AccountId, u64> {
     let mut counts: std::collections::BTreeMap<juggler_core::model::AccountId, u64> =
         std::collections::BTreeMap::new();
     let sessions = storage.sessions().list(None).unwrap_or_default();
@@ -5656,16 +5676,7 @@ fn usual_account_for_project(
             }
         }
     }
-    let Some(target_count) = counts.get(&target.id).copied().filter(|count| *count > 0) else {
-        return false;
-    };
-    let others_max = counts
-        .iter()
-        .filter(|(id, _)| *id != &target.id)
-        .map(|(_, count)| *count)
-        .max()
-        .unwrap_or(0);
-    target_count > others_max
+    counts
 }
 
 /// Groups the pair's dispositions into the door's carry-list names.
@@ -5710,7 +5721,9 @@ fn wizard_reasons_of(
     let mut reasons = Vec::new();
     match inputs.mechanism {
         Some(Mechanism::Replay) => {
-            reasons.push("This switch replays — the target can't resume natively.".to_owned());
+            reasons.push(
+                "The other tool can't pick up this conversation where it stopped: it starts fresh and reads it first.".to_owned(),
+            );
         }
         Some(Mechanism::PackOnly) => {
             reasons.push("The other tool can't continue this conversation: it starts from notes about the work.".to_owned());
@@ -5721,13 +5734,13 @@ fn wizard_reasons_of(
     // reason here (it replays, or leaves something behind);
     // "not proven" is said as itself.
     if !validated {
-        reasons.push("This move hasn't been proven on a real setup yet.".to_owned());
+        reasons.push("This switch hasn't been proven on a real setup yet.".to_owned());
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));
     }
     if !inputs.target_headroom_ok {
-        reasons.push("The target is running low on quota.".to_owned());
+        reasons.push("At this pace the other account runs out of room soon.".to_owned());
     }
     reasons
 }
@@ -13156,7 +13169,21 @@ pub fn switch_targets_impl(
     let storage = lock_storage_arc(state)?;
     let dogfood = dogfood_cells_of(&storage);
     let mut out = Vec::new();
-    for account in storage.accounts().list()? {
+    // In the ranking's order (the 0.2 walk, F1: they came in the order the
+    // accounts were added).
+    let mut accounts = storage.accounts().list()?;
+    let place: std::collections::BTreeMap<&str, usize> = ranked
+        .iter()
+        .enumerate()
+        .map(|(index, row)| (row.account.as_str(), index))
+        .collect();
+    accounts.sort_by_key(|account| {
+        place
+            .get(account.id.as_str())
+            .copied()
+            .unwrap_or(usize::MAX)
+    });
+    for account in accounts {
         let Some(row) = by_account.get(account.id.as_str()) else {
             continue;
         };
