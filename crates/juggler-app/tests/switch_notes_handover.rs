@@ -266,7 +266,11 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
         sheet.not_carried,
         ["deploy.md: a key or password was found in it, or it didn't fit"]
     );
-    assert_eq!(sheet.withheld, Some(Vec::new()), "nothing in the conversation");
+    assert_eq!(
+        sheet.withheld,
+        Some(Vec::new()),
+        "nothing in the conversation"
+    );
 }
 
 #[test]
