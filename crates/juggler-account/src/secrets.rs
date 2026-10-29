@@ -45,7 +45,9 @@ pub trait SecretStore: Send + Sync {
 #[derive(Debug, Clone, Copy)]
 pub struct KeychainStore {
     service: &'static str,
-    /// What a failed save couldn't do, in words.
+    /// What a failed save couldn't do, in words. Only a real Keychain can
+    /// fail a save; elsewhere the store is [`SecretError::Unsupported`].
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     what: &'static str,
 }
 
