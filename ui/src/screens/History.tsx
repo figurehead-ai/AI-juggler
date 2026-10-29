@@ -112,7 +112,9 @@ function FilterChip({ label, value, options, onChange, testId }: { label: string
       <Picker
         look="quiet"
         size="sm"
-        prefix={label}
+        // Its name as it reads on screen ("Profile: All"), so the button's
+        // name contains what it shows (axe: label-content-name-mismatch).
+        prefix={`${label}:`}
         ariaLabel={label}
         heading={label}
         value={value ?? ""}

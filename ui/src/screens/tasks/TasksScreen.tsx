@@ -11,9 +11,7 @@
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Page } from "../../components/Page";
-import { Segmented } from "../../components/usage/controls";
-import { FilterPicker } from "../../components/FilterPicker";
-import { ProjectMark } from "../../components/ProjectMark";
+import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import { IconPool } from "../../components/icons-actions";
 import { IconProfiles, IconProjects } from "../../components/icons";
 import { IconClock } from "../../components/icons-menu";
@@ -37,10 +35,14 @@ function storedView(): "board" | "plan" {
   }
 }
 
-const HOLDERS = [
-  { id: "nobody", label: "No one yet", hint: "Work no agent has taken", icon: <IconClock width={14} height={14} /> },
-  { id: "you", label: "You", hint: "Tasks an agent gave you", icon: <IconUser width={14} height={14} /> },
+/** "All" in a picker: no filter. */
+const ALL = "all";
+const HOLDERS: PickerOption[] = [
+  { value: ALL, label: "Anyone", hint: "Whoever has it, or no one", icon: IconProfiles },
+  { value: "nobody", label: "No one yet", hint: "Work no agent has taken", icon: IconClock },
+  { value: "you", label: "You", hint: "Tasks an agent gave you", icon: IconUser },
 ];
+const orAll = (value: string) => (value === ALL ? null : value);
 
 export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; now: number }): JSX.Element {
   const host = useActionHost();
@@ -94,7 +96,8 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const projectName = (id: string | null) => (id ? (names.get(id) ?? null) : null);
   const poolOptions = pools
     .filter((pool) => !projectId || pool.project_id === projectId)
-    .map((pool) => ({ id: pool.id, label: pool.name, hint: pool.members === 1 ? "1 member" : `${pool.members} members`, icon: <IconPool width={14} height={14} /> }));
+    .map((pool): PickerOption => ({ value: pool.id, label: pool.name, hint: pool.members === 1 ? "1 member" : `${pool.members} members`, icon: IconPool }));
+  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
   const chooseView = (next: "board" | "plan") => {
     setView(next);
     try {
@@ -115,25 +118,27 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Show">
         <Segmented
           label="View"
-          size="sm"
-          options={[
-            { id: "board", label: "Board" },
-            { id: "plan", label: "Plan" },
+          segments={[
+            { value: "board", label: "Board", title: "By state: ready, in progress, in review, blocked" },
+            { value: "plan", label: "Plan", title: "Each pool's epics, stories and tasks" },
           ]}
           value={view}
           onChange={chooseView}
           testId="tasks-view"
+          className="w-36 shrink-0"
         />
-        <FilterPicker
-          label="Project"
-          value={projectId}
-          all={{ id: "all", label: "All", hint: "Every project", icon: <IconProjects width={14} height={14} /> }}
-          options={projects.map((project) => ({ id: project.id, label: project.name, icon: <ProjectMark projectId={project.id} size={14} /> }))}
-          onChange={(next) => (setProjectId(next), setPoolId(null))}
-          testId="tasks-filter-project"
+        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectId ?? ALL} options={projectOptions} onChange={(next) => (setProjectId(orAll(next)), setPoolId(null))} testId="tasks-filter-project" />
+        <Picker
+          size="sm"
+          prefix="Pool:"
+          ariaLabel="Pool"
+          heading="Pool"
+          value={poolId ?? ALL}
+          options={[{ value: ALL, label: "All", hint: projectId ? "Every pool of this project" : "Every pool", icon: IconPool }, ...poolOptions]}
+          onChange={(next) => setPoolId(orAll(next))}
+          testId="tasks-filter-pool"
         />
-        <FilterPicker label="Pool" value={poolId} all={{ id: "all", label: "All", hint: projectId ? "Every pool of this project" : "Every pool", icon: <IconPool width={14} height={14} /> }} options={poolOptions} onChange={setPoolId} testId="tasks-filter-pool" />
-        {view === "board" && <FilterPicker label="Holder" value={holder} all={{ id: "anyone", label: "Anyone", hint: "Whoever has it, or no one", icon: <IconProfiles width={14} height={14} /> }} options={HOLDERS} onChange={setHolder} testId="tasks-filter-holder" />}
+        {view === "board" && <Picker size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={HOLDERS} onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
         <input
           type="search"
           value={words}
