@@ -13,7 +13,9 @@
  *   the profile's dot (D-38), its state's dot, and `!` when it needs you.
  *   Its name says the state first, then the title and where it runs.
  * - **All clear** only when nothing needs you, nothing is open and the
- *   computer is calm (`RailCalm`).
+ *   computer is calm (`RailCalm`); while the sessions still load, round
+ *   placeholders stand in, never a false "All clear" (AJ-E1503 Req.4, as
+ *   the full rail's rows do; the 0.2.0 re-render found it).
  */
 import { useId, useMemo, useRef, type JSX } from "react";
 import { PlaceMark, ProfileBadge } from "./PlaceMarks";
@@ -54,6 +56,7 @@ export function FoldedRail({
   now = Date.now(),
   selectedId,
   onSelect,
+  loading = false,
 }: {
   sessions: InstanceInfo[];
   projects?: ProjectInfo[];
@@ -61,6 +64,8 @@ export function FoldedRail({
   now?: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** The sessions haven't loaded yet. */
+  loading?: boolean;
 }): JSX.Element {
   const needs = useBackendNeeds();
   const { conversations } = useShownConversations();
@@ -96,7 +101,15 @@ export function FoldedRail({
       {open.map((item) => (
         <FoldedRow key={item.key} item={item} selected={selectedId === (item.session?.id ?? item.conversation?.id)} onSelect={onSelect} />
       ))}
-      {count === 0 && open.length === 0 && !needs.loading && <RailCalm />}
+      {loading && sessions.length === 0 ? (
+        <div role="status" aria-label="Loading sessions" aria-busy="true" data-testid="placeholder-rail-folded" className="flex flex-col items-center gap-1 motion-safe:animate-pulse">
+          {[0, 1, 2, 3].map((index) => (
+            <span key={index} aria-hidden="true" className="size-9 rounded-lg bg-surface-3" />
+          ))}
+        </div>
+      ) : (
+        count === 0 && open.length === 0 && !needs.loading && <RailCalm />
+      )}
     </div>
   );
 }

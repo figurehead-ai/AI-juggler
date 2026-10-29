@@ -200,7 +200,7 @@ export function WorkflowRail({
       {/* The live list for the active tab */}
       <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {minimal ? (
-          <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} />
+          <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} loading={loading} />
         ) : (
           <InstanceBoard
             onSelectProject={onSelectProject}

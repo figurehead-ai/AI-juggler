@@ -82,6 +82,19 @@ it("says All clear only when nothing needs you and nothing is open", async () =>
   expect(view.queryByTestId("rail-folded-needs-you")).toBeNull();
 });
 
+it("while the sessions load, stands placeholders in, never All clear", async () => {
+  // The 0.2.0 re-render: the folded rail said "All clear" beside the
+  // loading placeholders of every other part of the window.
+  needsFor({ sessions: [] });
+  const view = render(<FoldedRail sessions={[]} selectedId={null} onSelect={() => {}} loading />);
+  expect(view.getByRole("status", { name: "Loading sessions" })).toBeTruthy();
+  await new Promise((done) => setTimeout(done, 50));
+  expect(view.queryByTestId("rail-all-clear")).toBeNull();
+  view.rerender(<FoldedRail sessions={[]} selectedId={null} onSelect={() => {}} />);
+  expect(await view.findByTestId("rail-all-clear")).toBeTruthy();
+  expect(view.queryByRole("status", { name: "Loading sessions" })).toBeNull();
+});
+
 it("is one stop on the Tab path; ↑ ↓ Home End move through it", async () => {
   const { view } = folded();
   await waitFor(() => expect(view.container.querySelectorAll("button[data-rail-item]").length).toBeGreaterThan(3));
