@@ -193,13 +193,17 @@ jobs:
       - name: The agent bridge, unsigned (universal)
         # AJ-E1704: `juggler-agent` ships beside the app's executable in
         # Contents/MacOS (Tauri's externalBin), so the sign job signs and
-        # notarizes it with the app. Tauri looks for it by its target's name.
+        # notarizes it with the app. Tauri looks for it by its target's name:
+        # a universal build compiles each architecture on its own, and each
+        # half's build script wants its own copy (juggler-agent-<arch>), the
+        # bundler the universal one.
         run: |
           set -euo pipefail
+          mkdir -p crates/juggler-app/binaries
           for arch in aarch64-apple-darwin x86_64-apple-darwin; do
             cargo build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
+            cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
           done
-          mkdir -p crates/juggler-app/binaries
           lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
             target/aarch64-apple-darwin/release/juggler-agent target/x86_64-apple-darwin/release/juggler-agent
           lipo -info crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
