@@ -53,7 +53,7 @@ async function previewRows(filter: TasksFilterInput, withStatus: boolean): Promi
   return all
     .filter(want)
     .sort(previewTasks.order)
-    .map((task) => ({ task: { ...task }, pool_name: named.get(task.pool_id)?.name ?? "", project_id: named.get(task.pool_id)?.project_id ?? null, path: path(task) }));
+    .map((task) => ({ task: previewTasks.answered(task), pool_name: named.get(task.pool_id)?.name ?? "", project_id: named.get(task.pool_id)?.project_id ?? null, path: path(task) }));
 }
 
 /** One page of the tasks the filter names, across pools, ready work first. */

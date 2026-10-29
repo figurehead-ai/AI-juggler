@@ -16,7 +16,30 @@ export function holderLine(row: TaskBoardRow): string {
   return task.status === "ready" ? "No one yet" : "No one";
 }
 
-export function TaskCard({ row, projectName, selected, onOpen, onOpenProject }: { row: TaskBoardRow; projectName: string | null; selected: boolean; onOpen: () => void; onOpenProject: (id: string) => void }): JSX.Element {
+/** What a blocked card waits on: the first blocker by its title, a link
+ * to it (D-25: never its id); one that's gone says so. */
+function WaitsOn({ row, onOpenTask }: { row: TaskBoardRow; onOpenTask: (id: string) => void }): JSX.Element | null {
+  const first = row.task.waits_on[0];
+  if (!first) return null;
+  if (first.title === null) return <span className="truncate text-danger">Waits on a task that was removed</span>;
+  const more = row.task.waits_on.length - 1;
+  return (
+    <span className="flex min-w-0 items-baseline gap-1 text-danger">
+      <span className="shrink-0">Waits on:</span>
+      <button
+        type="button"
+        onClick={() => onOpenTask(first.id)}
+        className="relative z-10 min-w-0 truncate rounded underline decoration-danger/40 underline-offset-2 outline-none hover:decoration-current focus-visible:ring-2 focus-visible:ring-accent/60"
+        data-testid="task-card-waits-on"
+      >
+        {first.title}
+      </button>
+      {more > 0 && <span className="shrink-0">and {more} more</span>}
+    </span>
+  );
+}
+
+export function TaskCard({ row, projectName, selected, onOpen, onOpenTask, onOpenProject }: { row: TaskBoardRow; projectName: string | null; selected: boolean; onOpen: () => void; onOpenTask: (id: string) => void; onOpenProject: (id: string) => void }): JSX.Element {
   const task = row.task;
   const urgent = task.priority === "urgent" || task.priority === "high";
   const review = task.status === "in_review";
@@ -53,7 +76,7 @@ export function TaskCard({ row, projectName, selected, onOpen, onOpenProject }: 
           <span className="truncate">{row.pool_name}</span>
         )}
         <span aria-hidden="true">·</span>
-        {task.blocked_by.length > 0 ? <span className="truncate text-danger">waits on {task.blocked_by.join(", ")}</span> : <span className="truncate">{holderLine(row)}</span>}
+        {task.waits_on.length > 0 ? <WaitsOn row={row} onOpenTask={onOpenTask} /> : <span className="truncate">{holderLine(row)}</span>}
         {urgent && <span className="font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
       </span>
       {review && (

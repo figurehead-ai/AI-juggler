@@ -32,7 +32,7 @@ import { showTab } from "../PageShell";
 import { StartSession } from "./StartSession";
 import { TaskLinks } from "./TaskLinks";
 import { TaskRow, TaskStatus } from "./TaskRow";
-import { HOW_WORDS, KIND_WORDS, PRIORITY_WORDS, STATUS_WORDS } from "./words";
+import { HOW_WORDS, KIND_WORDS, PRIORITY_WORDS, STATUS_WORDS, waitsOnWords } from "./words";
 
 /** Tasks are worked by the sessions AI Juggler runs: its own place. */
 const OWN = markPlace(undefined, true);
@@ -160,7 +160,6 @@ export function TaskView({
       <header className="flex flex-col gap-2 border-b border-hairline/60 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-label text-muted">
           <span className="font-semibold uppercase tracking-wider">{KIND_WORDS[task.kind]}</span>
-          <span className="font-mono">{task.id}</span>
           {detail.parent_title && task.parent_id && (
             <button type="button" className="truncate underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => onOpenTask(task.parent_id!)}>
               in «{detail.parent_title}»
@@ -173,7 +172,7 @@ export function TaskView({
         <div className="flex flex-wrap items-center gap-2">
           <TaskStatus status={task.status} />
           {task.priority !== "normal" && <Pill tone={task.priority === "low" ? "neutral" : "warning"}>{PRIORITY_WORDS[task.priority] ?? task.priority}</Pill>}
-          {task.stored_status && <span className="text-meta text-danger">Set {STATUS_WORDS[task.stored_status]?.toLowerCase()}, but it waits on {task.blocked_by.join(", ")}</span>}
+          {task.stored_status && <span className="text-meta text-danger">Set {STATUS_WORDS[task.stored_status]?.toLowerCase()}, but it waits on {waitsOnWords(task.waits_on)}</span>}
           <span className="text-meta text-muted">
             Written by {task.written_by}
             {task.by_agent ? " (an agent: its words, not yours)" : ""} · changed {ago(task.updated_at_ms, now)}
@@ -210,7 +209,7 @@ export function TaskView({
         {sending && <SendBack holder={task.holder} busy={busy} onSend={(note) => act(() => tasksSendBack(task.id, note))} onCancel={() => setSending(false)} />}
         {cancelling && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-meta" role="group" aria-label="Cancel this task" data-testid="task-cancel">
-            <span className="min-w-0 flex-1 text-ink">Cancel {task.id}? It closes for the whole pool.</span>
+            <span className="min-w-0 flex-1 text-ink">Cancel this task? It closes for the whole pool.</span>
             <Button size="sm" variant="danger" disabled={busy} onClick={() => act(() => tasksCancel(task.id))} data-testid="task-cancel-go">
               Cancel task
             </Button>

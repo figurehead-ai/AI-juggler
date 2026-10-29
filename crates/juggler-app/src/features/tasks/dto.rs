@@ -30,6 +30,9 @@ pub struct TaskInfo {
     pub holder_session_id: Option<String>,
     /// The open tasks that block it.
     pub blocked_by: Vec<String>,
+    /// 0.3 (D-25: no id on screen): the same, each with its title (none
+    /// when it was removed), in the same order.
+    pub waits_on: Vec<TaskRefInfo>,
     /// Items under it, and how many are done.
     pub items: u32,
     /// …
@@ -43,6 +46,17 @@ pub struct TaskInfo {
     pub updated_at_ms: i64,
     /// The issue it comes from: its name there (`owner/repo#12`).
     pub issue_label: Option<String>,
+}
+
+/// 0.3: another task, as a row names it: its id (to open it) and its
+/// title (what the screen says).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TaskRefInfo {
+    /// Its id.
+    pub id: String,
+    /// Its title; none when it was removed.
+    pub title: Option<String>,
 }
 
 /// How many of a pool's tasks are in each honest status (the filter's

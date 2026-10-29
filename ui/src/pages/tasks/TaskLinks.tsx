@@ -19,7 +19,7 @@ export function TaskLinks({ detail, onOpenTask }: { detail: TaskDetail; onOpenTa
           <li key={`${link.kind}:${link.task_id}`} className="flex flex-wrap items-center gap-2 text-meta" data-testid="task-link" data-kind={link.kind}>
             <span className="w-24 shrink-0 text-muted">{LINK_WORDS[link.kind] ?? link.kind}</span>
             <button type="button" className="min-w-0 truncate text-left text-ink hover:underline" onClick={() => onOpenTask(link.task_id)}>
-              <span className="font-mono text-muted">{link.task_id}</span> {link.title}
+              {link.title}
             </button>
             <TaskStatus status={link.status} />
           </li>

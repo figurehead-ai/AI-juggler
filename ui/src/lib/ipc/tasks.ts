@@ -67,6 +67,12 @@ const preview = (): Required<TasksSeed> => {
   }
   return store;
 };
+/** A preview row as the backend answers it: what it waits on, by title
+ * (none for a task that is gone). */
+const answered = (task: TaskInfo): TaskInfo => ({
+  ...task,
+  waits_on: task.blocked_by.map((id) => ({ id, title: preview().tasks.find((t) => t.id === id)?.title ?? null })),
+});
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((fn) => fn());
 
@@ -91,12 +97,12 @@ function previewDetail(taskId: string): TaskDetail {
   if (!task) throw refused("That task isn't there any more");
   const extra = data.details[taskId] ?? {};
   return {
-    task: { ...task },
+    task: answered(task),
     pool_name: extra.pool_name ?? "",
     body: extra.body ?? "",
     acceptance: extra.acceptance ?? "",
     parent_title: data.tasks.find((t) => t.id === task.parent_id)?.title ?? null,
-    children: data.tasks.filter((t) => t.parent_id === taskId).sort(order),
+    children: data.tasks.filter((t) => t.parent_id === taskId).sort(order).map(answered),
     links: extra.links ?? [],
     sessions: extra.sessions ?? [],
     threads: extra.threads ?? [],
@@ -113,13 +119,13 @@ function previewDetail(taskId: string): TaskDetail {
 function previewPage(rows: TaskInfo[], page: PageRequest): Page<TaskInfo> {
   const from = page.cursor ? Number(page.cursor.slice(1)) : 0;
   const limit = Math.min(Math.max(page.limit ?? 50, 1), 200);
-  const items = rows.slice(from, from + limit).map((t) => ({ ...t }));
+  const items = rows.slice(from, from + limit).map(answered);
   return { items, next_cursor: rows.length > from + limit ? `p${from + limit}` : null, total: rows.length };
 }
 
 /** The preview's tasks, their order and its pages, for the reads across
  * pools (tasks-across.ts). */
-export const previewTasks = { rows: (): TaskInfo[] => preview().tasks, order, page: previewPage };
+export const previewTasks = { rows: (): TaskInfo[] => preview().tasks, order, page: previewPage, answered };
 
 /** How many of a pool's tasks (the work) are in each status. */
 export async function tasksCounts(poolId: string): Promise<TaskCounts> {
@@ -299,7 +305,7 @@ export async function tasksStart(taskId: string, profileId: string, needId: stri
     if (!task) throw refused("That task isn't there any more");
     Object.assign(task, { status: "in_progress", holder: "New session", holder_session_id: "sess-preview-new" });
     changed();
-    return { session_id: "sess-preview-new", task: { ...task } };
+    return { session_id: "sess-preview-new", task: answered(task) };
   }
   return invoke<TaskStartedInfo>("tasks_start", { taskId, profileId, needId });
 }

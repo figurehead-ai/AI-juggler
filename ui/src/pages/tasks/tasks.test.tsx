@@ -62,6 +62,7 @@ const task = (over: Partial<TaskInfo>): TaskInfo => ({
   holder: null,
   holder_session_id: null,
   blocked_by: [],
+  waits_on: [],
   items: 0,
   items_done: 0,
   written_by: "Planner",
@@ -149,9 +150,11 @@ describe("a pool's tasks", () => {
   it("a blocked task says what it waits on, honestly", async () => {
     const { findAllByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     const blocked = (await findAllByTestId("task-row")).find((r) => r.dataset.status === "blocked")!;
-    expect(blocked.textContent).toContain("Waits on aj-7f3c");
+    // D-25: by its title, never its id.
+    expect(blocked.textContent).toContain("Waits on Build the orders API");
+    expect(blocked.textContent).not.toMatch(/aj-[0-9a-f]{4}/);
     fireEvent.click(blocked);
-    expect((await findByTestId("task-view")).textContent).toContain("Set ready, but it waits on aj-7f3c");
+    expect((await findByTestId("task-view")).textContent).toContain("Set ready, but it waits on Build the orders API");
   });
 
   it("a switch is a line of the task's history, and the new session one of its sessions (AJ-E1904)", async () => {
@@ -194,7 +197,8 @@ describe("a pool's tasks", () => {
     expect(view.querySelectorAll("input, select")).toHaveLength(0);
     const links = getByTestId("task-links");
     expect(within(links).queryByRole("button", { name: /Remove|Add a link/ })).toBeNull();
-    expect(within(links).getByTestId("task-link").textContent).toContain("aj-b10c");
+    expect(within(links).getByTestId("task-link").textContent).toContain("Totals in cents");
+    expect(within(links).getByTestId("task-link").textContent).not.toContain("aj-b10c");
     // A ready task no one holds offers a session and Cancel, nothing more.
     expect(queryByTestId("task-approve")).toBeNull();
     expect(queryByTestId("task-free")).toBeNull();
@@ -247,7 +251,7 @@ describe("a pool's tasks", () => {
     const { findByTestId, getByTestId, queryByTestId, findAllByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
     fireEvent.click(getByTestId("task-cancel-open"));
-    expect(getByTestId("task-cancel").textContent).toContain("Cancel aj-7f3c?");
+    expect(getByTestId("task-cancel").textContent).toContain("Cancel this task?");
     expect(calls()).not.toContain("cancel:aj-7f3c");
     fireEvent.click(getByTestId("task-cancel-go"));
     await waitFor(() => expect(calls()).toContain("cancel:aj-7f3c"));

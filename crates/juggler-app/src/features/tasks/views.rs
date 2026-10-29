@@ -14,7 +14,7 @@ use juggler_core::tasks::{TaskKind, TaskStatus, UserAction, may_user};
 
 use super::dto::{
     TaskActions, TaskCounts, TaskDetail, TaskEventInfo, TaskInfo, TaskIssueInfo, TaskLinkInfo,
-    TaskSessionInfo, TaskThreadInfo,
+    TaskRefInfo, TaskSessionInfo, TaskThreadInfo,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -56,6 +56,14 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
             .map(|who| you(who, task.assignee_name.as_deref().unwrap_or("someone"))),
         holder_session_id,
         blocked_by: task.blocked_by.clone(),
+        waits_on: task
+            .blocked_by
+            .iter()
+            .map(|id| TaskRefInfo {
+                id: id.clone(),
+                title: storage.tasks().get(id).ok().flatten().map(|t| t.title),
+            })
+            .collect(),
         items: task.children.0,
         items_done: task.children.1,
         written_by: you(&task.created_by, &task.created_by_name),

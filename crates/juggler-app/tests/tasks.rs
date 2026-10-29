@@ -676,6 +676,20 @@ fn the_tasks_screen_reads_every_pool_by_filter() {
     let next = none.next_cursor.expect("a second page");
     let rest = across::counts_by_project(&lab.state, &ids, &PageRequest::after(&next, 1)).unwrap();
     assert_eq!(rest.items[0].project_id, "another", "in the order asked");
+    // D-25: a blocked row names what it waits on by its title.
+    task(&lab, "Rotate signing keys", &[round.as_str()]);
+    let blocked = TasksFilterInput {
+        status: Some("blocked".into()),
+        ..TasksFilterInput::default()
+    };
+    let row = across::across(&lab.state, &blocked, &first_page()).unwrap();
+    let waits = &row.items[0].task.waits_on;
+    assert_eq!(waits.len(), 1, "one blocker");
+    assert_eq!(
+        waits[0].title.as_deref(),
+        Some("Round tax per line"),
+        "named by its title"
+    );
     let many = vec![String::new(); across::PROJECTS_MAX + 1];
     assert!(
         across::counts_by_project(&lab.state, &many, &first_page()).is_err(),

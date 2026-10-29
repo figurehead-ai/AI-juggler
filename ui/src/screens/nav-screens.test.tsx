@@ -55,6 +55,7 @@ const task = (over: Partial<TaskInfo>): TaskInfo => ({
   holder: null,
   holder_session_id: null,
   blocked_by: [],
+  waits_on: [],
   items: 0,
   items_done: 0,
   written_by: "Planner",
@@ -87,6 +88,7 @@ beforeEach(() => {
       task({ id: "aj-0003", title: "Checkout copy pass", status: "in_review", holder: "Writer" }),
       task({ id: "aj-0004", title: "Refresh-token retries", pool_id: `pool-default:${PAY.id}`, status: "ready" }),
       task({ id: "aj-0005", title: "Rotate signing keys", pool_id: `pool-default:${PAY.id}`, status: "blocked", stored_status: "ready", blocked_by: ["aj-0004"] }),
+      task({ id: "aj-0006", title: "Drop the old tokens", pool_id: `pool-default:${PAY.id}`, status: "blocked", stored_status: "ready", blocked_by: ["aj-gone"] }),
     ],
   };
 });
@@ -196,7 +198,9 @@ describe("Tasks", () => {
     expect(within(column("ready")).getByRole("heading").textContent).toBe("Ready2");
     expect(within(column("in_progress")).getAllByTestId("task-card")).toHaveLength(1);
     expect(within(column("in_review")).getByTestId("task-card-review")).toBeTruthy();
-    expect(within(column("blocked")).getByTestId("task-card").textContent).toContain("waits on aj-0004");
+    const blocked = within(column("blocked")).getAllByTestId("task-card");
+    expect(blocked[0]!.textContent).toContain("Waits on:Refresh-token retries");
+    expect(blocked[1]!.textContent).toContain("Waits on a task that was removed");
     const cart = within(column("in_progress")).getByTestId("task-card");
     expect(cart.textContent).toContain("Checkout v2 › Totals");
     // No authoring anywhere on the screen (D-44).
@@ -215,6 +219,21 @@ describe("Tasks", () => {
     expect(document.activeElement).toBe(ready[1]);
     fireEvent.keyDown(ready[1]!, { key: "ArrowRight" });
     expect(document.activeElement).toBe(within(view.getByTestId("tasks-column-in_progress")).getByTestId("task-card-open"));
+  });
+
+  it("never shows a task id on a card, the plan or the open task (D-25); a blocker opens by its title", async () => {
+    const view = screen();
+    const ID = /aj-[0-9a-z]{4}/;
+    await waitFor(() => expect(within(view.getByTestId("tasks-column-blocked")).getAllByTestId("task-card")).toHaveLength(2));
+    for (const card of view.getAllByTestId("task-card")) expect(card.textContent, "a card's text").not.toMatch(ID);
+    fireEvent.click(within(view.getByTestId("tasks-column-blocked")).getByTestId("task-card-waits-on"));
+    const open = await view.findByTestId("tasks-open");
+    await waitFor(() => expect(within(open).getByTestId("task-view").textContent).toContain("Refresh-token retries"));
+    expect(open.textContent, "the open task's text").not.toMatch(ID);
+    fireEvent.click(within(view.getByTestId("tasks-view")).getByRole("radio", { name: "Plan" }));
+    const plan = await view.findByTestId("tasks-plan");
+    await waitFor(() => expect(within(plan).getAllByTestId("task-row").length).toBeGreaterThan(0));
+    expect(plan.textContent, "the plan's text").not.toMatch(ID);
   });
 
   it("opens a card beside the board with the pool's own actions; Esc closes it", async () => {

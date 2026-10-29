@@ -70,6 +70,7 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
               projectName={shared.projectName(row.project_id)}
               selected={shared.open?.id === row.task.id}
               onOpen={() => shared.onOpen({ id: row.task.id, projectId: row.project_id })}
+              onOpenTask={(id) => shared.onOpen({ id, projectId: row.project_id })}
               onOpenProject={shared.onOpenProject}
             />
           ))
