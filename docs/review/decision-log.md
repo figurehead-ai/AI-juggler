@@ -400,7 +400,11 @@
   main branch first).
 - **Decision**, sized for one maintainer and a few testers:
   - **Nightly**: every new commit on `main`, required checks green,
-    signed and notarized. No gate.
+    signed and notarized. No gate. *Amended 2026-10-27:* a scheduled
+    nightly builds only when something that ships changed since the
+    newest release tag (`scripts/release_ships.py`), so a docs- or
+    tests-only day takes no version number (v0.1.5 and v0.1.7 were
+    identical rebuilds); a run started by hand still builds.
   - **Beta**: the build was published 3+ days ago and has been used as AI
     Juggler Nightly for real work, and no issue labelled `blocker` is
     open; notes written; the accessibility gate passes.
