@@ -12726,6 +12726,9 @@ pub struct SwitchBackSuggestionInfo {
     pub session_id: String,
     /// The original account's label (where work returns).
     pub original_account: String,
+    /// The original account's id (0.3: its "has room again" notice offers
+    /// the returns to it).
+    pub original_account_id: String,
     /// The away account's label.
     pub away_account: String,
     /// The verbatim suggestion copy (Req.3).
@@ -12759,10 +12762,22 @@ pub async fn switch_back_suggestions(
 pub fn switch_back_suggestions_impl(
     state: &Arc<AppState>,
 ) -> AppResult<Vec<SwitchBackSuggestionInfo>> {
+    let storage = lock_storage_arc(state)?;
+    switch_back_suggestions_in(&storage, Timestamp::now().millis())
+}
+
+/// [`switch_back_suggestions_impl`] on held storage (the "has room again"
+/// notice asks while it holds it).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] when storage reads fail.
+pub fn switch_back_suggestions_in(
+    storage: &Storage,
+    now: i64,
+) -> AppResult<Vec<SwitchBackSuggestionInfo>> {
     use juggler_core::model::EdgeState;
 
-    let now = Timestamp::now().millis();
-    let storage = lock_storage_arc(state)?;
     let accounts = storage.accounts().list()?;
     let graph = storage.switch_graph();
     let mut works = Vec::new();
@@ -12810,7 +12825,7 @@ pub fn switch_back_suggestions_impl(
             };
             // The reset trigger: the original account has headroom
             // again (not exhausted, not tight).
-            let display = quota_display_inner(&storage, original_account, now);
+            let display = quota_display_inner(storage, original_account, now);
             let headroom = match display.five_hour.as_ref().map(|w| w.state.as_str()) {
                 Some("exhausted") => false,
                 Some(_) => display.forecast.tte_min.is_none_or(|tte| tte >= 45.0),
@@ -12835,6 +12850,7 @@ pub fn switch_back_suggestions_impl(
             out.push(SwitchBackSuggestionInfo {
                 session_id: away_session.to_string(),
                 original_account: original_account.label.clone(),
+                original_account_id: original_account.id.to_string(),
                 copy: juggler_handover::switch_back::suggestion_copy(
                     &original_account.label,
                     &away_label,

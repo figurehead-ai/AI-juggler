@@ -116,28 +116,121 @@ pub fn low_notice(
     }
 }
 
-/// The notice for an account with room again.
+/// The work that moved away from an account and can come back to it now
+/// (D-05's switch back, AJ-E207's suggestions): the newest such session,
+/// by its row's name, and how many there are.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SwitchBack {
+    /// The session the work went on in, on the other account (the one a
+    /// switch back starts from).
+    pub session_id: String,
+    /// Its name, as its row says it.
+    pub name: String,
+    /// How many sessions can switch back (this one included).
+    pub count: u32,
+}
+
+/// The notice for an account with room again. With work that moved away
+/// from it (`back`), its one action is Switch back (the newest; the rest
+/// keep their switch-back card on their own page); else it opens the
+/// account.
 #[must_use]
-pub fn reset_notice(account_id: &str, label: &str, window: &str, at_ms: i64) -> NewNotice {
+pub fn reset_notice(
+    account_id: &str,
+    label: &str,
+    window: &str,
+    at_ms: i64,
+    back: Option<&SwitchBack>,
+) -> NewNotice {
+    let detail = match back {
+        Some(back) if back.count > 1 => format!(
+            "“{}” and {} more can switch back to it",
+            back.name,
+            back.count - 1
+        ),
+        Some(back) => format!("“{}” can switch back to it", back.name),
+        None => "Sessions on it can carry on".to_owned(),
+    };
     NewNotice {
         key: format!("reset:{account_id}:{}", at_ms / 60_000),
         kind: "reset".to_owned(),
         title: format!("{label} has room again — {} reset", reset_words(window)),
-        detail: "Sessions on it can carry on".to_owned(),
+        detail,
         data: centre::data_of(
             &NoticeTarget {
                 account_id: Some(account_id.to_owned()),
+                session_id: back.map(|back| back.session_id.clone()),
                 ..NoticeTarget::default()
             },
             &NoticeFacts {
                 window: Some(window.to_owned()),
                 account: Some(label.to_owned()),
+                sessions: back.map(|back| back.count),
                 ..NoticeFacts::default()
             },
         ),
-        action: Some("open".to_owned()),
+        action: Some(
+            if back.is_some() {
+                "switch-back"
+            } else {
+                "open"
+            }
+            .to_owned(),
+        ),
         ..NewNotice::default()
     }
+}
+
+/// The work that can switch back to each account in `accounts`, from the
+/// switch-back suggestions (whose account has room again): the newest
+/// session first, by its last activity.
+fn switch_backs(state: &Arc<AppState>, accounts: &[String]) -> Vec<(String, SwitchBack)> {
+    let Ok(suggestions) = crate::commands::switch_back_suggestions_impl(state) else {
+        return Vec::new();
+    };
+    let last_activity = |id: &str| -> i64 {
+        state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| {
+                storage
+                    .sessions()
+                    .get(&juggler_core::model::SessionId::new(id))
+                    .ok()
+            })
+            .map_or(0, |record| {
+                record.last_activity.unwrap_or(record.started_at).millis()
+            })
+    };
+    let mut out = Vec::new();
+    for account in accounts {
+        let mut returns: Vec<(i64, &str)> = suggestions
+            .iter()
+            .filter(|suggestion| suggestion.original_account_id == *account)
+            .map(|suggestion| {
+                (
+                    last_activity(&suggestion.session_id),
+                    suggestion.session_id.as_str(),
+                )
+            })
+            .collect();
+        returns.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
+        let mut seen = std::collections::HashSet::new();
+        returns.retain(|(_, id)| seen.insert(*id));
+        let Some((_, newest)) = returns.first() else {
+            continue;
+        };
+        out.push((
+            account.clone(),
+            SwitchBack {
+                session_id: (*newest).to_owned(),
+                name: super::describe(state, newest).name,
+                count: u32::try_from(returns.len()).unwrap_or(u32::MAX),
+            },
+        ));
+    }
+    out
 }
 
 /// A plan renewing soon (the digest's line), as a notice.
@@ -168,6 +261,9 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
 pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) {
     let now = crate::commands::now_millis();
     let mut told = Vec::new();
+    // Accounts with room again: (id, label, window), told once the work
+    // that can switch back to each is known (it reads storage itself).
+    let mut room_again: Vec<(String, String, &'static str)> = Vec::new();
     {
         let Ok(storage) = state.storage.lock() else {
             return;
@@ -209,14 +305,8 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
             };
             let sessions = live_sessions_on(&storage, id);
             if is_open && low_now.is_none() && used.is_some_and(|used| used < ROOM_AGAIN_USED_PCT) {
-                if centre::end_need(&storage, &format!("quota:{id}"), now).unwrap_or(false)
-                    && let Ok(Some(info)) = centre::record(
-                        &storage,
-                        &reset_notice(id, &account.label, window, now),
-                        now,
-                    )
-                {
-                    told.push((Target::Account(id.to_owned()), Kind::Reset, info));
+                if centre::end_need(&storage, &format!("quota:{id}"), now).unwrap_or(false) {
+                    room_again.push((id.to_owned(), account.label.clone(), window));
                 }
                 continue;
             }
@@ -232,6 +322,24 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
             );
             if let Ok(Some(info)) = centre::open_need(&storage, &notice, now) {
                 told.push((Target::Account(id.to_owned()), Kind::Quota, info));
+            }
+        }
+    }
+    // 0.3: the work that moved away from an account that has room again
+    // can switch back (D-05), from the notice itself.
+    if !room_again.is_empty() {
+        let ids: Vec<String> = room_again.iter().map(|(id, _, _)| id.clone()).collect();
+        let backs = switch_backs(state, &ids);
+        for (id, label, window) in &room_again {
+            let back = backs
+                .iter()
+                .find(|(account, _)| account == id)
+                .map(|(_, back)| back);
+            let notice = reset_notice(id, label, window, now, back);
+            if let Ok(storage) = state.storage.lock()
+                && let Ok(Some(info)) = centre::record(&storage, &notice, now)
+            {
+                told.push((Target::Account(id.clone()), Kind::Reset, info));
             }
         }
     }
@@ -428,13 +536,44 @@ mod tests {
     #[test]
     fn a_reset_names_the_window_it_was() {
         assert_eq!(
-            reset_notice("a", "Personal Max", "weekly", 0).title,
+            reset_notice("a", "Personal Max", "weekly", 0, None).title,
             "Personal Max has room again — its week reset"
         );
+        let plain = reset_notice("a", "Work Max", "5-hour", 0, None);
         assert_eq!(
-            reset_notice("a", "Work Max", "5-hour", 0).title,
+            plain.title,
             "Work Max has room again — its 5-hour window reset"
         );
+        assert_eq!(plain.action.as_deref(), Some("open"));
+        assert_eq!(plain.detail, "Sessions on it can carry on");
+    }
+
+    /// wf27: "Claude·Work quota reset — “fix-auth-tests” can switch back."
+    #[test]
+    fn a_reset_offers_the_work_that_moved_away_its_switch_back() {
+        let one = SwitchBack {
+            session_id: "s-away".to_owned(),
+            name: "fix-auth-tests".to_owned(),
+            count: 1,
+        };
+        let notice = reset_notice("acct-w", "Work Max", "5-hour", 0, Some(&one));
+        assert_eq!(notice.action.as_deref(), Some("switch-back"));
+        assert_eq!(notice.detail, "“fix-auth-tests” can switch back to it");
+        let data: serde_json::Value = serde_json::from_str(&notice.data).unwrap();
+        assert_eq!(data["target"]["session_id"], "s-away");
+        assert_eq!(data["target"]["account_id"], "acct-w");
+        assert_eq!(data["facts"]["sessions"], 1);
+        let three = SwitchBack { count: 3, ..one };
+        assert_eq!(
+            reset_notice("acct-w", "Work Max", "5-hour", 0, Some(&three)).detail,
+            "“fix-auth-tests” and 2 more can switch back to it"
+        );
+        for words in [&notice.title, &notice.detail] {
+            assert!(
+                !words.contains("s-away") && !words.contains("acct-w"),
+                "an id reached the copy"
+            );
+        }
     }
 
     #[test]
