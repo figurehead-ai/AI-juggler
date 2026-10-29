@@ -117,6 +117,10 @@ function previewPage(rows: TaskInfo[], page: PageRequest): Page<TaskInfo> {
   return { items, next_cursor: rows.length > from + limit ? `p${from + limit}` : null, total: rows.length };
 }
 
+/** The preview's tasks, their order and its pages, for the reads across
+ * pools (tasks-across.ts). */
+export const previewTasks = { rows: (): TaskInfo[] => preview().tasks, order, page: previewPage };
+
 /** How many of a pool's tasks (the work) are in each status. */
 export async function tasksCounts(poolId: string): Promise<TaskCounts> {
   if (!hasLiveBackend()) {

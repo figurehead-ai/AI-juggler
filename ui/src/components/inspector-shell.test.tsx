@@ -134,7 +134,9 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
     { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
     // Nothing measured yet: no Usage tab (no empty tabs).
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "Project", tabs: ["Sessions", "Overview"] },
+    // 0.3: a project's seven doors (Usage once something is measured);
+    // its crumb's last step is its name ("Projects › alpha").
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Tasks", "Pool", "Subagents", "History"] },
   ];
 
   for (const entry of kinds) {
@@ -202,7 +204,7 @@ describe("AJ-E1533 tab memory per type (AJ-E1534)", () => {
     cleanup();
 
     const other = shell({ kind: "project", id: "proj-1" });
-    expect(other.container.querySelector("#page-tab-sessions")!.getAttribute("aria-selected")).toBe("true");
+    expect(other.container.querySelector("#page-tab-overview")!.getAttribute("aria-selected")).toBe("true");
     cleanup();
 
     const back = shell({ kind: "instance", id: "sess-1" });

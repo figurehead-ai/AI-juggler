@@ -111,6 +111,9 @@ describe("AJ-E1504 the typing rule", () => {
       // D-47: a row or place moved in Your order (a field's arrows are its own).
       "rail-move": { key: "ArrowUp", altKey: true },
       "go-home": { key: "0", code: "Digit0" },
+      "go-projects": { key: "P", shiftKey: true },
+      "go-pools": { key: "O", shiftKey: true },
+      "go-tasks": { key: "T", shiftKey: true },
       "go-accounts": { key: "A", shiftKey: true },
       "go-usage": { key: "U", shiftKey: true },
       "go-fleet": { key: "F", shiftKey: true },

@@ -36,13 +36,16 @@ export type PageTabId =
   | "messages"
   | "tasks"
   | "subagents"
-  | "access";
+  | "access"
+  | "pool";
 
 export type PageTab = {
   id: PageTabId;
   label: string;
   /** Where its numbers come from, in plain words (the footer). */
   source: string;
+  /** 0.3: how many it holds, beside its name ("Sessions 3"), when known. */
+  count?: number;
 };
 
 const TAB: Record<PageTabId, PageTab> = {
@@ -60,6 +63,7 @@ const TAB: Record<PageTabId, PageTab> = {
   tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this computer" },
   subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
+  pool: { id: "pool", label: "Pool", source: "AI Juggler's pools and the sessions' own transcripts" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -81,6 +85,9 @@ export type TabFacts = {
   /** AJ-E1520: a session whose tool records subagents, and it started
    * some. */
   hasSubagents?: boolean;
+  /** 0.3: how many each tab holds, where known (a project's sessions,
+   * tasks, subagents). */
+  counts?: Partial<Record<PageTabId, number>>;
 };
 
 /** Where an Overview's numbers come from, by page (P21: never one
@@ -97,7 +104,7 @@ const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
 /** The page's tabs, its body first. */
 export function pageTabs(kind: PageKind, facts: TabFacts = {}): PageTab[] {
   const source = OVERVIEW_SOURCE[kind];
-  const tabs = tabsOf(kind, facts);
+  const tabs = tabsOf(kind, facts).map((tab) => (facts.counts?.[tab.id] !== undefined ? { ...tab, count: facts.counts[tab.id] } : tab));
   return source ? tabs.map((tab) => (tab.id === "overview" ? { ...tab, source } : tab)) : tabs;
 }
 
@@ -112,8 +119,11 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
       return facts.desktop
         ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
         : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+    // 0.3 (the redesign, §3): everything about a project, its Overview
+    // first (the work at a glance), then its sessions, its pool's tasks,
+    // its pool, its sessions' subagents, its usage and its past sessions.
     case "project":
-      return [TAB.sessions, TAB.overview, ...when(facts.hasUsage, "usage")];
+      return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pool, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":

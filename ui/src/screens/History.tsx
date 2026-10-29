@@ -127,6 +127,7 @@ export function History({
   accounts = [],
   onChanged,
   initialQuery = "",
+  projectId: fixedProject,
 }: {
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
@@ -135,6 +136,9 @@ export function History({
   onChanged: () => void;
   /** ⌘K's "Search History for …" (the 0.2 walk, F7): the words to search. */
   initialQuery?: string;
+  /** 0.3: a project page's History tab: that project's past sessions,
+   * without the page's own title. */
+  projectId?: string;
 }): JSX.Element {
   const live = hasLiveBackend();
   const [list, setList] = useState<ListId>("ended");
@@ -149,7 +153,7 @@ export function History({
   const [everyWord, setEveryWord] = useState(false);
   useEffect(() => void outsideSearchStatus().then((info) => setEveryWord(info.enabled), () => null), []);
   // Filters (the review of 0.1.4): one project, one profile, one app.
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(fixedProject ?? null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [tool, setTool] = useState<string | null>(null);
   const tools = useTools().filter((entry) => accounts.some((account) => account.provider === entry.id) || sessions.some((session) => session.provider === entry.id));
@@ -266,7 +270,7 @@ export function History({
 
   return (
     <Page
-      title="History"
+      title={fixedProject ? undefined : "History"}
       subtitle="Every session that has ended, in AI Juggler and in your other apps, by day."
       testId="history"
       actions={
@@ -304,14 +308,14 @@ export function History({
             className="h-9 min-w-[16rem] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="history-search"
           />
-          <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />
+          {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}
           <FilterChip label="Profile" value={accountId} options={accounts.map((account) => ({ id: account.id, label: account.label }))} onChange={setAccountId} testId="history-filter-account" />
           <FilterChip label="App" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
-          {filtered && (
+          {(fixedProject ? accountId !== null || tool !== null : filtered) && (
             <button
               type="button"
               onClick={() => {
-                setProjectId(null);
+                setProjectId(fixedProject ?? null);
                 setAccountId(null);
                 setTool(null);
               }}
