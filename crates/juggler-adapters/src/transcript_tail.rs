@@ -19,8 +19,10 @@ pub trait TailLog: Default {
     fn feed(&mut self, bytes: &[u8]);
 }
 
-/// A transcript read so far, into `L`.
-#[derive(Debug, Clone, Default)]
+/// A transcript read so far, into `L`. Saved and restored (AJ-E1520,
+/// 0.3: the Subagents tab's index) with what it has read; a line still
+/// being written is left out of a save ([`TranscriptTail::rewound`]).
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct TranscriptTail<L> {
     log: L,
     offset: u64,
@@ -38,6 +40,16 @@ impl<L: TailLog> TranscriptTail<L> {
     ///
     /// The file can't be opened or read.
     pub fn read(&mut self, path: &Path) -> std::io::Result<bool> {
+        self.read_up_to(path, READ_PER_CALL).map(|read| read > 0)
+    }
+
+    /// Reads what was appended to `path`, at most `most` bytes; how many
+    /// were read (0: nothing new).
+    ///
+    /// # Errors
+    ///
+    /// As [`TranscriptTail::read`].
+    pub fn read_up_to(&mut self, path: &Path, most: u64) -> std::io::Result<u64> {
         let mut file = std::fs::File::open(path)?;
         let metadata = file.metadata()?;
         let identity = Some(file_identity(&metadata));
@@ -46,11 +58,11 @@ impl<L: TailLog> TranscriptTail<L> {
         }
         self.file = identity;
         if metadata.len() == self.offset {
-            return Ok(false);
+            return Ok(0);
         }
         file.seek(SeekFrom::Start(self.offset))?;
         let mut chunk = Vec::new();
-        file.take(READ_PER_CALL).read_to_end(&mut chunk)?;
+        file.take(most.max(1)).read_to_end(&mut chunk)?;
         self.offset += chunk.len() as u64;
         // Only the new bytes are searched for a line's end.
         let line_end = chunk.iter().rposition(|b| *b == b'\n');
@@ -61,7 +73,47 @@ impl<L: TailLog> TranscriptTail<L> {
             let whole = std::mem::replace(&mut self.partial, rest);
             self.log.feed(&whole);
         }
-        Ok(!chunk.is_empty())
+        Ok(chunk.len() as u64)
+    }
+
+    /// Reads what was appended to `path` within `budget` bytes: true when
+    /// it has caught up, and how many bytes it read.
+    ///
+    /// # Errors
+    ///
+    /// As [`TranscriptTail::read`].
+    pub fn read_within(&mut self, path: &Path, budget: u64) -> std::io::Result<(bool, u64)> {
+        let mut used = 0;
+        while used < budget {
+            let read = self.read_up_to(path, (budget - used).min(READ_PER_CALL))?;
+            if read == 0 {
+                return Ok((true, used));
+            }
+            used += read;
+        }
+        Ok((std::fs::metadata(path)?.len() == self.offset, used))
+    }
+
+    /// The bytes of `path` read so far.
+    #[must_use]
+    pub fn offset(&self) -> u64 {
+        self.offset
+    }
+
+    /// What it has read without a line still being written: the offset
+    /// goes back to that line's start, so a save never holds part of a
+    /// line and a restore reads it whole.
+    #[must_use]
+    pub fn rewound(&self) -> Self
+    where
+        L: Clone,
+    {
+        Self {
+            log: self.log.clone(),
+            offset: self.offset.saturating_sub(self.partial.len() as u64),
+            partial: Vec::new(),
+            file: self.file,
+        }
     }
 
     /// Reads all of `path`, 16 MiB at a time (memory stays bounded by what

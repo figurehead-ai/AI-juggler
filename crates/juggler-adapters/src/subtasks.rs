@@ -15,6 +15,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+use juggler_adapter::subagents::{
+    ASKED_CHARS, Asked, LinesChanged, PROMPT_CHARS, RESULT_CHARS, ToolCounts,
+};
+use serde::{Deserialize, Serialize};
+
 use crate::transcript::{TranscriptFormat, line_format};
 
 /// The most characters of a subagent's task kept whole (the Subagents
@@ -22,7 +27,7 @@ use crate::transcript::{TranscriptFormat, line_format};
 const TASK_CHARS: usize = 2_000;
 
 /// Where a subagent stands.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubtaskState {
     /// Started, and nothing in the transcript says it has ended.
     Running,
@@ -47,7 +52,7 @@ impl SubtaskState {
 }
 
 /// One subagent a session started.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subtask {
     /// The call that started it (stable within the transcript).
     pub id: String,
@@ -66,10 +71,56 @@ pub struct Subtask {
     pub started_ms: Option<i64>,
     /// When the line that ended it was written, epoch ms (final only).
     pub ended_ms: Option<i64>,
+    /// AJ-E1520 (0.3): the prompt it was given (at most 4,000
+    /// characters), when the call carried one.
+    #[serde(default)]
+    pub prompt: Option<String>,
+    /// The user's message the turn that started it began with.
+    #[serde(default)]
+    pub asked: Option<Asked>,
+    /// The start of its answer, when the transcript holds it.
+    #[serde(default)]
+    pub result: Option<String>,
+    /// Why it failed, in one line.
+    #[serde(default)]
+    pub failure: Option<String>,
+    /// What the tool reported when it ended.
+    #[serde(default)]
+    pub reported: Reported,
+}
+
+/// AJ-E1520 (0.3): what a tool reported about a subagent when it ended
+/// (Claude Code's Agent result and task notification).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reported {
+    /// The model it ran on.
+    pub model: Option<String>,
+    /// Its tokens, as one number.
+    pub tokens: Option<u64>,
+    /// How many tool calls it made.
+    pub tool_uses: Option<u32>,
+    /// How long it ran, ms.
+    pub duration_ms: Option<i64>,
+    /// Its tool calls by kind.
+    pub tools: Option<ToolCounts>,
+    /// Lines its edits changed.
+    pub lines: Option<LinesChanged>,
+}
+
+/// AJ-E1520 (0.3): how a subagent ended, as the line that says so tells
+/// it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Ending {
+    /// The start of its answer.
+    pub result: Option<String>,
+    /// Why it failed, in one line.
+    pub failure: Option<String>,
+    /// What the tool reported.
+    pub reported: Reported,
 }
 
 /// The subagents read so far from one transcript.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SubtaskLog {
     items: Vec<Subtask>,
     /// Starting call id → index into `items`.
@@ -86,6 +137,17 @@ pub struct SubtaskLog {
     format: Option<TranscriptFormat>,
     /// When the line being read was written (its `timestamp`).
     at: Option<i64>,
+    /// AJ-E1520 (0.3): the user's message the turn being read began
+    /// with.
+    #[serde(default)]
+    ask: Option<Asked>,
+    /// AJ-E1520 (0.3): the thread's own tokens, as its latest total says
+    /// (Codex's `token_count`: the thread's running total).
+    #[serde(default)]
+    own_tokens: Option<juggler_adapter::subagents::SubagentTokens>,
+    /// The model its latest turn named (Codex's `turn_context`).
+    #[serde(default)]
+    own_model: Option<String>,
 }
 
 impl SubtaskLog {
@@ -93,6 +155,13 @@ impl SubtaskLog {
     pub fn feed(&mut self, bytes: &[u8]) {
         for line in bytes.split(|b| *b == b'\n') {
             if line.iter().all(u8::is_ascii_whitespace) {
+                continue;
+            }
+            // AJ-E1520 (0.3): a Codex thread's own tokens and model.
+            if self.format == Some(TranscriptFormat::CodexRollout)
+                && (holds(line, b"total_token_usage") || holds(line, br#""turn_context""#))
+            {
+                self.codex_usage(line);
                 continue;
             }
             // Once the format is known, a line that can't matter isn't
@@ -134,8 +203,100 @@ impl SubtaskLog {
         &self.items
     }
 
+    /// AJ-E1520 (0.3): the thread's own tokens, when its rollout says
+    /// (Codex).
+    #[must_use]
+    pub fn own_tokens(&self) -> Option<juggler_adapter::subagents::SubagentTokens> {
+        self.own_tokens
+    }
+
+    /// AJ-E1520 (0.3): the model its latest turn ran on (Codex).
+    #[must_use]
+    pub fn own_model(&self) -> Option<&str> {
+        self.own_model.as_deref()
+    }
+
+    /// A Codex line with the thread's running token total, or a turn's
+    /// context (its model). Codex's classes nest (`input_tokens` holds
+    /// the cached part): kept apart, as the usage pipeline keeps them.
+    fn codex_usage(&mut self, line: &[u8]) {
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
+            return;
+        };
+        let payload = value.get("payload").unwrap_or(&serde_json::Value::Null);
+        if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
+            if let Some(model) = payload.get("model").and_then(serde_json::Value::as_str) {
+                self.own_model = Some(model.to_owned());
+            }
+            return;
+        }
+        let Some(total) = payload
+            .get("info")
+            .and_then(|info| info.get("total_token_usage"))
+        else {
+            return;
+        };
+        let read = |key: &str| {
+            total
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default()
+        };
+        let cached = read("cached_input_tokens");
+        let tokens = juggler_adapter::subagents::SubagentTokens {
+            input: read("input_tokens").saturating_sub(cached),
+            output: read("output_tokens"),
+            cache_read: cached,
+            cache_write: read("cache_write_input_tokens"),
+        };
+        // A running total only grows; a smaller one (a compaction's
+        // restart) never lowers what was used.
+        if self
+            .own_tokens
+            .is_none_or(|kept| tokens.total() >= kept.total())
+        {
+            self.own_tokens = Some(tokens);
+        }
+    }
+
+    /// AJ-E1520 (0.3): passes every word it keeps through `text` (a
+    /// save's redaction); `None` drops them.
+    pub(crate) fn filter_texts(&mut self, text: &juggler_adapter::subagents::TextFilter<'_>) {
+        use juggler_adapter::subagents::SubagentText;
+        let asked = |asked: &mut Option<Asked>| {
+            *asked = asked.take().and_then(|mut asked| {
+                asked.text = text(SubagentText::Asked, &asked.text)?;
+                Some(asked)
+            });
+        };
+        asked(&mut self.ask);
+        for item in &mut self.items {
+            item.task = text(SubagentText::Task, &item.task).unwrap_or_default();
+            for (kind, field) in [
+                (SubagentText::Prompt, &mut item.prompt),
+                (SubagentText::Result, &mut item.result),
+                (SubagentText::Result, &mut item.failure),
+            ] {
+                *field = field.take().and_then(|words| text(kind, &words));
+            }
+            asked(&mut item.asked);
+        }
+    }
+
     /// A call started a subagent.
+    #[cfg(test)]
     pub(crate) fn started(&mut self, call: &str, task: &str, kind: Option<&str>) {
+        self.started_with(call, task, kind, None);
+    }
+
+    /// A call started a subagent with `prompt`.
+    pub(crate) fn started_with(
+        &mut self,
+        call: &str,
+        task: &str,
+        kind: Option<&str>,
+        prompt: Option<&str>,
+    ) {
         if self.calls.contains_key(call) {
             return;
         }
@@ -149,7 +310,66 @@ impl SubtaskLog {
             background: false,
             started_ms: self.at,
             ended_ms: None,
+            prompt: prompt
+                .map(|prompt| cut(prompt, PROMPT_CHARS))
+                .filter(|prompt| !prompt.is_empty()),
+            asked: self.ask.clone(),
+            result: None,
+            failure: None,
+            reported: Reported::default(),
         });
+    }
+
+    /// AJ-E1520 (0.3): the user sent a message: the subagents started
+    /// from here on began with it. `key` is the tool's id for it.
+    pub(crate) fn asked(&mut self, text: &str, key: &str) {
+        let first = text
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .unwrap_or_default();
+        if first.is_empty() {
+            return;
+        }
+        self.ask = Some(Asked {
+            text: cut(first, ASKED_CHARS),
+            at_ms: self.at,
+            key: key.to_owned(),
+        });
+    }
+
+    /// AJ-E1520 (0.3): what the line that answered `call` (or ended the
+    /// agent `agent`) says about how it ended; whichever names one it
+    /// knows.
+    pub(crate) fn told(&mut self, call: Option<&str>, agent: Option<&str>, ending: Ending) {
+        let index = call
+            .and_then(|call| self.calls.get(call))
+            .or_else(|| agent.and_then(|agent| self.agents.get(agent)))
+            .copied();
+        let Some(item) = index.and_then(|index| self.items.get_mut(index)) else {
+            return;
+        };
+        if let Some(result) = ending.result.filter(|text| !text.trim().is_empty()) {
+            item.result = Some(cut(&result, RESULT_CHARS));
+        }
+        if let Some(failure) = ending.failure {
+            let line = failure
+                .lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty())
+                .unwrap_or_default();
+            if !line.is_empty() {
+                item.failure = Some(cut(line, 300));
+            }
+        }
+        let reported = ending.reported;
+        let kept = &mut item.reported;
+        kept.model = reported.model.or(kept.model.take());
+        kept.tokens = reported.tokens.or(kept.tokens);
+        kept.tool_uses = reported.tool_uses.or(kept.tool_uses);
+        kept.duration_ms = reported.duration_ms.or(kept.duration_ms);
+        kept.tools = reported.tools.or(kept.tools);
+        kept.lines = reported.lines.or(kept.lines);
     }
 
     /// The tool named the agent a call started.
@@ -307,7 +527,7 @@ pub(crate) fn fill_depths(out: &mut [juggler_adapter::subagents::Subagent]) {
 
 /// Whether `line` holds `needle`.
 pub(crate) fn holds(line: &[u8], needle: &[u8]) -> bool {
-    line.windows(needle.len()).any(|window| window == needle)
+    memchr::memmem::find(line, needle).is_some()
 }
 
 /// Each string value of `key` in a raw JSON line (`"key":"value"`, with
@@ -350,12 +570,18 @@ pub(crate) fn values_of<'a>(line: &'a [u8], key: &[u8]) -> Vec<&'a [u8]> {
 
 /// A task trimmed, cut to [`TASK_CHARS`].
 fn whole(text: &str) -> String {
+    cut(text, TASK_CHARS)
+}
+
+/// `text` trimmed, at most `most` characters (an ellipsis says it was
+/// cut).
+pub(crate) fn cut(text: &str, most: usize) -> String {
     let text = text.trim();
-    let mut cut: String = text.chars().take(TASK_CHARS).collect();
-    if text.chars().count() > TASK_CHARS {
-        cut.push('…');
+    let mut out: String = text.chars().take(most).collect();
+    if text.chars().nth(most).is_some() {
+        out.push('…');
     }
-    cut
+    out
 }
 
 #[cfg(test)]
