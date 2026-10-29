@@ -7,7 +7,7 @@
  * probably started, and how to stop it. Esc goes back to the list where
  * it was scrolled. Read again every few seconds while it runs.
  */
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
 import { Disclosure } from "../../components/controls";
@@ -41,6 +41,11 @@ export function SubagentDetail({
 }): JSX.Element {
   const [detail, setDetail] = useState<SubagentDetailInfo | null>(null);
   const { profileId, conversationId, subagentId } = target;
+  const top = useRef<HTMLDivElement | null>(null);
+  // Another subagent's page starts at its top.
+  useEffect(() => {
+    void top.current?.scrollIntoView?.({ block: "start" });
+  }, [subagentId]);
   useEffect(() => {
     let alive = true;
     setDetail(null);
@@ -68,7 +73,7 @@ export function SubagentDetail({
   const agent = detail?.agent ?? null;
   const running = agent?.status === "running";
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4" data-testid="subagent-detail">
+    <div ref={top} className="flex w-full min-w-0 scroll-mt-4 flex-col gap-4" data-testid="subagent-detail">
       <nav aria-label="Where you are" className="sticky top-0 z-10 -mx-1 flex min-w-0 items-center gap-1.5 bg-canvas/95 px-1 py-1.5 text-meta text-muted backdrop-blur">
         <span className="max-w-[12rem] truncate">{sessionTitle}</span>
         <span aria-hidden="true">›</span>

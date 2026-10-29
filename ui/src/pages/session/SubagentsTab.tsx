@@ -18,7 +18,7 @@ import { Button } from "../../components/primitives";
 import { onSubagentsAsk, takeSubagentsAsk } from "../../lib/subagent-links";
 import { subagentsConversation, type SubagentInfo, type SubagentRowInfo } from "../../lib/ipc/subagents";
 import { SubagentDetail } from "../subagents/SubagentDetail";
-import { SubagentsView, type SortId } from "../subagents/SubagentsView";
+import { SubagentsView, type SortId, type ViewMemory } from "../subagents/SubagentsView";
 import type { SubagentsSource } from "../subagents/useSubagentRows";
 import { titleOf } from "../subagents/words";
 import { LastMessages } from "./LastMessages";
@@ -32,6 +32,7 @@ export function SubagentsTab({ model, visible, now }: { model: SessionModel; vis
   const [step, setStep] = useState<Step>({ at: "list" });
   const [sort, setSort] = useState<SortId>("newest");
   const keep = useRef(0);
+  const memory = useRef<ViewMemory>({});
   const counts = useHeardSubagentCounts(model.profileId, model.conversationId);
   // What another tab asked for: an order, or one subagent's page.
   useEffect(() => {
@@ -39,6 +40,8 @@ export function SubagentsTab({ model, visible, now }: { model: SessionModel; vis
       const ask = takeSubagentsAsk();
       if (!ask) return;
       if (ask.sort) {
+        memory.current = { sort: ask.sort, view: "all" };
+        keep.current = 0;
         setSort(ask.sort);
         setStep({ at: "list" });
       }
@@ -81,6 +84,7 @@ export function SubagentsTab({ model, visible, now }: { model: SessionModel; vis
         firstView={sort === "newest" && (counts?.running ?? 0) > 0 ? "running" : "all"}
         firstSort={sort}
         keep={keep}
+        memory={memory}
       />
     </div>
   );

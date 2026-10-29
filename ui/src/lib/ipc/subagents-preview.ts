@@ -116,7 +116,8 @@ function build(seeded: Seeded, query: SubagentsQuery): { rows: SubagentRowInfo[]
     .filter(([, members]) => members.some((m) => shown.has(m.id)))
     .map(([key, members]) => {
       const tokens = members.reduce((sum, m) => sum + (m.own_tokens ?? 0), 0);
-      const at = members.find((m) => !m.parent)?.asked_ms ?? Math.min(...members.map((m) => m.started_ms ?? Infinity));
+      const starts = members.map((m) => m.started_ms).filter((ms): ms is number => ms !== null);
+      const at = members.find((m) => !m.parent)?.asked_ms ?? (starts.length ? Math.min(...starts) : -Infinity);
       const groupRank = sort === "tokens" ? tokens : sort === "longest" ? Math.max(...members.map((m) => m.duration_ms ?? -1)) : at;
       return { key, members, tokens, at, groupRank };
     })

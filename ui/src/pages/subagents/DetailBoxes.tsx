@@ -4,7 +4,7 @@
  * and how to stop it. Each says plainly when its tool doesn't record a
  * part ("Not recorded by Kimi Code"), never a guess.
  */
-import type { JSX, ReactNode } from "react";
+import { useState, type JSX, type ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { Disclosure } from "../../components/controls";
 import { IconStop } from "../../components/icons-actions";
@@ -40,17 +40,18 @@ function Missing({ children }: { children: ReactNode }): JSX.Element {
   return <p className="text-meta leading-[1.5] text-muted">{children}</p>;
 }
 
-/** A long text: its first lines, the rest one click away. */
+/** A long text: its first lines, the rest one click away (the same
+ * place opens to all of it). */
 function Long({ text, more, markdown = false, testId }: { text: string; more: string; markdown?: boolean; testId: string }): JSX.Element {
+  const [open, setOpen] = useState(false);
   const lines = text.split("\n");
-  const head = lines.slice(0, HEAD_LINES).join("\n");
   const body = (words: string) => (markdown ? <Markdown text={words} /> : <p className="whitespace-pre-wrap break-words text-body leading-[1.55] text-ink">{words}</p>);
   if (lines.length <= HEAD_LINES && text.length <= 480) return <div data-testid={testId}>{body(text)}</div>;
   return (
     <div className="flex flex-col gap-2" data-testid={testId}>
-      <div className="relative max-h-[7.5rem] overflow-hidden">{body(head.slice(0, 480))}</div>
-      <Disclosure summary={more} testId={`${testId}-more`}>
-        <div className="mt-2 max-h-[28rem] overflow-y-auto rounded-lg border border-hairline bg-surface-2 p-3">{body(text)}</div>
+      {open ? <div className="max-h-[32rem] overflow-y-auto">{body(text)}</div> : <div className="line-clamp-4">{body(lines.slice(0, HEAD_LINES).join("\n"))}</div>}
+      <Disclosure summary={open ? "Show less" : more} open={open} onToggle={setOpen} testId={`${testId}-more`}>
+        {null}
       </Disclosure>
     </div>
   );

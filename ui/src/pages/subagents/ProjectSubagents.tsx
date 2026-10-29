@@ -7,12 +7,13 @@
 import { useCallback, useMemo, useRef, useState, type JSX } from "react";
 import type { SubagentRowInfo } from "../../lib/ipc/subagents";
 import { SubagentDetail, type DetailTarget } from "./SubagentDetail";
-import { SubagentsView } from "./SubagentsView";
+import { SubagentsView, type ViewMemory } from "./SubagentsView";
 import type { SubagentsSource } from "./useSubagentRows";
 
 export function ProjectSubagents({ projectId, visible = true, now = Date.now() }: { projectId: string; visible?: boolean; now?: number }): JSX.Element {
   const [open, setOpen] = useState<(DetailTarget & { title: string }) | null>(null);
   const keep = useRef(0);
+  const memory = useRef<ViewMemory>({});
   const source = useMemo<SubagentsSource>(() => ({ kind: "project", projectId }), [projectId]);
   const onOpen = useCallback((row: SubagentRowInfo) => {
     const agent = row.agent;
@@ -35,7 +36,7 @@ export function ProjectSubagents({ projectId, visible = true, now = Date.now() }
   }
   return (
     <div className="w-full min-w-0 max-w-[1280px]" data-testid="project-subagents">
-      <SubagentsView source={source} visible={visible} now={now} onOpen={onOpen} firstView="all" whose="these sessions'" keep={keep} />
+      <SubagentsView source={source} visible={visible} now={now} onOpen={onOpen} firstView="all" whose="these sessions'" keep={keep} memory={memory} />
     </div>
   );
 }

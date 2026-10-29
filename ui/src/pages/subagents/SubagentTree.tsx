@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Pill } from "../../components/Pill";
-import { IconBackground, IconChevronRight } from "../../components/icons-controls";
+import { IconChevronRight } from "../../components/icons-controls";
 import type { SubagentRowInfo } from "../../lib/ipc/subagents";
 import { treeKey, windowRows, type TreeRowLike } from "../../lib/tree-grid";
 import { dayWords, clock } from "../../lib/time-words";
@@ -33,22 +33,25 @@ export function treeRows(rows: readonly SubagentRowInfo[], folded: ReadonlySet<s
   const out: Row[] = [];
   let group: string | null = null;
   let hideBelow: number | null = null;
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     if (row.group) {
       group = row.key;
       hideBelow = null;
       out.push({ ...row, depth: 0, parent_key: null, has_children: row.group.count > 0 });
-      continue;
+      return;
     }
     const agent = row.agent!;
     const depth = row.guides.length + 1;
     if (hideBelow !== null) {
-      if (depth > hideBelow) continue;
+      if (depth > hideBelow) return;
       hideBelow = null;
     }
-    out.push({ ...row, depth, parent_key: agent.parent && depth > 1 ? `a:${agent.parent}` : group, has_children: agent.children > 0 });
-    if (agent.children > 0 && folded.has(row.key)) hideBelow = depth;
-  }
+    // Only the ones it started that are listed here make it a parent.
+    const next = rows[index + 1];
+    const parent = !!next?.agent && next.guides.length + 1 > depth;
+    out.push({ ...row, depth, parent_key: agent.parent && depth > 1 ? `a:${agent.parent}` : group, has_children: parent });
+    if (parent && folded.has(row.key)) hideBelow = depth;
+  });
   return out;
 }
 
@@ -228,7 +231,7 @@ function AgentRow({ row, open, common, onOpen, onFold }: { row: Row; open: boole
         <span aria-hidden="true" className="shrink-0 whitespace-pre font-mono text-meta leading-none text-muted/70">
           {treeLines(row.guides, row.last)}
         </span>
-        {agent.children > 0 && (
+        {row.has_children && (
           <button
             type="button"
             tabIndex={-1}
@@ -246,11 +249,6 @@ function AgentRow({ row, open, common, onOpen, onFold }: { row: Row; open: boole
           {titleOf(agent)}
         </span>
         {kind && <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-px text-label text-muted">{kind}</span>}
-        {agent.background === true && (
-          <span title="In the background: the session went on meanwhile" className="shrink-0 text-muted">
-            <IconBackground aria-label="in the background" width={13} height={13} />
-          </span>
-        )}
         {row.context && <span className="sr-only">(shown for the one it started)</span>}
       </div>
       <div role="gridcell" title={status.hint}>

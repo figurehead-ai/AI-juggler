@@ -48,7 +48,7 @@ export function modelWords(model: string | null): string | null {
 /** A count in a few characters: "412k", "1.2M", "940". */
 export function tokenWords(n: number | null): string {
   if (n === null) return "—";
-  return compactCount(n, (value, suffix) => (suffix === "k" && value >= 100 ? 0 : 1));
+  return compactCount(n, (value) => (value >= 10 ? 0 : 1));
 }
 
 /** How long it ran (or has run): "4m", "32s". */

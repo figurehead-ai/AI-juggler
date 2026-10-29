@@ -23,6 +23,10 @@ const SORTS: PickerOption<SortId>[] = [
   { value: "longest", label: "Longest", hint: "The longest running first" },
 ];
 
+/** What the view was set to, kept across a subagent's page (the list
+ * comes back as it was left). */
+export type ViewMemory = { view?: ViewId; sort?: SortId; kind?: string; typed?: string; groups?: { open: string[]; closed: string[] } };
+
 /** The summary line's words before its links. */
 export function summaryWords(meta: Pick<SubagentsMeta, "summary">, whose: string): { all: string; share: string | null } {
   const { total, share_pct, counted } = meta.summary;
@@ -41,6 +45,7 @@ export function SubagentsView({
   whose = "this session's",
   height = "calc(100vh - 21rem)",
   keep,
+  memory,
 }: {
   source: SubagentsSource | null;
   visible: boolean;
@@ -54,14 +59,19 @@ export function SubagentsView({
   height?: string;
   /** Where the list was scrolled. */
   keep: { current: number };
+  /** What it was set to, when it was shown before. */
+  memory?: { current: ViewMemory };
 }): JSX.Element {
-  const [view, setView] = useState<ViewId>(firstView);
-  const [sort, setSort] = useState<SortId>(firstSort);
-  useEffect(() => setSort(firstSort), [firstSort]);
-  const [kind, setKind] = useState<string>("");
-  const [typed, setTyped] = useState("");
-  const [search, setSearch] = useState("");
-  const [groups, setGroups] = useState<{ open: string[]; closed: string[] }>({ open: [], closed: [] });
+  const kept = memory?.current ?? {};
+  const [view, setView] = useState<ViewId>(kept.view ?? firstView);
+  const [sort, setSort] = useState<SortId>(kept.sort ?? firstSort);
+  const [kind, setKind] = useState<string>(kept.kind ?? "");
+  const [typed, setTyped] = useState(kept.typed ?? "");
+  const [search, setSearch] = useState((kept.typed ?? "").trim());
+  const [groups, setGroups] = useState<{ open: string[]; closed: string[] }>(kept.groups ?? { open: [], closed: [] });
+  useEffect(() => {
+    if (memory) memory.current = { view, sort, kind, typed, groups };
+  }, [memory, view, sort, kind, typed, groups]);
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(typed.trim()), 200);
     return () => window.clearTimeout(timer);
@@ -123,6 +133,7 @@ export function SubagentsView({
       )}
       <div className="flex flex-wrap items-center gap-2" data-testid="subagents-toolbar">
         <Segmented<ViewId>
+          className="h-9 w-[23rem] max-w-full shrink-0"
           label="Which subagents"
           value={view}
           onChange={setView}
@@ -140,7 +151,7 @@ export function SubagentsView({
           onChange={(event) => setTyped(event.target.value)}
           placeholder="Search task, prompt, result, file:"
           aria-label="Search subagents (type: and file: narrow to one)"
-          className="h-9 w-64 min-w-0 flex-1 rounded-xl border border-hairline bg-surface-2 px-3 text-body text-ink placeholder:text-muted focus:border-accent/60 focus:outline-none sm:max-w-80"
+          className="h-9 min-w-[12rem] max-w-80 flex-1 rounded-xl border border-hairline bg-surface-2 px-3 text-body text-ink placeholder:text-muted focus:border-accent/60 focus:outline-none"
           data-testid="subagents-search"
         />
         <div className="ml-auto flex items-center gap-2">
