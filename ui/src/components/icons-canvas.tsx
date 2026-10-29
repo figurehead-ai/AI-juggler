@@ -62,30 +62,6 @@ export function IconTidy(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** View as list. */
-export function IconList(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)}>
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <circle cx="4.5" cy="6" r="0.9" fill="currentColor" />
-      <circle cx="4.5" cy="12" r="0.9" fill="currentColor" />
-      <circle cx="4.5" cy="18" r="0.9" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** The canvas: nodes joined by lines. */
-export function IconCanvas(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...base(props)}>
-      <rect x="9" y="3.5" width="6" height="5" rx="1.2" />
-      <rect x="3" y="15.5" width="6" height="5" rx="1.2" />
-      <rect x="15" y="15.5" width="6" height="5" rx="1.2" />
-      <path d="M11 8.5 6.5 15.5M13 8.5l4.5 7" />
-    </svg>
-  );
-}
-
 /** Tasks: a checklist. */
 export function IconTasks(props: SVGProps<SVGSVGElement>) {
   return (

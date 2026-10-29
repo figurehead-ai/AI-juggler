@@ -132,7 +132,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("inspect-open-settings").click();
     await expect(page.getByTestId("inspect-pool")).toBeVisible();
     await expect(page.getByTestId("pool-rule")).toContainText("Take a task");
-    await expect(page.getByTestId("pool-hop-limit")).toContainText("5");
+    await expect(page.getByTestId("pool-hop-limit")).toHaveAttribute("data-value", "5");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `inspect-pool-1280x800-${theme}.png`) });
     await axe(page, `pool settings ${theme}`);

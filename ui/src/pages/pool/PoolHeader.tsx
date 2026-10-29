@@ -7,11 +7,11 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { IconPool } from "../../components/icons-actions";
-import { IconCanvas, IconList, IconMessage, IconTasks } from "../../components/icons-canvas";
+import { IconMessage, IconTasks } from "../../components/icons-canvas";
 import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
 import { LEVELS, setPools } from "../../lib/pools";
-import { Picker } from "./controls";
+import { Picker, Segmented } from "../../components/controls";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
@@ -131,14 +131,17 @@ export function PoolHeader({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        <div className="flex items-center gap-0.5 rounded-lg border border-hairline p-0.5" role="group" aria-label="Show the pool as">
-          <Toggle on={mode === "canvas"} onClick={() => onMode("canvas")} icon={<IconCanvas width={15} height={15} aria-hidden="true" />} testId="pool-mode-canvas">
-            Canvas
-          </Toggle>
-          <Toggle on={mode === "list"} onClick={() => onMode("list")} icon={<IconList width={15} height={15} aria-hidden="true" />} testId="pool-mode-list">
-            List
-          </Toggle>
-        </div>
+        <Segmented
+          label="Show the pool as"
+          value={mode}
+          segments={[
+            { value: "canvas", label: "Canvas", title: "Its members as nodes, who talks to whom as edges" },
+            { value: "list", label: "List", title: "The same as rows, for the keyboard and screen readers" },
+          ]}
+          onChange={onMode}
+          className="w-40"
+          testId="pool-mode"
+        />
         <Toggle on={panel === "tasks"} onClick={() => onPanel(panel === "tasks" ? null : "tasks")} icon={<IconTasks width={15} height={15} aria-hidden="true" />} testId="pool-panel-tasks">
           Tasks
         </Toggle>
@@ -147,12 +150,13 @@ export function PoolHeader({
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
         <Picker
-          label="What agents may do"
+          ariaLabel="What agents may do"
           heading="Agents in this pool may"
-          variant="chip"
+          size="sm"
+          prefix={<span className="text-muted">Agents:</span>}
           value={pool.access.level}
-          choices={LEVELS.map((level) => ({ id: level.id, label: level.label, words: level.words }))}
-          onPick={(level) => void poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []).then(setPools, (cause) => setError(errorText(cause)))}
+          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
+          onChange={(level) => void poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []).then(setPools, (cause) => setError(errorText(cause)))}
           testId="pool-header-level"
         />
       </div>

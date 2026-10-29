@@ -13,7 +13,9 @@ import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesCh
 import { ACTION_WORDS, LEVELS, setPools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { PoolLinks } from "../messages/PoolLinks";
-import { Picker, Stepper, Toggle } from "./controls";
+import { ChoiceOption, Picker } from "../../components/controls";
+
+const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
 
 export function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
   return (
@@ -74,24 +76,29 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
     <div className="flex flex-col" data-testid="inspect-pool">
       <Section title="What agents may do" testId="inspect-pool-level">
         <Picker
-          label="What agents may do"
+          ariaLabel="What agents may do"
           heading="Agents in this pool may"
           value={pool.access.level}
-          choices={LEVELS.map((level) => ({ id: level.id, label: level.label, words: level.words }))}
+          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
           disabled={busy}
-          onPick={(level) => void run(() => poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []))}
+          onChange={(level) => void run(() => poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []))}
+          className="w-full"
           testId="pool-level"
         />
         <p className="text-label text-muted">{LEVELS.find((level) => level.id === pool.access.level)?.words}</p>
         {pool.access.level === "custom" && (
-          <div className="flex flex-col gap-2" data-testid="pool-custom">
+          <div className="-mx-2 flex flex-col" data-testid="pool-custom">
             {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (
-              <Toggle
+              <ChoiceOption
                 key={action}
+                type="checkbox"
                 label={ACTION_WORDS[action] ?? action}
-                on={allowed.has(action)}
+                checked={allowed.has(action)}
                 disabled={busy}
-                onChange={(on) => void run(() => poolSetAccess(pool.id, "custom", on ? [...allowed, action] : [...allowed].filter((word) => word !== action)))}
+                onChange={(event) => {
+                  const on = event.target.checked;
+                  void run(() => poolSetAccess(pool.id, "custom", on ? [...allowed, action] : [...allowed].filter((word) => word !== action)));
+                }}
               />
             ))}
           </div>
@@ -136,20 +143,44 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
             <span className="text-body text-ink">Pause and ask after</span>
             <span className="text-label text-muted">agent messages in a row without you</span>
           </span>
-          <Stepper label="Agent messages in a row before a chain pauses" value={pool.access.hop_limit} min={1} max={20} disabled={busy} onChange={(hops) => void run(() => poolSetDelivery(pool.id, hops, pool.access.delivery_stopped))} testId="pool-hop-limit" />
+          <Picker
+            ariaLabel="Agent messages in a row before a chain pauses"
+            heading="Pause and ask after"
+            size="sm"
+            value={String(pool.access.hop_limit)}
+            options={HOPS}
+            disabled={busy}
+            onChange={(hops) => void run(() => poolSetDelivery(pool.id, Number(hops), pool.access.delivery_stopped))}
+            testId="pool-hop-limit"
+          />
         </div>
-        <Toggle label="Stop all of them" hint="Messages still reach the inboxes; none goes into a session." on={pool.access.delivery_stopped} disabled={busy} onChange={(on) => void run(() => poolSetDelivery(pool.id, pool.access.hop_limit, on))} testId="pool-stop-all" />
+        <ChoiceOption
+          type="checkbox"
+          className="-mx-2"
+          label="Stop all of them"
+          hint="Messages still reach the inboxes; none goes into a session."
+          checked={pool.access.delivery_stopped}
+          disabled={busy}
+          onChange={(event) => void run(() => poolSetDelivery(pool.id, pool.access.hop_limit, event.target.checked))}
+          data-testid="pool-stop-all"
+        />
       </Section>
 
       <Section title="Notifications" testId="pool-notify">
         {project ? (
-          <Toggle
+          <ChoiceOption
+            type="checkbox"
+            className="-mx-2"
             label={`Notify me about ${project.name}`}
             hint="Asks and paused chains always wait in Needs you; this is whether they interrupt."
-            on={muted === false}
+            checked={muted === false}
             disabled={busy || muted === null}
-            onChange={(on) => void run(() => (on ? notificationsUnmute("project", project.id) : notificationsMute("project", project.id, project.name)))}
-            testId="pool-notify-project"
+            reason={muted === null ? "Reading your notification settings…" : undefined}
+            onChange={(event) => {
+              const on = event.target.checked;
+              void run(() => (on ? notificationsUnmute("project", project.id) : notificationsMute("project", project.id, project.name)));
+            }}
+            data-testid="pool-notify-project"
           />
         ) : (
           <p className="text-label text-muted">Asks and paused chains wait in Needs you and notify you as your notification settings say.</p>
@@ -157,7 +188,16 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
       </Section>
 
       <Section title="Your other Macs">
-        <Toggle label="Include my paired Macs" hint="Message and task content will travel to your other Macs, directly and encrypted." on={pool.spans_macs} disabled={busy} onChange={(on) => void run(() => poolSetSpansMacs(pool.id, on))} testId="pool-spans-macs" />
+        <ChoiceOption
+          type="checkbox"
+          className="-mx-2"
+          label="Include my paired Macs"
+          hint="Message and task content will travel to your other Macs, directly and encrypted."
+          checked={pool.spans_macs}
+          disabled={busy}
+          onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
+          data-testid="pool-spans-macs"
+        />
       </Section>
 
       <Section title="Pools its agents may write to">
