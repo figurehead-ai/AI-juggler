@@ -1311,7 +1311,7 @@ for (const state of [
         } else {
           await expect(page.getByTestId("kill-ready-8123")).toBeVisible();
           await expect(page.getByTestId("kill-confirm-8123")).toContainText(
-            "Terminate vite (PID 8123) and free :5173",
+            "Stop vite (PID 8123) and free :5173",
           );
         }
         await page.screenshot({

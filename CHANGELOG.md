@@ -108,6 +108,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The stop sheet says what it checked in one line** (0.3): "Checked: the
+  process AI Juggler started (same start time and program) · its session
+  has ended · stopping frees :5173". The command, program, folder and
+  ports are behind **Details**. Its words are the app's: **Stop vite?**,
+  **Stopped**, "Stopped when asked", "Needed a force stop", "Had already
+  ended" (no more "Terminate PID", "SIGKILL" or "TERM was sent"), and the
+  report ends with **Saved in Cleanup history**, a link to it.
+- **Stop on another Mac waits 5 s with Undo**, as a Stop on this Mac does.
 - **⌘N opens New session** (D-50, the maintainer's ruling of 2026-10-28,
   as the screen spec says); **New project** is ⌘⇧N, and the notification
   centre moved to ⌥⌘N to make room. The shortcuts list (?), ⌘K and the
@@ -365,6 +373,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A wider stop checks every process before it stops it** (0.3): "Whole
+  session tree" could stop a process whose number had been reused by
+  another program since AI Juggler recorded it. Each process is now
+  checked like the one you clicked (same start time, program and boot)
+  and left alone if it isn't the same; the report says so ("1 process
+  had already ended"). "This process and its helpers" stops only the
+  helpers AI Juggler started: one it didn't start is listed as left
+  running and never stopped.
+- **The unsaved-work warning shows for a single process**: stopping an
+  MCP server, a shell or a database warns that it may hold unsaved state
+  even when it is alone in its group, which is always so for another
+  app's leftover, and "Clean up what this session left" warns on each
+  line.
+- **Your Macs: "No access" can be chosen** in a paired Mac's Access sheet
+  ("sees nothing of this computer and can't act here"); before, only View
+  only and View + control were offered.
+- **A paired Mac's processes say where to clean them**: Processes › Your
+  other Macs, a link there, instead of a session's Processes tab, which
+  has no Clean.
 - **A saved handover is yours only** (0.3): its folder and files could be
   read by other users of the Mac; now only you can open them, like the
   rest of AI Juggler's data. Its Withheld line no longer counts keys you

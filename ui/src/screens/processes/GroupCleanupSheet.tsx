@@ -17,21 +17,21 @@ import {
   processQuery,
   type ProcessGraphRowInfo,
 } from "../../lib/ipc/processes";
-import { outcomeWords, portWords } from "../../lib/process-states";
+import { checkedWords, outcomeWords, portWords } from "../../lib/process-states";
 
 type Line = {
   row: ProcessGraphRowInfo;
   check: "checking" | "ok" | "refused";
   why: string | null;
+  /** May hold unsaved state (an MCP server, a shell, a database). */
+  warning: string | null;
   outcome: string | null;
 };
 
 const CLEAN = new Set(["left_behind", "left_behind_closed", "didnt_stop"]);
 
 function checkWords(observed: boolean): string {
-  return observed
-    ? "Checked: the process AI Juggler saw in this session (same start time, program and boot), and the session has ended"
-    : "Checked: the process AI Juggler started (same start time and program)";
+  return observed ? `${checkedWords(true)}, and the session has ended` : checkedWords(false);
 }
 
 export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphRowInfo; onClose: (changed: boolean) => void }): JSX.Element {
@@ -47,13 +47,14 @@ export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphR
       const page = await processesPage(processQuery({ view: "running", session_id: info.session_id }), { cursor: null, limit: 200 });
       const rows = page.items.filter((row) => row.kind === "process" && CLEAN.has(row.state) && row.process?.stop !== "never" && row.process?.mark !== "keep");
       if (!alive) return;
-      setLines(rows.map((row) => ({ row, check: "checking", why: null, outcome: null })));
+      setLines(rows.map((row) => ({ row, check: "checking", why: null, warning: null, outcome: null })));
       for (const [at, row] of rows.entries()) {
         const proc = row.process!;
         try {
           const verdict = observed ? await processesObservedVerify(proc.pid, proc.start_time) : await killVerify(info.session_id, proc.pid);
           if (!alive) return;
-          setLines((now) => now && now.map((line, i) => (i === at ? { ...line, check: verdict.verified ? "ok" : "refused", why: verdict.refusal } : line)));
+          const warning = verdict.members.find((member) => member.pid === proc.pid)?.unsaved_state_warning ?? null;
+          setLines((now) => now && now.map((line, i) => (i === at ? { ...line, check: verdict.verified ? "ok" : "refused", why: verdict.refusal, warning } : line)));
         } catch (failure) {
           setLines((now) => now && now.map((line, i) => (i === at ? { ...line, check: "refused", why: String(failure) } : line)));
         }
@@ -102,6 +103,11 @@ export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphR
               <span className={`text-meta ${line.check === "refused" ? "text-warning" : "text-muted"}`}>
                 {line.check === "checking" ? "Checking…" : line.check === "ok" ? checkWords(observed) : `Won't stop it: ${line.why ?? "the check failed"}`}
               </span>
+              {line.check === "ok" && line.warning && (
+                <span className="text-meta text-warning" data-testid={`group-unsaved-${proc.pid}`}>
+                  {line.warning}
+                </span>
+              )}
               {line.outcome && (
                 <span className="text-meta font-medium text-ink" role="status">
                   {line.outcome}

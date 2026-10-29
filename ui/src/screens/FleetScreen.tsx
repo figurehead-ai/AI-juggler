@@ -10,7 +10,7 @@ import { IconFleet } from "../components/icons";
 import { PairingWizard, type PairingMode } from "./PairingWizard";
 import { errorText, fleetPeers, fleetRemote, fleetDivergences, fleetSetPermission, linkSetEnabled, linkStatus } from "../lib/bridge";
 import { fleetResetIdentity, fleetResetTrust, fleetSelf, fleetSetLabel, fleetUnpair } from "../lib/bridge";
-import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetSelfInfo } from "../lib/bridge";
+import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetPermission, FleetSelfInfo } from "../lib/bridge";
 import { MachineUsageCard } from "../components/MachineUsage";
 import { ThisMacCard } from "../components/FleetThisMac";
 
@@ -562,6 +562,9 @@ function RemoteInstances({
   );
 }
 
+/** The sheet's choices: the three permissions, control split by "ask". */
+type AccessChoice = "none" | "view" | "ask" | "control";
+
 /** AJ-E709: what a paired machine may do on THIS Mac. Changed only here
  * — the click on this Mac is the confirmation; a console can never raise
  * its own access (ADR-0013). */
@@ -574,11 +577,11 @@ export function AccessSheet({
   peer: FleetPeerInfo;
   busy: boolean;
   onCancel: () => void;
-  onSave: (permission: "view" | "control", askEachTime: boolean) => void;
+  onSave: (permission: FleetPermission, askEachTime: boolean) => void;
 }): JSX.Element {
-  const initial =
-    peer.permission === "control" ? (peer.ask_each_time ? "ask" : "control") : "view";
-  const [choice, setChoice] = useState<"view" | "ask" | "control">(initial);
+  const initial: AccessChoice =
+    peer.permission === "control" ? (peer.ask_each_time ? "ask" : "control") : peer.permission === "no_access" ? "none" : "view";
+  const [choice, setChoice] = useState<AccessChoice>(initial);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -592,7 +595,8 @@ export function AccessSheet({
       previous?.focus?.();
     };
   }, [onCancel]);
-  const options: Array<{ id: "view" | "ask" | "control"; title: string; body: string }> = [
+  const options: Array<{ id: AccessChoice; title: string; body: string }> = [
+    { id: "none", title: "No access", body: `${peer.label} sees nothing of this computer and can't act here. It stays paired, so you can let it back in here.` },
     { id: "view", title: "View only", body: `${peer.label} can see this Mac's accounts, sessions and usage — it can't change anything.` },
     {
       id: "ask",
@@ -652,7 +656,7 @@ export function AccessSheet({
             size="sm"
             variant="primary"
             disabled={busy || choice === initial}
-            onClick={() => onSave(choice === "view" ? "view" : "control", choice === "ask")}
+            onClick={() => onSave(choice === "none" ? "no_access" : choice === "view" ? "view" : "control", choice === "ask")}
             data-testid="fleet-access-save"
           >
             Change on this Mac

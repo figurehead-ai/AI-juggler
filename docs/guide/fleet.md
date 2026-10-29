@@ -49,7 +49,8 @@ another Mac only when you switch one to it.
   other Macs) and on Fleet.
 - **Stop** a session there, or bring its window to the front (**Stop on…**,
   **Focus on…** on the session's page).
-- **Clean up** a leftover process there that AI Juggler can show it started.
+- **Clean up** a leftover process there that AI Juggler can show it started,
+  in Processes › **Your other Macs**.
 - **Start a session there:** in **New session**, choose the Mac under
   **Runs on**, then the folder and profile it offers, and **Start there →**.
 - **Carry a conversation to it:** on a session's page, **Continue on another
@@ -69,7 +70,9 @@ Only the Mac being controlled can change what another may do: **Access…** on
 its row in Fleet, or Settings › Your Macs › **Fleet permissions** (that pane
 shows once a Mac is paired). **View + control, ask each time** makes each
 request wait for you to **Allow** it on that Mac; one you don't answer
-within 20 seconds is denied.
+within 20 seconds is denied. **No access** keeps the Mac paired, but it
+sees nothing of this one and can't act here. A **Stop on…** waits 5
+seconds with **Undo** before it is sent, as a Stop on this Mac does.
 
 ## Unpair, or start again
 

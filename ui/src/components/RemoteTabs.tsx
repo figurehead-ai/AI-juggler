@@ -11,6 +11,8 @@ import {
   type RemoteMachineInfo,
 } from "../lib/bridge";
 import { memorySize } from "../lib/compact";
+import { holdStop } from "../lib/stop";
+import { InstanceProcessList } from "./RemoteProcessList";
 
 /** A remote selection: the machine, and the Instance on it (or none
  * when the machine itself is selected). */
@@ -290,19 +292,27 @@ function InstanceActions({
             size="sm"
             disabled={reason !== null || busy}
             aria-describedby={reason ? "remote-stop-reason" : undefined}
-            onClick={async () => {
-              setBusy(true);
-              setError(null);
-              try {
-                const result = await fleetRemoteStop(machine.machine_id, instance.id);
-                setOutcome(result);
-                if (result.accepted) onDone();
-              } catch (cause) {
-                setError(errorText(cause));
-              } finally {
-                setBusy(false);
-              }
-            }}
+            onClick={() =>
+              // The same hold as a local Stop: 5 s with Undo, then sent.
+              holdStop({
+                id: `remote:${machine.machine_id}:${instance.id}`,
+                label: `${[instance.project_name, instance.account_label].filter(Boolean).join(" · ")} on ${machine.label}`,
+                send: async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const result = await fleetRemoteStop(machine.machine_id, instance.id);
+                    setOutcome(result);
+                    if (result.accepted) onDone();
+                  } catch (cause) {
+                    setError(errorText(cause));
+                    throw cause;
+                  } finally {
+                    setBusy(false);
+                  }
+                },
+              })
+            }
             data-testid="remote-stop"
           >
             Stop on {machine.label}
@@ -453,39 +463,5 @@ function MachineProcesses({ machine, now }: { machine: RemoteMachineInfo; now: n
         </ul>
       )}
     </Card>
-  );
-}
-
-/** AJ-E707: the Instance's processes as its machine reported them;
- * cleaning happens in the Cleanup Centre (All machines), where each
- * verified row has a confirmed Clean. */
-function InstanceProcessList({ machine, instanceId }: { machine: RemoteMachineInfo; instanceId: string }): JSX.Element {
-  const rows = (machine.processes ?? []).filter((row) => row.instance_id === instanceId);
-  if (rows.length === 0) {
-    return (
-      <p className="text-label text-muted">
-        Unavailable — {machine.label} hasn't reported this session's processes.
-      </p>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1">
-      <ul className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline" data-testid="remote-process-list">
-        {rows.map((row) => (
-          <li key={row.pid} className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 text-xs">
-            <span className="font-mono text-label">{row.name || "process"}</span>
-            <span className="text-muted">pid {row.pid}</span>
-            <span className="text-muted">· {row.role}</span>
-            <span className="text-muted">· {row.state_label}</span>
-            {row.ports && <span className="text-muted">· ports {row.ports}</span>}
-            <span className="flex-1" />
-            <Chip tone={row.verified ? "success" : "neutral"}>
-              {row.verified ? "✓ Verified owned" : "Not owned — never touched"}
-            </Chip>
-          </li>
-        ))}
-      </ul>
-      <p className="text-label text-muted">Clean verified processes from each session's Processes tab.</p>
-    </div>
   );
 }

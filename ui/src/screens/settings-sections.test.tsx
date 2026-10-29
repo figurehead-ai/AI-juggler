@@ -250,6 +250,25 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(getByTestId("fleet-access-sheet")).toBeTruthy();
   });
 
+  it("Access offers No access, said as what it means, and saves it", async () => {
+    w().__AIJ_FLEET_PEERS__ = [PEER];
+    w().__AIJ_FLEET_CALLS__ = [];
+    const { findByTestId, getByTestId, queryByTestId } = render(<SettingsScreen focusSection="fleet" />);
+    const row = await findByTestId("settings-fleet-peer");
+    fireEvent.click(within(row).getByRole("button", { name: /Access… for Mac mini/ }));
+    const none = getByTestId("fleet-access-none");
+    expect(none.textContent).toContain("No access");
+    expect(none.textContent).toContain("Mac mini sees nothing of this computer and can't act here.");
+    fireEvent.click(within(none).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(getByTestId("fleet-access-save"));
+    });
+    expect(w().__AIJ_FLEET_CALLS__).toContain("permission:machine-mini:no_access:false");
+    await waitFor(() => expect(queryByTestId("fleet-access-sheet")).toBeNull());
+    expect((await findByTestId("settings-fleet-peer")).textContent).toContain("No access");
+    delete w().__AIJ_FLEET_CALLS__;
+  });
+
   it("a link to Your Macs with none paired says where to pair one", async () => {
     const { findByText, getByTestId } = render(<SettingsScreen focusSection="fleet" />);
     expect(await findByText("No paired Macs. Pair one on the Fleet screen.")).toBeTruthy();

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProcessesScreen } from "./processes/ProcessesScreen";
 import { forgetProcessRows, prefetchProcessRows } from "./processes/useProcessRows";
+import type { KillVerifyData } from "../components/KillSheet";
 
 /**
  * AJ-E2404/E2405: the Processes page on the preview's made-up Mac (the
@@ -12,6 +13,29 @@ import { forgetProcessRows, prefetchProcessRows } from "./processes/useProcessRo
 
 const rowKeys = (container: HTMLElement) =>
   [...container.querySelectorAll('[data-testid^="process-row-"]')].map((row) => row.getAttribute("data-testid")!.slice("process-row-".length));
+
+/** Another app's leftover, checked, as the backend says it (one member). */
+function observedVerify(pid: number, warning: string | null): KillVerifyData {
+  return {
+    pid,
+    session: "landing",
+    verified: true,
+    refusal: null,
+    exe_path: "/usr/local/bin/node",
+    cmdline: "node node_modules/.bin/astro dev --port 4321",
+    cwd: "/Users/you/Dev/landing",
+    ports: pid === 7301 ? [4321] : [],
+    pgid: null,
+    escaped_group: false,
+    members: [{ pid, pgid: null, exe: "node", cmdline: "astro dev", role_guess: "dev server", unsaved_state_warning: warning, from_ledger: false }],
+    tree_pids: [pid],
+    platform: "TERM → grace → KILL",
+    grace_secs: 5,
+    provider: "codex",
+    account_id: null,
+    project_id: null,
+  };
+}
 
 function page() {
   const view = render(<ProcessesScreen />);
@@ -133,6 +157,44 @@ describe("AJ-E2404 the Processes page", () => {
     await waitFor(() => expect(document.querySelector('[data-testid="kill-only-7301"]')).not.toBeNull());
     expect(document.querySelector('[data-testid="kill-only-7301"]')!.textContent).toContain("Only this process");
     expect(document.querySelector('[data-testid^="kill-scope-"]')).toBeNull();
+  });
+
+  it("the stop sheet: one proof line, the process's own unsaved-state warning, and the report links to Cleanup history", async () => {
+    (window as unknown as { __AIJ_OBSERVED_VERIFY__?: unknown }).__AIJ_OBSERVED_VERIFY__ = (pid: number) => observedVerify(pid, "Includes an MCP server that may hold unsaved state.");
+    try {
+      const { container, getByTestId } = page();
+      await waitFor(() => expect(container.querySelector('[data-testid="process-stop-7301"]')).not.toBeNull());
+      fireEvent.click(container.querySelector('[data-testid="process-stop-7301"]')!);
+      await waitFor(() => expect(document.querySelector('[data-testid="kill-proof-7301"]')).not.toBeNull());
+      expect(document.querySelector('[data-testid="kill-proof-7301"]')!.textContent).toBe(
+        "Checked: the process AI Juggler saw in this session (same start time, program and boot) · its session has ended · stopping frees :4321",
+      );
+      // Another app's leftover is one process: its warning shows anyway.
+      expect(document.querySelector('[data-testid="kill-unsaved-7301"]')!.textContent).toBe("Includes an MCP server that may hold unsaved state.");
+      fireEvent.click(document.querySelector('[data-testid="kill-confirm-7301"]')!);
+      await waitFor(() => expect(document.querySelector('[data-testid="kill-history-link-7301"]')).not.toBeNull());
+      fireEvent.click(document.querySelector('[data-testid="kill-history-link-7301"]')!);
+      await waitFor(() => expect(document.querySelector('[data-testid^="kill-sheet-"]')).toBeNull());
+      expect(getByTestId("process-view-history").getAttribute("aria-selected")).toBe("true");
+    } finally {
+      delete (window as unknown as { __AIJ_OBSERVED_VERIFY__?: unknown }).__AIJ_OBSERVED_VERIFY__;
+    }
+  });
+
+  it("Clean up what a session left warns of unsaved state for each process, alone or not", async () => {
+    (window as unknown as { __AIJ_OBSERVED_VERIFY__?: unknown }).__AIJ_OBSERVED_VERIFY__ = (pid: number) =>
+      observedVerify(pid, pid === 7302 ? "Includes a database that may hold unsaved state." : null);
+    try {
+      const { container } = page();
+      const clean = '[data-testid="session-clean-s:theirs:codex:landing"]';
+      await waitFor(() => expect(container.querySelector(clean)).not.toBeNull());
+      fireEvent.click(container.querySelector(clean)!);
+      await waitFor(() => expect(document.querySelector('[data-testid="group-unsaved-7302"]')).not.toBeNull());
+      expect(document.querySelector('[data-testid="group-unsaved-7302"]')!.textContent).toBe("Includes a database that may hold unsaved state.");
+      expect(document.querySelector('[data-testid="group-unsaved-7301"]')).toBeNull();
+    } finally {
+      delete (window as unknown as { __AIJ_OBSERVED_VERIFY__?: unknown }).__AIJ_OBSERVED_VERIFY__;
+    }
   });
 
   it("Ports lists every open port with what it is", async () => {

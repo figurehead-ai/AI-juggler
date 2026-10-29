@@ -1624,3 +1624,129 @@ fn recycled_pid_is_refused_from_every_entry_point() {
         kill9(pid);
     }
 }
+
+/// ADR-0010 verify-or-refuse holds for every MEMBER of a wider stop, not
+/// only its target: in "Whole session tree", a ledger row whose pid now
+/// names a different process (another start time) is never signalled,
+/// and the report says it had already ended. The verified target in the
+/// same tree is stopped as asked.
+#[test]
+fn tree_scope_never_signals_a_member_whose_pid_was_reused() {
+    let _serial = serialize();
+    // The fake programs live where only this user can change them.
+    let dir = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let state = app_state(dir.path());
+    seed_account(&state, dir.path(), "acc-guard", false, false);
+    let helper = fixtures::write_helper(dir.path());
+    let probe = juggler_supervisor::tree::OsIdentityProbe;
+    let mut reaper = fixtures::Reaper::default();
+    let session = SessionId::new("sess-tree-reused".to_string());
+
+    let mut spawn = |name: &str| {
+        let trap = dir.path().join(format!("{name}.traps"));
+        let ready = dir.path().join(format!("{name}.ready"));
+        let pid = fixtures::spawn_detached(&helper, &[], &trap, &ready);
+        reaper.pid(pid);
+        let live = juggler_supervisor::tree::IdentityProbe::probe(&probe, pid)
+            .expect("the fixture is readable");
+        (pid, live, trap)
+    };
+    let (target_pid, target, target_trap) = spawn("target");
+    let (reused_pid, reused, reused_trap) = spawn("reused");
+
+    let row =
+        |pid: u32, started_at: i64, exe: String, tag: &str| juggler_core::storage::LedgerRow {
+            pid: Some(pid),
+            pgid: None,
+            started_at: Some(started_at),
+            exe_path: exe,
+            cmdline_hash: format!("tree-{tag}"),
+            cmdline_trunc: format!("python3 trap_helper.py ({tag})"),
+            boot_id: state.ledger.boot_id().to_string(),
+            session_id: session.as_str().to_string(),
+            instance_id: None,
+            provider: "claude-code".into(),
+            account_id: Some("acc-guard".into()),
+            project_id: Some("proj-guard".into()),
+            machine_id: commands::local_machine_id(&state).as_str().to_string(),
+            root_pid: None,
+            parent_pid: None,
+            depth: 1,
+            role: "helper".into(),
+            state: "orphaned".into(),
+            listens_on: None,
+            cwd: dir.path().to_string_lossy().to_string(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: false,
+            down_period: false,
+            first_seen: now_ms() - 3_600_000,
+            last_seen: now_ms() - 3_600_000,
+        };
+    state
+        .ledger
+        .upsert_helpers(
+            &session,
+            &[
+                row(
+                    target_pid,
+                    target.start_time,
+                    target.exe.to_string_lossy().into_owned(),
+                    "target",
+                ),
+                // Recorded for an EARLIER process with the same pid.
+                row(
+                    reused_pid,
+                    reused.start_time - 3_600,
+                    reused.exe.to_string_lossy().into_owned(),
+                    "reused",
+                ),
+            ],
+        )
+        .unwrap();
+
+    let verify = commands::kill_verify_inner(&state, session.as_str(), target_pid).unwrap();
+    assert!(verify.verified, "the target verifies");
+    let outcome = commands::kill_execute_audited(
+        &state,
+        state.audit.as_ref(),
+        session.as_str(),
+        target_pid,
+        "tree",
+        &cancel_flag(),
+        None,
+    )
+    .unwrap();
+    assert!(
+        outcome.refusal.is_none(),
+        "the verified target is not refused"
+    );
+
+    // The reused pid: zero signals, still running, reported as ended.
+    let traps = std::fs::read_to_string(&reused_trap).unwrap_or_default();
+    assert!(traps.trim().is_empty(), "the reused pid received a signal");
+    assert!(
+        fixtures::alive(reused_pid),
+        "the process at the reused pid still runs"
+    );
+    let reported = outcome
+        .members
+        .iter()
+        .find(|member| member.pid == reused_pid)
+        .map(|member| member.outcome.clone());
+    assert_eq!(
+        reported.as_deref(),
+        Some("already gone"),
+        "the report names the ended member"
+    );
+
+    // The verified target was asked to stop.
+    assert!(
+        fixtures::wait_for(8_000, || !fixtures::alive(target_pid)),
+        "the verified target stopped"
+    );
+    let traps = std::fs::read_to_string(&target_trap).unwrap_or_default();
+    assert!(traps.contains("TERM"), "the target was asked to stop");
+}

@@ -62,7 +62,7 @@ export function RemoteCleanup(): JSX.Element | null {
   };
 
   return (
-    <section className="mt-4 flex flex-col gap-3" aria-labelledby="remote-cleanup-title" data-testid="remote-cleanup">
+    <section id="remote-cleanup" tabIndex={-1} className="mt-4 flex flex-col gap-3 outline-none" aria-labelledby="remote-cleanup-title" data-testid="remote-cleanup">
       <h2 id="remote-cleanup-title" className="text-section font-semibold text-ink">
         Your other Macs
       </h2>

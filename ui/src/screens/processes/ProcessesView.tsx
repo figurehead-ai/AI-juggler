@@ -238,6 +238,13 @@ export function ProcessesView({
           trigger={stopping.trigger ?? undefined}
           bridge={stopRow.process.stop === "observed" ? observedBridge(stopRow.process.start_time) : undefined}
           onlyThisProcess={stopRow.process.stop === "observed" ? "Only this process: the app's session and its other processes are never touched." : undefined}
+          observed={stopRow.process.stop === "observed"}
+          sessionEnded={stopRow.state === "left_behind" || stopRow.state === "left_behind_closed" || stopSession?.state === "ended"}
+          onShowHistory={() => {
+            setStopping(null);
+            refresh();
+            chooseView("history");
+          }}
           onClose={() => {
             setStopping(null);
             refresh();

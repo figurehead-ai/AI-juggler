@@ -83,10 +83,19 @@ Activity Monitor** opens Activity Monitor.
 ## Stop a process
 
 Choose **Stop…** on a process. AI Juggler checks it again: that it is
-the same program, started at the same time, as the one it recorded. Then
-it shows what stopping it will do, and what it will free, such as a port.
-Nothing happens until you confirm. Stopping asks the process politely
-first, and forces it after 5 seconds only if it ignored that.
+the same program, started at the same time, as the one it recorded. The
+sheet says so in one line, with what stopping it will free, such as a
+port; **Details** shows its command, program and folder. A process that
+may hold unsaved work (an MCP server, a shell, a database) is named as
+such. Nothing happens until you confirm. Stopping asks the process
+politely first, and forces it after 5 seconds only if it ignored that.
+
+For one of AI Juggler's own processes you can stop more at once: **This
+process and its helpers** (the ones AI Juggler started; any other process
+in its group keeps running) or **Whole session tree**. Each process is
+checked the same way just before it is stopped, and one that isn't the
+process AI Juggler recorded is left alone; the report says so. Every stop
+is saved in **Cleanup history**, which the report links to.
 
 A session that left something behind offers **Clean up (N)…**: each of
 its leftovers is checked, then stopped on its own, with the outcome beside

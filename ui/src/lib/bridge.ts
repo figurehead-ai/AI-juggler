@@ -3562,10 +3562,20 @@ type PromptSeams = {
 };
 const promptSeams = () => window as unknown as PromptSeams;
 
+/** What a paired machine may do on this Mac (the backend's wire words). */
+export type FleetPermission = "no_access" | "view" | "control";
+
+/** The words each permission shows as (the backend's own labels). */
+const FLEET_PERMISSION_LABELS: Record<FleetPermission, string> = {
+  no_access: "No access",
+  view: "View only",
+  control: "View + control",
+};
+
 /** Changes what a paired machine may do on THIS Mac (only ever here). */
 export async function fleetSetPermission(
   machineId: string,
-  permission: "view" | "control",
+  permission: FleetPermission,
   askEachTime: boolean,
 ): Promise<FleetPeerInfo[]> {
   if (!hasBackend) {
@@ -3576,7 +3586,7 @@ export async function fleetSetPermission(
         ? {
             ...peer,
             permission,
-            permission_label: permission === "control" ? "View + control" : "View only",
+            permission_label: FLEET_PERMISSION_LABELS[permission],
             ask_each_time: permission === "control" && askEachTime,
           }
         : peer,

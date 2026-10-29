@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { killDisplayName, probablyWords } from "../lib/process-words";
+import { proofWords } from "../lib/process-states";
+import { KillReport } from "./KillReport";
 
 /**
  * AJ-E507: the verify-before-kill sheet — the ONLY manual kill path
@@ -109,9 +111,10 @@ export const defaultKillBridge: KillBridge = {
 };
 
 export const KILL_SCOPES: { id: KillScope; label: string; hint: string }[] = [
-  { id: "pid", label: "This process only", hint: "the narrowest scope" },
-  { id: "pgid", label: "This process and its helpers", hint: "its whole process group" },
-  { id: "tree", label: "Whole session tree", hint: "every live process of this session" },
+  { id: "pid", label: "This process only", hint: "the narrowest choice" },
+  // ADR-0010: a helper AI Juggler didn't start is never stopped.
+  { id: "pgid", label: "This process and its helpers", hint: "the ones AI Juggler started" },
+  { id: "tree", label: "Whole session tree", hint: "every process of this session still running" },
 ];
 
 // The short process name lives with the other process words (the
@@ -134,6 +137,13 @@ export function KillSheet(props: {
   /** The one scope there is, in words, when no choice is offered (D-41b:
    * another app's leftover is stopped alone). */
   onlyThisProcess?: string;
+  /** Another app's leftover, checked through its sighting (the proof line
+   * says so). */
+  observed?: boolean;
+  /** Its session has ended (the proof line says so). */
+  sessionEnded?: boolean;
+  /** Opens Cleanup history, where every stop is saved. */
+  onShowHistory?: () => void;
 }) {
   const bridge = props.bridge ?? defaultKillBridge;
   const goalPort = props.goalPort ?? null;
@@ -191,7 +201,7 @@ export function KillSheet(props: {
       scope === "pid"
         ? [props.pid]
         : scope === "pgid"
-          ? verify.members.map((member) => member.pid)
+          ? verify.members.filter((member) => member.from_ledger).map((member) => member.pid)
           : verify.tree_pids;
     let alive = true;
     const poll = () => {
@@ -303,12 +313,27 @@ export function KillSheet(props: {
     // until then.
   };
 
+  const name = verify === null ? null : killDisplayName(verify.cmdline, verify.exe_path);
   const title =
     phase === "report"
-      ? "Termination report"
+      ? report === null || report.refusal !== null
+        ? "Not stopped"
+        : report.cancelled
+          ? "Stop cancelled"
+          : report.all_succeeded
+            ? "Stopped"
+            : "Didn't stop"
       : phase === "refused"
-        ? "Verification failed"
-        : `Terminate PID ${props.pid}?`;
+        ? "Won't stop it"
+        : name === null
+          ? "Stop this process?"
+          : `Stop ${name}?`;
+  // The target's own warning (an MCP server, a shell, a database): shown
+  // whatever the scope and however many processes share its group.
+  const targetWarning = verify?.members.find((member) => member.pid === verify.pid)?.unsaved_state_warning ?? null;
+  // Never signalled, so not ticked: a group member AI Juggler didn't start.
+  const stopping = (data: KillVerifyData): number[] =>
+    scope === "pid" ? [props.pid] : scope === "pgid" ? data.members.filter((member) => member.from_ledger).map((member) => member.pid) : data.tree_pids;
 
   return (
     <div
@@ -352,7 +377,7 @@ export function KillSheet(props: {
 
           {phase === "verifying" && (
             <p data-testid={`kill-verifying-${props.pid}`}>
-              Re-verifying this process against the kernel now…
+              Checking it's still the same process…
             </p>
           )}
 
@@ -362,10 +387,10 @@ export function KillSheet(props: {
                 {verify.refusal}
               </p>
               <p className="mt-2">
-                The verification facts, for the record — nothing was signalled:
+                Nothing was stopped. What AI Juggler recorded:
               </p>
               <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
-                <dt className="text-muted">recorded exe</dt>
+                <dt className="text-muted">program</dt>
                 <dd>{verify.exe_path}</dd>
                 <dt className="text-muted">ports</dt>
                 <dd>{verify.ports.length > 0 ? verify.ports.map((p) => `:${p}`).join(" ") : "—"}</dd>
@@ -375,26 +400,40 @@ export function KillSheet(props: {
 
           {phase === "ready" && verify !== null && (
             <div data-testid={`kill-ready-${props.pid}`}>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
-                <dt className="text-muted">command</dt>
-                <dd className="break-all text-ink" data-testid={`kill-cmdline-${props.pid}`}>
-                  {verify.cmdline}
-                </dd>
-                <dt className="text-muted">cwd</dt>
-                <dd className="break-all">{verify.cwd}</dd>
-                <dt className="text-muted">ports now</dt>
-                <dd>
-                  {verify.ports.length > 0
-                    ? verify.ports.map((p) => `:${p}`).join(" ")
-                    : "none"}
-                </dd>
-                {goalPort !== null && (
-                  <>
-                    <dt className="text-muted">goal</dt>
-                    <dd className="text-accent">free :{goalPort}</dd>
-                  </>
-                )}
-              </dl>
+              {/* One plain proof line; the facts behind it on demand. */}
+              <p className="text-body text-ink" data-testid={`kill-proof-${props.pid}`}>
+                {proofWords({ observed: props.observed === true, sessionEnded: props.sessionEnded === true, ports: verify.ports })}
+              </p>
+              {targetWarning !== null && (
+                <p className="mt-1 text-warning" data-testid={`kill-unsaved-${props.pid}`}>
+                  {targetWarning}
+                </p>
+              )}
+              <details className="mt-2" data-testid={`kill-details-${props.pid}`}>
+                <summary className="cursor-pointer text-label text-muted hover:text-ink">Details</summary>
+                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
+                  <dt className="text-muted">command</dt>
+                  <dd className="break-all text-ink" data-testid={`kill-cmdline-${props.pid}`}>
+                    {verify.cmdline}
+                  </dd>
+                  <dt className="text-muted">program</dt>
+                  <dd className="break-all">{verify.exe_path || "—"}</dd>
+                  <dt className="text-muted">folder</dt>
+                  <dd className="break-all">{verify.cwd}</dd>
+                  <dt className="text-muted">ports</dt>
+                  <dd>
+                    {verify.ports.length > 0
+                      ? verify.ports.map((p) => `:${p}`).join(" ")
+                      : "none"}
+                  </dd>
+                  <dt className="text-muted">checked</dt>
+                  <dd className="font-sans">
+                    {props.observed === true
+                      ? "AI Juggler saw it in the session; its start time, program and boot match the process running now."
+                      : "AI Juggler recorded it when it started it; its start time and program match the process running now."}
+                  </dd>
+                </dl>
+              </details>
 
               {props.onlyThisProcess ? (
                 <p className="mt-3 text-label text-muted" data-testid={`kill-only-${props.pid}`}>
@@ -402,8 +441,8 @@ export function KillSheet(props: {
                 </p>
               ) : (
                 <fieldset className="mt-3">
-                  <legend className="text-label font-medium text-ink">Scope</legend>
-                  <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="Kill scope">
+                  <legend className="text-label font-medium text-ink">What to stop</legend>
+                  <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="What to stop">
                     {KILL_SCOPES.map((entry) => (
                       <label
                         key={entry.id}
@@ -427,7 +466,7 @@ export function KillSheet(props: {
               {verify.members.length > 1 && (
                 <div className="mt-3" data-testid={`kill-members-${props.pid}`}>
                   <p className="text-label font-medium text-ink">
-                    Shares the process group ({verify.members.length} live members)
+                    In the same process group ({verify.members.length})
                   </p>
                   <ul className="mt-1 flex flex-col gap-1">
                     {verify.members.map((member) => (
@@ -442,13 +481,13 @@ export function KillSheet(props: {
                           <span className="font-sans text-muted">{probablyWords(member.role_guess)}</span>
                         )}
                         {!member.from_ledger && (
-                          <span className="text-warning">not Juggler-managed</span>
+                          <span className="font-sans text-warning">not started by AI Juggler: left running</span>
                         )}
                       </li>
                     ))}
                   </ul>
                   {verify.members
-                    .filter((member) => member.unsaved_state_warning !== null)
+                    .filter((member) => member.pid !== verify.pid && member.from_ledger && member.unsaved_state_warning !== null)
                     .map((member) => (
                       <p
                         key={member.pid}
@@ -482,91 +521,42 @@ export function KillSheet(props: {
                   : "Stopping by force what didn't close"}
               </p>
               <ul className="mt-2 flex flex-col gap-1 font-mono text-label">
-                {(scope === "pid"
-                  ? [props.pid]
-                  : scope === "pgid"
-                    ? verify.members.map((member) => member.pid)
-                    : verify.tree_pids
-                ).map((pid) => (
+                {stopping(verify).map((pid) => (
                   <li key={pid} className="flex items-center gap-2" data-testid={`kill-tick-${pid}`}>
                     <span aria-hidden="true">{aliveMap[pid] === false ? "✓" : "…"}</span>
                     <span>PID {pid}</span>
-                    <span>{aliveMap[pid] === false ? "exited" : "running"}</span>
+                    <span>{aliveMap[pid] === false ? "stopped" : "running"}</span>
                   </li>
                 ))}
               </ul>
               <Button size="sm" variant="secondary" className="mt-3" onClick={cancelGrace}>
-                Cancel — stop the escalation
+                Cancel: don't force it
               </Button>
             </div>
           )}
 
           {phase === "report" && report !== null && (
-            <div data-testid={`kill-report-${props.pid}`}>
-              {report.refusal !== null && (
-                <p className="rounded-lg border border-danger/40 bg-danger/5 p-2.5 text-ink">
-                  {report.refusal}
-                </p>
-              )}
-              {report.cancelled && (
-                <p className="text-ink">Cancelled during grace — TERM was sent; outcomes unknown.</p>
-              )}
-              <ul className="mt-2 flex flex-col gap-1 font-mono text-label">
-                {report.members.map((member) => (
-                  <li key={member.pid} data-testid={`kill-outcome-${member.pid}`}>
-                    PID {member.pid} — {member.outcome}
-                  </li>
-                ))}
-              </ul>
-              {report.still_holding.length > 0 && (
-                <div className="mt-2" data-testid={`kill-still-holding-${props.pid}`}>
-                  <p className="text-warning">
-                    Still holding (never claimed freed):
-                  </p>
-                  <ul className="font-mono text-label">
-                    {report.still_holding.map((held) => (
-                      <li key={`${held.pid}-${held.port}`}>
-                        :{held.port} by {held.exe} (PID {held.pid})
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {!report.all_succeeded && report.refusal === null && !report.cancelled && (
-                <p className="mt-1 text-danger">A process refused even SIGKILL — it is still running.</p>
-              )}
-              {report.all_succeeded && report.still_holding.length === 0 && (
-                <p className="mt-1 text-ink" data-testid={`kill-success-${props.pid}`}>
-                  {goalPort !== null ? `:${goalPort} is free.` : "Done — every process is gone."}
-                </p>
-              )}
-              {report.reoffer_pid !== null && report.reoffer_pid !== props.pid && (
-                <p className="mt-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      // The pid-only re-offer: FRESH verification of
-                      // the escapee (never an automatic signal).
-                      setPhase("verifying");
-                      setVerify(null);
-                      setReport(null);
-                      bridge
-                        .verify(props.session, report.reoffer_pid as number)
-                        .then((next) => {
-                          setVerify(next);
-                          setScope("pid");
-                          setPhase(next.verified ? "ready" : "refused");
-                        })
-                        .catch((cause: unknown) => setError(errorText(cause)));
-                    }}
-                    data-testid={`kill-reoffer-${props.pid}`}
-                  >
-                    Re-verify PID {report.reoffer_pid} — it still holds the port
-                  </Button>
-                </p>
-              )}
-            </div>
+            <KillReport
+              report={report}
+              pid={props.pid}
+              goalPort={goalPort}
+              onShowHistory={props.onShowHistory}
+              onReoffer={(reoffer) => {
+                // The pid-only re-offer: FRESH verification of the
+                // escapee (never an automatic signal).
+                setPhase("verifying");
+                setVerify(null);
+                setReport(null);
+                bridge
+                  .verify(props.session, reoffer)
+                  .then((next) => {
+                    setVerify(next);
+                    setScope("pid");
+                    setPhase(next.verified ? "ready" : "refused");
+                  })
+                  .catch((cause: unknown) => setError(errorText(cause)));
+              }}
+            />
           )}
         </div>
 
@@ -587,7 +577,7 @@ export function KillSheet(props: {
               className="rounded-xl border border-danger bg-danger px-3 py-1.5 text-meta font-medium text-canvas transition-opacity hover:opacity-90 outline-none focus-visible:ring-1 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
               data-testid={`kill-confirm-${props.pid}`}
             >
-              Terminate {killDisplayName(verify.cmdline, verify.exe_path)} (PID {props.pid})
+              Stop {name} (PID {props.pid})
               {goalPort !== null ? ` and free :${goalPort}` : ""}
             </button>
           )}
@@ -596,3 +586,4 @@ export function KillSheet(props: {
     </div>
   );
 }
+
