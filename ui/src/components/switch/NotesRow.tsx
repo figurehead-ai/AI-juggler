@@ -19,6 +19,7 @@ import type { OfferInfo, SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { GUIDE } from "../../lib/switch-words";
 import { Meaning } from "../SwitchSetupTurnOn";
 import { IN_HANDOVER } from "../../lib/useSwitchSetup";
+import { Checkbox } from "../controls";
 
 /** The offer kind the backend gives this project's notes. */
 export const NOTES_KIND = "memory";
@@ -82,7 +83,7 @@ export function NotesRow({
   const count = offer.count ?? 0;
   return (
     <li className="flex items-start gap-2" data-testid="switch-setup-row" data-verdict={offer.verdict} data-kind={NOTES_KIND}>
-      <input id={id} type="checkbox" className="mt-1" checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />
+      <Checkbox id={id} className="mt-1" checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor={id} className="text-body text-ink" data-testid="switch-notes-question">
           {handover ? handoverQuestion(count, check.from) : notesQuestion(count, check.from, check.to)}

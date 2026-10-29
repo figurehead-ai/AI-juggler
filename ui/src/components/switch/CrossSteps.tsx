@@ -9,6 +9,7 @@ import type { CarryItemData, RemoteSwitchTargetInfo } from "../../lib/bridge";
 import { toolSpec } from "../../lib/tools";
 import { SwitchFreezeChoice, type FreezeChoice } from "../SwitchFreezeChoice";
 import { CarryList } from "./CarryList";
+import { Checkbox, Radio } from "../controls";
 
 export type Mechanism = "transplant" | "replay";
 
@@ -60,7 +61,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
       )}
       <div role="radiogroup" aria-label="How the work goes along" className="flex flex-col gap-1.5">
         <label className={OPTION + picked(mechanism === "transplant") + (t2Possible ? "" : " opacity-70")}>
-          <input type="radio" name="cross-mechanism" checked={mechanism === "transplant"} disabled={!t2Possible} onChange={() => onMechanism("transplant")} aria-describedby="cross-t2-desc" data-testid="cross-switch-t2" />
+          <Radio name="cross-mechanism" checked={mechanism === "transplant"} disabled={!t2Possible} onChange={() => onMechanism("transplant")} aria-describedby="cross-t2-desc" data-testid="cross-switch-t2" />
           <span>
             <span className="block font-medium text-ink">Same conversation</span>
             <span id="cross-t2-desc" className="text-meta text-ink">
@@ -69,7 +70,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
           </span>
         </label>
         <label className={OPTION + picked(mechanism === "replay") + (target.replay_available ? "" : " opacity-70")}>
-          <input type="radio" name="cross-mechanism" checked={mechanism === "replay"} disabled={!target.replay_available} onChange={() => onMechanism("replay")} aria-describedby="cross-t3-desc" data-testid="cross-switch-t3" />
+          <Radio name="cross-mechanism" checked={mechanism === "replay"} disabled={!target.replay_available} onChange={() => onMechanism("replay")} aria-describedby="cross-t3-desc" data-testid="cross-switch-t3" />
           <span>
             <span className="block font-medium text-ink">Full story, fresh start</span>
             <span id="cross-t3-desc" className="text-meta text-ink">
@@ -102,7 +103,7 @@ export function CrossProject({ target, projectId, onProject, confirmed, onConfir
         <div role="radiogroup" aria-label={`Project on ${machine}`} className="flex flex-col gap-1.5">
           {projects.map((project) => (
             <label key={project.project_id} className={OPTION + " items-center" + picked(projectId === project.project_id)}>
-              <input type="radio" name="cross-project" checked={projectId === project.project_id} onChange={() => onProject(project.project_id)} data-testid="cross-switch-project-option" />
+              <Radio name="cross-project" checked={projectId === project.project_id} onChange={() => onProject(project.project_id)} data-testid="cross-switch-project-option" />
               <span className="font-medium text-ink">{project.name}</span>
               {project.same_name && <span className="text-meta text-ink">same name (suggested)</span>}
             </label>
@@ -111,7 +112,7 @@ export function CrossProject({ target, projectId, onProject, confirmed, onConfir
       )}
       {mapped && (
         <label className="flex items-start gap-2.5 text-body text-ink">
-          <input type="checkbox" checked={confirmed} onChange={(event) => onConfirmed(event.target.checked)} data-testid="cross-switch-confirm-mapping" />
+          <Checkbox checked={confirmed} onChange={(event) => onConfirmed(event.target.checked)} data-testid="cross-switch-confirm-mapping" />
           <span>
             Continue in <span className="font-medium">{name}</span> on {machine}, with this conversation's paths changed to it.
           </span>
@@ -150,7 +151,7 @@ export function CrossCarried({ target, mechanism, secrets, onSecrets }: { target
             ] as const
           ).map(([value, title, body]) => (
             <label key={value} className={OPTION + picked(secrets === value)}>
-              <input type="radio" name="cross-secrets" checked={secrets === value} onChange={() => onSecrets(value)} data-testid={`cross-switch-secrets-${value}`} />
+              <Radio name="cross-secrets" checked={secrets === value} onChange={() => onSecrets(value)} data-testid={`cross-switch-secrets-${value}`} />
               <span>
                 <span className="block font-medium text-ink">{title}</span>
                 <span className="text-meta text-ink">{body}</span>

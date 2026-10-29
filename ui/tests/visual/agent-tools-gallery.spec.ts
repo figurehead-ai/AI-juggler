@@ -17,7 +17,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, openFilters } from "./fixtures";
+import { goTo, groupBy } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/92-agent-tools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -59,10 +59,7 @@ async function axe(page: Page, what: string) {
 }
 
 async function poolPage(page: Page) {
-  await openFilters(page);
-  const pool = page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ });
-  await pool.check();
-  await page.keyboard.press("Escape");
+  await groupBy(page, "Pool");
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
 }

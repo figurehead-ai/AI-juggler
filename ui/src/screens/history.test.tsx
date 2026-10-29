@@ -6,7 +6,7 @@
  * labelled read-only with its history, lineage and process record;
  * retention shows a dry run before anything is removed.
  */
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { History, matchesFields } from "./History";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
@@ -240,8 +240,9 @@ describe("AJ-E1007 retention", () => {
     await waitFor(() => expect(container.querySelector("[data-testid='storage-row']")).not.toBeNull());
     expect(container.querySelector("[data-testid='storage-usage']")!.textContent).toContain("transcripts 5 MB");
     expect((container.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(container.querySelector("[data-testid='storage-retention']")!);
     await act(async () => {
-      fireEvent.change(container.querySelector("[data-testid='storage-retention']")!, { target: { value: "90" } });
+      fireEvent.click(screen.getByTestId("storage-retention-90"));
     });
     expect(calls()).toContain("retention:acc:90");
     await waitFor(() => expect((container.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(false));

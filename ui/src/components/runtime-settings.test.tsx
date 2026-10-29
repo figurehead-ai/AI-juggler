@@ -4,7 +4,7 @@
  * app-server". It names them as everywhere ("Work · Default") and says how
  * a session runs in plain words.
  */
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as runtime from "../lib/ipc/runtime";
 import { RuntimeSettings, RUN_WORDS } from "./RuntimeSettings";
@@ -29,6 +29,8 @@ describe("How sessions run", () => {
     const text = view.getByTestId("settings-runtime").textContent!;
     expect(text).not.toMatch(/prof-|app-server/);
     expect(text).toContain(`${RUN_WORDS.driven} (default)`);
-    expect(text).toContain(RUN_WORDS.terminal);
+    // The other way, in its picker's menu.
+    fireEvent.click(view.getByRole("button", { name: /^How Work · Default runs/ }));
+    expect(view.getByRole("menu").textContent).toContain(RUN_WORDS.terminal);
   });
 });

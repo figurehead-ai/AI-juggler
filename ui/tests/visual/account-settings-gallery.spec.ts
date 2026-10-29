@@ -10,7 +10,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo } from "./fixtures";
+import { allStatuses, goTo, pick } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/83-account-settings");
 
@@ -67,7 +67,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("first-run-fresh").screenshot({ path: resolve(OUT, `open-${theme}.png`) });
     await axeClean(page, "the settings line, open");
     // Another account: Personal has nothing to copy, and says so.
-    await line.getByRole("combobox", { name: "Account to copy the settings from" }).selectOption({ label: "Personal" });
+    await pick(page, line.getByRole("button", { name: /^Account to copy the settings from/ }), "Personal");
     await expect(line).toContainText("Personal has no settings to copy");
     await page.getByTestId("first-run-fresh").screenshot({ path: resolve(OUT, `nothing-${theme}.png`) });
   });

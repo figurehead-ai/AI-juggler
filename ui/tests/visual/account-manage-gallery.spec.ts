@@ -10,7 +10,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, openFilters } from "./fixtures";
+import { allStatuses, goTo, groupBy } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/75-account-manage");
 const T0 = 1_728_800_000_000;
@@ -150,8 +150,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("rename-account-label").fill("Side projects");
     await page.getByTestId("rename-account-save").click();
     await expect(page.getByTestId("accounts-notice")).toHaveText("Renamed to Side projects.");
-    await openFilters(page);
-    await page.getByTestId("rail-view").getByRole("radio", { name: /^Account/ }).check();
+    await groupBy(page, "Account");
     await expect(page.getByTestId("rail")).toContainText("Side projects");
     await page.getByTestId("rail").screenshot({ path: resolve(OUT, `renamed-rail-${theme}.png`) });
   });

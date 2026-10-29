@@ -157,4 +157,13 @@ describe("D-25 limit decision — the dialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
+
+  it("0.3: closes with its ×, and says switching back inside the Wait card", async () => {
+    const onClose = vi.fn();
+    const { getByTestId } = renderIt({ onClose });
+    expect(getByTestId("limit-wait").contains(getByTestId("limit-switch-back"))).toBe(true);
+    fireEvent.click(getByTestId("limit-close"));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
+  });
 });

@@ -20,6 +20,7 @@ import {
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
+import { Picker } from "./controls";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -67,27 +68,22 @@ export function StorageRetentionCard(): JSX.Element {
               AI Juggler's own records: {row.instances} {row.instances === 1 ? "session it started" : "sessions it started"} · {row.history_events.toLocaleString("en-US")} events ·{" "}
               {row.index_lines.toLocaleString()} indexed lines · transcripts {byteSize(row.transcript_bytes)}
             </span>
-            <label className="flex items-center gap-1.5 text-muted">
+            <div className="flex items-center gap-1.5 text-muted">
               Keep
-              <select
+              <Picker
+                size="sm"
                 value={row.retention_days === null ? "forever" : String(row.retention_days)}
-                onChange={(event) => {
-                  const days = event.target.value === "forever" ? null : Number(event.target.value);
+                onChange={(value) => {
+                  const days = value === "forever" ? null : Number(value);
                   void retentionSet(row.account_id, days)
                     .then(load)
                     .catch((cause) => setError(errorText(cause)));
                 }}
-                className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
-                aria-label={`Retention for ${row.label}`}
-                data-testid="storage-retention"
-              >
-                {CHOICES.map((choice) => (
-                  <option key={choice.value} value={choice.value}>
-                    {choice.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                ariaLabel={`Retention for ${row.label}`}
+                testId="storage-retention"
+                options={CHOICES}
+              />
+            </div>
             <button
               type="button"
               disabled={row.retention_days === null}

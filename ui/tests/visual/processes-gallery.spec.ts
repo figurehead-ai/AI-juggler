@@ -56,7 +56,7 @@ async function seed(page: Page, theme: "dark" | "light", vp: { width: number; he
         return {
           pid, session, verified: true, refusal: null, exe_path: exe, cmdline, cwd: "/Users/you/Dev/payments", ports,
           pgid: null, escaped_group: false, tree_pids: [pid], platform: "TERM → grace → KILL", grace_secs: 5,
-          members: [{ pid, pgid: null, exe: exe.split("/").pop(), cmdline, role_guess: "DevServer", unsaved_state_warning: null, from_ledger: true }],
+          members: [{ pid, pgid: null, exe: exe.split("/").pop(), cmdline, role_guess: "dev server", unsaved_state_warning: null, from_ledger: true }],
           provider: "claude-code", account_id: "Work Max", project_id: "payments",
         };
       };

@@ -9,6 +9,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CloudBackupPanel } from "./CloudBackupPanel";
+import { pickerLine } from "../test/pick";
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_CLOUD_BACKUP_CALLS__ as string[] | undefined) ?? [];
@@ -40,8 +41,9 @@ describe("AJ-E1205 Cloud backup", () => {
       fireEvent.click(container.querySelector("[data-testid='cloud-backup-now']")!);
     });
     await waitFor(() => expect(container.querySelector("[data-testid='cloud-backup-last']")!.textContent).toContain("Last backup just now"));
+    fireEvent.click(container.querySelector<HTMLElement>("[data-testid='cloud-backup-schedule']")!);
     await act(async () => {
-      fireEvent.change(container.querySelector("[data-testid='cloud-backup-schedule']")!, { target: { value: "daily" } });
+      fireEvent.click(pickerLine("every day"));
     });
     expect(calls()).toEqual(["now", "schedule:daily"]);
   });

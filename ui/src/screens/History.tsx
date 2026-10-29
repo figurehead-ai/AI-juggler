@@ -35,6 +35,7 @@ import {
   type InstanceInfo,
   type ProjectInfo,
 } from "../lib/bridge";
+import { Picker } from "../components/controls";
 
 type ListId = "ended" | "archived";
 
@@ -102,22 +103,25 @@ export function hitKey(hit: TranscriptHitInfo): string {
 function FilterChip({ label, value, options, onChange, testId }: { label: string; value: string | null; options: { id: string; label: string }[]; onChange: (next: string | null) => void; testId: string }): JSX.Element | null {
   if (options.length < 2 && value === null) return null;
   return (
-    <label
+    <span
       className={
-        "inline-flex h-8 items-center gap-1.5 rounded-full border pl-3 pr-1.5 text-meta transition-colors focus-within:ring-2 focus-within:ring-accent/60 " +
+        "inline-flex h-8 items-center overflow-hidden rounded-full border px-0.5 text-meta transition-colors " +
         (value !== null ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
       }
     >
-      <span>{label}</span>
-      <select value={value ?? ""} onChange={(event) => onChange(event.target.value || null)} className="max-w-48 cursor-pointer truncate bg-transparent pr-1 font-medium text-ink outline-none" data-testid={testId} aria-label={label}>
-        <option value="">All</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+      <Picker
+        look="quiet"
+        size="sm"
+        prefix={label}
+        ariaLabel={label}
+        heading={label}
+        value={value ?? ""}
+        onChange={(next) => onChange(next || null)}
+        options={[{ value: "", label: "All" }, ...options.map((option) => ({ value: option.id, label: option.label }))]}
+        testId={testId}
+        className="max-w-60 rounded-full text-meta"
+      />
+    </span>
   );
 }
 

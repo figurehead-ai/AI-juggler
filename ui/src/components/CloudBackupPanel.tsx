@@ -20,6 +20,7 @@ import {
   type CloudBackupStatusInfo,
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
+import { Picker } from "./controls";
 
 function ago(ms: number): string {
   const minutes = Math.max(0, Math.round((Date.now() - ms) / 60_000));
@@ -99,20 +100,21 @@ export function CloudBackupPanel(): JSX.Element | null {
             : "No backup yet."}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-muted">
+        <div className="flex items-center gap-1.5 text-muted">
           Back up
-          <select
+          <Picker
+            size="sm"
             value={status.schedule}
-            onChange={(event) => void cloudBackupSetSchedule(event.target.value).then(setStatus)}
-            className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
-            aria-label="Cloud backup schedule"
-            data-testid="cloud-backup-schedule"
-          >
-            <option value="weekly">every week</option>
-            <option value="daily">every day</option>
-            <option value="off">only when I ask</option>
-          </select>
-        </label>
+            onChange={(value) => void cloudBackupSetSchedule(value).then(setStatus)}
+            ariaLabel="Cloud backup schedule"
+            testId="cloud-backup-schedule"
+            options={[
+              { value: "weekly", label: "every week" },
+              { value: "daily", label: "every day" },
+              { value: "off", label: "only when I ask" },
+            ]}
+          />
+        </div>
         <span className="flex-1" />
         <button
           type="button"

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 
 /**
  * Form primitives in the house design language: quiet surfaces, hairline
@@ -32,22 +32,6 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
         placeholder:text-muted transition-colors focus:border-accent/50 ${className}`}
       {...props}
     />
-  );
-}
-
-export function Select({
-  className = "",
-  children,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      className={`h-9 rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink
-        transition-colors focus:border-accent/50 ${className}`}
-      {...props}
-    >
-      {children}
-    </select>
   );
 }
 

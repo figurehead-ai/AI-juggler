@@ -8,7 +8,7 @@
  */
 import { useState, type JSX, type MouseEvent } from "react";
 import { Button } from "../../components/primitives";
-import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "../../components/RowMenu";
+import { MenuItem, MenuSeparator, RowMenu, menuPoint, type MenuAt } from "../../components/RowMenu";
 import { IconCopy, IconFolderOpen, IconGoTo, IconSnooze, IconStop, IconInfo } from "../../components/icons-actions";
 import { IconComputer, IconBroom } from "../../components/icons-actions";
 import { IconPin } from "../../components/icons";
@@ -54,7 +54,7 @@ function Line({ Icon, children }: { Icon: (props: { width: number; height: numbe
 }
 
 export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandlers }): JSX.Element | null {
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<MenuAt | null>(null);
   if (row.kind === "app") return null;
   const proc = row.process;
   const theirs = row.origin === "theirs";

@@ -13,6 +13,7 @@ import { fleetResetIdentity, fleetResetTrust, fleetSelf, fleetSetLabel, fleetUnp
 import type { DivergenceRecordInfo, RemoteMachineInfo, LinkStatusInfo, FleetPeerInfo, FleetPermission, FleetSelfInfo } from "../lib/bridge";
 import { MachineUsageCard } from "../components/MachineUsage";
 import { ThisMacCard } from "../components/FleetThisMac";
+import { Radio } from "../components/controls";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -631,8 +632,7 @@ export function AccessSheet({
               }
               data-testid={`fleet-access-${option.id}`}
             >
-              <input
-                type="radio"
+              <Radio
                 name="fleet-access"
                 className="mt-0.5"
                 checked={choice === option.id}

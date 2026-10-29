@@ -11,13 +11,14 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { UsageChip } from "./ServiceParts";
-import { Field, Input, Modal, Select } from "../../components/form";
+import { Field, Input, Modal } from "../../components/form";
 import { LetterMark, ToolMark } from "../../components/ToolMark";
 import { accountsList, errorText, providersDiscover, type AccountInfo } from "../../lib/bridge";
 import { providerDisplayName, toolFound } from "../../lib/providers";
 import { toolSpec } from "../../lib/tools";
 import { serviceAccountAdd, servicesList, type ServiceInfo } from "../../lib/ipc/services";
 import { freeLabel } from "../FreshAccountStep";
+import { Checkbox, Picker } from "../../components/controls";
 
 /** A tool's row: on or off, its model and its name (`null`: the default). */
 type Pick = { on: boolean; model: string | null; label: string | null };
@@ -128,13 +129,7 @@ export function ServiceAccountSheet({
         </div>
         {service.plans.length > 0 && (
           <Field label="Plan">
-            <Select value={plan} onChange={(event) => setPlan(event.target.value)} data-testid="service-plan">
-              {service.plans.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </Select>
+            <Picker ariaLabel="Plan" value={plan} onChange={setPlan} testId="service-plan" className="self-start" options={service.plans.map((name) => ({ value: name, label: name }))} />
           </Field>
         )}
         <Field label={service.service.key_name} hint="Paste it once. It's kept in the macOS Keychain, handed only to this account's sessions when they start, and never shown again.">
@@ -157,7 +152,7 @@ export function ServiceAccountSheet({
             return (
               <div key={tool.tool} className="flex flex-col gap-2 rounded-xl border border-hairline px-4 py-3" data-testid="service-tool" data-tool={tool.tool}>
                 <label className="flex items-center gap-2 text-xs font-medium text-ink">
-                  <input type="checkbox" checked={pick?.on ?? false} onChange={(event) => set(tool.tool, { on: event.target.checked })} data-testid="service-tool-on" />
+                  <Checkbox checked={pick?.on ?? false} onChange={(event) => set(tool.tool, { on: event.target.checked })} data-testid="service-tool-on" />
                   <ToolMark tool={tool.tool} size={14} className="text-muted" />
                   {name}
                   {found !== null && !found.has(tool.tool) && <span className="text-label font-normal text-muted">Not installed</span>}
@@ -166,13 +161,13 @@ export function ServiceAccountSheet({
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Model">
                       {tool.models.length > 0 ? (
-                        <Select value={modelOf(tool)} onChange={(event) => set(tool.tool, { model: event.target.value })} data-testid="service-model">
-                          {tool.models.map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))}
-                        </Select>
+                        <Picker
+                          ariaLabel="Model"
+                          value={modelOf(tool)}
+                          onChange={(model) => set(tool.tool, { model })}
+                          testId="service-model"
+                          options={tool.models.map((model) => ({ value: model, label: model }))}
+                        />
                       ) : (
                         <Input value={modelOf(tool)} onChange={(event) => set(tool.tool, { model: event.target.value })} placeholder={`As ${service.service.name} names it`} spellCheck={false} data-testid="service-model" />
                       )}

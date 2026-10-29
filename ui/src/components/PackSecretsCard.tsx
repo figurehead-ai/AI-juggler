@@ -12,6 +12,7 @@ import {
   type RedactionInfoData,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { Picker, Radio } from "./controls";
 
 /**
  * AJ-E309 Req.2 / AJ-E208 (D-14): Accounts → Pack secrets. The GLOBAL
@@ -85,8 +86,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
                 (global === option.value ? "border-accent/40 bg-accent-soft" : "border-hairline hover:border-accent/30")
               }
             >
-              <input
-                type="radio"
+              <Radio
                 name="pack-secrets-global"
                 value={option.value}
                 checked={global === option.value}
@@ -96,7 +96,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
                     packPolicyRestatement(option.value as PackPolicyWire, "global", ""),
                   )
                 }
-                className="mt-0.5 size-3.5 shrink-0 accent-[var(--color-accent)]"
+                className="mt-0.5 shrink-0"
               />
               <span className="flex flex-col gap-0.5">
                 <span className="font-medium text-ink">{option.title}</span>
@@ -114,28 +114,25 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               const row = info[provider];
               const name = providerDisplayName(provider);
               return (
-                <label key={provider} className="flex flex-wrap items-center gap-2 text-xs" data-testid="provider-redaction">
+                <div key={provider} className="flex flex-wrap items-center gap-2 text-xs" data-testid="provider-redaction">
                   <span className="min-w-28 font-medium">{name}</span>
-                  <select
+                  <Picker
+                    size="sm"
                     value={row?.override ?? ""}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       void run(
-                        () => redactionPolicySetOverride(provider, event.target.value || null),
-                        event.target.value ? `${name} now overrides the global choice.` : `${name} follows your global choice.`,
+                        () => redactionPolicySetOverride(provider, value || null),
+                        value ? `${name} now overrides the global choice.` : `${name} follows your global choice.`,
                       )
                     }
-                    aria-label={`Keys and passwords for ${name}`}
-                    className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-                  >
-                    <option value="">Use my choice{global ? "" : " (not chosen yet)"}</option>
-                    {storedOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.title}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel={`Keys and passwords for ${name}`}
+                    options={[
+                      { value: "", label: `Use my choice${global ? "" : " (not chosen yet)"}` },
+                      ...storedOptions.map((option) => ({ value: option.value, label: option.title })),
+                    ]}
+                  />
                   {row?.override && <Chip tone="accent">Override</Chip>}
-                </label>
+                </div>
               );
             })}
           </div>

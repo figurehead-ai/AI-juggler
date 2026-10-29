@@ -7,6 +7,7 @@ import { PoolAccessPanel } from "./PoolAccess";
 import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal } from "./form";
 import { Button } from "./primitives";
+import { Picker } from "./controls";
 
 /**
  * One pool (AJ-E1702): rename it, set roles, add and take out sessions,
@@ -100,20 +101,16 @@ export function PoolEditor({
                       <span className="truncate text-meta text-ink">{where.title}</span>
                       {where.detail && <span className="truncate text-label text-muted">{where.detail}</span>}
                     </span>
-                    <select
-                      aria-label={`Role for ${named}`}
+                    <Picker
+                      size="sm"
+                      ariaLabel={`Role for ${named}`}
                       value={card.role}
                       disabled={busy}
-                      onChange={(event) => void run(() => poolSetRole(session.id, event.target.value as PoolRole))}
-                      className="h-7 shrink-0 rounded-lg border border-hairline bg-surface-2 px-1.5 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                      data-testid="pool-member-role"
-                    >
-                      {ROLES.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => void run(() => poolSetRole(session.id, value as PoolRole))}
+                      className="shrink-0"
+                      testId="pool-member-role"
+                      options={ROLES.map((entry) => ({ value: entry.id, label: entry.label }))}
+                    />
                     {!isDefault && (
                       <button
                         type="button"
@@ -138,27 +135,20 @@ export function PoolEditor({
             </Button>
           )}
           {!isDefault && addable.length > 0 && (
-            <select
-              aria-label={`Add a session to ${pool.name}`}
-              value=""
+            <Picker
+              ariaLabel={`Add a session to ${pool.name}`}
+              value={null}
+              placeholder="Add a session…"
               disabled={busy}
-              onChange={(event) => {
-                const id = event.target.value;
-                if (id) void run(() => poolMove(id, pool.id));
-              }}
-              className="h-8 rounded-lg border border-dashed border-hairline bg-transparent px-2 text-label text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-              data-testid="pool-add"
-            >
-              <option value="">Add a session…</option>
-              {addable.map((session) => {
+              onChange={(id) => void run(() => poolMove(id, pool.id))}
+              className="self-start border-dashed"
+              size="sm"
+              testId="pool-add"
+              options={addable.map((session) => {
                 const where = placeOf(session, projects);
-                return (
-                  <option key={session.id} value={session.id}>
-                    {[where.title, where.detail].filter(Boolean).join(" · ")}
-                  </option>
-                );
+                return { value: session.id, label: [where.title, where.detail].filter(Boolean).join(" · ") };
               })}
-            </select>
+            />
           )}
         </section>
 

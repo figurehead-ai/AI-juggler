@@ -4,6 +4,7 @@ import { errorText } from "../lib/bridge";
 import { AGENT_ACTIONS, agentRuleRevoke, poolSetAccess, poolSetDelivery, type PoolInfo, type PoolsInfo } from "../lib/ipc/pools";
 import { ACTION_WORDS, LEVELS, setPools } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
+import { Checkbox, Picker, Radio } from "./controls";
 
 /**
  * D-28: what agents may do in one pool — its level, picked by you here
@@ -35,12 +36,11 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
         <legend className="sr-only">What agents may do</legend>
         {LEVELS.map((entry) => (
           <label key={entry.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-1.5 py-1 text-xs hover:bg-surface-2" data-testid={`pool-level-${entry.id}`}>
-            <input
-              type="radio"
+            <Radio
               name={name}
               checked={level === entry.id}
               onChange={() => void run(() => poolSetAccess(pool.id, entry.id, entry.id === "custom" ? pool.access.actions : []))}
-              className="mt-0.5 size-3.5 accent-accent"
+              className="mt-0.5"
             />
             <span className="flex flex-col">
               <span className="font-medium text-ink">{entry.label}</span>
@@ -55,14 +55,12 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
           <legend className="sr-only">Actions</legend>
           {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (
             <label key={action} className="flex items-center gap-2 text-label text-ink">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={allowed.has(action)}
                 onChange={(event) => {
                   const next = event.target.checked ? [...allowed, action] : [...allowed].filter((word) => word !== action);
                   void run(() => poolSetAccess(pool.id, "custom", next));
                 }}
-                className="size-3.5 accent-accent"
               />
               {ACTION_WORDS[action]}
             </label>
@@ -75,30 +73,24 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
           Messages put into sessions
         </summary>
         <div className="mt-2 flex flex-col gap-2 text-xs">
-          <label className="flex items-center gap-2 text-ink">
+          <div className="flex items-center gap-2 text-ink">
             Pause and ask after
-            <select
-              value={pool.access.hop_limit}
+            <Picker
+              size="sm"
+              ariaLabel="Replies in a row before it pauses and asks"
+              value={String(pool.access.hop_limit)}
               disabled={busy}
-              onChange={(event) => void run(() => poolSetDelivery(pool.id, Number(event.target.value), pool.access.delivery_stopped))}
-              className="h-7 rounded-lg border border-hairline bg-surface-2 px-1.5 text-label text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-              data-testid="pool-hop-limit"
-            >
-              {Array.from({ length: 20 }, (_, index) => index + 1).map((hops) => (
-                <option key={hops} value={hops}>
-                  {hops}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => void run(() => poolSetDelivery(pool.id, Number(value), pool.access.delivery_stopped))}
+              testId="pool-hop-limit"
+              options={Array.from({ length: 20 }, (_, index) => String(index + 1)).map((hops) => ({ value: hops, label: hops }))}
+            />
             replies in a row
-          </label>
+          </div>
           <label className="flex items-center gap-2 text-ink">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={pool.access.delivery_stopped}
               disabled={busy}
               onChange={(event) => void run(() => poolSetDelivery(pool.id, pool.access.hop_limit, event.target.checked))}
-              className="size-3.5 accent-accent"
               data-testid="pool-stop-all"
             />
             Stop all of them in this pool

@@ -161,7 +161,9 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
   const zombie = row.state === "zombie";
   const second = zombie
     ? `Finished; only ${proc.waits_for_name ?? "its parent"}${proc.waits_for_pid ? ` (${proc.waits_for_pid})` : ""} can clear it`
-    : [roleWords(proc.role, proc.role_words, proc.role_sure), proc.label, proc.failed].filter(Boolean).join(" · ");
+    : // 0.3: the useful part first (what failed, what started it), the
+      // guess at its role last: a narrow column cuts the end, not the news.
+      [proc.failed, proc.label, roleWords(proc.role, proc.role_words, proc.role_sure)].filter(Boolean).join(" · ");
   return (
     <div role="gridcell" className="flex min-w-0 items-center gap-2" style={indent}>
       <Chevron row={row} open={open} onToggle={onToggle} />

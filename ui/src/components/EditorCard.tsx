@@ -3,12 +3,12 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { EDITOR_EVENT } from "./ManageWork";
-import { Select } from "./form";
 import { Card } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { editorChoices, editorSet } from "../lib/ipc/manage";
 import type { EditorChoicesInfo } from "../types/generated/EditorChoicesInfo";
 import { CardTitle } from "./CardTitle";
+import { Picker } from "./controls";
 
 /** AJ-E1502: the editor projects open in ("Open in …" in a project's
  * menu); Finder when none is chosen. Only editors this Mac has show. */
@@ -30,14 +30,14 @@ export function EditorCard(): JSX.Element {
       <CardTitle id="editor-title">
         Open projects in
       </CardTitle>
-      <Select
-        aria-labelledby="editor-title"
-        className="max-w-xs"
+      <Picker
+        ariaLabel="Open projects in"
+        className="max-w-xs self-start"
         disabled={choices === null}
         value={choices?.chosen ?? ""}
-        data-testid="settings-editor-choice"
-        onChange={async (event) => {
-          const next = event.target.value === "" ? null : event.target.value;
+        testId="settings-editor-choice"
+        onChange={async (value) => {
+          const next = value === "" ? null : value;
           setError(null);
           try {
             await editorSet(next);
@@ -47,14 +47,8 @@ export function EditorCard(): JSX.Element {
             setError(errorText(cause));
           }
         }}
-      >
-        <option value="">Finder</option>
-        {(choices?.installed ?? []).map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </Select>
+        options={[{ value: "", label: "Finder" }, ...(choices?.installed ?? []).map((name) => ({ value: name, label: name }))]}
+      />
       <p className="text-label text-muted">
         {choices !== null && choices.installed.length === 0
           ? "No editor AI Juggler knows is installed, so projects open in Finder."

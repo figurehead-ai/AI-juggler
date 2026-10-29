@@ -167,11 +167,11 @@ describe("AJ-E706 the shared switch frame", () => {
     return { view, onClose, q: (id: string) => view.container.querySelector<HTMLElement>(`[data-testid='${id}']`) };
   };
 
-  it("has Cancel (Esc) and × on every step, Back from the second, Continue to go on", () => {
+  it("has Cancel and × on every step, Back from the second, Continue to go on", () => {
     const { q, onClose } = mount({ same_path_project: null, readiness: "needs_mapping" });
     const body = q("switch-body")!;
     for (let step = 0; step < 4; step += 1) {
-      expect(q("cross-switch-cancel")!.textContent).toBe("Cancel (Esc)");
+      expect(q("cross-switch-cancel")!.textContent).toBe("Cancel");
       expect(q("switch-close")).not.toBeNull();
       expect(q("switch-footer")!.contains(q("cross-switch-cancel"))).toBe(true);
       expect(body.contains(q("cross-switch-cancel"))).toBe(false);

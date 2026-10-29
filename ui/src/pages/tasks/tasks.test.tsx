@@ -20,7 +20,8 @@
  * - 200 tasks render in under 100 ms (timed on the load gate; elsewhere
  *   each row renders once, under a sanity bound); nothing smaller than 12 px.
  */
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { pick } from "../../test/pick";
 import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import PoolTasksSource from "./PoolTasks.tsx?raw";
@@ -262,13 +263,15 @@ describe("a pool's tasks", () => {
     const { findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
     fireEvent.click(getByTestId("task-start-open"));
-    const picker = (await findByTestId("task-start-profile")) as HTMLSelectElement;
-    await waitFor(() => expect(picker.options.length).toBe(3));
-    expect([...picker.options].map((o) => o.textContent)).toEqual(["Pick launch settings", "Deep work · Work Max", "Weekend build · Personal"]);
+    const picker = await findByTestId("task-start-profile");
+    await waitFor(() => expect(picker.textContent).toContain("Pick launch settings"));
+    fireEvent.click(picker);
+    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Deep work · Work Max", "Weekend build · Personal"]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     // This pool's project has no default account: nothing is picked for you.
-    expect(picker.value).toBe("");
+    expect(picker.getAttribute("data-value")).toBe("");
     expect((getByTestId("task-start-go") as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(picker, { target: { value: "p-1" } });
+    pick(picker, "Deep work · Work Max");
     fireEvent.click(getByTestId("task-start-go"));
     await waitFor(() => expect(calls()).toContain("start:aj-7f3c:p-1:"));
   });
@@ -362,8 +365,8 @@ describe("Needs you", () => {
     const { getByTestId, findByTestId } = render(<TaskNeeds needs={[launch]} projects={[project]} />);
     const row = getByTestId("task-need-launch");
     expect(row.textContent).toContain("in shop");
-    const picker = (await findByTestId("task-start-profile")) as HTMLSelectElement;
-    await waitFor(() => expect(picker.value).toBe("p-2"));
+    const picker = await findByTestId("task-start-profile");
+    await waitFor(() => expect(picker.getAttribute("data-value")).toBe("p-2"));
     fireEvent.click(within(row).getByTestId("task-start-go"));
     await waitFor(() => expect(calls()).toContain("start:aj-7f3c:p-2:tneed-2"));
     fireEvent.click(within(row).getByRole("button", { name: /^Not now/ }));

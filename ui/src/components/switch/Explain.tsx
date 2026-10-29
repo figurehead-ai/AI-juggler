@@ -7,11 +7,14 @@
  */
 import type { JSX } from "react";
 import { trustOpen } from "../../lib/ipc/trust";
+import { FoldChevron } from "../this-mac-memory";
 
 export function Explain({ tips, guide, testId }: { tips: string[]; guide: string; testId?: string }): JSX.Element {
   return (
     <details className="group rounded-lg text-meta text-ink" data-testid={testId ?? "switch-explain"}>
-      <summary className="inline-flex min-h-6 cursor-pointer items-center gap-1 rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+      {/* 0.3: the app's disclosure chevron, never the browser's triangle. */}
+      <summary className="inline-flex min-h-6 cursor-pointer list-none items-center gap-1 rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden">
+        <FoldChevron />
         What does this mean?
       </summary>
       <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 leading-relaxed">
