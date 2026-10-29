@@ -619,6 +619,13 @@ fn two_hundred_tasks_list_fast_and_page() {
     assert_eq!((counts.ready, counts.done), (230, 0));
 }
 
+/// A folder only this user can change, for a `gh` AI Juggler will run: the
+/// system temp folder is `/tmp` on Linux, which every user can change, so
+/// a `gh` there is refused before it runs (CI's Linux `verify`, 0.2.0).
+fn private_tempdir() -> tempfile::TempDir {
+    tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap()
+}
+
 /// A stand-in for the user's `gh`, printing what GitHub would.
 fn fake_gh(dir: &std::path::Path, out: &str, code: i32) -> std::path::PathBuf {
     use std::os::unix::fs::PermissionsExt;
@@ -631,7 +638,7 @@ fn fake_gh(dir: &std::path::Path, out: &str, code: i32) -> std::path::PathBuf {
 #[test]
 fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
     let lab = Lab::new();
-    let dir = tempfile::tempdir().unwrap();
+    let dir = private_tempdir();
     let id = seed_task(
         &lab.state,
         &lab.pool,
@@ -672,7 +679,7 @@ fn the_issue_is_looked_up_only_on_a_click_and_offline_says_so() {
         None
     );
     // Online: its title and state, kept with when.
-    let online = tempfile::tempdir().unwrap();
+    let online = private_tempdir();
     lab.state.tasks.set_gh(Some(fake_gh(
         online.path(),
         "Cart drops items on refresh\\topen\\n",
