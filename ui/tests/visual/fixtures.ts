@@ -380,8 +380,9 @@ export async function projectLens(page: import("@playwright/test").Page): Promis
 /** 0.3: choosing in a Picker (the shared control in place of the
  * system select): open it, click the line with that label. */
 export async function pick(page: import("@playwright/test").Page, picker: import("@playwright/test").Locator, label: string | RegExp): Promise<void> {
+  const exact = typeof label === "string" ? new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) : label;
   await picker.click();
-  await page.getByRole("menuitemradio").filter({ has: page.locator("[data-choice-label]", { hasText: label }) }).first().click();
+  await page.getByRole("menuitemradio").filter({ has: page.locator("[data-choice-label]", { hasText: exact }) }).first().click();
 }
 
 /** AJ-E2104: Only › Mac in the View ("all" puts it back). */
