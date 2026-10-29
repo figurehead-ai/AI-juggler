@@ -53,6 +53,8 @@ const PRIMARY: Record<string, string> = {
   "clean-up": "Clean up",
   usage: "See the cap",
   limit: "Continue elsewhere",
+  // D-05 (0.3, wf27): an account with room again, for the work that left it.
+  "switch-back": "Switch back…",
   pool: "Open",
 };
 

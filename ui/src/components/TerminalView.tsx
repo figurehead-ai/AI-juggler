@@ -83,10 +83,20 @@ function decodeBase64(data: string): Uint8Array {
  * (waiting for you or stuck is still alive). */
 const PROCESS_GONE = new Set(["finished", "stopped", "failed", "handed_over", "quota_blocked"]);
 
+/** Whether a session's process is gone, from its status and attention
+ * rule: one at its limit is gone only when it ended there (0.3: an
+ * interactive tool stays open at its limit, rule `limit_hit`). */
+export function processGone(status: string | undefined, rule: string | null | undefined): boolean {
+  if (status === undefined) return false;
+  if (status === "quota_blocked") return rule !== "limit_hit";
+  return PROCESS_GONE.has(status);
+}
+
 export function TerminalView({
   id,
   title,
   status,
+  rule = null,
   ended = false,
   ownWindow = false,
 }: {
@@ -94,6 +104,8 @@ export function TerminalView({
   title: string;
   /** The session's status, when it is one: says whether the process ended. */
   status?: string;
+  /** Its attention rule: a session at its limit may still be open. */
+  rule?: string | null;
   /** A login terminal's own word that it ended. */
   ended?: boolean;
   ownWindow?: boolean;
@@ -114,7 +126,7 @@ export function TerminalView({
   const [note, setNote] = useState<string | null>(null);
   const [linkHint, setLinkHint] = useState<string | null>(null);
   const away = poppedOut && !ownWindow;
-  const gone = ended || exited || (status !== undefined && PROCESS_GONE.has(status));
+  const gone = ended || exited || processGone(status, rule);
   const connection: TerminalConnection = gone ? "ended" : attached ? "live" : "reconnecting";
 
   const say = useCallback((words: string) => {

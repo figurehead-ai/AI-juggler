@@ -52,6 +52,8 @@ export interface SwitchBackReturnData {
 export interface SwitchBackSuggestionData {
   session_id: string;
   original_account: string;
+  /** The original account's id (its "has room again" notice offers this return). */
+  original_account_id?: string;
   away_account: string;
   copy: string;
 }

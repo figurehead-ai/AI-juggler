@@ -16,6 +16,8 @@ export function attentionWords(rule: string | null | undefined): string {
     case "quota_exit":
     case "quota_blocked":
     case "quota_wall":
+    // 0.3: open at its limit (the tool's own record; it waits there).
+    case "limit_hit":
       return "hit its usage limit";
     case "failed":
       return "stopped with an error";
