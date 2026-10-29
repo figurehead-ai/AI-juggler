@@ -17,10 +17,12 @@ blocker stops every promotion until it's fixed or relabelled. A rule can
 be overridden only with a written reason (Promote's `override` input),
 which is kept in the channel tag.
 
-Everything on this page is the macOS release line, the only one shipped
-today. Windows and Linux will each have a release line of their own
-(D-52); how they are versioned, channelled, packaged and signed is decided
-before either ships (AJ-E2601, AJ-E2701) and will get its own section here.
+macOS is the only OS shipped today. Windows and Linux each get one
+dedicated first release (D-52); from then on they are built, signed and
+published by this same flow, with the same version and channels: every
+nightly carries every shipped OS, and one promote moves them all. Their
+packaging and signing sections will be added here with their first
+releases (AJ-E2614, AJ-E2713).
 
 There is **one version stream**. A build is made once, by the nightly
 workflow, with the next version as Semantic Versioning has it: `MAJOR.MINOR`

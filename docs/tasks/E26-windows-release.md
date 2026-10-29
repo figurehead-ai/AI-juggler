@@ -1,12 +1,16 @@
-# E26 — AI Juggler for Windows: its own project and releases
+# E26 — AI Juggler for Windows: a dedicated first release, then every release
 
-> Source: the maintainer, 2026-10-29 (D-52), in the maintainer's words: "Can you add in
-> our global planner of all the features and future versions, special
-> releases for both Windows and Linux separately." And earlier the same
-> day: "we have a lot of specialized process monitoring, special desktop
-> capabilities that work separately for each OS … I am not saying we will
-> not build them but I feel they are massive and require their own
-> projects and releases."
+> Source: the maintainer, 2026-10-29 (D-52): "Can you add in our global
+> planner of all the features and future versions, special releases for
+> both Windows and Linux separately." Earlier the same day: "we have a lot
+> of specialized process monitoring, special desktop capabilities that work
+> separately for each OS … I am not saying we will not build them but I
+> feel they are massive and require their own projects and releases." And,
+> settling the shape: "it is fine if its part of the same releases, but
+> initial ones, because we have to actually build and setup VM and test it
+> and build specialized capabilities for each, requires a dedicated release
+> per OS." and "Once we make the initial release than every feature is
+> built all the time for each OS."
 > Research: `docs/research/cross-platform-readiness.md` (the audit of
 > 2026-10-27, read at `41f6c8c3`): the inventory C1–C16 (§2), the seams
 > (§3), what each tool stores per OS (§4), the ranked plan (§5), the
@@ -16,18 +20,29 @@
 > `release/0.2` at `57bd760a` (2026-10-29).
 > Sister epic: [E27 — AI Juggler for Linux](E27-linux-release.md).
 >
-> **Why a project of its own.** AI Juggler's value is OS-specific work: it
-> watches every process an app or a session starts, stops whole process
-> trees safely, finds the desktop apps and brings them forward, keeps the
-> computer awake for overnight runs, and keeps sign-in secrets in the
-> system's store. Each of those is a different set of system calls, rules
-> and permissions on Windows (Job Objects, named pipes and their security
-> descriptors, Credential Manager, foreground-window rules,
-> `SetThreadExecutionState`, Authenticode and SmartScreen). Doing it
-> properly is a project, with its own lab, its own Beta and its own
-> Stable, and it must not slow or destabilise the macOS releases. So the
-> Windows line is not part of the macOS 0.x releases: a macOS release never
-> waits for Windows work, and never claims Windows support.
+> **Why a dedicated first release.** AI Juggler's value is OS-specific
+> work: it watches every process an app or a session starts, stops whole
+> process trees safely, finds the desktop apps and brings them forward,
+> keeps the computer awake for overnight runs, and keeps sign-in secrets in
+> the system's store. Each of those is a different set of system calls,
+> rules and permissions on Windows (Job Objects, named pipes and their
+> security descriptors, Credential Manager, foreground-window rules,
+> `SetThreadExecutionState`, Authenticode and SmartScreen). Setting that up
+> (a Windows VM and lab, the OS seams, the tests on Windows, a signed
+> installer) is a project, so Windows gets **one dedicated release**: the
+> bring-up, whose scope is this epic, ending in Windows' first Beta
+> (AJ-E2615). Until it ships, a macOS release never waits for Windows work
+> and never claims Windows support.
+>
+> **After the first release, Windows is in every release** (AJ-E2616). One
+> version stream (D-20 stands), the same channels (Nightly, Beta, Stable)
+> and the same promotion rules (D-24): every nightly builds, signs and
+> publishes Windows with macOS, one promote moves every OS's build of a
+> version together, and no OS lags behind. From then on every feature is
+> built and tested for Windows all the time: a task is done only when it
+> works on every shipped OS, or is marked unsupported there with the
+> reason, on screen and in the docs (the Definition of Done,
+> `docs/plan/QUALITY.md` §2).
 >
 > **What is already cross-platform** (by reading; nothing has run on
 > Windows):
@@ -62,18 +77,23 @@
 > the update feed (audit 14.1–14.5); and about 210 lines of Mac words in
 > the UI (audit 16.2).
 >
-> **The release shape is the maintainer's decision (AJ-E2601).** Not
-> decided by D-52 and not invented here:
+> **Settled by D-52: version numbers and channels.** Windows uses the
+> same version stream and channels as macOS; there is no Windows version
+> line, channel position or feed of its own. The dedicated first release is
+> a release on that stream whose scope is the Windows bring-up, and Windows
+> first reaches users on Beta. Each channel's one feed (`latest.json`) then
+> carries a `windows-x86_64` entry beside the `darwin-*` ones, for the same
+> version.
+>
+> **Still the maintainer's decision (AJ-E2601):**
 >
 > | Question | Options (consequence) |
 > |---|---|
-> | Version numbers | (a) the same numbers as macOS, built from the same commit, each OS with its own channel position (Windows 0.x.y may be on Windows Beta while macOS 0.x.y is Stable; per-OS feeds); (b) a version stream of its own (separate tags; collides with D-20's one stream and needs a tag prefix) |
-> | Channels | Windows Nightly / Beta / Stable with their own D-24 gates, or Beta and Stable only until Windows Stable |
-> | Feeds | one `latest.json` per channel with a `windows-x86_64` key (forces the same version on every OS), or a feed per OS per channel (the updater's endpoint can name the target, per the Tauri updater docs: to be re-read) |
 > | Packaging | NSIS `.exe` installer, MSI, MSIX / Microsoft Store, WinGet manifest (AJ-E2614) |
 > | Signing | Authenticode with an OV or EV certificate, or a cloud signing service (AJ-E2614) |
 > | Scope | x64 only first, or x64 and ARM64; Windows 10 and 11 or 11 only; WSL sessions out of the first release (audit §4: recommended no) |
-> | Order | Windows first, Linux first (E27), or both together |
+> | Data folder | `%LOCALAPPDATA%` (local, never roams; the audit's recommendation) or `%APPDATA%` (Roaming, what `dirs::data_dir()` gives today); a move after the first release is a migration |
+> | Order and timing | Windows first, Linux first (E27), or both together; and when the bring-up starts (the standing plan, SPEC §15 decision 7, is after macOS 1.0) |
 >
 > **Shared seams, built once.** Some seams are the same shape on both
 > systems. Each is built once, in the task that reaches it first; the
@@ -123,27 +143,27 @@
 
 ## Step 0 — decide and see
 
-### AJ-E2601 The Windows line's decisions | Status: TODO | Priority P0 | Effort S | Depends: —
-**Goal**: The maintainer's choices for the Windows line are recorded before anything ships: version numbers and channels, feeds, packaging, signing, scope (architectures, Windows versions, WSL), the data folder, and whether Windows or Linux goes first.
-**User story**: As the maintainer, I decide once, from one page with the consequence of each option, how AI Juggler for Windows is versioned, packaged, signed and released, so the agents building it never guess.
+### AJ-E2601 The Windows bring-up's decisions | Status: TODO | Priority P0 | Effort S | Depends: —
+**Goal**: The maintainer's remaining choices for the Windows bring-up are recorded before its first release ships: packaging, signing, scope (architectures, Windows versions, WSL), the data folder, and which OS goes first and when. Version numbers and channels are settled by D-52: the same stream and channels as macOS.
+**User story**: As the maintainer, I decide once, from one page with the consequence of each option, how AI Juggler for Windows is packaged, signed and scoped, so the agents building it never guess.
 **Requirements**:
 1. A decision page SHALL list each open question of the intro's table with its options, the consequence of each, one concrete example, and the tasks it unblocks.
-2. The page SHALL state the default the agents recommend for each question and label it as the agents', not the maintainer's.
-3. Each answer SHALL be recorded as its own decision-log entry (D-53 onwards, whatever the next free number is) in the D-52 style, with the maintainer's words.
-4. The data-folder answer (`%LOCALAPPDATA%` or `%APPDATA%`, audit 1.1) SHALL be recorded before AJ-E2604 starts, because moving it after a release is a migration.
-5. The WSL answer SHALL say plainly what the first release does with sessions that run inside WSL (audit §4: not tracked, recommended).
-6. `docs/RELEASING.md` SHALL gain a "Windows" section stating the chosen channels, feeds and signing, once decided.
+2. The page SHALL restate D-52's settled part (one version stream, the same channels, one feed per channel, one promote for every OS, every shipped OS in the Definition of Done) and SHALL NOT reopen it.
+3. The page SHALL state the default the agents recommend for each open question and label it as the agents', not the maintainer's.
+4. Each answer SHALL be recorded as its own decision-log entry (the next free D-number) in the D-52 style, with the maintainer's words.
+5. The data-folder answer (`%LOCALAPPDATA%` or `%APPDATA%`, audit 1.1) SHALL be recorded before AJ-E2604 starts, because moving it after a release is a migration.
+6. The WSL answer SHALL say plainly what the first release does with sessions that run inside WSL (audit §4: not tracked, recommended).
 **UI/UX reasoning**: The serious-choices rule (consequence, example, inline tip, docs link) applied to the maintainer's own decisions; Nielsen #6 recognition rather than recall: every option on one page with its consequence.
-**Performance budget**: one page; every question answerable in one sitting (≤ 9 questions).
+**Performance budget**: one page; every question answerable in one sitting (≤ 6 questions).
 **Quality gates**: `python3 scripts/check_task_counts.py` (the decision log's numbering); `./scripts/terminology_lint.sh`; the decision log's format (heading, ruling, what changed, why, risk, evidence).
 **Evidence/validation proof**: the recorded entries in `docs/review/decision-log.md` and a manifest at `docs/qa/evidence/AJ-E2601/manifest.md` linking each to the tasks it unblocks; pass = every question of the table answered or explicitly deferred with a date.
 **Visual testing**: None: a decision record, no screen. Its effect on screens is tested in the tasks it unblocks.
-**Files to touch**: `docs/review/decision-log.md`, `docs/RELEASING.md`, `docs/plan/EPICS.md` (the Windows milestone row), this file.
-**Research basis**: audit §5.4 items 5–6, §4 (WSL), 1.1 (`crates/juggler-app/src/state.rs:584-585`, `dirs::data_dir()` is Roaming on Windows); `docs/RELEASING.md:1-31` (one version stream, D-20, D-24); https://v2.tauri.app/distribute/ (bundle formats, VP in the audit); https://v2.tauri.app/plugin/updater/ (endpoint variables, **I**).
-**Handover note**: Don't pick a version number for the first Windows build here; the maintainer's version-stream answer decides it (memory: SemVer strictly, one version stream today). The SemVer rule that the patch resets on a new minor applies to whatever stream is chosen. "Which goes first" is shared with AJ-E2701: record it once and link both.
+**Files to touch**: `docs/review/decision-log.md`, `docs/plan/EPICS.md` (the Windows milestone row), this file.
+**Research basis**: audit §5.4 items 5–6, §4 (WSL), 1.1 (`crates/juggler-app/src/state.rs:584-585`, `dirs::data_dir()` is Roaming on Windows); `docs/RELEASING.md` (one version stream, D-20; D-24); D-52; https://v2.tauri.app/distribute/ (bundle formats, VP in the audit).
+**Handover note**: Don't reopen version numbers or channels: D-52 settled them (one stream, D-20; memory: SemVer strictly). "Which goes first" is shared with AJ-E2701: record it once and link both.
 
 ### AJ-E2602 CI that runs the tests on Windows, not only compiles them | Status: TODO | Priority P0 | Effort M | Depends: —
-**Goal**: Windows runtime behaviour is exercised on every change to the Windows line: the crates that claim Windows support run their tests on `windows-latest`, and the tests that can't run there say why.
+**Goal**: Windows runtime behaviour is exercised on every change: the crates that claim Windows support run their tests on `windows-latest`, and the tests that can't run there say why.
 **User story**: As a contributor, I see a red check when my change breaks AI Juggler on Windows, before anyone installs it.
 **Requirements**:
 1. `build-windows` SHALL run `cargo test` for every crate that claims Windows support (a list in `release/platforms.json` or the workflow, kept in one place), in addition to today's `cargo check --workspace --all-targets` and build.
@@ -151,7 +171,7 @@
 3. The fake tool programs (`src/bin/fake_*`) SHALL build and run on Windows, so supervisor and stop tests have a Windows subject.
 4. `scripts/install_tauri_cli.sh` SHALL install the CLI on Windows (or the job installs it another way), so a Windows bundle can be built in CI (audit 15.2).
 5. The developer story SHALL be written: which `just` recipes work in Git Bash, and a PowerShell equivalent for the ones that don't (audit 15.3).
-6. The job SHALL be required for `release/*` branches of the Windows line (AJ-E2601's branch answer).
+6. The job SHALL be required on the bring-up's branch, and on every PR to `main` and `release/*` once Windows has shipped (AJ-E2616).
 **UI/UX reasoning**: Contributor experience, Nielsen #9 (help users recognise, diagnose and recover from errors): a failure names the test and the OS, and the skip list says why each module is skipped.
 **Performance budget**: the Windows job ≤ 25 min on `windows-latest` with a warm cache; the test step ≤ 12 min.
 **Quality gates**: `actionlint` on the workflow; the job green on a `release/0.2`-based branch; `cargo test --workspace` unchanged on macOS and Linux; the skip-list count printed and checked.
@@ -159,7 +179,7 @@
 **Visual testing**: None: CI only. The visual run on Windows is AJ-E2613's.
 **Files to touch**: `.github/workflows/ci.yml` (`build-windows`, `:431-452`), `scripts/install_tauri_cli.sh` (`:15-20`), `justfile`, `crates/juggler-supervisor/tests/` (the `#![cfg(unix)]` modules), `crates/juggler-adapters/src/bin/` (`fake_claude.rs`, `fake_codex.rs`, `fake_harness.rs`, `fake_desktop.rs`), `CONTRIBUTING.md`.
 **Research basis**: audit 15.1–15.4, §1 (test code assumes Unix: `juggler-supervisor/tests/{supervisor,collateral,fleet_identity,node_script_tool}.rs`), §5.1 step 3, §5.4 item 8; `.github/workflows/ci.yml:431-452` (today: check and build only).
-**Handover note**: The first Windows test run will be small on purpose (most supervisor tests use `/bin/sh`); grow it with the seams, don't fake it with skips. Don't run the macOS visual suite here: it's 25 minutes and it's the macOS line's.
+**Handover note**: The first Windows test run will be small on purpose (most supervisor tests use `/bin/sh`); grow it with the seams, don't fake it with skips. Don't run the full macOS visual suite here: it's 25 minutes and runs in its own sweep.
 
 ### AJ-E2603 The Windows lab: a throwaway user, read-only, the open questions answered | Status: TODO | Priority P0 | Effort M | Depends: —
 **Goal**: The questions only a real Windows machine answers (audit §5.5: Q2, Q3, Q4, Q5, Q6, Q7, Q9, Q10) are answered with evidence before the seams that depend on them are built.
@@ -386,7 +406,7 @@
 2. The bundle SHALL be the format AJ-E2601 chose (NSIS by default, per user, no admin), with `juggler-agent.exe` as an `externalBin` and the WebView2 install mode chosen (audit 14.1, 5.6).
 3. Every executable and the installer SHALL be Authenticode-signed with the chosen certificate and timestamped; the signing secrets live in a GitHub Environment like Apple's.
 4. The updater SHALL be built with its `zip` feature only once a version without the open advisories ships (audit 14.3, `crates/juggler-app/Cargo.toml:81`, `docs/RELEASING.md:202-205`); until then the first Windows release is download-and-reinstall and says so on its page and in About.
-5. The feed SHALL carry the Windows key in the shape AJ-E2601 chose (`windows-x86_64` in a shared feed, or a feed of its own), checked by `scripts/updater_sig_check.py` and Promote's feed assertions (`.github/workflows/promote.yml:203-205`, `nightly.yml:158`).
+5. Each channel's one feed SHALL carry a `windows-x86_64` entry beside `darwin-*` for the same version (D-52: no feed of Windows' own), written by `nightly.yml` in the same run as macOS and checked by `scripts/updater_sig_check.py` and Promote's feed assertions (`.github/workflows/promote.yml:203-205`, `nightly.yml:158`).
 6. The three editions SHALL install side by side with their own AUMIDs, Start Menu entries, data and credentials (D-23).
 7. Uninstall SHALL remove the app and offer to keep or remove its data, plainly (the uninstall guide).
 8. Fleet's local discovery SHALL be tested against the Windows Firewall prompt, and the first-run copy SHALL say why it asks (audit 14.4).
@@ -399,38 +419,40 @@
 **Research basis**: audit 14.1–14.6, 5.6, §3 C14, §5.2 step 9, §5.4 item 6; https://v2.tauri.app/distribute/windows-installer/ and https://v2.tauri.app/distribute/sign/windows/ (**I**); `.github/workflows/build-macos.yml:195-231` (the macOS overlay to mirror); `docs/RELEASING.md` (D-20, D-23, D-24).
 **Handover note**: Shared seam: the release descriptor (Linux adds its rows in AJ-E2713). An OV certificate builds SmartScreen reputation slowly; the first downloads may still warn: say so in the release notes instead of promising none. Keep the updater private key and signing secrets out of the repo (memory: public repo rules).
 
-### AJ-E2615 The first Windows Beta | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2602, AJ-E2603, AJ-E2604, AJ-E2605, AJ-E2606, AJ-E2607, AJ-E2608, AJ-E2609, AJ-E2610, AJ-E2611, AJ-E2612, AJ-E2613, AJ-E2614
-**Goal**: The first Windows Beta ships only when the core works on a real Windows machine: tools found, accounts imported, sessions run and are seen, stops are whole and honest, switching keeps history, and nothing claims what it can't do.
+### AJ-E2615 Windows' dedicated first release (its first Beta) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2602, AJ-E2603, AJ-E2604, AJ-E2605, AJ-E2606, AJ-E2607, AJ-E2608, AJ-E2609, AJ-E2610, AJ-E2611, AJ-E2612, AJ-E2613, AJ-E2614
+**Goal**: The dedicated first release ships Windows on the Beta channel, on the shared version stream, only when the core works on a real Windows machine: tools found, accounts imported, sessions run and are seen, stops are whole and honest, switching keeps history, and nothing claims what it can't do.
 **User story**: As an early Windows user, the Beta does what its page says, and every feature that isn't there yet says so where I'd look for it.
 **Requirements**:
 1. A gate file `docs/qa/gate-windows-beta.md` SHALL list each criterion with its evidence link (the `gate_packet.py` format).
 2. Core criteria: tools found every supported way (AJ-E2607); import of existing setups; two Claude accounts in parallel with zero writes to `%USERPROFILE%\.claude`; sessions seen in the Processes view; stops whole with zero false kills (AJ-E2606); switching A→B→Codex→A keeps history, tasks and context (the 0.1 switching rule); honest usage; keep-awake and the PC's signals (AJ-E2612).
-3. Every feature not ready on Windows SHALL show "not on Windows yet" where it would be, and the release notes SHALL list them (WSL, window mirroring, any `NotYet` seam).
-4. The D-24 rule for this line's Beta (days of Nightly use, no open `blocker`) SHALL hold as AJ-E2601 set it.
+3. Every feature not ready on Windows SHALL show "not on Windows yet" where it would be, with the reason, and the release notes SHALL list them (WSL, window mirroring, any `NotYet` seam).
+4. The release SHALL go through the shared flow: the version's nightly carries its Windows build beside macOS's, and D-24's promotion rules (days of Nightly use, no open `blocker`) hold on Windows as well as macOS before the one promote to Beta moves both.
 5. The maintainer's walk on a Windows machine with the lab setup (read-only on real accounts) SHALL be recorded with its findings fixed or ruled.
 **UI/UX reasoning**: Nielsen #1 and #10 (help and documentation): the "not on Windows yet" lines and a Windows section in each guide page that differs.
 **Performance budget**: SPEC §1's budgets on the reference Windows machine: cold start < 1.5 s, < 150 MB RSS typical, < 1 % CPU for monitoring, 60 fps with 20 live sessions.
-**Quality gates**: `just evidence` (the gate's links resolve); every E26 task `DONE-EVIDENCED` or explicitly deferred with the maintainer's word; the a11y gate on the Windows captures; the load gate run on Windows.
+**Quality gates**: `just evidence` (the gate's links resolve); every other E26 task `DONE-EVIDENCED` or explicitly deferred with the maintainer's word; the a11y gate on the Windows captures; the load gate run on Windows.
 **Evidence/validation proof**: `docs/qa/gate-windows-beta.md` with every criterion PASS and linked; pass = 100 % of the core criteria, 0 open `blocker`.
 **Visual testing**: The Windows gallery (AJ-E2613) re-run on the release candidate, 1280×800 and 1440×900, Light, Dark and a contrast theme, at 100 % and 150 % scaling; axe 0 serious or critical.
-**Files to touch**: `docs/qa/gate-windows-beta.md` (new), `docs/releases/` (the Windows notes), `docs/guide/` (Windows sections), `README.md` (the platform row, once shipped).
-**Research basis**: the 0.1 gate (memory: import, sessions, honest usage, This Mac and permissions on the real setup); `docs/qa/gate-beta.md` (the macOS Beta gate's form); `docs/RELEASING.md` (D-24); audit §5.4 ("deferred without harm").
-**Handover note**: Don't claim Windows in the README or the site until this gate passes and the maintainer says so (memory: no public marketing yet).
+**Files to touch**: `docs/qa/gate-windows-beta.md` (new), `docs/releases/` (the release's notes, with a Windows section), `docs/guide/` (Windows sections), `README.md` (the platform row, once shipped).
+**Research basis**: the 0.1 gate (memory: import, sessions, honest usage, This Mac and permissions on the real setup); `docs/qa/gate-beta.md` (the Beta gate's form); `docs/RELEASING.md` (D-20, D-24); audit §5.4 ("deferred without harm"); D-52.
+**Handover note**: This is the only release whose scope is Windows; after it, Windows rides every release (AJ-E2616). Don't claim Windows in the README or the site until this gate passes and the maintainer says so (memory: no public marketing yet).
 
-### AJ-E2616 Windows Stable | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2615
-**Goal**: Windows Stable opens only after the Beta has been used for real on Windows, with its findings fixed, and the stable channel's rules met for this line.
-**User story**: As a Windows user who wants a steady app, I install from the Stable channel knowing it has been through weeks of real use on Windows.
+### AJ-E2616 Windows in every release: the shared flow and every shipped OS | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2615
+**Goal**: After the first release, Windows ships in every release with macOS: every nightly builds, signs and publishes it, one promote moves every OS's build of a version together, Windows reaches Stable under the same rules, and every feature is built and tested on Windows as part of being done.
+**User story**: As a Windows user, every new version reaches me the same day and on the same channels as on a Mac, and a feature that isn't on Windows says why.
 **Requirements**:
-1. A gate file `docs/qa/gate-windows-stable.md` SHALL hold each criterion with evidence.
-2. The Beta SHALL have been on its channel for the time AJ-E2601 set (D-24's 14 days on macOS is the default) with no open `blocker`.
-3. Every finding of the Beta's walks SHALL be fixed or ruled; every "not on Windows yet" line SHALL be built or kept with the maintainer's word.
-4. An update from the oldest Windows Beta still in use to the Stable build SHALL be proven, with a rollback.
-5. The security review (the macOS M8-2 checklist) SHALL be re-run for the Windows-specific code: ACLs, the named pipe, Credential Manager, the Job Object, the installer.
-**UI/UX reasoning**: The release channel policy (memory: stable is deliberate); Nielsen #1: the channel shown in About.
-**Performance budget**: as AJ-E2615, measured again on the Stable candidate; no regression > 10 % against the Beta's numbers.
-**Quality gates**: `just evidence`; the full Windows test job; the security findings closed (a finding blocks the merge).
-**Evidence/validation proof**: `docs/qa/gate-windows-stable.md`, every criterion PASS and linked; pass = 100 %, 0 open `blocker`, 0 open security findings.
-**Visual testing**: The Windows gallery re-run on the Stable candidate; 0 unexplained diffs against the Beta's approved baselines.
-**Files to touch**: `docs/qa/gate-windows-stable.md` (new), `docs/RELEASING.md`, `docs/releases/`, `README.md`, `docs/SPEC.md` (§1's platform row).
-**Research basis**: `docs/RELEASING.md` (stable: 14+ days on beta, no `blocker`, D-24); `docs/plan/EPICS.md` M8-2 (the security review); D-52.
-**Handover note**: Windows Stable is independent of macOS's: it may come before or after macOS 1.0, as the maintainer decides; never let one line's gate pass on the other's evidence.
+1. `nightly.yml` SHALL build, sign and publish the Windows build of every version in the same run as macOS, from `release/platforms.json`; a failed Windows build SHALL fail the nightly, so no version ships without every shipped OS.
+2. `promote.yml` SHALL promote a version only when every shipped OS's build of it is in the release, and move the channel's one feed with all of them together; `scripts/promotion_rules.py` SHALL check it.
+3. A `blocker` on any shipped OS SHALL stop the promotion of that version for every OS (D-24 across OSes; the agents' reading of D-52, the maintainer to confirm).
+4. The Definition of Done (`docs/plan/QUALITY.md` §2) and the reviewer checklist SHALL require every shipped OS; the PR template SHALL ask for it; CI's Windows test job (AJ-E2602) SHALL be required on every PR to `main` and `release/*`.
+5. The task format (`docs/tasks/README.md`) SHALL ask every new task to name how it is tested on each shipped OS, or why it is unsupported there.
+6. Windows SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the beta gate signed); before that promote, the security review (the M8-2 checklist) SHALL be re-run for the Windows-specific code: ACLs, the named pipe, Credential Manager, the Job Object, the installer.
+7. An update from the first Windows Beta to that Stable build SHALL be proven, with a rollback.
+**UI/UX reasoning**: The release channel policy (memory: nightly as pushed, beta after real use, stable deliberate), now for every OS at once; Nielsen #1: the channel shown in About, and "not on Windows yet" with its reason where a feature is unsupported.
+**Performance budget**: a nightly with Windows ≤ 30 min longer than the macOS-only run (the OS jobs in parallel); a promote ≤ 10 min; the Stable candidate within 10 % of the first release's measured budgets.
+**Quality gates**: the release scripts' self-tests with multi-OS cases (`release_version.py`, `promotion_rules.py`, `updater_sig_check.py`); `actionlint`; `just evidence`; the security findings closed (a finding blocks the merge).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2616/manifest.md` linking two nightlies that published both OSes, one deliberately failed Windows build that stopped its version, one promote that moved both, and the Stable promote with the security review; pass = every step as stated, 0 open `blocker`, 0 open security findings.
+**Visual testing**: The Windows gallery runs in the visual sweep for every release, beside macOS's; 0 unexplained diffs against the approved Windows baselines.
+**Files to touch**: `.github/workflows/nightly.yml`, `promote.yml`, `ci.yml`, `visual-sweep.yml`, `scripts/promotion_rules.py`, `scripts/release_version.py`, `docs/plan/QUALITY.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `docs/tasks/README.md`, `docs/RELEASING.md`, `docs/qa/gate-beta.md`, `README.md`, `docs/SPEC.md` (§1's platform row).
+**Research basis**: D-52 (the maintainer: "Once we make the initial release than every feature is built all the time for each OS."); `docs/RELEASING.md` (D-20, D-24, D-23); `.github/workflows/nightly.yml:158` (the feed's `platforms`), `promote.yml:203-205` (its assertions); `docs/plan/EPICS.md` M8-2.
+**Handover note**: Once Windows has shipped, a Windows-only failure stops the release for every OS; that is the point (no OS lags behind). Keep the Windows jobs fast enough that this isn't felt every night, and never mark a feature "unsupported on Windows" to get a release out without the maintainer's word.

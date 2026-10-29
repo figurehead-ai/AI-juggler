@@ -289,7 +289,7 @@
 | AJ-E2505 | §2 Toast | E25-notifications-and-user-menu.md | P0 | S | AJ-E1503 |
 | AJ-E2506 | The menu-bar item (§4.17) | E25-notifications-and-user-menu.md | P1 | M | AJ-E2501 |
 | AJ-E2507 | Your menu (the avatar) | E25-notifications-and-user-menu.md | P0 | M | AJ-E1203 |
-| AJ-E2601 | The Windows line's decisions | E26-windows-release.md | P0 | S | — |
+| AJ-E2601 | The Windows bring-up's decisions | E26-windows-release.md | P0 | S | — |
 | AJ-E2602 | CI that runs the tests on Windows, not only compiles them | E26-windows-release.md | P0 | M | — |
 | AJ-E2603 | The Windows lab: a throwaway user, read-only, the open questions answered | E26-windows-release.md | P0 | M | — |
 | AJ-E2604 | Where things live: one home, one app-data folder, each tool's home | E26-windows-release.md | P0 | M | AJ-E2601 |
@@ -303,9 +303,9 @@
 | AJ-E2612 | System integration on Windows: notifications, the taskbar, open at login, keep awake, machine signals and ports | E26-windows-release.md | P1 | L | AJ-E2604; live part AJ-E2614 |
 | AJ-E2613 | Looks and reads like Windows: window chrome, icons, the Recycle Bin, words and keys | E26-windows-release.md | P0 | L | — |
 | AJ-E2614 | The Windows installer, signing and updates | E26-windows-release.md | P0 | L | AJ-E2601, AJ-E2604 |
-| AJ-E2615 | The first Windows Beta | E26-windows-release.md | P0 | M | AJ-E2602, AJ-E2603, AJ-E2604, AJ-E2605, AJ-E2606, AJ-E2607, AJ-E2608, AJ-E2609, AJ-E2610, AJ-E2611, AJ-E2612, AJ-E2613, AJ-E2614 |
-| AJ-E2616 | Windows Stable | E26-windows-release.md | P1 | M | AJ-E2615 |
-| AJ-E2701 | The Linux line's decisions | E27-linux-release.md | P0 | S | — |
+| AJ-E2615 | Windows' dedicated first release (its first Beta) | E26-windows-release.md | P0 | M | AJ-E2602, AJ-E2603, AJ-E2604, AJ-E2605, AJ-E2606, AJ-E2607, AJ-E2608, AJ-E2609, AJ-E2610, AJ-E2611, AJ-E2612, AJ-E2613, AJ-E2614 |
+| AJ-E2616 | Windows in every release: the shared flow and every shipped OS | E26-windows-release.md | P0 | M | AJ-E2615 |
+| AJ-E2701 | The Linux bring-up's decisions | E27-linux-release.md | P0 | S | — |
 | AJ-E2702 | CI that proves Linux as a desktop app | E27-linux-release.md | P0 | M | — |
 | AJ-E2703 | The Linux lab: a throwaway user, read-only, the open questions answered | E27-linux-release.md | P0 | M | — |
 | AJ-E2704 | Where things live on Linux: the XDG folders | E27-linux-release.md | P1 | S | AJ-E2604 |
@@ -318,7 +318,7 @@
 | AJ-E2711 | System integration on Linux: notifications, the tray, open at login, keep awake, machine signals and ports | E27-linux-release.md | P1 | L | AJ-E2703, AJ-E2704 |
 | AJ-E2712 | Looks and reads like Linux: window chrome, icons, the Trash, words and keys | E27-linux-release.md | P0 | M | AJ-E2613 |
 | AJ-E2713 | Linux packages, signing and updates | E27-linux-release.md | P0 | L | AJ-E2701, AJ-E2614 |
-| AJ-E2714 | The first Linux Beta | E27-linux-release.md | P0 | M | AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713 |
-| AJ-E2715 | Linux Stable | E27-linux-release.md | P1 | M | AJ-E2714 |
+| AJ-E2714 | Linux's dedicated first release (its first Beta) | E27-linux-release.md | P0 | M | AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713 |
+| AJ-E2715 | Linux in every release: the shared flow and every shipped OS | E27-linux-release.md | P0 | M | AJ-E2714 |
 Total: 318 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

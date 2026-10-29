@@ -28,10 +28,10 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 | M4 | Handover engine (T1–T4) | ✅ Done (live fidelity cells are the maintainer's, AJ-E808) |
 | M5 | Release engineering → **v0.1.0-beta.1** | 🟡 Signed Beta and Nightly builds ship (0.0.x); 0.1 is cut as set in E15 |
 | M6 | Fleet link → **v0.2** | 🟡 Built; the two-Mac dogfood is the maintainer's (AJ-E710) |
-| M7 | Fleet control → **v0.3**; the Windows and Linux compile guards | 🟡 Fleet control built; Windows and Linux moved to their own projects (D-52, rows W and L) |
+| M7 | Fleet control → **v0.3**; the Windows and Linux compile guards | 🟡 Fleet control built; Windows and Linux bring-up moved to rows W and L (D-52) |
 | M8 | Stabilization → **1.0** (macOS) | ⚪ Planned |
-| W | **AI Juggler for Windows**: its own project, its own Beta and Stable ([E26](../tasks/E26-windows-release.md)) | ⚪ Planned, not scheduled (D-52); release shape is the maintainer's decision (AJ-E2601) |
-| L | **AI Juggler for Linux**: its own project, its own Beta and Stable ([E27](../tasks/E27-linux-release.md)) | ⚪ Planned, not scheduled (D-52); release shape is the maintainer's decision (AJ-E2701) |
+| W | **AI Juggler for Windows**: a dedicated first release, then in every release ([E26](../tasks/E26-windows-release.md)) | ⚪ Planned, not scheduled (D-52); packaging, signing and scope are the maintainer's decisions (AJ-E2601) |
+| L | **AI Juggler for Linux**: a dedicated first release, then in every release ([E27](../tasks/E27-linux-release.md)) | ⚪ Planned, not scheduled (D-52); formats, repository and support matrix are the maintainer's decisions (AJ-E2701) |
 
 ---
 
@@ -203,35 +203,40 @@ Goal: the founding pain point solved — two Claude accounts in parallel, one cl
 
 ---
 
-## W — AI Juggler for Windows *(its own project → Windows Beta, Windows Stable)*
+## W — AI Juggler for Windows *(a dedicated first release → then every release)*
 
-Decided by D-52 (the maintainer, 2026-10-29): Windows is its own project
-with its own releases, not part of the macOS 0.x releases. Its tasks,
-grounded in the readiness audit (`docs/research/cross-platform-readiness.md`),
-are in [E26](../tasks/E26-windows-release.md) (AJ-E2601–E2616): the line's
-decisions first (version numbers and channels, installer and signing,
-scope, the data folder), CI that runs the tests on Windows, a read-only lab
-on a throwaway Windows user, then the OS seams (where things live, programs
-by name, Job Objects, the tool environment, owner-only files and named
-pipes, Credential Manager, each tool's files, desktop apps and Go to it,
-notifications and the taskbar, keep-awake, Windows words and keys), the
-signed installer and updates, and two gates of its own: **Windows Beta**
-(AJ-E2615) and **Windows Stable** (AJ-E2616). A macOS release never waits
-for this work and never claims Windows support.
+Decided by D-52 (the maintainer, 2026-10-29): Windows gets one dedicated
+first release, the bring-up, and from then on ships in every release with
+macOS. Its tasks, grounded in the readiness audit
+(`docs/research/cross-platform-readiness.md`), are in
+[E26](../tasks/E26-windows-release.md) (AJ-E2601–E2616): the remaining
+decisions (installer, signing, scope, the data folder, which OS first),
+CI that runs the tests on Windows, a read-only lab on a VM with a throwaway
+Windows user, then the OS seams (where things live, programs by name, Job
+Objects, the tool environment, owner-only files and named pipes, Credential
+Manager, each tool's files, desktop apps and Go to it, notifications and
+the taskbar, keep-awake, Windows words and keys) and the signed installer
+and updates. The first release ships Windows on Beta (AJ-E2615). After it
+(AJ-E2616), every nightly builds, signs and publishes Windows with macOS,
+one promote moves both, and every task's Definition of Done covers Windows.
+Until the first release, a macOS release never waits for this work and
+never claims Windows support.
 
-## L — AI Juggler for Linux *(its own project → Linux Beta, Linux Stable)*
+## L — AI Juggler for Linux *(a dedicated first release → then every release)*
 
-Decided by D-52: Linux is its own project with its own releases. Its tasks
-are in [E27](../tasks/E27-linux-release.md) (AJ-E2701–E2715): the line's
-decisions (version numbers and channels, AppImage / deb / rpm / Flatpak,
-the distributions and desktops supported), CI in a desktop session and on
-each promised distribution, a read-only lab on GNOME and KDE, then the
-seams Linux still lacks (XDG folders, process names and escaped children,
-the tool environment, the AppImage's trust rules, the Secret Service, each
-tool's files, desktop apps and open files from `/proc`, notifications, the
-tray, keep-awake, Linux words and keys), packages and updates, and two
-gates of its own: **Linux Beta** (AJ-E2714) and **Linux Stable**
-(AJ-E2715). Shared seams are built once (E26's intro lists the owners).
+Decided by D-52: Linux gets one dedicated first release, then ships in
+every release. Its tasks are in [E27](../tasks/E27-linux-release.md)
+(AJ-E2701–E2715): the remaining decisions (AppImage / deb / rpm / Flatpak,
+a package repository, the distributions and desktops supported, which OS
+first), CI in a desktop session and on each promised distribution, a
+read-only lab on GNOME and KDE, then the seams Linux still lacks (XDG
+folders, process names and escaped children, the tool environment, the
+AppImage's trust rules, the Secret Service, each tool's files, desktop apps
+and open files from `/proc`, notifications, the tray, keep-awake, Linux
+words and keys) and packages and updates. The first release ships Linux on
+Beta (AJ-E2714); after it (AJ-E2715), Linux is in every nightly, beta and
+stable, and in every task's Definition of Done. Shared seams are built once
+(E26's intro lists the owners).
 
 ---
 

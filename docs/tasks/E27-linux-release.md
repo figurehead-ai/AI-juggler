@@ -1,12 +1,16 @@
-# E27 — AI Juggler for Linux: its own project and releases
+# E27 — AI Juggler for Linux: a dedicated first release, then every release
 
-> Source: the maintainer, 2026-10-29 (D-52), in the maintainer's words: "Can you add in
-> our global planner of all the features and future versions, special
-> releases for both Windows and Linux separately." And earlier the same
-> day: "we have a lot of specialized process monitoring, special desktop
-> capabilities that work separately for each OS … I am not saying we will
-> not build them but I feel they are massive and require their own
-> projects and releases."
+> Source: the maintainer, 2026-10-29 (D-52): "Can you add in our global
+> planner of all the features and future versions, special releases for
+> both Windows and Linux separately." Earlier the same day: "we have a lot
+> of specialized process monitoring, special desktop capabilities that work
+> separately for each OS … I am not saying we will not build them but I
+> feel they are massive and require their own projects and releases." And,
+> settling the shape: "it is fine if its part of the same releases, but
+> initial ones, because we have to actually build and setup VM and test it
+> and build specialized capabilities for each, requires a dedicated release
+> per OS." and "Once we make the initial release than every feature is
+> built all the time for each OS."
 > Research: `docs/research/cross-platform-readiness.md` (the audit of
 > 2026-10-27, read at `41f6c8c3`): the inventory C1–C16 (§2), the seams
 > (§3), what each tool stores per OS (§4), the ranked plan (§5), the
@@ -17,19 +21,30 @@
 > Sister epic: [E26 — AI Juggler for Windows](E26-windows-release.md),
 > which holds the default owner of most shared seams (its intro's table).
 >
-> **Why a project of its own.** Linux is closer than Windows (audit §0:
-> sockets, process groups, signals, modes, ports and PTYs already work),
-> but what is missing is exactly what makes AI Juggler useful on a
+> **Why a dedicated first release.** Linux is closer than Windows (audit
+> §0: sockets, process groups, signals, modes, ports and PTYs already
+> work), but what is missing is exactly what makes AI Juggler useful on a
 > desktop: finding the desktop apps and terminals (`.desktop` files,
 > Flatpak and Snap), going to a window (Wayland allows almost none of it),
 > the system's keyring (Secret Service), keeping the computer awake (logind
 > or the portal), notifications and the tray (which differ by desktop:
 > GNOME, KDE, others), and packaging (AppImage, deb, rpm, Flatpak, each
 > with a different update story and sandbox). The desktops and
-> distributions differ more than Windows versions do, so the lab, the
-> support matrix and the gates are this line's own. The Linux line is not
-> part of the macOS 0.x releases: a macOS release never waits for Linux
-> work, and never claims Linux support.
+> distributions differ more than Windows versions do. Setting that up (the
+> VMs and lab, the seams, the tests in a desktop session, the packages) is
+> a project, so Linux gets **one dedicated release**: the bring-up, whose
+> scope is this epic, ending in Linux's first Beta (AJ-E2714). Until it
+> ships, a macOS release never waits for Linux work and never claims Linux
+> support.
+>
+> **After the first release, Linux is in every release** (AJ-E2715). One
+> version stream (D-20 stands), the same channels and the same promotion
+> rules (D-24): every nightly builds and publishes Linux with the other
+> shipped OSes, one promote moves every OS's build of a version together,
+> and no OS lags behind. From then on every feature is built and tested for
+> Linux all the time: a task is done only when it works on every shipped
+> OS, or is marked unsupported there with the reason (the Definition of
+> Done, `docs/plan/QUALITY.md` §2).
 >
 > **What is already cross-platform** (by reading; nothing has run as an
 > installed Linux app):
@@ -56,17 +71,21 @@
 > (audit 2.3); the Trash, icons and window chrome (audit 12.1–12.4);
 > packaging and the update feed (audit 14.1–14.5); Mac words (audit 16.2).
 >
-> **The release shape is the maintainer's decision (AJ-E2701).** Not
-> decided by D-52 and not invented here:
+> **Settled by D-52: version numbers and channels.** Linux uses the same
+> version stream and channels as macOS; there is no Linux version line,
+> channel position or feed of its own. The dedicated first release is a
+> release on that stream whose scope is the Linux bring-up, and Linux first
+> reaches users on Beta. Each channel's one feed then carries a
+> `linux-x86_64` entry (the AppImage) for the same version.
+>
+> **Still the maintainer's decision (AJ-E2701):**
 >
 > | Question | Options (consequence) |
 > |---|---|
-> | Version numbers | (a) the same numbers as macOS, built from the same commit, with Linux's own channel position and feeds; (b) a stream of its own (collides with D-20's one stream) |
-> | Channels | Linux Nightly / Beta / Stable with their own gates, or Beta and Stable only until Linux Stable |
 > | Formats | AppImage (the Tauri updater updates it), `.deb` and `.rpm` (updated by a package repository, as Claude's desktop app does), Flatpak or Snap (their sandboxes hide the host's processes: see AJ-E2713) |
-> | Repository | an apt / dnf repository signed with a project GPG key, or downloads only |
+> | Repository | an apt / dnf repository signed with a project GPG key, with a Beta and a Stable component moved by the same promote, or downloads only |
 > | Support matrix | which distributions and versions (Tauri 2 needs WebKitGTK 4.1: Ubuntu 22.04 and later, Debian 12 and later, current Fedora), GNOME and KDE, Wayland and X11, x86_64 only or aarch64 too |
-> | Order | Linux first, Windows first (E26), or both together |
+> | Order and timing | Linux first, Windows first (E26), or both together; and when the bring-up starts (the standing plan, SPEC §15 decision 7, is after macOS 1.0) |
 >
 > **Shared seams, built once.** The default owners are in E26's table.
 > This epic owns `OpenFiles` (C11, AJ-E2710); for the others, the Linux
@@ -97,25 +116,25 @@
 
 ## Step 0 — decide and see
 
-### AJ-E2701 The Linux line's decisions | Status: TODO | Priority P0 | Effort S | Depends: —
-**Goal**: The maintainer's choices for the Linux line are recorded before anything ships: version numbers and channels, formats and the repository, the support matrix, and whether Linux or Windows goes first.
-**User story**: As the maintainer, I decide once, from one page with each option's consequence, how AI Juggler for Linux is versioned, packaged and supported, so the agents building it never guess.
+### AJ-E2701 The Linux bring-up's decisions | Status: TODO | Priority P0 | Effort S | Depends: —
+**Goal**: The maintainer's remaining choices for the Linux bring-up are recorded before its first release ships: formats and the repository, the support matrix, and which OS goes first and when. Version numbers and channels are settled by D-52: the same stream and channels as macOS.
+**User story**: As the maintainer, I decide once, from one page with each option's consequence, how AI Juggler for Linux is packaged and supported, so the agents building it never guess.
 **Requirements**:
 1. A decision page SHALL list each open question of the intro's table with its options, the consequence of each, one concrete example, and the tasks it unblocks.
-2. The page SHALL state the agents' recommended default for each, labelled as the agents', not the maintainer's.
-3. Each answer SHALL be recorded as its own decision-log entry (the next free D-number) in the D-52 style, with the maintainer's words.
-4. The support matrix SHALL name each distribution, version, desktop and display server the Beta promises, and say plainly what happens elsewhere ("may work; not tested").
-5. The Flatpak and Snap answer SHALL be made knowing their sandboxes hide the host's processes from the app (AJ-E2713).
-6. "Which goes first" SHALL be recorded once, shared with AJ-E2601.
-7. `docs/RELEASING.md` SHALL gain a "Linux" section once decided.
+2. The page SHALL restate D-52's settled part (one version stream, the same channels, one feed per channel, one promote for every OS, every shipped OS in the Definition of Done) and SHALL NOT reopen it.
+3. The page SHALL state the agents' recommended default for each open question, labelled as the agents', not the maintainer's.
+4. Each answer SHALL be recorded as its own decision-log entry (the next free D-number) in the D-52 style, with the maintainer's words.
+5. The support matrix SHALL name each distribution, version, desktop and display server the first release promises, and say plainly what happens elsewhere ("may work; not tested").
+6. The Flatpak and Snap answer SHALL be made knowing their sandboxes hide the host's processes from the app (AJ-E2713).
+7. "Which goes first" SHALL be recorded once, shared with AJ-E2601.
 **UI/UX reasoning**: The serious-choices rule (consequence, example, inline tip, docs link) applied to the maintainer's own decisions; Nielsen #6 recognition rather than recall.
-**Performance budget**: one page; ≤ 8 questions, answerable in one sitting.
+**Performance budget**: one page; ≤ 4 questions, answerable in one sitting.
 **Quality gates**: `python3 scripts/check_task_counts.py`; `./scripts/terminology_lint.sh`; the decision log's format.
 **Evidence/validation proof**: the recorded entries in `docs/review/decision-log.md` and `docs/qa/evidence/AJ-E2701/manifest.md` linking each to the tasks it unblocks; pass = every question answered or deferred with a date.
 **Visual testing**: None: a decision record, no screen.
-**Files to touch**: `docs/review/decision-log.md`, `docs/RELEASING.md`, `docs/plan/EPICS.md` (the Linux milestone row), this file.
-**Research basis**: audit §5.3, 14.1–14.2, §4 (Claude desktop on Linux: beta, Debian-based only, apt, VP); https://v2.tauri.app/distribute/ (VP in the audit: deb, rpm, AppImage, Snap, Flatpak, AUR); https://v2.tauri.app/start/prerequisites/ (WebKitGTK 4.1, **I**); `docs/RELEASING.md:1-31` (D-20, D-24).
-**Handover note**: Don't pick version numbers here (memory: SemVer strictly; one version stream today). A distribution the Beta doesn't promise is not a bug report blocker; say so on the release page.
+**Files to touch**: `docs/review/decision-log.md`, `docs/plan/EPICS.md` (the Linux milestone row), this file.
+**Research basis**: audit §5.3, 14.1–14.2, §4 (Claude desktop on Linux: beta, Debian-based only, apt, VP); https://v2.tauri.app/distribute/ (VP in the audit: deb, rpm, AppImage, Snap, Flatpak, AUR); https://v2.tauri.app/start/prerequisites/ (WebKitGTK 4.1, **I**); `docs/RELEASING.md` (D-20, D-24); D-52.
+**Handover note**: Don't reopen version numbers or channels: D-52 settled them (memory: SemVer strictly; one version stream). A distribution the first release doesn't promise is not a bug-report blocker; say so on the release page.
 
 ### AJ-E2702 CI that proves Linux as a desktop app | Status: TODO | Priority P0 | Effort M | Depends: —
 **Goal**: CI tests what Linux users run: the packaged app, in a desktop session with D-Bus, a keyring and a notification server, on more than one distribution, not only `cargo test` on a headless Ubuntu runner.
@@ -125,7 +144,7 @@
 2. A container matrix SHALL build and run the tests on the support matrix's distributions (AJ-E2701; at least the oldest Ubuntu and the newest Fedora promised).
 3. A package smoke SHALL install the built AppImage and `.deb` in a clean container, start the app headless (Xvfb or a headless Wayland compositor), and check it reaches its first screen.
 4. The UI's Playwright run SHALL include a WebKit project on Linux for the touched screens, because the Linux app draws with WebKitGTK.
-5. The jobs SHALL be required for the Linux line's `release/*` branches (AJ-E2701).
+5. The jobs SHALL be required on the bring-up's branch, and on every PR to `main` and `release/*` once Linux has shipped (AJ-E2715).
 **UI/UX reasoning**: Contributor experience, Nielsen #9: a failure names the distribution, the desktop service and the test.
 **Performance budget**: the Linux desktop-session job ≤ 20 min with a warm cache; each distribution container ≤ 15 min; the package smoke ≤ 5 min.
 **Quality gates**: `actionlint`; each job green on a `release/0.2`-based branch; a deliberately broken Secret Service test proving the job fails.
@@ -328,8 +347,8 @@
 **User story**: As a Linux user, I install AI Juggler the way my distribution expects, and it stays up to date on my channel.
 **Requirements**:
 1. The shared release descriptor `release/platforms.json` (owner AJ-E2614) SHALL list the Linux triples, formats, signing and updater key; the workflows read it.
-2. The AppImage SHALL carry `juggler-agent` as an `externalBin` for the Linux triple and update through the updater with a verified signature; the feed carries the Linux key in the shape AJ-E2701 chose (audit 14.1–14.2).
-3. `.deb` and `.rpm` (if chosen) SHALL declare their dependencies (WebKitGTK 4.1, the AppIndicator library), and update through an apt / dnf repository signed with the project's key; the in-app updater SHALL say "updated by your package manager" for them instead of offering Install.
+2. The AppImage SHALL carry `juggler-agent` as an `externalBin` for the Linux triple and update through the updater with a verified signature; each channel's one feed carries a `linux-x86_64` entry for the same version (D-52: no feed of Linux's own), written by `nightly.yml` in the same run as the other shipped OSes (audit 14.1–14.2).
+3. `.deb` and `.rpm` (if chosen) SHALL declare their dependencies (WebKitGTK 4.1, the AppIndicator library), and update through an apt / dnf repository signed with the project's key, whose Beta and Stable components the same promote moves (one promote for every OS); the in-app updater SHALL say "updated by your package manager" for them instead of offering Install.
 4. Flatpak and Snap SHALL not be offered unless the decision accepts what their sandboxes cost: no view of the host's processes without host access, a portal for every desktop feature; the decision record says why.
 5. The three editions SHALL install side by side (desktop ids, data, keyring items, D-23).
 6. Uninstall SHALL leave nothing but the data the user chose to keep.
@@ -342,38 +361,39 @@
 **Research basis**: audit 14.1–14.5, §3 C14, §5.3 item 2; https://v2.tauri.app/distribute/appimage/, /debian/, /rpm/, /flatpak/ (**I**); §4 (Claude's desktop app ships as an apt repository, VP); https://docs.flatpak.org/en/latest/sandbox-permissions.html (**I**).
 **Handover note**: The AppImage bundles WebKitGTK and is large; a too-old host glibc fails at start: build on the oldest distribution promised. Keep the repository's signing key and the updater key out of the repo.
 
-### AJ-E2714 The first Linux Beta | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713
-**Goal**: The first Linux Beta ships only when the core works on the promised distributions and desktops: tools found, accounts imported, sessions run and are seen, stops whole and honest, switching keeps history, and every missing feature says so.
+### AJ-E2714 Linux's dedicated first release (its first Beta) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713
+**Goal**: The dedicated first release ships Linux on the Beta channel, on the shared version stream, only when the core works on the promised distributions and desktops: tools found, accounts imported, sessions run and are seen, stops whole and honest, switching keeps history, and every missing feature says so.
 **User story**: As an early Linux user, the Beta does what its page says on my distribution, and what isn't there yet says so where I'd look for it.
 **Requirements**:
 1. A gate file `docs/qa/gate-linux-beta.md` SHALL list each criterion with its evidence link (the `gate_packet.py` format).
 2. Core criteria on each promised distribution and desktop: tools found (AJ-E2706); import; two Claude accounts in parallel with zero writes to `~/.claude`; sessions seen in the Processes view; stops whole with zero false kills (AJ-E2705); switching A→B→Codex→A keeps history, tasks and context; honest usage; keep-awake (AJ-E2711); secrets in the keyring or a plain refusal (AJ-E2708).
-3. Every feature not ready on Linux or on a given desktop SHALL say so where it would be, and the release notes SHALL list them by desktop.
-4. The line's Beta rule (days of Nightly use, no open `blocker`) SHALL hold as AJ-E2701 set it.
+3. Every feature not ready on Linux or on a given desktop SHALL say so where it would be, with the reason, and the release notes SHALL list them by desktop.
+4. The release SHALL go through the shared flow: the version's nightly carries its Linux build beside the other shipped OSes', and D-24's promotion rules (days of Nightly use, no open `blocker`) hold on Linux as well before the one promote to Beta moves every OS's build.
 5. The maintainer's walk on a Linux machine with the lab setup (read-only on real accounts) SHALL be recorded, its findings fixed or ruled.
 **UI/UX reasoning**: Nielsen #1 and #10: "not on Linux yet" and "not on this desktop" lines, and a Linux section in each guide page that differs.
 **Performance budget**: SPEC §1's budgets on the reference Linux machine: cold start < 1.5 s, < 150 MB RSS typical, < 1 % CPU for monitoring, 60 fps with 20 live sessions in WebKitGTK.
-**Quality gates**: `just evidence`; every E27 task `DONE-EVIDENCED` or deferred with the maintainer's word; the a11y gate on the Linux captures; the load gate run on Linux.
+**Quality gates**: `just evidence`; every other E27 task `DONE-EVIDENCED` or deferred with the maintainer's word; the a11y gate on the Linux captures; the load gate run on Linux.
 **Evidence/validation proof**: `docs/qa/gate-linux-beta.md` with every criterion PASS and linked; pass = 100 % of the core criteria on every promised distribution and desktop, 0 open `blocker`.
 **Visual testing**: The Linux gallery (AJ-E2712) re-run on the release candidate in WebKit, 1280×800 and 1440×900, Light and Dark, at 100 % and 200 %; axe 0 serious or critical.
-**Files to touch**: `docs/qa/gate-linux-beta.md` (new), `docs/releases/`, `docs/guide/`, `README.md` (the platform row, once shipped).
-**Research basis**: the 0.1 gate (memory: import, sessions, honest usage, This Mac and permissions on the real setup); `docs/qa/gate-beta.md`; `docs/RELEASING.md` (D-24); audit §5.3 ("deferred without harm").
-**Handover note**: Don't claim Linux in the README or the site until this gate passes and the maintainer says so (memory: no public marketing yet).
+**Files to touch**: `docs/qa/gate-linux-beta.md` (new), `docs/releases/` (the release's notes, with a Linux section), `docs/guide/`, `README.md` (the platform row, once shipped).
+**Research basis**: the 0.1 gate (memory: import, sessions, honest usage, This Mac and permissions on the real setup); `docs/qa/gate-beta.md`; `docs/RELEASING.md` (D-20, D-24); audit §5.3 ("deferred without harm"); D-52.
+**Handover note**: This is the only release whose scope is Linux; after it, Linux rides every release (AJ-E2715). Don't claim Linux in the README or the site until this gate passes and the maintainer says so (memory: no public marketing yet).
 
-### AJ-E2715 Linux Stable | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2714
-**Goal**: Linux Stable opens only after the Beta has been used for real on Linux, with its findings fixed and the stable rules met for this line.
-**User story**: As a Linux user who wants a steady app, I install from the Stable channel knowing it has been through weeks of real use on my kind of desktop.
+### AJ-E2715 Linux in every release: the shared flow and every shipped OS | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2714
+**Goal**: After the first release, Linux ships in every release with the other shipped OSes: every nightly builds and publishes it, one promote moves every OS's build of a version (and the package repository's component) together, Linux reaches Stable under the same rules, and every feature is built and tested on Linux as part of being done.
+**User story**: As a Linux user, every new version reaches me the same day and on the same channels as on a Mac, and a feature that isn't on Linux or my desktop says why.
 **Requirements**:
-1. A gate file `docs/qa/gate-linux-stable.md` SHALL hold each criterion with evidence.
-2. The Beta SHALL have been on its channel for the time AJ-E2701 set (D-24's 14 days is the default) with no open `blocker`.
-3. Every Beta finding SHALL be fixed or ruled; every "not on Linux yet" line built or kept with the maintainer's word.
-4. An update from the oldest Linux Beta in use to Stable SHALL be proven for each format, with a rollback.
-5. The security review SHALL be re-run for the Linux-specific code: the AppImage trust rule and the stable bridge copy, the Secret Service, the repository signing.
-**UI/UX reasoning**: The release channel policy (stable is deliberate); Nielsen #1: the channel in About.
-**Performance budget**: as AJ-E2714, measured again; no regression > 10 % against the Beta's numbers.
-**Quality gates**: `just evidence`; the full Linux jobs; the security findings closed.
-**Evidence/validation proof**: `docs/qa/gate-linux-stable.md`, every criterion PASS and linked; pass = 100 %, 0 open `blocker`, 0 open security findings.
-**Visual testing**: The Linux gallery re-run on the Stable candidate; 0 unexplained diffs against the Beta's approved baselines.
-**Files to touch**: `docs/qa/gate-linux-stable.md` (new), `docs/RELEASING.md`, `docs/releases/`, `README.md`, `docs/SPEC.md` (§1's platform row).
-**Research basis**: `docs/RELEASING.md` (D-24); `docs/plan/EPICS.md` M8-2; D-52.
-**Handover note**: Linux Stable is independent of macOS's and Windows's; never pass one line's gate on another's evidence.
+1. `nightly.yml` SHALL build and publish the Linux packages of every version in the same run as the other shipped OSes, from `release/platforms.json`; a failed Linux build SHALL fail the nightly.
+2. `promote.yml` SHALL promote a version only when every shipped OS's build of it is in the release, and move the channel's one feed, and the package repository's component if there is one, with all of them together; `scripts/promotion_rules.py` SHALL check it.
+3. A `blocker` on any shipped OS SHALL stop the promotion of that version for every OS (D-24 across OSes; the agents' reading of D-52, the maintainer to confirm).
+4. The Definition of Done's "every shipped OS" line (added by AJ-E2616, or here if Linux ships first) SHALL include Linux, and CI's Linux desktop-session job (AJ-E2702) SHALL be required on every PR to `main` and `release/*`.
+5. Linux SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the beta gate signed); before that promote, the security review SHALL be re-run for the Linux-specific code: the AppImage trust rule and the stable bridge copy, the Secret Service, the repository signing.
+6. An update from the first Linux Beta to that Stable build SHALL be proven for each format, with a rollback.
+**UI/UX reasoning**: The release channel policy (memory: nightly as pushed, beta after real use, stable deliberate), for every OS at once; Nielsen #1: the channel in About, and "not on Linux yet" with its reason.
+**Performance budget**: a nightly with Linux ≤ 20 min longer than without it (the OS jobs in parallel); a promote ≤ 10 min including the repository; the Stable candidate within 10 % of the first release's measured budgets.
+**Quality gates**: the release scripts' self-tests with multi-OS cases; `actionlint`; `just evidence`; the security findings closed.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2715/manifest.md` linking two nightlies that published Linux with the other OSes, one deliberately failed Linux build that stopped its version, one promote that moved every OS and the repository, and the Stable promote with the security review; pass = every step as stated, 0 open `blocker`, 0 open security findings.
+**Visual testing**: The Linux gallery runs in the visual sweep for every release; 0 unexplained diffs against the approved Linux baselines.
+**Files to touch**: `.github/workflows/nightly.yml`, `promote.yml`, `ci.yml`, `visual-sweep.yml`, `scripts/promotion_rules.py`, `docs/plan/QUALITY.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `docs/RELEASING.md`, `docs/qa/gate-beta.md`, `README.md`, `docs/SPEC.md` (§1's platform row).
+**Research basis**: D-52 (the maintainer: "Once we make the initial release than every feature is built all the time for each OS."); `docs/RELEASING.md` (D-20, D-24); `.github/workflows/nightly.yml:158`, `promote.yml:203-205`; `docs/plan/EPICS.md` M8-2.
+**Handover note**: Once Linux has shipped, a Linux-only failure stops the release for every OS; that is the point. A desktop the support matrix doesn't promise never blocks a release; one it promises does.

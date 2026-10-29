@@ -48,8 +48,8 @@
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
 | [E25-notifications-and-user-menu.md](E25-notifications-and-user-menu.md) | Notifications and your menu: one model, one count, every view | AJ-E2501-E2507 |
-| [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: its own project and releases (D-52) | AJ-E2601-E2616 |
-| [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: its own project and releases (D-52) | AJ-E2701-E2715 |
+| [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: a dedicated first release, then every release (D-52) | AJ-E2601-E2616 |
+| [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
