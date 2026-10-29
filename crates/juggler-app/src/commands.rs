@@ -9096,7 +9096,7 @@ fn kill_collateral(
                 exe: member_exe.rsplit('/').next().unwrap_or("?").to_string(),
                 cmdline: truncate_cmdline(&member_cmd),
                 role_guess: role_words(role),
-                unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell")
+                unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell" | "Database")
                     .then(|| unsaved_state_copy(role)),
                 from_ledger: ledger_row.is_some(),
             });
@@ -9108,12 +9108,7 @@ fn kill_collateral(
     let mut tree_pids: Vec<u32> = rows
         .iter()
         .filter(|row| row.state == "running" || row.state == "orphaned")
-        .filter(|row| {
-            row.pid.zip(row.started_at).is_some_and(|(pid, start)| {
-                crate::features::processes::stop::read_now(pid)
-                    .is_some_and(|now| now.start_time == start && !now.zombie)
-            })
-        })
+        .filter(|row| still_as_recorded(row))
         .filter_map(|row| row.pid)
         .collect();
     tree_pids.sort_unstable();
@@ -9151,7 +9146,8 @@ pub struct KillMemberOutcome {
     /// OS process id.
     pub pid: u32,
     /// `exited on TERM` | `needed KILL` | `already gone` | `refused` |
-    /// `TERM'd — outcome unknown`.
+    /// `TERM'd — outcome unknown` | [`LEFT_NOT_OURS`] |
+    /// [`LEFT_UNVERIFIED`] (the last two: never signalled).
     pub outcome: String,
 }
 
@@ -9335,9 +9331,7 @@ pub fn kill_execute_as(
     }
     // Scope enumeration (Req.1's three scopes; the UI defaults to
     // the narrowest that covers the goal).
-    let members = scope_members(scope, &rows, pid)?;
-    // AJ-E1103: memory the members hold now (freed if they go).
-    let rss_before = crate::usage_stats::rss_of(state, &members);
+    let candidates = scope_members(scope, &rows, pid)?;
     // The port facts: the goal port when the user stated one (the
     // port that opened the sheet — it may be held by an ESCAPED
     // sibling, which is exactly the honest-still-holding case),
@@ -9362,6 +9356,15 @@ pub fn kill_execute_as(
     let intent_id = audit
         .intent(&record)
         .map_err(|_| AppError::AuditUnavailable)?;
+    // ADR-0010 verify-or-refuse, per MEMBER, the last thing before the
+    // first signal: every other process the scope names passes the same
+    // identity check as the target, or is left alone and reported (a
+    // reused pid, a process AI Juggler didn't start).
+    let (members, left_alone) = verified_members(&rows, pid, candidates, |row| {
+        verify_kill_target(state, &session, row)
+    });
+    // AJ-E1103: memory the members hold now (freed if they go).
+    let rss_before = crate::usage_stats::rss_of(state, &members);
     // Guardrail 3 — the ladder itself (cancellable through grace).
     let cancel = std::sync::Arc::clone(cancel_flag);
     let outcome = juggler_supervisor::terminate_group(
@@ -9384,6 +9387,11 @@ pub fn kill_execute_as(
             .members
             .iter()
             .map(|(pid, outcome)| format!("pid {pid}: {}", outcome.as_str()))
+            .chain(
+                left_alone
+                    .iter()
+                    .map(|left| format!("pid {}: {}", left.pid, left.outcome)),
+            )
             .collect::<Vec<_>>()
             .join("; ");
         let ports_after = still_holding
@@ -9406,6 +9414,7 @@ pub fn kill_execute_as(
             pid: *pid,
             outcome: label.as_str().to_string(),
         })
+        .chain(left_alone)
         .collect();
     Ok(KillExecuteInfo {
         refusal: None,
@@ -9462,7 +9471,8 @@ fn kill_intent_record(
 
 /// The three scopes' member enumeration (Req.1): `pid` — the one
 /// verified process; `pgid` — every live member of its process group;
-/// `tree` — the Instance's live ledger rows.
+/// `tree` — the Instance's live ledger rows. Candidates only: each is
+/// checked by [`verified_members`] before any signal.
 ///
 /// # Errors
 ///
@@ -9494,6 +9504,69 @@ fn scope_members(
             message: format!("unknown scope {other:?} (pid | pgid | tree)"),
         }),
     }
+}
+
+/// A stop's outcome for a group member AI Juggler didn't start: never
+/// signalled (ADR-0010: not in the ledger, never touched).
+pub const LEFT_NOT_OURS: &str = "left alone: not started by AI Juggler";
+/// A stop's outcome for a member whose record no longer matches a live
+/// process it can confirm (start time, program, boot): never signalled.
+pub const LEFT_UNVERIFIED: &str = "left alone: couldn't confirm it";
+
+/// ADR-0010 verify-or-refuse for every member of a stop, not only its
+/// target: `candidates` (a scope's enumeration) split into the pids to
+/// signal and the ones left alone, each with why. `anchor` was verified
+/// by the caller. Any other pid is signalled only when a ledger row for
+/// it passes `verifies` (the shared click-time rule,
+/// [`verify_kill_target`]). One whose recorded process is no longer the
+/// live one (it ended; its pid may be another program's now) reads
+/// `already gone`; a live process with no ledger row is
+/// [`LEFT_NOT_OURS`]; a row the check can't confirm, [`LEFT_UNVERIFIED`].
+pub(crate) fn verified_members(
+    rows: &[juggler_core::storage::LedgerRow],
+    anchor: u32,
+    candidates: Vec<u32>,
+    verifies: impl Fn(&juggler_core::storage::LedgerRow) -> bool,
+) -> (Vec<u32>, Vec<KillMemberOutcome>) {
+    let mut signal = Vec::new();
+    let mut left = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for pid in candidates {
+        if !seen.insert(pid) {
+            continue;
+        }
+        if pid == anchor {
+            signal.push(pid);
+            continue;
+        }
+        let recorded: Vec<&juggler_core::storage::LedgerRow> =
+            rows.iter().filter(|row| row.pid == Some(pid)).collect();
+        if recorded.iter().any(|row| verifies(row)) {
+            signal.push(pid);
+            continue;
+        }
+        let outcome = if recorded.is_empty() {
+            LEFT_NOT_OURS
+        } else if recorded.iter().any(|row| still_as_recorded(row)) {
+            LEFT_UNVERIFIED
+        } else {
+            juggler_supervisor::tree::ProcessOutcome::AlreadyGone.as_str()
+        };
+        left.push(KillMemberOutcome {
+            pid,
+            outcome: outcome.to_string(),
+        });
+    }
+    (signal, left)
+}
+
+/// The process a ledger row recorded still runs at its pid (same start
+/// time, not a zombie) — whether or not the full check confirms it.
+fn still_as_recorded(row: &juggler_core::storage::LedgerRow) -> bool {
+    row.pid.zip(row.started_at).is_some_and(|(pid, start)| {
+        crate::features::processes::stop::read_now(pid)
+            .is_some_and(|now| now.start_time == start && !now.zombie)
+    })
 }
 
 /// The post-ladder port re-probe (FMEA C2): who STILL holds each of
@@ -15203,4 +15276,89 @@ pub fn recommendation_for_impl(
         &gaps,
         report.seeds.first().cloned(),
     ))
+}
+
+#[cfg(test)]
+mod verified_members_tests {
+    use super::{LEFT_NOT_OURS, LEFT_UNVERIFIED, verified_members};
+    use juggler_core::storage::LedgerRow;
+
+    fn row(pid: u32, started_at: i64) -> LedgerRow {
+        LedgerRow {
+            pid: Some(pid),
+            pgid: None,
+            started_at: Some(started_at),
+            exe_path: "/bin/sleep".into(),
+            cmdline_hash: "h".into(),
+            cmdline_trunc: "sleep".into(),
+            boot_id: "boot".into(),
+            session_id: "s".into(),
+            instance_id: None,
+            provider: "tool".into(),
+            account_id: None,
+            project_id: None,
+            machine_id: "this-mac".into(),
+            root_pid: None,
+            parent_pid: None,
+            depth: 1,
+            role: "helper".into(),
+            state: "orphaned".into(),
+            listens_on: None,
+            cwd: String::new(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: false,
+            down_period: false,
+            first_seen: 0,
+            last_seen: 0,
+        }
+    }
+
+    /// The anchor (verified by the caller) and members whose rows pass the
+    /// check are signalled; a group member with no ledger row, a row whose
+    /// process ended, and a live process the check can't confirm are left
+    /// alone, each with why.
+    #[test]
+    fn only_members_that_pass_the_check_are_signalled() {
+        let own = std::process::id();
+        let own_start = crate::features::processes::stop::read_now(own)
+            .expect("this test's own process is readable")
+            .start_time;
+        // Pids far above any real one: nothing runs there.
+        let (anchor, ok, ended, stranger) = (4_000_001, 4_000_002, 4_000_003, 4_000_004);
+        let rows = vec![
+            row(anchor, 1),
+            row(ok, 2),
+            row(ended, 3),
+            // Running as recorded, yet the full check fails.
+            row(own, own_start),
+        ];
+        let verifies = |row: &LedgerRow| row.pid == Some(ok);
+        let (signal, left) = verified_members(
+            &rows,
+            anchor,
+            vec![anchor, ok, ended, stranger, own, ok],
+            verifies,
+        );
+        assert_eq!(
+            signal,
+            vec![anchor, ok],
+            "only the anchor and the verified member"
+        );
+        let said: Vec<(u32, &str)> = left
+            .iter()
+            .map(|left| (left.pid, left.outcome.as_str()))
+            .collect();
+        assert_eq!(
+            said,
+            vec![
+                (ended, "already gone"),
+                (stranger, LEFT_NOT_OURS),
+                (own, LEFT_UNVERIFIED),
+            ],
+            "each member left alone says why"
+        );
+    }
 }
