@@ -2730,7 +2730,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-account"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chacha20poly1305",
  "cpu-time",
@@ -2747,7 +2747,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapter"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapters"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "juggler-adapter",
  "juggler-core",
@@ -2778,7 +2778,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-agentbridge"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "juggler-adapter",
  "juggler-adapters",
@@ -2792,7 +2792,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -2854,7 +2854,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proptest",
  "rusqlite",
@@ -2866,7 +2866,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-handover"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cpu-time",
  "juggler-adapter",
@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-link"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "cpu-time",
@@ -2915,7 +2915,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-login-item"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "objc2",
  "objc2-foundation",
@@ -2924,7 +2924,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-platform"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nix 0.31.3",
  "tempfile",
@@ -2933,14 +2933,14 @@ dependencies = [
 
 [[package]]
 name = "juggler-scap-init"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "screencapturekit",
 ]
 
 [[package]]
 name = "juggler-stats"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cpu-time",
  "flate2",
@@ -2955,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-supervisor"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "block2",
  "cpu-time",
@@ -2978,7 +2978,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-vm-stats"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "libc",
 ]

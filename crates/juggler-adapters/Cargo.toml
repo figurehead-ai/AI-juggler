@@ -11,8 +11,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-juggler-adapter = { version = "0.2.0", path = "../juggler-adapter" }
-juggler-core = { version = "0.2.0", path = "../juggler-core" }
+juggler-adapter = { version = "0.3.0", path = "../juggler-adapter" }
+juggler-core = { version = "0.3.0", path = "../juggler-core" }
 notify = "8.2.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
