@@ -14,6 +14,7 @@ import {
   type OutsideSearchInfo,
 } from "../lib/ipc/outsideSearch";
 import { byteSize } from "../lib/compact";
+import { Checkbox } from "./controls";
 
 /** The line under the switch, for where the index stands. */
 export function indexWords(info: OutsideSearchInfo, estimate: OutsideSearchEstimateInfo | null): string {
@@ -55,8 +56,7 @@ export function OutsideSearchSetting(): JSX.Element | null {
   return (
     <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-outside-search">
       <label className="flex items-center gap-2 text-label text-ink">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={info.enabled}
           disabled={busy}
           onChange={(event) => {
@@ -67,7 +67,6 @@ export function OutsideSearchSetting(): JSX.Element | null {
               .then(setInfo, (cause) => setError(errorText(cause)))
               .finally(() => setBusy(false));
           }}
-          className="accent-[var(--color-accent)]"
           data-testid="outside-search-switch"
         />
         <span className="font-medium">Search the words of every session</span>

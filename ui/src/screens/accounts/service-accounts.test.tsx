@@ -19,6 +19,7 @@ import { BetaMatrix } from "../../components/BetaMatrix";
 import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountInfo } from "../../lib/bridge";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
+import { pick } from "../../test/pick";
 
 const w = () => window as unknown as Record<string, unknown>;
 const KEY = "fixture-service-key-0123456789";
@@ -65,7 +66,7 @@ describe("Add account › More › Through another service", () => {
     expect((within(codex).getByTestId("service-profile-name") as HTMLInputElement).value).toBe("Go Codex");
     fireEvent.change(within(codex).getByTestId("service-model"), { target: { value: "a-model" } });
     fireEvent.change(key, { target: { value: KEY } });
-    fireEvent.change(within(sheet).getByTestId("service-plan"), { target: { value: "Go Plus" } });
+    pick(within(sheet).getByTestId("service-plan"), "Go Plus");
     expect(add.disabled).toBe(false);
     fireEvent.click(add);
 

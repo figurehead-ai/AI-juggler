@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, projectLens } from "./fixtures";
+import { allStatuses, goTo, pick, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/76-project-manage");
 const T0 = 1_728_800_000_000;
@@ -149,8 +149,8 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme);
     await goTo(page, "Settings");
     const card = page.getByTestId("settings-editor");
-    await expect(card.getByRole("combobox", { name: "Open projects in" })).toHaveValue("");
-    await card.getByRole("combobox", { name: "Open projects in" }).selectOption("Zed");
+    await expect(card.getByTestId("settings-editor-choice")).toHaveAttribute("data-value", "");
+    await pick(page, card.getByTestId("settings-editor-choice"), "Zed");
     await card.scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `settings-editor-1280x800-${theme}.png`) });

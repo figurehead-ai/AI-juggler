@@ -9,6 +9,7 @@ import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText, launchRecipesList, type LaunchRecipeInfo } from "../../lib/bridge";
 import { tasksStart, type TaskStartedInfo } from "../../lib/ipc/tasks";
+import { Picker } from "../../components/controls";
 
 export function StartSession({
   taskId,
@@ -74,24 +75,22 @@ export function StartSession({
         start();
       }}
     >
-      <label htmlFor={`${id}-profile`} className="text-meta text-muted">
+      <span aria-hidden="true" className="text-meta text-muted">
         On
-      </label>
-      <select
+      </span>
+      <Picker
         id={`${id}-profile`}
-        value={chosen}
+        ariaLabel="On"
+        heading="Launch settings"
+        size="sm"
+        value={chosen || null}
+        placeholder={profiles === null ? "Loading…" : "Pick launch settings"}
         disabled={profiles === null || busy}
-        onChange={(event) => setChosen(event.target.value)}
-        className="h-8 min-w-0 max-w-[280px] flex-1 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
-        data-testid="task-start-profile"
-      >
-        <option value="">{profiles === null ? "Loading…" : "Pick launch settings"}</option>
-        {(profiles ?? []).map((profile) => (
-          <option key={profile.id} value={profile.id}>
-            {profile.name} · {profile.account_label}
-          </option>
-        ))}
-      </select>
+        onChange={(next) => setChosen(next)}
+        options={(profiles ?? []).map((profile) => ({ value: profile.id, label: `${profile.name} · ${profile.account_label}` }))}
+        className="max-w-[280px] flex-1"
+        testId="task-start-profile"
+      />
       <Button type="submit" size="sm" variant="primary" disabled={!chosen || busy} data-testid="task-start-go">
         {busy ? "Starting…" : "Start session"}
       </Button>

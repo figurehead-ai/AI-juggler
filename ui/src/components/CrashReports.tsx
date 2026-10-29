@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { crashAnswer, crashInfo, crashSet, errorText, type CrashInfo } from "../lib/bridge";
+import { Picker } from "./controls";
 
 const OPTIONS: { value: "never" | "ask" | "always"; label: string }[] = [
   { value: "never", label: "Never" },
@@ -26,25 +27,19 @@ export function CrashReportsSetting(): JSX.Element | null {
   const locked = info.reason !== null;
   return (
     <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-crash-reports">
-      <label className="flex flex-wrap items-center gap-2 text-label text-ink">
+      <div className="flex flex-wrap items-center gap-2 text-label text-ink">
         <span className="font-medium">Crash reports</span>
-        <select
+        <Picker
+          size="sm"
           value={locked ? "never" : info.setting}
           disabled={locked}
-          onChange={(event) =>
-            void crashSet(event.target.value as "never" | "ask" | "always").then(setInfo, (cause) => setError(errorText(cause)))
-          }
-          className="rounded-md border border-hairline bg-surface px-1.5 py-0.5 text-label text-ink"
-          aria-label="Crash reports"
-          data-testid="crash-setting"
-        >
-          {OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+          reason={info.reason ?? undefined}
+          onChange={(value) => void crashSet(value as "never" | "ask" | "always").then(setInfo, (cause) => setError(errorText(cause)))}
+          ariaLabel="Crash reports"
+          testId="crash-setting"
+          options={OPTIONS}
+        />
+      </div>
       <p className="text-label text-muted">
         {info.reason
           ? `${info.reason}.`

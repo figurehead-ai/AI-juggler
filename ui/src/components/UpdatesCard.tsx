@@ -32,6 +32,7 @@ import {
   type UpdateChannel,
   type UpdateStatusInfo,
 } from "../lib/bridge";
+import { Checkbox, Radio } from "./controls";
 
 /** D-20: the channels AI Juggler chooses between; each says what it
  * means for you. Nightly builds are their own app, AI Juggler Nightly
@@ -259,8 +260,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
               <legend className="mb-1 text-label font-medium text-ink">Update channel</legend>
               {CHANNELS.filter((option) => status.channels.includes(option.id)).map((option) => (
                 <label key={option.id} className="flex items-start gap-2 text-label">
-                  <input
-                    type="radio"
+                  <Radio
                     name="update-channel"
                     value={option.id}
                     checked={status.channel === option.id}
@@ -283,8 +283,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
             </fieldset>
           )}
           <label className="flex items-center gap-2 text-label text-ink">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={status.check_on_launch}
               onChange={(event) => void run(() => updateSetCheckOnLaunch(event.target.checked))}
               data-testid="update-check-on-launch"

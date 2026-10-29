@@ -3,6 +3,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { DENSITY_EVENT, readDensity, storeDensity, type Density } from "../lib/density";
+import { Radio } from "./controls";
 
 /** D-25: the session list's density, moved here from the header. */
 export function DensityChoice(): JSX.Element {
@@ -29,8 +30,7 @@ export function DensityChoice(): JSX.Element {
               (density === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
             }
           >
-            <input
-              type="radio"
+            <Radio
               name="density"
               checked={density === option.id}
               onChange={() => {

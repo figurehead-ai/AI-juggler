@@ -28,6 +28,7 @@ import {
   type UsageStatsOverview,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { Checkbox } from "./controls";
 
 const CATEGORY_LABEL: Record<string, string> = {
   environment: "Your setup",
@@ -156,8 +157,7 @@ export function PrivacyCard(): JSX.Element {
       {info.included && overview.sync.offered && (
         <div className="flex flex-col gap-1 rounded-lg border border-hairline px-3 py-2" data-testid="privacy-sync">
           <label className="flex items-start gap-2 text-label text-ink">
-            <input
-              type="checkbox"
+            <Checkbox
               className="mt-0.5"
               checked={overview.sync.on}
               onChange={(event) => void setSync(event.target.checked)}

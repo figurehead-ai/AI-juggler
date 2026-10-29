@@ -32,6 +32,7 @@ import { AgentAccessCard } from "../screens/settings/AgentAccessPane";
 import { PoolCardRows } from "./PoolCards";
 import { PoolSheet } from "./PoolSheet";
 import { InstanceBoard } from "./WorkflowRail";
+import { pick } from "../test/pick";
 
 type Seams = { __AIJ_POOLS__?: unknown; __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_ACTIVITY__?: unknown };
 const seams = () => window as unknown as Seams;
@@ -163,7 +164,7 @@ describe("instant and paged (I6)", () => {
     const pools = await loaded();
     const { findAllByTestId, getAllByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
     expect(await findAllByTestId("pool-member")).toHaveLength(2);
-    expect((getAllByTestId("pool-member-role")[0] as HTMLSelectElement).value).toBe("lead");
+    expect(getAllByTestId("pool-member-role")[0]!.getAttribute("data-value")).toBe("lead");
   });
 
   it("reads one session's place alone, and the rail's lookups see it", async () => {
@@ -275,7 +276,7 @@ describe("agent access", () => {
     };
     const pool = (await loaded()).pools[0]!;
     const { getByTestId } = render(<PoolAccessPanel pool={pool} />);
-    fireEvent.change(getByTestId("pool-hop-limit"), { target: { value: "3" } });
+    pick(getByTestId("pool-hop-limit"), "3");
     await waitFor(() => expect(calls()).toContain("delivery:pool-team:3:false"));
     expect(getByTestId("pool-rule").textContent).toContain("Give a task to someone else");
     fireEvent.click(getByTestId("pool-rule-revoke"));

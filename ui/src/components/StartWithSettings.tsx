@@ -10,6 +10,7 @@ import { errorText, type AccountInfo } from "../lib/bridge";
 import { accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { SwitchSetupList } from "./SwitchSetupList";
+import { Checkbox, Picker } from "./controls";
 
 /** What to copy, once the account is made; `null` for nothing. While
  * what the account offers is still being read, `pending`: the step waits
@@ -93,8 +94,7 @@ export function StartWithSettings({
     <div className="flex max-w-xl flex-col gap-2 text-sm" data-testid="start-with-settings">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={on}
             onChange={(event) => setOn(event.target.checked)}
             aria-label={`Start with the same settings as ${name}`}
@@ -102,18 +102,13 @@ export function StartWithSettings({
           <span>Start with the same settings as</span>
         </label>
         {sources.length > 1 ? (
-          <select
+          <Picker
+            size="sm"
             value={source}
-            onChange={(event) => setChosen(event.target.value)}
-            aria-label="Account to copy the settings from"
-            className="rounded-lg border border-hairline bg-surface px-2 py-1 text-sm text-ink"
-          >
-            {sources.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.label}
-              </option>
-            ))}
-          </select>
+            onChange={setChosen}
+            ariaLabel="Account to copy the settings from"
+            options={sources.map((account) => ({ value: account.id, label: account.label }))}
+          />
         ) : (
           <span className="font-medium text-ink">{name}</span>
         )}

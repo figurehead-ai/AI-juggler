@@ -13,6 +13,7 @@ import {
   type IsolationDecision,
   type IsolationOfferRequest,
 } from "../lib/bridge";
+import { Radio } from "./controls";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -98,8 +99,8 @@ export function IsolationOfferDialog(): JSX.Element | null {
               (offer.available ? "" : " opacity-70")
             }
           >
-            <input
-              type="radio"
+            <Radio
+             
               name="isolation"
               checked={choice === "worktree"}
               disabled={!offer.available}
@@ -135,8 +136,8 @@ export function IsolationOfferDialog(): JSX.Element | null {
               (choice === "shared" ? "border-accent/60 bg-accent-soft" : "border-hairline")
             }
           >
-            <input
-              type="radio"
+            <Radio
+             
               name="isolation"
               checked={choice === "shared"}
               onChange={() => setChoice("shared")}

@@ -157,7 +157,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("tab", { name: "Agent access" }).click();
     await expect(page.getByTestId("pool-rule")).toContainText("Give a task to someone else");
     await page.getByTestId("pool-delivery").locator("summary").click();
-    await expect(page.getByTestId("pool-hop-limit")).toHaveValue("5");
+    await expect(page.getByTestId("pool-hop-limit")).toHaveAttribute("data-value", "5");
     await expect(page.getByText("Message and task content will travel to your other Macs.")).toBeVisible();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `pool-access-1280x800-${theme}.png`) });

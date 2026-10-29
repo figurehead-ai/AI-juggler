@@ -8,6 +8,7 @@ import { Button } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
 import { accountRemove, accountRename, accountSetDefault, errorText, type AccountInfo, type InstanceInfo } from "../lib/bridge";
 import type { ActionHost } from "../lib/actions";
+import { Radio } from "../components/controls";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -139,8 +140,7 @@ export function RemoveAccountModal({
                     (folder === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
                   }
                 >
-                  <input
-                    type="radio"
+                  <Radio
                     name={`remove-folder-${account.id}`}
                     checked={folder === option.id}
                     onChange={() => setFolder(option.id)}

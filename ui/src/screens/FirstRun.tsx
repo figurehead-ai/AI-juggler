@@ -65,6 +65,7 @@ import {
   type ScanReportData,
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
+import { Checkbox, Radio } from "../components/controls";
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -436,13 +437,12 @@ function FoundStep({
                       }
                       data-testid="first-run-row"
                     >
-                      <input
+                      <Checkbox
                         id={id}
-                        type="checkbox"
                         checked={!!picked[found.path]}
                         disabled={found.managed || busy}
                         onChange={(event) => setPicked((current) => ({ ...current, [found.path]: event.target.checked }))}
-                        className="size-4 shrink-0 accent-[var(--color-accent)]"
+                        className="shrink-0"
                       />
                       <span
                         aria-hidden="true"
@@ -495,8 +495,7 @@ function FoundStep({
               }
               data-testid={`first-run-placement-${option.id}`}
             >
-              <input
-                type="radio"
+              <Radio
                 name="first-run-placement"
                 value={option.id}
                 aria-labelledby={`first-run-placement-${option.id}-title`}
@@ -504,7 +503,7 @@ function FoundStep({
                 checked={placement === option.id}
                 disabled={busy}
                 onChange={() => setPlacement(option.id)}
-                className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+                className="mt-0.5 shrink-0"
               />
               <span className="flex flex-col gap-0.5">
                 <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">

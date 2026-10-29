@@ -23,7 +23,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { openFilters, projectLens } from "./fixtures";
+import { openFilters, pick, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/95-tasks");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -246,7 +246,7 @@ for (const theme of ["dark", "light"] as const) {
     await poolTasks(page);
     await page.getByTestId("task-start-open").click();
     await expect(page.getByTestId("task-start")).toBeVisible();
-    await page.getByTestId("task-start-profile").selectOption({ label: "Deep work · Work Max" });
+    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Work Max");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `task-start-1680x1050-${theme}.png`) });
     await axe(page, `task start ${theme}`);
@@ -313,7 +313,7 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   await expect(page.getByTestId("task-needs").getByTestId("ask-card")).toHaveCount(0);
   const start = page.getByTestId("task-needs").getByTestId("task-start-go");
   await expect(start).toBeDisabled();
-  await page.getByTestId("task-needs").getByTestId("task-start-profile").selectOption({ label: "Weekend build · Personal" });
+  await pick(page, page.getByTestId("task-needs").getByTestId("task-start-profile"), "Weekend build · Personal");
   await start.focus();
   await page.keyboard.press("Enter");
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);

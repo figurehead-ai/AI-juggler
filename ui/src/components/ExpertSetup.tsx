@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "./primitives";
+import { Picker } from "./controls";
 import { EnvOverlayEditor } from "./EnvOverlayEditor";
 import {
   errorText,
@@ -151,21 +152,17 @@ export function ExpertSetup({
             </p>
           )}
           {accounts.length > 1 && (
-            <label className="flex items-center gap-2 text-muted">
-              Account
-              <select
+            <div className="flex items-center gap-2 text-muted">
+              <span aria-hidden="true">Account</span>
+              <Picker
+                ariaLabel="Account"
+                size="sm"
                 value={accountId ?? ""}
-                onChange={(event) => setAccountId(event.target.value)}
-                className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
-                data-testid="expert-account"
-              >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(next) => setAccountId(next)}
+                options={accounts.map((account) => ({ value: account.id, label: account.label }))}
+                testId="expert-account"
+              />
+            </div>
           )}
           {info === null && error === null && <p className="text-muted">Loading…</p>}
           {info !== null && (
@@ -237,20 +234,16 @@ export function ExpertSetup({
                 {accountId !== null && recipe !== null ? (
                   <>
                     {recipes.length > 1 && (
-                      <label className="flex items-center gap-2 text-muted">
-                        Launch settings
-                        <select
+                      <div className="flex items-center gap-2 text-muted">
+                        <span aria-hidden="true">Launch settings</span>
+                        <Picker
+                          ariaLabel="Launch settings"
+                          size="sm"
                           value={recipe.id}
-                          onChange={(event) => setRecipeId(event.target.value)}
-                          className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
-                        >
-                          {recipes.map((entry) => (
-                            <option key={entry.id} value={entry.id}>
-                              {launchSettingsName(entry.name)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          onChange={(next) => setRecipeId(next)}
+                          options={recipes.map((entry) => ({ value: entry.id, label: launchSettingsName(entry.name) }))}
+                        />
+                      </div>
                     )}
                     <p className="leading-relaxed text-muted">
                       Extra variables set when{" "}

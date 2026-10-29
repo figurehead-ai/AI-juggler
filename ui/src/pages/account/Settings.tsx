@@ -9,6 +9,7 @@ import { IconSettings } from "../../components/usage/controls";
 import { Button, Chip, formatCountdown } from "../../components/primitives";
 import { accountSetFee, type AccountInfo } from "../../lib/bridge";
 import { renewalLabel } from "../../lib/renewal";
+import { Checkbox } from "../../components/controls";
 
 export function AccountSettingsSection({ account, now, resetsAtMs }: { account: AccountInfo; now: number; resetsAtMs: number | null }) {
   const label = renewalLabel(account.renewal_date, now);
@@ -54,8 +55,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs }: { account: 
             <dt className="text-meta font-semibold text-ink">Desktop sessions</dt>
             <dd className="text-meta">
               <label data-testid="account-preview-toggle" className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
+                <Checkbox
                   aria-label="Live preview of desktop sessions (opt-in)"
                   checked={account.preview_opt_in}
                   onChange={(event) => {
@@ -223,8 +223,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
   return (
     <span className="flex flex-col gap-1" data-testid="account-tier-toggles">
       <label data-testid="account-cleanup-toggle" className="flex items-center gap-1.5">
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label="Automatically tidy left-behind dev servers"
           checked={tiers.tier1}
           disabled={!loaded}
@@ -233,8 +232,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
         <span className="text-muted">Automatically tidy left-behind dev servers</span>
       </label>
       <label data-testid="account-tier2-toggle" className="flex items-center gap-1.5">
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label="Also tidy after a crash (with notification)"
           checked={tiers.tier2}
           disabled={!loaded}

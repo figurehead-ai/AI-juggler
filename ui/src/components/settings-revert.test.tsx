@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { saveOptimistic } from "../lib/optimistic";
 
@@ -45,11 +45,12 @@ describe("a failed settings save", () => {
     failing.prefs = true;
     const { NotificationSettingsCard } = await import("./NotificationSettings");
     const view = render(<NotificationSettingsCard accounts={[]} />);
-    const start = (await view.findByTestId("quiet-start")) as HTMLSelectElement;
-    expect(start.value).toBe("22");
-    fireEvent.change(start, { target: { value: "20" } });
+    const start = await view.findByTestId("quiet-start");
+    expect(start.getAttribute("data-value")).toBe("22");
+    fireEvent.click(start);
+    fireEvent.click(screen.getByTestId("quiet-start-20"));
     await waitFor(() => expect(view.getByRole("alert").textContent).toContain("The setting is back to what it was"));
-    expect((view.getByTestId("quiet-start") as HTMLSelectElement).value).toBe("22");
+    expect(view.getByTestId("quiet-start").getAttribute("data-value")).toBe("22");
   });
 
   it("puts a notification switch back and says why", async () => {

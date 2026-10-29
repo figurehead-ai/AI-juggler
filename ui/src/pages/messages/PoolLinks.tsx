@@ -8,6 +8,7 @@ import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
 import { messagesLink, messagesLinks } from "../../lib/ipc/messages";
 import { usePools } from "../../lib/pools";
+import { Picker } from "../../components/controls";
 
 export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
   const pools = usePools();
@@ -49,19 +50,14 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
       )}
       {others.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            aria-label="A pool to link"
-            value={adding}
-            onChange={(event) => setAdding(event.target.value)}
-            className="h-8 rounded-lg border border-hairline bg-surface-2 px-2 text-meta text-ink outline-none focus:border-accent/60"
-          >
-            <option value="">Link with another pool…</option>
-            {others.map((pool) => (
-              <option key={pool.id} value={pool.id}>
-                {pool.name}
-              </option>
-            ))}
-          </select>
+          <Picker
+            ariaLabel="A pool to link"
+            size="sm"
+            value={adding || null}
+            placeholder="Link with another pool…"
+            onChange={(next) => setAdding(next)}
+            options={others.map((pool) => ({ value: pool.id, label: pool.name }))}
+          />
           <Button size="sm" variant="secondary" disabled={!adding} onClick={() => change(adding, true)} data-testid="pool-link-add">
             Link
           </Button>

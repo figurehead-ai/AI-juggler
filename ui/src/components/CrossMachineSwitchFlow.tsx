@@ -11,7 +11,7 @@
  * the final Switch now; the push shows progress and Stop sending stops it.
  *
  * It shares this Mac's switch dialog's frame (switch/SwitchDialogFrame):
- * the step marks and × in a header, a body that scrolls, Cancel (Esc) ·
+ * the step marks and × in a header, a body that scrolls, Cancel ·
  * Back · the primary in a footer, on every step; Retry on a failure; Esc
  * waits while the push runs (§4.9), saying so.
  */
