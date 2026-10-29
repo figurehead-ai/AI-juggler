@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorWords, ageWords, cpuWords, outcomeWords, portWords, processState, roleWords, STATE_FILTERS, ZOMBIE_WORDS } from "./process-states";
+import { actorWords, ageWords, checkedWords, cpuWords, outcomeWords, portWords, processState, proofWords, roleWords, STATE_FILTERS, ZOMBIE_WORDS } from "./process-states";
 import { treeKey, windowRows, type TreeRowLike } from "./tree-grid";
 
 describe("the Processes view's words", () => {
@@ -39,8 +39,25 @@ describe("the Processes view's words", () => {
     expect(outcomeWords("pid 1: needed KILL")).toBe("Needed a force stop");
     expect(outcomeWords("pid 1: refused")).toBe("Didn't stop");
     expect(outcomeWords("pid 1: couldn't signal")).toBe("Couldn't be stopped from here; it may still be running");
+    // A wider stop's members it never signalled (ADR-0010).
+    expect(outcomeWords("pid 1: left alone: not started by AI Juggler")).toBe("Left running: AI Juggler didn't start it");
+    expect(outcomeWords("pid 1: left alone: couldn't confirm it")).toBe("Left running: not confirmed as the same process");
+    // A history row says how the stop went, not how a left-alone member did.
+    expect(outcomeWords("pid 1: exited on TERM; pid 2: left alone: couldn't confirm it")).toBe("Stopped when asked");
     expect(actorWords("user:observed")).toBe("You (another app's session)");
     expect(actorWords("auto:tier-1")).toMatch(/^Automatic/);
+  });
+});
+
+describe("the stop's proof line", () => {
+  it("says what was checked, that the session ended, and what stopping frees", () => {
+    expect(proofWords({ observed: false, sessionEnded: true, ports: [5173] })).toBe(
+      "Checked: the process AI Juggler started (same start time and program) · its session has ended · stopping frees :5173",
+    );
+    expect(proofWords({ observed: true, sessionEnded: true, ports: [] })).toBe(
+      "Checked: the process AI Juggler saw in this session (same start time, program and boot) · its session has ended",
+    );
+    expect(proofWords({ observed: false, sessionEnded: false, ports: [] })).toBe(checkedWords(false));
   });
 });
 

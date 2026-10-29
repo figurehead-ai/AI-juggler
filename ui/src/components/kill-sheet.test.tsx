@@ -97,7 +97,11 @@ describe("KillSheet (AJ-E507)", () => {
     expect(text).toContain("node /srv/web/node_modules/.bin/vite dev");
     expect(text).toContain("/srv/web");
     expect(text).toContain(":5173");
-    expect(text).toContain("free :5173");
+    // One plain proof line; the facts behind "Details".
+    expect(view.getByTestId("kill-proof-8123").textContent).toBe(
+      "Checked: the process AI Juggler started (same start time and program) · stopping frees :5173",
+    );
+    expect(view.getByTestId("kill-details-8123").textContent ?? "").toContain("folder");
     expect(view.getByTestId("kill-member-8124").textContent ?? "").toContain("probably an MCP server");
     expect(view.getByTestId("kill-unsaved-8124").textContent).toBe(
       "Includes an MCP server that may hold unsaved state.",
@@ -112,8 +116,9 @@ describe("KillSheet (AJ-E507)", () => {
     ).toBe(true);
     // Consequence-named button (Req.1's exact example shape).
     expect(view.getByTestId("kill-confirm-8123").textContent).toBe(
-      "Terminate vite (PID 8123) and free :5173",
+      "Stop vite (PID 8123) and free :5173",
     );
+    expect(view.getByRole("dialog").getAttribute("aria-label")).toBe("Stop vite?");
     view.unmount();
   });
 
@@ -178,12 +183,12 @@ describe("KillSheet (AJ-E507)", () => {
     // The countdown announces politely at 1 s intervals; ticks poll.
     expect(view.getByTestId("kill-countdown-8123").textContent ?? "").toContain("5 s");
     expect(view.getByTestId("kill-tick-8123").textContent ?? "").toContain("running");
-    fireEvent.click(view.getByRole("button", { name: /Cancel — stop the escalation/ }));
+    fireEvent.click(view.getByRole("button", { name: /Cancel: don't force it/ }));
     expect(b.cancel).toHaveBeenCalledWith(expect.stringMatching(/^kill-8123-/));
     release(executeData({ cancelled: true, members: [{ pid: 8123, outcome: "TERM'd — outcome unknown" }] }));
     await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
     expect(view.getByTestId("kill-report-8123").textContent ?? "").toContain(
-      "Cancelled during grace",
+      "Cancelled: it was asked to stop",
     );
     view.unmount();
   });
@@ -210,14 +215,14 @@ describe("KillSheet (AJ-E507)", () => {
     fireEvent.click(view.getByTestId("kill-confirm-8123"));
     await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
     const report = view.getByTestId("kill-report-8123").textContent ?? "";
-    expect(report).toContain("PID 8100 — already gone");
-    expect(report).toContain("PID 8123 — needed KILL");
-    expect(report).toContain("Still holding");
+    expect(report).toContain("PID 8100 — Had already ended");
+    expect(report).toContain("PID 8123 — Needed a force stop");
+    expect(report).toContain("Still in use");
     expect(report).toContain(":5173 by node (PID 9100)");
     // Success is NOT claimed for a still-held port.
     expect(view.queryByTestId("kill-success-8123")).toBeNull();
     expect(view.getByTestId("kill-reoffer-8123").textContent ?? "").toContain(
-      "Re-verify PID 9100",
+      "Check PID 9100",
     );
     view.unmount();
   });
@@ -267,6 +272,111 @@ describe("KillSheet (AJ-E507)", () => {
     expect(document.activeElement).toBe(trigger);
     view.unmount();
     trigger.remove();
+  });
+
+  it("an unsaved-state warning shows for the process itself, alone in its group", async () => {
+    const b = bridge({
+      verify: () =>
+        Promise.resolve(
+          verifyData({
+            members: [
+              {
+                pid: 8123,
+                pgid: 8123,
+                exe: "postgres",
+                cmdline: "postgres -D data",
+                role_guess: "database",
+                unsaved_state_warning: "Includes a database that may hold unsaved state.",
+                from_ledger: true,
+              },
+            ],
+          }),
+        ),
+    });
+    const view = render(
+      <KillSheet session="sess-kill" pid={8123} bridge={b} observed sessionEnded onClose={() => {}} />,
+    );
+    await waitFor(() => expect(view.getByTestId("kill-ready-8123")).toBeTruthy());
+    expect(view.getByTestId("kill-unsaved-8123").textContent).toBe(
+      "Includes a database that may hold unsaved state.",
+    );
+    // No group list for a process alone in its group.
+    expect(view.queryByTestId("kill-members-8123")).toBeNull();
+    expect(view.getByTestId("kill-proof-8123").textContent).toBe(
+      "Checked: the process AI Juggler saw in this session (same start time, program and boot) · its session has ended · stopping frees :5173",
+    );
+    view.unmount();
+  });
+
+  it("a group member AI Juggler didn't start is named as left running and never ticked", async () => {
+    const b = bridge({
+      verify: () =>
+        Promise.resolve(
+          verifyData({
+            members: [
+              { pid: 8123, pgid: 8100, exe: "node", cmdline: "node vite dev", role_guess: "dev server", unsaved_state_warning: null, from_ledger: true },
+              { pid: 8125, pgid: 8100, exe: "zsh", cmdline: "zsh", role_guess: "terminal shell", unsaved_state_warning: "Includes a terminal shell that may hold unsaved state.", from_ledger: false },
+            ],
+          }),
+        ),
+      execute: () => new Promise<KillExecuteData>(() => {}),
+      liveness: vi.fn((pids: number[]) => Promise.resolve(pids.map(() => true))),
+    });
+    const view = render(<KillSheet session="sess-kill" pid={8123} bridge={b} onClose={() => {}} />);
+    await waitFor(() => expect(view.getByTestId("kill-member-8125")).toBeTruthy());
+    expect(view.getByTestId("kill-member-8125").textContent ?? "").toContain("not started by AI Juggler: left running");
+    // Its warning is moot: it won't be stopped.
+    expect(view.queryByTestId("kill-unsaved-8125")).toBeNull();
+    fireEvent.click(view.getByTestId("kill-scope-pgid-8123"));
+    fireEvent.click(view.getByTestId("kill-confirm-8123"));
+    await waitFor(() => expect(view.getByTestId("kill-tick-8123")).toBeTruthy());
+    expect(view.queryByTestId("kill-tick-8125")).toBeNull();
+    view.unmount();
+  });
+
+  it("the report says what a wider stop left alone and links to Cleanup history", async () => {
+    const showHistory = vi.fn();
+    const b = bridge({
+      execute: () =>
+        Promise.resolve(
+          executeData({
+            members: [
+              { pid: 8123, outcome: "exited on TERM" },
+              { pid: 8130, outcome: "already gone" },
+              { pid: 8131, outcome: "left alone: not started by AI Juggler" },
+            ],
+          }),
+        ),
+    });
+    const view = render(<KillSheet session="sess-kill" pid={8123} bridge={b} onShowHistory={showHistory} onClose={() => {}} />);
+    await waitFor(() => expect(view.getByTestId("kill-confirm-8123")).toBeTruthy());
+    fireEvent.click(view.getByTestId("kill-scope-tree-8123"));
+    fireEvent.click(view.getByTestId("kill-confirm-8123"));
+    await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
+    expect(view.getByRole("dialog").getAttribute("aria-label")).toBe("Stopped");
+    expect(view.getByTestId("kill-outcome-8123").textContent).toBe("PID 8123 — Stopped when asked");
+    expect(view.getByTestId("kill-outcome-8131").textContent).toBe("PID 8131 — Left running: AI Juggler didn't start it");
+    expect(view.getByTestId("kill-left-alone").textContent).toBe(
+      "1 process had already ended. 1 process left running: not confirmed as one AI Juggler started.",
+    );
+    // No developer words in the report.
+    expect(view.getByTestId("kill-report-8123").textContent ?? "").not.toMatch(/SIGKILL|TERM|KILL|Terminat/);
+    fireEvent.click(view.getByTestId("kill-history-link-8123"));
+    expect(showHistory).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
+  it("a refused stop saves nothing, so it names no history", async () => {
+    const b = bridge({
+      execute: () => Promise.resolve(executeData({ refusal: "This process has already ended — there's nothing to stop.", members: [{ pid: 8123, outcome: "refused" }], all_succeeded: false })),
+    });
+    const view = render(<KillSheet session="sess-kill" pid={8123} bridge={b} onShowHistory={() => {}} onClose={() => {}} />);
+    await waitFor(() => expect(view.getByTestId("kill-confirm-8123")).toBeTruthy());
+    fireEvent.click(view.getByTestId("kill-confirm-8123"));
+    await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
+    expect(view.getByRole("dialog").getAttribute("aria-label")).toBe("Not stopped");
+    expect(view.queryByTestId("kill-history-8123")).toBeNull();
+    view.unmount();
   });
 
   it("derives the display name for the consequence-named button", () => {

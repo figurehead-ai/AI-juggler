@@ -131,5 +131,25 @@ export function outcomeWords(outcome: string): string {
   if (said.includes("already gone")) return "Had already ended";
   if (said.includes("outcome unknown")) return "Asked to stop; not known how it ended";
   if (said.includes("couldn't signal")) return "Couldn't be stopped from here; it may still be running";
+  // Never signalled (ADR-0010): a wider stop leaves these running.
+  if (said.includes("not started by AI Juggler")) return "Left running: AI Juggler didn't start it";
+  if (said.includes("couldn't confirm it")) return "Left running: not confirmed as the same process";
   return said;
+}
+
+/** What a stop checked, in one line (the stop sheet's proof and each line
+ * of "Clean up what this session left"). */
+export function checkedWords(observed: boolean): string {
+  return observed
+    ? "Checked: the process AI Juggler saw in this session (same start time, program and boot)"
+    : "Checked: the process AI Juggler started (same start time and program)";
+}
+
+/** The stop sheet's one proof line: what was checked, that its session
+ * ended, and what stopping frees ("Checked: … · its session has ended ·
+ * stopping frees :5173"). */
+export function proofWords({ observed, sessionEnded, ports }: { observed: boolean; sessionEnded: boolean; ports: readonly number[] }): string {
+  return [checkedWords(observed), sessionEnded ? "its session has ended" : null, ports.length > 0 ? `stopping frees ${portWords(ports)}` : null]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
 }
