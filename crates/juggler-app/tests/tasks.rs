@@ -39,7 +39,8 @@ use juggler_agentbridge::wire::{
     TasksListArgs,
 };
 use juggler_app::features::pools;
-use juggler_app::features::tasks::{apply, issues, launch, needs, views};
+use juggler_app::features::tasks::dto::TasksFilterInput;
+use juggler_app::features::tasks::{across, apply, issues, launch, needs, views};
 use juggler_app::paging::PageRequest;
 use juggler_core::model::SessionId;
 use lab::{Lab, field, planner, seed_task};
@@ -583,6 +584,88 @@ fn the_lead_plans_an_epic_with_stories_and_the_user_sees_the_tree() {
     assert_eq!((detail.task.items, detail.task.items_done), (3, 0));
     let under = views::children(&lab.state, &lab.pool, &stories[0], &first_page()).unwrap();
     assert_eq!(under.items.len(), 1);
+}
+
+#[test]
+fn the_tasks_screen_reads_every_pool_by_filter() {
+    let lab = Lab::new();
+    let epic = item(&lab, "Checkout v2", "epic", None);
+    let story = item(&lab, "Totals", "story", Some(&epic));
+    let round = item(&lab, "Round tax per line", "task", Some(&story));
+    let docs = pools::pool_create_impl(&lab.state, "Docs", None)
+        .unwrap()
+        .pools
+        .into_iter()
+        .find(|pool| pool.name == "Docs")
+        .unwrap()
+        .id;
+    let shots = seed_task(
+        &lab.state,
+        &docs,
+        TaskCreateArgs {
+            title: "Screenshots for step 3".into(),
+            ..TaskCreateArgs::default()
+        },
+    );
+    let every = TasksFilterInput::default();
+    let page = across::across(&lab.state, &every, &first_page()).unwrap();
+    let ids: Vec<&str> = page.items.iter().map(|row| row.task.id.as_str()).collect();
+    assert_eq!(ids.len(), 2, "the work of both pools, no epic or story");
+    assert!(ids.contains(&round.as_str()) && ids.contains(&shots.as_str()));
+    let row = page.items.iter().find(|row| row.task.id == round).unwrap();
+    assert_eq!(row.path, ["Checkout v2", "Totals"], "its epic and story");
+    assert_eq!(row.pool_name, "Team");
+    let one = TasksFilterInput {
+        pool_id: Some(docs.clone()),
+        ..TasksFilterInput::default()
+    };
+    let page = across::across(&lab.state, &one, &first_page()).unwrap();
+    assert_eq!(page.items.len(), 1, "one pool");
+    assert_eq!(page.items[0].pool_name, "Docs");
+    let plan = TasksFilterInput {
+        kind: Some("plan".into()),
+        ..TasksFilterInput::default()
+    };
+    assert_eq!(
+        across::across(&lab.state, &plan, &first_page())
+            .unwrap()
+            .items
+            .len(),
+        2,
+        "the plan: the epic and its story"
+    );
+    let nobody = TasksFilterInput {
+        holder: Some("nobody".into()),
+        status: Some("ready".into()),
+        ..TasksFilterInput::default()
+    };
+    assert_eq!(
+        across::across(&lab.state, &nobody, &first_page())
+            .unwrap()
+            .items
+            .len(),
+        2
+    );
+    let counts = across::across_counts(&lab.state, &every).unwrap();
+    assert_eq!((counts.ready, counts.in_review), (2, 0));
+    let gone = TasksFilterInput {
+        project_id: Some("no-such-project".into()),
+        ..TasksFilterInput::default()
+    };
+    assert!(
+        across::across(&lab.state, &gone, &first_page())
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    let bad = TasksFilterInput {
+        holder: Some("someone".into()),
+        ..TasksFilterInput::default()
+    };
+    assert!(
+        across::across(&lab.state, &bad, &first_page()).is_err(),
+        "an unknown holder filter is refused"
+    );
 }
 
 #[test]

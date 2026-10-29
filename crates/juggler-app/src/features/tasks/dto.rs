@@ -1,6 +1,6 @@
 //! The tasks' wire types (E19).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// One task, epic or story, as a row.
@@ -64,6 +64,57 @@ pub struct TaskCounts {
     pub done: u32,
     /// Dropped.
     pub cancelled: u32,
+}
+
+/// 0.3: what the Tasks screen asks for, across pools. Each field left
+/// out means "any".
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[serde(default)]
+pub struct TasksFilterInput {
+    /// `open` (the default), `closed`, or one status (`ready`, …).
+    #[ts(optional)]
+    pub status: Option<String>,
+    /// `task` (the work, the default) or `plan` (epics and stories).
+    #[ts(optional)]
+    pub kind: Option<String>,
+    /// One project's pools.
+    #[ts(optional)]
+    pub project_id: Option<String>,
+    /// One pool.
+    #[ts(optional)]
+    pub pool_id: Option<String>,
+    /// `anyone` (the default), `you`, or `nobody` (no one has it yet).
+    #[ts(optional)]
+    pub holder: Option<String>,
+    /// Words in its title.
+    #[ts(optional)]
+    pub words: Option<String>,
+}
+
+/// 0.3: a task on the Tasks screen: the row, and where it is (its pool,
+/// that pool's project, its epic and story).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TaskBoardRow {
+    /// The task.
+    pub task: TaskInfo,
+    /// Its pool's name on screen.
+    pub pool_name: String,
+    /// That pool's project, when it has one.
+    pub project_id: Option<String>,
+    /// Its epic and story titles, outermost first.
+    pub path: Vec<String>,
+}
+
+/// 0.3: one project's tasks by status (the Projects screen's row).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProjectTaskCounts {
+    /// The project.
+    pub project_id: String,
+    /// Its pools' tasks (the work) by status.
+    pub counts: TaskCounts,
 }
 
 /// One link, from the task's side.

@@ -314,6 +314,9 @@ read_routes! {
     // E19: tasks' lists (reads only).
     "tasks_list" => async_result features::tasks::commands::tasks_list(state; pool_id: String, filter: Option<String>, words: Option<String>, page: crate::paging::PageRequest);
     "tasks_counts" => async_result features::tasks::commands::tasks_counts(state; pool_id: String);
+    "tasks_across" => async_result features::tasks::commands::tasks_across(state; filter: features::tasks::dto::TasksFilterInput, page: crate::paging::PageRequest);
+    "tasks_across_counts" => async_result features::tasks::commands::tasks_across_counts(state; filter: features::tasks::dto::TasksFilterInput);
+    "tasks_project_counts" => async_result features::tasks::commands::tasks_project_counts(state; project_ids: Vec<String>);
     "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String, page: crate::paging::PageRequest);
     "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, page: crate::paging::PageRequest);
     "tasks_session" => async_result features::tasks::commands::tasks_session(state; session_id: String, page: crate::paging::PageRequest);

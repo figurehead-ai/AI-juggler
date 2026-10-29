@@ -70,7 +70,7 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
 }
 
 /// A task's place as the IPC's keyset cursor names it (`paging.rs`).
-fn sort_key(task: &Task) -> SortKey {
+pub(crate) fn sort_key(task: &Task) -> SortKey {
     let key = task.key();
     SortKey::new(
         [i64::from(key.rank), i64::from(key.priority), -key.seq],
@@ -79,7 +79,7 @@ fn sort_key(task: &Task) -> SortKey {
 }
 
 /// The task a cursor starts after.
-fn after_of(request: &PageRequest) -> AppResult<Option<TaskKey>> {
+pub(crate) fn after_of(request: &PageRequest) -> AppResult<Option<TaskKey>> {
     Ok(request
         .start_after()?
         .and_then(|key| match key.ranks.as_slice() {
@@ -177,18 +177,22 @@ pub fn counts(state: &Arc<AppState>, pool_id: &str) -> AppResult<TaskCounts> {
         .tasks()
         .counts(pool_id, Some(&[TaskKind::Task]))?
     {
-        let slot = match status {
-            TaskStatus::Ready => &mut out.ready,
-            TaskStatus::InProgress => &mut out.in_progress,
-            TaskStatus::InReview => &mut out.in_review,
-            TaskStatus::Blocked => &mut out.blocked,
-            TaskStatus::Todo => &mut out.todo,
-            TaskStatus::Done => &mut out.done,
-            TaskStatus::Cancelled => &mut out.cancelled,
-        };
-        *slot = count;
+        *slot(&mut out, status) = count;
     }
     Ok(out)
+}
+
+/// The count `status` goes in.
+pub(crate) fn slot(out: &mut TaskCounts, status: TaskStatus) -> &mut u32 {
+    match status {
+        TaskStatus::Ready => &mut out.ready,
+        TaskStatus::InProgress => &mut out.in_progress,
+        TaskStatus::InReview => &mut out.in_review,
+        TaskStatus::Blocked => &mut out.blocked,
+        TaskStatus::Todo => &mut out.todo,
+        TaskStatus::Done => &mut out.done,
+        TaskStatus::Cancelled => &mut out.cancelled,
+    }
 }
 
 /// One page of the pool's plan: its epics and stories (the tree's folds).
